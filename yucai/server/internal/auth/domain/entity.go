@@ -65,6 +65,13 @@ type User struct {
 	DisplayName string
 	AvatarURL   string
 	FamilyRole  FamilyRole
+	// IsAdmin is the global platform-admin flag (distinct from FamilyRole,
+	// which only governs a single tenant). Platform admins may invoke
+	// securities write RPCs (CreateSecurity / UpdateSecurityPrice / SyncPrices /
+	// BackfillPriceHistory) that affect the shared securities catalog across
+	// all tenants. Bootstrap rule: the first-ever JIT-provisioned user is
+	// promoted to admin; subsequent users default to false.
+	IsAdmin    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

@@ -29,10 +29,12 @@ type Claims struct {
 	jwt.RegisteredClaims
 	UserID   string `json:"user_id"`
 	TenantID string `json:"tenant_id"`
+	IsAdmin  bool   `json:"is_admin"`
 }
 
 // GenerateAccessToken creates a signed JWT access token for the given user.
-func (s *TokenService) GenerateAccessToken(userID, tenantID uuid.UUID) (string, error) {
+// isAdmin is the platform-admin flag (authorizes securities write RPCs).
+func (s *TokenService) GenerateAccessToken(userID, tenantID uuid.UUID, isAdmin bool) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -42,13 +44,15 @@ func (s *TokenService) GenerateAccessToken(userID, tenantID uuid.UUID) (string, 
 		},
 		UserID:   userID.String(),
 		TenantID: tenantID.String(),
+		IsAdmin:  isAdmin,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.secretKey))
 }
 
-// ParseAccessToken validates and extracts claims from an access token.
-func (s *TokenService) ParseAccessToken(tokenStr string) (userID, tenantID uuid.UUID, err error) {
+// ParseAccessToken validates and extracts claims from an access token. Returns
+// userID, tenantID, and the platform-admin flag.
+func (s *TokenService) ParseAccessToken(tokenStr string) (userID, tenantID uuid.UUID, isAdmin bool, err error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -56,21 +60,21 @@ func (s *TokenService) ParseAccessToken(tokenStr string) (userID, tenantID uuid.
 		return []byte(s.secretKey), nil
 	})
 	if err != nil {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("parse token: %w", err)
+		return uuid.Nil, uuid.Nil, false, fmt.Errorf("parse token: %w", err)
 	}
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("invalid token claims")
+		return uuid.Nil, uuid.Nil, false, fmt.Errorf("invalid token claims")
 	}
 	userID, err = uuid.Parse(claims.UserID)
 	if err != nil {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("parse user_id: %w", err)
+		return uuid.Nil, uuid.Nil, false, fmt.Errorf("parse user_id: %w", err)
 	}
 	tenantID, err = uuid.Parse(claims.TenantID)
 	if err != nil {
-		return uuid.Nil, uuid.Nil, fmt.Errorf("parse tenant_id: %w", err)
+		return uuid.Nil, uuid.Nil, false, fmt.Errorf("parse tenant_id: %w", err)
 	}
-	return userID, tenantID, nil
+	return userID, tenantID, claims.IsAdmin, nil
 }
 
 // GenerateRefreshToken creates a cryptographically random refresh token.

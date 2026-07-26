@@ -41,6 +41,10 @@ type UserRepository interface {
 	// (wrapping ent's NotFound) when no identity matches.
 	FindByProviderSubject(ctx context.Context, provider, subject string) (*User, error)
 	Update(ctx context.Context, user *User) error
+	// Count returns the total number of User rows across all tenants.
+	// Used during JIT provisioning to identify the system's first-ever user,
+	// who is promoted to platform admin (first-user-is-admin bootstrap rule).
+	Count(ctx context.Context) (int, error)
 }
 
 // IdentityRepository defines the port for UserIdentity persistence.

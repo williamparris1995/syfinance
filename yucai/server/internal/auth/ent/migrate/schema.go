@@ -32,6 +32,7 @@ var (
 		{Name: "display_name", Type: field.TypeString, Comment: "User-visible display name"},
 		{Name: "avatar_url", Type: field.TypeString, Nullable: true, Comment: "URL to user avatar image", Default: ""},
 		{Name: "family_role", Type: field.TypeEnum, Comment: "Role within family tenant", Enums: []string{"owner", "admin", "member"}, Default: "owner"},
+		{Name: "is_admin", Type: field.TypeBool, Comment: "Global platform admin — authorizes securities write RPCs (first-user-is-admin on JIT provisioning)", Default: false},
 		{Name: "created_at", Type: field.TypeTime, Comment: "Record creation time"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "Last update time"},
 	}

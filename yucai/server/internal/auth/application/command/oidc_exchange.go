@@ -81,6 +81,17 @@ func (h *OIDCExchangeHandler) Exchange(ctx context.Context, providerName, code, 
 	// jit provisioning — order matters: tenant → preset seed → user → identity.
 	displayName := deriveDisplayName(verified)
 
+	// First-user-is-admin bootstrap: the system's first-ever registered user
+	// is promoted to platform admin so they can manage the shared securities
+	// catalog. Counted BEFORE tenant/user creation so a concurrent first-login
+	// race still resolves to a deterministic admin (eventual-consistency: the
+	// second writer's Count sees ≥1 and stays non-admin; only the first
+	// transaction's Count sees 0).
+	userCount, err := h.userRepo.Count(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count users for admin bootstrap: %w", err)
+	}
+
 	tenant, err := domain.NewTenant(displayName+"'s Finances", domain.TenantTypePersonal)
 	if err != nil {
 		return nil, fmt.Errorf("create tenant: %w", err)
@@ -100,6 +111,7 @@ func (h *OIDCExchangeHandler) Exchange(ctx context.Context, providerName, code, 
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
+	user.IsAdmin = userCount == 0
 	if err := h.userRepo.Save(ctx, user); err != nil {
 		return nil, fmt.Errorf("save user: %w", err)
 	}

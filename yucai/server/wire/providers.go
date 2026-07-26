@@ -905,10 +905,15 @@ func provideNetWorthHandler(svc *networthapp.Service) *networthgrpc.NetWorthHand
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
 	middleware.TokenService = ts
-	// Logging is OUTERMOST (logs even auth-rejected calls), auth is inner.
+	// Logging is OUTERMOST (logs even auth-rejected calls); auth parses the JWT
+	// and injects user_id/tenant_id/is_admin into context; RequireAdmin reads
+	// is_admin to authorize securities write RPCs (CreateSecurity /
+	// UpdateSecurityPrice / SyncPrices / BackfillPriceHistory). Order matters:
+	// RequireAdmin MUST run after AuthInterceptor so it sees the injected role.
 	srv := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		middleware.UnaryLoggingInterceptor,
 		middleware.AuthInterceptor,
+		middleware.RequireAdmin,
 	))
 	return &GRPCServer{Server: srv}
 }

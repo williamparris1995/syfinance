@@ -30,6 +30,7 @@ func (r *UserRepository) Save(ctx context.Context, u *domain.User) error {
 		SetDisplayName(u.DisplayName).
 		SetAvatarURL(u.AvatarURL).
 		SetFamilyRole(user.FamilyRole(u.FamilyRole.String())).
+		SetIsAdmin(u.IsAdmin).
 		SetCreatedAt(u.CreatedAt).
 		SetUpdatedAt(u.UpdatedAt).
 		Save(ctx)
@@ -67,12 +68,23 @@ func (r *UserRepository) Update(ctx context.Context, u *domain.User) error {
 	_, err := r.client.User.UpdateOneID(u.ID).
 		SetDisplayName(u.DisplayName).
 		SetAvatarURL(u.AvatarURL).
+		SetIsAdmin(u.IsAdmin).
 		SetUpdatedAt(u.UpdatedAt).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("update user: %w", err)
 	}
 	return nil
+}
+
+// Count returns the total number of User rows across all tenants. Used by the
+// JIT provisioning path to detect the first-ever user (promoted to admin).
+func (r *UserRepository) Count(ctx context.Context) (int, error) {
+	n, err := r.client.User.Query().Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count users: %w", err)
+	}
+	return n, nil
 }
 
 func toDomainUser(u *ent.User) *domain.User {
@@ -83,6 +95,7 @@ func toDomainUser(u *ent.User) *domain.User {
 		DisplayName: u.DisplayName,
 		AvatarURL:   u.AvatarURL,
 		FamilyRole:  domain.ParseFamilyRole(string(u.FamilyRole)),
+		IsAdmin:     u.IsAdmin,
 		CreatedAt:   u.CreatedAt,
 		UpdatedAt:   u.UpdatedAt,
 	}

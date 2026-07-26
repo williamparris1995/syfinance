@@ -51,6 +51,9 @@ func (User) Fields() []ent.Field {
 			Values("owner", "admin", "member").
 			Default("owner").
 			Comment("Role within family tenant"),
+		field.Bool("is_admin").
+			Default(false).
+			Comment("Global platform admin — authorizes securities write RPCs (first-user-is-admin on JIT provisioning)"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable().

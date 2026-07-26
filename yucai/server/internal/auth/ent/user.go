@@ -29,6 +29,8 @@ type User struct {
 	AvatarURL string `json:"avatar_url,omitempty"`
 	// Role within family tenant
 	FamilyRole user.FamilyRole `json:"family_role,omitempty"`
+	// Global platform admin — authorizes securities write RPCs (first-user-is-admin on JIT provisioning)
+	IsAdmin bool `json:"is_admin,omitempty"`
 	// Record creation time
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Last update time
@@ -62,6 +64,8 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldIsAdmin:
+			values[i] = new(sql.NullBool)
 		case user.FieldEmail, user.FieldDisplayName, user.FieldAvatarURL, user.FieldFamilyRole:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt:
@@ -118,6 +122,12 @@ func (u *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field family_role", values[i])
 			} else if value.Valid {
 				u.FamilyRole = user.FamilyRole(value.String)
+			}
+		case user.FieldIsAdmin:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_admin", values[i])
+			} else if value.Valid {
+				u.IsAdmin = value.Bool
 			}
 		case user.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -186,6 +196,9 @@ func (u *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("family_role=")
 	builder.WriteString(fmt.Sprintf("%v", u.FamilyRole))
+	builder.WriteString(", ")
+	builder.WriteString("is_admin=")
+	builder.WriteString(fmt.Sprintf("%v", u.IsAdmin))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(u.CreatedAt.Format(time.ANSIC))

@@ -209,6 +209,7 @@ type contextKey string
 const (
 	userIDKey   contextKey = "user_id"
 	tenantIDKey contextKey = "tenant_id"
+	isAdminKey  contextKey = "is_admin"
 )
 
 // WithUserID adds the user ID to the context.
@@ -219,6 +220,13 @@ func WithUserID(ctx context.Context, userID uuid.UUID) context.Context {
 // WithTenantID adds the tenant ID to the context.
 func WithTenantID(ctx context.Context, tenantID uuid.UUID) context.Context {
 	return context.WithValue(ctx, tenantIDKey, tenantID)
+}
+
+// WithAdmin adds the platform-admin flag to the context. Set by the auth
+// middleware after parsing the JWT, so downstream RequireAdmin interceptor /
+// handlers can authorize securities write RPCs without re-parsing the token.
+func WithAdmin(ctx context.Context, isAdmin bool) context.Context {
+	return context.WithValue(ctx, isAdminKey, isAdmin)
 }
 
 func getUserID(ctx context.Context) (uuid.UUID, error) {
@@ -253,4 +261,21 @@ func GetUserAndTenantIDFromContext(ctx context.Context) (uuid.UUID, uuid.UUID, e
 		return uuid.Nil, uuid.Nil, fmt.Errorf("invalid tenant_id in context")
 	}
 	return userID, tenantID, nil
+}
+
+// GetAdminFromContext extracts the platform-admin flag from context (exported
+// for middleware). Returns false when the flag is absent — this only happens
+// for tokens issued before is_admin was added to Claims, where the absence is
+// treated as non-admin (fail-closed). An explicitly stored non-bool value
+// indicates context corruption and is treated as non-admin too.
+func GetAdminFromContext(ctx context.Context) bool {
+	v := ctx.Value(isAdminKey)
+	if v == nil {
+		return false
+	}
+	isAdmin, ok := v.(bool)
+	if !ok {
+		return false
+	}
+	return isAdmin
 }

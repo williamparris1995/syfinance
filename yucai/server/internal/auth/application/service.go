@@ -61,7 +61,7 @@ func NewService(
 
 // issueSession issues an access JWT + opens a refresh-token session for the user.
 func (s *Service) issueSession(ctx context.Context, user *domain.User) (accessToken, refreshToken string, err error) {
-	accessToken, err = s.tokenService.GenerateAccessToken(user.ID, user.TenantID)
+	accessToken, err = s.tokenService.GenerateAccessToken(user.ID, user.TenantID, user.IsAdmin)
 	if err != nil {
 		return "", "", fmt.Errorf("generate access token: %w", err)
 	}
@@ -133,7 +133,16 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 		return nil, fmt.Errorf("parse tenant id from session: %w", err)
 	}
 
-	accessToken, err := s.tokenService.GenerateAccessToken(userID, tenantID)
+	// Look up the user to read IsAdmin for the refreshed access token. Refresh
+	// is infrequent (access TTL is minutes), so the extra DB read is cheap and
+	// avoids stashing role state in the session row. A missing user (deleted
+	// between session issue and refresh) short-circuits to InvalidRefreshToken.
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil || user == nil {
+		return nil, fmt.Errorf("%w: user lookup failed during refresh", command.ErrInvalidRefreshToken)
+	}
+
+	accessToken, err := s.tokenService.GenerateAccessToken(userID, tenantID, user.IsAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("generate access token: %w", err)
 	}

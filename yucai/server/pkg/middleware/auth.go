@@ -47,14 +47,15 @@ func AuthInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, h
 		return nil, status.Error(codes.Internal, "token service not initialized")
 	}
 
-	userID, tenantID, err := TokenService.ParseAccessToken(tokenStr)
+	userID, tenantID, isAdmin, err := TokenService.ParseAccessToken(tokenStr)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "invalid or expired token")
 	}
 
-	// Inject user_id and tenant_id into context for downstream handlers
+	// Inject user_id, tenant_id, and is_admin into context for downstream handlers
 	ctx = authgrpc.WithUserID(ctx, userID)
 	ctx = authgrpc.WithTenantID(ctx, tenantID)
+	ctx = authgrpc.WithAdmin(ctx, isAdmin)
 
 	return handler(ctx, req)
 }

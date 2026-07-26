@@ -26,6 +26,8 @@ const (
 	FieldAvatarURL = "avatar_url"
 	// FieldFamilyRole holds the string denoting the family_role field in the database.
 	FieldFamilyRole = "family_role"
+	// FieldIsAdmin holds the string denoting the is_admin field in the database.
+	FieldIsAdmin = "is_admin"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -51,6 +53,7 @@ var Columns = []string{
 	FieldDisplayName,
 	FieldAvatarURL,
 	FieldFamilyRole,
+	FieldIsAdmin,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -72,6 +75,8 @@ var (
 	DisplayNameValidator func(string) error
 	// DefaultAvatarURL holds the default value on creation for the "avatar_url" field.
 	DefaultAvatarURL string
+	// DefaultIsAdmin holds the default value on creation for the "is_admin" field.
+	DefaultIsAdmin bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -140,6 +145,11 @@ func ByAvatarURL(opts ...sql.OrderTermOption) OrderOption {
 // ByFamilyRole orders the results by the family_role field.
 func ByFamilyRole(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFamilyRole, opts...).ToFunc()
+}
+
+// ByIsAdmin orders the results by the is_admin field.
+func ByIsAdmin(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsAdmin, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
