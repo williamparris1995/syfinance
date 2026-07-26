@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/yucai/server/internal/auth/application"
+	"github.com/yucai/server/internal/auth/application/command"
 	"github.com/yucai/server/internal/auth/domain"
+	authjwt "github.com/yucai/server/internal/auth/infrastructure/jwt"
 )
 
 // --- Test doubles ---
@@ -58,7 +61,7 @@ func (f *fakeCurrencyChecker) FindByCode(ctx context.Context, code string) (bool
 func newPrefService(t *testing.T, repo *fakeTenantRepo, checker *fakeCurrencyChecker) *application.Service {
 	t.Helper()
 	return application.NewService(
-		repo, nil, nil, nil, nil, nil, nil, nil, checker,
+		repo, nil, nil, nil, nil, nil, nil, nil, nil, checker,
 	)
 }
 
@@ -175,5 +178,106 @@ func TestUpdatePreferences_IntervalTooLarge(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error for interval=200, got nil")
+	}
+}
+
+// --- Logout: access-token blacklist integration ---
+
+// fakeSessionStore is a minimal command.SessionStore for the Logout test —
+// only Revoke is exercised; Create/Rotate return errors so any unplanned call
+// surfaces loudly.
+type fakeSessionStore struct {
+	revokedToken string
+}
+
+func (f *fakeSessionStore) Create(_ context.Context, _, _, _, _ string, _ time.Duration) error {
+	return fmt.Errorf("Create should not be called in this test")
+}
+func (f *fakeSessionStore) Rotate(_ context.Context, _, _ string, _ time.Duration) (string, string, error) {
+	return "", "", fmt.Errorf("Rotate should not be called in this test")
+}
+func (f *fakeSessionStore) Revoke(_ context.Context, token string) error {
+	f.revokedToken = token
+	return nil
+}
+
+// fakeBlacklist records the most recent Add call so the test can assert the
+// access token's jti was pushed on logout.
+type fakeBlacklist struct {
+	addedJTI string
+	addedEXP time.Time
+}
+
+func (f *fakeBlacklist) Add(_ context.Context, jti string, exp time.Time) error {
+	f.addedJTI = jti
+	f.addedEXP = exp
+	return nil
+}
+func (f *fakeBlacklist) IsBlacklisted(_ context.Context, _ string) (bool, error) {
+	return false, nil
+}
+
+// TestLogout_BlacklistsAccessTokenJTI verifies that Service.Logout both revokes
+// the refresh session AND pushes the access token's jti into the blacklist —
+// closing the post-logout 15min window where the access JWT would otherwise
+// still authenticate.
+func TestLogout_BlacklistsAccessTokenJTI(t *testing.T) {
+	const secret = "logout-test-secret-at-least-32-bytes"
+	const issuer = "yucai-server-test"
+
+	ts := authjwt.NewTokenService(secret, issuer)
+	uid, tid := uuid.New(), uuid.New()
+	accessToken, err := ts.GenerateAccessToken(uid, tid, false)
+	if err != nil {
+		t.Fatalf("generate access token: %v", err)
+	}
+	wantJTI, wantEXP, ok := ts.ParseAccessTokenJTI(accessToken)
+	if !ok {
+		t.Fatal("ParseAccessTokenJTI returned ok=false for freshly minted token")
+	}
+
+	store := &fakeSessionStore{}
+	bl := &fakeBlacklist{}
+	refreshHandler := command.NewRefreshHandler(store)
+	svc := application.NewService(
+		nil, nil, ts, store, bl, nil, nil, refreshHandler, nil, nil,
+	)
+
+	const refreshToken = "opaque-refresh-token"
+	if err := svc.Logout(context.Background(), refreshToken, accessToken); err != nil {
+		t.Fatalf("Logout: %v", err)
+	}
+
+	if store.revokedToken != refreshToken {
+		t.Errorf("refresh token revoked = %q, want %q", store.revokedToken, refreshToken)
+	}
+	if bl.addedJTI != wantJTI {
+		t.Errorf("blacklisted jti = %q, want %q", bl.addedJTI, wantJTI)
+	}
+	if !bl.addedEXP.Equal(wantEXP) {
+		t.Errorf("blacklisted exp = %v, want %v", bl.addedEXP, wantEXP)
+	}
+}
+
+// TestLogout_NoAccessTokenSkipsBlacklist confirms backward compat: a caller
+// that doesn't pass an access token still gets a working logout (refresh
+// session revoked), and the blacklist is left untouched.
+func TestLogout_NoAccessTokenSkipsBlacklist(t *testing.T) {
+	ts := authjwt.NewTokenService("logout-test-secret-at-least-32-bytes", "yucai-server-test")
+	store := &fakeSessionStore{}
+	bl := &fakeBlacklist{}
+	refreshHandler := command.NewRefreshHandler(store)
+	svc := application.NewService(
+		nil, nil, ts, store, bl, nil, nil, refreshHandler, nil, nil,
+	)
+
+	if err := svc.Logout(context.Background(), "rt", ""); err != nil {
+		t.Fatalf("Logout: %v", err)
+	}
+	if store.revokedToken != "rt" {
+		t.Errorf("refresh token revoked = %q, want %q", store.revokedToken, "rt")
+	}
+	if bl.addedJTI != "" {
+		t.Errorf("blacklist should not be touched when accessToken is empty, got jti=%q", bl.addedJTI)
 	}
 }

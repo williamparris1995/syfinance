@@ -83,6 +83,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	userRepo := provideUserRepo(authClient)
 	identityRepo := provideIdentityRepo(authClient)
 	sessionStore := provideSessionStore(rdb)
+	tokenBlacklist := provideTokenBlacklist(rdb)
 	// oidcRegistry loads + discovers OIDC providers from cfg.OIDCProvidersPath.
 	// A missing/malformed yaml or failed discovery aborts startup.
 	oidcRegistry, err := provideOIDCRegistry(cfg)
@@ -259,11 +260,11 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// so it must be wired after the Currency module). oidcExchangeHandler,
 	// oidcRegistry, identityRepo are declared in the Auth module block above.
 	currencyCodeChecker := provideCurrencyCodeChecker(currencyRepo)
-	authService := provideAuthService(tenantRepo, userRepo, ts, sessionStore, oidcRegistry, identityRepo, oidcExchangeHandler, refreshHandler, profileHandler, currencyCodeChecker)
+	authService := provideAuthService(tenantRepo, userRepo, ts, sessionStore, tokenBlacklist, oidcRegistry, identityRepo, oidcExchangeHandler, refreshHandler, profileHandler, currencyCodeChecker)
 	authHandler := provideAuthHandler(authService)
 
 	// gRPC server
-	grpcSrv := provideGRPCServer(ts)
+	grpcSrv := provideGRPCServer(ts, tokenBlacklist)
 
 	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler, goalScheduler, debtScheduler, templateScheduler, backupScheduler, networthHandler)
 	return app, nil

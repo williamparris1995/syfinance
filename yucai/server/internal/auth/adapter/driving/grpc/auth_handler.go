@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	pb "github.com/yucai/server/internal/proto/auth/v1"
 	"github.com/yucai/server/internal/auth/application"
 	"github.com/yucai/server/internal/auth/application/command"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -63,12 +65,26 @@ func (h *AuthHandler) OIDCExchange(ctx context.Context, req *pb.OIDCExchangeRequ
 }
 
 // RefreshToken rotates a refresh token. The user identity is resolved from the
-// opaque refresh token server-side, so this RPC is auth-bypassed (no Bearer).
+// opaque refresh token server-side, so this RPC is auth-bypassed (no Bearer
+// required). If the client DOES send its expiring access token as Bearer
+// metadata, the server extracts its jti and blacklists it on successful
+// rotation — closes the window where both the old and new access JWTs would
+// otherwise validate simultaneously.
 func (h *AuthHandler) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.RefreshTokenResponse, error) {
 	if req.RefreshToken == "" {
 		return nil, status.Error(codes.InvalidArgument, "refresh_token is required")
 	}
-	resp, err := h.service.RefreshToken(ctx, req.RefreshToken)
+	// Optional: pull the outgoing access token from Bearer metadata so its jti
+	// can be blacklisted post-rotation. Missing/invalid Bearer is silently
+	// ignored — refresh still works without it, just without immediate old-jti
+	// revocation.
+	oldAccessToken := ""
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if vals := md.Get("authorization"); len(vals) > 0 {
+			oldAccessToken = strings.TrimPrefix(vals[0], "Bearer ")
+		}
+	}
+	resp, err := h.service.RefreshToken(ctx, req.RefreshToken, oldAccessToken)
 	if err != nil {
 		// Invalid/expired or reuse-detected → 401 (forces client re-login).
 		if errors.Is(err, command.ErrInvalidRefreshToken) || errors.Is(err, command.ErrRefreshTokenReuse) {

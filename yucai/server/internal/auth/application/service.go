@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -22,15 +23,20 @@ import (
 //
 // Login itself is delegated to OIDC (ProviderRegistry + OIDCExchangeHandler):
 // the server never sees a password.
+//
+// Access-token revocation is layered on top of the JWT model via a Redis jti
+// blacklist: logout and refresh rotation both push the old access token's jti
+// into blacklist so it stops validating inside its 15min TTL window.
 type Service struct {
-	tenantRepo     domain.TenantRepository
-	userRepo       domain.UserRepository
-	tokenService   *authjwt.TokenService
-	sessionStore   command.SessionStore
-	oidcHandler    *command.OIDCExchangeHandler
-	oidcRegistry   *oidc.ProviderRegistry
-	refreshHandler *command.RefreshHandler
-	profileHandler *query.GetProfileHandler
+	tenantRepo      domain.TenantRepository
+	userRepo        domain.UserRepository
+	tokenService    *authjwt.TokenService
+	sessionStore    command.SessionStore
+	blacklist       command.TokenBlacklist
+	oidcHandler     *command.OIDCExchangeHandler
+	oidcRegistry    *oidc.ProviderRegistry
+	refreshHandler  *command.RefreshHandler
+	profileHandler  *query.GetProfileHandler
 	currencyChecker domain.CurrencyCodeChecker
 }
 
@@ -40,17 +46,22 @@ func NewService(
 	userRepo domain.UserRepository,
 	tokenService *authjwt.TokenService,
 	sessionStore command.SessionStore,
+	blacklist command.TokenBlacklist,
 	oidcHandler *command.OIDCExchangeHandler,
 	oidcRegistry *oidc.ProviderRegistry,
 	refreshHandler *command.RefreshHandler,
 	profileHandler *query.GetProfileHandler,
 	currencyChecker domain.CurrencyCodeChecker,
 ) *Service {
+	if blacklist == nil {
+		blacklist = command.NoopTokenBlacklist()
+	}
 	return &Service{
 		tenantRepo:      tenantRepo,
 		userRepo:        userRepo,
 		tokenService:    tokenService,
 		sessionStore:    sessionStore,
+		blacklist:       blacklist,
 		oidcHandler:     oidcHandler,
 		oidcRegistry:    oidcRegistry,
 		refreshHandler:  refreshHandler,
@@ -115,9 +126,15 @@ func (s *Service) GetOIDCConfig() []oidc.ProviderConfig {
 // The user identity is resolved from the opaque refresh token itself (via the
 // session store), so no client-supplied user identifier is required.
 //
+// If oldAccessToken is non-empty, its jti is added to the blacklist so the
+// previous access JWT stops validating immediately (instead of lingering for
+// the rest of its 15min TTL). Clients that send their expiring access token as
+// Bearer metadata on this RPC get this revocation for free; clients that don't
+// are still correct, just slower to invalidate the old token.
+//
 // Returns command.ErrInvalidRefreshToken (unknown/expired) or
 // command.ErrRefreshTokenReuse (replayed rotated token — family revoked).
-func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthResponse, error) {
+func (s *Service) RefreshToken(ctx context.Context, refreshToken, oldAccessToken string) (*AuthResponse, error) {
 	newRefresh := s.tokenService.GenerateRefreshToken()
 	userIDStr, tenantIDStr, err := s.refreshHandler.Rotate(ctx, refreshToken, newRefresh, s.tokenService.RefreshTokenTTL())
 	if err != nil {
@@ -142,6 +159,21 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 		return nil, fmt.Errorf("%w: user lookup failed during refresh", command.ErrInvalidRefreshToken)
 	}
 
+	// Blacklist the old access token's jti before issuing the new pair. Done
+	// AFTER successful rotation so a failed refresh doesn't prematurely revoke a
+	// still-valid token. Errors here are logged but non-fatal — losing the
+	// revocation just means the old token lives out its short TTL.
+	if oldAccessToken != "" {
+		if jti, exp, ok := s.tokenService.ParseAccessTokenJTI(oldAccessToken); ok && jti != "" {
+			if err := s.blacklist.Add(ctx, jti, exp); err != nil {
+				slog.Warn("blacklist add on refresh failed",
+					"op", "auth.refresh.blacklist",
+					"error", err,
+				)
+			}
+		}
+	}
+
 	accessToken, err := s.tokenService.GenerateAccessToken(userID, tenantID, user.IsAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("generate access token: %w", err)
@@ -152,11 +184,27 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 	}, nil
 }
 
-// Logout revokes the refresh-token session. The short-lived access JWT expires
-// on its own (standard tradeoff: no server-side access-token blacklist).
-func (s *Service) Logout(ctx context.Context, refreshToken string) error {
+// Logout revokes the refresh-token session AND blacklists the access token's
+// jti so it stops validating immediately (closes the post-logout window inside
+// the access token's 15min TTL). accessToken may be empty — in that case only
+// the refresh session is revoked and the access JWT expires on its own (the
+// pre-T02 behavior, kept for callers that haven't been updated yet).
+func (s *Service) Logout(ctx context.Context, refreshToken, accessToken string) error {
 	if err := s.refreshHandler.Revoke(ctx, refreshToken); err != nil {
 		return fmt.Errorf("revoke session: %w", err)
+	}
+	if accessToken != "" {
+		if jti, exp, ok := s.tokenService.ParseAccessTokenJTI(accessToken); ok && jti != "" {
+			if err := s.blacklist.Add(ctx, jti, exp); err != nil {
+				// Non-fatal: refresh revocation succeeded. The access token
+				// still expires within ≤15min; we just lose the immediate
+				// revocation window.
+				slog.Warn("blacklist add on logout failed",
+					"op", "auth.logout.blacklist",
+					"error", err,
+				)
+			}
+		}
 	}
 	return nil
 }

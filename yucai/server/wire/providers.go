@@ -160,7 +160,7 @@ func provideTransactionEntClient(cfg *config.Config) (*txnent.Client, error) {
 }
 
 func provideTokenService(cfg *config.Config) *authjwt.TokenService {
-	return authjwt.NewTokenService(cfg.JWTSecret)
+	return authjwt.NewTokenService(cfg.JWTSecret, cfg.JWTIssuer)
 }
 
 // Auth providers
@@ -175,6 +175,9 @@ func provideIdentityRepo(client *authent.Client) *authrepo.IdentityRepository {
 }
 func provideSessionStore(rdb *redis.Client) *session.RedisSessionStore {
 	return session.NewRedisSessionStore(rdb)
+}
+func provideTokenBlacklist(rdb *redis.Client) *session.RedisTokenBlacklist {
+	return session.NewRedisTokenBlacklist(rdb)
 }
 
 // provideOIDCRegistry loads + discovers OIDC providers from cfg.OIDCProvidersPath.
@@ -219,12 +222,14 @@ func provideProfileHandler(ur *authrepo.UserRepository) *authquery.GetProfileHan
 // provideAuthService wires the auth application Service. Login is delegated to
 // OIDC (oidcHandler + oidcRegistry); password register/login handlers are gone.
 // checker is the cross-module CurrencyCodeChecker port (validates preferred
-// currency in UpdatePreferences).
+// currency in UpdatePreferences). blacklist is the access-token jti blacklist
+// (Redis-backed in production) consumed on logout / refresh rotation.
 func provideAuthService(
 	tr *authrepo.TenantRepository,
 	ur *authrepo.UserRepository,
 	ts *authjwt.TokenService,
 	ss *session.RedisSessionStore,
+	bl *session.RedisTokenBlacklist,
 	registry *oidc.ProviderRegistry,
 	ir *authrepo.IdentityRepository,
 	oidcH *authcmd.OIDCExchangeHandler,
@@ -232,7 +237,7 @@ func provideAuthService(
 	ph *authquery.GetProfileHandler,
 	checker authdomain.CurrencyCodeChecker,
 ) *authapp.Service {
-	return authapp.NewService(tr, ur, ts, ss, oidcH, registry, fh, ph, checker)
+	return authapp.NewService(tr, ur, ts, ss, bl, oidcH, registry, fh, ph, checker)
 }
 
 // currencyCodeChecker adapts the currency CurrencyRepository to the auth
@@ -903,8 +908,9 @@ func provideNetWorthHandler(svc *networthapp.Service) *networthgrpc.NetWorthHand
 	return networthgrpc.NewNetWorthHandler(svc)
 }
 
-func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
+func provideGRPCServer(ts *authjwt.TokenService, bl *session.RedisTokenBlacklist) *GRPCServer {
 	middleware.TokenService = ts
+	middleware.TokenBlacklist = bl
 	// Logging is OUTERMOST (logs even auth-rejected calls); auth parses the JWT
 	// and injects user_id/tenant_id/is_admin into context; RequireAdmin reads
 	// is_admin to authorize securities write RPCs (CreateSecurity /

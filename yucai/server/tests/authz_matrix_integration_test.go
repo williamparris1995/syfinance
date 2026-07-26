@@ -33,6 +33,10 @@ import (
 // AuthInterceptor under test. Any constant works; this is local to the matrix.
 const authzTestSecret = "authz-matrix-test-secret"
 
+// authzTestIssuer is the iss claim stamped on forged tokens. Must match what
+// the test TokenService is configured with so the post-T02 Parser accepts them.
+const authzTestIssuer = "yucai-server-test"
+
 // TestAuthz_GetHoldingPerformance_CrossTenant is the handler/wire-layer twin
 // of TestGetHoldingPerformance_RejectsCrossTenant (service-layer, fixed in T01
 // phase 1). Caller B authenticates with tenantB's tid and presents tenantA's
@@ -331,8 +335,15 @@ func setupAuthzMatrix(t *testing.T) (client pb.HoldingServiceClient, svc *applic
 	// AuthInterceptor first (parses JWT → injects is_admin) then RequireAdmin
 	// (reads is_admin) — see pkg/middleware/admin.go.
 	prevTS := middleware.TokenService
-	middleware.TokenService = authjwt.NewTokenService(authzTestSecret)
-	t.Cleanup(func() { middleware.TokenService = prevTS })
+	middleware.TokenService = authjwt.NewTokenService(authzTestSecret, authzTestIssuer)
+	// TokenBlacklist defaults to nil — AuthInterceptor skips the check when nil,
+	// which is what this matrix wants (it exercises signature/admin logic only).
+	prevBL := middleware.TokenBlacklist
+	middleware.TokenBlacklist = nil
+	t.Cleanup(func() {
+		middleware.TokenService = prevTS
+		middleware.TokenBlacklist = prevBL
+	})
 
 	// txnSvc + accountLookup are nil because the matrix only exercises RPCs
 	// that don't touch the transaction double-write or from-account validation
@@ -383,7 +394,7 @@ func sanitizeSQLiteName(s string) string {
 // auth service. Tests attach this to outgoing gRPC metadata via withToken.
 func tokenFor(t *testing.T, userID, tenantID uuid.UUID, isAdmin bool) string {
 	t.Helper()
-	ts := authjwt.NewTokenService(authzTestSecret)
+	ts := authjwt.NewTokenService(authzTestSecret, authzTestIssuer)
 	tok, err := ts.GenerateAccessToken(userID, tenantID, isAdmin)
 	if err != nil {
 		t.Fatalf("generate access token: %v", err)
@@ -404,9 +415,14 @@ func legacyTokenFor(t *testing.T, userID, tenantID uuid.UUID) string {
 	t.Helper()
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"sub":       userID.String(),
-		"exp":       now.Add(15 * time.Minute).Unix(),
-		"iat":       now.Unix(),
+		"sub": userID.String(),
+		"exp": now.Add(15 * time.Minute).Unix(),
+		"iat": now.Unix(),
+		// aud+iss are present so the post-T02 Parser accepts the token; the
+		// scenario we're modeling is "is_admin rolled out and a stale client
+		// still sends a pre-is_admin token" — aud/iss existed by then.
+		"aud":       authjwt.AccessTokenAudience,
+		"iss":       authzTestIssuer,
 		"user_id":   userID.String(),
 		"tenant_id": tenantID.String(),
 		// is_admin intentionally ABSENT — mimics pre-upgrade token.
