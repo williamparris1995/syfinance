@@ -15,9 +15,9 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib" // register "pgx" database/sql driver for the e2e pool
 
-	accountdomain "github.com/yucai/server/internal/account/domain"
 	accountrepo "github.com/yucai/server/internal/account/adapter/driven/repository"
 	accountapp "github.com/yucai/server/internal/account/application"
+	accountdomain "github.com/yucai/server/internal/account/domain"
 	accountent "github.com/yucai/server/internal/account/ent"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	holdingsec "github.com/yucai/server/internal/holding/adapter/driven/repository"
@@ -274,16 +274,16 @@ func (r *failingUpdateAccountRepoE2E) Update(ctx context.Context, a *accountdoma
 // struct (vs. a long return list) makes the test bodies readable and lets a
 // future test extend the harness without churn at the call sites.
 type e2eHarness struct {
-	h           *holdgrpc.HoldingHandler
-	acctSvc     accountapp.Service
-	holdSvc     *application.Service
-	tenantID    uuid.UUID
-	fromAccID   uuid.UUID
-	holdAccID   uuid.UUID
-	db          *sql.DB
-	acctClient  *accountent.Client
-	txnClient   *txnent.Client
-	holdClient  *holdingent.Client
+	h            *holdgrpc.HoldingHandler
+	acctSvc      accountapp.Service
+	holdSvc      *application.Service
+	tenantID     uuid.UUID
+	fromAccID    uuid.UUID
+	holdAccID    uuid.UUID
+	db           *sql.DB
+	acctClient   *accountent.Client
+	txnClient    *txnent.Client
+	holdClient   *holdingent.Client
 	failRecorder *failingUpdateAccountRepoE2E // nil when injectCashFailure=false
 }
 

@@ -421,7 +421,7 @@ func TestRecordTransaction_Idempotent_OnSameRecordDate(t *testing.T) {
 	recorder := txnapp.NewTransactionRecorderAdapter(txnSvc)
 
 	tmplSvc := NewService(tmplRepo, recorder)
-	tmplSvc.SetDB(db)       // Task 7: wrap recorder.Record + NextDate in WithTx
+	tmplSvc.SetDB(db)           // Task 7: wrap recorder.Record + NextDate in WithTx
 	tmplSvc.SetLogRepo(logRepo) // Task 8: idempotency check active
 
 	// First call: succeeds → 1 transaction + 1 log row (with txnID back-fill)

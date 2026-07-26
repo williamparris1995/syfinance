@@ -20,8 +20,8 @@ import (
 
 type HoldingHandler struct {
 	pb.UnimplementedHoldingServiceServer
-	service        *application.Service
-	accountLookup  txnApp.AccountLookup // from_account lookup + balance validation; nil = skip validation + skip cash double-write (test/perf path)
+	service       *application.Service
+	accountLookup txnApp.AccountLookup // from_account lookup + balance validation; nil = skip validation + skip cash double-write (test/perf path)
 }
 
 func NewHoldingHandler(service *application.Service, accountLookup txnApp.AccountLookup) *HoldingHandler {
