@@ -85,7 +85,7 @@ func setupHoldingDoubleWriteHarness(t *testing.T) (
 
 	txnRepo := txnrepo.NewTransactionRepository(txnClient, nil)
 	balanceUpdater := txnbalance.NewBalanceUpdater(accountRepo)
-	txnSvc := txnapp.NewService(txnRepo, accountRepo, balanceUpdater)
+	txnSvc := txnapp.NewService(txnRepo, accountRepo, balanceUpdater, nil)
 
 	secRepo := holdingsec.NewSecurityRepository(holdClient)
 	holdRepo := holdingsec.NewHoldingRepository(holdClient)

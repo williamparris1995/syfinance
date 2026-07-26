@@ -246,7 +246,7 @@ func TestSimpleTransfer_RejectsMismatchedCurrency(t *testing.T) {
 	repo.seed(fromAcc)
 	repo.seed(toAcc)
 
-	svc := NewService(nil, repo, noopBalanceUpdater{})
+	svc := NewService(nil, repo, noopBalanceUpdater{}, nil)
 
 	_, err := svc.SimpleTransfer(context.Background(), SimpleTransferRequest{
 		TenantID:        tenantID,
@@ -272,7 +272,7 @@ func TestSimpleTransfer_AcceptsSameCurrency(t *testing.T) {
 	repo.seed(toAcc)
 	txnRepo := &recordingTxnRepo{}
 
-	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{}, nil)
 
 	dto, err := svc.SimpleTransfer(context.Background(), SimpleTransferRequest{
 		TenantID:        tenantID,
@@ -299,7 +299,7 @@ func TestSimpleExpense_RejectsInsufficientBalance(t *testing.T) {
 	repo.seed(assetAcc)
 	repo.seed(expenseAcc)
 
-	svc := NewService(nil, repo, noopBalanceUpdater{})
+	svc := NewService(nil, repo, noopBalanceUpdater{}, nil)
 
 	_, err := svc.SimpleExpense(context.Background(), SimpleExpenseRequest{
 		TenantID:         tenantID,
@@ -325,7 +325,7 @@ func TestSimpleExpense_AcceptsExactBalance(t *testing.T) {
 	repo.seed(expenseAcc)
 	txnRepo := &recordingTxnRepo{}
 
-	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{}, nil)
 
 	dto, err := svc.SimpleExpense(context.Background(), SimpleExpenseRequest{
 		TenantID:         tenantID,
@@ -355,7 +355,7 @@ func TestSimpleExpense_ForwardsTransactionTime(t *testing.T) {
 	repo.seed(assetAcc)
 	repo.seed(expenseAcc)
 	txnRepo := &recordingTxnRepo{}
-	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{}, nil)
 
 	want := time.Date(2026, 6, 5, 19, 20, 0, 0, time.UTC)
 	if _, err := svc.SimpleExpense(context.Background(), SimpleExpenseRequest{
@@ -397,7 +397,7 @@ func TestSimpleExpense_NoTransactionTimeDomainNil(t *testing.T) {
 	repo.seed(assetAcc)
 	repo.seed(expenseAcc)
 	txnRepo := &recordingTxnRepo{}
-	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{}, nil)
 
 	if _, err := svc.SimpleExpense(context.Background(), SimpleExpenseRequest{
 		TenantID:         tenantID,
@@ -429,7 +429,7 @@ func TestSimpleIncome_ForwardsTransactionTime(t *testing.T) {
 	repo.seed(assetAcc)
 	repo.seed(incomeAcc)
 	txnRepo := &recordingTxnRepo{}
-	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{}, nil)
 
 	want := time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC)
 	if _, err := svc.SimpleIncome(context.Background(), SimpleIncomeRequest{
@@ -462,7 +462,7 @@ func TestSimpleTransfer_ForwardsTransactionTime(t *testing.T) {
 	repo.seed(fromAcc)
 	repo.seed(toAcc)
 	txnRepo := &recordingTxnRepo{}
-	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{}, nil)
 
 	want := time.Date(2026, 6, 5, 12, 30, 0, 0, time.UTC)
 	if _, err := svc.SimpleTransfer(context.Background(), SimpleTransferRequest{
@@ -495,7 +495,7 @@ func TestListRecentByAccount_DelegatesToRepo(t *testing.T) {
 		{ID: uuid.New(), TenantID: tenantID, Description: "recent-b"},
 	}
 	repo := &recentTxnRepo{result: seeded}
-	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{}, nil)
 
 	got, err := svc.ListRecentByAccount(context.Background(), tenantID, accountID, 5)
 	if err != nil {
@@ -517,7 +517,7 @@ func TestListRecentByAccount_DelegatesToRepo(t *testing.T) {
 // repository errors instead of swallowing them.
 func TestListRecentByAccount_PropagatesRepoError(t *testing.T) {
 	repo := &recentTxnRepo{err: fmt.Errorf("boom")}
-	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{}, nil)
 
 	if _, err := svc.ListRecentByAccount(context.Background(), uuid.New(), uuid.New(), 5); err == nil {
 		t.Fatal("expected error to propagate, got nil")
@@ -537,7 +537,7 @@ func TestSpendingByAccount_DelegatesToRepo(t *testing.T) {
 		debitTotal:  50000, // ¥500 expense (debit on Expense account)
 		creditTotal: 5000,  // ¥50 refund (credit on Expense account)
 	}
-	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{}, nil)
 
 	debit, credit, err := svc.SpendingByAccount(context.Background(), tenantID, accountID, from, to)
 	if err != nil {
@@ -556,7 +556,7 @@ func TestSpendingByAccount_DelegatesToRepo(t *testing.T) {
 // repository errors instead of swallowing them.
 func TestSpendingByAccount_PropagatesRepoError(t *testing.T) {
 	repo := &sumByAccountTxnRepo{err: fmt.Errorf("boom")}
-	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{}, nil)
 
 	if _, _, err := svc.SpendingByAccount(context.Background(), uuid.New(), uuid.New(), time.Now(), time.Now()); err == nil {
 		t.Fatal("expected error to propagate, got nil")
@@ -574,7 +574,7 @@ func TestSpendingByAccountByMonth_DelegatesToRepo(t *testing.T) {
 	tenantID := uuid.New()
 
 	repo := &sumByAccountTxnRepo{monthTotals: canned}
-	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{}, nil)
 
 	got, err := svc.SpendingByAccountByMonth(context.Background(), tenantID, from, to)
 	if err != nil {
@@ -595,7 +595,7 @@ func TestSpendingByAccountByMonth_DelegatesToRepo(t *testing.T) {
 // wrapped and returned (not swallowed).
 func TestSpendingByAccountByMonth_PropagatesRepoError(t *testing.T) {
 	repo := &sumByAccountTxnRepo{err: fmt.Errorf("boom")}
-	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{}, nil)
 
 	_, err := svc.SpendingByAccountByMonth(context.Background(), uuid.New(), time.Time{}, time.Time{})
 	if err == nil {

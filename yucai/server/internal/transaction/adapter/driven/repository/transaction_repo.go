@@ -79,11 +79,8 @@ func (r *TransactionRepository) SetDialect(d string) *TransactionRepository {
 // clientFor returns the ent client appropriate for ctx: if ctx carries a tx
 // driver (injected by sqltx.WithTx) it returns a tx-bound client whose writes
 // join the outer transaction; otherwise it returns the default r.client (the
-// non-transactional path, preserving backward compatibility).
-//
-// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
-// each write method from r.client to r.clientFor(ctx). Until then this is a
-// no-op helper with zero behavior change.
+// non-transactional path, preserving backward compatibility for callers that
+// do not wrap in a tx).
 func (r *TransactionRepository) clientFor(ctx context.Context) *txnent.Client {
 	if d, ok := sqltx.DriverFrom(ctx); ok {
 		return txnent.NewClient(txnent.Driver(d))
@@ -93,7 +90,7 @@ func (r *TransactionRepository) clientFor(ctx context.Context) *txnent.Client {
 
 // Save persists a transaction and its entries in a single operation.
 func (r *TransactionRepository) Save(ctx context.Context, tx *domain.Transaction) error {
-	_, err := r.client.Transaction.Create().
+	_, err := r.clientFor(ctx).Transaction.Create().
 		SetID(tx.ID).
 		SetTenantID(tx.TenantID).
 		SetTransactionDate(tx.TransactionDate).
@@ -108,7 +105,7 @@ func (r *TransactionRepository) Save(ctx context.Context, tx *domain.Transaction
 	}
 
 	for _, e := range tx.Entries {
-		_, err := r.client.TransactionEntry.Create().
+		_, err := r.clientFor(ctx).TransactionEntry.Create().
 			SetID(e.ID).
 			SetTransactionID(e.TransactionID).
 			SetAccountID(e.AccountID).
@@ -126,7 +123,7 @@ func (r *TransactionRepository) Save(ctx context.Context, tx *domain.Transaction
 
 // FindByID retrieves a transaction with its entries, excluding soft-deleted.
 func (r *TransactionRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Transaction, error) {
-	txn, err := r.client.Transaction.Query().
+	txn, err := r.clientFor(ctx).Transaction.Query().
 		Where(
 			transaction.ID(id),
 			transaction.TenantID(tenantID),
@@ -137,7 +134,7 @@ func (r *TransactionRepository) FindByID(ctx context.Context, tenantID, id uuid.
 		return nil, fmt.Errorf("find transaction: %w", err)
 	}
 
-	entries, err := r.client.TransactionEntry.Query().
+	entries, err := r.clientFor(ctx).TransactionEntry.Query().
 		Where(txnentryent.TransactionID(txn.ID)).
 		All(ctx)
 	if err != nil {
@@ -159,7 +156,7 @@ func (r *TransactionRepository) FindByID(ctx context.Context, tenantID, id uuid.
 // declare no cross-module edges, the classification is expressed as a raw
 // EXISTS subquery joining transaction_entries → accounts.
 func (r *TransactionRepository) FindAll(ctx context.Context, tenantID uuid.UUID, filter domain.TransactionFilter, page domain.PageRequest) (*domain.PaginatedResult[domain.Transaction], error) {
-	query := r.client.Transaction.Query().
+	query := r.clientFor(ctx).Transaction.Query().
 		Where(
 			transaction.TenantID(tenantID),
 			transaction.DeletedAtIsNil(),
@@ -251,7 +248,7 @@ func (r *TransactionRepository) FindRecentByAccount(ctx context.Context, tenantI
 		limit = maxRecentLimit
 	}
 
-	query := r.client.Transaction.Query().
+	query := r.clientFor(ctx).Transaction.Query().
 		Where(
 			transaction.TenantID(tenantID),
 			transaction.DeletedAtIsNil(),
@@ -307,7 +304,7 @@ func (r *TransactionRepository) loadEntriesByTransaction(ctx context.Context, tx
 		ids[i] = t.ID
 	}
 
-	entries, err := r.client.TransactionEntry.Query().
+	entries, err := r.clientFor(ctx).TransactionEntry.Query().
 		Where(txnentryent.TransactionIDIn(ids...)).
 		All(ctx)
 	if err != nil {
@@ -420,7 +417,7 @@ const (
 // Update replaces entries and updates the transaction.
 func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transaction) error {
 	// Delete old entries
-	_, err := r.client.TransactionEntry.Delete().
+	_, err := r.clientFor(ctx).TransactionEntry.Delete().
 		Where(txnentryent.TransactionID(tx.ID)).
 		Exec(ctx)
 	if err != nil {
@@ -429,7 +426,7 @@ func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transacti
 
 	// Insert new entries
 	for _, e := range tx.Entries {
-		_, err := r.client.TransactionEntry.Create().
+		_, err := r.clientFor(ctx).TransactionEntry.Create().
 			SetID(e.ID).
 			SetTransactionID(e.TransactionID).
 			SetAccountID(e.AccountID).
@@ -444,7 +441,7 @@ func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transacti
 	}
 
 	// Update transaction with optimistic lock
-	upd := r.client.Transaction.UpdateOneID(tx.ID).
+	upd := r.clientFor(ctx).Transaction.UpdateOneID(tx.ID).
 		Where(transaction.Version(tx.Version - 1)).
 		SetTransactionDate(tx.TransactionDate).
 		SetDescription(tx.Description).
@@ -467,7 +464,7 @@ func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transacti
 // avoiding the N+1 read that a per-transaction loop would incur). Backup export
 // is the only caller; it serializes the full transaction graph without paging.
 func (r *TransactionRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Transaction, error) {
-	results, err := r.client.Transaction.Query().
+	results, err := r.clientFor(ctx).Transaction.Query().
 		Where(
 			transaction.TenantID(tenantID),
 			transaction.DeletedAtIsNil(),
@@ -494,20 +491,20 @@ func (r *TransactionRepository) FindAllForBackup(ctx context.Context, tenantID u
 // transaction_id and have no tenant_id column of their own (scope by the
 // tenant's transaction IDs). Used by the backup exporter's Purge step.
 func (r *TransactionRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
-	txnIDs, err := r.client.Transaction.Query().
+	txnIDs, err := r.clientFor(ctx).Transaction.Query().
 		Where(transaction.TenantID(tenantID)).
 		IDs(ctx)
 	if err != nil {
 		return fmt.Errorf("list transaction ids for purge: %w", err)
 	}
 	if len(txnIDs) > 0 {
-		if _, err := r.client.TransactionEntry.Delete().
+		if _, err := r.clientFor(ctx).TransactionEntry.Delete().
 			Where(txnentryent.TransactionIDIn(txnIDs...)).
 			Exec(ctx); err != nil {
 			return fmt.Errorf("purge transaction entries: %w", err)
 		}
 	}
-	if _, err := r.client.Transaction.Delete().
+	if _, err := r.clientFor(ctx).Transaction.Delete().
 		Where(transaction.TenantID(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("purge transactions: %w", err)
@@ -879,7 +876,7 @@ func rebindPlaceholders(query, dialect string) string {
 // SoftDelete marks the transaction as deleted.
 func (r *TransactionRepository) SoftDelete(ctx context.Context, tenantID, id uuid.UUID) error {
 	now := time.Now()
-	_, err := r.client.Transaction.UpdateOneID(id).
+	_, err := r.clientFor(ctx).Transaction.UpdateOneID(id).
 		Where(transaction.TenantID(tenantID)).
 		SetDeletedAt(now).
 		Save(ctx)

@@ -243,7 +243,7 @@ func setupBuyHoldingHarness(t *testing.T) (
 	holdSvc := application.NewService(secRepo, holdRepo, tradeRepo)
 
 	txnRepo = &recordingTxnRepo{}
-	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup})
+	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup}, nil)
 	h = NewHoldingHandler(holdSvc, txnSvc, accLookup)
 	return
 }

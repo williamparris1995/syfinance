@@ -334,7 +334,7 @@ func setupRecordPaymentHarness(t *testing.T, debtType domain.DebtType) (
 	accLookup.seed(debtAcc)
 
 	txnRepo = &recordingTxnRepo{}
-	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup})
+	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup}, nil)
 
 	debtSvc := application.NewService(debtRepo)
 	h = NewDebtHandler(debtSvc, txnSvc, accLookup)
@@ -477,7 +477,7 @@ func TestRecordPayment_BestEffortTxnFailureSwallowed(t *testing.T) {
 	// always errors. We rebuild the transaction service with the failing repo
 	// but keep the same handler wiring (debt service + account lookup).
 	failingRepo := &failingTxnRepo{err: fmt.Errorf("simulated txn write failure")}
-	txnSvc := txnApp.NewService(failingRepo, h.accountLookup, mutatingBalanceUpdater{lookup: h.accountLookup.(*fakeAccountLookup)})
+	txnSvc := txnApp.NewService(failingRepo, h.accountLookup, mutatingBalanceUpdater{lookup: h.accountLookup.(*fakeAccountLookup)}, nil)
 	h.transactionSvc = txnSvc
 
 	resp, err := h.RecordPayment(ctxWithTenant(tenantID), &pb.RecordPaymentRequest{
@@ -713,7 +713,7 @@ func setupCreateDebtHarness(t *testing.T) (
 
 	debtRepo = newFakeDebtRepo()
 	txnRepo = &recordingTxnRepo{}
-	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup})
+	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup}, nil)
 	debtSvc := application.NewService(debtRepo)
 	h = NewDebtHandler(debtSvc, txnSvc, accLookup)
 	return
@@ -819,7 +819,7 @@ func TestCreateDebt_BestEffortTxnFailureSwallowed(t *testing.T) {
 
 	// Swap in a failing txn repo; keep the same handler wiring.
 	failingRepo := &failingTxnRepo{err: fmt.Errorf("simulated txn write failure")}
-	h.transactionSvc = txnApp.NewService(failingRepo, h.accountLookup, mutatingBalanceUpdater{lookup: h.accountLookup.(*fakeAccountLookup)})
+	h.transactionSvc = txnApp.NewService(failingRepo, h.accountLookup, mutatingBalanceUpdater{lookup: h.accountLookup.(*fakeAccountLookup)}, nil)
 
 	resp, err := h.CreateDebt(ctxWithTenant(tenantID), &pb.CreateDebtRequest{
 		AccountId:           debtAccID.String(),

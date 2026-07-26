@@ -297,8 +297,8 @@ func provideTransactionRepo(client *txnent.Client, db *sql.DB) *txnrepo.Transact
 func provideBalanceUpdater(ar *accountrepo.AccountRepository) *txnbalance.BalanceUpdaterImpl {
 	return txnbalance.NewBalanceUpdater(ar)
 }
-func provideTransactionService(tr *txnrepo.TransactionRepository, ar *accountrepo.AccountRepository, bu *txnbalance.BalanceUpdaterImpl) *txnapp.Service {
-	return txnapp.NewService(tr, ar, bu)
+func provideTransactionService(tr *txnrepo.TransactionRepository, ar *accountrepo.AccountRepository, bu *txnbalance.BalanceUpdaterImpl, db *sql.DB) *txnapp.Service {
+	return txnapp.NewService(tr, ar, bu, db)
 }
 func provideTransactionHandler(svc *txnapp.Service) *txngrpc.TransactionHandler {
 	return txngrpc.NewTransactionHandler(svc)

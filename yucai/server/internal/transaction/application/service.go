@@ -2,11 +2,13 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	accountdomain "github.com/yucai/server/internal/account/domain"
+	"github.com/yucai/server/internal/sqltx"
 	"github.com/yucai/server/internal/transaction/domain"
 )
 
@@ -23,15 +25,69 @@ type Service struct {
 	txnRepo     domain.TransactionRepository
 	accountRepo AccountLookup
 	balanceUpd  BalanceUpdater
+	// db is the shared *sql.DB backing every ent client (Task 1's provideDB).
+	// The SimpleExpense/SimpleIncome/SimpleTransfer/RecordTransaction methods
+	// wrap their write+balance-update sequence in a single sqltx.WithTx over db
+	// so a partial failure (e.g. a balance-update error after the header was
+	// saved) rolls back the whole operation. Nil is accepted for backward
+	// compatibility with mock-based unit tests that do not exercise
+	// transactionality; when nil, the wrapping is skipped and the methods run
+	// legacy (auto-commit) semantics.
+	db *sql.DB
 }
 
-// NewService creates a new transaction application service.
-func NewService(txnRepo domain.TransactionRepository, accountRepo AccountLookup, balanceUpd BalanceUpdater) *Service {
-	return &Service{txnRepo: txnRepo, accountRepo: accountRepo, balanceUpd: balanceUpd}
+// NewService creates a new transaction application service. db is the shared
+// *sql.DB (Task 1's provideDB); pass nil only in narrow unit tests that inject
+// mock repos and never persist.
+func NewService(txnRepo domain.TransactionRepository, accountRepo AccountLookup, balanceUpd BalanceUpdater, db *sql.DB) *Service {
+	return &Service{txnRepo: txnRepo, accountRepo: accountRepo, balanceUpd: balanceUpd, db: db}
+}
+
+// runInTx wraps fn in a single sqltx.WithTx over the shared *sql.DB so the
+// transaction header write, its entries write, and every balance-updater
+// account Update join one atomic DB transaction. A failure anywhere in fn
+// (e.g. an insufficient-balance error returned by SimpleExpense's validation,
+// or a balance-update failure after the header was saved) rolls back the whole
+// operation.
+//
+// When s.db is nil the wrapper is skipped and fn runs directly against the
+// repos' default (auto-commit) clients. This preserves the legacy
+// non-transactional behavior that mock-based unit tests rely on (they inject
+// mock repos without a *sql.DB); production wire always injects the shared db
+// from Task 1's provideDB, so the rollback guarantee holds in deployment.
+//
+// Join-existing-tx semantics: when ctx already carries a tx driver (an outer
+// WithTx from a holding/debt/template service calling the recorder adapter in
+// Tasks 5-7), sqltx.WithTx runs fn against that outer driver without opening a
+// new transaction — the outermost caller owns commit/rollback.
+func (s *Service) runInTx(ctx context.Context, fn func(ctx context.Context) (*TransactionDTO, error)) (*TransactionDTO, error) {
+	if s.db == nil {
+		return fn(ctx)
+	}
+	var dto *TransactionDTO
+	err := sqltx.WithTx(ctx, s.db, "postgres", nil, func(ctxT context.Context) error {
+		d, e := fn(ctxT)
+		dto = d
+		return e
+	})
+	return dto, err
 }
 
 // RecordTransaction validates and persists a new double-entry transaction.
+// The header write, entries writes, and balance updates are wrapped in a
+// single sqltx.WithTx so a partial failure (e.g. a balance-update error after
+// the header was saved) rolls back the whole operation.
 func (s *Service) RecordTransaction(ctx context.Context, req RecordTransactionRequest) (*TransactionDTO, error) {
+	return s.runInTx(ctx, func(ctx context.Context) (*TransactionDTO, error) {
+		return s.recordTransaction(ctx, req)
+	})
+}
+
+// recordTransaction is the transactional-body implementation of
+// RecordTransaction. It must be called inside runInTx (directly or via one of
+// the SimpleXxx wrappers) so every repo/balance-updater call it makes joins
+// the surrounding transaction.
+func (s *Service) recordTransaction(ctx context.Context, req RecordTransactionRequest) (*TransactionDTO, error) {
 	// Cross-tenant guard: every entry's account_id must belong to req.TenantID.
 	// Without this, a malicious caller could attach another tenant's account_id
 	// to its transaction, polluting the victim's balances and budget actuals
@@ -255,65 +311,77 @@ func (s *Service) DeleteTransaction(ctx context.Context, tenantID, txnID uuid.UU
 	return s.txnRepo.SoftDelete(ctx, tenantID, txnID)
 }
 
-// SimpleIncome creates a debit-asset + credit-income transaction.
+// SimpleIncome creates a debit-asset + credit-income transaction. The
+// validation, header/entries writes, and balance updates run inside one
+// sqltx.WithTx so a failure at any step rolls back the whole operation.
 func (s *Service) SimpleIncome(ctx context.Context, req SimpleIncomeRequest) (*TransactionDTO, error) {
-	return s.RecordTransaction(ctx, RecordTransactionRequest{
-		TenantID:        req.TenantID,
-		TransactionDate: req.TransactionDate,
-		TransactionTime: req.TransactionTime,
-		Description:     req.Description,
-		Entries:         BuildSimpleEntries(req.AmountCents, req.AssetAccountID, req.IncomeAccountID, req.Note),
+	return s.runInTx(ctx, func(ctx context.Context) (*TransactionDTO, error) {
+		return s.recordTransaction(ctx, RecordTransactionRequest{
+			TenantID:        req.TenantID,
+			TransactionDate: req.TransactionDate,
+			TransactionTime: req.TransactionTime,
+			Description:     req.Description,
+			Entries:         BuildSimpleEntries(req.AmountCents, req.AssetAccountID, req.IncomeAccountID, req.Note),
+		})
 	})
 }
 
 // SimpleExpense creates a debit-expense + credit-asset transaction.
 // It rejects the expense when the asset account's current balance is
-// insufficient to cover the amount (prevents overdraft on the spot).
+// insufficient to cover the amount (prevents overdraft on the spot). The
+// balance check, header/entries writes, and balance updates run inside one
+// sqltx.WithTx so a failure at any step rolls back the whole operation.
 func (s *Service) SimpleExpense(ctx context.Context, req SimpleExpenseRequest) (*TransactionDTO, error) {
-	asset, err := s.accountRepo.FindByID(ctx, req.TenantID, req.AssetAccountID)
-	if err != nil {
-		return nil, fmt.Errorf("find asset account %s: %w", req.AssetAccountID, err)
-	}
-	if asset.CurrentBalanceCents < req.AmountCents {
-		return nil, fmt.Errorf(
-			"insufficient balance: account %s has %d cents, expense requires %d cents",
-			req.AssetAccountID, asset.CurrentBalanceCents, req.AmountCents,
-		)
-	}
+	return s.runInTx(ctx, func(ctx context.Context) (*TransactionDTO, error) {
+		asset, err := s.accountRepo.FindByID(ctx, req.TenantID, req.AssetAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("find asset account %s: %w", req.AssetAccountID, err)
+		}
+		if asset.CurrentBalanceCents < req.AmountCents {
+			return nil, fmt.Errorf(
+				"insufficient balance: account %s has %d cents, expense requires %d cents",
+				req.AssetAccountID, asset.CurrentBalanceCents, req.AmountCents,
+			)
+		}
 
-	return s.RecordTransaction(ctx, RecordTransactionRequest{
-		TenantID:        req.TenantID,
-		TransactionDate: req.TransactionDate,
-		TransactionTime: req.TransactionTime,
-		Description:     req.Description,
-		Entries:         BuildSimpleEntries(req.AmountCents, req.ExpenseAccountID, req.AssetAccountID, req.Note),
+		return s.recordTransaction(ctx, RecordTransactionRequest{
+			TenantID:        req.TenantID,
+			TransactionDate: req.TransactionDate,
+			TransactionTime: req.TransactionTime,
+			Description:     req.Description,
+			Entries:         BuildSimpleEntries(req.AmountCents, req.ExpenseAccountID, req.AssetAccountID, req.Note),
+		})
 	})
 }
 
 // SimpleTransfer creates a debit-to + credit-from transaction.
 // It rejects transfers between accounts that use different currencies
 // (cross-currency transfers require explicit FX handling, out of scope here).
+// The currency check, header/entries writes, and balance updates run inside one
+// sqltx.WithTx so a failure at any step rolls back the whole operation.
 func (s *Service) SimpleTransfer(ctx context.Context, req SimpleTransferRequest) (*TransactionDTO, error) {
-	from, err := s.accountRepo.FindByID(ctx, req.TenantID, req.FromAccountID)
-	if err != nil {
-		return nil, fmt.Errorf("find from account %s: %w", req.FromAccountID, err)
-	}
-	to, err := s.accountRepo.FindByID(ctx, req.TenantID, req.ToAccountID)
-	if err != nil {
-		return nil, fmt.Errorf("find to account %s: %w", req.ToAccountID, err)
-	}
-	if from.CurrencyCode != to.CurrencyCode {
-		return nil, fmt.Errorf(
-			"currency mismatch: from account %s uses %s, to account %s uses %s",
-			req.FromAccountID, from.CurrencyCode, req.ToAccountID, to.CurrencyCode,
-		)
-	}
+	return s.runInTx(ctx, func(ctx context.Context) (*TransactionDTO, error) {
+		from, err := s.accountRepo.FindByID(ctx, req.TenantID, req.FromAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("find from account %s: %w", req.FromAccountID, err)
+		}
+		to, err := s.accountRepo.FindByID(ctx, req.TenantID, req.ToAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("find to account %s: %w", req.ToAccountID, err)
+		}
+		if from.CurrencyCode != to.CurrencyCode {
+			return nil, fmt.Errorf(
+				"currency mismatch: from account %s uses %s, to account %s uses %s",
+				req.FromAccountID, from.CurrencyCode, req.ToAccountID, to.CurrencyCode,
+			)
+		}
 
-	return s.RecordTransaction(ctx, RecordTransactionRequest{
-		TenantID:        req.TenantID,
-		TransactionDate: req.TransactionDate,
-		TransactionTime: req.TransactionTime,
-		Description:     req.Description,
-		Entries:         BuildSimpleEntries(req.AmountCents, req.ToAccountID, req.FromAccountID, req.Note),
+		return s.recordTransaction(ctx, RecordTransactionRequest{
+			TenantID:        req.TenantID,
+			TransactionDate: req.TransactionDate,
+			TransactionTime: req.TransactionTime,
+			Description:     req.Description,
+			Entries:         BuildSimpleEntries(req.AmountCents, req.ToAccountID, req.FromAccountID, req.Note),
+		})
 	})
 }

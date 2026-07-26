@@ -25,11 +25,8 @@ func NewAccountRepository(client *ent.Client) *AccountRepository {
 // clientFor returns the ent client appropriate for ctx: if ctx carries a tx
 // driver (injected by sqltx.WithTx) it returns a tx-bound client whose writes
 // join the outer transaction; otherwise it returns the default r.client (the
-// non-transactional path, preserving backward compatibility).
-//
-// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
-// each write method from r.client to r.clientFor(ctx). Until then this is a
-// no-op helper with zero behavior change.
+// non-transactional path, preserving backward compatibility for callers that
+// do not wrap in a tx).
 func (r *AccountRepository) clientFor(ctx context.Context) *ent.Client {
 	if d, ok := sqltx.DriverFrom(ctx); ok {
 		return ent.NewClient(ent.Driver(d))
@@ -39,7 +36,7 @@ func (r *AccountRepository) clientFor(ctx context.Context) *ent.Client {
 
 // Save persists a new account.
 func (r *AccountRepository) Save(ctx context.Context, a *domain.Account) error {
-	builder := r.client.Account.Create().
+	builder := r.clientFor(ctx).Account.Create().
 		SetID(a.ID).
 		SetTenantID(a.TenantID).
 		SetName(a.Name).
@@ -100,7 +97,7 @@ func (r *AccountRepository) Save(ctx context.Context, a *domain.Account) error {
 
 // FindByID retrieves an account by ID within a tenant, excluding soft-deleted.
 func (r *AccountRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Account, error) {
-	a, err := r.client.Account.Query().
+	a, err := r.clientFor(ctx).Account.Query().
 		Where(
 			accountent.ID(id),
 			accountent.TenantID(tenantID),
@@ -115,7 +112,7 @@ func (r *AccountRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID
 
 // FindAll returns a paginated, filtered list of accounts.
 func (r *AccountRepository) FindAll(ctx context.Context, tenantID uuid.UUID, filter domain.AccountFilter, page domain.PageRequest) (*domain.PaginatedResult[domain.Account], error) {
-	query := r.client.Account.Query().
+	query := r.clientFor(ctx).Account.Query().
 		Where(
 			accountent.TenantID(tenantID),
 			accountent.DeletedAtIsNil(),
@@ -176,7 +173,7 @@ func (r *AccountRepository) FindAll(ctx context.Context, tenantID uuid.UUID, fil
 // FindByAccountType returns all non-deleted accounts of a given type within a tenant,
 // ordered by sort_order then name for stable category-dropdown display.
 func (r *AccountRepository) FindByAccountType(ctx context.Context, tenantID uuid.UUID, accountType domain.AccountType) ([]domain.Account, error) {
-	results, err := r.client.Account.Query().
+	results, err := r.clientFor(ctx).Account.Query().
 		Where(
 			accountent.TenantID(tenantID),
 			accountent.AccountTypeEQ(accountent.AccountType(accountType.String())),
@@ -200,7 +197,7 @@ func (r *AccountRepository) FindByAccountType(ctx context.Context, tenantID uuid
 
 // Update persists changes to an existing account (optimistic lock via version).
 func (r *AccountRepository) Update(ctx context.Context, a *domain.Account) error {
-	n, err := r.client.Account.UpdateOneID(a.ID).
+	n, err := r.clientFor(ctx).Account.UpdateOneID(a.ID).
 		Where(accountent.Version(a.Version - 1)).
 		SetName(a.Name).
 		SetCurrentBalanceCents(a.CurrentBalanceCents).
@@ -253,7 +250,7 @@ func (r *AccountRepository) Update(ctx context.Context, a *domain.Account) error
 // SoftDelete sets deleted_at and archives the account.
 func (r *AccountRepository) SoftDelete(ctx context.Context, tenantID, id uuid.UUID) error {
 	now := time.Now()
-	_, err := r.client.Account.UpdateOneID(id).
+	_, err := r.clientFor(ctx).Account.UpdateOneID(id).
 		Where(accountent.TenantID(tenantID)).
 		SetStatus(accountent.StatusArchived).
 		SetDeletedAt(now).
@@ -267,7 +264,7 @@ func (r *AccountRepository) SoftDelete(ctx context.Context, tenantID, id uuid.UU
 // FindAllForBackup returns all non-deleted accounts for a tenant (no pagination,
 // includes category accounts) for backup export.
 func (r *AccountRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Account, error) {
-	results, err := r.client.Account.Query().
+	results, err := r.clientFor(ctx).Account.Query().
 		Where(
 			accountent.TenantID(tenantID),
 			accountent.DeletedAtIsNil(),
@@ -286,7 +283,7 @@ func (r *AccountRepository) FindAllForBackup(ctx context.Context, tenantID uuid.
 // DeleteByTenant hard-deletes all accounts (including categories) for a tenant.
 // Used by backup Import's purge step to clear before re-import.
 func (r *AccountRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
-	_, err := r.client.Account.Delete().
+	_, err := r.clientFor(ctx).Account.Delete().
 		Where(accountent.TenantID(tenantID)).
 		Exec(ctx)
 	if err != nil {

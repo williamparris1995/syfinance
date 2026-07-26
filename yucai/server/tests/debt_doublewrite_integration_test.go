@@ -83,7 +83,7 @@ func setupDebtDoubleWriteHarness(t *testing.T) (
 
 	txnRepo := txnrepo.NewTransactionRepository(txnClient, nil)
 	balanceUpdater := txnbalance.NewBalanceUpdater(accountRepo)
-	txnSvc := txnapp.NewService(txnRepo, accountRepo, balanceUpdater)
+	txnSvc := txnapp.NewService(txnRepo, accountRepo, balanceUpdater, nil)
 
 	debtRepo := debtrepo.NewDebtRepository(debtClient)
 	debtSvc := application.NewService(debtRepo)
