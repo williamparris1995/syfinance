@@ -144,13 +144,13 @@ func seedBaselineHolding(t *testing.T, ctx context.Context, svc *application.Ser
 // TestS1_SingleHolding_Baseline: buy 100 @ ¥100 (2020-01-02) → current ¥130
 // (eval 2021-01-01, 365 天). 无 dividend/sell/split.
 //
-// 锁定单标的计算基线:domain 包单测此前只验方向/非空,本测验证 XIRR/CAGR 在
+// 锁定单标的计算基线:domain 包单测此前只验方向/非空,本测验证 XIRR/CAGR/TWR 在
 // 整 365 天、单笔 buy、无中断的简单情形下精确重合(0.30 ±1e-6)。
 //
-// 注:TWR 在单笔 buy 时按 holdingTWR 实现降级为 nil(len(trades)<2 sentinel)。
-// 数学上单笔 buy 的 TWR = (final/initial)^(365/days) - 1 = 0.30(与 XIRR/CAGR
-// 重合),但实现需要 ≥2 个现金流日子切分子区间 — 单笔 buy 只有 1 个,降级。
-// 此处锁定当前实现行为(nil);数学闭环需 holdingTWR 补单 buy 分支(follow-up)。
+// TWR 单 buy 分支(FIX 1):单笔 buy 只有 1 个 cashFlowDay → subPeriods 空。
+// holdingTWR 走 single-period-link 公式 (BV_after(t0)=100×¥100=¥10000,
+// finalValue=100×¥130=¥13000, totalDays=365) → (13000/10000)^(365/365)-1 = 0.30。
+// 与 XIRR/CAGR 数学重合(无 cash-flow interruption 时 TWR = XIRR = CAGR)。
 func TestS1_SingleHolding_Baseline(t *testing.T) {
 	svc, _, phRepo, holdRepo, tenantID, accountID := setupPerformanceHarness(t)
 	ctx := context.Background()
@@ -162,17 +162,11 @@ func TestS1_SingleHolding_Baseline(t *testing.T) {
 		t.Fatalf("GetHoldingPerformance: %v", err)
 	}
 
-	// full 期:单笔 buy、无中断、整 365 天 → XIRR=CAGR=0.30 精确命中.
+	// full 期:单笔 buy、无中断、整 365 天 → XIRR=CAGR=TWR=0.30 精确命中.
 	approxFloat(t, perf.AnnualizedPct, 0.30, "S1 full XIRR")
 	approxFloat(t, perf.CagrAnnualizedPct, 0.30, "S1 full CAGR")
-
-	// TWR:当前 holdingTWR 实现对单笔 buy(len(trades)<2)降级为 nil(见上注).
-	// 锁定该降级行为;数学上单 buy 的 TWR 应 = 0.30,补 holdingTWR single-buy
-	// 分支后此处可改 assert 0.30(follow-up: holdingTWR single-buy branch).
-	if perf.TwrAnnualizedPct != nil {
-		t.Errorf("S1 full TWR: got %.9f, want nil (single-buy degrade; see test comment)",
-			*perf.TwrAnnualizedPct)
-	}
+	// TWR single-period-link(单 buy):BV_after=¥10000, final=¥13000, 365d → 0.30.
+	approxFloat(t, perf.TwrAnnualizedPct, 0.30, "S1 full TWR (single-buy single-period-link)")
 }
 
 // TestS2_WithDividend: S1 baseline + dividend ¥500 (2020-07-01).
@@ -313,6 +307,78 @@ func TestS3_WithSplit(t *testing.T) {
 	// split 市值中性:TWR / XIRR 与 S2 byte-identical ±1e-6。
 	approxFloat(t, perfS3.TwrAnnualizedPct, *perfS2.TwrAnnualizedPct, "S3 TWR (split neutral)")
 	approxFloat(t, perfS3.AnnualizedPct, *perfS2.AnnualizedPct, "S3 XIRR (split neutral)")
+
+	// holdingCAGR split-adjusted(FIX 2):raw firstPrice=¥100(10000 cents, 2020-01-02,
+	// 未拆)→ 累计拆分比 R=2(2020-10-01 split strictly after firstDate,ratio=2)
+	// → adjFirst=10000/2=¥50(5000)→ cur=¥65(6500)→ (6500/5000)^(365/365)-1=0.30。
+	// split 是 MV 中性 → 与 S2 的 +30% real growth 一致(无 split 时 S2 CAGR=0.30)。
+	// 旧实现(raw firstPrice 不调整)会算成 (6500/10000)^1-1 = -0.35 → 负值(bug)。
+	approxFloat(t, perfS3.CagrAnnualizedPct, *perfS2.CagrAnnualizedPct, "S3 CAGR (split neutral, FIX 2 split-adjust)")
+}
+
+// TestHoldingTWR_SingleBuy_Split: 单 buy + 1:2 split,current price post-split ¥50
+// → BV_after buy(100 × ¥100 pre-split)= 200 × ¥50(post-split MV)→ flat 0.0 TWR。
+//
+// 锁定 FIX 1 的两条性质:
+//  1. 单 cashFlowDay 持仓(此处 buy+split 经 uniqueSortedTradeDates 排除 split 后
+//     仍只有 1 个 cashFlowDay)走 single-period-link 公式,不再降级为 nil。
+//  2. split 日仍被排除在 cashFlowDays 之外(GIPS 市值中性)→ holdingTWR 不会
+//     错把 split 当现金流日子切分子区间(否则 BV_before/after 会跨 pre-/post-split
+//     qty × price 配对 → phantom HPR)。
+//
+// 数学(整 365 天,2020-01-02 → 2021-01-01):
+//   BV_after(t0) = QtyAtDate(buy_date+1)=100(pre-split,split 在 2020-06-01 未到)
+//                  × price_at_buy_date=¥100 = ¥10000(1000000 cents)
+//   finalValue   = post-split qty(200) × post-split current price(¥50) = ¥10000
+//   TWR          = (10000/10000)^(365/365) - 1 = 0.0(flat,split MV-neutral)
+func TestHoldingTWR_SingleBuy_Split(t *testing.T) {
+	svc, _, phRepo, holdRepo, tenantID, accountID := setupPerformanceHarness(t)
+	ctx := context.Background()
+
+	sec, err := svc.CreateSecurity(ctx, application.CreateSecurityRequest{
+		Symbol: "SPLIT.SH", Name: "Split Flat Test", SecurityType: domain.SecurityTypeStock,
+		Exchange: "SSE", CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	// current price post-split: ¥50 (5000 cents) — split 把 ¥100 → ¥50,持有量翻倍。
+	if err := svc.UpdateSecurityPrice(ctx, sec.ID, 5000); err != nil {
+		t.Fatalf("UpdateSecurityPrice: %v", err)
+	}
+
+	// buy 100 @ ¥100 on 2020-01-02 (避开 2020-01-01 闰年 366d 偏差,整 365d)。
+	if _, err := svc.BuyHolding(ctx, application.HoldingTradeRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: sec.ID,
+		Quantity: 100, PriceCents: 10000, TradeDate: day(t, "2020-01-02"),
+	}); err != nil {
+		t.Fatalf("BuyHolding: %v", err)
+	}
+
+	// 1:2 split on 2020-06-01 (qty 100→200, avgCost 10000→5000)。
+	if _, err := svc.RecordSplit(ctx, application.RecordSplitRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: sec.ID,
+		Ratio: 2.0, SplitDate: day(t, "2020-06-01"),
+	}); err != nil {
+		t.Fatalf("RecordSplit: %v", err)
+	}
+
+	// price_history at buy_date(holdingTWR 的 priceAtOrBefore 需要此行)。
+	seedPriceHistory(t, phRepo, sec.ID, day(t, "2020-01-02"), 10000)
+
+	holding, err := holdRepo.FindByAccountAndSecurity(ctx, tenantID, accountID, sec.ID)
+	if err != nil || holding == nil {
+		t.Fatalf("find holding: %v", err)
+	}
+
+	perf, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	if err != nil {
+		t.Fatalf("GetHoldingPerformance: %v", err)
+	}
+
+	// BV_after buy = 100(pre-split qty)× ¥100 = ¥10000;
+	// finalValue = 200(post-split qty)× ¥50 = ¥10000 → flat 0.0。
+	approxFloat(t, perf.TwrAnnualizedPct, 0.0, "single-buy + split TWR (flat, split MV-neutral)")
 }
 
 // TestS4_Portfolio_CacheTransparent: portfolio-level GetPortfolioPerformance.

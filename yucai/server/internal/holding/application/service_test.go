@@ -498,6 +498,85 @@ func TestSellHoldingFIFORealizedLandedOnTrade(t *testing.T) {
 	}
 }
 
+// TestBuyHoldingWithFeeCreatesLotFeeInclusive verifies the brokerage convention
+// that a buy fee capitalizes into the lot's per-share cost basis:
+// lot PriceCents = (price×qty + fee) / qty.
+// Buy 100@1000 c/sh + 500 c fee → lot total 100500, per-sh 1005 c (rounded).
+// Holding avg cost (derived from FIFO lots) also 1005 c.
+func TestBuyHoldingWithFeeCreatesLotFeeInclusive(t *testing.T) {
+	hr, _, lr, svc := newLotService()
+	tenantID, accountID, securityID := uuid.New(), uuid.New(), uuid.New()
+
+	_, err := svc.BuyHolding(context.Background(), HoldingTradeRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Quantity: 100, PriceCents: 1000, FeeCents: 500, TradeDate: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("BuyHolding error: %v", err)
+	}
+
+	h, _ := hr.FindByAccountAndSecurity(context.Background(), tenantID, accountID, securityID)
+	if h.AvgCostCents != 1005 {
+		t.Fatalf("holding avg cost = %d, want 1005 (fee-inclusive)", h.AvgCostCents)
+	}
+	if h.Quantity != 100 {
+		t.Fatalf("quantity = %v, want 100", h.Quantity)
+	}
+
+	lots, _ := lr.FindByHolding(context.Background(), h.ID)
+	if len(lots) != 1 {
+		t.Fatalf("expected 1 lot, got %d", len(lots))
+	}
+	if lots[0].PriceCents != 1005 {
+		t.Fatalf("lot PriceCents = %d, want 1005 ((1000*100+500)/100 rounded)", lots[0].PriceCents)
+	}
+	if lots[0].Quantity != 100 || lots[0].RemainingQuantity != 100 {
+		t.Fatalf("lot qty=%v remaining=%v, want 100/100", lots[0].Quantity, lots[0].RemainingQuantity)
+	}
+}
+
+// TestSellHoldingWithFeeReducesRealized verifies the brokerage convention that
+// a sell fee reduces net realized proceeds:
+// realized = gross_FIFO − sellFee.
+//
+// Setup (clean 1-lot case from spec, in cents):
+//   - Buy 100 @ 1000 c/sh + 500 c fee → lot cost 1005 c/sh (fee-inclusive),
+//     lot total 100500 c.
+//   - Sell 100 @ 1200 c/sh, fee 500 c.
+//     gross FIFO = (1200 − 1005) × 100 = 19500 c.
+//     net realized = 19500 − 500 = 19000 c (¥190).
+func TestSellHoldingWithFeeReducesRealized(t *testing.T) {
+	hr, tr, lr, svc := newLotService()
+	tenantID, accountID, securityID := uuid.New(), uuid.New(), uuid.New()
+
+	// Seed lot directly: 100@1005 c (already fee-inclusive, as BuyHolding would produce).
+	existingHolding := &domain.Holding{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Quantity: 100, AvgCostCents: 1005,
+	}
+	hr.SaveOrUpdate(context.Background(), existingHolding)
+	lr.seedLot(domain.HoldingLot{
+		ID: uuid.New(), TenantID: tenantID, HoldingID: existingHolding.ID, SecurityID: securityID,
+		AcquiredDate: time.Now().AddDate(0, 0, -1), PriceCents: 1005,
+		Quantity: 100, RemainingQuantity: 100,
+	})
+
+	dto, err := svc.SellHolding(context.Background(), HoldingTradeRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Quantity: 100, PriceCents: 1200, FeeCents: 500, TradeDate: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("SellHolding error: %v", err)
+	}
+
+	if dto.RealizedPnLCents != 19000 {
+		t.Fatalf("realized = %d, want 19000 (gross 19500 − sell fee 500)", dto.RealizedPnLCents)
+	}
+	if len(tr.saved) != 1 || tr.saved[0].RealizedPnLCents != 19000 {
+		t.Fatalf("persisted trade realized = %v, want 19000", tr.saved)
+	}
+}
+
 func valOr(l *domain.HoldingLot) float64 {
 	if l == nil {
 		return -1

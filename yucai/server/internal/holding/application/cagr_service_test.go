@@ -134,7 +134,9 @@ func TestHoldingCAGRFullPeriod(t *testing.T) {
 		priceHistoryRepo: &fakePriceRepoWithDate{priceCents: 10000, priceDate: mustDate2("2020-01-01")},
 		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	full, _, err := svc.holdingCAGR(context.Background(), h, sec, mustDate2("2024-01-01"))
+	full, _, err := svc.holdingCAGR(context.Background(), h, sec,
+		[]domain.HoldingTransaction{{TradeType: domain.TradeTypeBuy, SecurityID: secID, TradeDate: mustDate2("2020-01-01")}},
+		mustDate2("2024-01-01"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -163,7 +165,7 @@ func TestHoldingCAGRNoHistoryDegraded(t *testing.T) {
 		priceHistoryRepo: &fakePriceRepoWithDate{priceCents: 0}, // empty history
 		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	full, rng, err := svc.holdingCAGR(context.Background(), h, sec, mustDate2("2024-01-01"))
+	full, rng, err := svc.holdingCAGR(context.Background(), h, sec, nil, mustDate2("2024-01-01"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -234,7 +236,7 @@ func TestHoldingCAGRRange(t *testing.T) {
 		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
 	rangeStart := mustDate2("2024-01-01")
-	_, rng, err := svc.holdingCAGR(context.Background(), h, sec, rangeStart)
+	_, rng, err := svc.holdingCAGR(context.Background(), h, sec, nil, rangeStart)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -322,53 +324,60 @@ func TestPortfolioCAGRRangeDegradeEarly(t *testing.T) {
 	}
 }
 
-// --- holdingCAGR sort-safety (Fix 1: 不依赖 FindBySecurity sort order) ---
+// --- holdingCAGR P1-5: full-period uses BUY date, not price-history inception ---
 //
-// holdingCAGR full-period 取最早 price_history 行(min PriceDate)。旧实现直接
-// 用 all[0](假设 FindBySecurity ASC oldest-first),但 interface 不保证排序;
-// 一旦换 cache / SQL DESC / test fake newest-first,all[0] 会变成最新价
-// → (cur/cur)^(...)-1 ≈ 0%。Fix 后 iterate min-PriceDate,任意顺序都正确。
+// holdingCAGR full-period 的 days 必须从用户首买日算起,而非证券 price_history
+// 起始日。回填场景(price_history 早于 buy)下,用 inception 会把天数撑大 →
+// 同一 (cur/first) 比值算出偏低 CAGR,失真用户真实回报。spec §6.2 原写 "first
+// price_history point" 是设计疏漏(P1-5 纠正):改用 earliestBuyDate +
+// priceAtOrBefore(forward-fill 取买入日市价)。
 //
-// 本测用 fakePriceRepoDateAware(rows 按 newest-first 喂入)锁住 Fix:
-// 取所有 rows 的最早 PriceDate(2020-01-01, price=10000)→ cur/start=1.5
-// → CAGR > 0。若回归 all[0] 信任,会取到 2025-01-01 price=14000 → ratio 近 1
-// → CAGR ≈ 0 → 测失败。
-func TestHoldingCAGRFullPeriodReverseOrder(t *testing.T) {
+// TestHoldingCAGR_UsesBuyDateNotInception: price_history 起始 2018(早于买入 2020)。
+// 正确(buy date 2020→2024 = 1461 天):CAGR = 1.5^(365/1461)-1 ≈ 11.0%/y。
+// 旧行为(inception 2018→2024 = 2192 天):≈ 7.4%/y。两者明显不同 → 锁 buy date。
+//
+// 与 ReverseOrder(已废)的区别:本测不验 sort-safety(priceAtOrBefore 内部扫描
+// 另测),只验 firstDate 选 buy 日 vs price inception 的区分度。SetNow 注入固定
+// 评估日(2024-01-01)→ days 确定性可断言(优于 time.Since 真实 now)。
+func TestHoldingCAGR_UsesBuyDateNotInception(t *testing.T) {
 	secID := uuid.New()
 	holdID := uuid.New()
 	accID := uuid.New()
 	h := domain.Holding{ID: holdID, AccountID: accID, SecurityID: secID, Quantity: 100, AvgCostCents: 10000}
 	sec := domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 15000}
-	// Newest-first 故意打乱:FindBySecurity 不保证 ASC。最早是 2020-01-01@10000。
-	repo := &fakePriceRepoDateAware{rows: []domain.SecurityPriceHistory{
-		{SecurityID: secID, PriceDate: mustDate2("2025-01-01"), PriceCents: 14000},
-		{SecurityID: secID, PriceDate: mustDate2("2023-01-01"), PriceCents: 12000},
-		{SecurityID: secID, PriceDate: mustDate2("2020-01-01"), PriceCents: 10000}, // ← earliest, must be picked
-		{SecurityID: secID, PriceDate: mustDate2("2024-01-01"), PriceCents: 13000},
-	}}
 	svc := &Service{
-		securityRepo:     &fakeSecurityRepoByID{sec: sec},
-		holdingRepo:      &fakeHoldingRepoSingle{h: h},
-		tradeRepo:        &fakeTradeRepo{},
-		priceHistoryRepo: repo,
-		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+		securityRepo: &fakeSecurityRepoByID{sec: sec},
+		holdingRepo:  &fakeHoldingRepoSingle{h: h},
+		tradeRepo:    &fakeTradeRepo{},
+		// price_history 起始 2018(早于买入 2020)— date-aware fake 让 priceAtOrBefore
+		// 能取到 2018 行(forward-fill 到 buy 日)。
+		priceHistoryRepo: &fakePriceRepoDateAware{rows: []domain.SecurityPriceHistory{{
+			SecurityID: secID, PriceDate: mustDate2("2018-01-01"), PriceCents: 10000,
+		}}},
+		rateRepo: &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	full, _, err := svc.holdingCAGR(context.Background(), h, sec, mustDate2("2024-01-01"))
+	// 注入固定 now(2024-01-01)— Service.SetNow 存在,优于 spec fallback time.Since。
+	now := mustDate2("2024-01-01")
+	svc.SetNow(func() time.Time { return now })
+
+	buyDate := mustDate2("2020-01-01")
+	full, _, err := svc.holdingCAGR(context.Background(), h, sec,
+		[]domain.HoldingTransaction{{TradeType: domain.TradeTypeBuy, SecurityID: secID, TradeDate: buyDate}},
+		mustDate2("2024-01-01"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if full == nil {
-		t.Fatal("full CAGR nil, want non-nil (earliest price 2020-01-01@10000 picked regardless of FindBySecurity row order)")
+		t.Fatal("full CAGR nil, want non-nil (buy 2020-01-01, price history 2018-01-01 forward-fills)")
 	}
-	if math.IsNaN(*full) || math.IsInf(*full, 0) {
-		t.Fatalf("full CAGR not finite: %v", *full)
-	}
-	// earliest 2020-01-01@10000 → cur/first = 15000/10000 = 1.5 → CAGR > 0。
-	// 若回归 all[0] 信任(newest-first → all[0]=14000 → ratio=1.07 → 6y CAGR
-	// ≈ 1.1%/y,仍 > 0 但远低于正确值)。所以加严格的公式断言锁死 earliest 选择。
-	days := int(time.Since(mustDate2("2020-01-01")).Hours() / 24)
-	want := math.Pow(1.5, 365.0/float64(days)) - 1
-	if math.Abs(*full-want) > 1e-9 {
-		t.Errorf("full CAGR = %.10v, want %.10v (1.5^(365/%d)-1; iterate-min-PriceDate must pick 2020-01-01@10000 not all[0])", *full, want, days)
+	// 关键断言:days 必须从 buy 日(2020)算,不是 price inception(2018)。
+	// now 已注入 2024-01-01 → days 可确定性计算。
+	daysFromBuy := int(now.Sub(buyDate).Hours() / 24)
+	daysFromInception := int(now.Sub(mustDate2("2018-01-01")).Hours() / 24)
+	wantFromBuy := math.Pow(1.5, 365.0/float64(daysFromBuy)) - 1
+	wantFromInception := math.Pow(1.5, 365.0/float64(daysFromInception)) - 1
+	if math.Abs(*full-wantFromBuy) > 1e-9 {
+		t.Errorf("full CAGR = %.10v, want %.10v (days from BUY 2020-01-01, NOT price inception 2018-01-01 = %.10v)",
+			*full, wantFromBuy, wantFromInception)
 	}
 }

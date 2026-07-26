@@ -60,10 +60,21 @@ type Holding struct {
 	UpdatedAt    time.Time
 }
 
-// ApplyBuy adds shares and recalculates average cost.
-func (h *Holding) ApplyBuy(quantity float64, priceCents int64) {
+// ApplyBuy adds shares and recalculates average cost, capitalizing the buy fee
+// into the cost basis (brokerage standard): the fee is part of what the holder
+// paid to acquire the position, so it is folded into per-share cost.
+//
+// new per-share avg = (oldAvg×oldQty + price×qty + fee) / (oldQty + qty)
+//
+// BACKWARD COMPATIBILITY: holdings/lots created before this fix have
+// fee-EXCLUSIVE AvgCostCents (only price×qty, no fee). New buys produce
+// fee-INCLUSIVE values. For the local-first dev app this is acceptable —
+// re-seed holdings to get fully consistent data. No migration is written;
+// mixing pre-fix and post-fix lots only slightly understates cost basis on
+// legacy positions.
+func (h *Holding) ApplyBuy(quantity float64, priceCents int64, feeCents int64) {
 	totalCostBefore := float64(h.AvgCostCents) * h.Quantity
-	costAdded := float64(priceCents) * quantity
+	costAdded := float64(priceCents)*quantity + float64(feeCents)
 	h.Quantity += quantity
 	if h.Quantity > 0 {
 		h.AvgCostCents = int64(math.Round((totalCostBefore + costAdded) / h.Quantity))

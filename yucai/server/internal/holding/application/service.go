@@ -99,15 +99,21 @@ func (s *Service) BuyHolding(ctx context.Context, req HoldingTradeRequest) (*Hol
 			AccountID: req.AccountID, SecurityID: req.SecurityID,
 		}
 	}
-	h.ApplyBuy(req.Quantity, req.PriceCents)
+	h.ApplyBuy(req.Quantity, req.PriceCents, req.FeeCents)
 
 	tradeID := uuid.New()
+	// Lot per-share cost capitalizes the buy fee (brokerage standard):
+	// (price×qty + fee) / qty. Rounding to per-share cents is acceptable — the
+	// tiny residual (sub-cent) is absorbed into the lot's cost basis. This
+	// mirrors ApplyBuy's fee-inclusive AvgCostCents; legacy pre-fix lots use
+	// fee-EXCLUSIVE PriceCents (see ApplyBuy backward-compat note).
+	lotPriceCents := int64(math.Round((float64(req.PriceCents)*req.Quantity + float64(req.FeeCents)) / req.Quantity))
 	newLot := domain.HoldingLot{
 		// ID 留 zero(uuid.Nil)—— lot_repo SaveAll Create 分支(==Nil)走 ent Default。
 		// 修陷阱 A:原 ID: uuid.New() 非 Nil → SaveAll Update 分支(UpdateOneID)→ ent NotFound。
 		TenantID: req.TenantID, HoldingID: h.ID, SecurityID: req.SecurityID,
 		AcquiredDate: req.TradeDate, AcquiredTradeID: tradeID,
-		PriceCents: req.PriceCents, Quantity: req.Quantity, RemainingQuantity: req.Quantity,
+		PriceCents: lotPriceCents, Quantity: req.Quantity, RemainingQuantity: req.Quantity,
 	}
 	// AvgCost from FIFO lots (existing + new), consistent with lot state.
 	if s.lotRepo != nil {
@@ -157,7 +163,11 @@ func (s *Service) SellHolding(ctx context.Context, req HoldingTradeRequest) (*Ho
 		if err != nil {
 			return nil, err
 		}
-		realized = consumedRealized
+		// Sell fee reduces net realized proceeds (brokerage standard): gross FIFO
+		// (already using fee-inclusive lot cost via BuyHolding) minus the sell
+		// fee. ConsumeLotsFIFO is GROSS (signature unchanged); the fee adjustment
+		// lives here at the call site.
+		realized = consumedRealized - req.FeeCents
 		// Apply consumption in-memory, then persist.
 		consumedByID := map[uuid.UUID]float64{}
 		for _, c := range consumed {
@@ -1012,14 +1022,16 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	// (rebuilt from price_history endpoint). Both degrade independently to nil.
 	fullXirr, _ := s.holdingXIRR(ctx, holdingID, base)
 	rangeStart, _, _ := s.curveWindow(rangeName)
-	rng := s.computeHoldingRangeXIRR(ctx, *h, *sec, s.tradesForHolding(ctx, *h), rangeStart, fullXirr)
+	// trades fetched once, shared by range XIRR + CAGR (split-adjustment).
+	trades := s.tradesForHolding(ctx, *h)
+	rng := s.computeHoldingRangeXIRR(ctx, *h, *sec, trades, rangeStart, fullXirr)
 	// TWR (Task 4): full-period time-weighted annualized % in original currency,
 	// degrades to nil independently of XIRR.
 	twr, _ := s.holdingTWR(ctx, holdingID)
 	// CAGR (Task 1): simple compound annualized (final/initial)^(365/days)-1 in
 	// original currency. Full: first price → current; range: rangeStart price →
 	// current. Independent nil degrade (照 holdingXIRR/holdingTWR).
-	fullCagr, rangeCagr, _ := s.holdingCAGR(ctx, *h, *sec, rangeStart)
+	fullCagr, rangeCagr, _ := s.holdingCAGR(ctx, *h, *sec, trades, rangeStart)
 	return &HoldingPerformance{
 		PricePoints: pts, RealizedCents: realized, UnrealizedCents: unrealized,
 		TotalCents: realized + unrealized, AnnualizedPct: fullXirr, RangeAnnualizedPct: rng,
@@ -1175,6 +1187,11 @@ func (s *Service) marketValueAtDateAsOfWithTrades(ctx context.Context, secTrades
 		for _, h := range res.Items {
 			sec, err := s.securityRepo.FindByID(ctx, h.SecurityID)
 			if err != nil || sec == nil {
+				slog.Warn("portfolio range market-value degrade: holding security missing",
+					slog.String("security_id", h.SecurityID.String()),
+					slog.String("qty_as_of", qtyAsOf.Format("2006-01-02")),
+					slog.String("price_as_of", priceAsOf.Format("2006-01-02")),
+					slog.String("operation", "marketValueAtDateAsOfWithTrades"))
 				return 0, false
 			}
 			qty := domain.QtyAtDate(filterTradesBySecurity(secTrades, h.SecurityID), qtyAsOf)
@@ -1183,6 +1200,10 @@ func (s *Service) marketValueAtDateAsOfWithTrades(ctx context.Context, secTrades
 			}
 			price, ok := s.priceAtOrBefore(ctx, h.SecurityID, priceAsOf)
 			if !ok {
+				slog.Warn("portfolio range market-value degrade: holding price history missing for date",
+					slog.String("security_id", h.SecurityID.String()),
+					slog.String("price_as_of", priceAsOf.Format("2006-01-02")),
+					slog.String("operation", "marketValueAtDateAsOfWithTrades"))
 				return 0, false // history missing (US stocks/OTC) → degrade
 			}
 			mv := int64(math.Round(qty * float64(price)))
@@ -1462,11 +1483,11 @@ func (s *Service) holdingTWR(ctx context.Context, holdingID uuid.UUID) (*float64
 		return nil, nil
 	}
 	trades := s.tradesForHolding(ctx, *h)
-	if len(trades) < 2 {
+	if len(trades) == 0 {
 		return nil, nil
 	}
 	cashFlowDays := uniqueSortedTradeDates(trades)
-	if len(cashFlowDays) < 2 {
+	if len(cashFlowDays) == 0 {
 		return nil, nil
 	}
 	subPeriods := make([]domain.SubPeriodReturn, 0, len(cashFlowDays)-1)
@@ -1485,11 +1506,20 @@ func (s *Service) holdingTWR(ctx context.Context, holdingID uuid.UUID) (*float64
 		}
 		prevAfterCF = BV_after
 	}
-	if len(subPeriods) == 0 {
-		return nil, nil
-	}
 	finalValue := float64(h.MarketValue(sec.CurrentPriceCents)) // 原币
 	totalDays := int(s.now().Sub(cashFlowDays[0]).Hours() / 24)
+	if len(subPeriods) == 0 {
+		// Single cashFlowDay(单 buy,或 buy+split —— split 经 uniqueSortedTradeDates
+		// 排除后剩 1 个现金流日):无法切分 ≥2 个 GIPS 子区间,改走 single-period-link。
+		//   TWR_annualized = (finalValue / BV_after(t0)) ^ (365 / totalDays) − 1
+		// BV_after(t0) = prevAfterCF(loop 唯一一次迭代设);BV_after==0 除零 → 仍 nil;
+		// totalDays<1 → nil(同多区间路径 ErrInsufficientPeriods 等价降级)。
+		if prevAfterCF <= 0 || totalDays < 1 {
+			return nil, nil
+		}
+		rate := math.Pow(finalValue/prevAfterCF, 365.0/float64(totalDays)) - 1
+		return ptrFloat(rate), nil
+	}
 	rate, err := domain.TWR(subPeriods, finalValue, prevAfterCF, totalDays)
 	if err != nil {
 		return nil, nil
@@ -1573,48 +1603,118 @@ func (s *Service) portfolioCAGR(ctx context.Context, tenantID uuid.UUID, account
 // holdingCAGR computes full + range single-holding CAGR (original currency,
 // price-based). No cash flows — purely a price ratio.
 //
-//	full: initial = first price_history row (FindBySecurity epoch→now asc first =
-//	      oldest), final = sec.CurrentPriceCents, days = first date → now.
+//	full: initial = priceAtOrBefore(earliestBuyDate) — the user's actual acquisition
+//	      start (earliest TradeTypeBuy), NOT the security's price-history inception
+//	      (spec §6.2 originally said "first price_history point" — that was a design
+//	      oversight corrected P1-5: price_history backfilled earlier than the buy
+//	      would understate CAGR via inflated day count). final = sec.CurrentPriceCents,
+//	      days = earliestBuyDate → now. No buy trade → nil (production holdings always
+//	      have a buy; tests passing nil trades must add one).
 //	rng:  initial = priceAtOrBefore(rangeStart) (split-adjusted forward-fill),
 //	      final = sec.CurrentPriceCents, days = rangeStart → now.
 //
-// Both degrade independently to nil when initial<=0, days<1, or history missing.
-func (s *Service) holdingCAGR(ctx context.Context, h domain.Holding, sec domain.Security, rangeStart time.Time) (full, rng *float64, err error) {
+// Split correction (FIX 2, spec 2026-07-16-split-adjusted §3): price_history 存储
+// raw(non-split-adjusted),post-split 行才是真值。所以 initial 用 raw first/start
+// price 时,必须 ON-THE-FLY 按 price date 之后的累计拆分比 R 折算到 post-split:
+//   price_adjusted = price_raw / R   (R = Π r_i, every split strictly after priceDate)
+// Otherwise a 2:1 split 会把 ¥100 raw firstPrice 对 ¥50 current → spurious −33% CAGR。
+// storage 不动(spec §3 明令),只在计算时折算。
+//
+// `trades` is the holding's trade stream (for split detection) — passed by the
+// caller GetHoldingPerformance which already has them; nil/empty → R=1 (no splits).
+//
+// Both degrade independently to nil when initial<=0, days<1, history missing,
+// or R is invalid (non-positive ratio — shouldn't happen; degrade 不造假).
+func (s *Service) holdingCAGR(ctx context.Context, h domain.Holding, sec domain.Security, trades []domain.HoldingTransaction, rangeStart time.Time) (full, rng *float64, err error) {
 	cur := float64(sec.CurrentPriceCents)
 	if cur <= 0 {
 		return nil, nil, nil
 	}
-	// Full: earliest price_history row (iterate to min PriceDate — don't rely on
-	// FindBySecurity sort order, mirror priceAtOrBefore's defensive scan).
-	if s.priceHistoryRepo != nil {
-		all, _ := s.priceHistoryRepo.FindBySecurity(ctx, h.SecurityID, time.Time{}, s.now())
-		var first float64
-		var firstDate time.Time
-		for _, p := range all {
-			if p.PriceCents <= 0 {
-				continue
-			}
-			if firstDate.IsZero() || p.PriceDate.Before(firstDate) {
-				firstDate = p.PriceDate
-				first = float64(p.PriceCents)
-			}
-		}
-		if first > 0 && !firstDate.IsZero() {
-			if days := int(s.now().Sub(firstDate).Hours() / 24); days >= 1 {
-				f := math.Pow(cur/first, 365.0/float64(days)) - 1
-				full = ptrFloat(f)
+	// Full: 持仓首个 buy 日(用户实际持有起点),非证券 price_history 起始日。
+	// spec §6.2 原写 "first price_history point" 是设计疏漏 —— 那量的是证券价格史
+	// 起点而非用户个人回报;回填早于买入时会低估(天数偏大)。现用首买日 +
+	// priceAtOrBefore 取当时市价(forward-fill)。无 buy trade → 降级 nil(生产中
+	// holding 必有 buy;单测 nil-trades 场景需补 buy trade)。
+	firstDate := earliestBuyDate(trades)
+	if !firstDate.IsZero() {
+		if firstPrice, ok := s.priceAtOrBefore(ctx, h.SecurityID, firstDate); ok && firstPrice > 0 {
+			R := cumulativeSplitRatio(trades, firstDate, s.now())
+			if R > 0 { // R==0 → invalid split ratio → degrade (don't fabricate)
+				if adjFirst := float64(firstPrice) / R; adjFirst > 0 {
+					if days := int(s.now().Sub(firstDate).Hours() / 24); days >= 1 {
+						full = ptrFloat(math.Pow(cur/adjFirst, 365.0/float64(days)) - 1)
+					}
+				}
 			}
 		}
 	}
 	// Range: priceAtOrBefore(rangeStart) → current over rangeStart→now days.
 	startPriceCents, ok := s.priceAtOrBefore(ctx, h.SecurityID, rangeStart)
 	if ok && startPriceCents > 0 {
-		if days := int(s.now().Sub(rangeStart).Hours() / 24); days >= 1 {
-			r := math.Pow(cur/float64(startPriceCents), 365.0/float64(days)) - 1
-			rng = ptrFloat(r)
+		R := cumulativeSplitRatio(trades, rangeStart, s.now())
+		if R > 0 {
+			adjStart := float64(startPriceCents) / R
+			if adjStart > 0 {
+				if days := int(s.now().Sub(rangeStart).Hours() / 24); days >= 1 {
+					r := math.Pow(cur/adjStart, 365.0/float64(days)) - 1
+					rng = ptrFloat(r)
+				}
+			}
 		}
 	}
 	return full, rng, nil
+}
+
+// cumulativeSplitRatio returns Π(r_i) for every TradeTypeSplit of this holding
+// with tradeDate strictly AFTER priceDate and ≤ now. Returns 0 if any split
+// ratio is non-positive (invalid — caller degrades to nil for that path).
+//
+// Split semantics: ratio r means qty *= r AND price /= r (see Holding.ApplySplit
+// — `h.Quantity *= ratio; h.AvgCostCents /= ratio`). To express a pre-split
+// price in post-split terms, divide by R: a ¥100 pre-split row with one r=2
+// split after it becomes ¥50 in post-split terms (100 / 2).
+//
+// TradeTypeSplit stores the ratio in HoldingTransaction.Quantity (see
+// Service.RecordSplit which builds `Quantity: req.Ratio`).
+//
+// now upper bound: splits dated after `now` (future) are excluded — they don't
+// affect the price series observed up to `now`.
+func cumulativeSplitRatio(trades []domain.HoldingTransaction, priceDate, now time.Time) float64 {
+	product := 1.0
+	for _, t := range trades {
+		if t.TradeType != domain.TradeTypeSplit {
+			continue
+		}
+		if !t.TradeDate.After(priceDate) {
+			continue
+		}
+		if t.TradeDate.After(now) {
+			continue
+		}
+		r := t.Quantity // TradeTypeSplit stores ratio here (see RecordSplit).
+		if r <= 0 {
+			return 0
+		}
+		product *= r
+	}
+	return product
+}
+
+// earliestBuyDate returns the earliest TradeTypeBuy date for a holding — the
+// user's actual acquisition start (holdingCAGR full-period uses this so the
+// annualized return reflects the user's holding period, not the security's
+// price-history inception). Zero time when the holding has no buy trades.
+func earliestBuyDate(trades []domain.HoldingTransaction) time.Time {
+	var first time.Time
+	for _, t := range trades {
+		if t.TradeType != domain.TradeTypeBuy {
+			continue
+		}
+		if first.IsZero() || t.TradeDate.Before(first) {
+			first = t.TradeDate
+		}
+	}
+	return first
 }
 
 // earliestHoldingCreated returns the earliest holding.CreatedAt across the

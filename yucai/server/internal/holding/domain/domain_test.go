@@ -24,7 +24,7 @@ func TestNewSecurity_EmptySymbol(t *testing.T) {
 
 func TestHolding_ApplyBuy(t *testing.T) {
 	h := &Holding{Quantity: 0, AvgCostCents: 0}
-	h.ApplyBuy(100, 5000)
+	h.ApplyBuy(100, 5000, 0)
 	if h.Quantity != 100 {
 		t.Errorf("expected 100, got %f", h.Quantity)
 	}
@@ -33,12 +33,39 @@ func TestHolding_ApplyBuy(t *testing.T) {
 	}
 
 	// Second buy at different price
-	h.ApplyBuy(100, 6000)
+	h.ApplyBuy(100, 6000, 0)
 	if math.Abs(h.Quantity-200) > 0.001 {
 		t.Errorf("expected 200, got %f", h.Quantity)
 	}
 	if h.AvgCostCents != 5500 { // (5000*100 + 6000*100) / 200
 		t.Errorf("expected avg cost 5500, got %d", h.AvgCostCents)
+	}
+}
+
+// TestHolding_ApplyBuyWithFee verifies buy fee capitalizes into cost basis:
+// new per-share avg = (oldAvg×oldQty + price×qty + fee) / (oldQty + qty).
+// 100@5000 c/sh (no fee) → avg 5000; then buy 100@6000 c/sh + 1000 c fee:
+// total cost = 5000*100 + 6000*100 + 1000 = 500000+600000+1000 = 1101000;
+// qty = 200; avg = 1101000/200 = 5505 c/sh.
+func TestHolding_ApplyBuyWithFee(t *testing.T) {
+	h := &Holding{Quantity: 0, AvgCostCents: 0}
+	h.ApplyBuy(100, 5000, 0)
+	h.ApplyBuy(100, 6000, 1000)
+	if math.Abs(h.Quantity-200) > 0.001 {
+		t.Errorf("expected 200, got %f", h.Quantity)
+	}
+	if h.AvgCostCents != 5505 {
+		t.Errorf("expected avg cost 5505 (fee capitalized), got %d", h.AvgCostCents)
+	}
+}
+
+// TestHolding_ApplyBuyWithFeeSingleBuy verifies the simple case from the spec:
+// one buy 100@1000 c/sh + 500 c fee → lot total 100500, per-sh 1005 c.
+func TestHolding_ApplyBuyWithFeeSingleBuy(t *testing.T) {
+	h := &Holding{Quantity: 0, AvgCostCents: 0}
+	h.ApplyBuy(100, 1000, 500)
+	if h.AvgCostCents != 1005 {
+		t.Errorf("expected avg cost 1005 (100000+500)/100 rounded, got %d", h.AvgCostCents)
 	}
 }
 
