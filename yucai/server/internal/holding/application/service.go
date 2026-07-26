@@ -868,11 +868,11 @@ func (s *Service) rateForBase(ctx context.Context, base string) float64 {
 	return s.rateForCode(ctx, base, s.now())
 }
 
-// convertTradeToBase 折算 a single trade amount to base, looking up the
-// security's currency code + the from-rate at tradeDate (照 samplePortfolioInBase
-// / currentUnrealizedInBase 模式). Missing security or rate → 1.0 (graceful, no
-// conversion). If the security's currency equals base, the amount is returned
-// unchanged (same currency, no conversion needed).
+// convertTradeToBase 折算 a single trade amount to base via the CNY-base cross
+// rate (照 samplePortfolioInBase / currentUnrealizedInBase 模式). Looks up the
+// security's currency code + the from-rate at tradeDate. Missing security or
+// rate → 1.0 (graceful, no conversion). If the security's currency equals base,
+// the amount is returned unchanged (same currency, no conversion needed).
 func (s *Service) convertTradeToBase(ctx context.Context, amount int64, securityID uuid.UUID, tradeDate time.Time, rateBase float64, base string) int64 {
 	if amount == 0 || s.rateRepo == nil {
 		return amount

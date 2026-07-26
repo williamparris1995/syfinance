@@ -108,6 +108,30 @@ func (s *Service) SyncRates(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("fetch rates: %w", err)
 	}
+	// Frankfurter returns EUR-base rates (rate[X] = "1 EUR = X"). The rest of
+	// the system (ConvertToBase, networth/holding/budget aggregations) assumes
+	// CNY-base: rate[X] = "1 X = ? CNY" with rate[CNY] = 1.0. Rebasing pivot:
+	// rate[X]_cny = rate[CNY]_eur / rate[X]_eur. Verified with Frankfurter's
+	// canonical sample: rate[USD]=1.08, rate[CNY]=7.81 → rate[USD]_cny ≈ 7.23,
+	// rate[CNY]_cny = 1.0; ConvertToBase(1000 USD, 7.23, 1.0) = 7230 CNY ✓.
+	// Fallback: if CNY is absent or non-positive, skip rebasing and log a
+	// warning — rates are then stored as-returned (still EUR-base), which is
+	// wrong-direction for cross-currency aggregation but better than crashing;
+	// the operator must investigate the missing CNY quote (F1 hotfix scope).
+	cnyEur, hasCNY := rates["CNY"]
+	if hasCNY && cnyEur > 0 {
+		for k, v := range rates {
+			if k == "CNY" || v <= 0 {
+				continue
+			}
+			rates[k] = cnyEur / v
+		}
+		rates["CNY"] = 1.0
+	} else {
+		slog.Warn("currency rate sync: CNY missing from provider response, skipping CNY-base rebasing",
+			slog.String("operation", "SyncRates"),
+			slog.Int("returned_codes", len(rates)))
+	}
 	updated := 0
 	for i := range active {
 		c := &active[i]
@@ -145,9 +169,12 @@ func (s *Service) SyncRates(ctx context.Context) (int, error) {
 }
 
 // defaultCurrencies are the built-in reference currencies seeded at startup.
-// Rates are EUR-base (frankfurter convention: rate[EUR] = 1.0). SyncRates
-// refreshes these from frankfurter; currencies frankfurter does not serve
-// (e.g. HKD) keep these fallback rates.
+// NOTE: these rates are EUR-base (frankfurter convention: rate[EUR] = 1.0),
+// but SyncRates now rebases live Frankfurter responses to CNY-base before
+// persisting. Currencies Frankfurter does NOT serve (historically HKD) keep
+// these EUR-base seed values — a known inconsistency: until HKD gets a live
+// CNY-base quote, conversions involving it use the wrong-direction seed.
+// Follow-up: rebase seed values to CNY-base too (out of F1 hotfix scope).
 var defaultCurrencies = []struct {
 	code, name, symbol string
 	rate               float64

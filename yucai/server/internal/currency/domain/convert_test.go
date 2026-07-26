@@ -51,3 +51,18 @@ func TestConvertToBaseRounding(t *testing.T) {
 		t.Fatalf("positive .5 (3.5): got %d, want 4", got)
 	}
 }
+
+// TestConvertToBaseRebasedFrankfurter verifies the post-rebasing math against
+// Frankfurter's canonical EUR-base sample (rate[USD]=1.08, rate[CNY]=7.81 →
+// rebased rate[USD]_cny = 7.81/1.08 ≈ 7.231, rate[CNY] = 1.0). 1000 USD must
+// convert to ~7231 CNY (rounded). Pre-fix this would have used the raw EUR-base
+// pair (1000 × 1.08 / 7.81 ≈ 138) — the ~52x error this hotfix closes.
+func TestConvertToBaseRebasedFrankfurter(t *testing.T) {
+	rateUSD := 7.81 / 1.08 // ≈ 7.231481… (1 USD = 7.231 CNY after rebasing)
+	rateCNY := 1.0
+	got := ConvertToBase(1000, rateUSD, rateCNY)
+	// 1000 × 7.231481 / 1.0 = 7231.481 → math.Round = 7231
+	if got != 7231 {
+		t.Fatalf("1000 USD → CNY (rebased Frankfurter): got %d, want 7231", got)
+	}
+}
