@@ -18,6 +18,16 @@
             "command": "C:/Users/andy/.local/bin/graphify.EXE hook-guard read"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/verify-commit.ps1",
+            "timeoutMs": 600000
+          }
+        ]
       }
     ]
   }

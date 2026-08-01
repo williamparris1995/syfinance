@@ -192,7 +192,13 @@ void main() {
     verify(() =>
         repo.summary(prev.year, prev.month, scope: SummaryScope.month))
         .called(greaterThanOrEqualTo(1));
-    // 标签同步更新。
-    expect(find.text('${prev.year} 年 ${prev.month} 月'), findsOneWidget);
+    // 标签同步更新(descendant 限定到日期按钮:_SummaryStrip 也渲染同文案,见 122-128)。
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('reportDateButton')),
+        matching: find.text('${prev.year} 年 ${prev.month} 月'),
+      ),
+      findsOneWidget,
+    );
   });
 }

@@ -239,8 +239,10 @@ void main() {
       expect(find.textContaining('已还合计'), findsOneWidget);
       expect(find.textContaining('¥27,062.00'), findsWidgets);
       // 待还合计 = pendingTotal = 4,059,300 → ¥40,593.00
+      //   (巧合:逾期应付 金额随 now 漂移,当 e5(paymentDate=2026-08-01)跨 overdue
+      //    界限时,逾期合计恰好等于 pendingTotal → findsWidgets 容忍,与「已还合计」同模式)
       expect(find.textContaining('待还合计'), findsOneWidget);
-      expect(find.textContaining('¥40,593.00'), findsOneWidget);
+      expect(find.textContaining('¥40,593.00'), findsWidgets);
       // 累计还息 = paidInterest = 1,898,800 → ¥18,988.00(成本 = 红)
       //   (也出现在 已还合计 sub「本金 ¥8,074.00 + 利息 ¥18,988.00」→ findsWidgets)
       expect(find.textContaining('累计还息'), findsOneWidget);
