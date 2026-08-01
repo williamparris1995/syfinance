@@ -5,10 +5,10 @@
 
 ## Current position
 
-**Status:** `baselines-established` — sydusx 项目基线已建立,首个 release 分解**待定**(用户 2026-08-01 选择先处理本地积压/基线确认,release 推迟)。
+**Status:** `release-r5-audit` — Release 1(R5 御财审计整改)已分解,sprint planning 进行中。
 
-- Current release: _(none yet — 用户选择推迟分解)_
-- Current sprint: —
+- Current release: [release-r5-audit](release-r5-audit/release.md)(R5 审计整改,scope 03-09)
+- Current sprint: _(sprint-1 规划中:04 备份恢复)_
 - Current feature: —
 
 ## baselines(已建立,2026-08-01)
@@ -26,12 +26,11 @@
 - [.claude/hooks/verify-commit.ps1](../../.claude/hooks/verify-commit.ps1) — PreToolUse(git commit)跑 `go test ./...`(全绿 block)+ `flutter test`(基线容忍:account_detail_page_test / receivable_detail_page_test drift 放行,新 fail block)。注册于 `.claude/settings.json`(保留 graphify hook)。
 - **已 e2e 验证**:go test 全绿 + flutter 仅剩 baseline 2 文件 drift(容忍)→ exit 0。修了 2 个 2026-08-01 日历 drift(debt_detail StatRow `findsWidgets` + report_page `find.descendant`)→ 基线干净回 3 fail/2 文件(CLAUDE.md 记录值)。
 
-## 下一步(用户选择)
+## 备注
 
-用户 2026-08-01 选「先不定 release」,优先:
-1. 处理本地 main 积压(holding 346+ commit / auth OIDC / 审计 03 等**未 push origin**)。
-2. 基线确认(go test 全绿 / flutter test 3 fail drift)。
-3. release 分解留后(候选:R5 审计 04 备份恢复,03 刚 unblock)。
+- 本地 main 与 origin 已同步(2026-08-01 push `ec7dcb2` 后;此前 memory 说"346+ 未 push"已过时)。
+- 基线确认:go test 全绿 + flutter 3 fail/2 文件 drift(CLAUDE.md 记录值,2026-08-01 验证)。
+- pre-commit 测试 gate hook 已生效 + 实测通过(真实 Claude Code 环境)。
 
 ## 历史背景
 

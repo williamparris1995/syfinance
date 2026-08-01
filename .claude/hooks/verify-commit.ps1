@@ -21,6 +21,13 @@ if ($cmd -match '(--help|\b-h\b|--dry-run|\b-n\b)') { exit 0 }
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $baselineFiles = @('account_detail_page_test.dart', 'receivable_detail_page_test.dart')
 
+# --- skip test gate if staged changes are docs/config only (no .go/.dart) ---
+$staged = git -C $root diff --cached --name-only 2>&1 | Out-String
+if ($staged -notmatch '\.(go|dart)') {
+    Write-Output "pre-commit: staged has no .go/.dart (docs/config only) - skip test gate"
+    exit 0
+}
+
 # --- go test (server) — strict ---
 $server = Join-Path $root 'yucai\server'
 Push-Location $server
