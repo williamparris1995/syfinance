@@ -1,7 +1,7 @@
 # 10 · wire 与 schema 工程债(wire 校验 + migrate + TimeMixin + slog)
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: —
 
 ## Question
