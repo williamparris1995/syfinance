@@ -1,7 +1,7 @@
 ---
 feature: 2026-08-01-d5-backup-snapshot
 current_stage: review
-status: review-done
+status: done
 grade: L
 ---
 
@@ -28,5 +28,4 @@ grade: L
   2. code-5 `IsConstraintError` 吞所有约束作 first-wins(非仅 UNIQUE);FK 违例罕见,镜像 debt_snapshot 既定模式 + 注释明示。
   3. **spec FR-2 误列 currency**:实际 backup 8 模块(account/transaction/debt/budget/goal/holding/tag/template)无 currency exporter;design ADR-3 正确圈定 8 个,实现覆盖全 8 个。→ spec.md FR-2 待修(删 currency)。
 - 正向副作用:RestoreBackup 的 pre-restore safety backup 现也经 RR tx(快照一致,D6 feature B 免费收益)。
-- **pending(用户确认)**:commit + sprint.md tick `- [x]`。未自动 commit(确认纪律)。
-- **code-1 完成(2026-08-01)**:8 repo FindAllForBackup 定位 + clientFor 存在性确认(见 design.md Open Q1 + code 实施清单)。**code-2..8 留新会话**(涉及事务+金融数据, fresh 态做质量更高;新会话 `/sydusx-run` resume current_stage=code)。
+- **feature done(2026-08-05)**:committed `bb0eb2d`(feat server D5)+ sprint-1 ticked `[x]`。status: review-done → done。

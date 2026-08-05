@@ -13,13 +13,13 @@
 
 ## Current position
 
-**Status:** yucai-server `release-r5-audit` sprint-1 feature A(D5 backup 快照隔离)— **review-done**,pending commit + sprint tick。
+**Status:** yucai-server `release-r5-audit` sprint-1 — feature A(D5)**done**(committed `bb0eb2d` + ticked)→ feature B(D6 restore atomic)启动 analysis。
 
 - Current product: **yucai-server**
 - Current release: [release-r5-audit](../products/yucai-server/release-r5-audit/release.md)(R5 审计整改,scope 03-09,全 server-side)
 - Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
-- Current feature: [2026-08-01-d5-backup-snapshot](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d5-backup-snapshot/state.md)(feature A;current_stage: review / status: review-done)
-- **Next**:用户确认后 commit feature A → tick sprint-1 feature A `- [x]` → 进 feature B(D6 restore atomic)。
+- Current feature: [2026-08-01-d6-restore-atomic](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d6-restore-atomic/feature.md)(feature B;current_stage: analysis / no spec yet)
+- **Next**:feature B analysis(grill D6 scope → spec.md)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
 
