@@ -13,13 +13,13 @@
 
 ## Current position
 
-**Status:** yucai-server `release-r5-audit` sprint-1 — feature A(D5)**done**(committed `bb0eb2d` + ticked)→ feature B(D6 restore atomic)启动 analysis。
+**Status:** yucai-server `release-r5-audit` sprint-1 — feature B(D6 restore atomic)**analysis done**(spec drafted)。
 
 - Current product: **yucai-server**
 - Current release: [release-r5-audit](../products/yucai-server/release-r5-audit/release.md)(R5 审计整改,scope 03-09,全 server-side)
 - Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
-- Current feature: [2026-08-01-d6-restore-atomic](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d6-restore-atomic/feature.md)(feature B;current_stage: analysis / no spec yet)
-- **Next**:feature B analysis(grill D6 scope → spec.md)。
+- Current feature: [2026-08-01-d6-restore-atomic](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d6-restore-atomic/state.md)(feature B;current_stage: analysis / status: analysis-done)
+- **Next**:feature B design(HLD/LLD:tx 包 purge+import 循环 + 各 repo DeleteByTenant/Save tx-aware 验证)或先 review spec。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
 

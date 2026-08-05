@@ -16,7 +16,7 @@
 1. RestoreBackup 的 purge + import 包进单个跨模块 tx(sqltx.WithTx,传播 TxContext)
 2. 各模块 Import/Purge port 接受 TxContext 传播(镜像 A 的 Export clientFor 模式)
 3. import 中途失败 → 整 tx rollback(purge 回滚),restore 前后状态一致
-4. safety backup 定位确认:快照一致(A 收益),加密(D13)归 feature D,本 feature 不做
+4. safety backup 定位:维持删除现状(tx 成功→删 / 失败→留);快照一致(A 收益),加密(D13)归 feature D;语义注释更新为人为错误兜底(accepted 张力见 spec NFR-2)
 5. 原子性测试(oracle:模拟 import 中途失败,验证库 = restore 前一致状态,非半 purge 状态)
 
 ## title
