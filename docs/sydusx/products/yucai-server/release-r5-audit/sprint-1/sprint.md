@@ -1,7 +1,7 @@
 # Sprint 1 — 04 备份恢复可靠性
 
 > Sprint Goal + feature roster。`/sydusx-run` sprint planning(2026-08-01)。
-> 源 ticket [.scratch/yucai-audit/issues/04](../../../../.scratch/yucai-audit/issues/04-backup-restore-reliability.md)。
+> 源 ticket [.scratch/yucai-audit/issues/04](../../../../../../.scratch/yucai-audit/issues/04-backup-restore-reliability.md)。
 
 ## Sprint Goal
 

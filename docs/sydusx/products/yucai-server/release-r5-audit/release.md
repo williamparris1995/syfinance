@@ -1,11 +1,11 @@
 # Release — R5 御财审计整改
 
-> Release Goal + sprint roster + done-criteria。由 `/sydusx-run` 分解(2026-08-01)。
-> 源自 [.scratch/yucai-audit/map.md](../../../.scratch/yucai-audit/map.md) 16 ticket 中已决策的 03-09。
+> Release Goal + sprint roster + done-criteria。由 `/sydusx-run` 分解(2026-08-01);2026-08-05 归位 yucai-server 产品(R5 scope 全 server-side)。
+> 源自 [.scratch/yucai-audit/map.md](../../../../../.scratch/yucai-audit/map.md) 16 ticket 中已决策的 03-09。
 
 ## Release Goal
 
-完成御财审计已决策 ticket 的实施,达到 [vision](../project/vision.md) 近期阶段标尺:**工程最佳实践 + 财务计算准确 + 备份可靠 + 基础安全**。
+完成御财审计已决策 ticket 的实施,达到 [vision](../vision.md) 近期阶段标尺:**工程最佳实践 + 财务计算准确 + 备份可靠 + 基础安全**。
 
 ## Scope
 

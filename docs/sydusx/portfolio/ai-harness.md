@@ -2,10 +2,11 @@
 
 > 短契约/地图(~100 行),非手册。invariants + 如何 enforce + 配置在哪。深度留在 canonical files。
 > 由 `/sydusx-harness` ESTABLISH(2026-08-01)。config 值**指向不复制**(single source)。
+> 2026-08-05 多产品拆分后:架构/栈/ADR 指向 portfolio/products 各处(见 §4)。
 
 ## §1 Invariants
 
-御财 drift-critical 规则,elicit 自 [conventions.md](conventions.md) + [architecture.md](architecture.md) + [`CLAUDE.md`](../../../CLAUDE.md)。仅列 drift-critical(非 cosmetic):
+御财 drift-critical 规则,elicit 自 [conventions.md](conventions.md) + [infrastructure.md](infrastructure.md) + [`CLAUDE.md`](../../../CLAUDE.md)。仅列 drift-critical(非 cosmetic):
 
 1. **slog 无 CJK** — log 串禁中文(英文结构化 slog)。
 2. **wire_gen.go 手改** — 不跑 wire CLI(工具链坏)。
@@ -29,7 +30,7 @@
 | 2 | wire 手改 | advisory | [CLAUDE.md #2](../../../CLAUDE.md);机器难挡(检测"跑了 CLI"不可行) |
 | 3 | proto regen 双端 | advisory | [CLAUDE.md #5](../../../CLAUDE.md);diff 时间戳检测 ROI 低 |
 | 4 | interface 全量 suite | advisory | [CLAUDE.md #6](../../../CLAUDE.md);测试 gate 已挡回归,全量纪律仍需 |
-| 8 | 中文直写 | advisory | [ADR-006](adr/index.md#adr-006);阶段二要改 i18n,现在 enforce 会绊脚 |
+| 8 | 中文直写 | advisory | [ADR-006](../products/yucai-client/adr/index.md#adr-006);阶段二要改 i18n,现在 enforce 会绊脚 |
 | 9 | 测试基线 | advisory | [conventions.md](conventions.md);hook 已做基线容忍(2 文件 drift 放行) |
 
 > ✅ = wall 已落地并触发;⏳ = enforced 已规划,wall 未落地(以 advisory 纪律执行至 audit 09/01 落地)。
@@ -50,8 +51,8 @@ agent 任何"done"声明前(syDusx-verify)必须过:
 |---|---|
 | 项目规则(7 条关键约束) | [`CLAUDE.md`](../../../CLAUDE.md)(single source) |
 | conventions 索引 | [conventions.md](conventions.md) |
-| 架构 + ADR | [architecture.md](architecture.md) + [adr/index.md](adr/index.md) |
-| 栈 | [tech-stack.md](tech-stack.md) |
+| 架构 + ADR | [infrastructure.md](infrastructure.md) + [server arch](../products/yucai-server/architecture.md) · [client arch](../products/yucai-client/architecture.md) + [adr/index.md](adr/index.md) |
+| 栈 | [server](../products/yucai-server/tech-stack.md) · [client](../products/yucai-client/tech-stack.md) |
 | CI 现状 + 命令 | [ci-cd.md](ci-cd.md) |
 | proto 工具 | `yucai/server/buf.gen.go.yaml`(Go)+ `yucai/Makefile` gen-dart(Dart) |
 | agent 工作流 | [`docs/agents/`](../../../docs/agents/) |

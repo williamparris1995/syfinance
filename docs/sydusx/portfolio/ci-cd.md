@@ -50,7 +50,7 @@ cd yucai && make gen-dart
 
 ## 待建(harness 阶段决定)
 
-`/sydusx-harness` 会从 [architecture.md](architecture.md) + [conventions.md](conventions.md) 提炼 drift-critical invariants,与用户确认后 scaffold enforcement wall:
+`/sydusx-harness` 会从 [infrastructure.md](infrastructure.md) + [conventions.md](conventions.md) 提炼 drift-critical invariants,与用户确认后 scaffold enforcement wall:
 
 | 候选 wall | 守护的 invariant | 现状 |
 |---|---|---|

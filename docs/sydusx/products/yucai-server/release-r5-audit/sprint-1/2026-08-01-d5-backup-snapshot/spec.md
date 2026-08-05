@@ -19,7 +19,9 @@ status: drafted
 - THEN 备份导出的全部模块数据对应 S1 或 S2 之一的完整状态,不出现跨模块的撕裂组合
 
 ### Requirement: FR-2 Export 共享同一事务
-- [ ] 备份 SHALL 使各业务模块(account/transaction/debt/budget/goal/holding/currency/tag/template)的 Export 在同一事务内执行,共享同一快照,而非每个 Export 独立查询。
+- [ ] 备份 SHALL 使各业务模块(account/transaction/debt/budget/goal/holding/tag/template)的 Export 在同一事务内执行,共享同一快照,而非每个 Export 独立查询。
+
+> 注:currency 是 seed/reference 数据(无 TenantDataPort exporter,不进 backup envelope),故不在模块列表内(wire `provideBackupExporters` 8 个 exporter 证实)。2026-08-01 review 纠正原列表误列的 currency。
 
 #### Scenario: 单事务贯穿 Export 循环
 - GIVEN backup service 开始导出
