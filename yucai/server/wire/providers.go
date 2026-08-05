@@ -624,11 +624,11 @@ func provideBackupSettingsRepo(client *backupent.Client) *backuprepo.BackupSetti
 func provideLocalCloudProvider(cfg *config.Config) *backupcloud.LocalProvider {
 	return backupcloud.NewLocalProvider(cfg.BackupDir)
 }
-func provideBackupService(repo *backuprepo.BackupRepository, settingsRepo *backuprepo.BackupSettingsRepository, localProvider *backupcloud.LocalProvider, ports []domain.TenantDataPort) *backupapp.Service {
+func provideBackupService(repo *backuprepo.BackupRepository, settingsRepo *backuprepo.BackupSettingsRepository, localProvider *backupcloud.LocalProvider, ports []domain.TenantDataPort, db *sql.DB) *backupapp.Service {
 	cloudProviders := map[domain.BackupProvider]backupapp.CloudProvider{
 		domain.BackupProviderLocal: localProvider,
 	}
-	return backupapp.NewService(repo, settingsRepo, cloudProviders, ports)
+	return backupapp.NewService(repo, settingsRepo, cloudProviders, ports, db, string(dialect.Postgres))
 }
 
 // provideBackupExporters 聚合各模块 TenantDataPort(Purge 顺序:依赖模块在前,account 最后;

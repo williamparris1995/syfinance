@@ -141,7 +141,7 @@ func toDomainHolding(h *holdingent.Holding) *domain.Holding {
 // (no per-holding N+1). Holdings have no soft-delete column; transactions are
 // append-only (no delete at all) — both are returned in full.
 func (r *HoldingRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Holding, []domain.HoldingTransaction, error) {
-	holdingRows, err := r.client.Holding.Query().
+	holdingRows, err := r.clientFor(ctx).Holding.Query().
 		Where(holding.TenantID(tenantID)).
 		All(ctx)
 	if err != nil {
@@ -152,7 +152,7 @@ func (r *HoldingRepository) FindAllForBackup(ctx context.Context, tenantID uuid.
 		holdings[i] = *toDomainHolding(h)
 	}
 
-	tradeRows, err := r.client.HoldingTransaction.Query().
+	tradeRows, err := r.clientFor(ctx).HoldingTransaction.Query().
 		Where(holdingtransaction.TenantID(tenantID)).
 		All(ctx)
 	if err != nil {

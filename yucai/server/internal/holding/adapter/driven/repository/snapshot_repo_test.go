@@ -146,3 +146,56 @@ func seedSnapshot(t *testing.T, client *holdingent.Client, tenantID, holdingID, 
 		t.Fatalf("seed snapshot: %v", err)
 	}
 }
+
+// TestSnapshotRepoSave_DuplicateDailyTickIsFirstWins (D18): the daily snapshot
+// scheduler can re-tick or retry the same (tenant, holding, date) within a day.
+// Previously Save did a plain insert and hard-errored on the
+// UNIQUE(tenant_id, holding_id, snapshot_date) violation, aborting that day's
+// snapshot. D18 makes Save first-wins: a duplicate tick is ignored (the original
+// time-point snapshot is kept), matching OnConflictDoNothing intent. The ent
+// codegen has no first-class OnConflict helper (sql/upsert feature not enabled),
+// so this mirrors the create-then-tolerate-constraint pattern used by
+// debt_snapshot_repo — but first-wins rather than overwrite, per D18.
+func TestSnapshotRepoSave_DuplicateDailyTickIsFirstWins(t *testing.T) {
+	client := setupHoldingTestDB(t)
+	repo := repository.NewSnapshotRepository(client)
+	ctx := context.Background()
+	tenant := uuid.New()
+	holding := uuid.New()
+	security := uuid.New()
+	account := uuid.New()
+	date := day("2026-08-01")
+
+	first := domain.HoldingSnapshot{
+		TenantID:         tenant,
+		HoldingID:        holding,
+		SecurityID:       security,
+		AccountID:        account,
+		SnapshotDate:     date,
+		MarketValueCents: 10000,
+		CurrencyCode:     "CNY",
+	}
+	if err := repo.Save(ctx, first); err != nil {
+		t.Fatalf("first Save: %v", err)
+	}
+
+	// Duplicate daily tick — same (tenant, holding, date), different value to
+	// prove first-wins (not overwrite). D18: must return nil and keep the original.
+	dup := first
+	dup.MarketValueCents = 99999
+	if err := repo.Save(ctx, dup); err != nil {
+		t.Errorf("duplicate-tick Save: %v, want nil (D18 first-wins)", err)
+	}
+
+	// first-wins (not overwrite): the stored row is still the original 10000.
+	got, err := repo.FindSnapshots(ctx, tenant, date, date, nil, nil)
+	if err != nil {
+		t.Fatalf("FindSnapshots: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("rows = %d, want 1 (single daily row, duplicate ignored)", len(got))
+	}
+	if got[0].MarketValueCents != 10000 {
+		t.Errorf("MarketValueCents = %d, want 10000 (first-wins: duplicate tick must not overwrite the original time-point snapshot)", got[0].MarketValueCents)
+	}
+}

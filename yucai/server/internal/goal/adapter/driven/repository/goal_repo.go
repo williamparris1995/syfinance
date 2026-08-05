@@ -12,6 +12,7 @@ import (
 	"github.com/yucai/server/internal/goal/ent/goalaccountlinks"
 	"github.com/yucai/server/internal/goal/ent/goaldebtlinks"
 	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
+	"github.com/yucai/server/internal/sqltx"
 )
 
 // GoalRepository implements domain.GoalRepository using entGo.
@@ -32,6 +33,18 @@ type GoalRepository struct {
 // NewGoalRepository creates a new GoalRepository.
 func NewGoalRepository(client *goalent.Client) *GoalRepository {
 	return &GoalRepository{client: client}
+}
+
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx) it returns a tx-bound client whose reads
+// join the outer transaction (so backup reads + their account/debt link loads
+// share the REPEATABLE READ snapshot tx instead of a fresh connection that
+// could tear the backup); otherwise it returns the default r.client.
+func (r *GoalRepository) clientFor(ctx context.Context) *goalent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return goalent.NewClient(goalent.Driver(d))
+	}
+	return r.client
 }
 
 // Save persists a new goal and its multi-account links.
@@ -292,7 +305,7 @@ func (r *GoalRepository) FindSnapshotRange(ctx context.Context, tenantID, goalID
 // are loaded in two batched queries (one per link table) to avoid N+1.
 // goal_progress_snapshot rows are derived (recomputed daily) and excluded.
 func (r *GoalRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Goal, error) {
-	results, err := r.client.Goal.Query().
+	results, err := r.clientFor(ctx).Goal.Query().
 		Where(goal.TenantID(tenantID)).
 		All(ctx)
 	if err != nil {
@@ -406,7 +419,7 @@ func (r *GoalRepository) loadAccountLinks(ctx context.Context, tenantID uuid.UUI
 	if len(goalIDs) == 0 {
 		return out, nil
 	}
-	rows, err := r.client.GoalAccountLinks.Query().
+	rows, err := r.clientFor(ctx).GoalAccountLinks.Query().
 		Where(
 			goalaccountlinks.TenantIDEQ(tenantID),
 			goalaccountlinks.GoalIDIn(goalIDs...),
@@ -427,7 +440,7 @@ func (r *GoalRepository) loadDebtLinks(ctx context.Context, tenantID uuid.UUID, 
 	if len(goalIDs) == 0 {
 		return out, nil
 	}
-	rows, err := r.client.GoalDebtLinks.Query().
+	rows, err := r.clientFor(ctx).GoalDebtLinks.Query().
 		Where(
 			goaldebtlinks.TenantIDEQ(tenantID),
 			goaldebtlinks.GoalIDIn(goalIDs...),

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/sqltx"
 	"github.com/yucai/server/internal/tag/domain"
 	tagent "github.com/yucai/server/internal/tag/ent"
 	"github.com/yucai/server/internal/tag/ent/tag"
@@ -20,6 +21,18 @@ type TagRepository struct {
 // NewTagRepository creates a new TagRepository.
 func NewTagRepository(client *tagent.Client) *TagRepository {
 	return &TagRepository{client: client}
+}
+
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx) it returns a tx-bound client whose reads
+// join the outer transaction (so backup reads share the REPEATABLE READ
+// snapshot tx instead of a fresh connection that could tear the backup);
+// otherwise it returns the default r.client.
+func (r *TagRepository) clientFor(ctx context.Context) *tagent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return tagent.NewClient(tagent.Driver(d))
+	}
+	return r.client
 }
 
 // Save persists a new tag.
@@ -207,7 +220,7 @@ func toDomainTag(t *tagent.Tag) *domain.Tag {
 // pagination). Soft-deleted tags are excluded, mirroring account/transaction
 // backup semantics — only live business data is backed up.
 func (r *TagRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Tag, error) {
-	results, err := r.client.Tag.Query().
+	results, err := r.clientFor(ctx).Tag.Query().
 		Where(
 			tag.TenantID(tenantID),
 			tag.DeletedAtIsNil(),

@@ -227,7 +227,7 @@ func (r *DebtRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) err
 // caller; it serializes the full debt graph without paging. Unlike the main
 // FindAll, debts here carry no soft-delete concept, so all rows are returned.
 func (r *DebtRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.DebtDetails, error) {
-	results, err := r.client.DebtDetails.Query().
+	results, err := r.clientFor(ctx).DebtDetails.Query().
 		Where(debtdetails.TenantID(tenantID)).
 		All(ctx)
 	if err != nil {
@@ -259,7 +259,7 @@ func (r *DebtRepository) loadSchedulesByDebt(ctx context.Context, debtIDs []uuid
 	if len(debtIDs) == 0 {
 		return out, nil
 	}
-	entries, err := r.client.PaymentSchedule.Query().
+	entries, err := r.clientFor(ctx).PaymentSchedule.Query().
 		Where(paymentschedule.DebtIDIn(debtIDs...)).
 		Order(debtent.Asc(paymentschedule.FieldPaymentDate)).
 		All(ctx)

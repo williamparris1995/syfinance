@@ -240,7 +240,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	templateExporter := provideTemplateExporter(templateRepo)
 	tagExporter := provideTagExporter(tagRepo)
 	backupExporters := provideBackupExporters(accountExporter, txnExporter, debtExporter, budgetExporter, goalExporter, holdingExporter, templateExporter, tagExporter)
-	backupService := provideBackupService(backupRepo, backupSettingsRepo, localCloudProvider, backupExporters)
+	backupService := provideBackupService(backupRepo, backupSettingsRepo, localCloudProvider, backupExporters, db)
 	backupHandler := provideBackupHandler(backupService)
 
 	// Sync module

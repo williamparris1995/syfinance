@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/backup/domain"
+	"github.com/yucai/server/internal/sqltx"
 )
 
 // Service orchestrates backup operations.
@@ -18,6 +20,8 @@ type Service struct {
 	settingsRepo   domain.BackupSettingsRepository
 	cloudProviders map[domain.BackupProvider]CloudProvider
 	ports          []domain.TenantDataPort
+	db             *sql.DB // shared pool; CreateBackup opens the snapshot tx on it (D5)
+	dialect        string  // ent dialect string ("postgres" prod / "sqlite3" tests) for sqltx placeholder style
 }
 
 // CloudProvider is the port interface for cloud backup providers.
@@ -32,8 +36,12 @@ type CloudProvider interface {
 // of tenant data ports (exporters) aggregated into each backup; nil/empty means
 // CreateBackup produces an envelope with no modules (wired in Task 10).
 // settingsRepo persists per-tenant cloud/auto-backup preferences.
-func NewService(repo domain.BackupRepository, settingsRepo domain.BackupSettingsRepository, cloudProviders map[domain.BackupProvider]CloudProvider, ports []domain.TenantDataPort) *Service {
-	return &Service{repo: repo, settingsRepo: settingsRepo, cloudProviders: cloudProviders, ports: ports}
+//
+// db + dialect back CreateBackup's snapshot transaction (D5): the Export loop
+// runs inside one REPEATABLE READ + ReadOnly tx opened on db, and dialect is the
+// ent dialect string forwarded to sqltx so builders emit the right placeholders.
+func NewService(repo domain.BackupRepository, settingsRepo domain.BackupSettingsRepository, cloudProviders map[domain.BackupProvider]CloudProvider, ports []domain.TenantDataPort, db *sql.DB, dialect string) *Service {
+	return &Service{repo: repo, settingsRepo: settingsRepo, cloudProviders: cloudProviders, ports: ports, db: db, dialect: dialect}
 }
 
 // CreateBackup serializes tenant data → optionally encrypts → Upload →
@@ -46,19 +54,34 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 		return nil, domain.ErrPasswordOnPlaintext
 	}
 
-	// 1. Aggregate each module's Export → envelope.
+	// 1. Aggregate each module's Export → envelope. The whole Export loop runs
+	// inside ONE REPEATABLE READ + ReadOnly transaction so every module shares
+	// the same DB snapshot — a concurrent writer can no longer tear the backup
+	// (account=T1, transaction=T2). The tx propagates to each repo's
+	// FindAllForBackup via context (sqltx.DriverFrom); Export's signature is
+	// unchanged. File IO (marshal/compress/encrypt/upload/save below) runs
+	// OUTSIDE the tx — the tx only guards DB read consistency. Any Export error
+	// returns from fn → WithTx rolls back (no partial snapshot); FR-3 atomicity.
 	envelope := domain.BackupEnvelope{
 		Version:   1,
 		TenantID:  tenantID,
 		CreatedAt: time.Now(),
 		Modules:   map[string]json.RawMessage{},
 	}
-	for _, p := range s.ports {
-		raw, err := p.Export(ctx, tenantID)
-		if err != nil {
-			return nil, fmt.Errorf("export %s: %w", p.Name(), err)
+	if err := sqltx.WithTx(ctx, s.db, s.dialect, &sql.TxOptions{
+		Isolation: sql.LevelRepeatableRead,
+		ReadOnly:  true,
+	}, func(ctxT context.Context) error {
+		for _, p := range s.ports {
+			raw, err := p.Export(ctxT, tenantID)
+			if err != nil {
+				return fmt.Errorf("export %s: %w", p.Name(), err)
+			}
+			envelope.Modules[p.Name()] = raw
 		}
-		envelope.Modules[p.Name()] = raw
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	data, err := json.Marshal(envelope)
 	if err != nil {

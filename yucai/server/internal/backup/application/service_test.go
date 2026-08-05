@@ -4,16 +4,42 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 
+	"entgo.io/ent/dialect"
 	"github.com/google/uuid"
+	_ "modernc.org/sqlite"
 	"github.com/yucai/server/internal/backup/domain"
+	"github.com/yucai/server/internal/sqltx"
 )
+
+// testDB is a shared in-memory SQLite pool so CreateBackup's sqltx.WithTx can
+// open a real transaction in service-layer tests. modernc/sqlite ignores the
+// REPEATABLE READ + ReadOnly tx options (SQLite serializes regardless), so the
+// tx opens successfully and propagates its driver via context — exactly what the
+// FR-2 ctx-contract test asserts. Opened once in TestMain; dialect "sqlite3"
+// (ent's SQLite dialect) so sqltx emits "?" placeholders. SetMaxOpenConns(1)
+// keeps a single connection owning the named in-memory DB.
+var testDB *sql.DB
+
+func TestMain(m *testing.M) {
+	db, err := sql.Open("sqlite", "file:backup_app_test?mode=memory")
+	if err != nil {
+		panic(fmt.Sprintf("open test db: %v", err))
+	}
+	db.SetMaxOpenConns(1)
+	testDB = db
+	code := m.Run()
+	_ = db.Close()
+	os.Exit(code)
+}
 
 // --- fakes ---
 
@@ -181,7 +207,7 @@ func newTestServiceWithSettings(ports []domain.TenantDataPort) (*Service, *fakeR
 	settingsRepo := newFakeSettingsRepo()
 	prov := newFakeProvider()
 	cloud := map[domain.BackupProvider]CloudProvider{domain.BackupProviderLocal: prov}
-	svc := NewService(repo, settingsRepo, cloud, ports)
+	svc := NewService(repo, settingsRepo, cloud, ports, testDB, "sqlite3")
 	return svc, repo, prov, settingsRepo
 }
 
@@ -828,5 +854,99 @@ func TestRestoreBackupMultiModuleRoundtrip(t *testing.T) {
 		if string(fp.data) != string(originals[fp.name]) {
 			t.Errorf("module %q after restore = %s, want %s", fp.name, fp.data, originals[fp.name])
 		}
+	}
+}
+
+// --- D5 backup snapshot isolation (FR-2 / FR-3) ---
+
+// txSpyPort is a TenantDataPort that records whether its Export was invoked
+// inside a sqltx-managed transaction. It captures the tx driver seen in ctx so
+// the test can assert (a) Export ran inside the backup's tx and (b) ALL
+// exporters shared the SAME driver — i.e. one transaction spanning the whole
+// Export loop, not a fresh connection per module (which is what lets a
+// concurrent writer tear the snapshot). It reads no DB; it asserts the ctx
+// contract that production repos rely on via sqltx.DriverFrom.
+type txSpyPort struct {
+	name   string
+	driver dialect.Driver // captured during Export; nil if Export ran outside a tx
+}
+
+func newTxSpyPort(name string) *txSpyPort { return &txSpyPort{name: name} }
+
+func (p *txSpyPort) Name() string { return p.name }
+func (p *txSpyPort) Export(ctx context.Context, _ uuid.UUID) (json.RawMessage, error) {
+	if drv, ok := sqltx.DriverFrom(ctx); ok {
+		p.driver = drv
+	}
+	return json.RawMessage("[]"), nil
+}
+func (p *txSpyPort) Import(_ context.Context, _ uuid.UUID, _ json.RawMessage) error { return nil }
+func (p *txSpyPort) Purge(_ context.Context, _ uuid.UUID) error                     { return nil }
+
+// TestCreateBackup_ExportsShareSnapshotTx (FR-2): every module's Export MUST
+// run inside the backup's single shared transaction — Export's ctx carries the
+// sqltx tx driver — and all exporters share the SAME driver (one tx), not a
+// per-Export connection. The per-Export-connection state is precisely what
+// permits a concurrent writer to tear the backup (account=T1, transaction=T2),
+// so this is the service-layer guard for FR-2; the isolation-level behavior
+// (REPEATABLE READ actually yielding one consistent snapshot) is validated
+// against real PostgreSQL in the env-gated tearing test.
+//
+// RED against current code: CreateBackup does not wrap the Export loop in
+// sqltx.WithTx, so DriverFrom(exportCtx) is nil and every spy reports
+// insideTx()==false.
+func TestCreateBackup_ExportsShareSnapshotTx(t *testing.T) {
+	spies := []*txSpyPort{
+		newTxSpyPort("account"),
+		newTxSpyPort("transaction"),
+		newTxSpyPort("holding"),
+	}
+	ports := make([]domain.TenantDataPort, len(spies))
+	for i, s := range spies {
+		ports[i] = s
+	}
+	svc, _, _ := newTestService(ports)
+
+	if _, err := svc.CreateBackup(context.Background(), uuid.New(), false, "", false); err != nil {
+		t.Fatalf("CreateBackup: %v", err)
+	}
+
+	for _, s := range spies {
+		if s.driver == nil {
+			t.Errorf("port %q Export ran outside the backup tx (sqltx.DriverFrom nil); want inside the shared snapshot tx", s.Name())
+		}
+	}
+	// FR-2 "shared": all exporters must observe the SAME tx driver — one tx
+	// spanning the loop — not each open their own connection.
+	first := spies[0].driver
+	for _, s := range spies[1:] {
+		if s.driver != first {
+			t.Errorf("port %q observed a different tx driver than %q; want one shared transaction", s.Name(), spies[0].Name())
+		}
+	}
+}
+
+// TestCreateBackup_ExportFailureIsAtomic (FR-3): when any module's Export fails,
+// CreateBackup must fail atomically — no partial backup file is uploaded and no
+// backup record is saved. The Export loop runs inside sqltx.WithTx, so an Export
+// error rolls the snapshot tx back AND bails before the file IO (marshal/upload/
+// save) that runs outside the tx. This is a regression LOCK on a contract that
+// code-3 already satisfies (it passes today) — it exists to catch a future
+// change that moved file IO inside the loop, or that swallowed Export errors
+// and shipped a half-populated envelope.
+func TestCreateBackup_ExportFailureIsAtomic(t *testing.T) {
+	ok := newFakePort("account", []byte(`[{"name":"Cash"}]`))
+	fail := &failingExportPort{name: "transaction"}
+	svc, repo, prov := newTestService([]domain.TenantDataPort{ok, fail})
+
+	_, err := svc.CreateBackup(context.Background(), uuid.New(), false, "", false)
+	if err == nil {
+		t.Fatal("CreateBackup: want error from failing Export, got nil")
+	}
+	if len(prov.files) != 0 {
+		t.Errorf("partial backup uploaded %d file(s); want 0 (atomic failure, no partial file)", len(prov.files))
+	}
+	if len(repo.store) != 0 {
+		t.Errorf("partial backup saved %d record(s); want 0 (atomic failure, no partial record)", len(repo.store))
 	}
 }

@@ -48,8 +48,15 @@ func (r *SnapshotRepository) FindSnapshots(ctx context.Context, tenantID uuid.UU
 	return out, nil
 }
 
-// Save inserts one daily snapshot. Caller (daily snapshot scheduler) is
-// responsible for deduping against UNIQUE(tenant_id, holding_id, snapshot_date).
+// Save inserts one daily snapshot. A duplicate daily tick — same
+// (tenant, holding, snapshot_date) — hits UNIQUE(tenant_id, holding_id,
+// snapshot_date) and is ignored: first-wins, the original time-point snapshot is
+// kept (D18), so a scheduler re-tick or retry can no longer abort the day's
+// snapshot. Any OTHER create error (FK violation, NOT NULL, connection drop)
+// surfaces verbatim — only the daily-dedup conflict is swallowed. The ent
+// codegen exposes no first-class OnConflict helper (sql/upsert feature not
+// enabled), so this mirrors the create-then-tolerate-constraint pattern of
+// debt_snapshot_repo, but first-wins rather than overwrite per D18.
 func (r *SnapshotRepository) Save(ctx context.Context, s domain.HoldingSnapshot) error {
 	if err := r.client.HoldingSnapshot.Create().
 		SetTenantID(s.TenantID).
@@ -61,6 +68,11 @@ func (r *SnapshotRepository) Save(ctx context.Context, s domain.HoldingSnapshot)
 		SetUnrealizedPnlCents(s.UnrealizedPnlCents).
 		SetCurrencyCode(s.CurrencyCode).
 		Exec(ctx); err != nil {
+		if holdingent.IsConstraintError(err) {
+			// D18: duplicate (tenant, holding, date) tick — keep the original
+			// (first-wins). The UNIQUE constraint above guarantees a row exists.
+			return nil
+		}
 		return fmt.Errorf("save holding snapshot: %w", err)
 	}
 	return nil

@@ -10,6 +10,7 @@ import (
 	budgetent "github.com/yucai/server/internal/budget/ent"
 	"github.com/yucai/server/internal/budget/ent/budget"
 	"github.com/yucai/server/internal/budget/ent/budgetitem"
+	"github.com/yucai/server/internal/sqltx"
 )
 
 // BudgetRepository implements domain.BudgetRepository using entGo.
@@ -20,6 +21,18 @@ type BudgetRepository struct {
 // NewBudgetRepository creates a new BudgetRepository.
 func NewBudgetRepository(client *budgetent.Client) *BudgetRepository {
 	return &BudgetRepository{client: client}
+}
+
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx) it returns a tx-bound client whose reads
+// join the outer transaction (so backup reads share the REPEATABLE READ
+// snapshot tx instead of a fresh connection that could tear the backup);
+// otherwise it returns the default r.client.
+func (r *BudgetRepository) clientFor(ctx context.Context) *budgetent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return budgetent.NewClient(budgetent.Driver(d))
+	}
+	return r.client
 }
 
 // Save persists a budget and its items.
@@ -242,7 +255,7 @@ func (r *BudgetRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) e
 // no pagination) for backup export. Items are loaded in a single batched query
 // (WHERE budget_id IN (...)) to avoid the N+1 that FindAll incurs per row.
 func (r *BudgetRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Budget, error) {
-	results, err := r.client.Budget.Query().
+	results, err := r.clientFor(ctx).Budget.Query().
 		Where(
 			budget.TenantID(tenantID),
 			budget.DeletedAtIsNil(),
@@ -259,7 +272,7 @@ func (r *BudgetRepository) FindAllForBackup(ctx context.Context, tenantID uuid.U
 	for i, b := range results {
 		budgetIDs[i] = b.ID
 	}
-	itemRows, err := r.client.BudgetItem.Query().
+	itemRows, err := r.clientFor(ctx).BudgetItem.Query().
 		Where(budgetitem.BudgetIDIn(budgetIDs...)).
 		All(ctx)
 	if err != nil {
