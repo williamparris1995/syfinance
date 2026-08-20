@@ -28,11 +28,11 @@
 
 ### 近期豁免(阶段二补齐)
 - i18n 国际化(全量文案抽取,[ADR-006](adr/index.md#adr-006))。
-- 离线能力(client Drift offline-first,届时与 server sync engine 同步重评估,ticket 16)。
+- ~~离线能力~~ → 已提前立项 [R6 offline-first 本地模式](release-r6-offline/release.md)(2026-08-20;绑定后离线续写/多设备同步仍留 ticket 16)。
 
 ## Execution Path(分阶段)
 
-见统一执行路径(原 vision 四关键决策)—— 对 client 同样适用。client 特有决策:[ADR-005](adr/index.md#adr-005)(本地 DB 未实施 gRPC 直连)+ [ADR-006](adr/index.md#adr-006)(i18n 中文直写阶段二)。client 当前**无 active release**(最近里程碑 R4 auth OIDC client 侧已完成);R5 审计整改为 server-only,client 不在 scope。下一 client release 待规划(功能对标模块 / 阶段二 i18n)。
+见统一执行路径(原 vision 四关键决策)—— 对 client 同样适用。client 特有决策:[ADR-005](adr/index.md#adr-005)(本地 DB 未实施 gRPC 直连)+ [ADR-006](adr/index.md#adr-006)(i18n 中文直写阶段二)。client 当前 active release:[R6 offline-first 本地模式](release-r6-offline/release.md)(2026-08-20 立项,无账号单机可用 + 绑定上传);R5 审计整改为 server-only,client 不在 scope。后续:功能对标模块 / 阶段二 i18n。
 
 ## 决策溯源
 

@@ -9,7 +9,7 @@
 | product | domain | vision | 当前 release | 说明 |
 |---|---|---|---|---|
 | [yucai-server](../products/yucai-server/) | software | [vision](../products/yucai-server/vision.md) | [R5 审计整改](../products/yucai-server/release-r5-audit/release.md)(🔄 active) | Go 后端;produces [yucai-api](contracts/yucai-api/README.md) |
-| [yucai-client](../products/yucai-client/) | software | [vision](../products/yucai-client/vision.md) | _(无 active;最近 R4 auth OIDC client 侧 done)_ | Flutter 客户端;consumes yucai-api |
+| [yucai-client](../products/yucai-client/) | software | [vision](../products/yucai-client/vision.md) | [R6 offline-first 本地模式](../products/yucai-client/release-r6-offline/release.md)(🔄 active) | Flutter 客户端;consumes yucai-api |
 
 ## Current position
 
@@ -20,6 +20,7 @@
 - Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
 - Current feature: [2026-08-01-d6-restore-atomic](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d6-restore-atomic/state.md)(feature B;current_stage: analysis / status: analysis-done)
 - **Next**:feature B design(HLD/LLD:tx 包 purge+import 循环 + 各 repo DeleteByTenant/Save tx-aware 验证)或先 review spec。
+- **并行线**:yucai-client [R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 分解完成(2026-08-20,3 sprint × 9 feature,方案 A 经 clarify→approach→grill 收敛;待 brainstorming 进入 feature)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
 
