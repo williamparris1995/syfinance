@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-drift-local-db
-status: drafted
+status: confirmed
 ---
 
 # Spec — drift 本地库落地(全实体 schema + backup/proto 契约对齐)
@@ -34,19 +34,21 @@ status: drafted
 - WHEN 对照 design.md 映射表
 - THEN 每个业务实体的每个字段在 drift 表有对应列(或显式记录的转换规则),无遗漏实体
 
-### Requirement: FR-3 ID 策略(local PK + nullable remote_id)
-- [ ] 每业务表 SHALL 使用本地自增整数主键 `id` + 可空列 `remote_id`(绑定/镜像后 = 服务端行 ID);游客态行 remote_id 为 NULL。
-- [ ] 依据 SHALL 记录:server Import 保留 caller-supplied ID(exporter create-with-given-id),空账号首绑时本地 ID 原样导入——不引入 client UUID(那是多设备 sync/ticket 16 的需要)。
+### Requirement: FR-3 ID 策略(UUID TEXT 主键,client 生成)
+> 2026-08-20 勘误(design research):server 领域 PK 是 uuid.UUID(非自增 int)——原「自增 int + remote_id」方案基于错误事实,修订;详见 design.md ADR-1。
+
+- [ ] 每业务表 SHALL 使用 TEXT(UUID 字符串)主键 `id`,游客态由 client 生成;SHALL NOT 设 remote_id 映射列(server Import 保留 caller-supplied ID,首绑导入后 server/local 同一 UUID,全程无需映射)。
+- [ ] 依据 SHALL 记录:exporter Import 保留 caller-supplied ID(create-with-given-id);绑定后在线创建行走 server UUID 镜像回写——同一行同一 UUID。
 
 #### Scenario: 游客建行
 - GIVEN 游客态(无绑定)
 - WHEN 本地创建一行(如 account)
-- THEN `id` 本地自增分配,`remote_id` 为 NULL
+- THEN `id` 为 client 生成的 UUID 字符串
 
-#### Scenario: schema 支持镜像(预期,feature H 实施)
-- GIVEN 绑定态
-- WHEN 服务端创建行(server ID=42)被镜像
-- THEN 本地行可表达 `remote_id=42`(本地 id 独立)——本 feature 仅保证 schema 支持(列存在),不实现镜像
+#### Scenario: 首绑导入对齐(预期,feature G 实施)
+- GIVEN 游客态创建的行(UUID=U1)
+- WHEN 空账号首绑上传(Import 保留 caller-supplied ID)
+- THEN 服务端该行 ID = U1,server/local 同 UUID——本 feature 仅保证 schema 支持(TEXT PK),不实现上传
 
 ### Requirement: FR-4 DI 注册
 - [ ] drift database(及 DAO)SHALL 经 injectable 注册为 LazySingleton,app 生命周期单实例。
