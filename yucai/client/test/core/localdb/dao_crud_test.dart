@@ -126,6 +126,14 @@ void main() {
           await db.transactionDao.watchEntriesByTransaction(txId).first;
       expect(entries, hasLength(1));
       expect(entries.single.debitCents, 500);
+
+      await db.transactionDao.updateTransaction(TransactionsCompanion(
+        id: Value(txId),
+        description: Value('dinner'),
+      ));
+      expect(
+          (await db.transactionDao.getTransactionById(txId))!.description,
+          'dinner');
     });
   });
 
@@ -162,6 +170,12 @@ void main() {
       final schedule = await db.debtDao.watchScheduleByDebt(debtId).first;
       expect(schedule, hasLength(1));
       expect(schedule.single.totalCents, 1200);
+
+      await db.debtDao.updateDebt(DebtsCompanion(
+        id: Value(debtId),
+        counterparty: Value('Lender'),
+      ));
+      expect((await db.debtDao.getDebtById(debtId))!.counterparty, 'Lender');
     });
   });
 
@@ -190,6 +204,12 @@ void main() {
       final items = await db.budgetDao.watchItemsByBudget(budgetId).first;
       expect(items, hasLength(1));
       expect(items.single.plannedAmountCents, 30000);
+
+      await db.budgetDao.updateBudget(BudgetsCompanion(
+        id: Value(budgetId),
+        isActive: Value(false),
+      ));
+      expect((await db.budgetDao.getBudgetById(budgetId))!.isActive, false);
     });
   });
 
@@ -221,6 +241,13 @@ void main() {
       final (accountIds, debtIds) = await db.goalDao.linksFor(goalId);
       expect(accountIds, ['a1']);
       expect(debtIds, ['d1']);
+
+      await db.goalDao.updateGoal(GoalsCompanion(
+        id: Value(goalId),
+        currentAmountCents: Value(200000),
+      ));
+      expect((await db.goalDao.getGoalById(goalId))!.currentAmountCents,
+          200000);
     });
   });
 
@@ -272,6 +299,11 @@ void main() {
       ));
       expect((await db.templateDao.getTemplateById('tp1'))!.amountCents,
           300000);
+      await db.templateDao.updateTemplate(TransactionTemplatesCompanion(
+        id: Value('tp1'),
+        paused: Value(true),
+      ));
+      expect((await db.templateDao.getTemplateById('tp1'))!.paused, true);
       expect(await db.templateDao.watchAllTemplates().first, hasLength(1));
       await db.templateDao.deleteTemplateById('tp1');
       expect(await db.templateDao.getTemplateById('tp1'), isNull);
@@ -307,6 +339,12 @@ void main() {
           await db.holdingDao.watchTransactionsBySecurity('sec1').first;
       expect(trades, hasLength(1));
       expect(trades.single.amountCents, 12600);
+
+      await db.holdingDao.updateHolding(HoldingsCompanion(
+        id: Value('h1'),
+        quantity: Value(11.5),
+      ));
+      expect((await db.holdingDao.getHoldingById('h1'))!.quantity, 11.5);
     });
   });
 }

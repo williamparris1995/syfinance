@@ -18,3 +18,15 @@
 
 - 引用数据 seed 机制 / 派生快照写路径 / IsSystem 预置 → design open questions 1-3,归 feature C/E。
 - main 的 receivables_page_test 既有失败本体 → 独立债务,不混入本 feature 分支。
+
+## Review(2026-08-21,two-axis,pass)
+
+- Standards:0 HARD;2 Minor(DAO CRUD 五件套重复=ADR-4 可接受;ChartOfAccounts 枚举 INT vs server 字符串,镜像时留意)+ **1 Important:hook 容忍名单(+receivables_page_test)与 conventions.md「3 fail/2 文件」基线分叉——失败系 main 既有(stash-compare 证实),但 MERGE 时必须同步 conventions.md 基线描述,否则 enforcement 与 single source 永久不一致**。
+- Spec:FR-1..FR-6 / NFR-1..NFR-2 全 ✓(契约映射字段级核对无遗漏;NFR-2 零 server 文件实测)。
+- verdict:**pass** → 进 sydusx-test。
+
+## Test(2026-08-21,pass)
+
+- 20/20 绿;**DAO+database 逻辑行覆盖 165/187 = 88.2%**(tables 声明式列声明不计行,行为覆盖经全表写入/查询回环);review 后补齐 6 模块 update 断言(CRUD 之 U)。
+- Requirement coverage:FR-1✓(schema 建库测试+内存库) FR-2✓(映射表 design + review 字段级核对) FR-3✓(UUID TEXT PK 全表+断言) FR-4✓(DI 同实例) FR-5✓(onCreate 机制+骨架) FR-6✓(20 测试秒级) NFR-1✓(全套基线内+analyze 0) NFR-2✓(零 server diff)。
+- Deferred integration:文件库 path_provider 启动链路(零调用方阶段无可观察面)→ feature C seam;e2e → feature I。
