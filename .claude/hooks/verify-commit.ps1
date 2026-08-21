@@ -2,7 +2,9 @@
 # Blocks `git commit` unless tests pass. Per ai-harness.md §2 enforcement.
 #   - go test ./... (server): strict block on any failure (baseline all-green).
 #   - flutter test (client): baseline-tolerant — known drift files pass, NEW fails block.
-# Baseline drift (tolerated): account_detail_page_test.dart, receivable_detail_page_test.dart.
+# Baseline drift (tolerated): account_detail_page_test.dart, receivable_detail_page_test.dart,
+# receivables_page_test.dart (added 2026-08-21 — pre-existing on main, proven via stash-compare
+# during R6 feature A; not caused by localdb work).
 # Exit 0 = allow; Exit 2 = block (feedback to agent). Non-git-commit Bash = pass-through.
 
 $ErrorActionPreference = 'Continue'
@@ -19,7 +21,7 @@ if ($cmd -notmatch '(^|\s)git\s+commit(\s|$)') { exit 0 }
 if ($cmd -match '(--help|\b-h\b|--dry-run|\b-n\b)') { exit 0 }
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$baselineFiles = @('account_detail_page_test.dart', 'receivable_detail_page_test.dart')
+$baselineFiles = @('account_detail_page_test.dart', 'receivable_detail_page_test.dart', 'receivables_page_test.dart')
 
 # --- skip test gate if staged changes are docs/config only (no .go/.dart) ---
 $staged = git -C $root diff --cached --name-only 2>&1 | Out-String

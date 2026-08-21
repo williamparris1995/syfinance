@@ -8,6 +8,7 @@ import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
+import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
@@ -44,6 +45,11 @@ Future<void> configureDependencies() async {
   //     after init) so injectable's graph has no cycle.
   final authRetry = AuthRetryCaller();
   getIt.registerSingleton<AuthRetryCaller>(authRetry);
+
+  // 1c. Local-first store (R6): drift opens lazily on first query, so the
+  //     file path (path_provider) resolves without blocking startup. Manual
+  //     registration mirrors the other core infra singletons (design ADR-5).
+  getIt.registerLazySingleton<AppDatabase>(AppDatabase.new);
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.
