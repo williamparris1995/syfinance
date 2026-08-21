@@ -20,7 +20,7 @@
 ## 测试基线(不可破坏)
 
 - **server**:`go test ./...` 全量绿 + `go build ./...`。
-- **client**:`flutter test` 基线 = **3 fail / 2 文件**(account_detail_page_test 1 + receivable_detail_page_test 2,test drift,断言过时非生产 bug)。`flutter analyze` 基线 = 22 error 全 `*.pbserver.dart`(客户端未用)。
+- **client**:`flutter test` 基线 = **4 fail / 3 文件**(account_detail_page_test 1 + receivable_detail_page_test 2 + receivables_page_test 1;均 test drift,断言过时非生产 bug;receivables_page 为 2026-08-21 确认的 main 既有漂移,stash-compare 证实,已同步 hook 容忍名单)。`flutter analyze` 基线 = 22 error 全 `*.pbserver.dart`(客户端未用)。
 - 改动**不得**新增 fail / error。
 
 ## sydusx 通用原则(与项目约束的映射)

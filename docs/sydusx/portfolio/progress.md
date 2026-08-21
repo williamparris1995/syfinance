@@ -20,7 +20,7 @@
 - Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
 - Current feature: [2026-08-01-d6-restore-atomic](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d6-restore-atomic/state.md)(feature B;current_stage: analysis / status: analysis-done)
 - **Next**:feature B design(HLD/LLD:tx 包 purge+import 循环 + 各 repo DeleteByTenant/Save tx-aware 验证)或先 review spec。
-- **并行线**:yucai-client [R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 分解完成(2026-08-20,3 sprint × 9 feature,方案 A 经 clarify→approach→grill 收敛;待 brainstorming 进入 feature)。
+- **并行线**:yucai-client [R6 offline-first](../products/yucai-client/release-r6-offline/release.md) sprint-1 feature A(drift 本地库)**done**(merged `fa2203f`,2026-08-21);next:feature B(auth-offline-fork,可与 A'并行)或 feature C(dual-source-seam,依赖 A✓+B)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
 
