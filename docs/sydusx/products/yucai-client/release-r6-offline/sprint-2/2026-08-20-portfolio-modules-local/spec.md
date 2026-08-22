@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-portfolio-modules-local
-status: drafted
+status: confirmed
 ---
 
 # Spec — 资产类模块本地化(holding/budget/goal/debt/receivable/report/networth)
