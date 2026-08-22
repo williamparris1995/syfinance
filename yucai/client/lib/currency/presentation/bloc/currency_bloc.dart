@@ -2,13 +2,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/repositories/currency_repository.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 
 @injectable
 class CurrencyBloc extends Bloc<CurrencyEvent, CurrencyState> {
-  CurrencyBloc(this._repo, this._authRemote)
+  CurrencyBloc(this._repo, this._authRemote, this._tracker, this._settings)
       : super(const CurrencyState()) {
     on<LoadCurrenciesRequested>(_onLoadCurrencies);
     on<LoadPreferencesRequested>(_onLoadPreferences);
@@ -16,6 +18,8 @@ class CurrencyBloc extends Bloc<CurrencyEvent, CurrencyState> {
 
   final CurrencyRepository _repo;
   final AuthRemoteDataSource _authRemote;
+  final SessionModeTracker _tracker;
+  final CurrencySettings _settings;
 
   Future<void> _onLoadCurrencies(
     LoadCurrenciesRequested event,
@@ -46,6 +50,16 @@ class CurrencyBloc extends Bloc<CurrencyEvent, CurrencyState> {
     Emitter<CurrencyState> emit,
   ) async {
     emit(state.copyWith(status: CurrencyStatus.loading));
+    // Guest mode (R6 FR-5): both preference RPCs are server-bound; use the
+    // local base currency + the default cadence instead of failing.
+    if (_tracker.isGuest) {
+      emit(state.copyWith(
+        status: CurrencyStatus.loaded,
+        preferred: _settings.value,
+        intervalHours: 24,
+      ));
+      return;
+    }
     try {
       // preferred_currency lives on UserDTO (auth.proto field 7); default to
       // CNY when the server returns an empty/unset value.

@@ -4,6 +4,11 @@ import 'package:grpc/grpc.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:drift/native.dart';
+import 'package:yucai_client/core/localdb/app_database.dart'
+    hide Transaction, TransactionEntry;
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/transaction/data/transaction_local_ds.dart' show TransactionLocalDataSource;
 import 'package:yucai_client/transaction/data/transaction_remote_ds.dart';
 import 'package:yucai_client/transaction/data/transaction_repository_impl.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -14,6 +19,8 @@ class _MockRemote extends Mock implements TransactionRemoteDataSource {}
 
 void main() {
   late _MockRemote remote;
+  late AppDatabase db;
+  late SessionModeTracker tracker;
   late TransactionRepositoryImpl repo;
 
   final sampleDate = DateTime(2026, 6, 19);
@@ -21,7 +28,7 @@ void main() {
     id: 't1',
     transactionDate: sampleDate,
     description: '午餐',
-    entries: <TransactionEntry>[
+    entries: const <TransactionEntry>[
       TransactionEntry(
         id: 'e1',
         accountId: 'acc-expense',
@@ -42,7 +49,9 @@ void main() {
 
   setUp(() {
     remote = _MockRemote();
-    repo = TransactionRepositoryImpl(remote);
+    db = AppDatabase(NativeDatabase.memory());
+    tracker = SessionModeTracker()..isGuest = false;
+    repo = TransactionRepositoryImpl(remote, TransactionLocalDataSource(db), tracker);
     registerFallbackValue(RecordExpenseParams(
       transactionDate: sampleDate,
       expenseAccountId: '',
@@ -68,12 +77,12 @@ void main() {
       description: '',
       entries: const <TransactionEntry>[],
     ));
-    registerFallbackValue(UpdateTransactionParams(
+    registerFallbackValue(const UpdateTransactionParams(
       id: '',
       version: 0,
-      entries: const <TransactionEntry>[],
+      entries: <TransactionEntry>[],
     ));
-    registerFallbackValue(ListTransactionsParams());
+    registerFallbackValue(const ListTransactionsParams());
   });
 
   group('recordExpense', () {
@@ -101,7 +110,7 @@ void main() {
 
     test('invalidArgument maps to ValidationFailure', () async {
       when(() => remote.recordExpense(any()))
-          .thenThrow(GrpcError.invalidArgument('bad amount'));
+          .thenThrow(const GrpcError.invalidArgument('bad amount'));
       final result = await repo.recordExpense(RecordExpenseParams(
         transactionDate: sampleDate,
         description: '',
@@ -162,7 +171,7 @@ void main() {
     test('success returns Right with transaction list', () async {
       when(() => remote.list(any())).thenAnswer((_) async =>
           ListTransactionsResult(transactions: [sample], nextPageToken: ''));
-      final result = await repo.list(ListTransactionsParams());
+      final result = await repo.list(const ListTransactionsParams());
       expect(result.isRight(), isTrue);
       result.fold(
         (_) => fail('expected Right'),
@@ -177,8 +186,8 @@ void main() {
 
     test('unavailable maps to NetworkFailure', () async {
       when(() => remote.list(any()))
-          .thenThrow(GrpcError.unavailable('down'));
-      final result = await repo.list(ListTransactionsParams());
+          .thenThrow(const GrpcError.unavailable('down'));
+      final result = await repo.list(const ListTransactionsParams());
       expect(result.fold((l) => l, (_) => null), isA<NetworkFailure>());
     });
   });
@@ -192,7 +201,7 @@ void main() {
 
     test('notFound maps to ServerFailure', () async {
       when(() => remote.getById(any()))
-          .thenThrow(GrpcError.notFound('gone'));
+          .thenThrow(const GrpcError.notFound('gone'));
       final result = await repo.getById('x');
       expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
     });
@@ -221,7 +230,7 @@ void main() {
   });
 
   group('summary (Task 5.2 — wired to TransactionSummary RPC)', () {
-    final sampleSummary = MonthlySummary(
+    const sampleSummary = MonthlySummary(
       year: 2026,
       month: 6,
       incomeCents: 1200000,
@@ -237,7 +246,7 @@ void main() {
               day: any(named: 'day')))
           .thenAnswer((_) async => sampleSummary);
       final result = await repo.summary(2026, 6, accountId: 'acc-1');
-      expect(result, Right<Failure, MonthlySummary>(sampleSummary));
+      expect(result, const Right<Failure, MonthlySummary>(sampleSummary));
       verify(() => remote.summary(2026, 6,
               accountId: 'acc-1',
               scope: SummaryScope.month,
@@ -274,7 +283,7 @@ void main() {
               accountId: any(named: 'accountId'),
               scope: any(named: 'scope'),
               day: any(named: 'day')))
-          .thenThrow(GrpcError.unavailable('down'));
+          .thenThrow(const GrpcError.unavailable('down'));
       final result = await repo.summary(2026, 6);
       expect(result.fold((l) => l, (_) => null), isA<NetworkFailure>());
     });
@@ -287,7 +296,7 @@ void main() {
         id: 't1',
         transactionDate: sampleDate,
         description: '午餐',
-        entries: <TransactionEntry>[
+        entries: const <TransactionEntry>[
           TransactionEntry(
             id: 'e1',
             accountId: 'acc-expense',

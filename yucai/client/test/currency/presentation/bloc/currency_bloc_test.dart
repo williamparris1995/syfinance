@@ -6,6 +6,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/repositories/currency_repository.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
@@ -14,6 +16,11 @@ import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 class _MockRepo extends Mock implements CurrencyRepository {}
 
 class _MockAuthRemote extends Mock implements AuthRemoteDataSource {}
+
+class _StubCurrencySettings extends Fake implements CurrencySettings {
+  @override
+  String get value => 'CNY';
+}
 
 final _sampleCurrencies = <Currency>[
   const Currency(
@@ -36,7 +43,11 @@ void main() {
     build: () {
       when(() => repo.list())
           .thenAnswer((_) async => Right(_sampleCurrencies));
-      return CurrencyBloc(repo, authRemote);
+      return CurrencyBloc(
+        repo,
+        authRemote,
+        SessionModeTracker()..isGuest = false,
+        _StubCurrencySettings());
     },
     act: (b) => b.add(const LoadCurrenciesRequested()),
     wait: const Duration(milliseconds: 100),
@@ -55,7 +66,11 @@ void main() {
     build: () {
       when(() => repo.list())
           .thenAnswer((_) async => const Left(ServerFailure('down')));
-      return CurrencyBloc(repo, authRemote);
+      return CurrencyBloc(
+        repo,
+        authRemote,
+        SessionModeTracker()..isGuest = false,
+        _StubCurrencySettings());
     },
     act: (b) => b.add(const LoadCurrenciesRequested()),
     wait: const Duration(milliseconds: 100),
@@ -73,7 +88,11 @@ void main() {
           .thenAnswer((_) async => 'USD');
       when(() => authRemote.getRateSyncIntervalHours())
           .thenAnswer((_) async => 12);
-      return CurrencyBloc(repo, authRemote);
+      return CurrencyBloc(
+        repo,
+        authRemote,
+        SessionModeTracker()..isGuest = false,
+        _StubCurrencySettings());
     },
     act: (b) => b.add(const LoadPreferencesRequested()),
     wait: const Duration(milliseconds: 100),
@@ -94,7 +113,11 @@ void main() {
           .thenAnswer((_) async => '');
       when(() => authRemote.getRateSyncIntervalHours())
           .thenAnswer((_) async => 6);
-      return CurrencyBloc(repo, authRemote);
+      return CurrencyBloc(
+        repo,
+        authRemote,
+        SessionModeTracker()..isGuest = false,
+        _StubCurrencySettings());
     },
     act: (b) => b.add(const LoadPreferencesRequested()),
     wait: const Duration(milliseconds: 100),
@@ -115,7 +138,11 @@ void main() {
           .thenAnswer((_) async => 'EUR');
       when(() => authRemote.getRateSyncIntervalHours())
           .thenThrow(Exception('prefs down'));
-      return CurrencyBloc(repo, authRemote);
+      return CurrencyBloc(
+        repo,
+        authRemote,
+        SessionModeTracker()..isGuest = false,
+        _StubCurrencySettings());
     },
     act: (b) => b.add(const LoadPreferencesRequested()),
     wait: const Duration(milliseconds: 100),

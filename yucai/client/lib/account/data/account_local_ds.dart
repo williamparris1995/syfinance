@@ -87,11 +87,11 @@ class AccountLocalDataSource {
   }
 
   Future<Account> getById(String id) async =>
-      (await _requireById(id)) ?? (throw ServerFailure(_notFound));
+      (await _requireById(id)) ?? (throw const ServerFailure(_notFound));
 
   Future<Account> update(UpdateAccountParams p) async {
     final row = await _requireById(p.id);
-    if (row == null) throw ServerFailure(_notFound);
+    if (row == null) throw const ServerFailure(_notFound);
     // Optimistic-concurrency mirror of the remote 409: a stale version is
     // rejected instead of silently overwriting (ADR-4).
     if (p.version != row.version) {
@@ -152,7 +152,7 @@ class AccountLocalDataSource {
 
   Future<void> delete(String id) async {
     final row = await _requireById(id);
-    if (row == null) throw ServerFailure(_notFound);
+    if (row == null) throw const ServerFailure(_notFound);
     // Same guard and wording as the remote non-zero-balance rule — guest
     // habits must match bound habits (ADR-4).
     if (row.currentBalanceCents != 0) {

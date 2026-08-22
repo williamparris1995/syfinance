@@ -3,11 +3,24 @@ import 'package:grpc/grpc.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:drift/native.dart';
+import 'package:yucai_client/core/localdb/app_database.dart'
+    hide TransactionTemplate;
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/template/data/template_local_ds.dart' show TemplateLocalDataSource;
 import 'package:yucai_client/template/data/template_remote_ds.dart';
+import 'package:yucai_client/transaction/data/transaction_local_ds.dart' show TransactionLocalDataSource;
 import 'package:yucai_client/template/data/template_repository_impl.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
 
 class _MockRemote extends Mock implements TemplateRemoteDataSource {}
+
+TemplateRepositoryImpl _guestOffRepo(_MockRemote remote) {
+  final tracker = SessionModeTracker()..isGuest = false;
+  final db = AppDatabase(NativeDatabase.memory());
+  return TemplateRepositoryImpl(
+      remote, TemplateLocalDataSource(db, TransactionLocalDataSource(db)), tracker);
+}
 
 final _now = DateTime.utc(2026, 7, 14);
 
@@ -54,7 +67,7 @@ void main() {
     test('success returns Right(List)', () async {
       when(() => remote.list(paused: any(named: 'paused')))
           .thenAnswer((_) async => [_sampleTemplate()]);
-      final repo = TemplateRepositoryImpl(remote);
+      final repo = _guestOffRepo(remote);
       final result = await repo.list();
       expect(result.isRight(), true);
       result.fold((_) => fail('should be right'), (list) => expect(list.length, 1));
@@ -62,8 +75,8 @@ void main() {
 
     test('grpc unavailable maps to NetworkFailure', () async {
       when(() => remote.list(paused: any(named: 'paused')))
-          .thenThrow(GrpcError.unavailable('down'));
-      final repo = TemplateRepositoryImpl(remote);
+          .thenThrow(const GrpcError.unavailable('down'));
+      final repo = _guestOffRepo(remote);
       final result = await repo.list();
       result.fold((f) => expect(f, isA<NetworkFailure>()), (_) => fail('should be left'));
     });
@@ -86,7 +99,7 @@ void main() {
             autoRecord: any(named: 'autoRecord'),
             category: any(named: 'category'),
           )).thenAnswer((_) async => _sampleTemplate());
-      final repo = TemplateRepositoryImpl(remote);
+      final repo = _guestOffRepo(remote);
       final result = await repo.create(name: '房租', amountCents: 300000);
       expect(result.isRight(), true);
     });
@@ -106,8 +119,8 @@ void main() {
             endDate: any(named: 'endDate'),
             autoRecord: any(named: 'autoRecord'),
             category: any(named: 'category'),
-          )).thenThrow(GrpcError.invalidArgument('bad'));
-      final repo = TemplateRepositoryImpl(remote);
+          )).thenThrow(const GrpcError.invalidArgument('bad'));
+      final repo = _guestOffRepo(remote);
       final result = await repo.create(name: '', amountCents: 0);
       result.fold((f) => expect(f, isA<ValidationFailure>()), (_) => fail('should be left'));
     });
@@ -116,7 +129,7 @@ void main() {
   group('TemplateRepositoryImpl.get', () {
     test('success returns Right(Template)', () async {
       when(() => remote.get('tpl1')).thenAnswer((_) async => _sampleTemplate());
-      final repo = TemplateRepositoryImpl(remote);
+      final repo = _guestOffRepo(remote);
       final result = await repo.get('tpl1');
       expect(result.isRight(), true);
     });
@@ -126,7 +139,7 @@ void main() {
     test('success returns paused Template', () async {
       when(() => remote.pause('tpl1'))
           .thenAnswer((_) async => _sampleTemplate(paused: true));
-      final repo = TemplateRepositoryImpl(remote);
+      final repo = _guestOffRepo(remote);
       final result = await repo.pause('tpl1');
       result.fold((_) => fail('should be right'),
           (t) => expect(t.paused, true));
@@ -137,7 +150,7 @@ void main() {
     test('success returns resumed Template', () async {
       when(() => remote.resume('tpl1'))
           .thenAnswer((_) async => _sampleTemplate(paused: false));
-      final repo = TemplateRepositoryImpl(remote);
+      final repo = _guestOffRepo(remote);
       final result = await repo.resume('tpl1');
       expect(result.isRight(), true);
     });
@@ -146,7 +159,7 @@ void main() {
   group('TemplateRepositoryImpl.delete', () {
     test('success returns Right(void)', () async {
       when(() => remote.delete('tpl1')).thenAnswer((_) async {});
-      final repo = TemplateRepositoryImpl(remote);
+      final repo = _guestOffRepo(remote);
       final result = await repo.delete('tpl1');
       expect(result.isRight(), true);
     });
@@ -155,7 +168,7 @@ void main() {
   group('TemplateRepositoryImpl.record', () {
     test('success returns Right(RecordResult)', () async {
       when(() => remote.record('tpl1')).thenAnswer((_) async => _sampleResult);
-      final repo = TemplateRepositoryImpl(remote);
+      final repo = _guestOffRepo(remote);
       final result = await repo.record('tpl1');
       result.fold((_) => fail('should be right'),
           (r) => expect(r.transactionId, 'txn-new'));
@@ -163,8 +176,8 @@ void main() {
 
     test('grpc error maps to ServerFailure by default', () async {
       when(() => remote.record('tpl1'))
-          .thenThrow(GrpcError.notFound('missing'));
-      final repo = TemplateRepositoryImpl(remote);
+          .thenThrow(const GrpcError.notFound('missing'));
+      final repo = _guestOffRepo(remote);
       final result = await repo.record('tpl1');
       result.fold((f) => expect(f, isA<ServerFailure>()), (_) => fail('should be left'));
     });

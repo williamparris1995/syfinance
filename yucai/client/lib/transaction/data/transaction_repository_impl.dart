@@ -6,6 +6,8 @@ import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/data/transaction_remote_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -13,47 +15,51 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 
 @LazySingleton(as: TransactionRepository)
 class TransactionRepositoryImpl implements TransactionRepository {
-  TransactionRepositoryImpl(this._remote);
+  TransactionRepositoryImpl(this._remote, this._local, this._tracker);
 
   final TransactionRemoteDataSource _remote;
+  final TransactionLocalDataSource _local;
+  final SessionModeTracker _tracker;
+
+  bool get _useLocal => _tracker.isGuest;
 
   @override
   Future<Either<Failure, Transaction>> recordExpense(
           RecordExpenseParams params) =>
-      _guard(() => _remote.recordExpense(params));
+      _guard(() => _useLocal ? _local.recordExpense(params) : _remote.recordExpense(params));
 
   @override
   Future<Either<Failure, Transaction>> recordIncome(
           RecordIncomeParams params) =>
-      _guard(() => _remote.recordIncome(params));
+      _guard(() => _useLocal ? _local.recordIncome(params) : _remote.recordIncome(params));
 
   @override
   Future<Either<Failure, Transaction>> recordTransfer(
           RecordTransferParams params) =>
-      _guard(() => _remote.recordTransfer(params));
+      _guard(() => _useLocal ? _local.recordTransfer(params) : _remote.recordTransfer(params));
 
   @override
   Future<Either<Failure, Transaction>> recordTransaction(
           RecordTransactionParams params) =>
-      _guard(() => _remote.recordTransaction(params));
+      _guard(() => _useLocal ? _local.recordTransaction(params) : _remote.recordTransaction(params));
 
   @override
   Future<Either<Failure, ListTransactionsResult>> list(
           ListTransactionsParams params) =>
-      _guard(() => _remote.list(params));
+      _guard(() => _useLocal ? _local.list(params) : _remote.list(params));
 
   @override
   Future<Either<Failure, Transaction>> getById(String id) =>
-      _guard(() => _remote.getById(id));
+      _guard(() => _useLocal ? _local.getById(id) : _remote.getById(id));
 
   @override
   Future<Either<Failure, Transaction>> update(
           UpdateTransactionParams params) =>
-      _guard(() => _remote.update(params));
+      _guard(() => _useLocal ? _local.update(params) : _remote.update(params));
 
   @override
   Future<Either<Failure, void>> delete(String id) =>
-      _guard(() => _remote.delete(id));
+      _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id));
 
   @override
   Future<Either<Failure, MonthlySummary>> summary(
@@ -63,8 +69,11 @@ class TransactionRepositoryImpl implements TransactionRepository {
     SummaryScope scope = SummaryScope.month,
     int? day,
   }) =>
-      _guard(() => _remote.summary(year, month,
-          accountId: accountId, scope: scope, day: day));
+      _guard(() => _useLocal
+          ? _local.summary(year, month,
+              accountId: accountId, scope: scope, day: day)
+          : _remote.summary(year, month,
+              accountId: accountId, scope: scope, day: day));
 
   /// Maps thrown GrpcError / exceptions to [Failure], wrapping the op in
   /// Either. Mirrors [AccountRepositoryImpl._guard].
@@ -83,6 +92,9 @@ class TransactionRepositoryImpl implements TransactionRepository {
       developer.log('[TXN] _guard GrpcError', name: 'txn.repo',
           error: e, stackTrace: st);
       return Left(_mapGrpcError(e));
+    } on Failure catch (f) {
+      // Local data source failures pass through untouched.
+      return Left(f);
     } catch (e, st) {
       debugPrint('[TXN] _guard ${e.runtimeType}: $e');
       developer.log('[TXN] _guard ${e.runtimeType}', name: 'txn.repo',
