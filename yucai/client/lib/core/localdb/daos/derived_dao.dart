@@ -35,6 +35,12 @@ class DerivedDao extends DatabaseAccessor<AppDatabase>
       (select(holdingLots)..where((t) => t.securityId.equals(securityId)))
           .get();
 
+  /// Lots are scoped per-HOLDING (server lot_repo.go:44 HoldingIDEQ) — the
+  /// same security in two investment accounts must not cross-consume.
+  Future<List<HoldingLot>> getLotsByHolding(String holdingId) =>
+      (select(holdingLots)..where((t) => t.holdingId.equals(holdingId)))
+          .get();
+
   Future<int> deleteLotById(String id) =>
       (delete(holdingLots)..where((t) => t.id.equals(id))).go();
 
@@ -43,11 +49,15 @@ class DerivedDao extends DatabaseAccessor<AppDatabase>
           .write(HoldingLotsCompanion(
               remainingQuantity: Value(remainingQuantity)));
 
-  Future<int> updateLotSplit(String id, double quantity, int priceCents) =>
+  /// Split scales BOTH fields by the caller's ratio independently (server
+  /// lot.go:13-15): quantity x ratio AND remainingQuantity x ratio — never
+  /// reset remaining to the new full quantity (revives consumed shares).
+  Future<int> updateLotSplit(
+      String id, double quantity, double remainingQuantity, int priceCents) =>
       (update(holdingLots)..where((t) => t.id.equals(id)))
           .write(HoldingLotsCompanion(
         quantity: Value(quantity),
-        remainingQuantity: Value(quantity),
+        remainingQuantity: Value(remainingQuantity),
         priceCents: Value(priceCents),
       ));
 

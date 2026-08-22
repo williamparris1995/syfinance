@@ -317,12 +317,120 @@ void main() {
   group('net worth three sources', () {
     test('assets/liabilities/net over local tables', () async {
       final networth = NetWorthLocalDataSource(database);
-      final cash = await seedAccount('cash', 1, balance: 50000);
-      final loan = await seedAccount('loan', 2, balance: 20000);
+      await seedAccount('cash', 1, balance: 50000);
+      // Liability ACCOUNT balances are NOT counted (review E-#9) — the
+      // liability comes from a borrowedIn debt's unpaid schedule.
+      await seedAccount('loan', 2, balance: 20000);
+      final debts = DebtLocalDataSource(database, txns);
+      final loanAcc = await seedAccount('loanacc', 2);
+      await debts.create(
+        accountId: loanAcc,
+        counterparty: 'B',
+        interestRate: 0,
+        amortizationIndex: 2, // lump sum: one unpaid entry of 20000+0
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 6, 1),
+        totalPrincipalCents: 20000,
+        type: DebtType.borrowedIn,
+      );
       final view = await networth.getNetWorth(baseCurrency: 'CNY');
       expect(view.totalAssetsCents, 50000);
       expect(view.totalLiabilitiesCents, 20000);
       expect(view.netWorthCents, 30000);
+    });
+  });
+
+  group('amortization engine (server formulas)', () {
+    test('equal installment: 12-month 120000 @0.06 sums back to principal+interest', () async {
+      final loan = await seedAccount('loan2', 2);
+      final cash2 = await seedAccount('cash2', 1);
+      final debts = DebtLocalDataSource(database, txns);
+      final d = await debts.create(
+        accountId: loan,
+        counterparty: 'B2',
+        interestRate: 0.06,
+        amortizationIndex: 0, // equalPrincipalInterest
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2027, 1, 1),
+        totalPrincipalCents: 120000,
+        type: DebtType.borrowedIn,
+      );
+      final schedule = await database.debtDao.getScheduleByDebt(d.id);
+      expect(schedule, hasLength(12));
+      expect(schedule.first.paymentDate, DateTime.utc(2026, 2, 1));
+      // Σprincipal == 120000 (last entry absorbs rounding).
+      expect(schedule.fold(0, (a, s2) => a + s2.principalCents), 120000);
+      // Monthly interest declining on remaining balance.
+      expect(schedule.first.interestCents, 600);
+    });
+
+    test('lump sum: single entry at due date', () async {
+      final loan = await seedAccount('loan3', 2);
+      final debts = DebtLocalDataSource(database, txns);
+      final d = await debts.create(
+        accountId: loan,
+        counterparty: 'B3',
+        interestRate: 0.12,
+        amortizationIndex: 2, // lumpSum
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 7, 1),
+        totalPrincipalCents: 100000,
+        type: DebtType.borrowedIn,
+      );
+      final schedule = await database.debtDao.getScheduleByDebt(d.id);
+      expect(schedule, hasLength(1));
+      expect(schedule.single.paymentDate, DateTime.utc(2026, 7, 1));
+      // interest = 100000 × 0.12 × 6/12 = 6000.
+      expect(schedule.single.interestCents, 6000);
+    });
+
+    test('borrowedOut create double-writes cash out', () async {
+      final recv = await seedAccount('recv', 1);
+      final src = await seedAccount('src', 1);
+      final debts = DebtLocalDataSource(database, txns);
+      final d = await debts.create(
+        accountId: recv,
+        counterparty: 'Zhang',
+        interestRate: 0,
+        amortizationIndex: 2,
+        startDate: DateTime.utc(2026, 8, 1),
+        dueDate: DateTime.utc(2026, 9, 1),
+        totalPrincipalCents: 50000,
+        type: DebtType.borrowedOut,
+        sourceAccountId: src,
+      );
+      expect(d.type, DebtType.borrowedOut);
+      final entries = await database.transactionDao.getAllEntries();
+      // credit source (cash−) 50000 / debit receivable 50000.
+      expect(
+        entries.singleWhere((e) => e.accountId == src && e.creditCents > 0),
+        isNotNull,
+      );
+      expect(
+        entries.singleWhere((e) => e.accountId == recv && e.debitCents > 0),
+        isNotNull,
+      );
+    });
+  });
+
+  group('split keeps consumed shares consumed', () {
+    test('2:1 split after partial FIFO consumption', () async {
+      final cash = await seedAccount('cash-s', 1);
+      final inv = await seedAccount('inv-s', 1);
+      final sec = await seedSecurity('SPLIT');
+      await holding.buy(accountId: inv, securityId: sec, fromAccountId: cash,
+          quantity: 100, priceCents: 1000, tradeDate: '2026-01-01');
+      await holding.sell(accountId: inv, securityId: sec, fromAccountId: cash,
+          quantity: 60, priceCents: 1100, tradeDate: '2026-02-01');
+      await holding.recordSplit(
+          accountId: inv, securityId: sec, ratio: 2, splitDate: '2026-03-01');
+      final h = await holding.listHoldings(accountId: inv);
+      // 40 remaining × 2 = 80 after the split.
+      expect(h.single.quantity, 80);
+      final lots = await database.derivedDao.getLotsByHolding(
+          (await database.holdingDao.watchAllHoldings().first).first.id);
+      // remaining 40 × 2 = 80 — NOT 200 (the revival bug).
+      expect(lots.single.remainingQuantity, 80);
     });
   });
 

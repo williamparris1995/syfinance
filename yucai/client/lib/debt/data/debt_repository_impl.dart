@@ -132,6 +132,9 @@ class DebtRepositoryImpl implements DebtRepository {
       return Right(await op());
     } on GrpcError catch (e) {
       return Left(ServerFailure(e.message ?? 'gRPC error'));
+    } on Failure catch (f) {
+      // Local data source failures pass through untouched.
+      return Left(f);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

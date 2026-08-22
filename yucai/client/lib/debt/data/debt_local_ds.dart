@@ -83,9 +83,23 @@ class DebtLocalDataSource {
         createdAt: now,
         updatedAt: now,
       ));
+      // Amortization schedule at create (server GenerateSchedule): three
+      // methods copied verbatim from debt/domain/service.go.
+      for (final e in _generateSchedule(
+        debtId: id,
+        method: amortizationIndex,
+        startDate: DateTime.utc(startDate.year, startDate.month, startDate.day),
+        dueDate: DateTime.utc(dueDate.year, dueDate.month, dueDate.day),
+        totalPrincipalCents: totalPrincipalCents,
+        interestRate: interestRate,
+      )) {
+        await _dao.insertScheduleEntry(e);
+      }
       // borrowedOut create double-writes cash out (server buildCreateEntries):
       // credit source (cash−) + debit receivable account (+).
       if (type == DebtType.borrowedOut && (sourceAccountId ?? '').isNotEmpty) {
+        final src = await _database.accountDao.getAccountById(sourceAccountId!);
+        if (src == null) throw ServerFailure('资金账户不存在');
         await _txns.recordTransaction(RecordTransactionParams(
           transactionDate:
               DateTime.utc(startDate.year, startDate.month, startDate.day),
@@ -191,6 +205,125 @@ class DebtLocalDataSource {
       }
     }
     return out;
+  }
+
+  // ---- amortization (server debt/domain/service.go, verbatim) ----
+
+  List<db.PaymentScheduleEntriesCompanion> _generateSchedule({
+    required String debtId,
+    required int method, // AmortizationMethod.index
+    required DateTime startDate,
+    required DateTime dueDate,
+    required int totalPrincipalCents,
+    required double interestRate,
+  }) {
+    switch (method) {
+      case 2: // lumpSum
+        return _lumpSum(debtId, startDate, dueDate, totalPrincipalCents, interestRate);
+      case 1: // equalPrincipal
+        return _equalPrincipal(debtId, startDate, dueDate, totalPrincipalCents, interestRate);
+      default: // equalPrincipalInterest (and unknown → default, server same)
+        return _equalInstallment(debtId, startDate, dueDate, totalPrincipalCents, interestRate);
+    }
+  }
+
+  int _termInMonths(DateTime start, DateTime due) {
+    final months = (due.year - start.year) * 12 + due.month - start.month;
+    return months <= 0 ? 1 : months;
+  }
+
+  DateTime _addMonthsClamped(DateTime t, int months) {
+    final total = t.month + months;
+    var year = t.year + (total - 1) ~/ 12;
+    var month = (total - 1) % 12 + 1;
+    final lastDay = DateTime.utc(year, month + 1, 0).day;
+    final day = t.day > lastDay ? lastDay : t.day;
+    return DateTime.utc(year, month, day);
+  }
+
+  List<db.PaymentScheduleEntriesCompanion> _lumpSum(String debtId,
+      DateTime start, DateTime due, int principal, double rate) {
+    final months = _termInMonths(start, due);
+    final interest = (principal * rate * months / 12.0).round();
+    return [
+      db.PaymentScheduleEntriesCompanion.insert(
+        id: _uuid.v4(),
+        debtId: debtId,
+        paymentDate: due,
+        principalCents: principal,
+        interestCents: interest,
+        totalCents: principal + interest,
+        paidCents: 0,
+        paid: false,
+      )
+    ];
+  }
+
+  List<db.PaymentScheduleEntriesCompanion> _equalPrincipal(String debtId,
+      DateTime start, DateTime due, int principal, double rate) {
+    final months = _termInMonths(start, due);
+    final monthlyRate = rate / 12.0;
+    final monthlyPrincipal = principal ~/ months;
+    var remaining = principal.toDouble();
+    final out = <db.PaymentScheduleEntriesCompanion>[];
+    for (var i = 0; i < months; i++) {
+      final interest = (remaining * monthlyRate).round();
+      final principalPart =
+          i == months - 1 ? remaining.round() : monthlyPrincipal;
+      out.add(db.PaymentScheduleEntriesCompanion.insert(
+        id: _uuid.v4(),
+        debtId: debtId,
+        paymentDate: _addMonthsClamped(start, i + 1),
+        principalCents: principalPart,
+        interestCents: interest,
+        totalCents: principalPart + interest,
+        paidCents: 0,
+        paid: false,
+      ));
+      remaining -= principalPart;
+    }
+    return out;
+  }
+
+  List<db.PaymentScheduleEntriesCompanion> _equalInstallment(String debtId,
+      DateTime start, DateTime due, int principal, double rate) {
+    final months = _termInMonths(start, due);
+    final monthlyRate = rate / 12.0;
+    final p = principal.toDouble();
+    double payment;
+    if (monthlyRate == 0) {
+      payment = p / months;
+    } else {
+      final factor = _pow(1 + monthlyRate, months);
+      payment = p * monthlyRate * factor / (factor - 1);
+    }
+    var remaining = p;
+    final out = <db.PaymentScheduleEntriesCompanion>[];
+    for (var i = 0; i < months; i++) {
+      final interest = (remaining * monthlyRate).round();
+      final principalPart =
+          i == months - 1 ? remaining.round() : payment.round() - interest;
+      out.add(db.PaymentScheduleEntriesCompanion.insert(
+        id: _uuid.v4(),
+        debtId: debtId,
+        paymentDate: _addMonthsClamped(start, i + 1),
+        principalCents: principalPart,
+        interestCents: interest,
+        totalCents: principalPart + interest,
+        paidCents: 0,
+        paid: false,
+      ));
+      remaining -= principalPart;
+    }
+    return out;
+  }
+
+  double _pow(double base, int exp) {
+    var r = 1.0;
+    for (var i = 0; i < exp; i++) {
+      r *= base;
+    }
+    return r;
   }
 
   // ---- helpers ----

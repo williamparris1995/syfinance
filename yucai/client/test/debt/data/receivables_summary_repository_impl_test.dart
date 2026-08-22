@@ -3,7 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:grpc/grpc.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:drift/native.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' hide Debt;
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/debt/data/receivables_summary_data_source.dart';
 import 'package:yucai_client/debt/data/receivables_summary_repository_impl.dart';
 import 'package:yucai_client/debt/domain/entities/receivables_summary.dart';
@@ -12,6 +15,7 @@ class _MockRemote extends Mock implements ReceivablesSummaryDataSource {}
 
 void main() {
   late _MockRemote remote;
+  late SessionModeTracker _tracker;
   late ReceivablesSummaryRepositoryImpl repo;
 
   final sample = ReceivablesSummary(
@@ -31,8 +35,10 @@ void main() {
   );
 
   setUp(() {
+    _tracker = SessionModeTracker()..isGuest = false;
     remote = _MockRemote();
-    repo = ReceivablesSummaryRepositoryImpl(remote);
+    repo = ReceivablesSummaryRepositoryImpl(
+        remote, AppDatabase(NativeDatabase.memory()), _tracker);
   });
 
   test('fetch success returns Right with summary', () async {

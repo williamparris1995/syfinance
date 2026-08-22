@@ -19,3 +19,15 @@
 - guest create debt 不生成 schedule(摊销引擎 defer;还款测试手工造行)——**feature F 引用完整性时补本地摊销或记差异**。
 - dividend 无现金腿(server 同款);progress history 空;行情收益降级。
 - networth 未实现利得层口径(资产余额含成本基础+仅加 gain 层)——与 server HoldingMarketValueSource 的精确对拍归 F/e2e 复核。
+
+## Review 修复轮(2026-08-22,首轮 reject:1 BLOCKER + 4 HIGH)
+
+- **B1**:ReceivablesSummary 整面补齐——repo 双源化 + guest 聚合(核心金额字段镜像 server;trend 字段=现值,无历史 scheduler 记 accepted)。
+- **H2**:debt create 摊销引擎照抄(debt/domain/service.go 三公式:等额本息/等额本金/一次性;TermInMonths/addMonths clamp 同)——schedule 随 create 同事务生成,还款链路活了。
+- **H3**:updateLotSplit 修复活 bug(remaining 独立×ratio,server lot.go 语义)+测试钉(40×2=80 非 200)。
+- **H4**:FIFO/split/余量改按 holdingId 取 lot(server HoldingIDEQ)——同证券跨账户不再互吃。
+- **H5**:四 repo guard 补 on Failure 透传(此前正则没匹配上单行形态,手工补)。
+- MED:goal unlinked 读存储值(scheduler 跳过语义)/updateGoal 不碰 isCompleted/Investment 用现价共享 helper(marketValueOf)/networth 去 liability 余额双计+口径注释改 accepted 差异/还款·borrowedOut create 补账户校验/搜索改前缀。
+- 新测试 +4(等额本息 oracle 12 期/lump sum/borrowedOut create 复式/split 防复活);networth 测试更新新口径。
+- 修复后:全套 +1060 -4(=基线,零新增);analyze 366 < main 398。
+- **deferred(记档)**:FIFO 余量不足静默少算(server 报错)→F;goal Investment 口径依赖 updateSecurityPrice 手工价(无行情)——与持仓页一致 ✓;receivables trend 字段无历史;networth 折算/陈旧标注(NetWorthView 无 stale 字段,归 F UX)。

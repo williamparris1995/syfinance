@@ -197,11 +197,12 @@ class HoldingLocalDataSource {
           throw const ValidationFailure('持仓数量不足');
         }
         // 2b) Sell: FIFO consumption + realized pnl (fee deducted from
-        // proceeds), avgCost recomputed from remaining lots.
-        final realized =
-            await _consumeFifo(securityId, quantity, priceCents, feeCents);
+        // proceeds), avgCost recomputed from remaining lots — lots are
+        // scoped to THIS holding (server HoldingIDEQ).
+        final realized = await _consumeFifo(
+            existing.id, quantity, priceCents, feeCents);
         final remainingQty = existing.quantity - quantity;
-        final remainingCost = await _remainingLotCost(securityId);
+        final remainingCost = await _remainingLotCost(existing.id);
         await _dao.updateHolding(db.HoldingsCompanion(
           id: Value(existing.id),
           quantity: Value(remainingQty),
@@ -275,8 +276,8 @@ class HoldingLocalDataSource {
   /// FIFO consumption (server ConsumeLotsFIFO): oldest lots first; realized
   /// pnl = Σ (price − lot price) × taken, minus the sell fee.
   Future<int> _consumeFifo(
-      String securityId, double sellQty, int priceCents, int feeCents) async {
-    final lots = await _derived.getLotsBySecurity(securityId);
+      String holdingId, double sellQty, int priceCents, int feeCents) async {
+    final lots = await _derived.getLotsByHolding(holdingId);
     lots.sort((a, b) => a.acquiredDate.compareTo(b.acquiredDate));
     var remaining = sellQty;
     var realized = 0;
@@ -297,8 +298,8 @@ class HoldingLocalDataSource {
     return realized - feeCents;
   }
 
-  Future<int> _remainingLotCost(String securityId) async {
-    final lots = await _derived.getLotsBySecurity(securityId);
+  Future<int> _remainingLotCost(String holdingId) async {
+    final lots = await _derived.getLotsByHolding(holdingId);
     return lots.fold<int>(
         0, (a, l) => a + (l.priceCents * l.remainingQuantity).round());
   }
@@ -356,11 +357,12 @@ class HoldingLocalDataSource {
         version: Value(existing.version + 1),
         updatedAt: Value(now),
       ));
-      // Split every open lot: quantity ×ratio, price ÷ratio.
-      final lots = await _derived.getLotsBySecurity(securityId);
+      // Split every open lot of THIS holding: quantity and remaining each
+      // scaled by ratio, price divided by ratio (server lot.go:13-15).
+      final lots = await _derived.getLotsByHolding(existing.id);
       for (final lot in lots) {
-        await _derived.updateLotSplit(lot.id,
-            lot.quantity * ratio, (lot.priceCents / ratio).round());
+        await _derived.updateLotSplit(lot.id, lot.quantity * ratio,
+            lot.remainingQuantity * ratio, (lot.priceCents / ratio).round());
       }
       await _dao.insertHoldingTransaction(
           db.HoldingTransactionsCompanion.insert(
@@ -417,8 +419,8 @@ class HoldingLocalDataSource {
     final rows = await _reference.getAllSecurities();
     return rows
         .where((r) =>
-            r.symbol.toLowerCase().contains(q) ||
-            r.name.toLowerCase().contains(q))
+            r.symbol.toLowerCase().startsWith(q) ||
+            r.name.toLowerCase().startsWith(q))
         .map(_securityView)
         .toList();
   }
@@ -453,6 +455,17 @@ class HoldingLocalDataSource {
   }) async =>
       throw const ServerFailure('离线暂不支持收益分析');
 
+  /// Market value of one holding: live price when available, else the
+  /// (stale) avgCost basis — shared by the holding page and goal actuals so
+  /// both always agree (design R2).
+  Future<int> marketValueOf(db.Holding h) async {
+    final security = await _reference.getSecurityById(h.securityId);
+    if (security != null && security.currentPriceCents > 0) {
+      return (h.quantity * security.currentPriceCents).round();
+    }
+    return (h.quantity * h.avgCostCents).round();
+  }
+
   /// Guest branch of the repo's listInvestmentGoals: read the local goals
   /// table (investment-type only) mapped into the holding-module GoalView.
   Future<List<GoalView>> listInvestmentGoalsLocal() async {
@@ -461,9 +474,10 @@ class HoldingLocalDataSource {
     for (final r in rows.where((r) => r.goalType == 3)) {
       final (accounts, _) = await _database.goalDao.linksFor(r.id);
       final holdings = await _dao.watchAllHoldings().first;
-      final current = holdings
-          .where((h) => accounts.contains(h.accountId))
-          .fold(0, (a, h) => a + (h.quantity * h.avgCostCents).round());
+      final scoped =
+          holdings.where((h) => accounts.contains(h.accountId)).toList();
+      final values = await Future.wait(scoped.map(marketValueOf));
+      final current = values.fold(0, (a, v) => a + v);
       views.add(GoalView(
         id: r.id,
         name: r.name,
@@ -561,27 +575,29 @@ class NetWorthLocalDataSource {
     for (final a in accounts) {
       if (a.accountType == 1) {
         assets += a.currentBalanceCents;
-      } else if (a.accountType == 2) {
-        liabilities += a.currentBalanceCents;
       }
+      // Liability ACCOUNT balances are deliberately NOT counted here: the
+      // guest balance column stays frozen while borrowedIn debt rows carry
+      // the liability below — counting both would double-count (review E-#9).
     }
-    // Investment account balances already carry the COST basis (the buy
-    // double-entry moved cash into them); only the unrealized gain layer is
-    // added on top (qty × livePrice − qty × avgCost), mirroring the server's
-    // HoldingMarketValueSource increment.
+    // Accepted caliber difference (recorded, not a server mirror): the guest
+    // double-entry never moves the balance column, so "frozen asset balances
+    // + unrealized gain layer" nets to the true guest net worth (cash not
+    // yet deducted and cost not yet added cancel out). Bound-mode numbers
+    // come from the server and may differ systematically until feature H.
     for (final h in holdings) {
-      final security = await _database.referenceDao.getSecurityById(h.securityId);
+      final security =
+          await _database.referenceDao.getSecurityById(h.securityId);
       if (security != null && security.currentPriceCents > 0) {
-        assets += (h.quantity *
-                (security.currentPriceCents - h.avgCostCents))
-            .round();
+        assets +=
+            (h.quantity * (security.currentPriceCents - h.avgCostCents))
+                .round();
       }
     }
     for (final d in debts) {
       if (d.debtType == DebtDirection.borrowedIn) {
-        final schedule =
-            await _database.debtDao.getScheduleByDebt(d.id);
-        final paid = schedule.fold(0, (a, s) => a + s.paidCents);
+        final schedule = await _database.debtDao.getScheduleByDebt(d.id);
+        final paid = schedule.fold(0, (a, s2) => a + s2.paidCents);
         liabilities += d.totalPrincipalCents - paid;
       }
     }

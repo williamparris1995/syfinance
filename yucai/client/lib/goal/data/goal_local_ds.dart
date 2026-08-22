@@ -15,7 +15,9 @@ import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 /// balance, DebtPayoff = Σ linked debts' schedule paidCents; no links → 0.
 @LazySingleton()
 class GoalLocalDataSource {
-  GoalLocalDataSource(this._database, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
+  GoalLocalDataSource(this._database,
+      {Uuid? uuid, this.holdingsMarketValue})
+      : _uuid = uuid ?? const Uuid();
 
   final db.AppDatabase _database;
   final Uuid _uuid;
@@ -197,22 +199,29 @@ class GoalLocalDataSource {
 
   Future<GoalView> _toView(db.Goal row) async {
     final (accounts, debts) = await _dao.linksFor(row.id);
-    // Read-time three-source actuals (server SyncAllGoals rule).
-    var current = 0;
+    // Read-time three-source actuals (server SyncAllGoals rule). Goals with
+    // no links are skipped by the server scheduler, so their stored manual
+    // contributions stay visible — mirror that (review E-#6).
+    var current = row.currentAmountCents;
     final type = row.goalType;
-    if (type == 3) {
-      // Investment: Σ linked accounts' holdings market value.
+    if (type == 3 && accounts.isNotEmpty) {
+      // Investment: Σ linked accounts' holdings market value (live price,
+      // avgCost fallback) — same helper the holding page uses.
       final holdings = await _database.holdingDao.watchAllHoldings().first;
-      current = holdings
-          .where((h) => accounts.contains(h.accountId))
-          .fold(0, (a, h) => a + _marketValueOrCost(h));
-    } else if (type == 1) {
+      final scoped =
+          holdings.where((h) => accounts.contains(h.accountId)).toList();
+      final values = await Future.wait(
+          scoped.map((h) => holdingsMarketValue != null
+              ? holdingsMarketValue!(h)
+              : Future.value(_costBasis(h))));
+      current = values.fold(0, (a, v) => a + v);
+    } else if (type == 1 && accounts.isNotEmpty) {
       // Savings: Σ linked accounts' current balance.
       final accs = await _database.accountDao.getAllAccounts();
       current = accs
           .where((a) => accounts.contains(a.id))
           .fold(0, (a, x) => a + x.currentBalanceCents);
-    } else if (type == 2) {
+    } else if (type == 2 && debts.isNotEmpty) {
       // DebtPayoff: Σ linked debts' schedule paidCents.
       for (final d in debts) {
         final schedule = await _database.debtDao
@@ -236,9 +245,12 @@ class GoalLocalDataSource {
     );
   }
 
-  /// Without a live price the avgCost basis is the honest (stale) fallback.
-  int _marketValueOrCost(db.Holding h) =>
-      (h.quantity * h.avgCostCents).round();
+  /// Cost-basis fallback when no holding ds helper is injected.
+  int _costBasis(db.Holding h) => (h.quantity * h.avgCostCents).round();
+
+  /// Optional live market-value helper from HoldingLocalDataSource (design
+  /// R2: one shared synthesis so the holding page and goal actuals agree).
+  final Future<int> Function(db.Holding)? holdingsMarketValue;
 
   DateTime? _parseDate(String? s) {
     if (s == null || s.isEmpty) return null;

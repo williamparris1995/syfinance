@@ -224,12 +224,6 @@ extension GetItInjectableX on _i174.GetIt {
         uuid: gh<_i706.Uuid>(),
       ),
     );
-    gh.lazySingleton<_i94.GoalLocalDataSource>(
-      () => _i94.GoalLocalDataSource(
-        gh<_i581.AppDatabase>(),
-        uuid: gh<_i706.Uuid>(),
-      ),
-    );
     gh.lazySingleton<_i603.TagLocalDataSource>(
       () => _i603.TagLocalDataSource(
         gh<_i581.AppDatabase>(),
@@ -257,11 +251,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i386.CurrencyRemoteDataSource>(),
         gh<_i254.CurrencyLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
-      ),
-    );
-    gh.lazySingleton<_i322.ReceivablesSummaryRepository>(
-      () => _i31.ReceivablesSummaryRepositoryImpl(
-        gh<_i536.ReceivablesSummaryDataSource>(),
       ),
     );
     gh.lazySingleton<_i822.TransactionRepository>(
@@ -321,6 +310,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i82.CreateAccountUseCase>(),
         gh<_i1051.DeleteAccountUseCase>(),
         gh<_i726.UpdateAccountUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i322.ReceivablesSummaryRepository>(
+      () => _i31.ReceivablesSummaryRepositoryImpl(
+        gh<_i536.ReceivablesSummaryDataSource>(),
+        gh<_i581.AppDatabase>(),
+        gh<_i781.SessionModeTracker>(),
       ),
     );
     gh.lazySingleton<_i464.DebtLocalDataSource>(
