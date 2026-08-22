@@ -796,9 +796,8 @@ class _SeededAuthedBloc extends AuthBloc {
   }
 }
 
-/// AuthBloc explicitly Unauthenticated (token gone bad: the login wall is
-/// the right destination for bind-only pages, but business routes stay
-/// reachable — guard inversion, R6 ADR-3).
+/// AuthBloc explicitly Unauthenticated (a broken session): the login wall is
+/// the recovery path for business routes, same as pre-R6 (FR-1 scenario 2).
 AuthBloc _unauthBloc() => _SeededUnauthBloc();
 
 class _SeededUnauthBloc extends AuthBloc {

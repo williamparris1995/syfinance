@@ -55,7 +55,7 @@ GoRouter _testRouter(AuthBloc bloc) => GoRouter(
       ],
     );
 
-Widget _harness({required AuthState state, required AuthBloc bloc}) =>
+Widget _harness({required AuthBloc bloc}) =>
     MaterialApp.router(routerConfig: _testRouter(bloc));
 
 void main() {
@@ -76,7 +76,7 @@ void main() {
   });
 
   testWidgets('renders title + single Google login button', (t) async {
-    await t.pumpWidget(_harness(state: AuthInitial(), bloc: bloc));
+    await t.pumpWidget(_harness(bloc: bloc));
     await t.pump();
 
     // Branding.
@@ -104,7 +104,7 @@ void main() {
   });
 
   testWidgets('tap button dispatches OIDCLoginRequested(google)', (t) async {
-    await t.pumpWidget(_harness(state: AuthInitial(), bloc: bloc));
+    await t.pumpWidget(_harness(bloc: bloc));
     await t.pump();
 
     await t.tap(find.text('使用 Google 登录'));
@@ -117,7 +117,7 @@ void main() {
   testWidgets('AuthLoading disables button + shows spinner (no double dispatch)',
       (t) async {
     when(() => bloc.state).thenReturn(AuthLoading());
-    await t.pumpWidget(_harness(state: AuthLoading(), bloc: bloc));
+    await t.pumpWidget(_harness(bloc: bloc));
     await t.pump();
 
     // FilledButton.icon onPressed null while loading → disabled.
@@ -140,7 +140,7 @@ void main() {
     when(() => bloc.state).thenReturn(AuthInitial());
     when(() => bloc.stream).thenAnswer((_) => controller.stream);
 
-    await t.pumpWidget(_harness(state: AuthInitial(), bloc: bloc));
+    await t.pumpWidget(_harness(bloc: bloc));
     await t.pump();
 
     // Emit error after first frame so the listener sees the transition.
@@ -160,7 +160,7 @@ void main() {
     // the page doesn't crash on Authenticated and the button remains tappable
     // (so a user who somehow lands back on /login can retry).
     when(() => bloc.state).thenReturn(Authenticated(_user));
-    await t.pumpWidget(_harness(state: Authenticated(_user), bloc: bloc));
+    await t.pumpWidget(_harness(bloc: bloc));
     await t.pump();
 
     expect(find.text('使用 Google 登录'), findsOneWidget);
