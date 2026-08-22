@@ -95,8 +95,8 @@ class AppDatabase extends _$AppDatabase {
     final dangling = <String, int>{};
     Future<void> count(String label, String sql) async {
       final rows = await customSelect(sql).get();
-      final n = rows.isNotEmpty ? rows.first.data.values.first as int? ?? 0 : 0;
-      if ((n ?? 0) > 0) dangling[label] = n!;
+      final n = (rows.isNotEmpty ? rows.first.data.values.first : 0) as int;
+      if (n > 0) dangling[label] = n;
     }
     await count('交易分录账户', '''
       SELECT COUNT(*) AS n FROM transaction_entries e

@@ -581,14 +581,16 @@ class NetWorthLocalDataSource {
       if (a.accountType == 1) {
         assets += a.currentBalanceCents;
       }
-      // Liability ACCOUNT balances are deliberately NOT counted here: the
-      // guest balance column stays frozen while borrowedIn debt rows carry
-      // the liability below — counting both would double-count (review E-#9).
+      // Liability ACCOUNT balances are deliberately NOT counted here — the
+      // borrowedIn debt rows below carry the liability; counting both would
+      // double-count (review E-#9).
     }
-    // Caliber (post feature F): balances are LIVE — the balance linkage in
-    // TransactionLocalDataSource moves cash/investment balances on every
-    // double entry, so asset balances already carry real cost basis; the
-    // gain layer on top adds unrealized pnl (live price ∨ nothing offline).
+    // Caliber (post feature F): balances are LIVE via the linkage, so asset
+    // balances carry real cost basis; the gain layer adds unrealized pnl.
+    // ACCEPTED difference (review F-J2): after a SELL the investment account
+    // is credited the proceeds (not the FIFO cost), so realized PnL is NOT
+    // reflected in this guest net-worth number (bound-mode server numbers
+    // include it) — divergence equals cumulative realized gross PnL.
     for (final h in holdings) {
       final security =
           await _database.referenceDao.getSecurityById(h.securityId);

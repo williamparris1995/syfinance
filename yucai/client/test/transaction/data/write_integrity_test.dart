@@ -268,14 +268,64 @@ void main() {
           assetAccountId: 'cash',
           amountCents: 2500,
         ));
+        // Extend the chain: security + buy + tag (full guest surface).
+        final holdingR = HoldingLocalDataSource(db2, txns2);
+        final sec = await holdingR.createSecurity(
+            symbol: 'RS', name: 'RS', type: SecurityType.stock, currency: 'CNY');
+        await accounts2.insertAccount(db.AccountsCompanion.insert(
+          id: 'inv',
+          name: '投资',
+          accountType: 1,
+          category: 2,
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          currentBalanceCents: 0,
+          ownership: 1,
+          icon: '',
+          color: '',
+          chartCode: '',
+          isSystem: false,
+          sortOrder: 0,
+          institution: '',
+          cardNumberTail: '',
+          notes: '',
+          goldProductType: '',
+          status: 1,
+          version: 1,
+          createdAt: DateTime.now().toUtc(),
+          updatedAt: DateTime.now().toUtc(),
+        ));
+        await holdingR.buy(
+          accountId: 'inv',
+          securityId: sec.id,
+          fromAccountId: 'cash',
+          quantity: 5,
+          priceCents: 200,
+          tradeDate: '2026-08-22',
+        );
+        final tags2 = TagLocalDataSource(db2);
+        final tag = await tags2.create(name: 'restart', color: '#000000');
+        await tags2.addTagToTransaction(
+            tagId: tag.id,
+            transactionId:
+                (await db2.transactionDao.getAllTransactions()).first.id);
         await db2.close();
 
         // Reopen the same file: data + linked balance intact.
         final db3 = db.AppDatabase(NativeDatabase(file));
         final cashRow = await db3.accountDao.getAccountById('cash');
-        expect(cashRow!.currentBalanceCents, 7500);
-        expect(await db3.transactionDao.getAllTransactions(), hasLength(1));
-        expect(await db3.transactionDao.getAllEntries(), hasLength(2));
+        // 10000 − 2500 (expense) − 1000 (buy) = 6500.
+        expect(cashRow!.currentBalanceCents, 6500);
+        final invRow = await db3.accountDao.getAccountById('inv');
+        expect(invRow!.currentBalanceCents, 1000);
+        // expense (1) + buy linkage (1) = 2 transactions, 4 entries.
+        expect(await db3.transactionDao.getAllTransactions(), hasLength(2));
+        expect(await db3.transactionDao.getAllEntries(), hasLength(4));
+        final holdingsRe = await db3.holdingDao.watchAllHoldings().first;
+        expect(holdingsRe.single.quantity, 5);
+        expect(await db3.derivedDao.getLotsByHolding(holdingsRe.single.id),
+            hasLength(1));
+        expect(await db3.tagDao.watchAllTags().first, hasLength(1));
         // Integrity check passes on the reopened store.
         final (ok, detail) = await db3.integrityCheck();
         expect(ok, isTrue, reason: detail);

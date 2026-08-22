@@ -200,6 +200,21 @@ class TransactionLocalDataSource {
     if (entries.isEmpty) {
       throw const ValidationFailure('至少需要一条分录');
     }
+    // Balance-linked update validates the NEW packet like the server's
+    // DoubleEntryValidator (service.go:276) — balances are real now, an
+    // unbalanced packet would move assets out of thin air.
+    var sumDebit = 0, sumCredit = 0;
+    for (final e in entries) {
+      final positive = (e.debitCents > 0) != (e.creditCents > 0);
+      if (!positive || (e.debitCents == 0 && e.creditCents == 0)) {
+        throw const ValidationFailure('分录借贷必须恰一方大于零');
+      }
+      sumDebit += e.debitCents;
+      sumCredit += e.creditCents;
+    }
+    if (sumDebit != sumCredit) {
+      throw const ValidationFailure('分录借贷总额必须相等');
+    }
     await _database.transaction(() async {
       // Reverse the OLD entries' balance effect first (server update =
       // ReverseBalances(old) + UpdateBalances(new), same tx).
