@@ -82,6 +82,41 @@ class AppDatabase extends _$AppDatabase {
         return NativeDatabase.createInBackground(file);
       });
 
+  /// Lightweight startup self-check (R6 F): SQLite integrity plus dangling
+  /// reference counts on the cross-module FK-by-convention columns.
+  /// Returns (ok, detail); display-only — never repairs.
+  Future<(bool, String)> integrityCheck() async {
+    final integrity = await customSelect('PRAGMA integrity_check').get();
+    final integrityOk =
+        integrity.isNotEmpty && integrity.first.data.values.first == 'ok';
+    if (!integrityOk) {
+      return (false, '数据库完整性校验失败');
+    }
+    final dangling = <String, int>{};
+    Future<void> count(String label, String sql) async {
+      final rows = await customSelect(sql).get();
+      final n = rows.isNotEmpty ? rows.first.data.values.first as int? ?? 0 : 0;
+      if ((n ?? 0) > 0) dangling[label] = n!;
+    }
+    await count('交易分录账户', '''
+      SELECT COUNT(*) AS n FROM transaction_entries e
+      WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.id = e.account_id)
+    ''');
+    await count('预算项账户', '''
+      SELECT COUNT(*) AS n FROM budget_items i
+      WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.id = i.account_id)
+    ''');
+    await count('目标关联账户', '''
+      SELECT COUNT(*) AS n FROM goal_account_links l
+      WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.id = l.linked_id)
+    ''');
+    if (dangling.isNotEmpty) {
+      final parts = dangling.entries.map((e) => '${e.key}×${e.value}').join('、');
+      return (false, '悬挂引用($parts)');
+    }
+    return (true, '');
+  }
+
   @override
   int get schemaVersion => 1;
 

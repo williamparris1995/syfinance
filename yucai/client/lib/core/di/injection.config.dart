@@ -85,6 +85,7 @@ import '../../template/data/template_remote_ds.dart' as _i889;
 import '../../template/data/template_repository_impl.dart' as _i554;
 import '../../template/domain/repositories/template_repository.dart' as _i74;
 import '../../template/presentation/bloc/template_bloc.dart' as _i933;
+import '../../transaction/data/balance_updater.dart' as _i917;
 import '../../transaction/data/mappers/transaction_mapper.dart' as _i667;
 import '../../transaction/data/transaction_local_ds.dart' as _i991;
 import '../../transaction/data/transaction_remote_ds.dart' as _i666;
@@ -155,6 +156,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i898.NetWorthLocalDataSource>(
       () => _i898.NetWorthLocalDataSource(gh<_i581.AppDatabase>()),
     );
+    gh.lazySingleton<_i917.BalanceLocalUpdater>(
+      () => _i917.BalanceLocalUpdater(gh<_i581.AppDatabase>()),
+    );
     gh.lazySingleton<_i61.CurrencySettings>(
       () => _i61.CurrencySettings(gh<_i558.FlutterSecureStorage>()),
     );
@@ -162,6 +166,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i648.AuthRepositoryImpl(
         gh<_i832.AuthRemoteDataSource>(),
         gh<_i382.TokenStorage>(),
+      ),
+    );
+    gh.lazySingleton<_i991.TransactionLocalDataSource>(
+      () => _i991.TransactionLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        gh<_i917.BalanceLocalUpdater>(),
+        uuid: gh<_i706.Uuid>(),
       ),
     );
     gh.lazySingleton<_i877.BackupRemoteDataSource>(
@@ -226,12 +237,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i603.TagLocalDataSource>(
       () => _i603.TagLocalDataSource(
-        gh<_i581.AppDatabase>(),
-        uuid: gh<_i706.Uuid>(),
-      ),
-    );
-    gh.lazySingleton<_i991.TransactionLocalDataSource>(
-      () => _i991.TransactionLocalDataSource(
         gh<_i581.AppDatabase>(),
         uuid: gh<_i706.Uuid>(),
       ),

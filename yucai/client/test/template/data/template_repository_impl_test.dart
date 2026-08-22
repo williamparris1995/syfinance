@@ -9,6 +9,7 @@ import 'package:yucai_client/core/localdb/app_database.dart'
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/template/data/template_local_ds.dart' show TemplateLocalDataSource;
 import 'package:yucai_client/template/data/template_remote_ds.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart' show TransactionLocalDataSource;
 import 'package:yucai_client/template/data/template_repository_impl.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
@@ -19,7 +20,7 @@ TemplateRepositoryImpl _guestOffRepo(_MockRemote remote) {
   final tracker = SessionModeTracker()..isGuest = false;
   final db = AppDatabase(NativeDatabase.memory());
   return TemplateRepositoryImpl(
-      remote, TemplateLocalDataSource(db, TransactionLocalDataSource(db)), tracker);
+      remote, TemplateLocalDataSource(db, TransactionLocalDataSource(db, BalanceLocalUpdater(db))), tracker);
 }
 
 final _now = DateTime.utc(2026, 7, 14);

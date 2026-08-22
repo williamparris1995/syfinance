@@ -295,6 +295,11 @@ class HoldingLocalDataSource {
       }
       remaining -= take;
     }
+    if (remaining > 0) {
+      // Server errors when lots can't cover the sale (lot.go:56-58) — no
+      // silent under-consumption (review F FR-2).
+      throw const ValidationFailure('持仓数量不足');
+    }
     return realized - feeCents;
   }
 
@@ -580,11 +585,10 @@ class NetWorthLocalDataSource {
       // guest balance column stays frozen while borrowedIn debt rows carry
       // the liability below — counting both would double-count (review E-#9).
     }
-    // Accepted caliber difference (recorded, not a server mirror): the guest
-    // double-entry never moves the balance column, so "frozen asset balances
-    // + unrealized gain layer" nets to the true guest net worth (cash not
-    // yet deducted and cost not yet added cancel out). Bound-mode numbers
-    // come from the server and may differ systematically until feature H.
+    // Caliber (post feature F): balances are LIVE — the balance linkage in
+    // TransactionLocalDataSource moves cash/investment balances on every
+    // double entry, so asset balances already carry real cost basis; the
+    // gain layer on top adds unrealized pnl (live price ∨ nothing offline).
     for (final h in holdings) {
       final security =
           await _database.referenceDao.getSecurityById(h.securityId);

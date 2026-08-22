@@ -8,6 +8,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
 /// Branch 元数据:面包屑(section › page)+ list 页创建按钮(label + route)。
@@ -110,6 +112,18 @@ class AppShell extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
+                      // Startup integrity banner (R6 F): null = hidden.
+                      // Guarded getIt: test harnesses mount AppShell without
+                      // the full DI graph.
+                      getIt.isRegistered<ValueNotifier<String?>>()
+                          ? ValueListenableBuilder<String?>(
+                              valueListenable:
+                                  getIt<ValueNotifier<String?>>(),
+                              builder: (context, message, _) => message == null
+                                  ? const SizedBox.shrink()
+                                  : IntegrityBanner(message: message),
+                            )
+                          : const SizedBox.shrink(),
                       if (!hideTopBar)
                         _TopBar(
                           branchIndex: navigationShell.currentIndex,
@@ -470,6 +484,8 @@ class _TopBar extends StatelessWidget {
           child: Row(children: [
             // 面包屑:section › page(对齐 OD .crumbs)。
             _BreadCrumb(section: meta.section, page: meta.page),
+            // 离线指示(R6 F):connectivity 网关驱动,在线零感知。
+            const OfflineBadge(),
             const Spacer(),
             if (!compact)
               SizedBox(
@@ -653,5 +669,71 @@ class _BottomNav extends StatelessWidget {
   static int _slotIndexOf(int branchIndex) {
     final i = _branchSlots.indexOf(branchIndex);
     return i == -1 ? 0 : i;
+  }
+}
+
+
+/// Offline indicator chip (R6 F): subscribes to the shared ConnectivityGateway;
+/// invisible while online. getIt is resolved lazily in build so tests that
+/// mount AppShell without DI can pass a registered fake first.
+class OfflineBadge extends StatelessWidget {
+  const OfflineBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final gateway = getIt.isRegistered<ConnectivityGateway>()
+        ? getIt<ConnectivityGateway>()
+        : null;
+    if (gateway == null) return const SizedBox.shrink();
+    return StreamBuilder<bool>(
+      stream: gateway.online,
+      initialData: gateway.current,
+      builder: (context, snap) {
+        if (snap.data ?? true) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(left: AppSpacing.md),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.muted.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(LucideIcons.wifiOff, size: 13, color: AppColors.muted),
+              const SizedBox(width: 4),
+              Text('离线',
+                  style: TextStyle(
+                      fontSize: 11, color: AppColors.muted)),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Non-intrusive banner for local-db integrity problems found at startup
+/// (R6 F): display-only, never blocks.
+class IntegrityBanner extends StatelessWidget {
+  const IntegrityBanner({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFCE8E6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(children: [
+          Icon(LucideIcons.triangleAlert, size: 14, color: AppColors.muted),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text('本地数据异常:$message(建议导出存档备份)',
+                style: const TextStyle(fontSize: 12)),
+          ),
+        ]),
+      ),
+    );
   }
 }

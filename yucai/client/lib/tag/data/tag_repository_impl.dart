@@ -70,11 +70,21 @@ class TagLocalDataSource {
   Future<void> addTagToTransaction({
     required String tagId,
     required String transactionId,
-  }) =>
-      _dao.insertTransactionTag(db.TransactionTagsCompanion.insert(
-        transactionId: transactionId,
-        tagId: tagId,
-      ));
+  }) async {
+    // Referential check (feature F): both sides must exist.
+    if (await _dao.getTagById(tagId) == null) throw ServerFailure('标签不存在');
+    final txn = await _database.transactionDao
+        .getTransactionById(transactionId);
+    if (txn == null) throw ServerFailure('交易不存在');
+    // Idempotent: an existing junction row is a no-op success (accepted
+    // difference — the server returns a notFound-shaped error).
+    final existing = await _dao.watchTagIdsForTransaction(transactionId).first;
+    if (existing.contains(tagId)) return;
+    await _dao.insertTransactionTag(db.TransactionTagsCompanion.insert(
+      transactionId: transactionId,
+      tagId: tagId,
+    ));
+  }
 
   Future<void> removeTagFromTransaction({
     required String tagId,

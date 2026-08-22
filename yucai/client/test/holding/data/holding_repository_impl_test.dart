@@ -9,6 +9,7 @@ import 'package:yucai_client/core/localdb/app_database.dart'
     hide Holding, HoldingTransaction, Security;
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/holding/data/holding_local_ds.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/holding/data/goal_view_ds.dart';
 import 'package:yucai_client/holding/data/holding_remote_ds.dart';
@@ -66,7 +67,7 @@ void main() {
     db = AppDatabase(NativeDatabase.memory());
     tracker = SessionModeTracker()..isGuest = false;
     goalViewDs = _MockGoalViewDs();
-    repo = HoldingRepositoryImpl(remote, HoldingLocalDataSource(db, TransactionLocalDataSource(db)), tracker, goalViewDs);
+    repo = HoldingRepositoryImpl(remote, HoldingLocalDataSource(db, TransactionLocalDataSource(db, BalanceLocalUpdater(db))), tracker, goalViewDs);
     registerFallbackValue(SecurityType.stock);
   });
 

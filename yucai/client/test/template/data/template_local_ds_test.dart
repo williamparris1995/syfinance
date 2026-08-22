@@ -10,6 +10,7 @@ import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 import 'package:yucai_client/core/localdb/daos/template_dao.dart';
 import 'package:yucai_client/template/data/template_local_ds.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 
 void main() {
@@ -21,7 +22,7 @@ void main() {
 
   setUp(() {
     database = db.AppDatabase(NativeDatabase.memory());
-    txnDs = TransactionLocalDataSource(database);
+    txnDs = TransactionLocalDataSource(database, BalanceLocalUpdater(database));
     ds = TemplateLocalDataSource(database, txnDs);
     dao = database.templateDao;
     accounts = database.accountDao;

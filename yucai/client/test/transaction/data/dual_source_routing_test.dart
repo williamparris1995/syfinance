@@ -16,6 +16,7 @@ import 'package:yucai_client/template/data/template_local_ds.dart';
 import 'package:yucai_client/template/data/template_remote_ds.dart';
 import 'package:yucai_client/template/data/template_repository_impl.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/data/transaction_remote_ds.dart';
 import 'package:yucai_client/transaction/data/transaction_repository_impl.dart';
@@ -50,7 +51,7 @@ void main() {
   test('template: guest create stays local', () async {
     final remote = _MockTemplateRemote();
     final repo = TemplateRepositoryImpl(
-        remote, TemplateLocalDataSource(database, TransactionLocalDataSource(database)), tracker);
+        remote, TemplateLocalDataSource(database, TransactionLocalDataSource(database, BalanceLocalUpdater(database))), tracker);
     final result = await repo.create(
       name: 'rent',
       amountCents: 100,
@@ -70,7 +71,7 @@ void main() {
       () async {
     final remote = _MockTxnRemote();
     final repo = TransactionRepositoryImpl(
-        remote, TransactionLocalDataSource(database), tracker);
+        remote, TransactionLocalDataSource(database, BalanceLocalUpdater(database)), tracker);
     final local = await repo.list(const ListTransactionsParams());
     expect(local.fold((_) => null, (r) => r)!.transactions, isEmpty);
     verifyNever(() => remote.list(any()));

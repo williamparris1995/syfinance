@@ -8,6 +8,7 @@ import 'package:drift/native.dart';
 import 'package:yucai_client/core/localdb/app_database.dart'
     hide Transaction, TransactionEntry;
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart' show TransactionLocalDataSource;
 import 'package:yucai_client/transaction/data/transaction_remote_ds.dart';
 import 'package:yucai_client/transaction/data/transaction_repository_impl.dart';
@@ -51,7 +52,7 @@ void main() {
     remote = _MockRemote();
     db = AppDatabase(NativeDatabase.memory());
     tracker = SessionModeTracker()..isGuest = false;
-    repo = TransactionRepositoryImpl(remote, TransactionLocalDataSource(db), tracker);
+    repo = TransactionRepositoryImpl(remote, TransactionLocalDataSource(db, BalanceLocalUpdater(db)), tracker);
     registerFallbackValue(RecordExpenseParams(
       transactionDate: sampleDate,
       expenseAccountId: '',

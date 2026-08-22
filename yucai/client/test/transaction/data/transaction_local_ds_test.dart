@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -19,7 +20,7 @@ void main() {
 
   setUp(() {
     database = db.AppDatabase(NativeDatabase.memory());
-    ds = TransactionLocalDataSource(database);
+    ds = TransactionLocalDataSource(database, BalanceLocalUpdater(database));
     accounts = database.accountDao;
   });
 

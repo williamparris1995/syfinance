@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
@@ -60,6 +61,10 @@ Future<void> configureDependencies() async {
   // 1e. Session-mode flag (R6 ADR-2): AuthBloc drives it, dual-source
   //     repositories read it — the layering-safe session source in core.
   getIt.registerLazySingleton<SessionModeTracker>(SessionModeTracker.new);
+
+  // 1g. Startup integrity result holder (R6 F): null = healthy; a message
+  //     shows a non-intrusive banner in AppShell.
+  getIt.registerSingleton<ValueNotifier<String?>>(ValueNotifier<String?>(null));
 
   // 1f. Uuid for the local data sources (client-generated IDs, R6 ADR-1):
   //     injectable resolves constructor injection from getIt, and third-party

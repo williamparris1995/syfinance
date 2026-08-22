@@ -8,6 +8,7 @@ import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide Debt, PaymentEntry;
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/debt/data/debt_remote_ds.dart';
 import 'package:yucai_client/debt/data/debt_repository_impl.dart';
@@ -41,7 +42,7 @@ void main() {
     remote = _MockRemote();
     db = AppDatabase(NativeDatabase.memory());
     tracker = SessionModeTracker()..isGuest = false;
-    repo = DebtRepositoryImpl(remote, DebtLocalDataSource(db, TransactionLocalDataSource(db)), tracker);
+    repo = DebtRepositoryImpl(remote, DebtLocalDataSource(db, TransactionLocalDataSource(db, BalanceLocalUpdater(db))), tracker);
   });
 
   test('list success returns Right with debts', () async {

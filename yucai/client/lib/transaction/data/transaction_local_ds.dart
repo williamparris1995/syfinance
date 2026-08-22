@@ -6,6 +6,7 @@ import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 import 'package:yucai_client/core/localdb/daos/transaction_dao.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -21,10 +22,11 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 ///    a single bucket — both leave dailyAvg 0).
 @LazySingleton()
 class TransactionLocalDataSource {
-  TransactionLocalDataSource(this._database, {Uuid? uuid})
+  TransactionLocalDataSource(this._database, this._balances, {Uuid? uuid})
       : _uuid = uuid ?? const Uuid();
 
   final db.AppDatabase _database;
+  final BalanceLocalUpdater _balances;
   final Uuid _uuid;
 
   TransactionDao get _dao => _database.transactionDao;
@@ -111,6 +113,11 @@ class TransactionLocalDataSource {
           note: e.note,
         ));
       }
+      // Balance linkage (design ADR-1): same tx; a missing account throws
+      // and rolls the whole write back.
+      final written =
+          await _dao.watchEntriesByTransaction(id).first;
+      await _balances.applyEntries(written, 1);
     });
     return await getById(id);
   }
@@ -194,6 +201,11 @@ class TransactionLocalDataSource {
       throw const ValidationFailure('至少需要一条分录');
     }
     await _database.transaction(() async {
+      // Reverse the OLD entries' balance effect first (server update =
+      // ReverseBalances(old) + UpdateBalances(new), same tx).
+      final oldEntries =
+          await _dao.watchEntriesByTransaction(p.id).first;
+      await _balances.applyEntries(oldEntries, -1);
       await _dao.updateTransaction(db.TransactionsCompanion(
         id: Value(p.id),
         transactionDate: Value(p.transactionDate ?? head.transactionDate),
@@ -214,6 +226,8 @@ class TransactionLocalDataSource {
           note: e.note,
         ));
       }
+      final written = await _dao.watchEntriesByTransaction(p.id).first;
+      await _balances.applyEntries(written, 1);
     });
     return (await getById(p.id));
   }
@@ -222,7 +236,13 @@ class TransactionLocalDataSource {
     if (await _dao.getTransactionById(id) == null) {
       throw const ServerFailure('交易不存在');
     }
-    await _dao.deleteTransactionById(id); // entries cascade via FK
+    await _database.transaction(() async {
+      // Reverse the balance effect before the rows cascade away (server
+      // delete = ReverseBalances(old), same tx).
+      final oldEntries = await _dao.watchEntriesByTransaction(id).first;
+      await _balances.applyEntries(oldEntries, -1);
+      await _dao.deleteTransactionById(id); // entries cascade via FK
+    });
   }
 
   // ---- summary (server CASE semantics mirrored) ----

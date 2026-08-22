@@ -13,6 +13,7 @@ import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
+import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/holding/data/holding_local_ds.dart';
@@ -29,7 +30,7 @@ void main() {
 
   setUp(() {
     database = db.AppDatabase(NativeDatabase.memory());
-    txns = TransactionLocalDataSource(database);
+    txns = TransactionLocalDataSource(database, BalanceLocalUpdater(database));
     holding = HoldingLocalDataSource(database, txns);
     accounts = database.accountDao;
   });
