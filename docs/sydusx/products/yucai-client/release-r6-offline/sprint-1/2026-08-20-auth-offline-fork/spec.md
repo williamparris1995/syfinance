@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-auth-offline-fork
-status: drafted
+status: confirmed
 ---
 
 # Spec — 启动鉴权分流 + 游客模式
