@@ -19,3 +19,10 @@
 - 全套 +1028 -4(=基线 4,零新增);analyze 394 < main 基线 398(dart fix 顺带清了触碰测试文件的预存 lint)。
 - 修复轮:update patch 语义初稿 Value('') 会清空字段 → 改 absent-aware(str/nonZero/orAbsent);drift 行类 `Account` 与 domain 实体同名 → app_database `as db` 前缀限定;Change 单类型参数(bloc 8.x);sede 误跑 main 污染 4 测试文件 → 即时 checkout 回滚并在 worktree 重做(教训:多 worktree 下先 pwd 再批量 sed)。
 - FR-4 边界注记:AuthBloc/AccountRepositoryImpl 构造器扩展,其直接单测的构造行随之更新(被改类自身的测试,不属于「无感」面);bloc/usecase/page 测试断言零改动。
+
+## Review 修复轮(2026-08-22,首轮 reject:1 Critical)
+
+- **C1(DI)**:Uuid 未注册 getIt(生成器要求解析,测试绕过 getIt 掩盖)→ injection.dart 1f 手工注册。**deferred**:throwOnMissingDependencies: true 不在本轮开——会暴露 main 既有 AuthRetryCaller 未注册警告(TransactionRemoteDataSource),独立清理。
+- **ADR-4 修订**:update 补乐观锁前置校验(params.version != 行 version → ServerFailure,镜像远端 409);design.md 同步修订 + stale-version 测试。
+- Minor:_notFound 常量去重 / DAO +getAllAccounts() 一次性读 / account_mapper_test.dart 越界触碰回滚(FR-4 字面恢复)。
+- 修复后:全套 +1029 -4(=基线,零新增);analyze 396 < main 基线 398。

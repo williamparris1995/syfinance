@@ -87,6 +87,21 @@ void main() {
     expect(updated.version, a.version + 1);
   });
 
+  test('update with a stale version is rejected (remote-409 mirror)',
+      () async {
+    final a = await ds.create(params(name: '原名'));
+    expect(
+      () => ds.update(UpdateAccountParams(
+        id: a.id,
+        version: a.version + 5, // stale
+        name: '新名',
+      )),
+      throwsA(isA<ServerFailure>()),
+    );
+    final unchanged = await ds.getById(a.id);
+    expect(unchanged.name, '原名');
+  });
+
   test('delete: zero balance succeeds, non-zero keeps the row', () async {
     final zero = await ds.create(params(initialBalanceCents: 0));
     await ds.delete(zero.id);

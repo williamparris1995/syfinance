@@ -36,7 +36,7 @@ R6 sprint-1 收口:定型双源 seam 范式并以 account 试点打通「断网�
 ### ADR-4 游客写语义(local ds 内实现)
 - **Decision**:
   - **create**:client 生成 UUID(`uuid` v4);`version=1`;`currentBalanceCents=initialBalanceCents`;`status=active`(契约 int 1);时间戳本地时钟(UTC);`sortOrder=0`;其余空默认。
-  - **update**:patch 语义镜像远端——`UpdateAccountParams` 的非默认字段(非 ''/非 0/非 null)才写 companion;`version = params.version + 1`;返回更新后实体。
+  - **update**:patch 语义镜像远端——`UpdateAccountParams` 的非默认字段(非 ''/非 0/非 null)才写 companion;**先校验 `params.version == 行 version`(不等→ServerFailure「数据已过期」,镜像远端 409 乐观锁),再 `version = params.version + 1`**;返回更新后实体。(2026-08-22 review 修订:原稿「version = params.version + 1」漏了前置校验,过期版本会静默覆盖。)
   - **delete**:先读行,`currentBalanceCents != 0` → `ServerFailure('账户余额非零，无法删除，请先清空余额或转账后再试')`(与远端同文案同语义);为 0 才删。
 - **Rationale**:游客行为习惯与远端一致(FR-2);文案复用避免两套话术。
 

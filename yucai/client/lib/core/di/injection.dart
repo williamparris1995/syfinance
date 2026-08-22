@@ -61,6 +61,11 @@ Future<void> configureDependencies() async {
   //     repositories read it — the layering-safe session source in core.
   getIt.registerLazySingleton<SessionModeTracker>(SessionModeTracker.new);
 
+  // 1f. Uuid for the local data sources (client-generated IDs, R6 ADR-1):
+  //     injectable resolves constructor injection from getIt, and third-party
+  //     types without a @module must be registered manually (review C-C1).
+  getIt.registerLazySingleton<Uuid>(Uuid.new);
+
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.
   getIt.init();

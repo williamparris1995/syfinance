@@ -19,6 +19,9 @@ class AccountDao extends DatabaseAccessor<AppDatabase> with _$AccountDaoMixin {
 
   Stream<List<Account>> watchAllAccounts() => select(accounts).watch();
 
+  /// One-shot read for non-reactive callers (seam list paths).
+  Future<List<Account>> getAllAccounts() => select(accounts).get();
+
   Future<int> updateAccount(AccountsCompanion entry) =>
       (update(accounts)..where((t) => t.id.equals(entry.id.value))).write(entry);
 

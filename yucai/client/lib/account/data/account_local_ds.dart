@@ -23,12 +23,12 @@ class AccountLocalDataSource {
   final db.AppDatabase _db;
   final Uuid _uuid;
 
+  static const _notFound = '账户不存在';
+
   AccountDao get _dao => _db.accountDao;
 
-  Future<List<Account>> list() async {
-    final rows = await _dao.watchAllAccounts().first;
-    return rows.map(_toEntity).toList();
-  }
+  Future<List<Account>> list() async =>
+      (await _dao.getAllAccounts()).map(_toEntity).toList();
 
   Future<Account> create(CreateAccountParams p) async {
     final now = DateTime.now().toUtc();
@@ -87,11 +87,16 @@ class AccountLocalDataSource {
   }
 
   Future<Account> getById(String id) async =>
-      (await _requireById(id)) ?? (throw ServerFailure('账户不存在'));
+      (await _requireById(id)) ?? (throw ServerFailure(_notFound));
 
   Future<Account> update(UpdateAccountParams p) async {
     final row = await _requireById(p.id);
-    if (row == null) throw ServerFailure('账户不存在');
+    if (row == null) throw ServerFailure(_notFound);
+    // Optimistic-concurrency mirror of the remote 409: a stale version is
+    // rejected instead of silently overwriting (ADR-4).
+    if (p.version != row.version) {
+      throw const ServerFailure('数据已过期，请刷新后重试');
+    }
     // Patch semantics mirror the remote API: only non-default fields are
     // written ('' / 0 / null = leave untouched); the version bumps by one
     // (ADR-4). Value.absent() keeps the stored value.
@@ -147,7 +152,7 @@ class AccountLocalDataSource {
 
   Future<void> delete(String id) async {
     final row = await _requireById(id);
-    if (row == null) throw ServerFailure('账户不存在');
+    if (row == null) throw ServerFailure(_notFound);
     // Same guard and wording as the remote non-zero-balance rule — guest
     // habits must match bound habits (ADR-4).
     if (row.currentBalanceCents != 0) {
