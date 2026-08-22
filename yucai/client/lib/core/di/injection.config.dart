@@ -145,6 +145,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i781.SessionModeTracker>(),
       ),
     );
+    gh.lazySingleton<_i254.CurrencyLocalDataSource>(
+      () => _i254.CurrencyLocalDataSource(gh<_i581.AppDatabase>()),
+    );
     gh.lazySingleton<_i61.CurrencySettings>(
       () => _i61.CurrencySettings(gh<_i558.FlutterSecureStorage>()),
     );
@@ -217,6 +220,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i670.DebtRepository>(
       () => _i1060.DebtRepositoryImpl(gh<_i243.DebtRemoteDataSource>()),
     );
+    gh.lazySingleton<_i603.TagLocalDataSource>(
+      () => _i603.TagLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        uuid: gh<_i706.Uuid>(),
+      ),
+    );
+    gh.lazySingleton<_i991.TransactionLocalDataSource>(
+      () => _i991.TransactionLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        uuid: gh<_i706.Uuid>(),
+      ),
+    );
     gh.lazySingleton<_i871.OIDCAuthenticator>(
       () => _i871.OIDCAuthenticator(launcher: gh<_i871.UrlLauncherFn>()),
     );
@@ -269,6 +284,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i832.AuthRemoteDataSource>(),
         gh<_i781.SessionModeTracker>(),
         gh<_i61.CurrencySettings>(),
+      ),
+    );
+    gh.lazySingleton<_i97.TemplateLocalDataSource>(
+      () => _i97.TemplateLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        gh<_i991.TransactionLocalDataSource>(),
+        uuid: gh<_i706.Uuid>(),
       ),
     );
     gh.factory<_i159.CategoryBloc>(

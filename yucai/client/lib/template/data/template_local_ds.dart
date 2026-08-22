@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' hide Column;
+import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
@@ -18,6 +19,7 @@ import 'package:yucai_client/transaction/domain/repositories/transaction_reposit
 /// records lastTransactionId. The server's UNIQUE idempotency log targets
 /// scheduler retries; the guest is a single writer, so it is intentionally
 /// omitted (design ADR-4, accepted simplification).
+@LazySingleton()
 class TemplateLocalDataSource {
   TemplateLocalDataSource(this._database, this._txnLocal, {Uuid? uuid})
       : _uuid = uuid ?? const Uuid();
@@ -49,8 +51,21 @@ class TemplateLocalDataSource {
     bool autoRecord = false,
     String? category,
   }) async {
+    if (name.trim().isEmpty) throw const ValidationFailure('模板名不能为空');
+    if (amountCents <= 0) throw const ValidationFailure('金额必须大于零');
+    if (direction == TemplateDirection.unspecified) {
+      throw const ValidationFailure('模板方向未指定');
+    }
+    if (cycle == TemplateCycle.unspecified) {
+      throw const ValidationFailure('模板周期未指定');
+    }
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
+    // nextDate mirrors the server's CalculateNextDate(startDate, cycle,
+    // billingDay, 1): first occurrence one period after the start date
+    // (custom = daily default server-side).
+    final start = _parseDate(startDate);
+    final next = _calculateNextDate(start, cycle, billingDay);
     await _dao.insertTemplate(db.TransactionTemplatesCompanion.insert(
       id: id,
       name: name,
@@ -62,8 +77,8 @@ class TemplateLocalDataSource {
       cycle: cycle.index,
       cycleDays: cycleDays,
       billingDay: billingDay,
-      nextDate: _nowDate(),
-      startDate: _nowDate(),
+      nextDate: next,
+      startDate: start,
       endDate: Value(_parseDate(endDate)),
       autoRecord: autoRecord,
       paused: false,
@@ -204,6 +219,35 @@ class TemplateLocalDataSource {
       entries: entries,
     ));
     return txn.id;
+  }
+
+  /// CalculateNextDate copied from the server (entity.go): first occurrence
+  /// one period after base — weekly +7d / monthly clamped (billingDay wins) /
+  /// yearly +1y / custom defaults to DAILY server-side / unspecified +1m.
+  DateTime _calculateNextDate(
+      DateTime base, TemplateCycle cycle, int billingDay) {
+    switch (cycle) {
+      case TemplateCycle.weekly:
+        return base.add(const Duration(days: 7));
+      case TemplateCycle.monthly:
+        return _addMonthsClamped(base, 1, billingDay);
+      case TemplateCycle.yearly:
+        return DateTime.utc(base.year + 1, base.month, base.day);
+      case TemplateCycle.custom:
+        return base.add(const Duration(days: 1));
+      default:
+        return _addMonthsClamped(base, 1, billingDay);
+    }
+  }
+
+  DateTime _addMonthsClamped(DateTime base, int months, int billingDay) {
+    final targetMonth = base.month + months;
+    final targetYear = base.year + (targetMonth - 1) ~/ 12;
+    final m = (targetMonth - 1) % 12 + 1;
+    var day = billingDay <= 0 ? base.day : billingDay;
+    final lastDay = DateTime.utc(targetYear, m + 1, 0).day;
+    if (day > lastDay) day = lastDay;
+    return DateTime.utc(targetYear, m, day);
   }
 
   /// AdvanceNextDate rules copied from the server (record_port.go):

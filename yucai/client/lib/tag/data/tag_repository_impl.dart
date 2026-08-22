@@ -15,6 +15,7 @@ import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 /// Guest-mode data source for the tag module (R6, C-paradigm): mirrors the
 /// remote surface on drift. The transaction-tag junction is local-only
 /// (absent from the backup contract) and is read/written as-is.
+@LazySingleton()
 class TagLocalDataSource {
   TagLocalDataSource(this._database, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 

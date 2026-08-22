@@ -14,6 +14,7 @@ import 'package:yucai_client/currency/domain/repositories/currency_repository.da
 /// local reference table and seeds a static ISO subset on first (empty)
 /// read — guests have no server to pull from; a bound session's remote list
 /// overwrites the seed values.
+@LazySingleton()
 class CurrencyLocalDataSource {
   CurrencyLocalDataSource(this._database);
 
@@ -54,15 +55,18 @@ class CurrencyLocalDataSource {
   }
 
   Future<void> _seedAll() async {
-    for (final (code, name, symbol) in _seed) {
-      await _dao.insertCurrency(db.CurrenciesCompanion.insert(
-        code: code,
-        name: name,
-        symbol: symbol,
-        exchangeRate: 1.0,
-        isActive: true,
-      ));
-    }
+    // One transaction: a mid-batch failure must not leave a partial seed.
+    await _database.transaction(() async {
+      for (final (code, name, symbol) in _seed) {
+        await _dao.insertCurrency(db.CurrenciesCompanion.insert(
+          code: code,
+          name: name,
+          symbol: symbol,
+          exchangeRate: 1.0,
+          isActive: true,
+        ));
+      }
+    });
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' hide Column;
+import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
@@ -18,6 +19,7 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 ///    contribute debit, everything else 0; dailyAvg = net / distinct active
 ///    days, month scope only (year scope buckets by day=month, day scope is
 ///    a single bucket — both leave dailyAvg 0).
+@LazySingleton()
 class TransactionLocalDataSource {
   TransactionLocalDataSource(this._database, {Uuid? uuid})
       : _uuid = uuid ?? const Uuid();
@@ -73,11 +75,18 @@ class TransactionLocalDataSource {
     if (entries.isEmpty) {
       throw const ValidationFailure('至少需要一条分录');
     }
+    var sumDebit = 0, sumCredit = 0;
     for (final e in entries) {
       final positive = (e.debitCents > 0) != (e.creditCents > 0);
       if (!positive || (e.debitCents == 0 && e.creditCents == 0)) {
         throw const ValidationFailure('分录借贷必须恰一方大于零');
       }
+      sumDebit += e.debitCents;
+      sumCredit += e.creditCents;
+    }
+    // DoubleEntryValidator mirror: Σdebit == Σcredit.
+    if (sumDebit != sumCredit) {
+      throw const ValidationFailure('分录借贷总额必须相等');
     }
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -180,7 +189,7 @@ class TransactionLocalDataSource {
     if (head.version != p.version) {
       throw const ServerFailure('数据已过期，请刷新后重试');
     }
-    final entries = p.entries ?? const <TransactionEntry>[];
+    final entries = p.entries;
     if (entries.isEmpty) {
       throw const ValidationFailure('至少需要一条分录');
     }
@@ -188,7 +197,7 @@ class TransactionLocalDataSource {
       await _dao.updateTransaction(db.TransactionsCompanion(
         id: Value(p.id),
         transactionDate: Value(p.transactionDate ?? head.transactionDate),
-        description: Value(p.description ?? head.description),
+        description: Value(p.description), // full-replace, mirrors remote
         version: Value(head.version + 1),
         updatedAt: Value(DateTime.now().toUtc()),
       ));
@@ -327,8 +336,10 @@ class TransactionLocalDataSource {
   String _bucketKey(DateTime date, SummaryScope scope) {
     final m = date.month.toString().padLeft(2, '0');
     final d = date.day.toString().padLeft(2, '0');
+    // Year scope buckets per month; 'YYYY-MM-01' keeps the key parseable by
+    // DateTime.parse like the server's daily keys.
     return scope == SummaryScope.year
-        ? '${date.year}-$m'
+        ? '${date.year}-$m-01'
         : '${date.year}-$m-$d';
   }
 

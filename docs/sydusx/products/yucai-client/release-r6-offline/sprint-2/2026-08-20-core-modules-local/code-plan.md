@@ -13,3 +13,14 @@
 - 编译修复轮:TagsCompanion Value 包装/TransactionEntry 双侧必填/RecordResult.nextDate 为 DateTime?/行类名冲突(app_database `as db`/测试 hide)/inferFlavour 启发式断言修正(balanced 2 条恒 transfer)。
 - 枚举映射修正:template direction/cycle 含 unspecified(proto 0)→ index 直映射;account 四枚举无 unspecified → index+1(C 既有规则)。两类并存,review 时重点核对。
 - FR-4 边界同 C:被改类(repo/bloc)自身测试 harness 随构造器更新;bloc/page 断言零改动。
+
+## Review 修复轮(2026-08-22,首轮 reject:1 BLOCKER)
+
+- **H1(DI)**:四 local ds 漏 @LazySingleton → 注解 + 重新生成(injection.config 现有 4 个 provider)——与 C 的 Uuid 同类:测试手工构造掩盖。
+- **template create 语义修正**:startDate 生效 + nextDate=CalculateNextDate 照抄(weekly+7d/monthly addMonthsClamped·billingDay 优先/yearly+1y/**custom=+1d server default daily**/unspecified+1m)+ create 四项校验镜像(空名/金额≤0/方向·周期未指定)。
+- **transaction**:Σdebit==Σcredit 平衡校验(DoubleEntryValidator 镜像)+测试;update description 对齐远端 full-replace(死代码清理);year bucket 键 'YYYY-MM-01'(可 parse)。
+- **currency**:种子播种包单事务(防残缺)。
+- **路由测试 ×4**(FR-6 缺口):tag/template/transaction(含切换)/currency guest 走本地零远端调用。
+- **spec 勘误 ×2**:currency guard 分类细化=有意变更(原裸 catch 是欠账);list 本地自定义 date-desc 排序(远端 id-ASC keyset,有意选择)。
+- **deferred(记档)**:J2 guard×5 提取 core 共享(→ refactor on-demand);J3 guest 记账不联动账户余额(**feature F 明文 scope**:「transaction+账户余额为原子性 oracle」);J4 tag junction 错型/重复打标与 getTransactionTags N+1(→F/E);account_local_ds 3 处越界 const 化(行为等价,留着)。
+- 修复后:全套 +1048 -4(=基线,零新增);analyze 382 < main 398。

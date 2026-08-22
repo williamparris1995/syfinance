@@ -30,7 +30,7 @@ status: confirmed
 - [ ] Guest 态 transaction 的三 Simple*(expense/income/transfer)、复式 recordTransaction、list、getById、update、delete SHALL 对本地生效:
   - Simple* 各组**两条 balanced entries**(借贷方向与 server 对齐:expense=借 expense 贷 asset 等);recordTransaction 按提交的 entries 原样落库。
   - **头表+子表事务性写入**(drift transaction 包裹,entries 与头同成败);update 为**整包替换 entries**(旧 entries 全删再插)+ 前置乐观锁;delete 级联清 entries(FK cascade 已备)。
-  - list 为本地分页模拟(按 transactionDate 倒序,pageSize/nextPageToken/hasMore/totalCount 语义与远端一致,过滤参数同语义)。
+  - list 为本地分页模拟(**本地自定义排序:transactionDate 倒序**——远端实际为 id 升序 keyset/默认 pageSize 20,本地有意选择对用户更合理的排序;pageSize/nextPageToken/hasMore/totalCount 游标语义同构,过滤参数同语义;totalCount=过滤后口径)。
 
 #### Scenario: 断网记账全链路(成功判据①核心)
 - GIVEN Guest,本地已有现金账户
@@ -51,7 +51,7 @@ status: confirmed
 - THEN expenseCents=5000、incomeCents=800000、netCents=795000,byDay/byCategory 对应
 
 ### Requirement: FR-5 currency 列表本地化 + guest 分支
-- [ ] Guest 态 currency list SHALL 读本地 drift(内置静态种子:常用币种 code/name/symbol,exchangeRate 默认 1.0 标注陈旧,绑定后首连刷新覆盖);CurrencyBloc 在 guest 态加载 SHALL 不因 preferred/intervalHours 两条直连 RPC 失败而报错(preferred 取本地 CurrencySettings 值顶替,intervalHours 取默认 24)。CurrencyRepositoryImpl SHALL 补齐 _guard/GrpcError 分类映射(对齐 account 范式,远端路径行为不变)。
+- [ ] Guest 态 currency list SHALL 读本地 drift(内置静态种子:常用币种 code/name/symbol,exchangeRate 默认 1.0 标注陈旧,绑定后首连刷新覆盖);CurrencyBloc 在 guest 态加载 SHALL 不因 preferred/intervalHours 两条直连 RPC 失败而报错(preferred 取本地 CurrencySettings 值顶替,intervalHours 取默认 24)。CurrencyRepositoryImpl SHALL 补齐 _guard/GrpcError 分类映射(对齐 account 范式;勘误 2026-08-22:原裸 catch 一律 ServerFailure 属既有欠账,分类细化后错误类型/文案前缀随之改善——这是 spec 有意变更,非回归)。
 
 #### Scenario: 游客打开设置页
 - GIVEN Guest
