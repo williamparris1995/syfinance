@@ -206,7 +206,7 @@ void main() {
     test('savings = Σ balances; debtPayoff = Σ schedule paid', () async {
       final save1 = await seedAccount('save1', 1, balance: 30000);
       final save2 = await seedAccount('save2', 1, balance: 20000);
-      final goals = GoalLocalDataSource(database);
+      final goals = GoalLocalDataSource(database, holding);
       final g = await goals.createGoal(
         name: 'emergency',
         type: GoalType.savings,

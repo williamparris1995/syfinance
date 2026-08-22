@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/goal_dao.dart';
+import 'package:yucai_client/holding/data/holding_local_ds.dart'
+    show HoldingLocalDataSource;
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 
 /// Guest-mode data source for the goal module (R6, C-paradigm).
@@ -15,9 +17,10 @@ import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 /// balance, DebtPayoff = Σ linked debts' schedule paidCents; no links → 0.
 @LazySingleton()
 class GoalLocalDataSource {
-  GoalLocalDataSource(this._database,
-      {Uuid? uuid, this.holdingsMarketValue})
+  GoalLocalDataSource(this._database, this._holdingsDs, {Uuid? uuid})
       : _uuid = uuid ?? const Uuid();
+
+  final HoldingLocalDataSource _holdingsDs;
 
   final db.AppDatabase _database;
   final Uuid _uuid;
@@ -103,7 +106,6 @@ class GoalLocalDataSource {
         deadline:
             Value(deadline == null ? row.deadline : _parseDate(deadline)),
         notes: Value(notes ?? row.notes),
-        isCompleted: const Value(false),
         version: Value(row.version + 1),
         updatedAt: Value(DateTime.now().toUtc()),
       ));
@@ -210,10 +212,8 @@ class GoalLocalDataSource {
       final holdings = await _database.holdingDao.watchAllHoldings().first;
       final scoped =
           holdings.where((h) => accounts.contains(h.accountId)).toList();
-      final values = await Future.wait(
-          scoped.map((h) => holdingsMarketValue != null
-              ? holdingsMarketValue!(h)
-              : Future.value(_costBasis(h))));
+      final values =
+          await Future.wait(scoped.map(_holdingsDs.marketValueOf));
       current = values.fold(0, (a, v) => a + v);
     } else if (type == 1 && accounts.isNotEmpty) {
       // Savings: Σ linked accounts' current balance.
@@ -245,12 +245,7 @@ class GoalLocalDataSource {
     );
   }
 
-  /// Cost-basis fallback when no holding ds helper is injected.
-  int _costBasis(db.Holding h) => (h.quantity * h.avgCostCents).round();
 
-  /// Optional live market-value helper from HoldingLocalDataSource (design
-  /// R2: one shared synthesis so the holding page and goal actuals agree).
-  final Future<int> Function(db.Holding)? holdingsMarketValue;
 
   DateTime? _parseDate(String? s) {
     if (s == null || s.isEmpty) return null;

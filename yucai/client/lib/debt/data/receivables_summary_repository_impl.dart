@@ -51,12 +51,6 @@ class ReceivablesSummaryRepositoryImpl
             overdueCount++;
             overdueAmount += s.totalCents;
           }
-          if (nextDate == null ||
-              (s.paymentDate.isBefore(nextDate) ||
-                  (s.paymentDate.isAtSameMomentAs(nextDate) &&
-                      nextPeriod == 0))) {
-            // first unpaid per-debt (approx: earliest unpaid across debts)
-          }
           if (nextDate == null || s.paymentDate.isBefore(nextDate)) {
             nextDate = s.paymentDate;
             nextAmount = s.totalCents;
