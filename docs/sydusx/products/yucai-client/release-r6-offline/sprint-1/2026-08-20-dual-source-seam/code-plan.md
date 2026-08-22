@@ -26,3 +26,9 @@
 - **ADR-4 修订**:update 补乐观锁前置校验(params.version != 行 version → ServerFailure,镜像远端 409);design.md 同步修订 + stale-version 测试。
 - Minor:_notFound 常量去重 / DAO +getAllAccounts() 一次性读 / account_mapper_test.dart 越界触碰回滚(FR-4 字面恢复)。
 - 修复后:全套 +1029 -4(=基线,零新增);analyze 396 < main 基线 398。
+
+## Review + Test(2026-08-22,pass)
+
+- 首轮 reject(1 Critical:Uuid 未注册 DI)→ 修复 → 复审 **pass**(逐项验证 + 无新引入)。
+- Test 裁决:**pass** — 全套 +1029 -4(=基线 4,零新增);analyze 396 < main 398;requirement coverage:FR-1 三场景路由测试/FR-2 写语义+映射回环+乐观锁/FR-3 remote 逐字 diff 证/Fr-4 bloc·usecase·page 断言零改动/FR-5 清单在 design/NFR-1·2 实测。
+- **考古记录(独立债务)**:account_detail_page_test 基线失败根因 = fixture 交易日期硬编码 2026-06 + 页面按 DateTime.now() 月过滤 → 日历时间炸弹(2026-08 起计数恒 0)。修复建议:fixture 改相对日期。另基线 receivables_page 失败同类排查待做。留给独立 cleanup,不混入本分支。
