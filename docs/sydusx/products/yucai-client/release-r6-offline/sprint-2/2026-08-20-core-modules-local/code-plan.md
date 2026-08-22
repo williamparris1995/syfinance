@@ -24,3 +24,9 @@
 - **spec 勘误 ×2**:currency guard 分类细化=有意变更(原裸 catch 是欠账);list 本地自定义 date-desc 排序(远端 id-ASC keyset,有意选择)。
 - **deferred(记档)**:J2 guard×5 提取 core 共享(→ refactor on-demand);J3 guest 记账不联动账户余额(**feature F 明文 scope**:「transaction+账户余额为原子性 oracle」);J4 tag junction 错型/重复打标与 getTransactionTags N+1(→F/E);account_local_ds 3 处越界 const 化(行为等价,留着)。
 - 修复后:全套 +1048 -4(=基线,零新增);analyze 382 < main 398。
+
+## Review + Test(2026-08-22,pass)
+
+- 首轮 reject(1 BLOCKER:四 local ds DI 缺注册)→ 修复(template create 语义/平衡校验/种子事务/路由测试×4/spec 勘误×2)→ 复审 **pass**(server 源码逐行对照:CalculateNextDate/addMonthsClamped/方向表/CASE 口径全镜像核实)。
+- Test 裁决:**pass** — 全套 +1048 -4(=基线 4,零新增);analyze 382 < main 398;requirement coverage:FR-1 tag oracle/FR-2 template record·create 语义/FR-3 方向·事务·分页·平衡校验/FR-4 summary oracle/FR-5 种子·bloc 分支/FR-6 路由×4+零改动回归/NFR-1·2 实测。
+- **LOW 残留(记档)**:本地 update 未复跑平衡校验(唯一 UI 调用方恒产平衡对+router 挡复合交易,实际不可达;后续 refactor 提共享 helper 顺带补)。
