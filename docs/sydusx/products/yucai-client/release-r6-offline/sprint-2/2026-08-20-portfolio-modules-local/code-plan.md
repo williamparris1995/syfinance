@@ -31,3 +31,9 @@
 - 新测试 +4(等额本息 oracle 12 期/lump sum/borrowedOut create 复式/split 防复活);networth 测试更新新口径。
 - 修复后:全套 +1060 -4(=基线,零新增);analyze 366 < main 398。
 - **deferred(记档)**:FIFO 余量不足静默少算(server 报错)→F;goal Investment 口径依赖 updateSecurityPrice 手工价(无行情)——与持仓页一致 ✓;receivables trend 字段无历史;networth 折算/陈旧标注(NetWorthView 无 stale 字段,归 F UX)。
+
+## Review + Test(2026-08-22,pass — 三轮)
+
+- 首轮 reject(B1 summary 整面+H2 摊销+H3 split 复活+H4 FIFO 跨户+H5 guard)→ 修复 → 二轮 reject(**修复轮手改 DI 误删 GoalLocalDataSource 注册**+isCompleted 未实修)→ 二轮修复(根因:函数类型构造参数令生成器拒产工厂,改注入 HoldingLocalDataSource 让生成器接管)→ 三审 **pass**(冷重跑逐字节一致证据)。
+- Test 裁决:**pass** — 全套 +1060 -4(=基线 4,零新增);analyze 366 < main 398;requirement coverage:FR-1 FIFO/复式/校验 oracle/FR-2 降级/FR-3 max 口径/FR-4 三源+摊销 oracle/FR-5 summary 聚合+还款复式+摊销三公式/FR-6 networth 新口径/FR-7 零改动+guard/NFR 实测。
+- **教训记录(→harness 候选)**:①生成物(injection.config)手改两次事故(D 的 Uuid/E 的 Goal 删块)——规则应 PROMOTE 为"local ds 类必须让生成器注册,禁手写 DI 块";②函数类型构造参数是生成器盲区,避免。
