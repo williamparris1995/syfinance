@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-core-modules-local
-status: drafted
+status: confirmed
 ---
 
 # Spec — 核心记账模块本地化(transaction/tag/template/currency)
