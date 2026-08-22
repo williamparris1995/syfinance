@@ -27,3 +27,8 @@
 - **C2 FR-2②**:design「现无独立绑定路由」前提失实——/settings/backup(+/auto)是 main 既有服务端备份页 → 入 kDefaultBindOnlyPrefixes;新增真实路由守卫测试 + 保留注入机制测试。
 - **Minor**:gateway 补 initial check(checkConnectivity 注入 seam,FR-5「含初始态」补全)/auth_retry 注释漂移修正/login_page_test 去重。
 - 修复后:全套 +1017 -4(基线 4,零新增),analyze 398 = main 基线。
+
+## Review + Test(2026-08-22,pass)
+
+- 首轮 review reject(2 Critical:FR-1② Unauthenticated 失登录路径 / FR-2② /settings/backup 未守卫)→ 修复轮 → 复审 **pass**(修复验证 + 三规则无冲突,2 个无关紧要残留已随手清)。
+- Test 裁决:**pass** — 全套 +1017 -4(=基线 4,零新增);analyze 398 = main 基线;requirement coverage:FR-1 三场景/FR-2 两场景/FR-3 双向/FR-4 登出+刷新失败/FR-5 网关(含初始态)/NFR-1 基线实测/NFR-2 diff 零 server,均有测试或 diff 证据。
