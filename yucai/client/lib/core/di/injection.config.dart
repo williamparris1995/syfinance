@@ -43,6 +43,7 @@ import '../../backup/data/backup_repository_impl.dart' as _i594;
 import '../../backup/domain/repositories/backup_repository.dart' as _i335;
 import '../../backup/presentation/bloc/backup_bloc.dart' as _i852;
 import '../../backup/presentation/bloc/backup_settings_bloc.dart' as _i86;
+import '../../budget/data/budget_local_ds.dart' as _i15;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
 import '../../budget/data/budget_repository_impl.dart' as _i364;
 import '../../budget/domain/repositories/budget_repository.dart' as _i665;
@@ -53,6 +54,7 @@ import '../../currency/data/currency_settings.dart' as _i61;
 import '../../currency/data/mappers/currency_mapper.dart' as _i380;
 import '../../currency/domain/repositories/currency_repository.dart' as _i108;
 import '../../currency/presentation/bloc/currency_bloc.dart' as _i284;
+import '../../debt/data/debt_local_ds.dart' as _i464;
 import '../../debt/data/debt_remote_ds.dart' as _i243;
 import '../../debt/data/debt_repository_impl.dart' as _i1060;
 import '../../debt/data/receivables_summary_data_source.dart' as _i536;
@@ -61,11 +63,13 @@ import '../../debt/domain/repositories/debt_repository.dart' as _i670;
 import '../../debt/domain/repositories/receivables_summary_repository.dart'
     as _i322;
 import '../../debt/presentation/bloc/debt_bloc.dart' as _i383;
+import '../../goal/data/goal_local_ds.dart' as _i94;
 import '../../goal/data/goal_remote_ds.dart' as _i628;
 import '../../goal/data/goal_repository_impl.dart' as _i425;
 import '../../goal/domain/repositories/goal_repository.dart' as _i835;
 import '../../goal/presentation/bloc/goal_bloc.dart' as _i703;
 import '../../holding/data/goal_view_ds.dart' as _i616;
+import '../../holding/data/holding_local_ds.dart' as _i898;
 import '../../holding/data/holding_remote_ds.dart' as _i620;
 import '../../holding/data/holding_repository_impl.dart' as _i427;
 import '../../holding/data/networth_ds.dart' as _i600;
@@ -148,6 +152,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i254.CurrencyLocalDataSource>(
       () => _i254.CurrencyLocalDataSource(gh<_i581.AppDatabase>()),
     );
+    gh.lazySingleton<_i898.NetWorthLocalDataSource>(
+      () => _i898.NetWorthLocalDataSource(gh<_i581.AppDatabase>()),
+    );
     gh.lazySingleton<_i61.CurrencySettings>(
       () => _i61.CurrencySettings(gh<_i558.FlutterSecureStorage>()),
     );
@@ -199,12 +206,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i763.AuthRetryCaller>(),
       ),
     );
-    gh.lazySingleton<_i600.NetWorthDataSource>(
-      () => _i600.NetWorthDataSource(
-        gh<_i160.GrpcClient>(),
-        gh<_i763.AuthRetryCaller>(),
-      ),
-    );
     gh.lazySingleton<_i648.TagRemoteDataSource>(
       () => _i648.TagRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -217,8 +218,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i763.AuthRetryCaller>(),
       ),
     );
-    gh.lazySingleton<_i670.DebtRepository>(
-      () => _i1060.DebtRepositoryImpl(gh<_i243.DebtRemoteDataSource>()),
+    gh.lazySingleton<_i15.BudgetLocalDataSource>(
+      () => _i15.BudgetLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        uuid: gh<_i706.Uuid>(),
+      ),
+    );
+    gh.lazySingleton<_i94.GoalLocalDataSource>(
+      () => _i94.GoalLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        uuid: gh<_i706.Uuid>(),
+      ),
     );
     gh.lazySingleton<_i603.TagLocalDataSource>(
       () => _i603.TagLocalDataSource(
@@ -235,8 +245,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i871.OIDCAuthenticator>(
       () => _i871.OIDCAuthenticator(launcher: gh<_i871.UrlLauncherFn>()),
     );
-    gh.factory<_i383.DebtBloc>(
-      () => _i383.DebtBloc(gh<_i670.DebtRepository>()),
+    gh.lazySingleton<_i835.GoalRepository>(
+      () => _i425.GoalRepositoryImpl(
+        gh<_i628.GoalRemoteDataSource>(),
+        gh<_i94.GoalLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
+      ),
     );
     gh.lazySingleton<_i108.CurrencyRepository>(
       () => _i254.CurrencyRepositoryImpl(
@@ -278,6 +292,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i871.OIDCAuthenticator>(),
       ),
     );
+    gh.lazySingleton<_i600.NetWorthDataSource>(
+      () => _i600.NetWorthDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+        gh<_i898.NetWorthLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
+      ),
+    );
     gh.factory<_i284.CurrencyBloc>(
       () => _i284.CurrencyBloc(
         gh<_i108.CurrencyRepository>(),
@@ -301,23 +323,33 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i726.UpdateAccountUseCase>(),
       ),
     );
-    gh.lazySingleton<_i255.HoldingRepository>(
-      () => _i427.HoldingRepositoryImpl(
-        gh<_i620.HoldingRemoteDataSource>(),
-        gh<_i616.GoalViewDataSource>(),
+    gh.lazySingleton<_i464.DebtLocalDataSource>(
+      () => _i464.DebtLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        gh<_i991.TransactionLocalDataSource>(),
+        uuid: gh<_i706.Uuid>(),
       ),
     );
-    gh.lazySingleton<_i835.GoalRepository>(
-      () => _i425.GoalRepositoryImpl(gh<_i628.GoalRemoteDataSource>()),
-    );
-    gh.lazySingleton<_i665.BudgetRepository>(
-      () => _i364.BudgetRepositoryImpl(gh<_i749.BudgetRemoteDataSource>()),
+    gh.lazySingleton<_i898.HoldingLocalDataSource>(
+      () => _i898.HoldingLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        gh<_i991.TransactionLocalDataSource>(),
+        uuid: gh<_i706.Uuid>(),
+      ),
     );
     gh.lazySingleton<_i585.TagRepository>(
       () => _i603.TagRepositoryImpl(
         gh<_i648.TagRemoteDataSource>(),
         gh<_i603.TagLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
+      ),
+    );
+    gh.lazySingleton<_i255.HoldingRepository>(
+      () => _i427.HoldingRepositoryImpl(
+        gh<_i620.HoldingRemoteDataSource>(),
+        gh<_i898.HoldingLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
+        gh<_i616.GoalViewDataSource>(),
       ),
     );
     gh.factory<_i703.GoalBloc>(
@@ -369,7 +401,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i493.PerformanceBloc>(
       () => _i493.PerformanceBloc(gh<_i255.HoldingRepository>()),
     );
+    gh.lazySingleton<_i665.BudgetRepository>(
+      () => _i364.BudgetRepositoryImpl(
+        gh<_i749.BudgetRemoteDataSource>(),
+        gh<_i15.BudgetLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
+      ),
+    );
     gh.factory<_i847.TagBloc>(() => _i847.TagBloc(gh<_i585.TagRepository>()));
+    gh.lazySingleton<_i670.DebtRepository>(
+      () => _i1060.DebtRepositoryImpl(
+        gh<_i243.DebtRemoteDataSource>(),
+        gh<_i464.DebtLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
+      ),
+    );
     gh.factory<_i852.BackupBloc>(
       () => _i852.BackupBloc(gh<_i335.BackupRepository>()),
     );
@@ -381,6 +427,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i933.TemplateBloc>(
       () => _i933.TemplateBloc(gh<_i74.TemplateRepository>()),
+    );
+    gh.factory<_i383.DebtBloc>(
+      () => _i383.DebtBloc(gh<_i670.DebtRepository>()),
     );
     return this;
   }

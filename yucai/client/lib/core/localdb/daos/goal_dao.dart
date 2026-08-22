@@ -30,6 +30,12 @@ class GoalDao extends DatabaseAccessor<AppDatabase> with _$GoalDaoMixin {
   Future<void> insertDebtLink(GoalDebtLinksCompanion entry) =>
       into(goalDebtLinks).insert(entry);
 
+  Future<int> deleteAccountLinksFor(String goalId) =>
+      (delete(goalAccountLinks)..where((t) => t.goalId.equals(goalId))).go();
+
+  Future<int> deleteDebtLinksFor(String goalId) =>
+      (delete(goalDebtLinks)..where((t) => t.goalId.equals(goalId))).go();
+
   Future<(List<String> accountIds, List<String> debtIds)> linksFor(
       String goalId) async {
     final accounts = await (select(goalAccountLinks)

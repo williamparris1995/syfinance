@@ -42,7 +42,7 @@ void main() {
   });
 
   test('fetch GrpcError returns Left<ServerFailure>', () async {
-    when(() => remote.fetch()).thenThrow(GrpcError.notFound('gone'));
+    when(() => remote.fetch()).thenThrow(const GrpcError.notFound('gone'));
     final result = await repo.fetch();
     expect(result.isLeft(), isTrue);
     expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
@@ -59,7 +59,7 @@ void main() {
       () async {
     // GrpcError.message 可为 null,_guard 必须 fallback 到 'gRPC error'
     // 而非把 null 塞进 ServerFailure(对齐 DebtRepositoryImpl._guard)。
-    when(() => remote.fetch()).thenThrow(GrpcError.cancelled());
+    when(() => remote.fetch()).thenThrow(const GrpcError.cancelled());
     final result = await repo.fetch();
     expect(result.isLeft(), isTrue);
     result.fold(

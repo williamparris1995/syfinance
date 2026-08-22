@@ -15,6 +15,10 @@
 // CNY→base 交叉汇率折算)。mapper Int64 cents → int 对齐 holding_mapper 模式。
 import 'package:injectable/injectable.dart';
 
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/holding/data/holding_local_ds.dart'
+    show NetWorthLocalDataSource;
+
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
@@ -23,7 +27,7 @@ import 'package:yucai_client/proto/networth/v1/service.pbgrpc.dart' as grpc;
 
 @LazySingleton()
 class NetWorthDataSource {
-  NetWorthDataSource(this._grpcClient, this._retry) {
+  NetWorthDataSource(this._grpcClient, this._retry, this._local, this._tracker) {
     _client = grpc.NetWorthServiceClient(
       _grpcClient.channel,
       interceptors: [_grpcClient.authInterceptor],
@@ -32,6 +36,8 @@ class NetWorthDataSource {
 
   final GrpcClient _grpcClient;
   final AuthRetryCaller _retry;
+  final NetWorthLocalDataSource _local;
+  final SessionModeTracker _tracker;
   late final grpc.NetWorthServiceClient _client;
 
   /// 取本位币折算后的总资产 / 总负债 / 净资产(cents)。
@@ -39,6 +45,7 @@ class NetWorthDataSource {
   /// [baseCurrency] 为 ISO 4217 code(来自 CurrencySettings.getBaseCurrency());
   /// 空串/CNY → server 不折算;USD 等 → server 解析 CNY→base 交叉汇率折算。
   Future<NetWorthView> getNetWorth({required String baseCurrency}) async {
+    if (_tracker.isGuest) return _local.getNetWorth(baseCurrency: baseCurrency);
     return _retry.call(() async {
       final resp = await _client.getNetWorth(pb.GetNetWorthRequest(
         baseCurrency: baseCurrency,

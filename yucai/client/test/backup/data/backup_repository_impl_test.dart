@@ -42,7 +42,7 @@ void main() {
     });
 
     test('grpc unavailable maps to NetworkFailure', () async {
-      when(() => remote.list()).thenThrow(GrpcError.unavailable('down'));
+      when(() => remote.list()).thenThrow(const GrpcError.unavailable('down'));
       final repo = BackupRepositoryImpl(remote);
       final result = await repo.list();
       result.fold(
@@ -104,7 +104,7 @@ void main() {
 
     test('grpc unavailable maps to NetworkFailure', () async {
       when(() => remote.getCloudSettings())
-          .thenThrow(GrpcError.unavailable('down'));
+          .thenThrow(const GrpcError.unavailable('down'));
       final repo = BackupRepositoryImpl(remote);
       final result = await repo.getCloudSettings();
       result.fold(
@@ -125,7 +125,7 @@ void main() {
 
     test('grpc invalidArgument maps to ValidationFailure', () async {
       when(() => remote.saveCloudSettings(_settings))
-          .thenThrow(GrpcError.invalidArgument('bad'));
+          .thenThrow(const GrpcError.invalidArgument('bad'));
       final repo = BackupRepositoryImpl(remote);
       final result = await repo.saveCloudSettings(_settings);
       result.fold(

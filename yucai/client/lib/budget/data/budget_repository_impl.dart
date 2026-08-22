@@ -6,24 +6,30 @@ import 'package:yucai_client/budget/data/budget_remote_ds.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/budget/data/budget_local_ds.dart';
 
 @LazySingleton(as: BudgetRepository)
 class BudgetRepositoryImpl implements BudgetRepository {
-  BudgetRepositoryImpl(this._remote);
+  BudgetRepositoryImpl(this._remote, this._local, this._tracker);
 
   final BudgetRemoteDataSource _remote;
+  final BudgetLocalDataSource _local;
+  final SessionModeTracker _tracker;
+
+  bool get _useLocal => _tracker.isGuest;
 
   @override
   Future<Either<Failure, List<BudgetView>>> listBudgets({bool activeOnly = false}) =>
-      _guard(() => _remote.listBudgets(activeOnly: activeOnly));
+      _guard(() => _useLocal ? _local.listBudgets(activeOnly: activeOnly) : _remote.listBudgets(activeOnly: activeOnly));
 
   @override
   Future<Either<Failure, BudgetView>> getBudget(String id) =>
-      _guard(() => _remote.getBudget(id));
+      _guard(() => _useLocal ? _local.getBudget(id) : _remote.getBudget(id));
 
   @override
   Future<Either<Failure, BudgetView>> getBudgetByMonth(String month) =>
-      _guard(() => _remote.getBudgetByMonth(month));
+      _guard(() => _useLocal ? _local.getBudgetByMonth(month) : _remote.getBudgetByMonth(month));
 
   @override
   Future<Either<Failure, BudgetView>> createBudget({
@@ -32,7 +38,12 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required String currencyCode,
     required List<({String accountId, int plannedAmountCents, String? notes})> items,
   }) =>
-      _guard(() => _remote.createBudget(
+      _guard(() => _useLocal ? _local.createBudget(
+            name: name,
+            month: month,
+            currencyCode: currencyCode,
+            items: items,
+          ) : _remote.createBudget(
             name: name,
             month: month,
             currencyCode: currencyCode,
@@ -41,7 +52,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
 
   @override
   Future<Either<Failure, void>> deleteBudget(String id) =>
-      _guard(() => _remote.deleteBudget(id));
+      _guard(() => _useLocal ? _local.deleteBudget(id) : _remote.deleteBudget(id));
 
   @override
   Future<Either<Failure, BudgetView>> addItem({
@@ -50,7 +61,12 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required int plannedAmountCents,
     String? notes,
   }) =>
-      _guard(() => _remote.addItem(
+      _guard(() => _useLocal ? _local.addItem(
+            budgetId: budgetId,
+            accountId: accountId,
+            plannedAmountCents: plannedAmountCents,
+            notes: notes,
+          ) : _remote.addItem(
             budgetId: budgetId,
             accountId: accountId,
             plannedAmountCents: plannedAmountCents,
@@ -62,7 +78,10 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required String budgetId,
     required String itemId,
   }) =>
-      _guard(() => _remote.removeItem(
+      _guard(() => _useLocal ? _local.removeItem(
+            budgetId: budgetId,
+            itemId: itemId,
+          ) : _remote.removeItem(
             budgetId: budgetId,
             itemId: itemId,
           ));
@@ -74,7 +93,12 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required String currencyCode,
     required List<({String accountId, int plannedAmountCents, String? notes})> items,
   }) =>
-      _guard(() => _remote.updateBudget(
+      _guard(() => _useLocal ? _local.updateBudget(
+            id: id,
+            name: name,
+            currencyCode: currencyCode,
+            items: items,
+          ) : _remote.updateBudget(
             id: id,
             name: name,
             currencyCode: currencyCode,

@@ -28,4 +28,15 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
 
   Stream<List<BudgetItem>> watchItemsByBudget(String budgetId) =>
       (select(budgetItems)..where((t) => t.budgetId.equals(budgetId))).watch();
+
+  /// One-shot read for the seam's detail assembly.
+  Future<List<BudgetItem>> getItemsByBudget(String budgetId) =>
+      (select(budgetItems)..where((t) => t.budgetId.equals(budgetId))).get();
+
+  /// Whole-entry-set replacement for updateBudget (design ADR-3).
+  Future<int> deleteItemsByBudget(String budgetId) =>
+      (delete(budgetItems)..where((t) => t.budgetId.equals(budgetId))).go();
+
+  Future<int> deleteItemById(String id) =>
+      (delete(budgetItems)..where((t) => t.id.equals(id))).go();
 }

@@ -3,7 +3,12 @@ import 'package:dartz/dartz.dart';
 import 'package:grpc/grpc.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:drift/native.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' hide Debt, PaymentEntry;
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/debt/data/debt_local_ds.dart';
+import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/debt/data/debt_remote_ds.dart';
 import 'package:yucai_client/debt/data/debt_repository_impl.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -13,6 +18,8 @@ class _MockRemote extends Mock implements DebtRemoteDataSource {}
 
 void main() {
   late _MockRemote remote;
+  late AppDatabase db;
+  late SessionModeTracker tracker;
   late DebtRepositoryImpl repo;
 
   final sample = Debt(
@@ -32,7 +39,9 @@ void main() {
 
   setUp(() {
     remote = _MockRemote();
-    repo = DebtRepositoryImpl(remote);
+    db = AppDatabase(NativeDatabase.memory());
+    tracker = SessionModeTracker()..isGuest = false;
+    repo = DebtRepositoryImpl(remote, DebtLocalDataSource(db, TransactionLocalDataSource(db)), tracker);
   });
 
   test('list success returns Right with debts', () async {
@@ -51,7 +60,7 @@ void main() {
 
   test('list failure returns Left<ServerFailure>', () async {
     when(() => remote.list(typeFilter: any(named: 'typeFilter')))
-        .thenThrow(GrpcError.notFound('gone'));
+        .thenThrow(const GrpcError.notFound('gone'));
     final result = await repo.list();
     expect(result.isLeft(), isTrue);
     expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
@@ -78,7 +87,7 @@ void main() {
   });
 
   test('delete failure returns Left<ServerFailure>', () async {
-    when(() => remote.delete(any())).thenThrow(GrpcError.notFound('gone'));
+    when(() => remote.delete(any())).thenThrow(const GrpcError.notFound('gone'));
     final result = await repo.delete('x');
     expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
   });

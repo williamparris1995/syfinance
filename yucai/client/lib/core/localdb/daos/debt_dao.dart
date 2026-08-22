@@ -29,4 +29,19 @@ class DebtDao extends DatabaseAccessor<AppDatabase> with _$DebtDaoMixin {
       (select(paymentScheduleEntries)
             ..where((t) => t.debtId.equals(debtId)))
           .watch();
+
+  /// One-shot read for the seam's assembly paths.
+  Future<List<PaymentScheduleEntry>> getScheduleByDebt(String debtId) =>
+      (select(paymentScheduleEntries)
+            ..where((t) => t.debtId.equals(debtId)))
+          .get();
+
+  Future<PaymentScheduleEntry?> getScheduleEntryById(String id) =>
+      (select(paymentScheduleEntries)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
+  Future<int> updateScheduleEntry(PaymentScheduleEntriesCompanion entry) =>
+      (update(paymentScheduleEntries)
+            ..where((t) => t.id.equals(entry.id.value)))
+          .write(entry);
 }

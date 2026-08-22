@@ -28,6 +28,16 @@ class HoldingDao extends DatabaseAccessor<AppDatabase>
   Future<void> insertHoldingTransaction(HoldingTransactionsCompanion entry) =>
       into(holdingTransactions).insert(entry);
 
+  Future<List<HoldingTransaction>> getAllHoldingTransactions() =>
+      select(holdingTransactions).get();
+
+  Stream<List<HoldingTransaction>> watchAllHoldingTransactions() =>
+      select(holdingTransactions).watch();
+
+  Future<HoldingTransaction?> getHoldingTransactionById(String id) =>
+      (select(holdingTransactions)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
   Stream<List<HoldingTransaction>> watchTransactionsBySecurity(
           String securityId) =>
       (select(holdingTransactions)

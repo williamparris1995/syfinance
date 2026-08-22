@@ -38,13 +38,13 @@ void main() {
   group('getOIDCConfig', () {
     test('success returns Right(providers)', () async {
       final providers = [
-        OidcProviderConfig(
+        const OidcProviderConfig(
           name: 'google',
           displayName: 'Google',
           issuer: 'https://accounts.google.com',
           authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
           clientId: 'cid',
-          scopes: const ['openid', 'email'],
+          scopes: ['openid', 'email'],
         ),
       ];
       when(() => remote.getOIDCConfig()).thenAnswer((_) async => providers);
@@ -56,7 +56,7 @@ void main() {
 
     test('GrpcError unavailable maps to NetworkFailure', () async {
       when(() => remote.getOIDCConfig())
-          .thenThrow(GrpcError.unavailable('down'));
+          .thenThrow(const GrpcError.unavailable('down'));
 
       final result = await repo.getOIDCConfig();
 
@@ -91,7 +91,7 @@ void main() {
             code: any(named: 'code'),
             codeVerifier: any(named: 'codeVerifier'),
             redirectUri: any(named: 'redirectUri'),
-          )).thenThrow(GrpcError.unauthenticated('invalid'));
+          )).thenThrow(const GrpcError.unauthenticated('invalid'));
 
       final result = await repo.oidcExchange(
         provider: 'google',
@@ -111,7 +111,7 @@ void main() {
   });
 
   test('refreshToken success saves new tokens', () async {
-    final tokens = const AuthTokens(accessToken: 'a2', refreshToken: 'r2');
+    const tokens = AuthTokens(accessToken: 'a2', refreshToken: 'r2');
     when(() => storage.readTokens())
         .thenAnswer((_) async => const AuthTokens(accessToken: 'a', refreshToken: 'r'));
     when(() => remote.refreshToken('r')).thenAnswer((_) async => tokens);
@@ -119,7 +119,7 @@ void main() {
 
     final result = await repo.refreshToken();
 
-    expect(result, Right<Failure, AuthTokens>(tokens));
+    expect(result, const Right<Failure, AuthTokens>(tokens));
     verify(() => storage.saveTokens(tokens)).called(1);
   });
 

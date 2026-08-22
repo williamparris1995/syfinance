@@ -32,6 +32,12 @@ class ReferenceDao extends DatabaseAccessor<AppDatabase>
   Future<Security?> getSecurityById(String id) =>
       (select(securities)..where((t) => t.id.equals(id))).getSingleOrNull();
 
+  Future<List<Security>> getAllSecurities() => select(securities).get();
+
+  Future<int> updateSecurityPrice(String id, int priceCents) =>
+      (update(securities)..where((t) => t.id.equals(id)))
+          .write(SecuritiesCompanion(currentPriceCents: Value(priceCents)));
+
   Future<void> insertSecurityPriceHistory(
           SecurityPriceHistoriesCompanion entry) =>
       into(securityPriceHistories).insert(entry);
