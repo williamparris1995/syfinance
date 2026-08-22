@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-dual-source-seam
-status: drafted
+status: confirmed
 ---
 
 # Spec — repository 双源 seam + account 模块试点
