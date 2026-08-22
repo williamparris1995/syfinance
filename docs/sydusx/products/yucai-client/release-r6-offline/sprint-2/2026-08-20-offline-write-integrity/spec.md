@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-offline-write-integrity
-status: drafted
+status: confirmed
 ---
 
 # Spec — 离线写完整性(余额联动 + 引用完整 + 断网 UX)
