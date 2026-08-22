@@ -80,6 +80,9 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<bool> hasStoredCredentials() async => await _storage.readTokens() != null;
+
+  @override
   Future<void> logout() async {
     await _storage.clearTokens();
   }

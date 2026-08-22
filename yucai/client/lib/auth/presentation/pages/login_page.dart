@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
@@ -69,6 +70,16 @@ class LoginPage extends StatelessWidget {
                         label: const Text('使用 Google 登录'),
                       );
                     },
+                  ),
+                  const SizedBox(height: 12),
+                  // Offline-first (R6 FR-3): the app is usable without an
+                  // account; skipping lands in guest mode on the home shell.
+                  TextButton(
+                    onPressed: () {
+                      context.read<AuthBloc>().add(SkipLoginRequested());
+                      context.go('/home');
+                    },
+                    child: const Text('先不登录，离线使用'),
                   ),
                 ],
               ),

@@ -17,6 +17,8 @@ import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
+import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
+import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
@@ -99,19 +101,40 @@ const _currencies = <Currency>[
 Widget _harness(
   CurrencyState state,
   AuthRemoteDataSource authRemote,
-  _FakeCurrencySettings currencySettings,
-) {
+  _FakeCurrencySettings currencySettings, {
+  AuthState? authState,
+}) {
   final bloc = _StubCurrencyBloc(state);
   final getIt = GetIt.instance;
   if (!getIt.isRegistered<CurrencySettings>()) {
     getIt.registerSingleton<CurrencySettings>(currencySettings);
   }
+  // SettingsPage reads AuthBloc (guest login card, R6) — provide a stub the
+  // same way the production tree does (app.dart BlocProvider above router).
+  // Default keeps the card hidden so pre-existing assertions are unchanged.
+  final authBloc = _StubAuthBloc(authState ?? AuthInitial());
   return MaterialApp(
-    home: BlocProvider<CurrencyBloc>.value(
-      value: bloc,
+    home: MultiBlocProvider(
+      providers: [
+        BlocProvider<CurrencyBloc>.value(value: bloc),
+        BlocProvider<AuthBloc>.value(value: authBloc),
+      ],
       child: SettingsPage(authRemote: authRemote),
     ),
   );
+}
+
+/// Minimal AuthBloc stub: fixed state + single-value stream (mirrors
+/// _StubCurrencyBloc; BlocBuilder reads state + stream only).
+class _StubAuthBloc extends Fake implements AuthBloc {
+  _StubAuthBloc(this._state);
+  final AuthState _state;
+
+  @override
+  AuthState get state => _state;
+
+  @override
+  Stream<AuthState> get stream => Stream.value(_state);
 }
 
 void main() {
@@ -129,6 +152,26 @@ void main() {
     if (getIt.isRegistered<CurrencySettings>()) {
       getIt.unregister<CurrencySettings>();
     }
+  });
+
+  testWidgets('guest sees the login entry card; authenticated does not (R6)',
+      (t) async {
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 24,
+      status: CurrencyStatus.loaded,
+    );
+
+    await t.pumpWidget(_harness(state, authRemote, currencySettings,
+        authState: Guest()));
+    await t.pump();
+    expect(find.text('登录账号'), findsOneWidget);
+    expect(find.text('绑定后可同步数据到服务器'), findsOneWidget);
+
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
+    await t.pump();
+    expect(find.text('登录账号'), findsNothing);
   });
 
   testWidgets('dropdown shows current preferred currency code (CNY)', (t) async {

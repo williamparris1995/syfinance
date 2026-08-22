@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
+import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
+import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
@@ -64,6 +66,27 @@ class SettingsPage extends StatelessWidget {
                             fontFamily: AppTypography.displayFamily,
                             fontFamilyFallback: AppTypography.displayFallback)),
                     const SizedBox(height: AppSpacing.md),
+                    // Guest-only binding entry (R6 FR-3): login lives in
+                    // settings so the app opens straight into offline mode.
+                    BlocBuilder<AuthBloc, AuthState>(
+                      builder: (context, authState) {
+                        if (authState is! Guest) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                          child: _SettingsCard(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => context.push('/login'),
+                              child: const _PreferenceRow(
+                                label: '登录账号',
+                                description: '绑定后可同步数据到服务器',
+                                control: const Icon(LucideIcons.chevronRight),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     _SettingsCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

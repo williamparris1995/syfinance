@@ -30,6 +30,8 @@ import '../../auth/data/oidc_authenticator.dart' as _i871;
 import '../../auth/data/token_storage.dart' as _i382;
 import '../../auth/domain/repositories/auth_repository.dart' as _i937;
 import '../../auth/domain/usecases/get_profile_usecase.dart' as _i922;
+import '../../auth/domain/usecases/has_stored_credentials_usecase.dart'
+    as _i912;
 import '../../auth/domain/usecases/logout_usecase.dart' as _i231;
 import '../../auth/domain/usecases/oidc_login_usecase.dart' as _i990;
 import '../../auth/domain/usecases/refresh_token_usecase.dart' as _i752;
@@ -257,6 +259,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i922.GetProfileUseCase>(
       () => _i922.GetProfileUseCase(gh<_i937.AuthRepository>()),
     );
+    gh.factory<_i912.HasStoredCredentialsUseCase>(
+      () => _i912.HasStoredCredentialsUseCase(gh<_i937.AuthRepository>()),
+    );
     gh.factory<_i231.LogoutUseCase>(
       () => _i231.LogoutUseCase(gh<_i937.AuthRepository>()),
     );
@@ -265,6 +270,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i933.TemplateBloc>(
       () => _i933.TemplateBloc(gh<_i74.TemplateRepository>()),
+    );
+    gh.factory<_i946.AuthBloc>(
+      () => _i946.AuthBloc(
+        gh<_i990.OidcLoginUseCase>(),
+        gh<_i922.GetProfileUseCase>(),
+        gh<_i231.LogoutUseCase>(),
+        gh<_i912.HasStoredCredentialsUseCase>(),
+      ),
     );
     gh.factory<_i255.HoldingBloc>(
       () => _i255.HoldingBloc(gh<_i255.HoldingRepository>()),
@@ -287,13 +300,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i726.UpdateAccountUseCase>(
       () => _i726.UpdateAccountUseCase(gh<_i270.AccountRepository>()),
-    );
-    gh.factory<_i946.AuthBloc>(
-      () => _i946.AuthBloc(
-        gh<_i990.OidcLoginUseCase>(),
-        gh<_i922.GetProfileUseCase>(),
-        gh<_i231.LogoutUseCase>(),
-      ),
     );
     gh.factory<_i159.CategoryBloc>(
       () => _i159.CategoryBloc(

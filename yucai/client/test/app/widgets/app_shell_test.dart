@@ -27,6 +27,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/app/router.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
+import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
@@ -48,6 +49,7 @@ class _MockTxnRepo extends Mock implements TransactionRepository {}
 class _MockOidcLogin extends Mock implements OidcLoginUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
+class _MockHasCredentials extends Mock implements HasStoredCredentialsUseCase {}
 
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
   final ValueNotifier<String> _notifier = ValueNotifier<String>('CNY');
@@ -167,7 +169,8 @@ void main() {
 
 class _SeededAuthedBloc extends AuthBloc {
   _SeededAuthedBloc()
-      : super(_MockOidcLogin(), _MockProfile(), _MockLogout()) {
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
+            _MockHasCredentials()) {
     emit(Authenticated(_user));
   }
 }

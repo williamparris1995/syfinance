@@ -32,6 +32,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
+import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
@@ -60,6 +61,7 @@ import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart
 class _MockOidcLogin extends Mock implements OidcLoginUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
+class _MockHasCredentials extends Mock implements HasStoredCredentialsUseCase {}
 
 /// Fake NetWorthDataSource — overrides getNetWorth to return a fixed view or
 /// throw. (Fake, not Mock: getNetWorth is a real method we want to stub via an
@@ -124,7 +126,8 @@ Account _account({
 /// AuthBloc seeded Authenticated (HomePage watches state for display name).
 class _SeededAuthedBloc extends AuthBloc {
   _SeededAuthedBloc()
-      : super(_MockOidcLogin(), _MockProfile(), _MockLogout()) {
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
+            _MockHasCredentials()) {
     emit(Authenticated(_user));
   }
 }

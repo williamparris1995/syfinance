@@ -29,7 +29,9 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/app/router.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
+import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
+import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
@@ -73,6 +75,8 @@ class _MockGoalRepo extends Mock implements GoalRepository {}
 class _MockOidcLogin extends Mock implements OidcLoginUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
+class _MockHasCredentials extends Mock implements HasStoredCredentialsUseCase {}
+class _MockAuthRemoteDataSource extends Mock implements AuthRemoteDataSource {}
 
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
   final ValueNotifier<String> _notifier = ValueNotifier<String>('CNY');
@@ -173,6 +177,10 @@ void main() {
     // `GetIt: CurrencyBloc is not registered` during page build, which also
     // leaks widget state and breaks subsequent tests (auth-guard).
     getIt.registerFactory<CurrencyBloc>(() => _FakeCurrencyBloc());
+    // SettingsPage resolves AuthRemoteDataSource from getIt at build (guest
+    // landing on /settings, R6) — a mock keeps the page resolvable.
+    getIt.registerLazySingleton<AuthRemoteDataSource>(
+        () => _MockAuthRemoteDataSource());
     // /home builder (router.dart) creates AccountBloc via getIt<AccountBloc>();
     // register a factory wired to the mocked AccountRepository (mirrors
     // app_shell_test.dart) so /home resolves during sidebar navigation tests.
@@ -635,14 +643,60 @@ void main() {
         '/receivables/r-42');
   });
 
-  testWidgets('auth guard redirects unauthenticated /transactions to /login',
-      (tester) async {
-    // AuthBloc seeded Unauthenticated: redirect must bounce /transactions →
-    // /login. (AuthInitial would be treated as loading → no redirect, so we
-    // explicitly emit Unauthenticated.)
+  testWidgets('guard inversion: unauthenticated /transactions stays '
+      '(business routes are guest-accessible, R6 FR-2)', (tester) async {
+    // AuthBloc seeded Unauthenticated. Under the inverted guard the login
+    // wall only guards bind-only routes — /transactions resolves as-is.
     final authBloc = _unauthBloc();
     final router = buildRouter(authBloc);
     router.go('/transactions');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/transactions');
+  });
+
+  testWidgets('guest reaches /settings (binding entry lives there)', (tester) async {
+    final authBloc = _guestBloc();
+    final router = buildRouter(authBloc);
+    router.go('/settings');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/settings');
+  });
+
+  testWidgets('guest reaching /login stays (it is the binding entry)',
+      (tester) async {
+    final authBloc = _guestBloc();
+    final router = buildRouter(authBloc);
+    router.go('/login');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/login');
+  });
+
+  testWidgets('offline-kept session reaching /login bounces to /home',
+      (tester) async {
+    final authBloc = _offlineBloc();
+    final router = buildRouter(authBloc);
+    router.go('/login');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/home');
+  });
+
+  testWidgets('bind-only prefix bounces guests to /login (mechanism)',
+      (tester) async {
+    // The production list is empty until cloud pages gain routes; the
+    // mechanism itself is what this pins down (R6 FR-2 scenario 2).
+    final authBloc = _guestBloc();
+    final router = buildRouter(authBloc, bindOnlyPrefixes: const ['/cloud']);
+    router.go('/cloud/settings');
     await tester.pumpWidget(app(router, authBloc));
     await tester.pumpAndSettle();
 
@@ -723,19 +777,46 @@ AuthBloc _seededAuthBloc() => _SeededAuthedBloc();
 
 class _SeededAuthedBloc extends AuthBloc {
   _SeededAuthedBloc()
-      : super(_MockOidcLogin(), _MockProfile(), _MockLogout()) {
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
+            _MockHasCredentials()) {
     emit(Authenticated(_user));
   }
 }
 
-/// AuthBloc explicitly Unauthenticated (not AuthInitial, which the guard
-/// treats as loading → no redirect).
+/// AuthBloc explicitly Unauthenticated (token gone bad: the login wall is
+/// the right destination for bind-only pages, but business routes stay
+/// reachable — guard inversion, R6 ADR-3).
 AuthBloc _unauthBloc() => _SeededUnauthBloc();
 
 class _SeededUnauthBloc extends AuthBloc {
   _SeededUnauthBloc()
-      : super(_MockOidcLogin(), _MockProfile(), _MockLogout()) {
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
+            _MockHasCredentials()) {
     emit(Unauthenticated());
+  }
+}
+
+/// Guest (no account, offline-first): same routing surface as Unauthenticated
+/// for guard purposes.
+AuthBloc _guestBloc() => _SeededGuestBloc();
+
+class _SeededGuestBloc extends AuthBloc {
+  _SeededGuestBloc()
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
+            _MockHasCredentials()) {
+    emit(Guest());
+  }
+}
+
+/// Offline-kept session (tokens present, profile RPC failed on network):
+/// treated as logged in by the guard.
+AuthBloc _offlineBloc() => _SeededOfflineBloc();
+
+class _SeededOfflineBloc extends AuthBloc {
+  _SeededOfflineBloc()
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
+            _MockHasCredentials()) {
+    emit(OfflineAuthenticated());
   }
 }
 

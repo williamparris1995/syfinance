@@ -79,35 +79,39 @@ import 'package:yucai_client/transaction/presentation/pages/transaction_form_pag
 import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
+/// Bind-only route prefixes: cloud/session-bound pages guests may not open.
+/// Business routes are guest-accessible (offline-first, R6 FR-2); injectable
+/// so the guard is testable — production callers take the (empty) default
+/// until bound pages gain their own routes (e.g. cloud backup).
+const List<String> kDefaultBindOnlyPrefixes = [];
+
 /// Builds the app router. Reads auth state to guard routes.
 ///
 /// 受保护区域用 [StatefulShellRoute.indexedStack] 承载，侧边栏/顶栏
 /// ([AppShell]) 在整个会话期间保持挂载，分支切换不重建外壳。
-GoRouter buildRouter(AuthBloc authBloc) {
+GoRouter buildRouter(
+  AuthBloc authBloc, {
+  List<String> bindOnlyPrefixes = kDefaultBindOnlyPrefixes,
+}) {
   return GoRouter(
     observers: [routeObserver],
     refreshListenable: _AuthBlocListenable(authBloc),
     redirect: (context, state) {
       final auth = authBloc.state;
-      final isLoggedIn = auth is Authenticated;
+      final hasSession = auth is Authenticated || auth is OfflineAuthenticated;
       final isLoading = auth is AuthInitial || auth is AuthLoading;
-      final goingToAuth = state.matchedLocation == '/login';
-      final goingProtected = state.matchedLocation == '/home' ||
-          state.matchedLocation.startsWith('/accounts') ||
-          state.matchedLocation.startsWith('/transactions') ||
-          state.matchedLocation.startsWith('/categories') ||
-          state.matchedLocation.startsWith('/debts') ||
-          state.matchedLocation.startsWith('/receivables') ||
-          state.matchedLocation.startsWith('/holdings') ||
-          state.matchedLocation.startsWith('/budgets') ||
-          state.matchedLocation.startsWith('/goals') ||
-          state.matchedLocation.startsWith('/reports') ||
-          state.matchedLocation.startsWith('/settings');
+      final location = state.matchedLocation;
+      final goingToAuth = location == '/login';
+      final goingBindOnly = bindOnlyPrefixes
+          .any((p) => location == p || location.startsWith('$p/'));
 
       if (isLoading) return null;
 
-      if (!isLoggedIn && goingProtected) return '/login';
-      if (isLoggedIn && goingToAuth) return '/home';
+      // Guard inversion (R6 ADR-3): guests roam business routes freely;
+      // only bind-only pages bounce to /login. Guests may open /login
+      // themselves (it is the binding entry).
+      if (!hasSession && goingBindOnly) return '/login';
+      if (hasSession && goingToAuth) return '/home';
       return null;
     },
     routes: [

@@ -26,4 +26,9 @@ abstract class AuthRepository {
   Future<Either<Failure, AuthTokens>> refreshToken();
   Future<Either<Failure, User>> getProfile();
   Future<void> logout();
+
+  /// Whether any credentials persist locally. Drives the AppStarted fork:
+  /// no credentials → guest without a doomed profile RPC; with credentials →
+  /// profile call whose NetworkFailure keeps the offline session (R6 FR-1).
+  Future<bool> hasStoredCredentials();
 }

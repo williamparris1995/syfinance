@@ -20,4 +20,7 @@ class OIDCLoginRequested extends AuthEvent {
 
 class LogoutRequested extends AuthEvent {}
 
+/// Explicit "skip login, use offline" from the login page → Guest.
+class SkipLoginRequested extends AuthEvent {}
+
 class TokenRefreshFailed extends AuthEvent {}

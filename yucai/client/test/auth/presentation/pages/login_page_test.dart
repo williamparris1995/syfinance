@@ -15,6 +15,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -35,14 +36,26 @@ final _user = User(
   createdAt: DateTime(2026),
 );
 
+/// The skip-login button navigates to /home (R6 FR-3), so the harness needs
+/// a minimal GoRouter around the page; every other test only reads state.
 Widget _harness({required AuthState state, required AuthBloc bloc}) {
-  // LoginPage has no router / getIt dependencies — bare MaterialApp is enough.
-  return MaterialApp(
-    home: BlocProvider<AuthBloc>.value(
-      value: bloc,
-      child: const LoginPage(),
-    ),
+  final router = GoRouter(
+    initialLocation: '/login',
+    routes: [
+      GoRoute(
+        path: '/login',
+        builder: (_, __) => BlocProvider<AuthBloc>.value(
+          value: bloc,
+          child: const LoginPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/home',
+        builder: (_, __) => const Scaffold(body: Center(child: Text('home'))),
+      ),
+    ],
   );
+  return MaterialApp.router(routerConfig: router);
 }
 
 void main() {
@@ -59,6 +72,7 @@ void main() {
     // this isn't strictly required, but it's cheap insurance against the
     // "No fallback value for AuthEvent" trap if we ever broaden the verify.
     registerFallbackValue(const OIDCLoginRequested('google'));
+    registerFallbackValue(SkipLoginRequested());
   });
 
   testWidgets('renders title + single Google login button', (t) async {
@@ -70,8 +84,38 @@ void main() {
     expect(find.text('登录以继续'), findsOneWidget);
     // Single provider button — not driven by getOIDCConfig, hard-coded google.
     expect(find.text('使用 Google 登录'), findsOneWidget);
+    // Offline-first skip entry (R6 FR-3).
+    expect(find.text('先不登录，离线使用'), findsOneWidget);
     // Lucide logIn icon (per login_page source).
     expect(find.byIcon(LucideIcons.logIn), findsOneWidget);
+  });
+
+  testWidgets('skip-login dispatches SkipLoginRequested and lands on /home',
+      (t) async {
+    final router = GoRouter(
+      initialLocation: '/login',
+      routes: [
+        GoRoute(
+          path: '/login',
+          builder: (_, __) => BlocProvider<AuthBloc>.value(
+            value: bloc,
+            child: const LoginPage(),
+          ),
+        ),
+        GoRoute(
+          path: '/home',
+          builder: (_, __) => const Scaffold(body: Center(child: Text('home'))),
+        ),
+      ],
+    );
+    await t.pumpWidget(MaterialApp.router(routerConfig: router));
+    await t.pump();
+
+    await t.tap(find.text('先不登录，离线使用'));
+    await t.pumpAndSettle();
+
+    verify(() => bloc.add(SkipLoginRequested())).called(1);
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/home');
   });
 
   testWidgets('tap button dispatches OIDCLoginRequested(google)', (t) async {

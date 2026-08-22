@@ -20,6 +20,16 @@ class Authenticated extends AuthState {
 
 class Unauthenticated extends AuthState {}
 
+/// No credentials: first launch, explicit skip, or after logout. The app is
+/// fully usable in this state (offline-first, R6); business routes resolve
+/// their own data (empty/error until the dual-source seam lands).
+class Guest extends AuthState {}
+
+/// Credentials exist but the profile RPC failed on network grounds — the
+/// session is kept (user is NOT kicked to /login). No User object: the
+/// profile is unknown while offline (design ADR-1).
+class OfflineAuthenticated extends AuthState {}
+
 class AuthError extends AuthState {
   const AuthError(this.message);
   final String message;
