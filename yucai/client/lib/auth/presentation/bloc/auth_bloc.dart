@@ -7,6 +7,7 @@ import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 
 @injectable
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -15,6 +16,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     this._getProfile,
     this._logout,
     this._hasCredentials,
+    this._sessionMode,
   ) : super(AuthInitial()) {
     on<AppStarted>(_onAppStarted);
     on<OIDCLoginRequested>(_onOIDCLogin);
@@ -27,6 +29,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final GetProfileUseCase _getProfile;
   final LogoutUseCase _logout;
   final HasStoredCredentialsUseCase _hasCredentials;
+  final SessionModeTracker _sessionMode;
+
+  /// Single-point sync into the core-layer session flag consumed by the
+  /// dual-source seam (R6 ADR-2) — data-layer repos never read this bloc.
+  @override
+  void onChange(Change<AuthState> change) {
+    super.onChange(change);
+    _sessionMode.isGuest = change.nextState is Guest;
+  }
 
   Future<void> _onAppStarted(AppStarted event, Emitter<AuthState> emit) async {
     emit(AuthLoading());

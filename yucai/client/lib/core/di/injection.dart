@@ -13,6 +13,7 @@ import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 
 final getIt = GetIt.instance;
@@ -55,6 +56,10 @@ Future<void> configureDependencies() async {
   // 1d. Shared connectivity gateway (R6): one instance fans out online/
   //     offline events to UI and the dual-source seam.
   getIt.registerLazySingleton<ConnectivityGateway>(ConnectivityGateway.new);
+
+  // 1e. Session-mode flag (R6 ADR-2): AuthBloc drives it, dual-source
+  //     repositories read it — the layering-safe session source in core.
+  getIt.registerLazySingleton<SessionModeTracker>(SessionModeTracker.new);
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.

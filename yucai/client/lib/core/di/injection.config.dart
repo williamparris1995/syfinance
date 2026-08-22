@@ -12,7 +12,9 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:uuid/uuid.dart' as _i706;
 
+import '../../account/data/account_local_ds.dart' as _i697;
 import '../../account/data/account_remote_ds.dart' as _i414;
 import '../../account/data/account_repository_impl.dart' as _i725;
 import '../../account/data/mappers/account_mapper.dart' as _i994;
@@ -84,8 +86,10 @@ import '../../transaction/data/transaction_repository_impl.dart' as _i733;
 import '../../transaction/domain/repositories/transaction_repository.dart'
     as _i822;
 import '../../transaction/presentation/bloc/category_bloc.dart' as _i159;
+import '../localdb/app_database.dart' as _i581;
 import '../network/auth_retry.dart' as _i763;
 import '../network/grpc_client.dart' as _i160;
+import '../session_mode/session_mode_tracker.dart' as _i781;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
@@ -98,6 +102,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i102.UserMapper>(() => const _i102.UserMapper());
     gh.factory<_i380.CurrencyMapper>(() => const _i380.CurrencyMapper());
     gh.factory<_i667.TransactionMapper>(() => const _i667.TransactionMapper());
+    gh.lazySingleton<_i697.AccountLocalDataSource>(
+      () => _i697.AccountLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        uuid: gh<_i706.Uuid>(),
+      ),
+    );
     gh.lazySingleton<_i832.AuthRemoteDataSource>(
       () => _i832.AuthRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -127,6 +137,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i160.GrpcClient>(),
         gh<_i763.AuthRetryCaller>(),
         gh<_i994.AccountMapper>(),
+      ),
+    );
+    gh.lazySingleton<_i270.AccountRepository>(
+      () => _i725.AccountRepositoryImpl(
+        gh<_i414.AccountRemoteDataSource>(),
+        gh<_i697.AccountLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
       ),
     );
     gh.lazySingleton<_i61.CurrencySettings>(
@@ -212,6 +229,21 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i536.ReceivablesSummaryDataSource>(),
       ),
     );
+    gh.factory<_i82.CreateAccountUseCase>(
+      () => _i82.CreateAccountUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i1051.DeleteAccountUseCase>(
+      () => _i1051.DeleteAccountUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i500.GetAccountUseCase>(
+      () => _i500.GetAccountUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i106.ListAccountsUseCase>(
+      () => _i106.ListAccountsUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i726.UpdateAccountUseCase>(
+      () => _i726.UpdateAccountUseCase(gh<_i270.AccountRepository>()),
+    );
     gh.factory<_i990.OidcLoginUseCase>(
       () => _i990.OidcLoginUseCase(
         gh<_i937.AuthRepository>(),
@@ -229,6 +261,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i666.TransactionRemoteDataSource>(),
       ),
     );
+    gh.factory<_i159.CategoryBloc>(
+      () => _i159.CategoryBloc(
+        gh<_i106.ListAccountsUseCase>(),
+        gh<_i82.CreateAccountUseCase>(),
+        gh<_i1051.DeleteAccountUseCase>(),
+        gh<_i726.UpdateAccountUseCase>(),
+      ),
+    );
     gh.lazySingleton<_i255.HoldingRepository>(
       () => _i427.HoldingRepositoryImpl(
         gh<_i620.HoldingRemoteDataSource>(),
@@ -243,9 +283,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i74.TemplateRepository>(
       () => _i554.TemplateRepositoryImpl(gh<_i889.TemplateRemoteDataSource>()),
-    );
-    gh.lazySingleton<_i270.AccountRepository>(
-      () => _i725.AccountRepositoryImpl(gh<_i414.AccountRemoteDataSource>()),
     );
     gh.factory<_i703.GoalBloc>(
       () => _i703.GoalBloc(gh<_i835.GoalRepository>()),
@@ -277,46 +314,8 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i922.GetProfileUseCase>(),
         gh<_i231.LogoutUseCase>(),
         gh<_i912.HasStoredCredentialsUseCase>(),
+        gh<_i781.SessionModeTracker>(),
       ),
-    );
-    gh.factory<_i255.HoldingBloc>(
-      () => _i255.HoldingBloc(gh<_i255.HoldingRepository>()),
-    );
-    gh.factory<_i493.PerformanceBloc>(
-      () => _i493.PerformanceBloc(gh<_i255.HoldingRepository>()),
-    );
-    gh.factory<_i847.TagBloc>(() => _i847.TagBloc(gh<_i585.TagRepository>()));
-    gh.factory<_i82.CreateAccountUseCase>(
-      () => _i82.CreateAccountUseCase(gh<_i270.AccountRepository>()),
-    );
-    gh.factory<_i1051.DeleteAccountUseCase>(
-      () => _i1051.DeleteAccountUseCase(gh<_i270.AccountRepository>()),
-    );
-    gh.factory<_i500.GetAccountUseCase>(
-      () => _i500.GetAccountUseCase(gh<_i270.AccountRepository>()),
-    );
-    gh.factory<_i106.ListAccountsUseCase>(
-      () => _i106.ListAccountsUseCase(gh<_i270.AccountRepository>()),
-    );
-    gh.factory<_i726.UpdateAccountUseCase>(
-      () => _i726.UpdateAccountUseCase(gh<_i270.AccountRepository>()),
-    );
-    gh.factory<_i159.CategoryBloc>(
-      () => _i159.CategoryBloc(
-        gh<_i106.ListAccountsUseCase>(),
-        gh<_i82.CreateAccountUseCase>(),
-        gh<_i1051.DeleteAccountUseCase>(),
-        gh<_i726.UpdateAccountUseCase>(),
-      ),
-    );
-    gh.factory<_i852.BackupBloc>(
-      () => _i852.BackupBloc(gh<_i335.BackupRepository>()),
-    );
-    gh.factory<_i86.BackupSettingsBloc>(
-      () => _i86.BackupSettingsBloc(gh<_i335.BackupRepository>()),
-    );
-    gh.factory<_i763.BudgetBloc>(
-      () => _i763.BudgetBloc(gh<_i665.BudgetRepository>()),
     );
     gh.factory<_i803.AccountBloc>(
       () => _i803.AccountBloc(
@@ -326,6 +325,22 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i500.GetAccountUseCase>(),
         gh<_i726.UpdateAccountUseCase>(),
       ),
+    );
+    gh.factory<_i255.HoldingBloc>(
+      () => _i255.HoldingBloc(gh<_i255.HoldingRepository>()),
+    );
+    gh.factory<_i493.PerformanceBloc>(
+      () => _i493.PerformanceBloc(gh<_i255.HoldingRepository>()),
+    );
+    gh.factory<_i847.TagBloc>(() => _i847.TagBloc(gh<_i585.TagRepository>()));
+    gh.factory<_i852.BackupBloc>(
+      () => _i852.BackupBloc(gh<_i335.BackupRepository>()),
+    );
+    gh.factory<_i86.BackupSettingsBloc>(
+      () => _i86.BackupSettingsBloc(gh<_i335.BackupRepository>()),
+    );
+    gh.factory<_i763.BudgetBloc>(
+      () => _i763.BudgetBloc(gh<_i665.BudgetRepository>()),
     );
     return this;
   }

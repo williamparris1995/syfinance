@@ -32,6 +32,7 @@ import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
@@ -791,7 +792,7 @@ AuthBloc _seededAuthBloc() => _SeededAuthedBloc();
 class _SeededAuthedBloc extends AuthBloc {
   _SeededAuthedBloc()
       : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
-            _MockHasCredentials()) {
+            _MockHasCredentials(), SessionModeTracker()) {
     emit(Authenticated(_user));
   }
 }
@@ -803,7 +804,7 @@ AuthBloc _unauthBloc() => _SeededUnauthBloc();
 class _SeededUnauthBloc extends AuthBloc {
   _SeededUnauthBloc()
       : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
-            _MockHasCredentials()) {
+            _MockHasCredentials(), SessionModeTracker()) {
     emit(Unauthenticated());
   }
 }
@@ -815,7 +816,7 @@ AuthBloc _guestBloc() => _SeededGuestBloc();
 class _SeededGuestBloc extends AuthBloc {
   _SeededGuestBloc()
       : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
-            _MockHasCredentials()) {
+            _MockHasCredentials(), SessionModeTracker()) {
     emit(Guest());
   }
 }
@@ -827,7 +828,7 @@ AuthBloc _offlineBloc() => _SeededOfflineBloc();
 class _SeededOfflineBloc extends AuthBloc {
   _SeededOfflineBloc()
       : super(_MockOidcLogin(), _MockProfile(), _MockLogout(),
-            _MockHasCredentials()) {
+            _MockHasCredentials(), SessionModeTracker()) {
     emit(OfflineAuthenticated());
   }
 }

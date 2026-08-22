@@ -33,12 +33,12 @@ void main() {
   });
 
   test('equatable: two equal accounts match', () {
-    final a = Account(
+    const a = Account(
       id: 'x', name: 'n', accountType: AccountType.expense, category: AccountCategory.savings, currencyCode: 'CNY',
       initialBalanceCents: 0, currentBalanceCents: 0,
       ownership: Ownership.personal, status: AccountStatus.active,
     );
-    final b = Account(
+    const b = Account(
       id: 'x', name: 'n', accountType: AccountType.expense, category: AccountCategory.savings, currencyCode: 'CNY',
       initialBalanceCents: 0, currentBalanceCents: 0,
       ownership: Ownership.personal, status: AccountStatus.active,

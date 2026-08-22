@@ -15,6 +15,7 @@ import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 
 class _MockOidcLogin extends Mock implements OidcLoginUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
@@ -44,7 +45,7 @@ void main() {
     when(() => hasCreds.call()).thenAnswer((_) async => true);
   });
 
-  AuthBloc build() => AuthBloc(oidcLogin, profile, logout, hasCreds);
+  AuthBloc build() => AuthBloc(oidcLogin, profile, logout, hasCreds, SessionModeTracker());
 
   blocTest<AuthBloc, AuthState>(
     'AppStarted without credentials emits Guest (no profile RPC)',
