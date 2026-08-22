@@ -13,8 +13,29 @@ void main() {
 
   tearDown(() => source.close());
 
-  test('optimistic default until the first event', () {
-    final gateway = ConnectivityGateway(statusStream: source.stream);
+  test('initial platform check seeds the state (cold-start offline)',
+      () async {
+    final gateway = ConnectivityGateway(
+      statusStream: source.stream,
+      initialCheck: () async => [ConnectivityResult.none],
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(gateway.current, isFalse);
+
+    final optimistic = ConnectivityGateway(
+      statusStream: source.stream,
+      initialCheck: () async => [ConnectivityResult.ethernet],
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(optimistic.current, isTrue);
+  });
+
+  test('optimistic default until the initial check resolves', () {
+    final gateway = ConnectivityGateway(
+      statusStream: source.stream,
+      // Never-completing initial check keeps the default visible.
+      initialCheck: () => Completer<List<ConnectivityResult>>().future,
+    );
     expect(gateway.current, isTrue);
   });
 

@@ -20,3 +20,10 @@
 
 - 全套 +1015 -4(恰为基线 4:account_detail 1 + receivable_detail 2 + receivables_page 1,零新增);analyze 398 = main 基线(经 per-file+rule 去行号 diff 归因,修复唯一真新增 1 条 prefer_const)。
 - 既有测试同步:auth_bloc_test 重写(4 参构造+8 转移)/router_test 守卫 5 用例新语义/home_page_test·app_shell_test 构造器补参/settings_page_test harness 补 AuthBloc stub + Guest 卡片用例/login_page_test 换 GoRouter harness + skip 用例。
+
+## Review 修复轮(2026-08-22,首轮 reject:2 Critical)
+
+- **C1 FR-1②**:Unauthenticated(坏会话)不再重定向 /login,用户会话内失去登录路径 → redirect 补第三规则 `auth is Unauthenticated && !goingToAuth → /login`;router_test 断言翻回 + Guest(漫游)与 Unauthenticated(登录墙)行为分叉钉死。
+- **C2 FR-2②**:design「现无独立绑定路由」前提失实——/settings/backup(+/auto)是 main 既有服务端备份页 → 入 kDefaultBindOnlyPrefixes;新增真实路由守卫测试 + 保留注入机制测试。
+- **Minor**:gateway 补 initial check(checkConnectivity 注入 seam,FR-5「含初始态」补全)/auth_retry 注释漂移修正/login_page_test 去重。
+- 修复后:全套 +1017 -4(基线 4,零新增),analyze 398 = main 基线。

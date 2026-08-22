@@ -643,10 +643,10 @@ void main() {
         '/receivables/r-42');
   });
 
-  testWidgets('guard inversion: unauthenticated /transactions stays '
-      '(business routes are guest-accessible, R6 FR-2)', (tester) async {
-    // AuthBloc seeded Unauthenticated. Under the inverted guard the login
-    // wall only guards bind-only routes — /transactions resolves as-is.
+  testWidgets('broken session (Unauthenticated) bounces off business routes '
+      'to /login — the recovery path (R6 FR-1 scenario 2)', (tester) async {
+    // AuthBloc seeded Unauthenticated: the token is bad (not a guest choice),
+    // so the guard keeps the old wall behavior — unlike Guest, which roams.
     final authBloc = _unauthBloc();
     final router = buildRouter(authBloc);
     router.go('/transactions');
@@ -654,7 +654,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(),
-        '/transactions');
+        '/login');
   });
 
   testWidgets('guest reaches /settings (binding entry lives there)', (tester) async {
@@ -690,10 +690,23 @@ void main() {
     expect(router.routerDelegate.currentConfiguration.uri.toString(), '/home');
   });
 
-  testWidgets('bind-only prefix bounces guests to /login (mechanism)',
-      (tester) async {
-    // The production list is empty until cloud pages gain routes; the
-    // mechanism itself is what this pins down (R6 FR-2 scenario 2).
+  testWidgets('server backup route stays behind the login wall (default '
+      'bind-only list)', (tester) async {
+    // /settings/backup + /settings/backup/auto are gRPC-bound server pages
+    // that existed before R6 — guests must not reach them (FR-2 scenario 2).
+    final authBloc = _guestBloc();
+    final router = buildRouter(authBloc);
+    router.go('/settings/backup/auto');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/login');
+  });
+
+  testWidgets('bind-only prefix mechanism bounces guests to /login '
+      '(injectable list)', (tester) async {
+    // Pins the mechanism itself for future bound routes (R6 FR-2).
     final authBloc = _guestBloc();
     final router = buildRouter(authBloc, bindOnlyPrefixes: const ['/cloud']);
     router.go('/cloud/settings');

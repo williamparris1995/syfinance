@@ -38,25 +38,25 @@ final _user = User(
 
 /// The skip-login button navigates to /home (R6 FR-3), so the harness needs
 /// a minimal GoRouter around the page; every other test only reads state.
-Widget _harness({required AuthState state, required AuthBloc bloc}) {
-  final router = GoRouter(
-    initialLocation: '/login',
-    routes: [
-      GoRoute(
-        path: '/login',
-        builder: (_, __) => BlocProvider<AuthBloc>.value(
-          value: bloc,
-          child: const LoginPage(),
+GoRouter _testRouter(AuthBloc bloc) => GoRouter(
+      initialLocation: '/login',
+      routes: [
+        GoRoute(
+          path: '/login',
+          builder: (_, __) => BlocProvider<AuthBloc>.value(
+            value: bloc,
+            child: const LoginPage(),
+          ),
         ),
-      ),
-      GoRoute(
-        path: '/home',
-        builder: (_, __) => const Scaffold(body: Center(child: Text('home'))),
-      ),
-    ],
-  );
-  return MaterialApp.router(routerConfig: router);
-}
+        GoRoute(
+          path: '/home',
+          builder: (_, __) => const Scaffold(body: Center(child: Text('home'))),
+        ),
+      ],
+    );
+
+Widget _harness({required AuthState state, required AuthBloc bloc}) =>
+    MaterialApp.router(routerConfig: _testRouter(bloc));
 
 void main() {
   late _MockAuthBloc bloc;
@@ -92,22 +92,7 @@ void main() {
 
   testWidgets('skip-login dispatches SkipLoginRequested and lands on /home',
       (t) async {
-    final router = GoRouter(
-      initialLocation: '/login',
-      routes: [
-        GoRoute(
-          path: '/login',
-          builder: (_, __) => BlocProvider<AuthBloc>.value(
-            value: bloc,
-            child: const LoginPage(),
-          ),
-        ),
-        GoRoute(
-          path: '/home',
-          builder: (_, __) => const Scaffold(body: Center(child: Text('home'))),
-        ),
-      ],
-    );
+    final router = _testRouter(bloc);
     await t.pumpWidget(MaterialApp.router(routerConfig: router));
     await t.pump();
 

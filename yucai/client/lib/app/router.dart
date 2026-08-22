@@ -80,10 +80,10 @@ import 'package:yucai_client/transaction/presentation/pages/transactions_page.da
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 /// Bind-only route prefixes: cloud/session-bound pages guests may not open.
-/// Business routes are guest-accessible (offline-first, R6 FR-2); injectable
-/// so the guard is testable — production callers take the (empty) default
-/// until bound pages gain their own routes (e.g. cloud backup).
-const List<String> kDefaultBindOnlyPrefixes = [];
+/// Business routes are guest-accessible (offline-first, R6 FR-2); the server
+/// backup pages under /settings/backup are gRPC-bound and must stay behind
+/// the login wall. Injectable so the guard is testable.
+const List<String> kDefaultBindOnlyPrefixes = ['/settings/backup'];
 
 /// Builds the app router. Reads auth state to guard routes.
 ///
@@ -112,6 +112,9 @@ GoRouter buildRouter(
       // themselves (it is the binding entry).
       if (!hasSession && goingBindOnly) return '/login';
       if (hasSession && goingToAuth) return '/home';
+      // Unauthenticated = a broken session (bad token), not a guest choice:
+      // the login wall is the recovery path (spec FR-1 scenario 2).
+      if (auth is Unauthenticated && !goingToAuth) return '/login';
       return null;
     },
     routes: [

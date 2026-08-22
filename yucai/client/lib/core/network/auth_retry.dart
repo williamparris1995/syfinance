@@ -20,8 +20,9 @@ import 'package:grpc/grpc.dart';
 ///   - Refresh is mutex-guarded: concurrent 401s share a single refresh.
 ///   - Retries the original call **once** after a successful refresh (the
 ///     AuthInterceptor re-reads the fresh token from storage at call time).
-///   - On refresh failure, the 401 is rethrown so the AuthBloc logs the user
-///     out cleanly (AppStarted → Unauthenticated).
+///   - On refresh failure, the 401 is rethrown so the session can be torn
+///     down (R6: the login wall for a broken session; logout itself lands
+///     in guest mode).
 ///
 /// Do NOT wrap `AuthService.RefreshToken` itself (recursion).
 class AuthRetryCaller {
