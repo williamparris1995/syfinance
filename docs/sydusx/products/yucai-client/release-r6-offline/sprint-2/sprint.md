@@ -9,7 +9,7 @@
 ## Feature roster(依赖排序)
 
 - [x] **feature D** 2026-08-20-core-modules-local — 核心记账模块本地化:transaction/category/tag/template/currency(依赖 C 的 seam 范式)✅ done(merged `fccdb44d`,2026-08-22;四模块 local ds+路由+bloc 分支,含 review BLOCKER[DI 注册]修复轮;category 经 spec 修正为零改动——account 视图子集自动继承)
-- [ ] **feature E** 2026-08-20-portfolio-modules-local — 资产类模块本地化:holding/budget/goal/debt/receivable/report/networth(依赖 D 的关联链路)
+- [ ] **feature E** 2026-08-20-portfolio-modules-local — 资产类模块本地化:holding/budget/goal/debt/receivable/report/networth(依赖 D 的关联链路) `claimed: zcode-main 2026-08-22`
 - [ ] **feature F** 2026-08-20-offline-write-integrity — 离线写完整性:本地事务原子性 + 引用完整性(级联/约束)+ 断网/恢复 UX(依赖 D,E)
 
 **defer**:绑定后离线续写 outbox(ticket 16)。
