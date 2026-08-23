@@ -31,11 +31,13 @@ class LocalSnapshotExporter {
       'template': await _exportTemplates(),
       'holding': await _exportHoldings(),
     };
+    // Top-level keys use the server's json tags (snake_case); module payload
+    // keys stay PascalCase (Go field-name default for the untagged structs).
     final envelope = {
-      'Version': 1,
-      'TenantID': tenantId,
-      'CreatedAt': DateTime.now().toUtc().toIso8601String(),
-      'Modules': modules,
+      'version': 1,
+      'tenant_id': tenantId,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'modules': modules,
     };
     return Uint8List.fromList(utf8.encode(jsonEncode(envelope)));
   }
@@ -46,7 +48,6 @@ class LocalSnapshotExporter {
     final rows = await _database.accountDao.getAllAccounts();
     return rows.map((r) => {
           'ID': r.id,
-          'TenantID': '',
           'Name': r.name,
           'AccountType': r.accountType,
           'Category': r.category,
@@ -105,7 +106,6 @@ class LocalSnapshotExporter {
     }
     return heads.map((h) => {
           'ID': h.id,
-          'TenantID': '',
           'TransactionDate': _ts(h.transactionDate),
           'TransactionTime': _ts(h.transactionTime),
           'Description': h.description,
@@ -231,7 +231,6 @@ class LocalSnapshotExporter {
     final tags = await _database.tagDao.watchAllTags().first;
     return tags.map((t) => {
           'ID': t.id,
-          'TenantID': '',
           'Name': t.name,
           'Color': t.color,
           'Version': t.version,
@@ -245,7 +244,6 @@ class LocalSnapshotExporter {
     final rows = await _database.templateDao.watchAllTemplates().first;
     return rows.map((r) => {
           'ID': r.id,
-          'TenantID': '',
           'Name': r.name,
           'Description': r.description,
           'AmountCents': r.amountCents,
@@ -277,8 +275,7 @@ class LocalSnapshotExporter {
       'holdings': holdings
           .map((h) => {
                 'ID': h.id,
-                'TenantID': '',
-                'AccountID': h.accountId,
+                      'AccountID': h.accountId,
                 'SecurityID': h.securityId,
                 'Quantity': h.quantity,
                 'AvgCostCents': h.avgCostCents,
@@ -290,8 +287,7 @@ class LocalSnapshotExporter {
       'transactions': trades
           .map((t) => {
                 'ID': t.id,
-                'TenantID': '',
-                'AccountID': t.accountId,
+                      'AccountID': t.accountId,
                 'SecurityID': t.securityId,
                 'TradeType': t.tradeType,
                 'Quantity': t.quantity,

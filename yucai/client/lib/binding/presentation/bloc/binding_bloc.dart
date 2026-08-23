@@ -42,11 +42,23 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
     final transactions =
         await _transactions.list(const ListTransactionsParams(pageSize: 1));
     final holdings = await _holdings.listHoldings();
-    final nonEmpty = accounts.isRight() &&
+    // Fail-closed: any guard facet erroring means we CANNOT prove the
+    // account empty — block the upload rather than risk a silent overwrite
+    // of a non-empty account (review G-J2).
+    for (final result in [accounts, transactions, holdings]) {
+      if (result.isLeft()) {
+        result.fold((f) => null, (_) => null);
+        emit(state.copyWith(
+            status: BindingStatus.failed,
+            failureMessage: '无法确认账号状态（${accounts.fold((f) => f.displayMessage, (_) => "")}），已阻止上传'));
+        return;
+      }
+    }
+    final nonEmpty =
         accounts.fold((_) => false, (a) => a.isNotEmpty);
-    final hasTxns = transactions.isRight() &&
+    final hasTxns =
         transactions.fold((_) => false, (t) => t.totalCount > 0);
-    final hasHoldings = holdings.isRight() &&
+    final hasHoldings =
         holdings.fold((_) => false, (h) => h.isNotEmpty);
     if (nonEmpty || hasTxns || hasHoldings) {
       emit(state.copyWith(
@@ -69,6 +81,12 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
           await _database.accountDao.getAllAccounts();
       final accountCount = remoteAccounts.fold(
           (_) => -1, (a) => a.length);
+      if (accountCount != localAccounts.length) {
+        emit(state.copyWith(
+            status: BindingStatus.failed,
+            failureMessage: '上传后校验不一致（本地 ${localAccounts.length} vs 服务端 $accountCount），请重试或联系支持'));
+        return;
+      }
       emit(state.copyWith(
         status: BindingStatus.success,
         uploadedEntities: localAccounts.length,

@@ -59,10 +59,10 @@ void main() {
   test('envelope top shape + version + module keys', () async {
     final bytes = await exporter.exportAll();
     final envelope = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-    expect(envelope['Version'], 1);
-    expect(envelope['TenantID'], isNotEmpty); // placeholder, server overrides
-    expect(envelope['CreatedAt'], isA<String>());
-    final modules = envelope['Modules'] as Map<String, dynamic>;
+    expect(envelope['version'], 1);
+    expect(envelope['tenant_id'], isNotEmpty); // placeholder, server overrides
+    expect(envelope['created_at'], isA<String>());
+    final modules = envelope['modules'] as Map<String, dynamic>;
     expect(modules.keys, containsAll([
       'account', 'transaction', 'debt', 'budget',
       'goal', 'tag', 'template', 'holding',
@@ -75,7 +75,7 @@ void main() {
   test('account module field shape (server struct mirror)', () async {
     await accounts.insertAccount(accountRow('a1', balance: 50));
     final envelope = await _envelope(exporter);
-    final account = (envelope['Modules']['account'] as List).single;
+    final account = (envelope['modules']['account'] as List).single;
     expect(account['ID'], 'a1');
     expect(account['Name'], 'Cash');
     expect(account['AccountType'], 1); // contract int, not enum name
@@ -103,7 +103,7 @@ void main() {
       amountCents: 500,
     ));
     final envelope = await _envelope(exporter);
-    final txn = (envelope['Modules']['transaction'] as List).single;
+    final txn = (envelope['modules']['transaction'] as List).single;
     expect(txn['ID'], isNotEmpty); // description is '' by default
     expect(txn['Entries'], hasLength(2));
     final entry = (txn['Entries'] as List).first;
@@ -133,7 +133,7 @@ void main() {
     await goals.insertAccountLink(
         db.GoalAccountLinksCompanion.insert(goalId: 'goal1', linkedId: 'g1'));
     final envelope = await _envelope(exporter);
-    final goal = (envelope['Modules']['goal'] as List).single;
+    final goal = (envelope['modules']['goal'] as List).single;
     expect(goal['LinkedAccountIDs'], ['g1']);
     expect(goal['LinkedDebtIDs'], isEmpty);
   });
@@ -153,7 +153,7 @@ void main() {
       tradeDate: '2026-08-23',
     );
     final envelope = await _envelope(exporter);
-    final holdingModule = envelope['Modules']['holding'] as Map;
+    final holdingModule = envelope['modules']['holding'] as Map;
     expect(holdingModule['holdings'], hasLength(1));
     expect(holdingModule['transactions'], hasLength(1));
     final h = (holdingModule['holdings'] as List).single;
@@ -168,7 +168,7 @@ void main() {
     await accounts.insertAccount(accountRow('r1'));
     final e1 = await _envelope(exporter);
     final e2 = await _envelope(exporter);
-    expect(e1['Modules']['account'], e2['Modules']['account']);
+    expect(e1['modules']['account'], e2['modules']['account']);
     expect((await accounts.getAllAccounts()), hasLength(1));
   });
 }

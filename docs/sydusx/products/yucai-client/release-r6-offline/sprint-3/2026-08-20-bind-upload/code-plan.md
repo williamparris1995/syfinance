@@ -9,3 +9,13 @@
 ## 执行记录(2026-08-23)
 - buf 配置(buf.gen.go/dart.yaml)是 untracked——从 main 拷入 worktree 生成后删除;gen-dart.sh 同。
 - 勘误:测试断言 Description isNotEmpty 失败(recordExpense 默认 '')→改断言 ID;holding buy 余额校验需 seed 余额(F 后真实校验)。
+
+## Review 修复轮(2026-08-23,首轮 reject:2 BLOCKER)
+
+- **H1(TenantID 空串炸 Import)**:移除全部 9 处 `'TenantID': ''` 键(Go uuid.UUID 对缺键取零值 Nil UUID,server 覆盖)——根因:双侧 fake 各自吃假形状,真实 unmarshal 从未被测;教训:server 单测必须吃真实 client 导出样本。
+- **H2(工具链事故)**:gen-dart.sh 移回 proto/(git mv);repo 根孤儿 server/ 树删除(git rm --cached+rm);yucai/buf.gen.*.yaml untrack+删。Makefile 的 `cd proto && bash gen-dart.sh` 恢复可用。
+- **J1**:envelope 顶层键改 snake_case(version/tenant_id/created_at/modules,对齐 server json tag);模块内 PascalCase 不变(正确)。
+- **J2**:guard fail-closed——任一面 Left→failed(无法证明空=阻止上传),杜绝瞬时网络错+确认=静默覆盖非空账号。
+- **J3**:上传后验证真比对(计数不等→failed);**J4**:向导触发 one-shot 闸(static flag,仅 Guest→Authenticated 转变触发)。
+- 测试同步:exporter 测试 6 处 key 期望更新。
+- 修复后:go exit 0 + flutter +1078 -4(=基线);analyze 385。
