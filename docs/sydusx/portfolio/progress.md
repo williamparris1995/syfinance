@@ -17,7 +17,7 @@
 
 - Current product: **yucai-server**
 - Current release: [release-r5-audit](../products/yucai-server/release-r5-audit/release.md)(R5 审计整改,scope 03-09,全 server-side)
-- Current sprint: sprint-1 ✅ done。**Next**:sprint-2 规划(05 DB 约束 + 06 财务计算——数据完整性+计算正确性)。
+- Current sprint: sprint-2 🔄 in-progress(feature E ent schema 完整性 ✅ done 2026-08-23——8 edge FK+Cascade / 18 Min(0) / UNIQUE+partial unique / 清理脚本+升级步骤;next:feature F delete-account-guard)。
 - **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——含 J codec 补 YC2E 解码[R5 D 的 contract drift]与 ticket 16 线)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
