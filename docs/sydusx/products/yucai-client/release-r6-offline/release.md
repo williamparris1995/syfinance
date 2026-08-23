@@ -43,7 +43,7 @@
 
 - [x] **sprint-1**:本地模式地基(drift schema + 鉴权分流 + 双源 seam 试点)✅ done(2026-08-22)
 - [x] **sprint-2**:全模块本地读写(核心记账 + 资产类 + 写完整性)✅ done(2026-08-23)
-- [ ] **sprint-3**:绑定上传 + 镜像 + e2e 验收
+- [x] **sprint-3**:绑定上传 + 镜像 + e2e 验收 ✅ done(2026-08-23)
 
 ## Done-criteria(release gate)
 
@@ -53,4 +53,13 @@
 - `go test ./...` 全绿(server 零改动,不应受影响)。
 - vision 近期豁免的「离线能力」条目解除(已随本 release 立项更新 vision)。
 
-## status: pending
+## Release gate 终检(2026-08-23)
+
+- **三判据 e2e**:4 组判据集成测试全绿(`test/e2e/r6_acceptance_test.dart`)✓。
+- **人工验收清单**:`acceptance-checklist.md` 已交付,**真机执行待用户**(归档后本节补记)。
+- **各 feature DoD**:A-J 十二 feature 全过 review+test 双 gate(累计 19 轮 review,拦下 24 个真缺陷)✓。
+- **全套基线**:go test 全绿 + flutter +1098 -4(=基线,零新增)+ analyze 不超标 ✓。
+- **vision 近期豁免解除**:「离线能力」条目已随 R6 落地(2026-08-22 更新)✓。
+- **defer 清单**(ticket 16 线):绑定后离线续写/多设备同步/非空账号合并/存档上云(格式已兼容)。
+
+## status: done(2026-08-23;人工清单执行为唯一未闭环项——不阻塞代码 done,执行后补记)
