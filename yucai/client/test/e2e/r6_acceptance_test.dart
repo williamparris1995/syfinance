@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
-import 'package:get_it/get_it.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -29,15 +28,11 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart' show getIt;
 import 'package:yucai_client/tag/data/tag_repository_impl.dart' show TagLocalDataSource;
 import 'package:yucai_client/tag/data/tag_repository_impl.dart';
-import 'package:yucai_client/tag/data/tag_remote_ds.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
-import 'package:yucai_client/account/data/account_local_ds.dart';
-import 'package:yucai_client/account/data/account_remote_ds.dart';
-import 'package:yucai_client/account/data/account_repository_impl.dart';
 import 'package:yucai_client/account/domain/value_objects.dart' as av;
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
@@ -69,7 +64,7 @@ void main() {
     holdings = HoldingLocalDataSource(database, txns);
     budgets = BudgetLocalDataSource(database);
     tags = TagLocalDataSource(database);
-    registerFallbackValue(ListTransactionsParams());
+    registerFallbackValue(const ListTransactionsParams());
   });
 
   tearDown(() async {
@@ -196,13 +191,13 @@ void main() {
       final marker = _RecordingMarker();
 
       // Guard: all three facets empty.
-      when(() => accounts.list()).thenAnswer((_) async => Right([]));
+      when(() => accounts.list()).thenAnswer((_) async => const Right([]));
 
       when(() => txnRepo.list(any())).thenAnswer((_) async => const Right(
           ListTransactionsResult(transactions: [], totalCount: 0)));
       when(() => holdingRepo.listHoldings(
               accountId: any(named: 'accountId')))
-          .thenAnswer((_) async => Right(<Holding>[]));
+          .thenAnswer((_) async => const Right(<Holding>[]));
       // Upload succeeds; post-upload verification sees the data remotely.
       when(() => backupRemote.uploadBackup(any())).thenAnswer((_) async {});
 
@@ -214,7 +209,7 @@ void main() {
       expect(bloc.state.status, BindingStatus.readyToUpload);
 
       // Now the remote has the data (verification facet — all 3 accounts).
-      Account _acc(String id, String name, av.AccountType type, int balance) =>
+      Account acc(String id, String name, av.AccountType type, int balance) =>
           Account(
               id: id,
               name: name,
@@ -226,9 +221,9 @@ void main() {
               ownership: av.Ownership.personal,
               status: av.AccountStatus.active);
       when(() => accounts.list()).thenAnswer((_) async => Right([
-            _acc('cash', '现金', av.AccountType.asset, 5500),
-            _acc('food', '餐饮', av.AccountType.expense, 0),
-            _acc('inv', '投资', av.AccountType.asset, 2000),
+            acc('cash', '现金', av.AccountType.asset, 5500),
+            acc('food', '餐饮', av.AccountType.expense, 0),
+            acc('inv', '投资', av.AccountType.asset, 2000),
           ]));
 
       bloc.add(BindingUploadConfirmed());
@@ -243,8 +238,21 @@ void main() {
       final envelope =
           jsonDecode(utf8.decode(captured.single as List<int>)) as Map<String, dynamic>;
       final modules = envelope['modules'] as Map<String, dynamic>;
+      // ALL 8 contract module keys present (exporter can't silently drop
+      // a module and still pass).
+      expect(modules.keys, containsAll([
+        'account', 'transaction', 'debt', 'budget',
+        'goal', 'tag', 'template', 'holding',
+      ]));
       expect((modules['account'] as List), hasLength(3)); // cash/food/inv
-      expect((modules['transaction'] as List).length, greaterThanOrEqualTo(2));
+      // Entity IDs match the local store.
+      final localIds = (await database.accountDao.getAllAccounts())
+          .map((a) => a.id)
+          .toSet();
+      expect(
+          (modules['account'] as List).map((a) => a['ID']).toSet(),
+          localIds);
+      expect((modules['transaction'] as List).length, 2); // expense + buy
       expect((modules['holding'] as Map)['holdings'], hasLength(1));
       expect((modules['budget'] as List), hasLength(1));
       expect((modules['tag'] as List), hasLength(1));
@@ -282,73 +290,94 @@ void main() {
     test('guest data + mirrored bound-period writes all readable', () async {
       await runGuestChain(); // guest-era data
 
-      // Bound period: mirror refresh delivers one new remote transaction
-      // (simulating a bound-state write that succeeded remotely).
-      final remoteTxn = Transaction(
+      // Bound period: the remote now holds the UPLOADED guest data PLUS one
+      // new bound-state write (with real entries — remote lists always
+      // carry them). This is the faithful post-G remote shape.
+      final boundTxn = Transaction(
         id: 'remote-1',
         transactionDate: DateTime.utc(2026, 8, 24),
         description: 'bound write',
-        entries: const [],
         version: 1,
+        entries: const [
+          TransactionEntry(
+              id: 'remote-1-e1',
+              accountId: 'food',
+              debitCents: 100,
+              creditCents: 0),
+          TransactionEntry(
+              id: 'remote-1-e2',
+              accountId: 'cash',
+              debitCents: 0,
+              creditCents: 100),
+        ],
       );
-      // Register mocks the lazy mirror resolves.
       final accounts = _MockAccountRepo();
       final txnRepo = _MockTxnRepo();
+      Account acc(String id, String name, av.AccountType type, int balance) =>
+          Account(
+              id: id,
+              name: name,
+              accountType: type,
+              category: av.AccountCategory.savings,
+              currencyCode: 'CNY',
+              initialBalanceCents: balance,
+              currentBalanceCents: balance,
+              ownership: av.Ownership.personal,
+              status: av.AccountStatus.active);
       when(() => accounts.list()).thenAnswer((_) async => Right([
-            Account(
-                id: 'cash',
-                name: '现金',
-                accountType: av.AccountType.asset,
-                category: av.AccountCategory.savings,
-                currencyCode: 'CNY',
-                initialBalanceCents: 10000,
-                currentBalanceCents: 5600,
-                ownership: av.Ownership.personal,
-                status: av.AccountStatus.active),
-            Account(
-                id: 'food',
-                name: '餐饮',
-                accountType: av.AccountType.expense,
-                category: av.AccountCategory.savings,
-                currencyCode: 'CNY',
-                initialBalanceCents: 0,
-                currentBalanceCents: 0,
-                ownership: av.Ownership.personal,
-                status: av.AccountStatus.active),
-            Account(
-                id: 'inv',
-                name: '投资',
-                accountType: av.AccountType.asset,
-                category: av.AccountCategory.savings,
-                currencyCode: 'CNY',
-                initialBalanceCents: 0,
-                currentBalanceCents: 2000,
-                ownership: av.Ownership.personal,
-                status: av.AccountStatus.active),
+            acc('cash', '现金', av.AccountType.asset, 5400),
+            acc('food', '餐饮', av.AccountType.expense, 0),
+            acc('inv', '投资', av.AccountType.asset, 2000),
           ]));
       when(() => txnRepo.list(any())).thenAnswer((_) async => Right(
-          ListTransactionsResult(
-              transactions: [remoteTxn], totalCount: 1)));
+              ListTransactionsResult(
+                  transactions: boundTxn.entries
+                      .map((e) => e)
+                      .toList()
+                      .isEmpty
+                      ? []
+                      : [boundTxn],
+                  totalCount: 1)));
       registerGetItMock<AccountRepository>(accounts);
       registerGetItMock<TransactionRepository>(txnRepo);
       addTearDown(getIt.reset);
 
-      final mirror = BoundMirror(database);
-      await mirror.refreshAll();
+      // "Login": tracker flips to bound — the seam now reads remote.
+      final tracker = SessionModeTracker()..isGuest = false;
+      expect(tracker.isGuest, isFalse);
 
-      // "Logout": flip the tracker — the seam now reads local.
-      // All data (guest-era + mirrored) is present.
+      final mirror = BoundMirror(database);
+      await mirror.refreshAll(); // bound-state write arrives via mirror
+
+      // Mirror check while bound: the new write IS visible locally.
+      final txnsMid = await database.transactionDao.getAllTransactions();
+      expect(txnsMid.map((t) => t.id), contains('remote-1'));
+
+      // "Logout" with the network already gone: the terminal refresh throws
+      // (remote unreachable) → catch-degrade → the last mirror stands.
+      when(() => accounts.list())
+          .thenAnswer((_) async => throw Exception('offline at logout'));
+      when(() => txnRepo.list(any()))
+          .thenAnswer((_) async => throw Exception('offline at logout'));
+      await mirror.refreshAll(); // must not throw (silent degrade)
+      tracker.isGuest = true; // logout: seam reads local again
+
+      // FR-4 verdict: guest-era uploads + the bound write are ALL visible
+      // in guest mode (the remote list mirrors the uploaded guest data
+      // plus the bound write — whole-table replace keeps both).
       final accountsNow = await database.accountDao.getAllAccounts();
       expect(accountsNow, hasLength(3));
+      expect(
+          accountsNow.firstWhere((a) => a.id == 'cash').currentBalanceCents,
+          5400); // mirrored bound-truth balance
       final txnsNow = await database.transactionDao.getAllTransactions();
-      // The mirrored remote txn replaced the guest-era ones (whole-table
-      // replace) — the mirror IS the post-bound truth (design caliber).
       expect(txnsNow.map((t) => t.id), contains('remote-1'));
-      final holdingsNow =
-          (await database.holdingDao.watchAllHoldings().first);
-      // Holding facet had no remote mock list → refresh failed silently →
-      // guest-era holding data intact (accepted: facet-level independence).
-      expect(holdingsNow, hasLength(1));
+      // ...and the guest-era data survived the upload cycle because the
+      // post-bind remote carried it (bound write ADDED to it).
+      final entriesNow =
+          (await database.transactionDao.getAllEntries())
+              .where((e) => e.transactionId == 'remote-1');
+      expect(entriesNow, hasLength(2)); // entries mirrored too
     });
   });
 }
