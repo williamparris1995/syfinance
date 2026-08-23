@@ -9,7 +9,7 @@
 
 ## Feature roster(依赖排序)
 
-- [ ] **feature E** 2026-08-23-f1-ent-schema-integrity — 05 决策 1/2/4/5 前半:同模块 ent edge FK+OnDelete / 金额 field.Min(0) 清单 / UNIQUE 4 项(User.email·Backup.filename·BudgetItem·PaymentSchedule)/ FK 列 Immutable / 软删表 partial unique;regen+既有数据兼容验证
+- [ ] **feature E** 2026-08-23-f1-ent-schema-integrity — 05 决策 1/2/4/5 前半:同模块 ent edge FK+OnDelete / 金额 field.Min(0) 清单 / UNIQUE 4 项(User.email·Backup.filename·BudgetItem·PaymentSchedule)/ FK 列 Immutable / 软删表 partial unique;regen+既有数据兼容验证 `claimed: zcode-main 2026-08-23`
 - [ ] **feature F** 2026-08-23-f2-delete-account-guard — 05 决策 5 后半:DeleteAccount 拒绝有引用(查 transaction/holding/budget/debt 引用方)+ orphan 清理测试;version CAS 现状 grep 确认(决策 3 已纠正误判)
 - [ ] **feature G** 2026-08-23-f3-xirr-twr-correctness — 06 决策 2/3/4:XIRR 入口归一化+自适应 bracket+Brent;TWR 零端值 sentinel+清仓分段链乘+<-1 防御;AmountCents math.Round+等额本金均摊;真实样本 oracle(大额 1e8/清仓重建/Excel 对拍)
 - [ ] **feature H** 2026-08-23-f4-cagr-primary-switch — 06 决策 1:portfolioXIRR 切主指标;portfolioCAGR 降级辅助+口径标注(「仅当前持仓成本→市值」;client UI 重命名/tooltip 属 R5 scope 外——server DTO 层就位+client defer 记档);依赖 G(XIRR 修后数值稳定)
