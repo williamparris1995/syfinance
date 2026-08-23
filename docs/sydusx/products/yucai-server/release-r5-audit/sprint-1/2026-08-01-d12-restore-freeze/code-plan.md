@@ -19,3 +19,9 @@
 - **M4 template 未插桩(ledger 理由不成立——t.TenantID 按行可得)** → per-row IsFrozen(t.TenantID) 检查。
 - gofmt 顺手(去双空行等);附带修复 providers.go 一处误改(Schema.Create 被注入 freeze 参数)。
 - 修复后:go test 61 包全绿。
+
+## Review + Test(2026-08-23,pass — 两轮)
+
+- 首轮 reject(2 HIGH:debt 断链/goal 死代码——**wire 传了参但 provider 静默丢弃+ctor 不收参,全绿测试完全掩盖**;H3 黑名单漏 8 写 RPC;M4 template)→ 修复 → 复审 **pass**(四项证据齐全,interceptor 16 proto 全 RPC 审计残余仅设计 R1 fallback 类)。
+- Test 裁定:pass——61 包全绿;freeze ×3/interceptor ×5;requirement coverage:FR-1 串行+跨租户 ✓/FR-2 写拒读放+5 新前缀 ✓/FR-3 四 scheduler(goal/debt/template 补齐+backup)✓/FR-4 全程窗口+defer ✓/NFR ✓。
+- **教训**:接线类改动的"看似接线实未接线"(provider 收参丢弃/ctor 不收)编译器和 vet 都不报——**注入类改动必须从消费点反查到注入点全程链路验证**(此处 review 抓到,单测没抓)。
