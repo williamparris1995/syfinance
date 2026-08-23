@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/holding/ent/holding"
 	"github.com/yucai/server/internal/holding/ent/holdinglot"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 )
@@ -148,9 +149,20 @@ func (hlu *HoldingLotUpdate) AddRemainingQuantity(f float64) *HoldingLotUpdate {
 	return hlu
 }
 
+// SetHolding sets the "holding" edge to the Holding entity.
+func (hlu *HoldingLotUpdate) SetHolding(h *Holding) *HoldingLotUpdate {
+	return hlu.SetHoldingID(h.ID)
+}
+
 // Mutation returns the HoldingLotMutation object of the builder.
 func (hlu *HoldingLotUpdate) Mutation() *HoldingLotMutation {
 	return hlu.mutation
+}
+
+// ClearHolding clears the "holding" edge to the Holding entity.
+func (hlu *HoldingLotUpdate) ClearHolding() *HoldingLotUpdate {
+	hlu.mutation.ClearHolding()
+	return hlu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -180,7 +192,18 @@ func (hlu *HoldingLotUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (hlu *HoldingLotUpdate) check() error {
+	if hlu.mutation.HoldingCleared() && len(hlu.mutation.HoldingIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "HoldingLot.holding"`)
+	}
+	return nil
+}
+
 func (hlu *HoldingLotUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := hlu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(holdinglot.Table, holdinglot.Columns, sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID))
 	if ps := hlu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -188,9 +211,6 @@ func (hlu *HoldingLotUpdate) sqlSave(ctx context.Context) (n int, err error) {
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := hlu.mutation.HoldingID(); ok {
-		_spec.SetField(holdinglot.FieldHoldingID, field.TypeUUID, value)
 	}
 	if value, ok := hlu.mutation.SecurityID(); ok {
 		_spec.SetField(holdinglot.FieldSecurityID, field.TypeUUID, value)
@@ -218,6 +238,35 @@ func (hlu *HoldingLotUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := hlu.mutation.AddedRemainingQuantity(); ok {
 		_spec.AddField(holdinglot.FieldRemainingQuantity, field.TypeFloat64, value)
+	}
+	if hlu.mutation.HoldingCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   holdinglot.HoldingTable,
+			Columns: []string{holdinglot.HoldingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holding.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := hlu.mutation.HoldingIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   holdinglot.HoldingTable,
+			Columns: []string{holdinglot.HoldingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holding.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, hlu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -358,9 +407,20 @@ func (hluo *HoldingLotUpdateOne) AddRemainingQuantity(f float64) *HoldingLotUpda
 	return hluo
 }
 
+// SetHolding sets the "holding" edge to the Holding entity.
+func (hluo *HoldingLotUpdateOne) SetHolding(h *Holding) *HoldingLotUpdateOne {
+	return hluo.SetHoldingID(h.ID)
+}
+
 // Mutation returns the HoldingLotMutation object of the builder.
 func (hluo *HoldingLotUpdateOne) Mutation() *HoldingLotMutation {
 	return hluo.mutation
+}
+
+// ClearHolding clears the "holding" edge to the Holding entity.
+func (hluo *HoldingLotUpdateOne) ClearHolding() *HoldingLotUpdateOne {
+	hluo.mutation.ClearHolding()
+	return hluo
 }
 
 // Where appends a list predicates to the HoldingLotUpdate builder.
@@ -403,7 +463,18 @@ func (hluo *HoldingLotUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (hluo *HoldingLotUpdateOne) check() error {
+	if hluo.mutation.HoldingCleared() && len(hluo.mutation.HoldingIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "HoldingLot.holding"`)
+	}
+	return nil
+}
+
 func (hluo *HoldingLotUpdateOne) sqlSave(ctx context.Context) (_node *HoldingLot, err error) {
+	if err := hluo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(holdinglot.Table, holdinglot.Columns, sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID))
 	id, ok := hluo.mutation.ID()
 	if !ok {
@@ -428,9 +499,6 @@ func (hluo *HoldingLotUpdateOne) sqlSave(ctx context.Context) (_node *HoldingLot
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := hluo.mutation.HoldingID(); ok {
-		_spec.SetField(holdinglot.FieldHoldingID, field.TypeUUID, value)
 	}
 	if value, ok := hluo.mutation.SecurityID(); ok {
 		_spec.SetField(holdinglot.FieldSecurityID, field.TypeUUID, value)
@@ -458,6 +526,35 @@ func (hluo *HoldingLotUpdateOne) sqlSave(ctx context.Context) (_node *HoldingLot
 	}
 	if value, ok := hluo.mutation.AddedRemainingQuantity(); ok {
 		_spec.AddField(holdinglot.FieldRemainingQuantity, field.TypeFloat64, value)
+	}
+	if hluo.mutation.HoldingCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   holdinglot.HoldingTable,
+			Columns: []string{holdinglot.HoldingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holding.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := hluo.mutation.HoldingIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   holdinglot.HoldingTable,
+			Columns: []string{holdinglot.HoldingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holding.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &HoldingLot{config: hluo.config}
 	_spec.Assign = _node.assignValues

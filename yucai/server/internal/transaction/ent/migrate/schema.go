@@ -42,28 +42,36 @@ var (
 	// TransactionEntriesColumns holds the columns for the "transaction_entries" table.
 	TransactionEntriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "transaction_id", Type: field.TypeUUID, Comment: "FK to Transaction"},
 		{Name: "account_id", Type: field.TypeUUID, Comment: "FK to Account"},
 		{Name: "chart_of_account_code", Type: field.TypeString, Default: ""},
 		{Name: "debit_cents", Type: field.TypeInt64, Comment: "Debit amount in cents", Default: 0},
 		{Name: "credit_cents", Type: field.TypeInt64, Comment: "Credit amount in cents", Default: 0},
 		{Name: "note", Type: field.TypeString, Nullable: true, Default: ""},
+		{Name: "transaction_id", Type: field.TypeUUID, Comment: "FK to Transaction"},
 	}
 	// TransactionEntriesTable holds the schema information for the "transaction_entries" table.
 	TransactionEntriesTable = &schema.Table{
 		Name:       "transaction_entries",
 		Columns:    TransactionEntriesColumns,
 		PrimaryKey: []*schema.Column{TransactionEntriesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "transaction_entries_transactions_entries",
+				Columns:    []*schema.Column{TransactionEntriesColumns[6]},
+				RefColumns: []*schema.Column{TransactionsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "transactionentry_transaction_id",
 				Unique:  false,
-				Columns: []*schema.Column{TransactionEntriesColumns[1]},
+				Columns: []*schema.Column{TransactionEntriesColumns[6]},
 			},
 			{
 				Name:    "transactionentry_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{TransactionEntriesColumns[2]},
+				Columns: []*schema.Column{TransactionEntriesColumns[1]},
 			},
 		},
 	}
@@ -75,6 +83,7 @@ var (
 )
 
 func init() {
+	TransactionEntriesTable.ForeignKeys[0].RefTable = TransactionsTable
 	TransactionEntriesTable.Annotation = &entsql.Annotation{
 		Check: "((debit_cents > 0 AND credit_cents = 0) OR (credit_cents > 0 AND debit_cents = 0))",
 	}

@@ -108,16 +108,24 @@ var (
 	GoalProgressSnapshotsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
-		{Name: "goal_id", Type: field.TypeUUID},
 		{Name: "snapshot_date", Type: field.TypeTime},
 		{Name: "current_amount_cents", Type: field.TypeInt64, Comment: "goal progress at snapshot_date, original currency"},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "goal_id", Type: field.TypeUUID},
 	}
 	// GoalProgressSnapshotsTable holds the schema information for the "goal_progress_snapshots" table.
 	GoalProgressSnapshotsTable = &schema.Table{
 		Name:       "goal_progress_snapshots",
 		Columns:    GoalProgressSnapshotsColumns,
 		PrimaryKey: []*schema.Column{GoalProgressSnapshotsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "goal_progress_snapshots_goals_progress_snapshots",
+				Columns:    []*schema.Column{GoalProgressSnapshotsColumns[5]},
+				RefColumns: []*schema.Column{GoalsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "goalprogresssnapshot_tenant_id",
@@ -127,17 +135,17 @@ var (
 			{
 				Name:    "goalprogresssnapshot_tenant_id_goal_id_snapshot_date",
 				Unique:  true,
-				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[2], GoalProgressSnapshotsColumns[3]},
+				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[5], GoalProgressSnapshotsColumns[2]},
 			},
 			{
 				Name:    "goalprogresssnapshot_tenant_id_snapshot_date",
 				Unique:  false,
-				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[3]},
+				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[2]},
 			},
 			{
 				Name:    "goalprogresssnapshot_tenant_id_goal_id",
 				Unique:  false,
-				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[2]},
+				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[5]},
 			},
 		},
 	}
@@ -151,4 +159,5 @@ var (
 )
 
 func init() {
+	GoalProgressSnapshotsTable.ForeignKeys[0].RefTable = GoalsTable
 }

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/transaction/ent/predicate"
+	"github.com/yucai/server/internal/transaction/ent/transaction"
 	"github.com/yucai/server/internal/transaction/ent/transactionentry"
 )
 
@@ -132,9 +133,20 @@ func (teu *TransactionEntryUpdate) ClearNote() *TransactionEntryUpdate {
 	return teu
 }
 
+// SetTransaction sets the "transaction" edge to the Transaction entity.
+func (teu *TransactionEntryUpdate) SetTransaction(t *Transaction) *TransactionEntryUpdate {
+	return teu.SetTransactionID(t.ID)
+}
+
 // Mutation returns the TransactionEntryMutation object of the builder.
 func (teu *TransactionEntryUpdate) Mutation() *TransactionEntryMutation {
 	return teu.mutation
+}
+
+// ClearTransaction clears the "transaction" edge to the Transaction entity.
+func (teu *TransactionEntryUpdate) ClearTransaction() *TransactionEntryUpdate {
+	teu.mutation.ClearTransaction()
+	return teu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -164,7 +176,18 @@ func (teu *TransactionEntryUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (teu *TransactionEntryUpdate) check() error {
+	if teu.mutation.TransactionCleared() && len(teu.mutation.TransactionIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "TransactionEntry.transaction"`)
+	}
+	return nil
+}
+
 func (teu *TransactionEntryUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := teu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(transactionentry.Table, transactionentry.Columns, sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID))
 	if ps := teu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -172,9 +195,6 @@ func (teu *TransactionEntryUpdate) sqlSave(ctx context.Context) (n int, err erro
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := teu.mutation.TransactionID(); ok {
-		_spec.SetField(transactionentry.FieldTransactionID, field.TypeUUID, value)
 	}
 	if value, ok := teu.mutation.AccountID(); ok {
 		_spec.SetField(transactionentry.FieldAccountID, field.TypeUUID, value)
@@ -199,6 +219,35 @@ func (teu *TransactionEntryUpdate) sqlSave(ctx context.Context) (n int, err erro
 	}
 	if teu.mutation.NoteCleared() {
 		_spec.ClearField(transactionentry.FieldNote, field.TypeString)
+	}
+	if teu.mutation.TransactionCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transactionentry.TransactionTable,
+			Columns: []string{transactionentry.TransactionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transaction.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := teu.mutation.TransactionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transactionentry.TransactionTable,
+			Columns: []string{transactionentry.TransactionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transaction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, teu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -324,9 +373,20 @@ func (teuo *TransactionEntryUpdateOne) ClearNote() *TransactionEntryUpdateOne {
 	return teuo
 }
 
+// SetTransaction sets the "transaction" edge to the Transaction entity.
+func (teuo *TransactionEntryUpdateOne) SetTransaction(t *Transaction) *TransactionEntryUpdateOne {
+	return teuo.SetTransactionID(t.ID)
+}
+
 // Mutation returns the TransactionEntryMutation object of the builder.
 func (teuo *TransactionEntryUpdateOne) Mutation() *TransactionEntryMutation {
 	return teuo.mutation
+}
+
+// ClearTransaction clears the "transaction" edge to the Transaction entity.
+func (teuo *TransactionEntryUpdateOne) ClearTransaction() *TransactionEntryUpdateOne {
+	teuo.mutation.ClearTransaction()
+	return teuo
 }
 
 // Where appends a list predicates to the TransactionEntryUpdate builder.
@@ -369,7 +429,18 @@ func (teuo *TransactionEntryUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (teuo *TransactionEntryUpdateOne) check() error {
+	if teuo.mutation.TransactionCleared() && len(teuo.mutation.TransactionIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "TransactionEntry.transaction"`)
+	}
+	return nil
+}
+
 func (teuo *TransactionEntryUpdateOne) sqlSave(ctx context.Context) (_node *TransactionEntry, err error) {
+	if err := teuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(transactionentry.Table, transactionentry.Columns, sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID))
 	id, ok := teuo.mutation.ID()
 	if !ok {
@@ -395,9 +466,6 @@ func (teuo *TransactionEntryUpdateOne) sqlSave(ctx context.Context) (_node *Tran
 			}
 		}
 	}
-	if value, ok := teuo.mutation.TransactionID(); ok {
-		_spec.SetField(transactionentry.FieldTransactionID, field.TypeUUID, value)
-	}
 	if value, ok := teuo.mutation.AccountID(); ok {
 		_spec.SetField(transactionentry.FieldAccountID, field.TypeUUID, value)
 	}
@@ -421,6 +489,35 @@ func (teuo *TransactionEntryUpdateOne) sqlSave(ctx context.Context) (_node *Tran
 	}
 	if teuo.mutation.NoteCleared() {
 		_spec.ClearField(transactionentry.FieldNote, field.TypeString)
+	}
+	if teuo.mutation.TransactionCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transactionentry.TransactionTable,
+			Columns: []string{transactionentry.TransactionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transaction.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := teuo.mutation.TransactionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transactionentry.TransactionTable,
+			Columns: []string{transactionentry.TransactionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transaction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &TransactionEntry{config: teuo.config}
 	_spec.Assign = _node.assignValues

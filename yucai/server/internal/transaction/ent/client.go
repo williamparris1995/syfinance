@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/transaction/ent/transaction"
 	"github.com/yucai/server/internal/transaction/ent/transactionentry"
 )
@@ -315,6 +316,22 @@ func (c *TransactionClient) GetX(ctx context.Context, id uuid.UUID) *Transaction
 	return obj
 }
 
+// QueryEntries queries the entries edge of a Transaction.
+func (c *TransactionClient) QueryEntries(t *Transaction) *TransactionEntryQuery {
+	query := (&TransactionEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := t.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transaction.Table, transaction.FieldID, id),
+			sqlgraph.To(transactionentry.Table, transactionentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, transaction.EntriesTable, transaction.EntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(t.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TransactionClient) Hooks() []Hook {
 	return c.hooks.Transaction
@@ -446,6 +463,22 @@ func (c *TransactionEntryClient) GetX(ctx context.Context, id uuid.UUID) *Transa
 		panic(err)
 	}
 	return obj
+}
+
+// QueryTransaction queries the transaction edge of a TransactionEntry.
+func (c *TransactionEntryClient) QueryTransaction(te *TransactionEntry) *TransactionQuery {
+	query := (&TransactionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := te.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transactionentry.Table, transactionentry.FieldID, id),
+			sqlgraph.To(transaction.Table, transaction.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, transactionentry.TransactionTable, transactionentry.TransactionColumn),
+		)
+		fromV = sqlgraph.Neighbors(te.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.

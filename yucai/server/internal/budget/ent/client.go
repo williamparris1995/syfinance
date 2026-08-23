@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/budget/ent/budget"
 	"github.com/yucai/server/internal/budget/ent/budgetitem"
 )
@@ -315,6 +316,22 @@ func (c *BudgetClient) GetX(ctx context.Context, id uuid.UUID) *Budget {
 	return obj
 }
 
+// QueryItems queries the items edge of a Budget.
+func (c *BudgetClient) QueryItems(b *Budget) *BudgetItemQuery {
+	query := (&BudgetItemClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := b.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(budget.Table, budget.FieldID, id),
+			sqlgraph.To(budgetitem.Table, budgetitem.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, budget.ItemsTable, budget.ItemsColumn),
+		)
+		fromV = sqlgraph.Neighbors(b.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *BudgetClient) Hooks() []Hook {
 	return c.hooks.Budget
@@ -446,6 +463,22 @@ func (c *BudgetItemClient) GetX(ctx context.Context, id uuid.UUID) *BudgetItem {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryBudget queries the budget edge of a BudgetItem.
+func (c *BudgetItemClient) QueryBudget(bi *BudgetItem) *BudgetQuery {
+	query := (&BudgetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := bi.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(budgetitem.Table, budgetitem.FieldID, id),
+			sqlgraph.To(budget.Table, budget.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, budgetitem.BudgetTable, budgetitem.BudgetColumn),
+		)
+		fromV = sqlgraph.Neighbors(bi.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.

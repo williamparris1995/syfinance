@@ -57,8 +57,29 @@ type TransactionTemplate struct {
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the TransactionTemplateQuery when eager-loading is set.
+	Edges        TransactionTemplateEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// TransactionTemplateEdges holds the relations/edges for other nodes in the graph.
+type TransactionTemplateEdges struct {
+	// RecordLogs holds the value of the record_logs edge.
+	RecordLogs []*TemplateRecordLog `json:"record_logs,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// RecordLogsOrErr returns the RecordLogs value or an error if the edge
+// was not loaded in eager-loading.
+func (e TransactionTemplateEdges) RecordLogsOrErr() ([]*TemplateRecordLog, error) {
+	if e.loadedTypes[0] {
+		return e.RecordLogs, nil
+	}
+	return nil, &NotLoadedError{edge: "record_logs"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -233,6 +254,11 @@ func (tt *TransactionTemplate) assignValues(columns []string, values []any) erro
 // This includes values selected through modifiers, order, etc.
 func (tt *TransactionTemplate) Value(name string) (ent.Value, error) {
 	return tt.selectValues.Get(name)
+}
+
+// QueryRecordLogs queries the "record_logs" edge of the TransactionTemplate entity.
+func (tt *TransactionTemplate) QueryRecordLogs() *TemplateRecordLogQuery {
+	return NewTransactionTemplateClient(tt.config).QueryRecordLogs(tt)
 }
 
 // Update returns a builder for updating this TransactionTemplate.

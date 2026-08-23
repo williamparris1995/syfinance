@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
 )
 
@@ -85,6 +86,11 @@ func (dpsc *DebtProgressSnapshotCreate) SetNillableID(u *uuid.UUID) *DebtProgres
 	return dpsc
 }
 
+// SetDebt sets the "debt" edge to the DebtDetails entity.
+func (dpsc *DebtProgressSnapshotCreate) SetDebt(d *DebtDetails) *DebtProgressSnapshotCreate {
+	return dpsc.SetDebtID(d.ID)
+}
+
 // Mutation returns the DebtProgressSnapshotMutation object of the builder.
 func (dpsc *DebtProgressSnapshotCreate) Mutation() *DebtProgressSnapshotMutation {
 	return dpsc.mutation
@@ -153,6 +159,9 @@ func (dpsc *DebtProgressSnapshotCreate) check() error {
 	if _, ok := dpsc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "DebtProgressSnapshot.created_at"`)}
 	}
+	if len(dpsc.mutation.DebtIDs()) == 0 {
+		return &ValidationError{Name: "debt", err: errors.New(`ent: missing required edge "DebtProgressSnapshot.debt"`)}
+	}
 	return nil
 }
 
@@ -192,10 +201,6 @@ func (dpsc *DebtProgressSnapshotCreate) createSpec() (*DebtProgressSnapshot, *sq
 		_spec.SetField(debtprogresssnapshot.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
-	if value, ok := dpsc.mutation.DebtID(); ok {
-		_spec.SetField(debtprogresssnapshot.FieldDebtID, field.TypeUUID, value)
-		_node.DebtID = value
-	}
 	if value, ok := dpsc.mutation.SnapshotDate(); ok {
 		_spec.SetField(debtprogresssnapshot.FieldSnapshotDate, field.TypeTime, value)
 		_node.SnapshotDate = value
@@ -215,6 +220,23 @@ func (dpsc *DebtProgressSnapshotCreate) createSpec() (*DebtProgressSnapshot, *sq
 	if value, ok := dpsc.mutation.CreatedAt(); ok {
 		_spec.SetField(debtprogresssnapshot.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := dpsc.mutation.DebtIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   debtprogresssnapshot.DebtTable,
+			Columns: []string{debtprogresssnapshot.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.DebtID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -54,8 +55,17 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeRecordLogs holds the string denoting the record_logs edge name in mutations.
+	EdgeRecordLogs = "record_logs"
 	// Table holds the table name of the transactiontemplate in the database.
 	Table = "transaction_templates"
+	// RecordLogsTable is the table that holds the record_logs relation/edge.
+	RecordLogsTable = "template_record_logs"
+	// RecordLogsInverseTable is the table name for the TemplateRecordLog entity.
+	// It exists in this package in order to avoid circular dependency with the "templaterecordlog" package.
+	RecordLogsInverseTable = "template_record_logs"
+	// RecordLogsColumn is the table column denoting the record_logs relation/edge.
+	RecordLogsColumn = "template_id"
 )
 
 // Columns holds all SQL columns for transactiontemplate fields.
@@ -226,4 +236,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByRecordLogsCount orders the results by record_logs count.
+func ByRecordLogsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRecordLogsStep(), opts...)
+	}
+}
+
+// ByRecordLogs orders the results by record_logs terms.
+func ByRecordLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRecordLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newRecordLogsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RecordLogsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RecordLogsTable, RecordLogsColumn),
+	)
 }

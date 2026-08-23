@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,16 +14,20 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
+	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
+	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
 
 // DebtDetailsQuery is the builder for querying DebtDetails entities.
 type DebtDetailsQuery struct {
 	config
-	ctx        *QueryContext
-	order      []debtdetails.OrderOption
-	inters     []Interceptor
-	predicates []predicate.DebtDetails
+	ctx                   *QueryContext
+	order                 []debtdetails.OrderOption
+	inters                []Interceptor
+	predicates            []predicate.DebtDetails
+	withSchedule          *PaymentScheduleQuery
+	withProgressSnapshots *DebtProgressSnapshotQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +62,50 @@ func (ddq *DebtDetailsQuery) Unique(unique bool) *DebtDetailsQuery {
 func (ddq *DebtDetailsQuery) Order(o ...debtdetails.OrderOption) *DebtDetailsQuery {
 	ddq.order = append(ddq.order, o...)
 	return ddq
+}
+
+// QuerySchedule chains the current query on the "schedule" edge.
+func (ddq *DebtDetailsQuery) QuerySchedule() *PaymentScheduleQuery {
+	query := (&PaymentScheduleClient{config: ddq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := ddq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := ddq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(debtdetails.Table, debtdetails.FieldID, selector),
+			sqlgraph.To(paymentschedule.Table, paymentschedule.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, debtdetails.ScheduleTable, debtdetails.ScheduleColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(ddq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProgressSnapshots chains the current query on the "progress_snapshots" edge.
+func (ddq *DebtDetailsQuery) QueryProgressSnapshots() *DebtProgressSnapshotQuery {
+	query := (&DebtProgressSnapshotClient{config: ddq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := ddq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := ddq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(debtdetails.Table, debtdetails.FieldID, selector),
+			sqlgraph.To(debtprogresssnapshot.Table, debtprogresssnapshot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, debtdetails.ProgressSnapshotsTable, debtdetails.ProgressSnapshotsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(ddq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first DebtDetails entity from the query.
@@ -246,15 +295,39 @@ func (ddq *DebtDetailsQuery) Clone() *DebtDetailsQuery {
 		return nil
 	}
 	return &DebtDetailsQuery{
-		config:     ddq.config,
-		ctx:        ddq.ctx.Clone(),
-		order:      append([]debtdetails.OrderOption{}, ddq.order...),
-		inters:     append([]Interceptor{}, ddq.inters...),
-		predicates: append([]predicate.DebtDetails{}, ddq.predicates...),
+		config:                ddq.config,
+		ctx:                   ddq.ctx.Clone(),
+		order:                 append([]debtdetails.OrderOption{}, ddq.order...),
+		inters:                append([]Interceptor{}, ddq.inters...),
+		predicates:            append([]predicate.DebtDetails{}, ddq.predicates...),
+		withSchedule:          ddq.withSchedule.Clone(),
+		withProgressSnapshots: ddq.withProgressSnapshots.Clone(),
 		// clone intermediate query.
 		sql:  ddq.sql.Clone(),
 		path: ddq.path,
 	}
+}
+
+// WithSchedule tells the query-builder to eager-load the nodes that are connected to
+// the "schedule" edge. The optional arguments are used to configure the query builder of the edge.
+func (ddq *DebtDetailsQuery) WithSchedule(opts ...func(*PaymentScheduleQuery)) *DebtDetailsQuery {
+	query := (&PaymentScheduleClient{config: ddq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	ddq.withSchedule = query
+	return ddq
+}
+
+// WithProgressSnapshots tells the query-builder to eager-load the nodes that are connected to
+// the "progress_snapshots" edge. The optional arguments are used to configure the query builder of the edge.
+func (ddq *DebtDetailsQuery) WithProgressSnapshots(opts ...func(*DebtProgressSnapshotQuery)) *DebtDetailsQuery {
+	query := (&DebtProgressSnapshotClient{config: ddq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	ddq.withProgressSnapshots = query
+	return ddq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +406,12 @@ func (ddq *DebtDetailsQuery) prepareQuery(ctx context.Context) error {
 
 func (ddq *DebtDetailsQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*DebtDetails, error) {
 	var (
-		nodes = []*DebtDetails{}
-		_spec = ddq.querySpec()
+		nodes       = []*DebtDetails{}
+		_spec       = ddq.querySpec()
+		loadedTypes = [2]bool{
+			ddq.withSchedule != nil,
+			ddq.withProgressSnapshots != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*DebtDetails).scanValues(nil, columns)
@@ -342,6 +419,7 @@ func (ddq *DebtDetailsQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &DebtDetails{config: ddq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +431,84 @@ func (ddq *DebtDetailsQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := ddq.withSchedule; query != nil {
+		if err := ddq.loadSchedule(ctx, query, nodes,
+			func(n *DebtDetails) { n.Edges.Schedule = []*PaymentSchedule{} },
+			func(n *DebtDetails, e *PaymentSchedule) { n.Edges.Schedule = append(n.Edges.Schedule, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := ddq.withProgressSnapshots; query != nil {
+		if err := ddq.loadProgressSnapshots(ctx, query, nodes,
+			func(n *DebtDetails) { n.Edges.ProgressSnapshots = []*DebtProgressSnapshot{} },
+			func(n *DebtDetails, e *DebtProgressSnapshot) {
+				n.Edges.ProgressSnapshots = append(n.Edges.ProgressSnapshots, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (ddq *DebtDetailsQuery) loadSchedule(ctx context.Context, query *PaymentScheduleQuery, nodes []*DebtDetails, init func(*DebtDetails), assign func(*DebtDetails, *PaymentSchedule)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*DebtDetails)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(paymentschedule.FieldDebtID)
+	}
+	query.Where(predicate.PaymentSchedule(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(debtdetails.ScheduleColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.DebtID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "debt_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (ddq *DebtDetailsQuery) loadProgressSnapshots(ctx context.Context, query *DebtProgressSnapshotQuery, nodes []*DebtDetails, init func(*DebtDetails), assign func(*DebtDetails, *DebtProgressSnapshot)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*DebtDetails)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(debtprogresssnapshot.FieldDebtID)
+	}
+	query.Where(predicate.DebtProgressSnapshot(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(debtdetails.ProgressSnapshotsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.DebtID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "debt_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (ddq *DebtDetailsQuery) sqlCount(ctx context.Context) (int, error) {

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
@@ -175,9 +176,20 @@ func (psu *PaymentScheduleUpdate) ClearTransactionID() *PaymentScheduleUpdate {
 	return psu
 }
 
+// SetDebt sets the "debt" edge to the DebtDetails entity.
+func (psu *PaymentScheduleUpdate) SetDebt(d *DebtDetails) *PaymentScheduleUpdate {
+	return psu.SetDebtID(d.ID)
+}
+
 // Mutation returns the PaymentScheduleMutation object of the builder.
 func (psu *PaymentScheduleUpdate) Mutation() *PaymentScheduleMutation {
 	return psu.mutation
+}
+
+// ClearDebt clears the "debt" edge to the DebtDetails entity.
+func (psu *PaymentScheduleUpdate) ClearDebt() *PaymentScheduleUpdate {
+	psu.mutation.ClearDebt()
+	return psu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -207,7 +219,18 @@ func (psu *PaymentScheduleUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (psu *PaymentScheduleUpdate) check() error {
+	if psu.mutation.DebtCleared() && len(psu.mutation.DebtIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "PaymentSchedule.debt"`)
+	}
+	return nil
+}
+
 func (psu *PaymentScheduleUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := psu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(paymentschedule.Table, paymentschedule.Columns, sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID))
 	if ps := psu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -215,9 +238,6 @@ func (psu *PaymentScheduleUpdate) sqlSave(ctx context.Context) (n int, err error
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := psu.mutation.DebtID(); ok {
-		_spec.SetField(paymentschedule.FieldDebtID, field.TypeUUID, value)
 	}
 	if value, ok := psu.mutation.PaymentDate(); ok {
 		_spec.SetField(paymentschedule.FieldPaymentDate, field.TypeTime, value)
@@ -254,6 +274,35 @@ func (psu *PaymentScheduleUpdate) sqlSave(ctx context.Context) (n int, err error
 	}
 	if psu.mutation.TransactionIDCleared() {
 		_spec.ClearField(paymentschedule.FieldTransactionID, field.TypeUUID)
+	}
+	if psu.mutation.DebtCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   paymentschedule.DebtTable,
+			Columns: []string{paymentschedule.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := psu.mutation.DebtIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   paymentschedule.DebtTable,
+			Columns: []string{paymentschedule.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, psu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -421,9 +470,20 @@ func (psuo *PaymentScheduleUpdateOne) ClearTransactionID() *PaymentScheduleUpdat
 	return psuo
 }
 
+// SetDebt sets the "debt" edge to the DebtDetails entity.
+func (psuo *PaymentScheduleUpdateOne) SetDebt(d *DebtDetails) *PaymentScheduleUpdateOne {
+	return psuo.SetDebtID(d.ID)
+}
+
 // Mutation returns the PaymentScheduleMutation object of the builder.
 func (psuo *PaymentScheduleUpdateOne) Mutation() *PaymentScheduleMutation {
 	return psuo.mutation
+}
+
+// ClearDebt clears the "debt" edge to the DebtDetails entity.
+func (psuo *PaymentScheduleUpdateOne) ClearDebt() *PaymentScheduleUpdateOne {
+	psuo.mutation.ClearDebt()
+	return psuo
 }
 
 // Where appends a list predicates to the PaymentScheduleUpdate builder.
@@ -466,7 +526,18 @@ func (psuo *PaymentScheduleUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (psuo *PaymentScheduleUpdateOne) check() error {
+	if psuo.mutation.DebtCleared() && len(psuo.mutation.DebtIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "PaymentSchedule.debt"`)
+	}
+	return nil
+}
+
 func (psuo *PaymentScheduleUpdateOne) sqlSave(ctx context.Context) (_node *PaymentSchedule, err error) {
+	if err := psuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(paymentschedule.Table, paymentschedule.Columns, sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID))
 	id, ok := psuo.mutation.ID()
 	if !ok {
@@ -491,9 +562,6 @@ func (psuo *PaymentScheduleUpdateOne) sqlSave(ctx context.Context) (_node *Payme
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := psuo.mutation.DebtID(); ok {
-		_spec.SetField(paymentschedule.FieldDebtID, field.TypeUUID, value)
 	}
 	if value, ok := psuo.mutation.PaymentDate(); ok {
 		_spec.SetField(paymentschedule.FieldPaymentDate, field.TypeTime, value)
@@ -530,6 +598,35 @@ func (psuo *PaymentScheduleUpdateOne) sqlSave(ctx context.Context) (_node *Payme
 	}
 	if psuo.mutation.TransactionIDCleared() {
 		_spec.ClearField(paymentschedule.FieldTransactionID, field.TypeUUID)
+	}
+	if psuo.mutation.DebtCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   paymentschedule.DebtTable,
+			Columns: []string{paymentschedule.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := psuo.mutation.DebtIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   paymentschedule.DebtTable,
+			Columns: []string{paymentschedule.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &PaymentSchedule{config: psuo.config}
 	_spec.Assign = _node.assignValues

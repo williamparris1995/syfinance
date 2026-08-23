@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/templaterecordlog"
+	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
 
 // TemplateRecordLog is the model entity for the TemplateRecordLog schema.
@@ -27,8 +28,31 @@ type TemplateRecordLog struct {
 	// FK to the recorded transaction; back-filled after recorder.Record
 	TransactionID *uuid.UUID `json:"transaction_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the TemplateRecordLogQuery when eager-loading is set.
+	Edges        TemplateRecordLogEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// TemplateRecordLogEdges holds the relations/edges for other nodes in the graph.
+type TemplateRecordLogEdges struct {
+	// Template holds the value of the template edge.
+	Template *TransactionTemplate `json:"template,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// TemplateOrErr returns the Template value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TemplateRecordLogEdges) TemplateOrErr() (*TransactionTemplate, error) {
+	if e.Template != nil {
+		return e.Template, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: transactiontemplate.Label}
+	}
+	return nil, &NotLoadedError{edge: "template"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -105,6 +129,11 @@ func (trl *TemplateRecordLog) assignValues(columns []string, values []any) error
 // This includes values selected through modifiers, order, etc.
 func (trl *TemplateRecordLog) Value(name string) (ent.Value, error) {
 	return trl.selectValues.Get(name)
+}
+
+// QueryTemplate queries the "template" edge of the TemplateRecordLog entity.
+func (trl *TemplateRecordLog) QueryTemplate() *TransactionTemplateQuery {
+	return NewTemplateRecordLogClient(trl.config).QueryTemplate(trl)
 }
 
 // Update returns a builder for updating this TemplateRecordLog.

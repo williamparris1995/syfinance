@@ -4,6 +4,7 @@ package budgetitem
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/budget/ent/predicate"
 )
@@ -96,26 +97,6 @@ func BudgetIDIn(vs ...uuid.UUID) predicate.BudgetItem {
 // BudgetIDNotIn applies the NotIn predicate on the "budget_id" field.
 func BudgetIDNotIn(vs ...uuid.UUID) predicate.BudgetItem {
 	return predicate.BudgetItem(sql.FieldNotIn(FieldBudgetID, vs...))
-}
-
-// BudgetIDGT applies the GT predicate on the "budget_id" field.
-func BudgetIDGT(v uuid.UUID) predicate.BudgetItem {
-	return predicate.BudgetItem(sql.FieldGT(FieldBudgetID, v))
-}
-
-// BudgetIDGTE applies the GTE predicate on the "budget_id" field.
-func BudgetIDGTE(v uuid.UUID) predicate.BudgetItem {
-	return predicate.BudgetItem(sql.FieldGTE(FieldBudgetID, v))
-}
-
-// BudgetIDLT applies the LT predicate on the "budget_id" field.
-func BudgetIDLT(v uuid.UUID) predicate.BudgetItem {
-	return predicate.BudgetItem(sql.FieldLT(FieldBudgetID, v))
-}
-
-// BudgetIDLTE applies the LTE predicate on the "budget_id" field.
-func BudgetIDLTE(v uuid.UUID) predicate.BudgetItem {
-	return predicate.BudgetItem(sql.FieldLTE(FieldBudgetID, v))
 }
 
 // AccountIDEQ applies the EQ predicate on the "account_id" field.
@@ -311,6 +292,29 @@ func NotesEqualFold(v string) predicate.BudgetItem {
 // NotesContainsFold applies the ContainsFold predicate on the "notes" field.
 func NotesContainsFold(v string) predicate.BudgetItem {
 	return predicate.BudgetItem(sql.FieldContainsFold(FieldNotes, v))
+}
+
+// HasBudget applies the HasEdge predicate on the "budget" edge.
+func HasBudget() predicate.BudgetItem {
+	return predicate.BudgetItem(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, BudgetTable, BudgetColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasBudgetWith applies the HasEdge predicate on the "budget" edge with a given conditions (other predicates).
+func HasBudgetWith(preds ...predicate.Budget) predicate.BudgetItem {
+	return predicate.BudgetItem(func(s *sql.Selector) {
+		step := newBudgetStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

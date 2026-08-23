@@ -4,6 +4,7 @@ package transactionentry
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -24,8 +25,17 @@ const (
 	FieldCreditCents = "credit_cents"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
+	// EdgeTransaction holds the string denoting the transaction edge name in mutations.
+	EdgeTransaction = "transaction"
 	// Table holds the table name of the transactionentry in the database.
 	Table = "transaction_entries"
+	// TransactionTable is the table that holds the transaction relation/edge.
+	TransactionTable = "transaction_entries"
+	// TransactionInverseTable is the table name for the Transaction entity.
+	// It exists in this package in order to avoid circular dependency with the "transaction" package.
+	TransactionInverseTable = "transactions"
+	// TransactionColumn is the table column denoting the transaction relation/edge.
+	TransactionColumn = "transaction_id"
 )
 
 // Columns holds all SQL columns for transactionentry fields.
@@ -98,4 +108,18 @@ func ByCreditCents(opts ...sql.OrderTermOption) OrderOption {
 // ByNote orders the results by the note field.
 func ByNote(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNote, opts...).ToFunc()
+}
+
+// ByTransactionField orders the results by transaction field.
+func ByTransactionField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTransactionStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newTransactionStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TransactionInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, TransactionTable, TransactionColumn),
+	)
 }

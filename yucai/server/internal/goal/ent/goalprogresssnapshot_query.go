@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/goal/ent/goal"
 	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 	"github.com/yucai/server/internal/goal/ent/predicate"
 )
@@ -23,6 +24,7 @@ type GoalProgressSnapshotQuery struct {
 	order      []goalprogresssnapshot.OrderOption
 	inters     []Interceptor
 	predicates []predicate.GoalProgressSnapshot
+	withGoal   *GoalQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +59,28 @@ func (gpsq *GoalProgressSnapshotQuery) Unique(unique bool) *GoalProgressSnapshot
 func (gpsq *GoalProgressSnapshotQuery) Order(o ...goalprogresssnapshot.OrderOption) *GoalProgressSnapshotQuery {
 	gpsq.order = append(gpsq.order, o...)
 	return gpsq
+}
+
+// QueryGoal chains the current query on the "goal" edge.
+func (gpsq *GoalProgressSnapshotQuery) QueryGoal() *GoalQuery {
+	query := (&GoalClient{config: gpsq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := gpsq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := gpsq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(goalprogresssnapshot.Table, goalprogresssnapshot.FieldID, selector),
+			sqlgraph.To(goal.Table, goal.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, goalprogresssnapshot.GoalTable, goalprogresssnapshot.GoalColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(gpsq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first GoalProgressSnapshot entity from the query.
@@ -251,10 +275,22 @@ func (gpsq *GoalProgressSnapshotQuery) Clone() *GoalProgressSnapshotQuery {
 		order:      append([]goalprogresssnapshot.OrderOption{}, gpsq.order...),
 		inters:     append([]Interceptor{}, gpsq.inters...),
 		predicates: append([]predicate.GoalProgressSnapshot{}, gpsq.predicates...),
+		withGoal:   gpsq.withGoal.Clone(),
 		// clone intermediate query.
 		sql:  gpsq.sql.Clone(),
 		path: gpsq.path,
 	}
+}
+
+// WithGoal tells the query-builder to eager-load the nodes that are connected to
+// the "goal" edge. The optional arguments are used to configure the query builder of the edge.
+func (gpsq *GoalProgressSnapshotQuery) WithGoal(opts ...func(*GoalQuery)) *GoalProgressSnapshotQuery {
+	query := (&GoalClient{config: gpsq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	gpsq.withGoal = query
+	return gpsq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +369,11 @@ func (gpsq *GoalProgressSnapshotQuery) prepareQuery(ctx context.Context) error {
 
 func (gpsq *GoalProgressSnapshotQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*GoalProgressSnapshot, error) {
 	var (
-		nodes = []*GoalProgressSnapshot{}
-		_spec = gpsq.querySpec()
+		nodes       = []*GoalProgressSnapshot{}
+		_spec       = gpsq.querySpec()
+		loadedTypes = [1]bool{
+			gpsq.withGoal != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*GoalProgressSnapshot).scanValues(nil, columns)
@@ -342,6 +381,7 @@ func (gpsq *GoalProgressSnapshotQuery) sqlAll(ctx context.Context, hooks ...quer
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &GoalProgressSnapshot{config: gpsq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +393,43 @@ func (gpsq *GoalProgressSnapshotQuery) sqlAll(ctx context.Context, hooks ...quer
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := gpsq.withGoal; query != nil {
+		if err := gpsq.loadGoal(ctx, query, nodes, nil,
+			func(n *GoalProgressSnapshot, e *Goal) { n.Edges.Goal = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (gpsq *GoalProgressSnapshotQuery) loadGoal(ctx context.Context, query *GoalQuery, nodes []*GoalProgressSnapshot, init func(*GoalProgressSnapshot), assign func(*GoalProgressSnapshot, *Goal)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*GoalProgressSnapshot)
+	for i := range nodes {
+		fk := nodes[i].GoalID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(goal.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "goal_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (gpsq *GoalProgressSnapshotQuery) sqlCount(ctx context.Context) (int, error) {
@@ -380,6 +456,9 @@ func (gpsq *GoalProgressSnapshotQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != goalprogresssnapshot.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if gpsq.withGoal != nil {
+			_spec.Node.AddColumnOnce(goalprogresssnapshot.FieldGoalID)
 		}
 	}
 	if ps := gpsq.predicates; len(ps) > 0 {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -26,8 +27,17 @@ const (
 	FieldSource = "source"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// EdgeSecurity holds the string denoting the security edge name in mutations.
+	EdgeSecurity = "security"
 	// Table holds the table name of the securitypricehistory in the database.
 	Table = "security_price_histories"
+	// SecurityTable is the table that holds the security relation/edge.
+	SecurityTable = "security_price_histories"
+	// SecurityInverseTable is the table name for the Security entity.
+	// It exists in this package in order to avoid circular dependency with the "security" package.
+	SecurityInverseTable = "securities"
+	// SecurityColumn is the table column denoting the security relation/edge.
+	SecurityColumn = "security_id"
 )
 
 // Columns holds all SQL columns for securitypricehistory fields.
@@ -98,4 +108,18 @@ func BySource(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// BySecurityField orders the results by security field.
+func BySecurityField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSecurityStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newSecurityStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SecurityInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, SecurityTable, SecurityColumn),
+	)
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -24,8 +25,17 @@ const (
 	FieldCurrentAmountCents = "current_amount_cents"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// EdgeGoal holds the string denoting the goal edge name in mutations.
+	EdgeGoal = "goal"
 	// Table holds the table name of the goalprogresssnapshot in the database.
 	Table = "goal_progress_snapshots"
+	// GoalTable is the table that holds the goal relation/edge.
+	GoalTable = "goal_progress_snapshots"
+	// GoalInverseTable is the table name for the Goal entity.
+	// It exists in this package in order to avoid circular dependency with the "goal" package.
+	GoalInverseTable = "goals"
+	// GoalColumn is the table column denoting the goal relation/edge.
+	GoalColumn = "goal_id"
 )
 
 // Columns holds all SQL columns for goalprogresssnapshot fields.
@@ -86,4 +96,18 @@ func ByCurrentAmountCents(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByGoalField orders the results by goal field.
+func ByGoalField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newGoalStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newGoalStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(GoalInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, GoalTable, GoalColumn),
+	)
 }

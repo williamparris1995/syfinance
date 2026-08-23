@@ -56,6 +56,9 @@ type HoldingMutation struct {
 	created_at        *time.Time
 	updated_at        *time.Time
 	clearedFields     map[string]struct{}
+	lots              map[uuid.UUID]struct{}
+	removedlots       map[uuid.UUID]struct{}
+	clearedlots       bool
 	done              bool
 	oldValue          func(context.Context) (*Holding, error)
 	predicates        []predicate.Holding
@@ -513,6 +516,60 @@ func (m *HoldingMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddLotIDs adds the "lots" edge to the HoldingLot entity by ids.
+func (m *HoldingMutation) AddLotIDs(ids ...uuid.UUID) {
+	if m.lots == nil {
+		m.lots = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.lots[ids[i]] = struct{}{}
+	}
+}
+
+// ClearLots clears the "lots" edge to the HoldingLot entity.
+func (m *HoldingMutation) ClearLots() {
+	m.clearedlots = true
+}
+
+// LotsCleared reports if the "lots" edge to the HoldingLot entity was cleared.
+func (m *HoldingMutation) LotsCleared() bool {
+	return m.clearedlots
+}
+
+// RemoveLotIDs removes the "lots" edge to the HoldingLot entity by IDs.
+func (m *HoldingMutation) RemoveLotIDs(ids ...uuid.UUID) {
+	if m.removedlots == nil {
+		m.removedlots = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.lots, ids[i])
+		m.removedlots[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedLots returns the removed IDs of the "lots" edge to the HoldingLot entity.
+func (m *HoldingMutation) RemovedLotsIDs() (ids []uuid.UUID) {
+	for id := range m.removedlots {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// LotsIDs returns the "lots" edge IDs in the mutation.
+func (m *HoldingMutation) LotsIDs() (ids []uuid.UUID) {
+	for id := range m.lots {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetLots resets all changes to the "lots" edge.
+func (m *HoldingMutation) ResetLots() {
+	m.lots = nil
+	m.clearedlots = false
+	m.removedlots = nil
+}
+
 // Where appends a list predicates to the HoldingMutation builder.
 func (m *HoldingMutation) Where(ps ...predicate.Holding) {
 	m.predicates = append(m.predicates, ps...)
@@ -804,49 +861,85 @@ func (m *HoldingMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *HoldingMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.lots != nil {
+		edges = append(edges, holding.EdgeLots)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *HoldingMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case holding.EdgeLots:
+		ids := make([]ent.Value, 0, len(m.lots))
+		for id := range m.lots {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *HoldingMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedlots != nil {
+		edges = append(edges, holding.EdgeLots)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *HoldingMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case holding.EdgeLots:
+		ids := make([]ent.Value, 0, len(m.removedlots))
+		for id := range m.removedlots {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *HoldingMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedlots {
+		edges = append(edges, holding.EdgeLots)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *HoldingMutation) EdgeCleared(name string) bool {
+	switch name {
+	case holding.EdgeLots:
+		return m.clearedlots
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *HoldingMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown Holding unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *HoldingMutation) ResetEdge(name string) error {
+	switch name {
+	case holding.EdgeLots:
+		m.ResetLots()
+		return nil
+	}
 	return fmt.Errorf("unknown Holding edge %s", name)
 }
 
@@ -857,7 +950,6 @@ type HoldingLotMutation struct {
 	typ                   string
 	id                    *uuid.UUID
 	tenant_id             *uuid.UUID
-	holding_id            *uuid.UUID
 	security_id           *uuid.UUID
 	acquired_date         *time.Time
 	acquired_trade_id     *uuid.UUID
@@ -869,6 +961,8 @@ type HoldingLotMutation struct {
 	addremaining_quantity *float64
 	created_at            *time.Time
 	clearedFields         map[string]struct{}
+	holding               *uuid.UUID
+	clearedholding        bool
 	done                  bool
 	oldValue              func(context.Context) (*HoldingLot, error)
 	predicates            []predicate.HoldingLot
@@ -1016,12 +1110,12 @@ func (m *HoldingLotMutation) ResetTenantID() {
 
 // SetHoldingID sets the "holding_id" field.
 func (m *HoldingLotMutation) SetHoldingID(u uuid.UUID) {
-	m.holding_id = &u
+	m.holding = &u
 }
 
 // HoldingID returns the value of the "holding_id" field in the mutation.
 func (m *HoldingLotMutation) HoldingID() (r uuid.UUID, exists bool) {
-	v := m.holding_id
+	v := m.holding
 	if v == nil {
 		return
 	}
@@ -1047,7 +1141,7 @@ func (m *HoldingLotMutation) OldHoldingID(ctx context.Context) (v uuid.UUID, err
 
 // ResetHoldingID resets all changes to the "holding_id" field.
 func (m *HoldingLotMutation) ResetHoldingID() {
-	m.holding_id = nil
+	m.holding = nil
 }
 
 // SetSecurityID sets the "security_id" field.
@@ -1362,6 +1456,33 @@ func (m *HoldingLotMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// ClearHolding clears the "holding" edge to the Holding entity.
+func (m *HoldingLotMutation) ClearHolding() {
+	m.clearedholding = true
+	m.clearedFields[holdinglot.FieldHoldingID] = struct{}{}
+}
+
+// HoldingCleared reports if the "holding" edge to the Holding entity was cleared.
+func (m *HoldingLotMutation) HoldingCleared() bool {
+	return m.clearedholding
+}
+
+// HoldingIDs returns the "holding" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// HoldingID instead. It exists only for internal usage by the builders.
+func (m *HoldingLotMutation) HoldingIDs() (ids []uuid.UUID) {
+	if id := m.holding; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetHolding resets all changes to the "holding" edge.
+func (m *HoldingLotMutation) ResetHolding() {
+	m.holding = nil
+	m.clearedholding = false
+}
+
 // Where appends a list predicates to the HoldingLotMutation builder.
 func (m *HoldingLotMutation) Where(ps ...predicate.HoldingLot) {
 	m.predicates = append(m.predicates, ps...)
@@ -1400,7 +1521,7 @@ func (m *HoldingLotMutation) Fields() []string {
 	if m.tenant_id != nil {
 		fields = append(fields, holdinglot.FieldTenantID)
 	}
-	if m.holding_id != nil {
+	if m.holding != nil {
 		fields = append(fields, holdinglot.FieldHoldingID)
 	}
 	if m.security_id != nil {
@@ -1670,19 +1791,28 @@ func (m *HoldingLotMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *HoldingLotMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.holding != nil {
+		edges = append(edges, holdinglot.EdgeHolding)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *HoldingLotMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case holdinglot.EdgeHolding:
+		if id := m.holding; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *HoldingLotMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -1694,25 +1824,42 @@ func (m *HoldingLotMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *HoldingLotMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedholding {
+		edges = append(edges, holdinglot.EdgeHolding)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *HoldingLotMutation) EdgeCleared(name string) bool {
+	switch name {
+	case holdinglot.EdgeHolding:
+		return m.clearedholding
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *HoldingLotMutation) ClearEdge(name string) error {
+	switch name {
+	case holdinglot.EdgeHolding:
+		m.ClearHolding()
+		return nil
+	}
 	return fmt.Errorf("unknown HoldingLot unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *HoldingLotMutation) ResetEdge(name string) error {
+	switch name {
+	case holdinglot.EdgeHolding:
+		m.ResetHolding()
+		return nil
+	}
 	return fmt.Errorf("unknown HoldingLot edge %s", name)
 }
 
@@ -3773,6 +3920,9 @@ type SecurityMutation struct {
 	addcurrent_price_cents *int64
 	created_at             *time.Time
 	clearedFields          map[string]struct{}
+	price_history          map[uuid.UUID]struct{}
+	removedprice_history   map[uuid.UUID]struct{}
+	clearedprice_history   bool
 	done                   bool
 	oldValue               func(context.Context) (*Security, error)
 	predicates             []predicate.Security
@@ -4181,6 +4331,60 @@ func (m *SecurityMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// AddPriceHistoryIDs adds the "price_history" edge to the SecurityPriceHistory entity by ids.
+func (m *SecurityMutation) AddPriceHistoryIDs(ids ...uuid.UUID) {
+	if m.price_history == nil {
+		m.price_history = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.price_history[ids[i]] = struct{}{}
+	}
+}
+
+// ClearPriceHistory clears the "price_history" edge to the SecurityPriceHistory entity.
+func (m *SecurityMutation) ClearPriceHistory() {
+	m.clearedprice_history = true
+}
+
+// PriceHistoryCleared reports if the "price_history" edge to the SecurityPriceHistory entity was cleared.
+func (m *SecurityMutation) PriceHistoryCleared() bool {
+	return m.clearedprice_history
+}
+
+// RemovePriceHistoryIDs removes the "price_history" edge to the SecurityPriceHistory entity by IDs.
+func (m *SecurityMutation) RemovePriceHistoryIDs(ids ...uuid.UUID) {
+	if m.removedprice_history == nil {
+		m.removedprice_history = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.price_history, ids[i])
+		m.removedprice_history[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedPriceHistory returns the removed IDs of the "price_history" edge to the SecurityPriceHistory entity.
+func (m *SecurityMutation) RemovedPriceHistoryIDs() (ids []uuid.UUID) {
+	for id := range m.removedprice_history {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// PriceHistoryIDs returns the "price_history" edge IDs in the mutation.
+func (m *SecurityMutation) PriceHistoryIDs() (ids []uuid.UUID) {
+	for id := range m.price_history {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetPriceHistory resets all changes to the "price_history" edge.
+func (m *SecurityMutation) ResetPriceHistory() {
+	m.price_history = nil
+	m.clearedprice_history = false
+	m.removedprice_history = nil
+}
+
 // Where appends a list predicates to the SecurityMutation builder.
 func (m *SecurityMutation) Where(ps ...predicate.Security) {
 	m.predicates = append(m.predicates, ps...)
@@ -4446,69 +4650,106 @@ func (m *SecurityMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *SecurityMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.price_history != nil {
+		edges = append(edges, security.EdgePriceHistory)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *SecurityMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case security.EdgePriceHistory:
+		ids := make([]ent.Value, 0, len(m.price_history))
+		for id := range m.price_history {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *SecurityMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedprice_history != nil {
+		edges = append(edges, security.EdgePriceHistory)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *SecurityMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case security.EdgePriceHistory:
+		ids := make([]ent.Value, 0, len(m.removedprice_history))
+		for id := range m.removedprice_history {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *SecurityMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedprice_history {
+		edges = append(edges, security.EdgePriceHistory)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *SecurityMutation) EdgeCleared(name string) bool {
+	switch name {
+	case security.EdgePriceHistory:
+		return m.clearedprice_history
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *SecurityMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown Security unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *SecurityMutation) ResetEdge(name string) error {
+	switch name {
+	case security.EdgePriceHistory:
+		m.ResetPriceHistory()
+		return nil
+	}
 	return fmt.Errorf("unknown Security edge %s", name)
 }
 
 // SecurityPriceHistoryMutation represents an operation that mutates the SecurityPriceHistory nodes in the graph.
 type SecurityPriceHistoryMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *uuid.UUID
-	security_id    *uuid.UUID
-	price_date     *time.Time
-	price_cents    *int64
-	addprice_cents *int64
-	currency_code  *string
-	source         *string
-	created_at     *time.Time
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*SecurityPriceHistory, error)
-	predicates     []predicate.SecurityPriceHistory
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	price_date      *time.Time
+	price_cents     *int64
+	addprice_cents  *int64
+	currency_code   *string
+	source          *string
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	security        *uuid.UUID
+	clearedsecurity bool
+	done            bool
+	oldValue        func(context.Context) (*SecurityPriceHistory, error)
+	predicates      []predicate.SecurityPriceHistory
 }
 
 var _ ent.Mutation = (*SecurityPriceHistoryMutation)(nil)
@@ -4617,12 +4858,12 @@ func (m *SecurityPriceHistoryMutation) IDs(ctx context.Context) ([]uuid.UUID, er
 
 // SetSecurityID sets the "security_id" field.
 func (m *SecurityPriceHistoryMutation) SetSecurityID(u uuid.UUID) {
-	m.security_id = &u
+	m.security = &u
 }
 
 // SecurityID returns the value of the "security_id" field in the mutation.
 func (m *SecurityPriceHistoryMutation) SecurityID() (r uuid.UUID, exists bool) {
-	v := m.security_id
+	v := m.security
 	if v == nil {
 		return
 	}
@@ -4648,7 +4889,7 @@ func (m *SecurityPriceHistoryMutation) OldSecurityID(ctx context.Context) (v uui
 
 // ResetSecurityID resets all changes to the "security_id" field.
 func (m *SecurityPriceHistoryMutation) ResetSecurityID() {
-	m.security_id = nil
+	m.security = nil
 }
 
 // SetPriceDate sets the "price_date" field.
@@ -4851,6 +5092,33 @@ func (m *SecurityPriceHistoryMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// ClearSecurity clears the "security" edge to the Security entity.
+func (m *SecurityPriceHistoryMutation) ClearSecurity() {
+	m.clearedsecurity = true
+	m.clearedFields[securitypricehistory.FieldSecurityID] = struct{}{}
+}
+
+// SecurityCleared reports if the "security" edge to the Security entity was cleared.
+func (m *SecurityPriceHistoryMutation) SecurityCleared() bool {
+	return m.clearedsecurity
+}
+
+// SecurityIDs returns the "security" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SecurityID instead. It exists only for internal usage by the builders.
+func (m *SecurityPriceHistoryMutation) SecurityIDs() (ids []uuid.UUID) {
+	if id := m.security; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSecurity resets all changes to the "security" edge.
+func (m *SecurityPriceHistoryMutation) ResetSecurity() {
+	m.security = nil
+	m.clearedsecurity = false
+}
+
 // Where appends a list predicates to the SecurityPriceHistoryMutation builder.
 func (m *SecurityPriceHistoryMutation) Where(ps ...predicate.SecurityPriceHistory) {
 	m.predicates = append(m.predicates, ps...)
@@ -4886,7 +5154,7 @@ func (m *SecurityPriceHistoryMutation) Type() string {
 // AddedFields().
 func (m *SecurityPriceHistoryMutation) Fields() []string {
 	fields := make([]string, 0, 6)
-	if m.security_id != nil {
+	if m.security != nil {
 		fields = append(fields, securitypricehistory.FieldSecurityID)
 	}
 	if m.price_date != nil {
@@ -5084,19 +5352,28 @@ func (m *SecurityPriceHistoryMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *SecurityPriceHistoryMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.security != nil {
+		edges = append(edges, securitypricehistory.EdgeSecurity)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *SecurityPriceHistoryMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case securitypricehistory.EdgeSecurity:
+		if id := m.security; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *SecurityPriceHistoryMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -5108,24 +5385,41 @@ func (m *SecurityPriceHistoryMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *SecurityPriceHistoryMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedsecurity {
+		edges = append(edges, securitypricehistory.EdgeSecurity)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *SecurityPriceHistoryMutation) EdgeCleared(name string) bool {
+	switch name {
+	case securitypricehistory.EdgeSecurity:
+		return m.clearedsecurity
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *SecurityPriceHistoryMutation) ClearEdge(name string) error {
+	switch name {
+	case securitypricehistory.EdgeSecurity:
+		m.ClearSecurity()
+		return nil
+	}
 	return fmt.Errorf("unknown SecurityPriceHistory unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *SecurityPriceHistoryMutation) ResetEdge(name string) error {
+	switch name {
+	case securitypricehistory.EdgeSecurity:
+		m.ResetSecurity()
+		return nil
+	}
 	return fmt.Errorf("unknown SecurityPriceHistory edge %s", name)
 }

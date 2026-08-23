@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -28,8 +29,17 @@ const (
 	FieldPaidTotalCents = "paid_total_cents"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// EdgeDebt holds the string denoting the debt edge name in mutations.
+	EdgeDebt = "debt"
 	// Table holds the table name of the debtprogresssnapshot in the database.
 	Table = "debt_progress_snapshots"
+	// DebtTable is the table that holds the debt relation/edge.
+	DebtTable = "debt_progress_snapshots"
+	// DebtInverseTable is the table name for the DebtDetails entity.
+	// It exists in this package in order to avoid circular dependency with the "debtdetails" package.
+	DebtInverseTable = "debt_details"
+	// DebtColumn is the table column denoting the debt relation/edge.
+	DebtColumn = "debt_id"
 )
 
 // Columns holds all SQL columns for debtprogresssnapshot fields.
@@ -102,4 +112,18 @@ func ByPaidTotalCents(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByDebtField orders the results by debt field.
+func ByDebtField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDebtStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newDebtStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DebtInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, DebtTable, DebtColumn),
+	)
 }

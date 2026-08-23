@@ -49,6 +49,9 @@ type BudgetMutation struct {
 	created_at            *time.Time
 	updated_at            *time.Time
 	clearedFields         map[string]struct{}
+	items                 map[uuid.UUID]struct{}
+	removeditems          map[uuid.UUID]struct{}
+	cleareditems          bool
 	done                  bool
 	oldValue              func(context.Context) (*Budget, error)
 	predicates            []predicate.Budget
@@ -571,6 +574,60 @@ func (m *BudgetMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddItemIDs adds the "items" edge to the BudgetItem entity by ids.
+func (m *BudgetMutation) AddItemIDs(ids ...uuid.UUID) {
+	if m.items == nil {
+		m.items = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.items[ids[i]] = struct{}{}
+	}
+}
+
+// ClearItems clears the "items" edge to the BudgetItem entity.
+func (m *BudgetMutation) ClearItems() {
+	m.cleareditems = true
+}
+
+// ItemsCleared reports if the "items" edge to the BudgetItem entity was cleared.
+func (m *BudgetMutation) ItemsCleared() bool {
+	return m.cleareditems
+}
+
+// RemoveItemIDs removes the "items" edge to the BudgetItem entity by IDs.
+func (m *BudgetMutation) RemoveItemIDs(ids ...uuid.UUID) {
+	if m.removeditems == nil {
+		m.removeditems = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.items, ids[i])
+		m.removeditems[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedItems returns the removed IDs of the "items" edge to the BudgetItem entity.
+func (m *BudgetMutation) RemovedItemsIDs() (ids []uuid.UUID) {
+	for id := range m.removeditems {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ItemsIDs returns the "items" edge IDs in the mutation.
+func (m *BudgetMutation) ItemsIDs() (ids []uuid.UUID) {
+	for id := range m.items {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetItems resets all changes to the "items" edge.
+func (m *BudgetMutation) ResetItems() {
+	m.items = nil
+	m.cleareditems = false
+	m.removeditems = nil
+}
+
 // Where appends a list predicates to the BudgetMutation builder.
 func (m *BudgetMutation) Where(ps ...predicate.Budget) {
 	m.predicates = append(m.predicates, ps...)
@@ -893,49 +950,85 @@ func (m *BudgetMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *BudgetMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.items != nil {
+		edges = append(edges, budget.EdgeItems)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *BudgetMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case budget.EdgeItems:
+		ids := make([]ent.Value, 0, len(m.items))
+		for id := range m.items {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *BudgetMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removeditems != nil {
+		edges = append(edges, budget.EdgeItems)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *BudgetMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case budget.EdgeItems:
+		ids := make([]ent.Value, 0, len(m.removeditems))
+		for id := range m.removeditems {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *BudgetMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.cleareditems {
+		edges = append(edges, budget.EdgeItems)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *BudgetMutation) EdgeCleared(name string) bool {
+	switch name {
+	case budget.EdgeItems:
+		return m.cleareditems
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *BudgetMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown Budget unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *BudgetMutation) ResetEdge(name string) error {
+	switch name {
+	case budget.EdgeItems:
+		m.ResetItems()
+		return nil
+	}
 	return fmt.Errorf("unknown Budget edge %s", name)
 }
 
@@ -945,7 +1038,6 @@ type BudgetItemMutation struct {
 	op                      Op
 	typ                     string
 	id                      *uuid.UUID
-	budget_id               *uuid.UUID
 	account_id              *uuid.UUID
 	planned_amount_cents    *int64
 	addplanned_amount_cents *int64
@@ -953,6 +1045,8 @@ type BudgetItemMutation struct {
 	addactual_amount_cents  *int64
 	notes                   *string
 	clearedFields           map[string]struct{}
+	budget                  *uuid.UUID
+	clearedbudget           bool
 	done                    bool
 	oldValue                func(context.Context) (*BudgetItem, error)
 	predicates              []predicate.BudgetItem
@@ -1064,12 +1158,12 @@ func (m *BudgetItemMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 
 // SetBudgetID sets the "budget_id" field.
 func (m *BudgetItemMutation) SetBudgetID(u uuid.UUID) {
-	m.budget_id = &u
+	m.budget = &u
 }
 
 // BudgetID returns the value of the "budget_id" field in the mutation.
 func (m *BudgetItemMutation) BudgetID() (r uuid.UUID, exists bool) {
-	v := m.budget_id
+	v := m.budget
 	if v == nil {
 		return
 	}
@@ -1095,7 +1189,7 @@ func (m *BudgetItemMutation) OldBudgetID(ctx context.Context) (v uuid.UUID, err 
 
 // ResetBudgetID resets all changes to the "budget_id" field.
 func (m *BudgetItemMutation) ResetBudgetID() {
-	m.budget_id = nil
+	m.budget = nil
 }
 
 // SetAccountID sets the "account_id" field.
@@ -1295,6 +1389,33 @@ func (m *BudgetItemMutation) ResetNotes() {
 	delete(m.clearedFields, budgetitem.FieldNotes)
 }
 
+// ClearBudget clears the "budget" edge to the Budget entity.
+func (m *BudgetItemMutation) ClearBudget() {
+	m.clearedbudget = true
+	m.clearedFields[budgetitem.FieldBudgetID] = struct{}{}
+}
+
+// BudgetCleared reports if the "budget" edge to the Budget entity was cleared.
+func (m *BudgetItemMutation) BudgetCleared() bool {
+	return m.clearedbudget
+}
+
+// BudgetIDs returns the "budget" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// BudgetID instead. It exists only for internal usage by the builders.
+func (m *BudgetItemMutation) BudgetIDs() (ids []uuid.UUID) {
+	if id := m.budget; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetBudget resets all changes to the "budget" edge.
+func (m *BudgetItemMutation) ResetBudget() {
+	m.budget = nil
+	m.clearedbudget = false
+}
+
 // Where appends a list predicates to the BudgetItemMutation builder.
 func (m *BudgetItemMutation) Where(ps ...predicate.BudgetItem) {
 	m.predicates = append(m.predicates, ps...)
@@ -1330,7 +1451,7 @@ func (m *BudgetItemMutation) Type() string {
 // AddedFields().
 func (m *BudgetItemMutation) Fields() []string {
 	fields := make([]string, 0, 5)
-	if m.budget_id != nil {
+	if m.budget != nil {
 		fields = append(fields, budgetitem.FieldBudgetID)
 	}
 	if m.account_id != nil {
@@ -1532,19 +1653,28 @@ func (m *BudgetItemMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *BudgetItemMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.budget != nil {
+		edges = append(edges, budgetitem.EdgeBudget)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *BudgetItemMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case budgetitem.EdgeBudget:
+		if id := m.budget; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *BudgetItemMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -1556,24 +1686,41 @@ func (m *BudgetItemMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *BudgetItemMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedbudget {
+		edges = append(edges, budgetitem.EdgeBudget)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *BudgetItemMutation) EdgeCleared(name string) bool {
+	switch name {
+	case budgetitem.EdgeBudget:
+		return m.clearedbudget
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *BudgetItemMutation) ClearEdge(name string) error {
+	switch name {
+	case budgetitem.EdgeBudget:
+		m.ClearBudget()
+		return nil
+	}
 	return fmt.Errorf("unknown BudgetItem unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *BudgetItemMutation) ResetEdge(name string) error {
+	switch name {
+	case budgetitem.EdgeBudget:
+		m.ResetBudget()
+		return nil
+	}
 	return fmt.Errorf("unknown BudgetItem edge %s", name)
 }

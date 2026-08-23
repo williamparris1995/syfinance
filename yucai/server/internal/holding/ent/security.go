@@ -31,8 +31,29 @@ type Security struct {
 	// CurrentPriceCents holds the value of the "current_price_cents" field.
 	CurrentPriceCents int64 `json:"current_price_cents,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the SecurityQuery when eager-loading is set.
+	Edges        SecurityEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// SecurityEdges holds the relations/edges for other nodes in the graph.
+type SecurityEdges struct {
+	// PriceHistory holds the value of the price_history edge.
+	PriceHistory []*SecurityPriceHistory `json:"price_history,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// PriceHistoryOrErr returns the PriceHistory value or an error if the edge
+// was not loaded in eager-loading.
+func (e SecurityEdges) PriceHistoryOrErr() ([]*SecurityPriceHistory, error) {
+	if e.loadedTypes[0] {
+		return e.PriceHistory, nil
+	}
+	return nil, &NotLoadedError{edge: "price_history"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -122,6 +143,11 @@ func (s *Security) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (s *Security) Value(name string) (ent.Value, error) {
 	return s.selectValues.Get(name)
+}
+
+// QueryPriceHistory queries the "price_history" edge of the Security entity.
+func (s *Security) QueryPriceHistory() *SecurityPriceHistoryQuery {
+	return NewSecurityClient(s.config).QueryPriceHistory(s)
 }
 
 // Update returns a builder for updating this Security.

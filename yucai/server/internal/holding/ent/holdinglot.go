@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/holding/ent/holding"
 	"github.com/yucai/server/internal/holding/ent/holdinglot"
 )
 
@@ -35,8 +36,31 @@ type HoldingLot struct {
 	// remaining after sells/splits
 	RemainingQuantity float64 `json:"remaining_quantity,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the HoldingLotQuery when eager-loading is set.
+	Edges        HoldingLotEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// HoldingLotEdges holds the relations/edges for other nodes in the graph.
+type HoldingLotEdges struct {
+	// Holding holds the value of the holding edge.
+	Holding *Holding `json:"holding,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// HoldingOrErr returns the Holding value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e HoldingLotEdges) HoldingOrErr() (*Holding, error) {
+	if e.Holding != nil {
+		return e.Holding, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: holding.Label}
+	}
+	return nil, &NotLoadedError{edge: "holding"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -138,6 +162,11 @@ func (hl *HoldingLot) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (hl *HoldingLot) Value(name string) (ent.Value, error) {
 	return hl.selectValues.Get(name)
+}
+
+// QueryHolding queries the "holding" edge of the HoldingLot entity.
+func (hl *HoldingLot) QueryHolding() *HoldingQuery {
+	return NewHoldingLotClient(hl.config).QueryHolding(hl)
 }
 
 // Update returns a builder for updating this HoldingLot.

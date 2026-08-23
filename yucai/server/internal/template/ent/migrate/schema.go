@@ -12,16 +12,24 @@ var (
 	TemplateRecordLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
-		{Name: "template_id", Type: field.TypeUUID, Comment: "FK to transaction_template — which template was recorded"},
 		{Name: "record_date", Type: field.TypeTime, Comment: "The template.NextDate that was recorded (idempotency key component)"},
 		{Name: "transaction_id", Type: field.TypeUUID, Nullable: true, Comment: "FK to the recorded transaction; back-filled after recorder.Record"},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "template_id", Type: field.TypeUUID, Comment: "FK to transaction_template — which template was recorded"},
 	}
 	// TemplateRecordLogsTable holds the schema information for the "template_record_logs" table.
 	TemplateRecordLogsTable = &schema.Table{
 		Name:       "template_record_logs",
 		Columns:    TemplateRecordLogsColumns,
 		PrimaryKey: []*schema.Column{TemplateRecordLogsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "template_record_logs_transaction_templates_record_logs",
+				Columns:    []*schema.Column{TemplateRecordLogsColumns[5]},
+				RefColumns: []*schema.Column{TransactionTemplatesColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "templaterecordlog_tenant_id",
@@ -31,7 +39,7 @@ var (
 			{
 				Name:    "templaterecordlog_tenant_id_template_id_record_date",
 				Unique:  true,
-				Columns: []*schema.Column{TemplateRecordLogsColumns[1], TemplateRecordLogsColumns[2], TemplateRecordLogsColumns[3]},
+				Columns: []*schema.Column{TemplateRecordLogsColumns[1], TemplateRecordLogsColumns[5], TemplateRecordLogsColumns[2]},
 			},
 		},
 	}
@@ -85,4 +93,5 @@ var (
 )
 
 func init() {
+	TemplateRecordLogsTable.ForeignKeys[0].RefTable = TransactionTemplatesTable
 }

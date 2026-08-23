@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/transaction/ent/transaction"
+	"github.com/yucai/server/internal/transaction/ent/transactionentry"
 )
 
 // TransactionCreate is the builder for creating a Transaction entity.
@@ -129,6 +130,21 @@ func (tc *TransactionCreate) SetNillableID(u *uuid.UUID) *TransactionCreate {
 		tc.SetID(*u)
 	}
 	return tc
+}
+
+// AddEntryIDs adds the "entries" edge to the TransactionEntry entity by IDs.
+func (tc *TransactionCreate) AddEntryIDs(ids ...uuid.UUID) *TransactionCreate {
+	tc.mutation.AddEntryIDs(ids...)
+	return tc
+}
+
+// AddEntries adds the "entries" edges to the TransactionEntry entity.
+func (tc *TransactionCreate) AddEntries(t ...*TransactionEntry) *TransactionCreate {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return tc.AddEntryIDs(ids...)
 }
 
 // Mutation returns the TransactionMutation object of the builder.
@@ -278,6 +294,22 @@ func (tc *TransactionCreate) createSpec() (*Transaction, *sqlgraph.CreateSpec) {
 	if value, ok := tc.mutation.UpdatedAt(); ok {
 		_spec.SetField(transaction.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := tc.mutation.EntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transaction.EntriesTable,
+			Columns: []string{transaction.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

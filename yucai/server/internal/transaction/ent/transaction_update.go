@@ -11,8 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 	"github.com/yucai/server/internal/transaction/ent/predicate"
 	"github.com/yucai/server/internal/transaction/ent/transaction"
+	"github.com/yucai/server/internal/transaction/ent/transactionentry"
 )
 
 // TransactionUpdate is the builder for updating Transaction entities.
@@ -123,9 +125,45 @@ func (tu *TransactionUpdate) SetUpdatedAt(t time.Time) *TransactionUpdate {
 	return tu
 }
 
+// AddEntryIDs adds the "entries" edge to the TransactionEntry entity by IDs.
+func (tu *TransactionUpdate) AddEntryIDs(ids ...uuid.UUID) *TransactionUpdate {
+	tu.mutation.AddEntryIDs(ids...)
+	return tu
+}
+
+// AddEntries adds the "entries" edges to the TransactionEntry entity.
+func (tu *TransactionUpdate) AddEntries(t ...*TransactionEntry) *TransactionUpdate {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return tu.AddEntryIDs(ids...)
+}
+
 // Mutation returns the TransactionMutation object of the builder.
 func (tu *TransactionUpdate) Mutation() *TransactionMutation {
 	return tu.mutation
+}
+
+// ClearEntries clears all "entries" edges to the TransactionEntry entity.
+func (tu *TransactionUpdate) ClearEntries() *TransactionUpdate {
+	tu.mutation.ClearEntries()
+	return tu
+}
+
+// RemoveEntryIDs removes the "entries" edge to TransactionEntry entities by IDs.
+func (tu *TransactionUpdate) RemoveEntryIDs(ids ...uuid.UUID) *TransactionUpdate {
+	tu.mutation.RemoveEntryIDs(ids...)
+	return tu
+}
+
+// RemoveEntries removes "entries" edges to TransactionEntry entities.
+func (tu *TransactionUpdate) RemoveEntries(t ...*TransactionEntry) *TransactionUpdate {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return tu.RemoveEntryIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -199,6 +237,51 @@ func (tu *TransactionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := tu.mutation.UpdatedAt(); ok {
 		_spec.SetField(transaction.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if tu.mutation.EntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transaction.EntriesTable,
+			Columns: []string{transaction.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := tu.mutation.RemovedEntriesIDs(); len(nodes) > 0 && !tu.mutation.EntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transaction.EntriesTable,
+			Columns: []string{transaction.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := tu.mutation.EntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transaction.EntriesTable,
+			Columns: []string{transaction.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, tu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -315,9 +398,45 @@ func (tuo *TransactionUpdateOne) SetUpdatedAt(t time.Time) *TransactionUpdateOne
 	return tuo
 }
 
+// AddEntryIDs adds the "entries" edge to the TransactionEntry entity by IDs.
+func (tuo *TransactionUpdateOne) AddEntryIDs(ids ...uuid.UUID) *TransactionUpdateOne {
+	tuo.mutation.AddEntryIDs(ids...)
+	return tuo
+}
+
+// AddEntries adds the "entries" edges to the TransactionEntry entity.
+func (tuo *TransactionUpdateOne) AddEntries(t ...*TransactionEntry) *TransactionUpdateOne {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return tuo.AddEntryIDs(ids...)
+}
+
 // Mutation returns the TransactionMutation object of the builder.
 func (tuo *TransactionUpdateOne) Mutation() *TransactionMutation {
 	return tuo.mutation
+}
+
+// ClearEntries clears all "entries" edges to the TransactionEntry entity.
+func (tuo *TransactionUpdateOne) ClearEntries() *TransactionUpdateOne {
+	tuo.mutation.ClearEntries()
+	return tuo
+}
+
+// RemoveEntryIDs removes the "entries" edge to TransactionEntry entities by IDs.
+func (tuo *TransactionUpdateOne) RemoveEntryIDs(ids ...uuid.UUID) *TransactionUpdateOne {
+	tuo.mutation.RemoveEntryIDs(ids...)
+	return tuo
+}
+
+// RemoveEntries removes "entries" edges to TransactionEntry entities.
+func (tuo *TransactionUpdateOne) RemoveEntries(t ...*TransactionEntry) *TransactionUpdateOne {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return tuo.RemoveEntryIDs(ids...)
 }
 
 // Where appends a list predicates to the TransactionUpdate builder.
@@ -421,6 +540,51 @@ func (tuo *TransactionUpdateOne) sqlSave(ctx context.Context) (_node *Transactio
 	}
 	if value, ok := tuo.mutation.UpdatedAt(); ok {
 		_spec.SetField(transaction.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if tuo.mutation.EntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transaction.EntriesTable,
+			Columns: []string{transaction.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := tuo.mutation.RemovedEntriesIDs(); len(nodes) > 0 && !tuo.mutation.EntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transaction.EntriesTable,
+			Columns: []string{transaction.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := tuo.mutation.EntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transaction.EntriesTable,
+			Columns: []string{transaction.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionentry.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Transaction{config: tuo.config}
 	_spec.Assign = _node.assignValues

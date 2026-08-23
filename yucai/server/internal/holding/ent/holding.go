@@ -33,8 +33,29 @@ type Holding struct {
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the HoldingQuery when eager-loading is set.
+	Edges        HoldingEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// HoldingEdges holds the relations/edges for other nodes in the graph.
+type HoldingEdges struct {
+	// Lots holds the value of the lots edge.
+	Lots []*HoldingLot `json:"lots,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// LotsOrErr returns the Lots value or an error if the edge
+// was not loaded in eager-loading.
+func (e HoldingEdges) LotsOrErr() ([]*HoldingLot, error) {
+	if e.loadedTypes[0] {
+		return e.Lots, nil
+	}
+	return nil, &NotLoadedError{edge: "lots"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -130,6 +151,11 @@ func (h *Holding) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (h *Holding) Value(name string) (ent.Value, error) {
 	return h.selectValues.Get(name)
+}
+
+// QueryLots queries the "lots" edge of the Holding entity.
+func (h *Holding) QueryLots() *HoldingLotQuery {
+	return NewHoldingClient(h.config).QueryLots(h)
 }
 
 // Update returns a builder for updating this Holding.

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
@@ -23,6 +24,7 @@ type PaymentScheduleQuery struct {
 	order      []paymentschedule.OrderOption
 	inters     []Interceptor
 	predicates []predicate.PaymentSchedule
+	withDebt   *DebtDetailsQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +59,28 @@ func (psq *PaymentScheduleQuery) Unique(unique bool) *PaymentScheduleQuery {
 func (psq *PaymentScheduleQuery) Order(o ...paymentschedule.OrderOption) *PaymentScheduleQuery {
 	psq.order = append(psq.order, o...)
 	return psq
+}
+
+// QueryDebt chains the current query on the "debt" edge.
+func (psq *PaymentScheduleQuery) QueryDebt() *DebtDetailsQuery {
+	query := (&DebtDetailsClient{config: psq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := psq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := psq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(paymentschedule.Table, paymentschedule.FieldID, selector),
+			sqlgraph.To(debtdetails.Table, debtdetails.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, paymentschedule.DebtTable, paymentschedule.DebtColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(psq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first PaymentSchedule entity from the query.
@@ -251,10 +275,22 @@ func (psq *PaymentScheduleQuery) Clone() *PaymentScheduleQuery {
 		order:      append([]paymentschedule.OrderOption{}, psq.order...),
 		inters:     append([]Interceptor{}, psq.inters...),
 		predicates: append([]predicate.PaymentSchedule{}, psq.predicates...),
+		withDebt:   psq.withDebt.Clone(),
 		// clone intermediate query.
 		sql:  psq.sql.Clone(),
 		path: psq.path,
 	}
+}
+
+// WithDebt tells the query-builder to eager-load the nodes that are connected to
+// the "debt" edge. The optional arguments are used to configure the query builder of the edge.
+func (psq *PaymentScheduleQuery) WithDebt(opts ...func(*DebtDetailsQuery)) *PaymentScheduleQuery {
+	query := (&DebtDetailsClient{config: psq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	psq.withDebt = query
+	return psq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +369,11 @@ func (psq *PaymentScheduleQuery) prepareQuery(ctx context.Context) error {
 
 func (psq *PaymentScheduleQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*PaymentSchedule, error) {
 	var (
-		nodes = []*PaymentSchedule{}
-		_spec = psq.querySpec()
+		nodes       = []*PaymentSchedule{}
+		_spec       = psq.querySpec()
+		loadedTypes = [1]bool{
+			psq.withDebt != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*PaymentSchedule).scanValues(nil, columns)
@@ -342,6 +381,7 @@ func (psq *PaymentScheduleQuery) sqlAll(ctx context.Context, hooks ...queryHook)
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &PaymentSchedule{config: psq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +393,43 @@ func (psq *PaymentScheduleQuery) sqlAll(ctx context.Context, hooks ...queryHook)
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := psq.withDebt; query != nil {
+		if err := psq.loadDebt(ctx, query, nodes, nil,
+			func(n *PaymentSchedule, e *DebtDetails) { n.Edges.Debt = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (psq *PaymentScheduleQuery) loadDebt(ctx context.Context, query *DebtDetailsQuery, nodes []*PaymentSchedule, init func(*PaymentSchedule), assign func(*PaymentSchedule, *DebtDetails)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*PaymentSchedule)
+	for i := range nodes {
+		fk := nodes[i].DebtID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(debtdetails.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "debt_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (psq *PaymentScheduleQuery) sqlCount(ctx context.Context) (int, error) {
@@ -380,6 +456,9 @@ func (psq *PaymentScheduleQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != paymentschedule.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if psq.withDebt != nil {
+			_spec.Node.AddColumnOnce(paymentschedule.FieldDebtID)
 		}
 	}
 	if ps := psq.predicates; len(ps) > 0 {

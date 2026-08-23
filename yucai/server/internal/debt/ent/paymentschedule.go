@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 )
 
@@ -34,7 +35,30 @@ type PaymentSchedule struct {
 	PaidCents int64 `json:"paid_cents,omitempty"`
 	// Linked transaction
 	TransactionID *uuid.UUID `json:"transaction_id,omitempty"`
-	selectValues  sql.SelectValues
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the PaymentScheduleQuery when eager-loading is set.
+	Edges        PaymentScheduleEdges `json:"edges"`
+	selectValues sql.SelectValues
+}
+
+// PaymentScheduleEdges holds the relations/edges for other nodes in the graph.
+type PaymentScheduleEdges struct {
+	// Debt holds the value of the debt edge.
+	Debt *DebtDetails `json:"debt,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// DebtOrErr returns the Debt value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e PaymentScheduleEdges) DebtOrErr() (*DebtDetails, error) {
+	if e.Debt != nil {
+		return e.Debt, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: debtdetails.Label}
+	}
+	return nil, &NotLoadedError{edge: "debt"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -133,6 +157,11 @@ func (ps *PaymentSchedule) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (ps *PaymentSchedule) Value(name string) (ent.Value, error) {
 	return ps.selectValues.Get(name)
+}
+
+// QueryDebt queries the "debt" edge of the PaymentSchedule entity.
+func (ps *PaymentSchedule) QueryDebt() *DebtDetailsQuery {
+	return NewPaymentScheduleClient(ps.config).QueryDebt(ps)
 }
 
 // Update returns a builder for updating this PaymentSchedule.

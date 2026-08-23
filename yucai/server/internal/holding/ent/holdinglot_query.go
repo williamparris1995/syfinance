@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/holding/ent/holding"
 	"github.com/yucai/server/internal/holding/ent/holdinglot"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 )
@@ -19,10 +20,11 @@ import (
 // HoldingLotQuery is the builder for querying HoldingLot entities.
 type HoldingLotQuery struct {
 	config
-	ctx        *QueryContext
-	order      []holdinglot.OrderOption
-	inters     []Interceptor
-	predicates []predicate.HoldingLot
+	ctx         *QueryContext
+	order       []holdinglot.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.HoldingLot
+	withHolding *HoldingQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +59,28 @@ func (hlq *HoldingLotQuery) Unique(unique bool) *HoldingLotQuery {
 func (hlq *HoldingLotQuery) Order(o ...holdinglot.OrderOption) *HoldingLotQuery {
 	hlq.order = append(hlq.order, o...)
 	return hlq
+}
+
+// QueryHolding chains the current query on the "holding" edge.
+func (hlq *HoldingLotQuery) QueryHolding() *HoldingQuery {
+	query := (&HoldingClient{config: hlq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := hlq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := hlq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(holdinglot.Table, holdinglot.FieldID, selector),
+			sqlgraph.To(holding.Table, holding.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, holdinglot.HoldingTable, holdinglot.HoldingColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(hlq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first HoldingLot entity from the query.
@@ -246,15 +270,27 @@ func (hlq *HoldingLotQuery) Clone() *HoldingLotQuery {
 		return nil
 	}
 	return &HoldingLotQuery{
-		config:     hlq.config,
-		ctx:        hlq.ctx.Clone(),
-		order:      append([]holdinglot.OrderOption{}, hlq.order...),
-		inters:     append([]Interceptor{}, hlq.inters...),
-		predicates: append([]predicate.HoldingLot{}, hlq.predicates...),
+		config:      hlq.config,
+		ctx:         hlq.ctx.Clone(),
+		order:       append([]holdinglot.OrderOption{}, hlq.order...),
+		inters:      append([]Interceptor{}, hlq.inters...),
+		predicates:  append([]predicate.HoldingLot{}, hlq.predicates...),
+		withHolding: hlq.withHolding.Clone(),
 		// clone intermediate query.
 		sql:  hlq.sql.Clone(),
 		path: hlq.path,
 	}
+}
+
+// WithHolding tells the query-builder to eager-load the nodes that are connected to
+// the "holding" edge. The optional arguments are used to configure the query builder of the edge.
+func (hlq *HoldingLotQuery) WithHolding(opts ...func(*HoldingQuery)) *HoldingLotQuery {
+	query := (&HoldingClient{config: hlq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	hlq.withHolding = query
+	return hlq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +369,11 @@ func (hlq *HoldingLotQuery) prepareQuery(ctx context.Context) error {
 
 func (hlq *HoldingLotQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*HoldingLot, error) {
 	var (
-		nodes = []*HoldingLot{}
-		_spec = hlq.querySpec()
+		nodes       = []*HoldingLot{}
+		_spec       = hlq.querySpec()
+		loadedTypes = [1]bool{
+			hlq.withHolding != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*HoldingLot).scanValues(nil, columns)
@@ -342,6 +381,7 @@ func (hlq *HoldingLotQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &HoldingLot{config: hlq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +393,43 @@ func (hlq *HoldingLotQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := hlq.withHolding; query != nil {
+		if err := hlq.loadHolding(ctx, query, nodes, nil,
+			func(n *HoldingLot, e *Holding) { n.Edges.Holding = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (hlq *HoldingLotQuery) loadHolding(ctx context.Context, query *HoldingQuery, nodes []*HoldingLot, init func(*HoldingLot), assign func(*HoldingLot, *Holding)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*HoldingLot)
+	for i := range nodes {
+		fk := nodes[i].HoldingID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(holding.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "holding_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (hlq *HoldingLotQuery) sqlCount(ctx context.Context) (int, error) {
@@ -380,6 +456,9 @@ func (hlq *HoldingLotQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != holdinglot.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if hlq.withHolding != nil {
+			_spec.Node.AddColumnOnce(holdinglot.FieldHoldingID)
 		}
 	}
 	if ps := hlq.predicates; len(ps) > 0 {

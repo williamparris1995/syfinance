@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/security"
+	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
 // SecurityCreate is the builder for creating a Security entity.
@@ -107,6 +108,21 @@ func (sc *SecurityCreate) SetNillableID(u *uuid.UUID) *SecurityCreate {
 		sc.SetID(*u)
 	}
 	return sc
+}
+
+// AddPriceHistoryIDs adds the "price_history" edge to the SecurityPriceHistory entity by IDs.
+func (sc *SecurityCreate) AddPriceHistoryIDs(ids ...uuid.UUID) *SecurityCreate {
+	sc.mutation.AddPriceHistoryIDs(ids...)
+	return sc
+}
+
+// AddPriceHistory adds the "price_history" edges to the SecurityPriceHistory entity.
+func (sc *SecurityCreate) AddPriceHistory(s ...*SecurityPriceHistory) *SecurityCreate {
+	ids := make([]uuid.UUID, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return sc.AddPriceHistoryIDs(ids...)
 }
 
 // Mutation returns the SecurityMutation object of the builder.
@@ -255,6 +271,22 @@ func (sc *SecurityCreate) createSpec() (*Security, *sqlgraph.CreateSpec) {
 	if value, ok := sc.mutation.CreatedAt(); ok {
 		_spec.SetField(security.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := sc.mutation.PriceHistoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   security.PriceHistoryTable,
+			Columns: []string{security.PriceHistoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

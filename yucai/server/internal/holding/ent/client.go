@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/holding/ent/holding"
 	"github.com/yucai/server/internal/holding/ent/holdinglot"
 	"github.com/yucai/server/internal/holding/ent/holdingsnapshot"
@@ -355,6 +356,22 @@ func (c *HoldingClient) GetX(ctx context.Context, id uuid.UUID) *Holding {
 	return obj
 }
 
+// QueryLots queries the lots edge of a Holding.
+func (c *HoldingClient) QueryLots(h *Holding) *HoldingLotQuery {
+	query := (&HoldingLotClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := h.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(holding.Table, holding.FieldID, id),
+			sqlgraph.To(holdinglot.Table, holdinglot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, holding.LotsTable, holding.LotsColumn),
+		)
+		fromV = sqlgraph.Neighbors(h.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *HoldingClient) Hooks() []Hook {
 	return c.hooks.Holding
@@ -486,6 +503,22 @@ func (c *HoldingLotClient) GetX(ctx context.Context, id uuid.UUID) *HoldingLot {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryHolding queries the holding edge of a HoldingLot.
+func (c *HoldingLotClient) QueryHolding(hl *HoldingLot) *HoldingQuery {
+	query := (&HoldingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := hl.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(holdinglot.Table, holdinglot.FieldID, id),
+			sqlgraph.To(holding.Table, holding.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, holdinglot.HoldingTable, holdinglot.HoldingColumn),
+		)
+		fromV = sqlgraph.Neighbors(hl.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -887,6 +920,22 @@ func (c *SecurityClient) GetX(ctx context.Context, id uuid.UUID) *Security {
 	return obj
 }
 
+// QueryPriceHistory queries the price_history edge of a Security.
+func (c *SecurityClient) QueryPriceHistory(s *Security) *SecurityPriceHistoryQuery {
+	query := (&SecurityPriceHistoryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := s.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(security.Table, security.FieldID, id),
+			sqlgraph.To(securitypricehistory.Table, securitypricehistory.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, security.PriceHistoryTable, security.PriceHistoryColumn),
+		)
+		fromV = sqlgraph.Neighbors(s.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *SecurityClient) Hooks() []Hook {
 	return c.hooks.Security
@@ -1018,6 +1067,22 @@ func (c *SecurityPriceHistoryClient) GetX(ctx context.Context, id uuid.UUID) *Se
 		panic(err)
 	}
 	return obj
+}
+
+// QuerySecurity queries the security edge of a SecurityPriceHistory.
+func (c *SecurityPriceHistoryClient) QuerySecurity(sph *SecurityPriceHistory) *SecurityQuery {
+	query := (&SecurityClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := sph.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(securitypricehistory.Table, securitypricehistory.FieldID, id),
+			sqlgraph.To(security.Table, security.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, securitypricehistory.SecurityTable, securitypricehistory.SecurityColumn),
+		)
+		fromV = sqlgraph.Neighbors(sph.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.

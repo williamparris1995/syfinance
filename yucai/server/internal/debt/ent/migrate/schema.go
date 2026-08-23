@@ -50,18 +50,26 @@ var (
 	DebtProgressSnapshotsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
-		{Name: "debt_id", Type: field.TypeUUID, Comment: "FK to DebtDetails"},
 		{Name: "snapshot_date", Type: field.TypeTime},
 		{Name: "total_principal_cents", Type: field.TypeInt64, Comment: "debt total principal at snapshot_date, original currency"},
 		{Name: "remaining_principal_cents", Type: field.TypeInt64, Comment: "remaining principal at snapshot_date, original currency"},
 		{Name: "paid_total_cents", Type: field.TypeInt64, Comment: "cumulative paid (principal+interest) at snapshot_date, original currency"},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "debt_id", Type: field.TypeUUID, Comment: "FK to DebtDetails"},
 	}
 	// DebtProgressSnapshotsTable holds the schema information for the "debt_progress_snapshots" table.
 	DebtProgressSnapshotsTable = &schema.Table{
 		Name:       "debt_progress_snapshots",
 		Columns:    DebtProgressSnapshotsColumns,
 		PrimaryKey: []*schema.Column{DebtProgressSnapshotsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "debt_progress_snapshots_debt_details_progress_snapshots",
+				Columns:    []*schema.Column{DebtProgressSnapshotsColumns[7]},
+				RefColumns: []*schema.Column{DebtDetailsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "debtprogresssnapshot_tenant_id",
@@ -71,24 +79,23 @@ var (
 			{
 				Name:    "debtprogresssnapshot_tenant_id_debt_id_snapshot_date",
 				Unique:  true,
-				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[2], DebtProgressSnapshotsColumns[3]},
+				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[7], DebtProgressSnapshotsColumns[2]},
 			},
 			{
 				Name:    "debtprogresssnapshot_tenant_id_snapshot_date",
 				Unique:  false,
-				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[3]},
+				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[2]},
 			},
 			{
 				Name:    "debtprogresssnapshot_tenant_id_debt_id",
 				Unique:  false,
-				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[2]},
+				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[7]},
 			},
 		},
 	}
 	// PaymentSchedulesColumns holds the columns for the "payment_schedules" table.
 	PaymentSchedulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "debt_id", Type: field.TypeUUID, Comment: "FK to DebtDetails"},
 		{Name: "payment_date", Type: field.TypeTime},
 		{Name: "principal_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "interest_cents", Type: field.TypeInt64, Default: 0},
@@ -96,22 +103,31 @@ var (
 		{Name: "paid", Type: field.TypeBool, Default: false},
 		{Name: "paid_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "transaction_id", Type: field.TypeUUID, Nullable: true, Comment: "Linked transaction"},
+		{Name: "debt_id", Type: field.TypeUUID, Comment: "FK to DebtDetails"},
 	}
 	// PaymentSchedulesTable holds the schema information for the "payment_schedules" table.
 	PaymentSchedulesTable = &schema.Table{
 		Name:       "payment_schedules",
 		Columns:    PaymentSchedulesColumns,
 		PrimaryKey: []*schema.Column{PaymentSchedulesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "payment_schedules_debt_details_schedule",
+				Columns:    []*schema.Column{PaymentSchedulesColumns[8]},
+				RefColumns: []*schema.Column{DebtDetailsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "paymentschedule_debt_id",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentSchedulesColumns[1]},
+				Columns: []*schema.Column{PaymentSchedulesColumns[8]},
 			},
 			{
 				Name:    "paymentschedule_payment_date",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentSchedulesColumns[2]},
+				Columns: []*schema.Column{PaymentSchedulesColumns[1]},
 			},
 		},
 	}
@@ -124,4 +140,6 @@ var (
 )
 
 func init() {
+	DebtProgressSnapshotsTable.ForeignKeys[0].RefTable = DebtDetailsTable
+	PaymentSchedulesTable.ForeignKeys[0].RefTable = DebtDetailsTable
 }

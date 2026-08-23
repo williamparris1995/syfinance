@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,16 +14,18 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/predicate"
+	"github.com/yucai/server/internal/template/ent/templaterecordlog"
 	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
 
 // TransactionTemplateQuery is the builder for querying TransactionTemplate entities.
 type TransactionTemplateQuery struct {
 	config
-	ctx        *QueryContext
-	order      []transactiontemplate.OrderOption
-	inters     []Interceptor
-	predicates []predicate.TransactionTemplate
+	ctx            *QueryContext
+	order          []transactiontemplate.OrderOption
+	inters         []Interceptor
+	predicates     []predicate.TransactionTemplate
+	withRecordLogs *TemplateRecordLogQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +60,28 @@ func (ttq *TransactionTemplateQuery) Unique(unique bool) *TransactionTemplateQue
 func (ttq *TransactionTemplateQuery) Order(o ...transactiontemplate.OrderOption) *TransactionTemplateQuery {
 	ttq.order = append(ttq.order, o...)
 	return ttq
+}
+
+// QueryRecordLogs chains the current query on the "record_logs" edge.
+func (ttq *TransactionTemplateQuery) QueryRecordLogs() *TemplateRecordLogQuery {
+	query := (&TemplateRecordLogClient{config: ttq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := ttq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := ttq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transactiontemplate.Table, transactiontemplate.FieldID, selector),
+			sqlgraph.To(templaterecordlog.Table, templaterecordlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, transactiontemplate.RecordLogsTable, transactiontemplate.RecordLogsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(ttq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first TransactionTemplate entity from the query.
@@ -246,15 +271,27 @@ func (ttq *TransactionTemplateQuery) Clone() *TransactionTemplateQuery {
 		return nil
 	}
 	return &TransactionTemplateQuery{
-		config:     ttq.config,
-		ctx:        ttq.ctx.Clone(),
-		order:      append([]transactiontemplate.OrderOption{}, ttq.order...),
-		inters:     append([]Interceptor{}, ttq.inters...),
-		predicates: append([]predicate.TransactionTemplate{}, ttq.predicates...),
+		config:         ttq.config,
+		ctx:            ttq.ctx.Clone(),
+		order:          append([]transactiontemplate.OrderOption{}, ttq.order...),
+		inters:         append([]Interceptor{}, ttq.inters...),
+		predicates:     append([]predicate.TransactionTemplate{}, ttq.predicates...),
+		withRecordLogs: ttq.withRecordLogs.Clone(),
 		// clone intermediate query.
 		sql:  ttq.sql.Clone(),
 		path: ttq.path,
 	}
+}
+
+// WithRecordLogs tells the query-builder to eager-load the nodes that are connected to
+// the "record_logs" edge. The optional arguments are used to configure the query builder of the edge.
+func (ttq *TransactionTemplateQuery) WithRecordLogs(opts ...func(*TemplateRecordLogQuery)) *TransactionTemplateQuery {
+	query := (&TemplateRecordLogClient{config: ttq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	ttq.withRecordLogs = query
+	return ttq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +370,11 @@ func (ttq *TransactionTemplateQuery) prepareQuery(ctx context.Context) error {
 
 func (ttq *TransactionTemplateQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*TransactionTemplate, error) {
 	var (
-		nodes = []*TransactionTemplate{}
-		_spec = ttq.querySpec()
+		nodes       = []*TransactionTemplate{}
+		_spec       = ttq.querySpec()
+		loadedTypes = [1]bool{
+			ttq.withRecordLogs != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*TransactionTemplate).scanValues(nil, columns)
@@ -342,6 +382,7 @@ func (ttq *TransactionTemplateQuery) sqlAll(ctx context.Context, hooks ...queryH
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &TransactionTemplate{config: ttq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +394,45 @@ func (ttq *TransactionTemplateQuery) sqlAll(ctx context.Context, hooks ...queryH
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := ttq.withRecordLogs; query != nil {
+		if err := ttq.loadRecordLogs(ctx, query, nodes,
+			func(n *TransactionTemplate) { n.Edges.RecordLogs = []*TemplateRecordLog{} },
+			func(n *TransactionTemplate, e *TemplateRecordLog) { n.Edges.RecordLogs = append(n.Edges.RecordLogs, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (ttq *TransactionTemplateQuery) loadRecordLogs(ctx context.Context, query *TemplateRecordLogQuery, nodes []*TransactionTemplate, init func(*TransactionTemplate), assign func(*TransactionTemplate, *TemplateRecordLog)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*TransactionTemplate)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(templaterecordlog.FieldTemplateID)
+	}
+	query.Where(predicate.TemplateRecordLog(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(transactiontemplate.RecordLogsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TemplateID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "template_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (ttq *TransactionTemplateQuery) sqlCount(ctx context.Context) (int, error) {

@@ -4,6 +4,7 @@ package transactionentry
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/transaction/ent/predicate"
 )
@@ -101,26 +102,6 @@ func TransactionIDIn(vs ...uuid.UUID) predicate.TransactionEntry {
 // TransactionIDNotIn applies the NotIn predicate on the "transaction_id" field.
 func TransactionIDNotIn(vs ...uuid.UUID) predicate.TransactionEntry {
 	return predicate.TransactionEntry(sql.FieldNotIn(FieldTransactionID, vs...))
-}
-
-// TransactionIDGT applies the GT predicate on the "transaction_id" field.
-func TransactionIDGT(v uuid.UUID) predicate.TransactionEntry {
-	return predicate.TransactionEntry(sql.FieldGT(FieldTransactionID, v))
-}
-
-// TransactionIDGTE applies the GTE predicate on the "transaction_id" field.
-func TransactionIDGTE(v uuid.UUID) predicate.TransactionEntry {
-	return predicate.TransactionEntry(sql.FieldGTE(FieldTransactionID, v))
-}
-
-// TransactionIDLT applies the LT predicate on the "transaction_id" field.
-func TransactionIDLT(v uuid.UUID) predicate.TransactionEntry {
-	return predicate.TransactionEntry(sql.FieldLT(FieldTransactionID, v))
-}
-
-// TransactionIDLTE applies the LTE predicate on the "transaction_id" field.
-func TransactionIDLTE(v uuid.UUID) predicate.TransactionEntry {
-	return predicate.TransactionEntry(sql.FieldLTE(FieldTransactionID, v))
 }
 
 // AccountIDEQ applies the EQ predicate on the "account_id" field.
@@ -381,6 +362,29 @@ func NoteEqualFold(v string) predicate.TransactionEntry {
 // NoteContainsFold applies the ContainsFold predicate on the "note" field.
 func NoteContainsFold(v string) predicate.TransactionEntry {
 	return predicate.TransactionEntry(sql.FieldContainsFold(FieldNote, v))
+}
+
+// HasTransaction applies the HasEdge predicate on the "transaction" edge.
+func HasTransaction() predicate.TransactionEntry {
+	return predicate.TransactionEntry(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, TransactionTable, TransactionColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTransactionWith applies the HasEdge predicate on the "transaction" edge with a given conditions (other predicates).
+func HasTransactionWith(preds ...predicate.Transaction) predicate.TransactionEntry {
+	return predicate.TransactionEntry(func(s *sql.Selector) {
+		step := newTransactionStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/predicate"
+	"github.com/yucai/server/internal/holding/ent/security"
 	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
@@ -106,9 +107,20 @@ func (sphu *SecurityPriceHistoryUpdate) SetNillableSource(s *string) *SecurityPr
 	return sphu
 }
 
+// SetSecurity sets the "security" edge to the Security entity.
+func (sphu *SecurityPriceHistoryUpdate) SetSecurity(s *Security) *SecurityPriceHistoryUpdate {
+	return sphu.SetSecurityID(s.ID)
+}
+
 // Mutation returns the SecurityPriceHistoryMutation object of the builder.
 func (sphu *SecurityPriceHistoryUpdate) Mutation() *SecurityPriceHistoryMutation {
 	return sphu.mutation
+}
+
+// ClearSecurity clears the "security" edge to the Security entity.
+func (sphu *SecurityPriceHistoryUpdate) ClearSecurity() *SecurityPriceHistoryUpdate {
+	sphu.mutation.ClearSecurity()
+	return sphu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -138,7 +150,18 @@ func (sphu *SecurityPriceHistoryUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (sphu *SecurityPriceHistoryUpdate) check() error {
+	if sphu.mutation.SecurityCleared() && len(sphu.mutation.SecurityIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "SecurityPriceHistory.security"`)
+	}
+	return nil
+}
+
 func (sphu *SecurityPriceHistoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := sphu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(securitypricehistory.Table, securitypricehistory.Columns, sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID))
 	if ps := sphu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -146,9 +169,6 @@ func (sphu *SecurityPriceHistoryUpdate) sqlSave(ctx context.Context) (n int, err
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := sphu.mutation.SecurityID(); ok {
-		_spec.SetField(securitypricehistory.FieldSecurityID, field.TypeUUID, value)
 	}
 	if value, ok := sphu.mutation.PriceDate(); ok {
 		_spec.SetField(securitypricehistory.FieldPriceDate, field.TypeTime, value)
@@ -164,6 +184,35 @@ func (sphu *SecurityPriceHistoryUpdate) sqlSave(ctx context.Context) (n int, err
 	}
 	if value, ok := sphu.mutation.Source(); ok {
 		_spec.SetField(securitypricehistory.FieldSource, field.TypeString, value)
+	}
+	if sphu.mutation.SecurityCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   securitypricehistory.SecurityTable,
+			Columns: []string{securitypricehistory.SecurityColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(security.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := sphu.mutation.SecurityIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   securitypricehistory.SecurityTable,
+			Columns: []string{securitypricehistory.SecurityColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(security.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, sphu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -262,9 +311,20 @@ func (sphuo *SecurityPriceHistoryUpdateOne) SetNillableSource(s *string) *Securi
 	return sphuo
 }
 
+// SetSecurity sets the "security" edge to the Security entity.
+func (sphuo *SecurityPriceHistoryUpdateOne) SetSecurity(s *Security) *SecurityPriceHistoryUpdateOne {
+	return sphuo.SetSecurityID(s.ID)
+}
+
 // Mutation returns the SecurityPriceHistoryMutation object of the builder.
 func (sphuo *SecurityPriceHistoryUpdateOne) Mutation() *SecurityPriceHistoryMutation {
 	return sphuo.mutation
+}
+
+// ClearSecurity clears the "security" edge to the Security entity.
+func (sphuo *SecurityPriceHistoryUpdateOne) ClearSecurity() *SecurityPriceHistoryUpdateOne {
+	sphuo.mutation.ClearSecurity()
+	return sphuo
 }
 
 // Where appends a list predicates to the SecurityPriceHistoryUpdate builder.
@@ -307,7 +367,18 @@ func (sphuo *SecurityPriceHistoryUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (sphuo *SecurityPriceHistoryUpdateOne) check() error {
+	if sphuo.mutation.SecurityCleared() && len(sphuo.mutation.SecurityIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "SecurityPriceHistory.security"`)
+	}
+	return nil
+}
+
 func (sphuo *SecurityPriceHistoryUpdateOne) sqlSave(ctx context.Context) (_node *SecurityPriceHistory, err error) {
+	if err := sphuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(securitypricehistory.Table, securitypricehistory.Columns, sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID))
 	id, ok := sphuo.mutation.ID()
 	if !ok {
@@ -333,9 +404,6 @@ func (sphuo *SecurityPriceHistoryUpdateOne) sqlSave(ctx context.Context) (_node 
 			}
 		}
 	}
-	if value, ok := sphuo.mutation.SecurityID(); ok {
-		_spec.SetField(securitypricehistory.FieldSecurityID, field.TypeUUID, value)
-	}
 	if value, ok := sphuo.mutation.PriceDate(); ok {
 		_spec.SetField(securitypricehistory.FieldPriceDate, field.TypeTime, value)
 	}
@@ -350,6 +418,35 @@ func (sphuo *SecurityPriceHistoryUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := sphuo.mutation.Source(); ok {
 		_spec.SetField(securitypricehistory.FieldSource, field.TypeString, value)
+	}
+	if sphuo.mutation.SecurityCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   securitypricehistory.SecurityTable,
+			Columns: []string{securitypricehistory.SecurityColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(security.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := sphuo.mutation.SecurityIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   securitypricehistory.SecurityTable,
+			Columns: []string{securitypricehistory.SecurityColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(security.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &SecurityPriceHistory{config: sphuo.config}
 	_spec.Assign = _node.assignValues

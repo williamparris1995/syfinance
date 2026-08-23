@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/budget/ent/budget"
 	"github.com/yucai/server/internal/budget/ent/budgetitem"
 	"github.com/yucai/server/internal/budget/ent/predicate"
 )
@@ -118,9 +119,20 @@ func (biu *BudgetItemUpdate) ClearNotes() *BudgetItemUpdate {
 	return biu
 }
 
+// SetBudget sets the "budget" edge to the Budget entity.
+func (biu *BudgetItemUpdate) SetBudget(b *Budget) *BudgetItemUpdate {
+	return biu.SetBudgetID(b.ID)
+}
+
 // Mutation returns the BudgetItemMutation object of the builder.
 func (biu *BudgetItemUpdate) Mutation() *BudgetItemMutation {
 	return biu.mutation
+}
+
+// ClearBudget clears the "budget" edge to the Budget entity.
+func (biu *BudgetItemUpdate) ClearBudget() *BudgetItemUpdate {
+	biu.mutation.ClearBudget()
+	return biu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -150,7 +162,18 @@ func (biu *BudgetItemUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (biu *BudgetItemUpdate) check() error {
+	if biu.mutation.BudgetCleared() && len(biu.mutation.BudgetIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "BudgetItem.budget"`)
+	}
+	return nil
+}
+
 func (biu *BudgetItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := biu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(budgetitem.Table, budgetitem.Columns, sqlgraph.NewFieldSpec(budgetitem.FieldID, field.TypeUUID))
 	if ps := biu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -158,9 +181,6 @@ func (biu *BudgetItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := biu.mutation.BudgetID(); ok {
-		_spec.SetField(budgetitem.FieldBudgetID, field.TypeUUID, value)
 	}
 	if value, ok := biu.mutation.AccountID(); ok {
 		_spec.SetField(budgetitem.FieldAccountID, field.TypeUUID, value)
@@ -182,6 +202,35 @@ func (biu *BudgetItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if biu.mutation.NotesCleared() {
 		_spec.ClearField(budgetitem.FieldNotes, field.TypeString)
+	}
+	if biu.mutation.BudgetCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   budgetitem.BudgetTable,
+			Columns: []string{budgetitem.BudgetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budget.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := biu.mutation.BudgetIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   budgetitem.BudgetTable,
+			Columns: []string{budgetitem.BudgetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budget.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, biu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -293,9 +342,20 @@ func (biuo *BudgetItemUpdateOne) ClearNotes() *BudgetItemUpdateOne {
 	return biuo
 }
 
+// SetBudget sets the "budget" edge to the Budget entity.
+func (biuo *BudgetItemUpdateOne) SetBudget(b *Budget) *BudgetItemUpdateOne {
+	return biuo.SetBudgetID(b.ID)
+}
+
 // Mutation returns the BudgetItemMutation object of the builder.
 func (biuo *BudgetItemUpdateOne) Mutation() *BudgetItemMutation {
 	return biuo.mutation
+}
+
+// ClearBudget clears the "budget" edge to the Budget entity.
+func (biuo *BudgetItemUpdateOne) ClearBudget() *BudgetItemUpdateOne {
+	biuo.mutation.ClearBudget()
+	return biuo
 }
 
 // Where appends a list predicates to the BudgetItemUpdate builder.
@@ -338,7 +398,18 @@ func (biuo *BudgetItemUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (biuo *BudgetItemUpdateOne) check() error {
+	if biuo.mutation.BudgetCleared() && len(biuo.mutation.BudgetIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "BudgetItem.budget"`)
+	}
+	return nil
+}
+
 func (biuo *BudgetItemUpdateOne) sqlSave(ctx context.Context) (_node *BudgetItem, err error) {
+	if err := biuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(budgetitem.Table, budgetitem.Columns, sqlgraph.NewFieldSpec(budgetitem.FieldID, field.TypeUUID))
 	id, ok := biuo.mutation.ID()
 	if !ok {
@@ -364,9 +435,6 @@ func (biuo *BudgetItemUpdateOne) sqlSave(ctx context.Context) (_node *BudgetItem
 			}
 		}
 	}
-	if value, ok := biuo.mutation.BudgetID(); ok {
-		_spec.SetField(budgetitem.FieldBudgetID, field.TypeUUID, value)
-	}
 	if value, ok := biuo.mutation.AccountID(); ok {
 		_spec.SetField(budgetitem.FieldAccountID, field.TypeUUID, value)
 	}
@@ -387,6 +455,35 @@ func (biuo *BudgetItemUpdateOne) sqlSave(ctx context.Context) (_node *BudgetItem
 	}
 	if biuo.mutation.NotesCleared() {
 		_spec.ClearField(budgetitem.FieldNotes, field.TypeString)
+	}
+	if biuo.mutation.BudgetCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   budgetitem.BudgetTable,
+			Columns: []string{budgetitem.BudgetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budget.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := biuo.mutation.BudgetIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   budgetitem.BudgetTable,
+			Columns: []string{budgetitem.BudgetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budget.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &BudgetItem{config: biuo.config}
 	_spec.Assign = _node.assignValues

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 )
@@ -158,26 +159,6 @@ func HoldingIDIn(vs ...uuid.UUID) predicate.HoldingLot {
 // HoldingIDNotIn applies the NotIn predicate on the "holding_id" field.
 func HoldingIDNotIn(vs ...uuid.UUID) predicate.HoldingLot {
 	return predicate.HoldingLot(sql.FieldNotIn(FieldHoldingID, vs...))
-}
-
-// HoldingIDGT applies the GT predicate on the "holding_id" field.
-func HoldingIDGT(v uuid.UUID) predicate.HoldingLot {
-	return predicate.HoldingLot(sql.FieldGT(FieldHoldingID, v))
-}
-
-// HoldingIDGTE applies the GTE predicate on the "holding_id" field.
-func HoldingIDGTE(v uuid.UUID) predicate.HoldingLot {
-	return predicate.HoldingLot(sql.FieldGTE(FieldHoldingID, v))
-}
-
-// HoldingIDLT applies the LT predicate on the "holding_id" field.
-func HoldingIDLT(v uuid.UUID) predicate.HoldingLot {
-	return predicate.HoldingLot(sql.FieldLT(FieldHoldingID, v))
-}
-
-// HoldingIDLTE applies the LTE predicate on the "holding_id" field.
-func HoldingIDLTE(v uuid.UUID) predicate.HoldingLot {
-	return predicate.HoldingLot(sql.FieldLTE(FieldHoldingID, v))
 }
 
 // SecurityIDEQ applies the EQ predicate on the "security_id" field.
@@ -458,6 +439,29 @@ func CreatedAtLT(v time.Time) predicate.HoldingLot {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.HoldingLot {
 	return predicate.HoldingLot(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// HasHolding applies the HasEdge predicate on the "holding" edge.
+func HasHolding() predicate.HoldingLot {
+	return predicate.HoldingLot(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, HoldingTable, HoldingColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasHoldingWith applies the HasEdge predicate on the "holding" edge with a given conditions (other predicates).
+func HasHoldingWith(preds ...predicate.Holding) predicate.HoldingLot {
+	return predicate.HoldingLot(func(s *sql.Selector) {
+		step := newHoldingStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

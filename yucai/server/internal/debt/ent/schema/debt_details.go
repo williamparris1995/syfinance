@@ -78,6 +78,8 @@ func (DebtDetails) Fields() []ent.Field {
 
 func (DebtDetails) Edges() []ent.Edge {
 	return []ent.Edge{
+		edge.To("schedule", PaymentSchedule.Type).
+			Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("progress_snapshots", DebtProgressSnapshot.Type).
 			Annotations(entsql.OnDelete(entsql.Cascade)),
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
@@ -148,26 +149,6 @@ func DebtIDIn(vs ...uuid.UUID) predicate.DebtProgressSnapshot {
 // DebtIDNotIn applies the NotIn predicate on the "debt_id" field.
 func DebtIDNotIn(vs ...uuid.UUID) predicate.DebtProgressSnapshot {
 	return predicate.DebtProgressSnapshot(sql.FieldNotIn(FieldDebtID, vs...))
-}
-
-// DebtIDGT applies the GT predicate on the "debt_id" field.
-func DebtIDGT(v uuid.UUID) predicate.DebtProgressSnapshot {
-	return predicate.DebtProgressSnapshot(sql.FieldGT(FieldDebtID, v))
-}
-
-// DebtIDGTE applies the GTE predicate on the "debt_id" field.
-func DebtIDGTE(v uuid.UUID) predicate.DebtProgressSnapshot {
-	return predicate.DebtProgressSnapshot(sql.FieldGTE(FieldDebtID, v))
-}
-
-// DebtIDLT applies the LT predicate on the "debt_id" field.
-func DebtIDLT(v uuid.UUID) predicate.DebtProgressSnapshot {
-	return predicate.DebtProgressSnapshot(sql.FieldLT(FieldDebtID, v))
-}
-
-// DebtIDLTE applies the LTE predicate on the "debt_id" field.
-func DebtIDLTE(v uuid.UUID) predicate.DebtProgressSnapshot {
-	return predicate.DebtProgressSnapshot(sql.FieldLTE(FieldDebtID, v))
 }
 
 // SnapshotDateEQ applies the EQ predicate on the "snapshot_date" field.
@@ -368,6 +349,29 @@ func CreatedAtLT(v time.Time) predicate.DebtProgressSnapshot {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.DebtProgressSnapshot {
 	return predicate.DebtProgressSnapshot(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// HasDebt applies the HasEdge predicate on the "debt" edge.
+func HasDebt() predicate.DebtProgressSnapshot {
+	return predicate.DebtProgressSnapshot(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, DebtTable, DebtColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDebtWith applies the HasEdge predicate on the "debt" edge with a given conditions (other predicates).
+func HasDebtWith(preds ...predicate.DebtDetails) predicate.DebtProgressSnapshot {
+	return predicate.DebtProgressSnapshot(func(s *sql.Selector) {
+		step := newDebtStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

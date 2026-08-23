@@ -33,18 +33,19 @@ const (
 // TemplateRecordLogMutation represents an operation that mutates the TemplateRecordLog nodes in the graph.
 type TemplateRecordLogMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *uuid.UUID
-	tenant_id      *uuid.UUID
-	template_id    *uuid.UUID
-	record_date    *time.Time
-	transaction_id *uuid.UUID
-	created_at     *time.Time
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*TemplateRecordLog, error)
-	predicates     []predicate.TemplateRecordLog
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	record_date     *time.Time
+	transaction_id  *uuid.UUID
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	template        *uuid.UUID
+	clearedtemplate bool
+	done            bool
+	oldValue        func(context.Context) (*TemplateRecordLog, error)
+	predicates      []predicate.TemplateRecordLog
 }
 
 var _ ent.Mutation = (*TemplateRecordLogMutation)(nil)
@@ -189,12 +190,12 @@ func (m *TemplateRecordLogMutation) ResetTenantID() {
 
 // SetTemplateID sets the "template_id" field.
 func (m *TemplateRecordLogMutation) SetTemplateID(u uuid.UUID) {
-	m.template_id = &u
+	m.template = &u
 }
 
 // TemplateID returns the value of the "template_id" field in the mutation.
 func (m *TemplateRecordLogMutation) TemplateID() (r uuid.UUID, exists bool) {
-	v := m.template_id
+	v := m.template
 	if v == nil {
 		return
 	}
@@ -220,7 +221,7 @@ func (m *TemplateRecordLogMutation) OldTemplateID(ctx context.Context) (v uuid.U
 
 // ResetTemplateID resets all changes to the "template_id" field.
 func (m *TemplateRecordLogMutation) ResetTemplateID() {
-	m.template_id = nil
+	m.template = nil
 }
 
 // SetRecordDate sets the "record_date" field.
@@ -344,6 +345,33 @@ func (m *TemplateRecordLogMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// ClearTemplate clears the "template" edge to the TransactionTemplate entity.
+func (m *TemplateRecordLogMutation) ClearTemplate() {
+	m.clearedtemplate = true
+	m.clearedFields[templaterecordlog.FieldTemplateID] = struct{}{}
+}
+
+// TemplateCleared reports if the "template" edge to the TransactionTemplate entity was cleared.
+func (m *TemplateRecordLogMutation) TemplateCleared() bool {
+	return m.clearedtemplate
+}
+
+// TemplateIDs returns the "template" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TemplateID instead. It exists only for internal usage by the builders.
+func (m *TemplateRecordLogMutation) TemplateIDs() (ids []uuid.UUID) {
+	if id := m.template; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTemplate resets all changes to the "template" edge.
+func (m *TemplateRecordLogMutation) ResetTemplate() {
+	m.template = nil
+	m.clearedtemplate = false
+}
+
 // Where appends a list predicates to the TemplateRecordLogMutation builder.
 func (m *TemplateRecordLogMutation) Where(ps ...predicate.TemplateRecordLog) {
 	m.predicates = append(m.predicates, ps...)
@@ -382,7 +410,7 @@ func (m *TemplateRecordLogMutation) Fields() []string {
 	if m.tenant_id != nil {
 		fields = append(fields, templaterecordlog.FieldTenantID)
 	}
-	if m.template_id != nil {
+	if m.template != nil {
 		fields = append(fields, templaterecordlog.FieldTemplateID)
 	}
 	if m.record_date != nil {
@@ -554,19 +582,28 @@ func (m *TemplateRecordLogMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TemplateRecordLogMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.template != nil {
+		edges = append(edges, templaterecordlog.EdgeTemplate)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *TemplateRecordLogMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case templaterecordlog.EdgeTemplate:
+		if id := m.template; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TemplateRecordLogMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -578,25 +615,42 @@ func (m *TemplateRecordLogMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TemplateRecordLogMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedtemplate {
+		edges = append(edges, templaterecordlog.EdgeTemplate)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *TemplateRecordLogMutation) EdgeCleared(name string) bool {
+	switch name {
+	case templaterecordlog.EdgeTemplate:
+		return m.clearedtemplate
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *TemplateRecordLogMutation) ClearEdge(name string) error {
+	switch name {
+	case templaterecordlog.EdgeTemplate:
+		m.ClearTemplate()
+		return nil
+	}
 	return fmt.Errorf("unknown TemplateRecordLog unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *TemplateRecordLogMutation) ResetEdge(name string) error {
+	switch name {
+	case templaterecordlog.EdgeTemplate:
+		m.ResetTemplate()
+		return nil
+	}
 	return fmt.Errorf("unknown TemplateRecordLog edge %s", name)
 }
 
@@ -631,6 +685,9 @@ type TransactionTemplateMutation struct {
 	created_at             *time.Time
 	updated_at             *time.Time
 	clearedFields          map[string]struct{}
+	record_logs            map[uuid.UUID]struct{}
+	removedrecord_logs     map[uuid.UUID]struct{}
+	clearedrecord_logs     bool
 	done                   bool
 	oldValue               func(context.Context) (*TransactionTemplate, error)
 	predicates             []predicate.TransactionTemplate
@@ -1633,6 +1690,60 @@ func (m *TransactionTemplateMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddRecordLogIDs adds the "record_logs" edge to the TemplateRecordLog entity by ids.
+func (m *TransactionTemplateMutation) AddRecordLogIDs(ids ...uuid.UUID) {
+	if m.record_logs == nil {
+		m.record_logs = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.record_logs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearRecordLogs clears the "record_logs" edge to the TemplateRecordLog entity.
+func (m *TransactionTemplateMutation) ClearRecordLogs() {
+	m.clearedrecord_logs = true
+}
+
+// RecordLogsCleared reports if the "record_logs" edge to the TemplateRecordLog entity was cleared.
+func (m *TransactionTemplateMutation) RecordLogsCleared() bool {
+	return m.clearedrecord_logs
+}
+
+// RemoveRecordLogIDs removes the "record_logs" edge to the TemplateRecordLog entity by IDs.
+func (m *TransactionTemplateMutation) RemoveRecordLogIDs(ids ...uuid.UUID) {
+	if m.removedrecord_logs == nil {
+		m.removedrecord_logs = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.record_logs, ids[i])
+		m.removedrecord_logs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedRecordLogs returns the removed IDs of the "record_logs" edge to the TemplateRecordLog entity.
+func (m *TransactionTemplateMutation) RemovedRecordLogsIDs() (ids []uuid.UUID) {
+	for id := range m.removedrecord_logs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// RecordLogsIDs returns the "record_logs" edge IDs in the mutation.
+func (m *TransactionTemplateMutation) RecordLogsIDs() (ids []uuid.UUID) {
+	for id := range m.record_logs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetRecordLogs resets all changes to the "record_logs" edge.
+func (m *TransactionTemplateMutation) ResetRecordLogs() {
+	m.record_logs = nil
+	m.clearedrecord_logs = false
+	m.removedrecord_logs = nil
+}
+
 // Where appends a list predicates to the TransactionTemplateMutation builder.
 func (m *TransactionTemplateMutation) Where(ps ...predicate.TransactionTemplate) {
 	m.predicates = append(m.predicates, ps...)
@@ -2185,48 +2296,84 @@ func (m *TransactionTemplateMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TransactionTemplateMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.record_logs != nil {
+		edges = append(edges, transactiontemplate.EdgeRecordLogs)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *TransactionTemplateMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case transactiontemplate.EdgeRecordLogs:
+		ids := make([]ent.Value, 0, len(m.record_logs))
+		for id := range m.record_logs {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TransactionTemplateMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedrecord_logs != nil {
+		edges = append(edges, transactiontemplate.EdgeRecordLogs)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *TransactionTemplateMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case transactiontemplate.EdgeRecordLogs:
+		ids := make([]ent.Value, 0, len(m.removedrecord_logs))
+		for id := range m.removedrecord_logs {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TransactionTemplateMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedrecord_logs {
+		edges = append(edges, transactiontemplate.EdgeRecordLogs)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *TransactionTemplateMutation) EdgeCleared(name string) bool {
+	switch name {
+	case transactiontemplate.EdgeRecordLogs:
+		return m.clearedrecord_logs
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *TransactionTemplateMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown TransactionTemplate unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *TransactionTemplateMutation) ResetEdge(name string) error {
+	switch name {
+	case transactiontemplate.EdgeRecordLogs:
+		m.ResetRecordLogs()
+		return nil
+	}
 	return fmt.Errorf("unknown TransactionTemplate edge %s", name)
 }

@@ -9,6 +9,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/transaction/ent/transaction"
 	"github.com/yucai/server/internal/transaction/ent/transactionentry"
 )
 
@@ -28,8 +29,31 @@ type TransactionEntry struct {
 	// Credit amount in cents
 	CreditCents int64 `json:"credit_cents,omitempty"`
 	// Note holds the value of the "note" field.
-	Note         string `json:"note,omitempty"`
+	Note string `json:"note,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the TransactionEntryQuery when eager-loading is set.
+	Edges        TransactionEntryEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// TransactionEntryEdges holds the relations/edges for other nodes in the graph.
+type TransactionEntryEdges struct {
+	// Transaction holds the value of the transaction edge.
+	Transaction *Transaction `json:"transaction,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// TransactionOrErr returns the Transaction value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TransactionEntryEdges) TransactionOrErr() (*Transaction, error) {
+	if e.Transaction != nil {
+		return e.Transaction, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: transaction.Label}
+	}
+	return nil, &NotLoadedError{edge: "transaction"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -111,6 +135,11 @@ func (te *TransactionEntry) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (te *TransactionEntry) Value(name string) (ent.Value, error) {
 	return te.selectValues.Get(name)
+}
+
+// QueryTransaction queries the "transaction" edge of the TransactionEntry entity.
+func (te *TransactionEntry) QueryTransaction() *TransactionQuery {
+	return NewTransactionEntryClient(te.config).QueryTransaction(te)
 }
 
 // Update returns a builder for updating this TransactionEntry.

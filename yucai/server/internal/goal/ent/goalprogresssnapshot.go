@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/goal/ent/goal"
 	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 )
 
@@ -27,8 +28,31 @@ type GoalProgressSnapshot struct {
 	// goal progress at snapshot_date, original currency
 	CurrentAmountCents int64 `json:"current_amount_cents,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the GoalProgressSnapshotQuery when eager-loading is set.
+	Edges        GoalProgressSnapshotEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// GoalProgressSnapshotEdges holds the relations/edges for other nodes in the graph.
+type GoalProgressSnapshotEdges struct {
+	// Goal holds the value of the goal edge.
+	Goal *Goal `json:"goal,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// GoalOrErr returns the Goal value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e GoalProgressSnapshotEdges) GoalOrErr() (*Goal, error) {
+	if e.Goal != nil {
+		return e.Goal, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: goal.Label}
+	}
+	return nil, &NotLoadedError{edge: "goal"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -104,6 +128,11 @@ func (gps *GoalProgressSnapshot) assignValues(columns []string, values []any) er
 // This includes values selected through modifiers, order, etc.
 func (gps *GoalProgressSnapshot) Value(name string) (ent.Value, error) {
 	return gps.selectValues.Get(name)
+}
+
+// QueryGoal queries the "goal" edge of the GoalProgressSnapshot entity.
+func (gps *GoalProgressSnapshot) QueryGoal() *GoalQuery {
+	return NewGoalProgressSnapshotClient(gps.config).QueryGoal(gps)
 }
 
 // Update returns a builder for updating this GoalProgressSnapshot.

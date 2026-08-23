@@ -37,30 +37,33 @@ const (
 // GoalMutation represents an operation that mutates the Goal nodes in the graph.
 type GoalMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *uuid.UUID
-	tenant_id               *uuid.UUID
-	name                    *string
-	goal_type               *string
-	target_amount_cents     *int64
-	addtarget_amount_cents  *int64
-	current_amount_cents    *int64
-	addcurrent_amount_cents *int64
-	currency_code           *string
-	deadline                *time.Time
-	linked_account_id       *uuid.UUID
-	notes                   *string
-	is_completed            *bool
-	completed_at            *time.Time
-	version                 *int64
-	addversion              *int64
-	created_at              *time.Time
-	updated_at              *time.Time
-	clearedFields           map[string]struct{}
-	done                    bool
-	oldValue                func(context.Context) (*Goal, error)
-	predicates              []predicate.Goal
+	op                        Op
+	typ                       string
+	id                        *uuid.UUID
+	tenant_id                 *uuid.UUID
+	name                      *string
+	goal_type                 *string
+	target_amount_cents       *int64
+	addtarget_amount_cents    *int64
+	current_amount_cents      *int64
+	addcurrent_amount_cents   *int64
+	currency_code             *string
+	deadline                  *time.Time
+	linked_account_id         *uuid.UUID
+	notes                     *string
+	is_completed              *bool
+	completed_at              *time.Time
+	version                   *int64
+	addversion                *int64
+	created_at                *time.Time
+	updated_at                *time.Time
+	clearedFields             map[string]struct{}
+	progress_snapshots        map[uuid.UUID]struct{}
+	removedprogress_snapshots map[uuid.UUID]struct{}
+	clearedprogress_snapshots bool
+	done                      bool
+	oldValue                  func(context.Context) (*Goal, error)
+	predicates                []predicate.Goal
 }
 
 var _ ent.Mutation = (*GoalMutation)(nil)
@@ -783,6 +786,60 @@ func (m *GoalMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddProgressSnapshotIDs adds the "progress_snapshots" edge to the GoalProgressSnapshot entity by ids.
+func (m *GoalMutation) AddProgressSnapshotIDs(ids ...uuid.UUID) {
+	if m.progress_snapshots == nil {
+		m.progress_snapshots = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.progress_snapshots[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProgressSnapshots clears the "progress_snapshots" edge to the GoalProgressSnapshot entity.
+func (m *GoalMutation) ClearProgressSnapshots() {
+	m.clearedprogress_snapshots = true
+}
+
+// ProgressSnapshotsCleared reports if the "progress_snapshots" edge to the GoalProgressSnapshot entity was cleared.
+func (m *GoalMutation) ProgressSnapshotsCleared() bool {
+	return m.clearedprogress_snapshots
+}
+
+// RemoveProgressSnapshotIDs removes the "progress_snapshots" edge to the GoalProgressSnapshot entity by IDs.
+func (m *GoalMutation) RemoveProgressSnapshotIDs(ids ...uuid.UUID) {
+	if m.removedprogress_snapshots == nil {
+		m.removedprogress_snapshots = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.progress_snapshots, ids[i])
+		m.removedprogress_snapshots[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProgressSnapshots returns the removed IDs of the "progress_snapshots" edge to the GoalProgressSnapshot entity.
+func (m *GoalMutation) RemovedProgressSnapshotsIDs() (ids []uuid.UUID) {
+	for id := range m.removedprogress_snapshots {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProgressSnapshotsIDs returns the "progress_snapshots" edge IDs in the mutation.
+func (m *GoalMutation) ProgressSnapshotsIDs() (ids []uuid.UUID) {
+	for id := range m.progress_snapshots {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProgressSnapshots resets all changes to the "progress_snapshots" edge.
+func (m *GoalMutation) ResetProgressSnapshots() {
+	m.progress_snapshots = nil
+	m.clearedprogress_snapshots = false
+	m.removedprogress_snapshots = nil
+}
+
 // Where appends a list predicates to the GoalMutation builder.
 func (m *GoalMutation) Where(ps ...predicate.Goal) {
 	m.predicates = append(m.predicates, ps...)
@@ -1203,49 +1260,85 @@ func (m *GoalMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *GoalMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.progress_snapshots != nil {
+		edges = append(edges, goal.EdgeProgressSnapshots)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *GoalMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case goal.EdgeProgressSnapshots:
+		ids := make([]ent.Value, 0, len(m.progress_snapshots))
+		for id := range m.progress_snapshots {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *GoalMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedprogress_snapshots != nil {
+		edges = append(edges, goal.EdgeProgressSnapshots)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *GoalMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case goal.EdgeProgressSnapshots:
+		ids := make([]ent.Value, 0, len(m.removedprogress_snapshots))
+		for id := range m.removedprogress_snapshots {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *GoalMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedprogress_snapshots {
+		edges = append(edges, goal.EdgeProgressSnapshots)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *GoalMutation) EdgeCleared(name string) bool {
+	switch name {
+	case goal.EdgeProgressSnapshots:
+		return m.clearedprogress_snapshots
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *GoalMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown Goal unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *GoalMutation) ResetEdge(name string) error {
+	switch name {
+	case goal.EdgeProgressSnapshots:
+		m.ResetProgressSnapshots()
+		return nil
+	}
 	return fmt.Errorf("unknown Goal edge %s", name)
 }
 
@@ -2136,12 +2229,13 @@ type GoalProgressSnapshotMutation struct {
 	typ                     string
 	id                      *uuid.UUID
 	tenant_id               *uuid.UUID
-	goal_id                 *uuid.UUID
 	snapshot_date           *time.Time
 	current_amount_cents    *int64
 	addcurrent_amount_cents *int64
 	created_at              *time.Time
 	clearedFields           map[string]struct{}
+	goal                    *uuid.UUID
+	clearedgoal             bool
 	done                    bool
 	oldValue                func(context.Context) (*GoalProgressSnapshot, error)
 	predicates              []predicate.GoalProgressSnapshot
@@ -2289,12 +2383,12 @@ func (m *GoalProgressSnapshotMutation) ResetTenantID() {
 
 // SetGoalID sets the "goal_id" field.
 func (m *GoalProgressSnapshotMutation) SetGoalID(u uuid.UUID) {
-	m.goal_id = &u
+	m.goal = &u
 }
 
 // GoalID returns the value of the "goal_id" field in the mutation.
 func (m *GoalProgressSnapshotMutation) GoalID() (r uuid.UUID, exists bool) {
-	v := m.goal_id
+	v := m.goal
 	if v == nil {
 		return
 	}
@@ -2320,7 +2414,7 @@ func (m *GoalProgressSnapshotMutation) OldGoalID(ctx context.Context) (v uuid.UU
 
 // ResetGoalID resets all changes to the "goal_id" field.
 func (m *GoalProgressSnapshotMutation) ResetGoalID() {
-	m.goal_id = nil
+	m.goal = nil
 }
 
 // SetSnapshotDate sets the "snapshot_date" field.
@@ -2451,6 +2545,33 @@ func (m *GoalProgressSnapshotMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// ClearGoal clears the "goal" edge to the Goal entity.
+func (m *GoalProgressSnapshotMutation) ClearGoal() {
+	m.clearedgoal = true
+	m.clearedFields[goalprogresssnapshot.FieldGoalID] = struct{}{}
+}
+
+// GoalCleared reports if the "goal" edge to the Goal entity was cleared.
+func (m *GoalProgressSnapshotMutation) GoalCleared() bool {
+	return m.clearedgoal
+}
+
+// GoalIDs returns the "goal" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GoalID instead. It exists only for internal usage by the builders.
+func (m *GoalProgressSnapshotMutation) GoalIDs() (ids []uuid.UUID) {
+	if id := m.goal; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGoal resets all changes to the "goal" edge.
+func (m *GoalProgressSnapshotMutation) ResetGoal() {
+	m.goal = nil
+	m.clearedgoal = false
+}
+
 // Where appends a list predicates to the GoalProgressSnapshotMutation builder.
 func (m *GoalProgressSnapshotMutation) Where(ps ...predicate.GoalProgressSnapshot) {
 	m.predicates = append(m.predicates, ps...)
@@ -2489,7 +2610,7 @@ func (m *GoalProgressSnapshotMutation) Fields() []string {
 	if m.tenant_id != nil {
 		fields = append(fields, goalprogresssnapshot.FieldTenantID)
 	}
-	if m.goal_id != nil {
+	if m.goal != nil {
 		fields = append(fields, goalprogresssnapshot.FieldGoalID)
 	}
 	if m.snapshot_date != nil {
@@ -2667,19 +2788,28 @@ func (m *GoalProgressSnapshotMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *GoalProgressSnapshotMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.goal != nil {
+		edges = append(edges, goalprogresssnapshot.EdgeGoal)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *GoalProgressSnapshotMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case goalprogresssnapshot.EdgeGoal:
+		if id := m.goal; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *GoalProgressSnapshotMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -2691,24 +2821,41 @@ func (m *GoalProgressSnapshotMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *GoalProgressSnapshotMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedgoal {
+		edges = append(edges, goalprogresssnapshot.EdgeGoal)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *GoalProgressSnapshotMutation) EdgeCleared(name string) bool {
+	switch name {
+	case goalprogresssnapshot.EdgeGoal:
+		return m.clearedgoal
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *GoalProgressSnapshotMutation) ClearEdge(name string) error {
+	switch name {
+	case goalprogresssnapshot.EdgeGoal:
+		m.ClearGoal()
+		return nil
+	}
 	return fmt.Errorf("unknown GoalProgressSnapshot unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *GoalProgressSnapshotMutation) ResetEdge(name string) error {
+	switch name {
+	case goalprogresssnapshot.EdgeGoal:
+		m.ResetGoal()
+		return nil
+	}
 	return fmt.Errorf("unknown GoalProgressSnapshot edge %s", name)
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -32,8 +33,17 @@ const (
 	FieldRemainingQuantity = "remaining_quantity"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// EdgeHolding holds the string denoting the holding edge name in mutations.
+	EdgeHolding = "holding"
 	// Table holds the table name of the holdinglot in the database.
 	Table = "holding_lots"
+	// HoldingTable is the table that holds the holding relation/edge.
+	HoldingTable = "holding_lots"
+	// HoldingInverseTable is the table name for the Holding entity.
+	// It exists in this package in order to avoid circular dependency with the "holding" package.
+	HoldingInverseTable = "holdings"
+	// HoldingColumn is the table column denoting the holding relation/edge.
+	HoldingColumn = "holding_id"
 )
 
 // Columns holds all SQL columns for holdinglot fields.
@@ -118,4 +128,18 @@ func ByRemainingQuantity(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByHoldingField orders the results by holding field.
+func ByHoldingField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newHoldingStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newHoldingStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(HoldingInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, HoldingTable, HoldingColumn),
+	)
 }

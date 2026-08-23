@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/predicate"
+	"github.com/yucai/server/internal/template/ent/templaterecordlog"
 	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
 
@@ -343,9 +344,45 @@ func (ttu *TransactionTemplateUpdate) SetUpdatedAt(t time.Time) *TransactionTemp
 	return ttu
 }
 
+// AddRecordLogIDs adds the "record_logs" edge to the TemplateRecordLog entity by IDs.
+func (ttu *TransactionTemplateUpdate) AddRecordLogIDs(ids ...uuid.UUID) *TransactionTemplateUpdate {
+	ttu.mutation.AddRecordLogIDs(ids...)
+	return ttu
+}
+
+// AddRecordLogs adds the "record_logs" edges to the TemplateRecordLog entity.
+func (ttu *TransactionTemplateUpdate) AddRecordLogs(t ...*TemplateRecordLog) *TransactionTemplateUpdate {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return ttu.AddRecordLogIDs(ids...)
+}
+
 // Mutation returns the TransactionTemplateMutation object of the builder.
 func (ttu *TransactionTemplateUpdate) Mutation() *TransactionTemplateMutation {
 	return ttu.mutation
+}
+
+// ClearRecordLogs clears all "record_logs" edges to the TemplateRecordLog entity.
+func (ttu *TransactionTemplateUpdate) ClearRecordLogs() *TransactionTemplateUpdate {
+	ttu.mutation.ClearRecordLogs()
+	return ttu
+}
+
+// RemoveRecordLogIDs removes the "record_logs" edge to TemplateRecordLog entities by IDs.
+func (ttu *TransactionTemplateUpdate) RemoveRecordLogIDs(ids ...uuid.UUID) *TransactionTemplateUpdate {
+	ttu.mutation.RemoveRecordLogIDs(ids...)
+	return ttu
+}
+
+// RemoveRecordLogs removes "record_logs" edges to TemplateRecordLog entities.
+func (ttu *TransactionTemplateUpdate) RemoveRecordLogs(t ...*TemplateRecordLog) *TransactionTemplateUpdate {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return ttu.RemoveRecordLogIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -492,6 +529,51 @@ func (ttu *TransactionTemplateUpdate) sqlSave(ctx context.Context) (n int, err e
 	}
 	if value, ok := ttu.mutation.UpdatedAt(); ok {
 		_spec.SetField(transactiontemplate.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if ttu.mutation.RecordLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactiontemplate.RecordLogsTable,
+			Columns: []string{transactiontemplate.RecordLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ttu.mutation.RemovedRecordLogsIDs(); len(nodes) > 0 && !ttu.mutation.RecordLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactiontemplate.RecordLogsTable,
+			Columns: []string{transactiontemplate.RecordLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ttu.mutation.RecordLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactiontemplate.RecordLogsTable,
+			Columns: []string{transactiontemplate.RecordLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, ttu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -827,9 +909,45 @@ func (ttuo *TransactionTemplateUpdateOne) SetUpdatedAt(t time.Time) *Transaction
 	return ttuo
 }
 
+// AddRecordLogIDs adds the "record_logs" edge to the TemplateRecordLog entity by IDs.
+func (ttuo *TransactionTemplateUpdateOne) AddRecordLogIDs(ids ...uuid.UUID) *TransactionTemplateUpdateOne {
+	ttuo.mutation.AddRecordLogIDs(ids...)
+	return ttuo
+}
+
+// AddRecordLogs adds the "record_logs" edges to the TemplateRecordLog entity.
+func (ttuo *TransactionTemplateUpdateOne) AddRecordLogs(t ...*TemplateRecordLog) *TransactionTemplateUpdateOne {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return ttuo.AddRecordLogIDs(ids...)
+}
+
 // Mutation returns the TransactionTemplateMutation object of the builder.
 func (ttuo *TransactionTemplateUpdateOne) Mutation() *TransactionTemplateMutation {
 	return ttuo.mutation
+}
+
+// ClearRecordLogs clears all "record_logs" edges to the TemplateRecordLog entity.
+func (ttuo *TransactionTemplateUpdateOne) ClearRecordLogs() *TransactionTemplateUpdateOne {
+	ttuo.mutation.ClearRecordLogs()
+	return ttuo
+}
+
+// RemoveRecordLogIDs removes the "record_logs" edge to TemplateRecordLog entities by IDs.
+func (ttuo *TransactionTemplateUpdateOne) RemoveRecordLogIDs(ids ...uuid.UUID) *TransactionTemplateUpdateOne {
+	ttuo.mutation.RemoveRecordLogIDs(ids...)
+	return ttuo
+}
+
+// RemoveRecordLogs removes "record_logs" edges to TemplateRecordLog entities.
+func (ttuo *TransactionTemplateUpdateOne) RemoveRecordLogs(t ...*TemplateRecordLog) *TransactionTemplateUpdateOne {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return ttuo.RemoveRecordLogIDs(ids...)
 }
 
 // Where appends a list predicates to the TransactionTemplateUpdate builder.
@@ -1006,6 +1124,51 @@ func (ttuo *TransactionTemplateUpdateOne) sqlSave(ctx context.Context) (_node *T
 	}
 	if value, ok := ttuo.mutation.UpdatedAt(); ok {
 		_spec.SetField(transactiontemplate.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if ttuo.mutation.RecordLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactiontemplate.RecordLogsTable,
+			Columns: []string{transactiontemplate.RecordLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ttuo.mutation.RemovedRecordLogsIDs(); len(nodes) > 0 && !ttuo.mutation.RecordLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactiontemplate.RecordLogsTable,
+			Columns: []string{transactiontemplate.RecordLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ttuo.mutation.RecordLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactiontemplate.RecordLogsTable,
+			Columns: []string{transactiontemplate.RecordLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &TransactionTemplate{config: ttuo.config}
 	_spec.Assign = _node.assignValues

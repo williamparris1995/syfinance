@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 )
@@ -513,6 +514,29 @@ func CreatedAtLT(v time.Time) predicate.Security {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.Security {
 	return predicate.Security(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// HasPriceHistory applies the HasEdge predicate on the "price_history" edge.
+func HasPriceHistory() predicate.Security {
+	return predicate.Security(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PriceHistoryTable, PriceHistoryColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPriceHistoryWith applies the HasEdge predicate on the "price_history" edge with a given conditions (other predicates).
+func HasPriceHistoryWith(preds ...predicate.SecurityPriceHistory) predicate.Security {
+	return predicate.Security(func(s *sql.Selector) {
+		step := newPriceHistoryStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

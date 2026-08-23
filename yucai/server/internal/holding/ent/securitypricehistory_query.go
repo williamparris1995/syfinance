@@ -13,16 +13,18 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/predicate"
+	"github.com/yucai/server/internal/holding/ent/security"
 	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
 // SecurityPriceHistoryQuery is the builder for querying SecurityPriceHistory entities.
 type SecurityPriceHistoryQuery struct {
 	config
-	ctx        *QueryContext
-	order      []securitypricehistory.OrderOption
-	inters     []Interceptor
-	predicates []predicate.SecurityPriceHistory
+	ctx          *QueryContext
+	order        []securitypricehistory.OrderOption
+	inters       []Interceptor
+	predicates   []predicate.SecurityPriceHistory
+	withSecurity *SecurityQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +59,28 @@ func (sphq *SecurityPriceHistoryQuery) Unique(unique bool) *SecurityPriceHistory
 func (sphq *SecurityPriceHistoryQuery) Order(o ...securitypricehistory.OrderOption) *SecurityPriceHistoryQuery {
 	sphq.order = append(sphq.order, o...)
 	return sphq
+}
+
+// QuerySecurity chains the current query on the "security" edge.
+func (sphq *SecurityPriceHistoryQuery) QuerySecurity() *SecurityQuery {
+	query := (&SecurityClient{config: sphq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := sphq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := sphq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(securitypricehistory.Table, securitypricehistory.FieldID, selector),
+			sqlgraph.To(security.Table, security.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, securitypricehistory.SecurityTable, securitypricehistory.SecurityColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(sphq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first SecurityPriceHistory entity from the query.
@@ -246,15 +270,27 @@ func (sphq *SecurityPriceHistoryQuery) Clone() *SecurityPriceHistoryQuery {
 		return nil
 	}
 	return &SecurityPriceHistoryQuery{
-		config:     sphq.config,
-		ctx:        sphq.ctx.Clone(),
-		order:      append([]securitypricehistory.OrderOption{}, sphq.order...),
-		inters:     append([]Interceptor{}, sphq.inters...),
-		predicates: append([]predicate.SecurityPriceHistory{}, sphq.predicates...),
+		config:       sphq.config,
+		ctx:          sphq.ctx.Clone(),
+		order:        append([]securitypricehistory.OrderOption{}, sphq.order...),
+		inters:       append([]Interceptor{}, sphq.inters...),
+		predicates:   append([]predicate.SecurityPriceHistory{}, sphq.predicates...),
+		withSecurity: sphq.withSecurity.Clone(),
 		// clone intermediate query.
 		sql:  sphq.sql.Clone(),
 		path: sphq.path,
 	}
+}
+
+// WithSecurity tells the query-builder to eager-load the nodes that are connected to
+// the "security" edge. The optional arguments are used to configure the query builder of the edge.
+func (sphq *SecurityPriceHistoryQuery) WithSecurity(opts ...func(*SecurityQuery)) *SecurityPriceHistoryQuery {
+	query := (&SecurityClient{config: sphq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	sphq.withSecurity = query
+	return sphq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +369,11 @@ func (sphq *SecurityPriceHistoryQuery) prepareQuery(ctx context.Context) error {
 
 func (sphq *SecurityPriceHistoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*SecurityPriceHistory, error) {
 	var (
-		nodes = []*SecurityPriceHistory{}
-		_spec = sphq.querySpec()
+		nodes       = []*SecurityPriceHistory{}
+		_spec       = sphq.querySpec()
+		loadedTypes = [1]bool{
+			sphq.withSecurity != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*SecurityPriceHistory).scanValues(nil, columns)
@@ -342,6 +381,7 @@ func (sphq *SecurityPriceHistoryQuery) sqlAll(ctx context.Context, hooks ...quer
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &SecurityPriceHistory{config: sphq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +393,43 @@ func (sphq *SecurityPriceHistoryQuery) sqlAll(ctx context.Context, hooks ...quer
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := sphq.withSecurity; query != nil {
+		if err := sphq.loadSecurity(ctx, query, nodes, nil,
+			func(n *SecurityPriceHistory, e *Security) { n.Edges.Security = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (sphq *SecurityPriceHistoryQuery) loadSecurity(ctx context.Context, query *SecurityQuery, nodes []*SecurityPriceHistory, init func(*SecurityPriceHistory), assign func(*SecurityPriceHistory, *Security)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*SecurityPriceHistory)
+	for i := range nodes {
+		fk := nodes[i].SecurityID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(security.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "security_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (sphq *SecurityPriceHistoryQuery) sqlCount(ctx context.Context) (int, error) {
@@ -380,6 +456,9 @@ func (sphq *SecurityPriceHistoryQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != securitypricehistory.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if sphq.withSecurity != nil {
+			_spec.Node.AddColumnOnce(securitypricehistory.FieldSecurityID)
 		}
 	}
 	if ps := sphq.predicates; len(ps) > 0 {

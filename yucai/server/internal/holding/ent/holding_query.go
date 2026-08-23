@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/holding"
+	"github.com/yucai/server/internal/holding/ent/holdinglot"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 )
 
@@ -23,6 +25,7 @@ type HoldingQuery struct {
 	order      []holding.OrderOption
 	inters     []Interceptor
 	predicates []predicate.Holding
+	withLots   *HoldingLotQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +60,28 @@ func (hq *HoldingQuery) Unique(unique bool) *HoldingQuery {
 func (hq *HoldingQuery) Order(o ...holding.OrderOption) *HoldingQuery {
 	hq.order = append(hq.order, o...)
 	return hq
+}
+
+// QueryLots chains the current query on the "lots" edge.
+func (hq *HoldingQuery) QueryLots() *HoldingLotQuery {
+	query := (&HoldingLotClient{config: hq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := hq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := hq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(holding.Table, holding.FieldID, selector),
+			sqlgraph.To(holdinglot.Table, holdinglot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, holding.LotsTable, holding.LotsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(hq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Holding entity from the query.
@@ -251,10 +276,22 @@ func (hq *HoldingQuery) Clone() *HoldingQuery {
 		order:      append([]holding.OrderOption{}, hq.order...),
 		inters:     append([]Interceptor{}, hq.inters...),
 		predicates: append([]predicate.Holding{}, hq.predicates...),
+		withLots:   hq.withLots.Clone(),
 		// clone intermediate query.
 		sql:  hq.sql.Clone(),
 		path: hq.path,
 	}
+}
+
+// WithLots tells the query-builder to eager-load the nodes that are connected to
+// the "lots" edge. The optional arguments are used to configure the query builder of the edge.
+func (hq *HoldingQuery) WithLots(opts ...func(*HoldingLotQuery)) *HoldingQuery {
+	query := (&HoldingLotClient{config: hq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	hq.withLots = query
+	return hq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +370,11 @@ func (hq *HoldingQuery) prepareQuery(ctx context.Context) error {
 
 func (hq *HoldingQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Holding, error) {
 	var (
-		nodes = []*Holding{}
-		_spec = hq.querySpec()
+		nodes       = []*Holding{}
+		_spec       = hq.querySpec()
+		loadedTypes = [1]bool{
+			hq.withLots != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Holding).scanValues(nil, columns)
@@ -342,6 +382,7 @@ func (hq *HoldingQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Hold
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Holding{config: hq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +394,45 @@ func (hq *HoldingQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Hold
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := hq.withLots; query != nil {
+		if err := hq.loadLots(ctx, query, nodes,
+			func(n *Holding) { n.Edges.Lots = []*HoldingLot{} },
+			func(n *Holding, e *HoldingLot) { n.Edges.Lots = append(n.Edges.Lots, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (hq *HoldingQuery) loadLots(ctx context.Context, query *HoldingLotQuery, nodes []*Holding, init func(*Holding), assign func(*Holding, *HoldingLot)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Holding)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(holdinglot.FieldHoldingID)
+	}
+	query.Where(predicate.HoldingLot(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(holding.LotsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.HoldingID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "holding_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (hq *HoldingQuery) sqlCount(ctx context.Context) (int, error) {

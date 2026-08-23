@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/transaction/ent/transaction"
 	"github.com/yucai/server/internal/transaction/ent/transactionentry"
 )
 
@@ -102,6 +103,11 @@ func (tec *TransactionEntryCreate) SetNillableID(u *uuid.UUID) *TransactionEntry
 	return tec
 }
 
+// SetTransaction sets the "transaction" edge to the Transaction entity.
+func (tec *TransactionEntryCreate) SetTransaction(t *Transaction) *TransactionEntryCreate {
+	return tec.SetTransactionID(t.ID)
+}
+
 // Mutation returns the TransactionEntryMutation object of the builder.
 func (tec *TransactionEntryCreate) Mutation() *TransactionEntryMutation {
 	return tec.mutation
@@ -176,6 +182,9 @@ func (tec *TransactionEntryCreate) check() error {
 	if _, ok := tec.mutation.CreditCents(); !ok {
 		return &ValidationError{Name: "credit_cents", err: errors.New(`ent: missing required field "TransactionEntry.credit_cents"`)}
 	}
+	if len(tec.mutation.TransactionIDs()) == 0 {
+		return &ValidationError{Name: "transaction", err: errors.New(`ent: missing required edge "TransactionEntry.transaction"`)}
+	}
 	return nil
 }
 
@@ -211,10 +220,6 @@ func (tec *TransactionEntryCreate) createSpec() (*TransactionEntry, *sqlgraph.Cr
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
-	if value, ok := tec.mutation.TransactionID(); ok {
-		_spec.SetField(transactionentry.FieldTransactionID, field.TypeUUID, value)
-		_node.TransactionID = value
-	}
 	if value, ok := tec.mutation.AccountID(); ok {
 		_spec.SetField(transactionentry.FieldAccountID, field.TypeUUID, value)
 		_node.AccountID = value
@@ -234,6 +239,23 @@ func (tec *TransactionEntryCreate) createSpec() (*TransactionEntry, *sqlgraph.Cr
 	if value, ok := tec.mutation.Note(); ok {
 		_spec.SetField(transactionentry.FieldNote, field.TypeString, value)
 		_node.Note = value
+	}
+	if nodes := tec.mutation.TransactionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transactionentry.TransactionTable,
+			Columns: []string{transactionentry.TransactionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transaction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.TransactionID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

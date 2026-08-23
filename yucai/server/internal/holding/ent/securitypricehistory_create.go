@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/holding/ent/security"
 	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
@@ -95,6 +96,11 @@ func (sphc *SecurityPriceHistoryCreate) SetNillableID(u *uuid.UUID) *SecurityPri
 	return sphc
 }
 
+// SetSecurity sets the "security" edge to the Security entity.
+func (sphc *SecurityPriceHistoryCreate) SetSecurity(s *Security) *SecurityPriceHistoryCreate {
+	return sphc.SetSecurityID(s.ID)
+}
+
 // Mutation returns the SecurityPriceHistoryMutation object of the builder.
 func (sphc *SecurityPriceHistoryCreate) Mutation() *SecurityPriceHistoryMutation {
 	return sphc.mutation
@@ -168,6 +174,9 @@ func (sphc *SecurityPriceHistoryCreate) check() error {
 	if _, ok := sphc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "SecurityPriceHistory.created_at"`)}
 	}
+	if len(sphc.mutation.SecurityIDs()) == 0 {
+		return &ValidationError{Name: "security", err: errors.New(`ent: missing required edge "SecurityPriceHistory.security"`)}
+	}
 	return nil
 }
 
@@ -203,10 +212,6 @@ func (sphc *SecurityPriceHistoryCreate) createSpec() (*SecurityPriceHistory, *sq
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
-	if value, ok := sphc.mutation.SecurityID(); ok {
-		_spec.SetField(securitypricehistory.FieldSecurityID, field.TypeUUID, value)
-		_node.SecurityID = value
-	}
 	if value, ok := sphc.mutation.PriceDate(); ok {
 		_spec.SetField(securitypricehistory.FieldPriceDate, field.TypeTime, value)
 		_node.PriceDate = value
@@ -226,6 +231,23 @@ func (sphc *SecurityPriceHistoryCreate) createSpec() (*SecurityPriceHistory, *sq
 	if value, ok := sphc.mutation.CreatedAt(); ok {
 		_spec.SetField(securitypricehistory.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := sphc.mutation.SecurityIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   securitypricehistory.SecurityTable,
+			Columns: []string{securitypricehistory.SecurityColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(security.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.SecurityID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/holding"
+	"github.com/yucai/server/internal/holding/ent/holdinglot"
 )
 
 // HoldingCreate is the builder for creating a Holding entity.
@@ -121,6 +122,21 @@ func (hc *HoldingCreate) SetNillableID(u *uuid.UUID) *HoldingCreate {
 		hc.SetID(*u)
 	}
 	return hc
+}
+
+// AddLotIDs adds the "lots" edge to the HoldingLot entity by IDs.
+func (hc *HoldingCreate) AddLotIDs(ids ...uuid.UUID) *HoldingCreate {
+	hc.mutation.AddLotIDs(ids...)
+	return hc
+}
+
+// AddLots adds the "lots" edges to the HoldingLot entity.
+func (hc *HoldingCreate) AddLots(h ...*HoldingLot) *HoldingCreate {
+	ids := make([]uuid.UUID, len(h))
+	for i := range h {
+		ids[i] = h[i].ID
+	}
+	return hc.AddLotIDs(ids...)
 }
 
 // Mutation returns the HoldingMutation object of the builder.
@@ -276,6 +292,22 @@ func (hc *HoldingCreate) createSpec() (*Holding, *sqlgraph.CreateSpec) {
 	if value, ok := hc.mutation.UpdatedAt(); ok {
 		_spec.SetField(holding.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := hc.mutation.LotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   holding.LotsTable,
+			Columns: []string{holding.LotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

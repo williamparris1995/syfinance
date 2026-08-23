@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/predicate"
 	"github.com/yucai/server/internal/template/ent/templaterecordlog"
+	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
 
 // TemplateRecordLogUpdate is the builder for updating TemplateRecordLog entities.
@@ -77,9 +78,20 @@ func (trlu *TemplateRecordLogUpdate) ClearTransactionID() *TemplateRecordLogUpda
 	return trlu
 }
 
+// SetTemplate sets the "template" edge to the TransactionTemplate entity.
+func (trlu *TemplateRecordLogUpdate) SetTemplate(t *TransactionTemplate) *TemplateRecordLogUpdate {
+	return trlu.SetTemplateID(t.ID)
+}
+
 // Mutation returns the TemplateRecordLogMutation object of the builder.
 func (trlu *TemplateRecordLogUpdate) Mutation() *TemplateRecordLogMutation {
 	return trlu.mutation
+}
+
+// ClearTemplate clears the "template" edge to the TransactionTemplate entity.
+func (trlu *TemplateRecordLogUpdate) ClearTemplate() *TemplateRecordLogUpdate {
+	trlu.mutation.ClearTemplate()
+	return trlu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -109,7 +121,18 @@ func (trlu *TemplateRecordLogUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (trlu *TemplateRecordLogUpdate) check() error {
+	if trlu.mutation.TemplateCleared() && len(trlu.mutation.TemplateIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "TemplateRecordLog.template"`)
+	}
+	return nil
+}
+
 func (trlu *TemplateRecordLogUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := trlu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(templaterecordlog.Table, templaterecordlog.Columns, sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID))
 	if ps := trlu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -117,9 +140,6 @@ func (trlu *TemplateRecordLogUpdate) sqlSave(ctx context.Context) (n int, err er
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := trlu.mutation.TemplateID(); ok {
-		_spec.SetField(templaterecordlog.FieldTemplateID, field.TypeUUID, value)
 	}
 	if value, ok := trlu.mutation.RecordDate(); ok {
 		_spec.SetField(templaterecordlog.FieldRecordDate, field.TypeTime, value)
@@ -129,6 +149,35 @@ func (trlu *TemplateRecordLogUpdate) sqlSave(ctx context.Context) (n int, err er
 	}
 	if trlu.mutation.TransactionIDCleared() {
 		_spec.ClearField(templaterecordlog.FieldTransactionID, field.TypeUUID)
+	}
+	if trlu.mutation.TemplateCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   templaterecordlog.TemplateTable,
+			Columns: []string{templaterecordlog.TemplateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactiontemplate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := trlu.mutation.TemplateIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   templaterecordlog.TemplateTable,
+			Columns: []string{templaterecordlog.TemplateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactiontemplate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, trlu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -198,9 +247,20 @@ func (trluo *TemplateRecordLogUpdateOne) ClearTransactionID() *TemplateRecordLog
 	return trluo
 }
 
+// SetTemplate sets the "template" edge to the TransactionTemplate entity.
+func (trluo *TemplateRecordLogUpdateOne) SetTemplate(t *TransactionTemplate) *TemplateRecordLogUpdateOne {
+	return trluo.SetTemplateID(t.ID)
+}
+
 // Mutation returns the TemplateRecordLogMutation object of the builder.
 func (trluo *TemplateRecordLogUpdateOne) Mutation() *TemplateRecordLogMutation {
 	return trluo.mutation
+}
+
+// ClearTemplate clears the "template" edge to the TransactionTemplate entity.
+func (trluo *TemplateRecordLogUpdateOne) ClearTemplate() *TemplateRecordLogUpdateOne {
+	trluo.mutation.ClearTemplate()
+	return trluo
 }
 
 // Where appends a list predicates to the TemplateRecordLogUpdate builder.
@@ -243,7 +303,18 @@ func (trluo *TemplateRecordLogUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (trluo *TemplateRecordLogUpdateOne) check() error {
+	if trluo.mutation.TemplateCleared() && len(trluo.mutation.TemplateIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "TemplateRecordLog.template"`)
+	}
+	return nil
+}
+
 func (trluo *TemplateRecordLogUpdateOne) sqlSave(ctx context.Context) (_node *TemplateRecordLog, err error) {
+	if err := trluo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(templaterecordlog.Table, templaterecordlog.Columns, sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID))
 	id, ok := trluo.mutation.ID()
 	if !ok {
@@ -269,9 +340,6 @@ func (trluo *TemplateRecordLogUpdateOne) sqlSave(ctx context.Context) (_node *Te
 			}
 		}
 	}
-	if value, ok := trluo.mutation.TemplateID(); ok {
-		_spec.SetField(templaterecordlog.FieldTemplateID, field.TypeUUID, value)
-	}
 	if value, ok := trluo.mutation.RecordDate(); ok {
 		_spec.SetField(templaterecordlog.FieldRecordDate, field.TypeTime, value)
 	}
@@ -280,6 +348,35 @@ func (trluo *TemplateRecordLogUpdateOne) sqlSave(ctx context.Context) (_node *Te
 	}
 	if trluo.mutation.TransactionIDCleared() {
 		_spec.ClearField(templaterecordlog.FieldTransactionID, field.TypeUUID)
+	}
+	if trluo.mutation.TemplateCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   templaterecordlog.TemplateTable,
+			Columns: []string{templaterecordlog.TemplateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactiontemplate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := trluo.mutation.TemplateIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   templaterecordlog.TemplateTable,
+			Columns: []string{templaterecordlog.TemplateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactiontemplate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &TemplateRecordLog{config: trluo.config}
 	_spec.Assign = _node.assignValues

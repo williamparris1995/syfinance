@@ -43,27 +43,35 @@ var (
 	// BudgetItemsColumns holds the columns for the "budget_items" table.
 	BudgetItemsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "budget_id", Type: field.TypeUUID, Comment: "FK to Budget"},
 		{Name: "account_id", Type: field.TypeUUID, Comment: "FK to Account"},
 		{Name: "planned_amount_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "actual_amount_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "notes", Type: field.TypeString, Nullable: true, Default: ""},
+		{Name: "budget_id", Type: field.TypeUUID, Comment: "FK to Budget"},
 	}
 	// BudgetItemsTable holds the schema information for the "budget_items" table.
 	BudgetItemsTable = &schema.Table{
 		Name:       "budget_items",
 		Columns:    BudgetItemsColumns,
 		PrimaryKey: []*schema.Column{BudgetItemsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "budget_items_budgets_items",
+				Columns:    []*schema.Column{BudgetItemsColumns[5]},
+				RefColumns: []*schema.Column{BudgetsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "budgetitem_budget_id",
 				Unique:  false,
-				Columns: []*schema.Column{BudgetItemsColumns[1]},
+				Columns: []*schema.Column{BudgetItemsColumns[5]},
 			},
 			{
 				Name:    "budgetitem_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{BudgetItemsColumns[2]},
+				Columns: []*schema.Column{BudgetItemsColumns[1]},
 			},
 		},
 	}
@@ -75,4 +83,5 @@ var (
 )
 
 func init() {
+	BudgetItemsTable.ForeignKeys[0].RefTable = BudgetsTable
 }

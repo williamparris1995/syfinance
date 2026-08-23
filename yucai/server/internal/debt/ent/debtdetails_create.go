@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
+	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
+	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 )
 
 // DebtDetailsCreate is the builder for creating a DebtDetails entity.
@@ -193,6 +195,36 @@ func (ddc *DebtDetailsCreate) SetNillableID(u *uuid.UUID) *DebtDetailsCreate {
 		ddc.SetID(*u)
 	}
 	return ddc
+}
+
+// AddScheduleIDs adds the "schedule" edge to the PaymentSchedule entity by IDs.
+func (ddc *DebtDetailsCreate) AddScheduleIDs(ids ...uuid.UUID) *DebtDetailsCreate {
+	ddc.mutation.AddScheduleIDs(ids...)
+	return ddc
+}
+
+// AddSchedule adds the "schedule" edges to the PaymentSchedule entity.
+func (ddc *DebtDetailsCreate) AddSchedule(p ...*PaymentSchedule) *DebtDetailsCreate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return ddc.AddScheduleIDs(ids...)
+}
+
+// AddProgressSnapshotIDs adds the "progress_snapshots" edge to the DebtProgressSnapshot entity by IDs.
+func (ddc *DebtDetailsCreate) AddProgressSnapshotIDs(ids ...uuid.UUID) *DebtDetailsCreate {
+	ddc.mutation.AddProgressSnapshotIDs(ids...)
+	return ddc
+}
+
+// AddProgressSnapshots adds the "progress_snapshots" edges to the DebtProgressSnapshot entity.
+func (ddc *DebtDetailsCreate) AddProgressSnapshots(d ...*DebtProgressSnapshot) *DebtDetailsCreate {
+	ids := make([]uuid.UUID, len(d))
+	for i := range d {
+		ids[i] = d[i].ID
+	}
+	return ddc.AddProgressSnapshotIDs(ids...)
 }
 
 // Mutation returns the DebtDetailsMutation object of the builder.
@@ -409,6 +441,38 @@ func (ddc *DebtDetailsCreate) createSpec() (*DebtDetails, *sqlgraph.CreateSpec) 
 	if value, ok := ddc.mutation.UpdatedAt(); ok {
 		_spec.SetField(debtdetails.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := ddc.mutation.ScheduleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ScheduleTable,
+			Columns: []string{debtdetails.ScheduleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := ddc.mutation.ProgressSnapshotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ProgressSnapshotsTable,
+			Columns: []string{debtdetails.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

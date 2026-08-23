@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,16 +14,18 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/ent/goal"
+	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 	"github.com/yucai/server/internal/goal/ent/predicate"
 )
 
 // GoalQuery is the builder for querying Goal entities.
 type GoalQuery struct {
 	config
-	ctx        *QueryContext
-	order      []goal.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Goal
+	ctx                   *QueryContext
+	order                 []goal.OrderOption
+	inters                []Interceptor
+	predicates            []predicate.Goal
+	withProgressSnapshots *GoalProgressSnapshotQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +60,28 @@ func (gq *GoalQuery) Unique(unique bool) *GoalQuery {
 func (gq *GoalQuery) Order(o ...goal.OrderOption) *GoalQuery {
 	gq.order = append(gq.order, o...)
 	return gq
+}
+
+// QueryProgressSnapshots chains the current query on the "progress_snapshots" edge.
+func (gq *GoalQuery) QueryProgressSnapshots() *GoalProgressSnapshotQuery {
+	query := (&GoalProgressSnapshotClient{config: gq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := gq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := gq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(goal.Table, goal.FieldID, selector),
+			sqlgraph.To(goalprogresssnapshot.Table, goalprogresssnapshot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, goal.ProgressSnapshotsTable, goal.ProgressSnapshotsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(gq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Goal entity from the query.
@@ -246,15 +271,27 @@ func (gq *GoalQuery) Clone() *GoalQuery {
 		return nil
 	}
 	return &GoalQuery{
-		config:     gq.config,
-		ctx:        gq.ctx.Clone(),
-		order:      append([]goal.OrderOption{}, gq.order...),
-		inters:     append([]Interceptor{}, gq.inters...),
-		predicates: append([]predicate.Goal{}, gq.predicates...),
+		config:                gq.config,
+		ctx:                   gq.ctx.Clone(),
+		order:                 append([]goal.OrderOption{}, gq.order...),
+		inters:                append([]Interceptor{}, gq.inters...),
+		predicates:            append([]predicate.Goal{}, gq.predicates...),
+		withProgressSnapshots: gq.withProgressSnapshots.Clone(),
 		// clone intermediate query.
 		sql:  gq.sql.Clone(),
 		path: gq.path,
 	}
+}
+
+// WithProgressSnapshots tells the query-builder to eager-load the nodes that are connected to
+// the "progress_snapshots" edge. The optional arguments are used to configure the query builder of the edge.
+func (gq *GoalQuery) WithProgressSnapshots(opts ...func(*GoalProgressSnapshotQuery)) *GoalQuery {
+	query := (&GoalProgressSnapshotClient{config: gq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	gq.withProgressSnapshots = query
+	return gq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +370,11 @@ func (gq *GoalQuery) prepareQuery(ctx context.Context) error {
 
 func (gq *GoalQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Goal, error) {
 	var (
-		nodes = []*Goal{}
-		_spec = gq.querySpec()
+		nodes       = []*Goal{}
+		_spec       = gq.querySpec()
+		loadedTypes = [1]bool{
+			gq.withProgressSnapshots != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Goal).scanValues(nil, columns)
@@ -342,6 +382,7 @@ func (gq *GoalQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Goal, e
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Goal{config: gq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +394,47 @@ func (gq *GoalQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Goal, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := gq.withProgressSnapshots; query != nil {
+		if err := gq.loadProgressSnapshots(ctx, query, nodes,
+			func(n *Goal) { n.Edges.ProgressSnapshots = []*GoalProgressSnapshot{} },
+			func(n *Goal, e *GoalProgressSnapshot) {
+				n.Edges.ProgressSnapshots = append(n.Edges.ProgressSnapshots, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (gq *GoalQuery) loadProgressSnapshots(ctx context.Context, query *GoalProgressSnapshotQuery, nodes []*Goal, init func(*Goal), assign func(*Goal, *GoalProgressSnapshot)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Goal)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(goalprogresssnapshot.FieldGoalID)
+	}
+	query.Where(predicate.GoalProgressSnapshot(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(goal.ProgressSnapshotsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.GoalID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "goal_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (gq *GoalQuery) sqlCount(ctx context.Context) (int, error) {

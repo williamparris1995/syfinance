@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 )
@@ -103,26 +104,6 @@ func SecurityIDIn(vs ...uuid.UUID) predicate.SecurityPriceHistory {
 // SecurityIDNotIn applies the NotIn predicate on the "security_id" field.
 func SecurityIDNotIn(vs ...uuid.UUID) predicate.SecurityPriceHistory {
 	return predicate.SecurityPriceHistory(sql.FieldNotIn(FieldSecurityID, vs...))
-}
-
-// SecurityIDGT applies the GT predicate on the "security_id" field.
-func SecurityIDGT(v uuid.UUID) predicate.SecurityPriceHistory {
-	return predicate.SecurityPriceHistory(sql.FieldGT(FieldSecurityID, v))
-}
-
-// SecurityIDGTE applies the GTE predicate on the "security_id" field.
-func SecurityIDGTE(v uuid.UUID) predicate.SecurityPriceHistory {
-	return predicate.SecurityPriceHistory(sql.FieldGTE(FieldSecurityID, v))
-}
-
-// SecurityIDLT applies the LT predicate on the "security_id" field.
-func SecurityIDLT(v uuid.UUID) predicate.SecurityPriceHistory {
-	return predicate.SecurityPriceHistory(sql.FieldLT(FieldSecurityID, v))
-}
-
-// SecurityIDLTE applies the LTE predicate on the "security_id" field.
-func SecurityIDLTE(v uuid.UUID) predicate.SecurityPriceHistory {
-	return predicate.SecurityPriceHistory(sql.FieldLTE(FieldSecurityID, v))
 }
 
 // PriceDateEQ applies the EQ predicate on the "price_date" field.
@@ -373,6 +354,29 @@ func CreatedAtLT(v time.Time) predicate.SecurityPriceHistory {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.SecurityPriceHistory {
 	return predicate.SecurityPriceHistory(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// HasSecurity applies the HasEdge predicate on the "security" edge.
+func HasSecurity() predicate.SecurityPriceHistory {
+	return predicate.SecurityPriceHistory(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, SecurityTable, SecurityColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSecurityWith applies the HasEdge predicate on the "security" edge with a given conditions (other predicates).
+func HasSecurityWith(preds ...predicate.Security) predicate.SecurityPriceHistory {
+	return predicate.SecurityPriceHistory(func(s *sql.Selector) {
+		step := newSecurityStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

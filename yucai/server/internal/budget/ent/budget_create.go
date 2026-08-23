@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/budget/ent/budget"
+	"github.com/yucai/server/internal/budget/ent/budgetitem"
 )
 
 // BudgetCreate is the builder for creating a Budget entity.
@@ -149,6 +150,21 @@ func (bc *BudgetCreate) SetNillableID(u *uuid.UUID) *BudgetCreate {
 		bc.SetID(*u)
 	}
 	return bc
+}
+
+// AddItemIDs adds the "items" edge to the BudgetItem entity by IDs.
+func (bc *BudgetCreate) AddItemIDs(ids ...uuid.UUID) *BudgetCreate {
+	bc.mutation.AddItemIDs(ids...)
+	return bc
+}
+
+// AddItems adds the "items" edges to the BudgetItem entity.
+func (bc *BudgetCreate) AddItems(b ...*BudgetItem) *BudgetCreate {
+	ids := make([]uuid.UUID, len(b))
+	for i := range b {
+		ids[i] = b[i].ID
+	}
+	return bc.AddItemIDs(ids...)
 }
 
 // Mutation returns the BudgetMutation object of the builder.
@@ -324,6 +340,22 @@ func (bc *BudgetCreate) createSpec() (*Budget, *sqlgraph.CreateSpec) {
 	if value, ok := bc.mutation.UpdatedAt(); ok {
 		_spec.SetField(budget.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := bc.mutation.ItemsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   budget.ItemsTable,
+			Columns: []string{budget.ItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

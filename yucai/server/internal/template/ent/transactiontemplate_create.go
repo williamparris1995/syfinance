@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/template/ent/templaterecordlog"
 	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
 
@@ -251,6 +252,21 @@ func (ttc *TransactionTemplateCreate) SetNillableID(u *uuid.UUID) *TransactionTe
 	return ttc
 }
 
+// AddRecordLogIDs adds the "record_logs" edge to the TemplateRecordLog entity by IDs.
+func (ttc *TransactionTemplateCreate) AddRecordLogIDs(ids ...uuid.UUID) *TransactionTemplateCreate {
+	ttc.mutation.AddRecordLogIDs(ids...)
+	return ttc
+}
+
+// AddRecordLogs adds the "record_logs" edges to the TemplateRecordLog entity.
+func (ttc *TransactionTemplateCreate) AddRecordLogs(t ...*TemplateRecordLog) *TransactionTemplateCreate {
+	ids := make([]uuid.UUID, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return ttc.AddRecordLogIDs(ids...)
+}
+
 // Mutation returns the TransactionTemplateMutation object of the builder.
 func (ttc *TransactionTemplateCreate) Mutation() *TransactionTemplateMutation {
 	return ttc.mutation
@@ -488,6 +504,22 @@ func (ttc *TransactionTemplateCreate) createSpec() (*TransactionTemplate, *sqlgr
 	if value, ok := ttc.mutation.UpdatedAt(); ok {
 		_spec.SetField(transactiontemplate.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := ttc.mutation.RecordLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactiontemplate.RecordLogsTable,
+			Columns: []string{transactiontemplate.RecordLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templaterecordlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

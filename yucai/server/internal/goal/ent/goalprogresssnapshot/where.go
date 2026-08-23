@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/ent/predicate"
 )
@@ -140,26 +141,6 @@ func GoalIDNotIn(vs ...uuid.UUID) predicate.GoalProgressSnapshot {
 	return predicate.GoalProgressSnapshot(sql.FieldNotIn(FieldGoalID, vs...))
 }
 
-// GoalIDGT applies the GT predicate on the "goal_id" field.
-func GoalIDGT(v uuid.UUID) predicate.GoalProgressSnapshot {
-	return predicate.GoalProgressSnapshot(sql.FieldGT(FieldGoalID, v))
-}
-
-// GoalIDGTE applies the GTE predicate on the "goal_id" field.
-func GoalIDGTE(v uuid.UUID) predicate.GoalProgressSnapshot {
-	return predicate.GoalProgressSnapshot(sql.FieldGTE(FieldGoalID, v))
-}
-
-// GoalIDLT applies the LT predicate on the "goal_id" field.
-func GoalIDLT(v uuid.UUID) predicate.GoalProgressSnapshot {
-	return predicate.GoalProgressSnapshot(sql.FieldLT(FieldGoalID, v))
-}
-
-// GoalIDLTE applies the LTE predicate on the "goal_id" field.
-func GoalIDLTE(v uuid.UUID) predicate.GoalProgressSnapshot {
-	return predicate.GoalProgressSnapshot(sql.FieldLTE(FieldGoalID, v))
-}
-
 // SnapshotDateEQ applies the EQ predicate on the "snapshot_date" field.
 func SnapshotDateEQ(v time.Time) predicate.GoalProgressSnapshot {
 	return predicate.GoalProgressSnapshot(sql.FieldEQ(FieldSnapshotDate, v))
@@ -278,6 +259,29 @@ func CreatedAtLT(v time.Time) predicate.GoalProgressSnapshot {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.GoalProgressSnapshot {
 	return predicate.GoalProgressSnapshot(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// HasGoal applies the HasEdge predicate on the "goal" edge.
+func HasGoal() predicate.GoalProgressSnapshot {
+	return predicate.GoalProgressSnapshot(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, GoalTable, GoalColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasGoalWith applies the HasEdge predicate on the "goal" edge with a given conditions (other predicates).
+func HasGoalWith(preds ...predicate.Goal) predicate.GoalProgressSnapshot {
+	return predicate.GoalProgressSnapshot(func(s *sql.Selector) {
+		step := newGoalStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

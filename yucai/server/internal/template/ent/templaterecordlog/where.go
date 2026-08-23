@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/predicate"
 )
@@ -140,26 +141,6 @@ func TemplateIDNotIn(vs ...uuid.UUID) predicate.TemplateRecordLog {
 	return predicate.TemplateRecordLog(sql.FieldNotIn(FieldTemplateID, vs...))
 }
 
-// TemplateIDGT applies the GT predicate on the "template_id" field.
-func TemplateIDGT(v uuid.UUID) predicate.TemplateRecordLog {
-	return predicate.TemplateRecordLog(sql.FieldGT(FieldTemplateID, v))
-}
-
-// TemplateIDGTE applies the GTE predicate on the "template_id" field.
-func TemplateIDGTE(v uuid.UUID) predicate.TemplateRecordLog {
-	return predicate.TemplateRecordLog(sql.FieldGTE(FieldTemplateID, v))
-}
-
-// TemplateIDLT applies the LT predicate on the "template_id" field.
-func TemplateIDLT(v uuid.UUID) predicate.TemplateRecordLog {
-	return predicate.TemplateRecordLog(sql.FieldLT(FieldTemplateID, v))
-}
-
-// TemplateIDLTE applies the LTE predicate on the "template_id" field.
-func TemplateIDLTE(v uuid.UUID) predicate.TemplateRecordLog {
-	return predicate.TemplateRecordLog(sql.FieldLTE(FieldTemplateID, v))
-}
-
 // RecordDateEQ applies the EQ predicate on the "record_date" field.
 func RecordDateEQ(v time.Time) predicate.TemplateRecordLog {
 	return predicate.TemplateRecordLog(sql.FieldEQ(FieldRecordDate, v))
@@ -288,6 +269,29 @@ func CreatedAtLT(v time.Time) predicate.TemplateRecordLog {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.TemplateRecordLog {
 	return predicate.TemplateRecordLog(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// HasTemplate applies the HasEdge predicate on the "template" edge.
+func HasTemplate() predicate.TemplateRecordLog {
+	return predicate.TemplateRecordLog(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, TemplateTable, TemplateColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTemplateWith applies the HasEdge predicate on the "template" edge with a given conditions (other predicates).
+func HasTemplateWith(preds ...predicate.TransactionTemplate) predicate.TemplateRecordLog {
+	return predicate.TemplateRecordLog(func(s *sql.Selector) {
+		step := newTemplateStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

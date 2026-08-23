@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
@@ -325,6 +326,38 @@ func (c *DebtDetailsClient) GetX(ctx context.Context, id uuid.UUID) *DebtDetails
 	return obj
 }
 
+// QuerySchedule queries the schedule edge of a DebtDetails.
+func (c *DebtDetailsClient) QuerySchedule(dd *DebtDetails) *PaymentScheduleQuery {
+	query := (&PaymentScheduleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := dd.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(debtdetails.Table, debtdetails.FieldID, id),
+			sqlgraph.To(paymentschedule.Table, paymentschedule.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, debtdetails.ScheduleTable, debtdetails.ScheduleColumn),
+		)
+		fromV = sqlgraph.Neighbors(dd.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProgressSnapshots queries the progress_snapshots edge of a DebtDetails.
+func (c *DebtDetailsClient) QueryProgressSnapshots(dd *DebtDetails) *DebtProgressSnapshotQuery {
+	query := (&DebtProgressSnapshotClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := dd.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(debtdetails.Table, debtdetails.FieldID, id),
+			sqlgraph.To(debtprogresssnapshot.Table, debtprogresssnapshot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, debtdetails.ProgressSnapshotsTable, debtdetails.ProgressSnapshotsColumn),
+		)
+		fromV = sqlgraph.Neighbors(dd.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *DebtDetailsClient) Hooks() []Hook {
 	return c.hooks.DebtDetails
@@ -458,6 +491,22 @@ func (c *DebtProgressSnapshotClient) GetX(ctx context.Context, id uuid.UUID) *De
 	return obj
 }
 
+// QueryDebt queries the debt edge of a DebtProgressSnapshot.
+func (c *DebtProgressSnapshotClient) QueryDebt(dps *DebtProgressSnapshot) *DebtDetailsQuery {
+	query := (&DebtDetailsClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := dps.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(debtprogresssnapshot.Table, debtprogresssnapshot.FieldID, id),
+			sqlgraph.To(debtdetails.Table, debtdetails.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, debtprogresssnapshot.DebtTable, debtprogresssnapshot.DebtColumn),
+		)
+		fromV = sqlgraph.Neighbors(dps.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *DebtProgressSnapshotClient) Hooks() []Hook {
 	return c.hooks.DebtProgressSnapshot
@@ -589,6 +638,22 @@ func (c *PaymentScheduleClient) GetX(ctx context.Context, id uuid.UUID) *Payment
 		panic(err)
 	}
 	return obj
+}
+
+// QueryDebt queries the debt edge of a PaymentSchedule.
+func (c *PaymentScheduleClient) QueryDebt(ps *PaymentSchedule) *DebtDetailsQuery {
+	query := (&DebtDetailsClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := ps.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(paymentschedule.Table, paymentschedule.FieldID, id),
+			sqlgraph.To(debtdetails.Table, debtdetails.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, paymentschedule.DebtTable, paymentschedule.DebtColumn),
+		)
+		fromV = sqlgraph.Neighbors(ps.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.

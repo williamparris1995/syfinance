@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/budget/ent/budget"
 	"github.com/yucai/server/internal/budget/ent/budgetitem"
 	"github.com/yucai/server/internal/budget/ent/predicate"
 )
@@ -23,6 +24,7 @@ type BudgetItemQuery struct {
 	order      []budgetitem.OrderOption
 	inters     []Interceptor
 	predicates []predicate.BudgetItem
+	withBudget *BudgetQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +59,28 @@ func (biq *BudgetItemQuery) Unique(unique bool) *BudgetItemQuery {
 func (biq *BudgetItemQuery) Order(o ...budgetitem.OrderOption) *BudgetItemQuery {
 	biq.order = append(biq.order, o...)
 	return biq
+}
+
+// QueryBudget chains the current query on the "budget" edge.
+func (biq *BudgetItemQuery) QueryBudget() *BudgetQuery {
+	query := (&BudgetClient{config: biq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := biq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := biq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(budgetitem.Table, budgetitem.FieldID, selector),
+			sqlgraph.To(budget.Table, budget.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, budgetitem.BudgetTable, budgetitem.BudgetColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(biq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first BudgetItem entity from the query.
@@ -251,10 +275,22 @@ func (biq *BudgetItemQuery) Clone() *BudgetItemQuery {
 		order:      append([]budgetitem.OrderOption{}, biq.order...),
 		inters:     append([]Interceptor{}, biq.inters...),
 		predicates: append([]predicate.BudgetItem{}, biq.predicates...),
+		withBudget: biq.withBudget.Clone(),
 		// clone intermediate query.
 		sql:  biq.sql.Clone(),
 		path: biq.path,
 	}
+}
+
+// WithBudget tells the query-builder to eager-load the nodes that are connected to
+// the "budget" edge. The optional arguments are used to configure the query builder of the edge.
+func (biq *BudgetItemQuery) WithBudget(opts ...func(*BudgetQuery)) *BudgetItemQuery {
+	query := (&BudgetClient{config: biq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	biq.withBudget = query
+	return biq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +369,11 @@ func (biq *BudgetItemQuery) prepareQuery(ctx context.Context) error {
 
 func (biq *BudgetItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*BudgetItem, error) {
 	var (
-		nodes = []*BudgetItem{}
-		_spec = biq.querySpec()
+		nodes       = []*BudgetItem{}
+		_spec       = biq.querySpec()
+		loadedTypes = [1]bool{
+			biq.withBudget != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*BudgetItem).scanValues(nil, columns)
@@ -342,6 +381,7 @@ func (biq *BudgetItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &BudgetItem{config: biq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +393,43 @@ func (biq *BudgetItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := biq.withBudget; query != nil {
+		if err := biq.loadBudget(ctx, query, nodes, nil,
+			func(n *BudgetItem, e *Budget) { n.Edges.Budget = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (biq *BudgetItemQuery) loadBudget(ctx context.Context, query *BudgetQuery, nodes []*BudgetItem, init func(*BudgetItem), assign func(*BudgetItem, *Budget)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*BudgetItem)
+	for i := range nodes {
+		fk := nodes[i].BudgetID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(budget.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "budget_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (biq *BudgetItemQuery) sqlCount(ctx context.Context) (int, error) {
@@ -380,6 +456,9 @@ func (biq *BudgetItemQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != budgetitem.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if biq.withBudget != nil {
+			_spec.Node.AddColumnOnce(budgetitem.FieldBudgetID)
 		}
 	}
 	if ps := biq.predicates; len(ps) > 0 {

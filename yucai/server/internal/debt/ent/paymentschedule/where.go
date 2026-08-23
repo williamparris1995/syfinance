@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
@@ -113,26 +114,6 @@ func DebtIDIn(vs ...uuid.UUID) predicate.PaymentSchedule {
 // DebtIDNotIn applies the NotIn predicate on the "debt_id" field.
 func DebtIDNotIn(vs ...uuid.UUID) predicate.PaymentSchedule {
 	return predicate.PaymentSchedule(sql.FieldNotIn(FieldDebtID, vs...))
-}
-
-// DebtIDGT applies the GT predicate on the "debt_id" field.
-func DebtIDGT(v uuid.UUID) predicate.PaymentSchedule {
-	return predicate.PaymentSchedule(sql.FieldGT(FieldDebtID, v))
-}
-
-// DebtIDGTE applies the GTE predicate on the "debt_id" field.
-func DebtIDGTE(v uuid.UUID) predicate.PaymentSchedule {
-	return predicate.PaymentSchedule(sql.FieldGTE(FieldDebtID, v))
-}
-
-// DebtIDLT applies the LT predicate on the "debt_id" field.
-func DebtIDLT(v uuid.UUID) predicate.PaymentSchedule {
-	return predicate.PaymentSchedule(sql.FieldLT(FieldDebtID, v))
-}
-
-// DebtIDLTE applies the LTE predicate on the "debt_id" field.
-func DebtIDLTE(v uuid.UUID) predicate.PaymentSchedule {
-	return predicate.PaymentSchedule(sql.FieldLTE(FieldDebtID, v))
 }
 
 // PaymentDateEQ applies the EQ predicate on the "payment_date" field.
@@ -393,6 +374,29 @@ func TransactionIDIsNil() predicate.PaymentSchedule {
 // TransactionIDNotNil applies the NotNil predicate on the "transaction_id" field.
 func TransactionIDNotNil() predicate.PaymentSchedule {
 	return predicate.PaymentSchedule(sql.FieldNotNull(FieldTransactionID))
+}
+
+// HasDebt applies the HasEdge predicate on the "debt" edge.
+func HasDebt() predicate.PaymentSchedule {
+	return predicate.PaymentSchedule(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, DebtTable, DebtColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDebtWith applies the HasEdge predicate on the "debt" edge with a given conditions (other predicates).
+func HasDebtWith(preds ...predicate.DebtDetails) predicate.PaymentSchedule {
+	return predicate.PaymentSchedule(func(s *sql.Selector) {
+		step := newDebtStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

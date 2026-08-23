@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -28,8 +29,17 @@ const (
 	FieldCurrentPriceCents = "current_price_cents"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// EdgePriceHistory holds the string denoting the price_history edge name in mutations.
+	EdgePriceHistory = "price_history"
 	// Table holds the table name of the security in the database.
 	Table = "securities"
+	// PriceHistoryTable is the table that holds the price_history relation/edge.
+	PriceHistoryTable = "security_price_histories"
+	// PriceHistoryInverseTable is the table name for the SecurityPriceHistory entity.
+	// It exists in this package in order to avoid circular dependency with the "securitypricehistory" package.
+	PriceHistoryInverseTable = "security_price_histories"
+	// PriceHistoryColumn is the table column denoting the price_history relation/edge.
+	PriceHistoryColumn = "security_id"
 )
 
 // Columns holds all SQL columns for security fields.
@@ -112,4 +122,25 @@ func ByCurrentPriceCents(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByPriceHistoryCount orders the results by price_history count.
+func ByPriceHistoryCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPriceHistoryStep(), opts...)
+	}
+}
+
+// ByPriceHistory orders the results by price_history terms.
+func ByPriceHistory(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPriceHistoryStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newPriceHistoryStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PriceHistoryInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PriceHistoryTable, PriceHistoryColumn),
+	)
 }

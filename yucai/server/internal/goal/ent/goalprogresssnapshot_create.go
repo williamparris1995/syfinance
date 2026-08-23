@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/goal/ent/goal"
 	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 )
 
@@ -71,6 +72,11 @@ func (gpsc *GoalProgressSnapshotCreate) SetNillableID(u *uuid.UUID) *GoalProgres
 		gpsc.SetID(*u)
 	}
 	return gpsc
+}
+
+// SetGoal sets the "goal" edge to the Goal entity.
+func (gpsc *GoalProgressSnapshotCreate) SetGoal(g *Goal) *GoalProgressSnapshotCreate {
+	return gpsc.SetGoalID(g.ID)
 }
 
 // Mutation returns the GoalProgressSnapshotMutation object of the builder.
@@ -135,6 +141,9 @@ func (gpsc *GoalProgressSnapshotCreate) check() error {
 	if _, ok := gpsc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "GoalProgressSnapshot.created_at"`)}
 	}
+	if len(gpsc.mutation.GoalIDs()) == 0 {
+		return &ValidationError{Name: "goal", err: errors.New(`ent: missing required edge "GoalProgressSnapshot.goal"`)}
+	}
 	return nil
 }
 
@@ -174,10 +183,6 @@ func (gpsc *GoalProgressSnapshotCreate) createSpec() (*GoalProgressSnapshot, *sq
 		_spec.SetField(goalprogresssnapshot.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
-	if value, ok := gpsc.mutation.GoalID(); ok {
-		_spec.SetField(goalprogresssnapshot.FieldGoalID, field.TypeUUID, value)
-		_node.GoalID = value
-	}
 	if value, ok := gpsc.mutation.SnapshotDate(); ok {
 		_spec.SetField(goalprogresssnapshot.FieldSnapshotDate, field.TypeTime, value)
 		_node.SnapshotDate = value
@@ -189,6 +194,23 @@ func (gpsc *GoalProgressSnapshotCreate) createSpec() (*GoalProgressSnapshot, *sq
 	if value, ok := gpsc.mutation.CreatedAt(); ok {
 		_spec.SetField(goalprogresssnapshot.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := gpsc.mutation.GoalIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   goalprogresssnapshot.GoalTable,
+			Columns: []string{goalprogresssnapshot.GoalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goal.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.GoalID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

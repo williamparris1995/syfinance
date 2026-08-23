@@ -33,8 +33,29 @@ type Transaction struct {
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the TransactionQuery when eager-loading is set.
+	Edges        TransactionEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// TransactionEdges holds the relations/edges for other nodes in the graph.
+type TransactionEdges struct {
+	// Entries holds the value of the entries edge.
+	Entries []*TransactionEntry `json:"entries,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// EntriesOrErr returns the Entries value or an error if the edge
+// was not loaded in eager-loading.
+func (e TransactionEdges) EntriesOrErr() ([]*TransactionEntry, error) {
+	if e.loadedTypes[0] {
+		return e.Entries, nil
+	}
+	return nil, &NotLoadedError{edge: "entries"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -132,6 +153,11 @@ func (t *Transaction) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (t *Transaction) Value(name string) (ent.Value, error) {
 	return t.selectValues.Get(name)
+}
+
+// QueryEntries queries the "entries" edge of the Transaction entity.
+func (t *Transaction) QueryEntries() *TransactionEntryQuery {
+	return NewTransactionClient(t.config).QueryEntries(t)
 }
 
 // Update returns a builder for updating this Transaction.

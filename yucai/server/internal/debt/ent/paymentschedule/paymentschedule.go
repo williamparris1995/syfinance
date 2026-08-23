@@ -4,6 +4,7 @@ package paymentschedule
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -28,8 +29,17 @@ const (
 	FieldPaidCents = "paid_cents"
 	// FieldTransactionID holds the string denoting the transaction_id field in the database.
 	FieldTransactionID = "transaction_id"
+	// EdgeDebt holds the string denoting the debt edge name in mutations.
+	EdgeDebt = "debt"
 	// Table holds the table name of the paymentschedule in the database.
 	Table = "payment_schedules"
+	// DebtTable is the table that holds the debt relation/edge.
+	DebtTable = "payment_schedules"
+	// DebtInverseTable is the table name for the DebtDetails entity.
+	// It exists in this package in order to avoid circular dependency with the "debtdetails" package.
+	DebtInverseTable = "debt_details"
+	// DebtColumn is the table column denoting the debt relation/edge.
+	DebtColumn = "debt_id"
 )
 
 // Columns holds all SQL columns for paymentschedule fields.
@@ -116,4 +126,18 @@ func ByPaidCents(opts ...sql.OrderTermOption) OrderOption {
 // ByTransactionID orders the results by the transaction_id field.
 func ByTransactionID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTransactionID, opts...).ToFunc()
+}
+
+// ByDebtField orders the results by debt field.
+func ByDebtField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDebtStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newDebtStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DebtInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, DebtTable, DebtColumn),
+	)
 }

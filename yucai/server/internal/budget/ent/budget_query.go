@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/budget/ent/budget"
+	"github.com/yucai/server/internal/budget/ent/budgetitem"
 	"github.com/yucai/server/internal/budget/ent/predicate"
 )
 
@@ -23,6 +25,7 @@ type BudgetQuery struct {
 	order      []budget.OrderOption
 	inters     []Interceptor
 	predicates []predicate.Budget
+	withItems  *BudgetItemQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +60,28 @@ func (bq *BudgetQuery) Unique(unique bool) *BudgetQuery {
 func (bq *BudgetQuery) Order(o ...budget.OrderOption) *BudgetQuery {
 	bq.order = append(bq.order, o...)
 	return bq
+}
+
+// QueryItems chains the current query on the "items" edge.
+func (bq *BudgetQuery) QueryItems() *BudgetItemQuery {
+	query := (&BudgetItemClient{config: bq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := bq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := bq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(budget.Table, budget.FieldID, selector),
+			sqlgraph.To(budgetitem.Table, budgetitem.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, budget.ItemsTable, budget.ItemsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(bq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Budget entity from the query.
@@ -251,10 +276,22 @@ func (bq *BudgetQuery) Clone() *BudgetQuery {
 		order:      append([]budget.OrderOption{}, bq.order...),
 		inters:     append([]Interceptor{}, bq.inters...),
 		predicates: append([]predicate.Budget{}, bq.predicates...),
+		withItems:  bq.withItems.Clone(),
 		// clone intermediate query.
 		sql:  bq.sql.Clone(),
 		path: bq.path,
 	}
+}
+
+// WithItems tells the query-builder to eager-load the nodes that are connected to
+// the "items" edge. The optional arguments are used to configure the query builder of the edge.
+func (bq *BudgetQuery) WithItems(opts ...func(*BudgetItemQuery)) *BudgetQuery {
+	query := (&BudgetItemClient{config: bq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	bq.withItems = query
+	return bq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +370,11 @@ func (bq *BudgetQuery) prepareQuery(ctx context.Context) error {
 
 func (bq *BudgetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Budget, error) {
 	var (
-		nodes = []*Budget{}
-		_spec = bq.querySpec()
+		nodes       = []*Budget{}
+		_spec       = bq.querySpec()
+		loadedTypes = [1]bool{
+			bq.withItems != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Budget).scanValues(nil, columns)
@@ -342,6 +382,7 @@ func (bq *BudgetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Budge
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Budget{config: bq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +394,45 @@ func (bq *BudgetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Budge
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := bq.withItems; query != nil {
+		if err := bq.loadItems(ctx, query, nodes,
+			func(n *Budget) { n.Edges.Items = []*BudgetItem{} },
+			func(n *Budget, e *BudgetItem) { n.Edges.Items = append(n.Edges.Items, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (bq *BudgetQuery) loadItems(ctx context.Context, query *BudgetItemQuery, nodes []*Budget, init func(*Budget), assign func(*Budget, *BudgetItem)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Budget)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(budgetitem.FieldBudgetID)
+	}
+	query.Where(predicate.BudgetItem(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(budget.ItemsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.BudgetID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "budget_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (bq *BudgetQuery) sqlCount(ctx context.Context) (int, error) {

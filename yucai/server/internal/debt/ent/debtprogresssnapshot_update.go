@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
@@ -120,9 +121,20 @@ func (dpsu *DebtProgressSnapshotUpdate) AddPaidTotalCents(i int64) *DebtProgress
 	return dpsu
 }
 
+// SetDebt sets the "debt" edge to the DebtDetails entity.
+func (dpsu *DebtProgressSnapshotUpdate) SetDebt(d *DebtDetails) *DebtProgressSnapshotUpdate {
+	return dpsu.SetDebtID(d.ID)
+}
+
 // Mutation returns the DebtProgressSnapshotMutation object of the builder.
 func (dpsu *DebtProgressSnapshotUpdate) Mutation() *DebtProgressSnapshotMutation {
 	return dpsu.mutation
+}
+
+// ClearDebt clears the "debt" edge to the DebtDetails entity.
+func (dpsu *DebtProgressSnapshotUpdate) ClearDebt() *DebtProgressSnapshotUpdate {
+	dpsu.mutation.ClearDebt()
+	return dpsu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -152,7 +164,18 @@ func (dpsu *DebtProgressSnapshotUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (dpsu *DebtProgressSnapshotUpdate) check() error {
+	if dpsu.mutation.DebtCleared() && len(dpsu.mutation.DebtIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "DebtProgressSnapshot.debt"`)
+	}
+	return nil
+}
+
 func (dpsu *DebtProgressSnapshotUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := dpsu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(debtprogresssnapshot.Table, debtprogresssnapshot.Columns, sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID))
 	if ps := dpsu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -160,9 +183,6 @@ func (dpsu *DebtProgressSnapshotUpdate) sqlSave(ctx context.Context) (n int, err
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := dpsu.mutation.DebtID(); ok {
-		_spec.SetField(debtprogresssnapshot.FieldDebtID, field.TypeUUID, value)
 	}
 	if value, ok := dpsu.mutation.SnapshotDate(); ok {
 		_spec.SetField(debtprogresssnapshot.FieldSnapshotDate, field.TypeTime, value)
@@ -184,6 +204,35 @@ func (dpsu *DebtProgressSnapshotUpdate) sqlSave(ctx context.Context) (n int, err
 	}
 	if value, ok := dpsu.mutation.AddedPaidTotalCents(); ok {
 		_spec.AddField(debtprogresssnapshot.FieldPaidTotalCents, field.TypeInt64, value)
+	}
+	if dpsu.mutation.DebtCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   debtprogresssnapshot.DebtTable,
+			Columns: []string{debtprogresssnapshot.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := dpsu.mutation.DebtIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   debtprogresssnapshot.DebtTable,
+			Columns: []string{debtprogresssnapshot.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, dpsu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -296,9 +345,20 @@ func (dpsuo *DebtProgressSnapshotUpdateOne) AddPaidTotalCents(i int64) *DebtProg
 	return dpsuo
 }
 
+// SetDebt sets the "debt" edge to the DebtDetails entity.
+func (dpsuo *DebtProgressSnapshotUpdateOne) SetDebt(d *DebtDetails) *DebtProgressSnapshotUpdateOne {
+	return dpsuo.SetDebtID(d.ID)
+}
+
 // Mutation returns the DebtProgressSnapshotMutation object of the builder.
 func (dpsuo *DebtProgressSnapshotUpdateOne) Mutation() *DebtProgressSnapshotMutation {
 	return dpsuo.mutation
+}
+
+// ClearDebt clears the "debt" edge to the DebtDetails entity.
+func (dpsuo *DebtProgressSnapshotUpdateOne) ClearDebt() *DebtProgressSnapshotUpdateOne {
+	dpsuo.mutation.ClearDebt()
+	return dpsuo
 }
 
 // Where appends a list predicates to the DebtProgressSnapshotUpdate builder.
@@ -341,7 +401,18 @@ func (dpsuo *DebtProgressSnapshotUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (dpsuo *DebtProgressSnapshotUpdateOne) check() error {
+	if dpsuo.mutation.DebtCleared() && len(dpsuo.mutation.DebtIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "DebtProgressSnapshot.debt"`)
+	}
+	return nil
+}
+
 func (dpsuo *DebtProgressSnapshotUpdateOne) sqlSave(ctx context.Context) (_node *DebtProgressSnapshot, err error) {
+	if err := dpsuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(debtprogresssnapshot.Table, debtprogresssnapshot.Columns, sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID))
 	id, ok := dpsuo.mutation.ID()
 	if !ok {
@@ -367,9 +438,6 @@ func (dpsuo *DebtProgressSnapshotUpdateOne) sqlSave(ctx context.Context) (_node 
 			}
 		}
 	}
-	if value, ok := dpsuo.mutation.DebtID(); ok {
-		_spec.SetField(debtprogresssnapshot.FieldDebtID, field.TypeUUID, value)
-	}
 	if value, ok := dpsuo.mutation.SnapshotDate(); ok {
 		_spec.SetField(debtprogresssnapshot.FieldSnapshotDate, field.TypeTime, value)
 	}
@@ -390,6 +458,35 @@ func (dpsuo *DebtProgressSnapshotUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := dpsuo.mutation.AddedPaidTotalCents(); ok {
 		_spec.AddField(debtprogresssnapshot.FieldPaidTotalCents, field.TypeInt64, value)
+	}
+	if dpsuo.mutation.DebtCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   debtprogresssnapshot.DebtTable,
+			Columns: []string{debtprogresssnapshot.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := dpsuo.mutation.DebtIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   debtprogresssnapshot.DebtTable,
+			Columns: []string{debtprogresssnapshot.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &DebtProgressSnapshot{config: dpsuo.config}
 	_spec.Assign = _node.assignValues

@@ -4,6 +4,7 @@ package budgetitem
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -22,8 +23,17 @@ const (
 	FieldActualAmountCents = "actual_amount_cents"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// EdgeBudget holds the string denoting the budget edge name in mutations.
+	EdgeBudget = "budget"
 	// Table holds the table name of the budgetitem in the database.
 	Table = "budget_items"
+	// BudgetTable is the table that holds the budget relation/edge.
+	BudgetTable = "budget_items"
+	// BudgetInverseTable is the table name for the Budget entity.
+	// It exists in this package in order to avoid circular dependency with the "budget" package.
+	BudgetInverseTable = "budgets"
+	// BudgetColumn is the table column denoting the budget relation/edge.
+	BudgetColumn = "budget_id"
 )
 
 // Columns holds all SQL columns for budgetitem fields.
@@ -88,4 +98,18 @@ func ByActualAmountCents(opts ...sql.OrderTermOption) OrderOption {
 // ByNotes orders the results by the notes field.
 func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// ByBudgetField orders the results by budget field.
+func ByBudgetField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBudgetStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newBudgetStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BudgetInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, BudgetTable, BudgetColumn),
+	)
 }

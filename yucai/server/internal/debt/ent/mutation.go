@@ -35,32 +35,38 @@ const (
 // DebtDetailsMutation represents an operation that mutates the DebtDetails nodes in the graph.
 type DebtDetailsMutation struct {
 	config
-	op                       Op
-	typ                      string
-	id                       *uuid.UUID
-	tenant_id                *uuid.UUID
-	account_id               *uuid.UUID
-	counterparty             *string
-	interest_rate            *float64
-	addinterest_rate         *float64
-	amortization_method      *string
-	start_date               *time.Time
-	due_date                 *time.Time
-	total_principal_cents    *int64
-	addtotal_principal_cents *int64
-	debt_type                *string
-	subtype                  *string
-	version                  *int64
-	addversion               *int64
-	contact                  *string
-	contract_ref             *string
-	collection_account_id    *uuid.UUID
-	created_at               *time.Time
-	updated_at               *time.Time
-	clearedFields            map[string]struct{}
-	done                     bool
-	oldValue                 func(context.Context) (*DebtDetails, error)
-	predicates               []predicate.DebtDetails
+	op                        Op
+	typ                       string
+	id                        *uuid.UUID
+	tenant_id                 *uuid.UUID
+	account_id                *uuid.UUID
+	counterparty              *string
+	interest_rate             *float64
+	addinterest_rate          *float64
+	amortization_method       *string
+	start_date                *time.Time
+	due_date                  *time.Time
+	total_principal_cents     *int64
+	addtotal_principal_cents  *int64
+	debt_type                 *string
+	subtype                   *string
+	version                   *int64
+	addversion                *int64
+	contact                   *string
+	contract_ref              *string
+	collection_account_id     *uuid.UUID
+	created_at                *time.Time
+	updated_at                *time.Time
+	clearedFields             map[string]struct{}
+	schedule                  map[uuid.UUID]struct{}
+	removedschedule           map[uuid.UUID]struct{}
+	clearedschedule           bool
+	progress_snapshots        map[uuid.UUID]struct{}
+	removedprogress_snapshots map[uuid.UUID]struct{}
+	clearedprogress_snapshots bool
+	done                      bool
+	oldValue                  func(context.Context) (*DebtDetails, error)
+	predicates                []predicate.DebtDetails
 }
 
 var _ ent.Mutation = (*DebtDetailsMutation)(nil)
@@ -816,6 +822,114 @@ func (m *DebtDetailsMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddScheduleIDs adds the "schedule" edge to the PaymentSchedule entity by ids.
+func (m *DebtDetailsMutation) AddScheduleIDs(ids ...uuid.UUID) {
+	if m.schedule == nil {
+		m.schedule = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.schedule[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSchedule clears the "schedule" edge to the PaymentSchedule entity.
+func (m *DebtDetailsMutation) ClearSchedule() {
+	m.clearedschedule = true
+}
+
+// ScheduleCleared reports if the "schedule" edge to the PaymentSchedule entity was cleared.
+func (m *DebtDetailsMutation) ScheduleCleared() bool {
+	return m.clearedschedule
+}
+
+// RemoveScheduleIDs removes the "schedule" edge to the PaymentSchedule entity by IDs.
+func (m *DebtDetailsMutation) RemoveScheduleIDs(ids ...uuid.UUID) {
+	if m.removedschedule == nil {
+		m.removedschedule = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.schedule, ids[i])
+		m.removedschedule[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSchedule returns the removed IDs of the "schedule" edge to the PaymentSchedule entity.
+func (m *DebtDetailsMutation) RemovedScheduleIDs() (ids []uuid.UUID) {
+	for id := range m.removedschedule {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ScheduleIDs returns the "schedule" edge IDs in the mutation.
+func (m *DebtDetailsMutation) ScheduleIDs() (ids []uuid.UUID) {
+	for id := range m.schedule {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSchedule resets all changes to the "schedule" edge.
+func (m *DebtDetailsMutation) ResetSchedule() {
+	m.schedule = nil
+	m.clearedschedule = false
+	m.removedschedule = nil
+}
+
+// AddProgressSnapshotIDs adds the "progress_snapshots" edge to the DebtProgressSnapshot entity by ids.
+func (m *DebtDetailsMutation) AddProgressSnapshotIDs(ids ...uuid.UUID) {
+	if m.progress_snapshots == nil {
+		m.progress_snapshots = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.progress_snapshots[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProgressSnapshots clears the "progress_snapshots" edge to the DebtProgressSnapshot entity.
+func (m *DebtDetailsMutation) ClearProgressSnapshots() {
+	m.clearedprogress_snapshots = true
+}
+
+// ProgressSnapshotsCleared reports if the "progress_snapshots" edge to the DebtProgressSnapshot entity was cleared.
+func (m *DebtDetailsMutation) ProgressSnapshotsCleared() bool {
+	return m.clearedprogress_snapshots
+}
+
+// RemoveProgressSnapshotIDs removes the "progress_snapshots" edge to the DebtProgressSnapshot entity by IDs.
+func (m *DebtDetailsMutation) RemoveProgressSnapshotIDs(ids ...uuid.UUID) {
+	if m.removedprogress_snapshots == nil {
+		m.removedprogress_snapshots = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.progress_snapshots, ids[i])
+		m.removedprogress_snapshots[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProgressSnapshots returns the removed IDs of the "progress_snapshots" edge to the DebtProgressSnapshot entity.
+func (m *DebtDetailsMutation) RemovedProgressSnapshotsIDs() (ids []uuid.UUID) {
+	for id := range m.removedprogress_snapshots {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProgressSnapshotsIDs returns the "progress_snapshots" edge IDs in the mutation.
+func (m *DebtDetailsMutation) ProgressSnapshotsIDs() (ids []uuid.UUID) {
+	for id := range m.progress_snapshots {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProgressSnapshots resets all changes to the "progress_snapshots" edge.
+func (m *DebtDetailsMutation) ResetProgressSnapshots() {
+	m.progress_snapshots = nil
+	m.clearedprogress_snapshots = false
+	m.removedprogress_snapshots = nil
+}
+
 // Where appends a list predicates to the DebtDetailsMutation builder.
 func (m *DebtDetailsMutation) Where(ps ...predicate.DebtDetails) {
 	m.predicates = append(m.predicates, ps...)
@@ -1252,49 +1366,111 @@ func (m *DebtDetailsMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *DebtDetailsMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 2)
+	if m.schedule != nil {
+		edges = append(edges, debtdetails.EdgeSchedule)
+	}
+	if m.progress_snapshots != nil {
+		edges = append(edges, debtdetails.EdgeProgressSnapshots)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *DebtDetailsMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case debtdetails.EdgeSchedule:
+		ids := make([]ent.Value, 0, len(m.schedule))
+		for id := range m.schedule {
+			ids = append(ids, id)
+		}
+		return ids
+	case debtdetails.EdgeProgressSnapshots:
+		ids := make([]ent.Value, 0, len(m.progress_snapshots))
+		for id := range m.progress_snapshots {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *DebtDetailsMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 2)
+	if m.removedschedule != nil {
+		edges = append(edges, debtdetails.EdgeSchedule)
+	}
+	if m.removedprogress_snapshots != nil {
+		edges = append(edges, debtdetails.EdgeProgressSnapshots)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *DebtDetailsMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case debtdetails.EdgeSchedule:
+		ids := make([]ent.Value, 0, len(m.removedschedule))
+		for id := range m.removedschedule {
+			ids = append(ids, id)
+		}
+		return ids
+	case debtdetails.EdgeProgressSnapshots:
+		ids := make([]ent.Value, 0, len(m.removedprogress_snapshots))
+		for id := range m.removedprogress_snapshots {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *DebtDetailsMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 2)
+	if m.clearedschedule {
+		edges = append(edges, debtdetails.EdgeSchedule)
+	}
+	if m.clearedprogress_snapshots {
+		edges = append(edges, debtdetails.EdgeProgressSnapshots)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *DebtDetailsMutation) EdgeCleared(name string) bool {
+	switch name {
+	case debtdetails.EdgeSchedule:
+		return m.clearedschedule
+	case debtdetails.EdgeProgressSnapshots:
+		return m.clearedprogress_snapshots
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *DebtDetailsMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown DebtDetails unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *DebtDetailsMutation) ResetEdge(name string) error {
+	switch name {
+	case debtdetails.EdgeSchedule:
+		m.ResetSchedule()
+		return nil
+	case debtdetails.EdgeProgressSnapshots:
+		m.ResetProgressSnapshots()
+		return nil
+	}
 	return fmt.Errorf("unknown DebtDetails edge %s", name)
 }
 
@@ -1305,7 +1481,6 @@ type DebtProgressSnapshotMutation struct {
 	typ                          string
 	id                           *uuid.UUID
 	tenant_id                    *uuid.UUID
-	debt_id                      *uuid.UUID
 	snapshot_date                *time.Time
 	total_principal_cents        *int64
 	addtotal_principal_cents     *int64
@@ -1315,6 +1490,8 @@ type DebtProgressSnapshotMutation struct {
 	addpaid_total_cents          *int64
 	created_at                   *time.Time
 	clearedFields                map[string]struct{}
+	debt                         *uuid.UUID
+	cleareddebt                  bool
 	done                         bool
 	oldValue                     func(context.Context) (*DebtProgressSnapshot, error)
 	predicates                   []predicate.DebtProgressSnapshot
@@ -1462,12 +1639,12 @@ func (m *DebtProgressSnapshotMutation) ResetTenantID() {
 
 // SetDebtID sets the "debt_id" field.
 func (m *DebtProgressSnapshotMutation) SetDebtID(u uuid.UUID) {
-	m.debt_id = &u
+	m.debt = &u
 }
 
 // DebtID returns the value of the "debt_id" field in the mutation.
 func (m *DebtProgressSnapshotMutation) DebtID() (r uuid.UUID, exists bool) {
-	v := m.debt_id
+	v := m.debt
 	if v == nil {
 		return
 	}
@@ -1493,7 +1670,7 @@ func (m *DebtProgressSnapshotMutation) OldDebtID(ctx context.Context) (v uuid.UU
 
 // ResetDebtID resets all changes to the "debt_id" field.
 func (m *DebtProgressSnapshotMutation) ResetDebtID() {
-	m.debt_id = nil
+	m.debt = nil
 }
 
 // SetSnapshotDate sets the "snapshot_date" field.
@@ -1736,6 +1913,33 @@ func (m *DebtProgressSnapshotMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// ClearDebt clears the "debt" edge to the DebtDetails entity.
+func (m *DebtProgressSnapshotMutation) ClearDebt() {
+	m.cleareddebt = true
+	m.clearedFields[debtprogresssnapshot.FieldDebtID] = struct{}{}
+}
+
+// DebtCleared reports if the "debt" edge to the DebtDetails entity was cleared.
+func (m *DebtProgressSnapshotMutation) DebtCleared() bool {
+	return m.cleareddebt
+}
+
+// DebtIDs returns the "debt" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// DebtID instead. It exists only for internal usage by the builders.
+func (m *DebtProgressSnapshotMutation) DebtIDs() (ids []uuid.UUID) {
+	if id := m.debt; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetDebt resets all changes to the "debt" edge.
+func (m *DebtProgressSnapshotMutation) ResetDebt() {
+	m.debt = nil
+	m.cleareddebt = false
+}
+
 // Where appends a list predicates to the DebtProgressSnapshotMutation builder.
 func (m *DebtProgressSnapshotMutation) Where(ps ...predicate.DebtProgressSnapshot) {
 	m.predicates = append(m.predicates, ps...)
@@ -1774,7 +1978,7 @@ func (m *DebtProgressSnapshotMutation) Fields() []string {
 	if m.tenant_id != nil {
 		fields = append(fields, debtprogresssnapshot.FieldTenantID)
 	}
-	if m.debt_id != nil {
+	if m.debt != nil {
 		fields = append(fields, debtprogresssnapshot.FieldDebtID)
 	}
 	if m.snapshot_date != nil {
@@ -2010,19 +2214,28 @@ func (m *DebtProgressSnapshotMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *DebtProgressSnapshotMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.debt != nil {
+		edges = append(edges, debtprogresssnapshot.EdgeDebt)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *DebtProgressSnapshotMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case debtprogresssnapshot.EdgeDebt:
+		if id := m.debt; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *DebtProgressSnapshotMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -2034,25 +2247,42 @@ func (m *DebtProgressSnapshotMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *DebtProgressSnapshotMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.cleareddebt {
+		edges = append(edges, debtprogresssnapshot.EdgeDebt)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *DebtProgressSnapshotMutation) EdgeCleared(name string) bool {
+	switch name {
+	case debtprogresssnapshot.EdgeDebt:
+		return m.cleareddebt
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *DebtProgressSnapshotMutation) ClearEdge(name string) error {
+	switch name {
+	case debtprogresssnapshot.EdgeDebt:
+		m.ClearDebt()
+		return nil
+	}
 	return fmt.Errorf("unknown DebtProgressSnapshot unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *DebtProgressSnapshotMutation) ResetEdge(name string) error {
+	switch name {
+	case debtprogresssnapshot.EdgeDebt:
+		m.ResetDebt()
+		return nil
+	}
 	return fmt.Errorf("unknown DebtProgressSnapshot edge %s", name)
 }
 
@@ -2062,7 +2292,6 @@ type PaymentScheduleMutation struct {
 	op                 Op
 	typ                string
 	id                 *uuid.UUID
-	debt_id            *uuid.UUID
 	payment_date       *time.Time
 	principal_cents    *int64
 	addprincipal_cents *int64
@@ -2075,6 +2304,8 @@ type PaymentScheduleMutation struct {
 	addpaid_cents      *int64
 	transaction_id     *uuid.UUID
 	clearedFields      map[string]struct{}
+	debt               *uuid.UUID
+	cleareddebt        bool
 	done               bool
 	oldValue           func(context.Context) (*PaymentSchedule, error)
 	predicates         []predicate.PaymentSchedule
@@ -2186,12 +2417,12 @@ func (m *PaymentScheduleMutation) IDs(ctx context.Context) ([]uuid.UUID, error) 
 
 // SetDebtID sets the "debt_id" field.
 func (m *PaymentScheduleMutation) SetDebtID(u uuid.UUID) {
-	m.debt_id = &u
+	m.debt = &u
 }
 
 // DebtID returns the value of the "debt_id" field in the mutation.
 func (m *PaymentScheduleMutation) DebtID() (r uuid.UUID, exists bool) {
-	v := m.debt_id
+	v := m.debt
 	if v == nil {
 		return
 	}
@@ -2217,7 +2448,7 @@ func (m *PaymentScheduleMutation) OldDebtID(ctx context.Context) (v uuid.UUID, e
 
 // ResetDebtID resets all changes to the "debt_id" field.
 func (m *PaymentScheduleMutation) ResetDebtID() {
-	m.debt_id = nil
+	m.debt = nil
 }
 
 // SetPaymentDate sets the "payment_date" field.
@@ -2565,6 +2796,33 @@ func (m *PaymentScheduleMutation) ResetTransactionID() {
 	delete(m.clearedFields, paymentschedule.FieldTransactionID)
 }
 
+// ClearDebt clears the "debt" edge to the DebtDetails entity.
+func (m *PaymentScheduleMutation) ClearDebt() {
+	m.cleareddebt = true
+	m.clearedFields[paymentschedule.FieldDebtID] = struct{}{}
+}
+
+// DebtCleared reports if the "debt" edge to the DebtDetails entity was cleared.
+func (m *PaymentScheduleMutation) DebtCleared() bool {
+	return m.cleareddebt
+}
+
+// DebtIDs returns the "debt" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// DebtID instead. It exists only for internal usage by the builders.
+func (m *PaymentScheduleMutation) DebtIDs() (ids []uuid.UUID) {
+	if id := m.debt; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetDebt resets all changes to the "debt" edge.
+func (m *PaymentScheduleMutation) ResetDebt() {
+	m.debt = nil
+	m.cleareddebt = false
+}
+
 // Where appends a list predicates to the PaymentScheduleMutation builder.
 func (m *PaymentScheduleMutation) Where(ps ...predicate.PaymentSchedule) {
 	m.predicates = append(m.predicates, ps...)
@@ -2600,7 +2858,7 @@ func (m *PaymentScheduleMutation) Type() string {
 // AddedFields().
 func (m *PaymentScheduleMutation) Fields() []string {
 	fields := make([]string, 0, 8)
-	if m.debt_id != nil {
+	if m.debt != nil {
 		fields = append(fields, paymentschedule.FieldDebtID)
 	}
 	if m.payment_date != nil {
@@ -2877,19 +3135,28 @@ func (m *PaymentScheduleMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *PaymentScheduleMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.debt != nil {
+		edges = append(edges, paymentschedule.EdgeDebt)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *PaymentScheduleMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case paymentschedule.EdgeDebt:
+		if id := m.debt; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *PaymentScheduleMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -2901,24 +3168,41 @@ func (m *PaymentScheduleMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *PaymentScheduleMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.cleareddebt {
+		edges = append(edges, paymentschedule.EdgeDebt)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *PaymentScheduleMutation) EdgeCleared(name string) bool {
+	switch name {
+	case paymentschedule.EdgeDebt:
+		return m.cleareddebt
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *PaymentScheduleMutation) ClearEdge(name string) error {
+	switch name {
+	case paymentschedule.EdgeDebt:
+		m.ClearDebt()
+		return nil
+	}
 	return fmt.Errorf("unknown PaymentSchedule unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *PaymentScheduleMutation) ResetEdge(name string) error {
+	switch name {
+	case paymentschedule.EdgeDebt:
+		m.ResetDebt()
+		return nil
+	}
 	return fmt.Errorf("unknown PaymentSchedule edge %s", name)
 }

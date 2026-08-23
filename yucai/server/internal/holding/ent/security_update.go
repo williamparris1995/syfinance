@@ -10,8 +10,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 	"github.com/yucai/server/internal/holding/ent/security"
+	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
 // SecurityUpdate is the builder for updating Security entities.
@@ -130,9 +132,45 @@ func (su *SecurityUpdate) ClearCurrentPriceCents() *SecurityUpdate {
 	return su
 }
 
+// AddPriceHistoryIDs adds the "price_history" edge to the SecurityPriceHistory entity by IDs.
+func (su *SecurityUpdate) AddPriceHistoryIDs(ids ...uuid.UUID) *SecurityUpdate {
+	su.mutation.AddPriceHistoryIDs(ids...)
+	return su
+}
+
+// AddPriceHistory adds the "price_history" edges to the SecurityPriceHistory entity.
+func (su *SecurityUpdate) AddPriceHistory(s ...*SecurityPriceHistory) *SecurityUpdate {
+	ids := make([]uuid.UUID, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return su.AddPriceHistoryIDs(ids...)
+}
+
 // Mutation returns the SecurityMutation object of the builder.
 func (su *SecurityUpdate) Mutation() *SecurityMutation {
 	return su.mutation
+}
+
+// ClearPriceHistory clears all "price_history" edges to the SecurityPriceHistory entity.
+func (su *SecurityUpdate) ClearPriceHistory() *SecurityUpdate {
+	su.mutation.ClearPriceHistory()
+	return su
+}
+
+// RemovePriceHistoryIDs removes the "price_history" edge to SecurityPriceHistory entities by IDs.
+func (su *SecurityUpdate) RemovePriceHistoryIDs(ids ...uuid.UUID) *SecurityUpdate {
+	su.mutation.RemovePriceHistoryIDs(ids...)
+	return su
+}
+
+// RemovePriceHistory removes "price_history" edges to SecurityPriceHistory entities.
+func (su *SecurityUpdate) RemovePriceHistory(s ...*SecurityPriceHistory) *SecurityUpdate {
+	ids := make([]uuid.UUID, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return su.RemovePriceHistoryIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -215,6 +253,51 @@ func (su *SecurityUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if su.mutation.CurrentPriceCentsCleared() {
 		_spec.ClearField(security.FieldCurrentPriceCents, field.TypeInt64)
+	}
+	if su.mutation.PriceHistoryCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   security.PriceHistoryTable,
+			Columns: []string{security.PriceHistoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := su.mutation.RemovedPriceHistoryIDs(); len(nodes) > 0 && !su.mutation.PriceHistoryCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   security.PriceHistoryTable,
+			Columns: []string{security.PriceHistoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := su.mutation.PriceHistoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   security.PriceHistoryTable,
+			Columns: []string{security.PriceHistoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, su.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -339,9 +422,45 @@ func (suo *SecurityUpdateOne) ClearCurrentPriceCents() *SecurityUpdateOne {
 	return suo
 }
 
+// AddPriceHistoryIDs adds the "price_history" edge to the SecurityPriceHistory entity by IDs.
+func (suo *SecurityUpdateOne) AddPriceHistoryIDs(ids ...uuid.UUID) *SecurityUpdateOne {
+	suo.mutation.AddPriceHistoryIDs(ids...)
+	return suo
+}
+
+// AddPriceHistory adds the "price_history" edges to the SecurityPriceHistory entity.
+func (suo *SecurityUpdateOne) AddPriceHistory(s ...*SecurityPriceHistory) *SecurityUpdateOne {
+	ids := make([]uuid.UUID, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return suo.AddPriceHistoryIDs(ids...)
+}
+
 // Mutation returns the SecurityMutation object of the builder.
 func (suo *SecurityUpdateOne) Mutation() *SecurityMutation {
 	return suo.mutation
+}
+
+// ClearPriceHistory clears all "price_history" edges to the SecurityPriceHistory entity.
+func (suo *SecurityUpdateOne) ClearPriceHistory() *SecurityUpdateOne {
+	suo.mutation.ClearPriceHistory()
+	return suo
+}
+
+// RemovePriceHistoryIDs removes the "price_history" edge to SecurityPriceHistory entities by IDs.
+func (suo *SecurityUpdateOne) RemovePriceHistoryIDs(ids ...uuid.UUID) *SecurityUpdateOne {
+	suo.mutation.RemovePriceHistoryIDs(ids...)
+	return suo
+}
+
+// RemovePriceHistory removes "price_history" edges to SecurityPriceHistory entities.
+func (suo *SecurityUpdateOne) RemovePriceHistory(s ...*SecurityPriceHistory) *SecurityUpdateOne {
+	ids := make([]uuid.UUID, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return suo.RemovePriceHistoryIDs(ids...)
 }
 
 // Where appends a list predicates to the SecurityUpdate builder.
@@ -454,6 +573,51 @@ func (suo *SecurityUpdateOne) sqlSave(ctx context.Context) (_node *Security, err
 	}
 	if suo.mutation.CurrentPriceCentsCleared() {
 		_spec.ClearField(security.FieldCurrentPriceCents, field.TypeInt64)
+	}
+	if suo.mutation.PriceHistoryCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   security.PriceHistoryTable,
+			Columns: []string{security.PriceHistoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := suo.mutation.RemovedPriceHistoryIDs(); len(nodes) > 0 && !suo.mutation.PriceHistoryCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   security.PriceHistoryTable,
+			Columns: []string{security.PriceHistoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := suo.mutation.PriceHistoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   security.PriceHistoryTable,
+			Columns: []string{security.PriceHistoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(securitypricehistory.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Security{config: suo.config}
 	_spec.Assign = _node.assignValues

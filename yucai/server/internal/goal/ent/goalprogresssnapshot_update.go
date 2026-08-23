@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/goal/ent/goal"
 	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 	"github.com/yucai/server/internal/goal/ent/predicate"
 )
@@ -78,9 +79,20 @@ func (gpsu *GoalProgressSnapshotUpdate) AddCurrentAmountCents(i int64) *GoalProg
 	return gpsu
 }
 
+// SetGoal sets the "goal" edge to the Goal entity.
+func (gpsu *GoalProgressSnapshotUpdate) SetGoal(g *Goal) *GoalProgressSnapshotUpdate {
+	return gpsu.SetGoalID(g.ID)
+}
+
 // Mutation returns the GoalProgressSnapshotMutation object of the builder.
 func (gpsu *GoalProgressSnapshotUpdate) Mutation() *GoalProgressSnapshotMutation {
 	return gpsu.mutation
+}
+
+// ClearGoal clears the "goal" edge to the Goal entity.
+func (gpsu *GoalProgressSnapshotUpdate) ClearGoal() *GoalProgressSnapshotUpdate {
+	gpsu.mutation.ClearGoal()
+	return gpsu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -110,7 +122,18 @@ func (gpsu *GoalProgressSnapshotUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (gpsu *GoalProgressSnapshotUpdate) check() error {
+	if gpsu.mutation.GoalCleared() && len(gpsu.mutation.GoalIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "GoalProgressSnapshot.goal"`)
+	}
+	return nil
+}
+
 func (gpsu *GoalProgressSnapshotUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := gpsu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(goalprogresssnapshot.Table, goalprogresssnapshot.Columns, sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID))
 	if ps := gpsu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -118,9 +141,6 @@ func (gpsu *GoalProgressSnapshotUpdate) sqlSave(ctx context.Context) (n int, err
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := gpsu.mutation.GoalID(); ok {
-		_spec.SetField(goalprogresssnapshot.FieldGoalID, field.TypeUUID, value)
 	}
 	if value, ok := gpsu.mutation.SnapshotDate(); ok {
 		_spec.SetField(goalprogresssnapshot.FieldSnapshotDate, field.TypeTime, value)
@@ -130,6 +150,35 @@ func (gpsu *GoalProgressSnapshotUpdate) sqlSave(ctx context.Context) (n int, err
 	}
 	if value, ok := gpsu.mutation.AddedCurrentAmountCents(); ok {
 		_spec.AddField(goalprogresssnapshot.FieldCurrentAmountCents, field.TypeInt64, value)
+	}
+	if gpsu.mutation.GoalCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   goalprogresssnapshot.GoalTable,
+			Columns: []string{goalprogresssnapshot.GoalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goal.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := gpsu.mutation.GoalIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   goalprogresssnapshot.GoalTable,
+			Columns: []string{goalprogresssnapshot.GoalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goal.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, gpsu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -200,9 +249,20 @@ func (gpsuo *GoalProgressSnapshotUpdateOne) AddCurrentAmountCents(i int64) *Goal
 	return gpsuo
 }
 
+// SetGoal sets the "goal" edge to the Goal entity.
+func (gpsuo *GoalProgressSnapshotUpdateOne) SetGoal(g *Goal) *GoalProgressSnapshotUpdateOne {
+	return gpsuo.SetGoalID(g.ID)
+}
+
 // Mutation returns the GoalProgressSnapshotMutation object of the builder.
 func (gpsuo *GoalProgressSnapshotUpdateOne) Mutation() *GoalProgressSnapshotMutation {
 	return gpsuo.mutation
+}
+
+// ClearGoal clears the "goal" edge to the Goal entity.
+func (gpsuo *GoalProgressSnapshotUpdateOne) ClearGoal() *GoalProgressSnapshotUpdateOne {
+	gpsuo.mutation.ClearGoal()
+	return gpsuo
 }
 
 // Where appends a list predicates to the GoalProgressSnapshotUpdate builder.
@@ -245,7 +305,18 @@ func (gpsuo *GoalProgressSnapshotUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (gpsuo *GoalProgressSnapshotUpdateOne) check() error {
+	if gpsuo.mutation.GoalCleared() && len(gpsuo.mutation.GoalIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "GoalProgressSnapshot.goal"`)
+	}
+	return nil
+}
+
 func (gpsuo *GoalProgressSnapshotUpdateOne) sqlSave(ctx context.Context) (_node *GoalProgressSnapshot, err error) {
+	if err := gpsuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(goalprogresssnapshot.Table, goalprogresssnapshot.Columns, sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID))
 	id, ok := gpsuo.mutation.ID()
 	if !ok {
@@ -271,9 +342,6 @@ func (gpsuo *GoalProgressSnapshotUpdateOne) sqlSave(ctx context.Context) (_node 
 			}
 		}
 	}
-	if value, ok := gpsuo.mutation.GoalID(); ok {
-		_spec.SetField(goalprogresssnapshot.FieldGoalID, field.TypeUUID, value)
-	}
 	if value, ok := gpsuo.mutation.SnapshotDate(); ok {
 		_spec.SetField(goalprogresssnapshot.FieldSnapshotDate, field.TypeTime, value)
 	}
@@ -282,6 +350,35 @@ func (gpsuo *GoalProgressSnapshotUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := gpsuo.mutation.AddedCurrentAmountCents(); ok {
 		_spec.AddField(goalprogresssnapshot.FieldCurrentAmountCents, field.TypeInt64, value)
+	}
+	if gpsuo.mutation.GoalCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   goalprogresssnapshot.GoalTable,
+			Columns: []string{goalprogresssnapshot.GoalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goal.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := gpsuo.mutation.GoalIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   goalprogresssnapshot.GoalTable,
+			Columns: []string{goalprogresssnapshot.GoalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goal.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &GoalProgressSnapshot{config: gpsuo.config}
 	_spec.Assign = _node.assignValues

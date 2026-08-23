@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/templaterecordlog"
+	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
 
 // TemplateRecordLogCreate is the builder for creating a TemplateRecordLog entity.
@@ -81,6 +82,11 @@ func (trlc *TemplateRecordLogCreate) SetNillableID(u *uuid.UUID) *TemplateRecord
 	return trlc
 }
 
+// SetTemplate sets the "template" edge to the TransactionTemplate entity.
+func (trlc *TemplateRecordLogCreate) SetTemplate(t *TransactionTemplate) *TemplateRecordLogCreate {
+	return trlc.SetTemplateID(t.ID)
+}
+
 // Mutation returns the TemplateRecordLogMutation object of the builder.
 func (trlc *TemplateRecordLogCreate) Mutation() *TemplateRecordLogMutation {
 	return trlc.mutation
@@ -140,6 +146,9 @@ func (trlc *TemplateRecordLogCreate) check() error {
 	if _, ok := trlc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "TemplateRecordLog.created_at"`)}
 	}
+	if len(trlc.mutation.TemplateIDs()) == 0 {
+		return &ValidationError{Name: "template", err: errors.New(`ent: missing required edge "TemplateRecordLog.template"`)}
+	}
 	return nil
 }
 
@@ -179,10 +188,6 @@ func (trlc *TemplateRecordLogCreate) createSpec() (*TemplateRecordLog, *sqlgraph
 		_spec.SetField(templaterecordlog.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
-	if value, ok := trlc.mutation.TemplateID(); ok {
-		_spec.SetField(templaterecordlog.FieldTemplateID, field.TypeUUID, value)
-		_node.TemplateID = value
-	}
 	if value, ok := trlc.mutation.RecordDate(); ok {
 		_spec.SetField(templaterecordlog.FieldRecordDate, field.TypeTime, value)
 		_node.RecordDate = value
@@ -194,6 +199,23 @@ func (trlc *TemplateRecordLogCreate) createSpec() (*TemplateRecordLog, *sqlgraph
 	if value, ok := trlc.mutation.CreatedAt(); ok {
 		_spec.SetField(templaterecordlog.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := trlc.mutation.TemplateIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   templaterecordlog.TemplateTable,
+			Columns: []string{templaterecordlog.TemplateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactiontemplate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.TemplateID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

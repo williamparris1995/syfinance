@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/holding"
+	"github.com/yucai/server/internal/holding/ent/holdinglot"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 )
 
@@ -126,9 +127,45 @@ func (hu *HoldingUpdate) SetUpdatedAt(t time.Time) *HoldingUpdate {
 	return hu
 }
 
+// AddLotIDs adds the "lots" edge to the HoldingLot entity by IDs.
+func (hu *HoldingUpdate) AddLotIDs(ids ...uuid.UUID) *HoldingUpdate {
+	hu.mutation.AddLotIDs(ids...)
+	return hu
+}
+
+// AddLots adds the "lots" edges to the HoldingLot entity.
+func (hu *HoldingUpdate) AddLots(h ...*HoldingLot) *HoldingUpdate {
+	ids := make([]uuid.UUID, len(h))
+	for i := range h {
+		ids[i] = h[i].ID
+	}
+	return hu.AddLotIDs(ids...)
+}
+
 // Mutation returns the HoldingMutation object of the builder.
 func (hu *HoldingUpdate) Mutation() *HoldingMutation {
 	return hu.mutation
+}
+
+// ClearLots clears all "lots" edges to the HoldingLot entity.
+func (hu *HoldingUpdate) ClearLots() *HoldingUpdate {
+	hu.mutation.ClearLots()
+	return hu
+}
+
+// RemoveLotIDs removes the "lots" edge to HoldingLot entities by IDs.
+func (hu *HoldingUpdate) RemoveLotIDs(ids ...uuid.UUID) *HoldingUpdate {
+	hu.mutation.RemoveLotIDs(ids...)
+	return hu
+}
+
+// RemoveLots removes "lots" edges to HoldingLot entities.
+func (hu *HoldingUpdate) RemoveLots(h ...*HoldingLot) *HoldingUpdate {
+	ids := make([]uuid.UUID, len(h))
+	for i := range h {
+		ids[i] = h[i].ID
+	}
+	return hu.RemoveLotIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -202,6 +239,51 @@ func (hu *HoldingUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := hu.mutation.UpdatedAt(); ok {
 		_spec.SetField(holding.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if hu.mutation.LotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   holding.LotsTable,
+			Columns: []string{holding.LotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := hu.mutation.RemovedLotsIDs(); len(nodes) > 0 && !hu.mutation.LotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   holding.LotsTable,
+			Columns: []string{holding.LotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := hu.mutation.LotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   holding.LotsTable,
+			Columns: []string{holding.LotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, hu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -320,9 +402,45 @@ func (huo *HoldingUpdateOne) SetUpdatedAt(t time.Time) *HoldingUpdateOne {
 	return huo
 }
 
+// AddLotIDs adds the "lots" edge to the HoldingLot entity by IDs.
+func (huo *HoldingUpdateOne) AddLotIDs(ids ...uuid.UUID) *HoldingUpdateOne {
+	huo.mutation.AddLotIDs(ids...)
+	return huo
+}
+
+// AddLots adds the "lots" edges to the HoldingLot entity.
+func (huo *HoldingUpdateOne) AddLots(h ...*HoldingLot) *HoldingUpdateOne {
+	ids := make([]uuid.UUID, len(h))
+	for i := range h {
+		ids[i] = h[i].ID
+	}
+	return huo.AddLotIDs(ids...)
+}
+
 // Mutation returns the HoldingMutation object of the builder.
 func (huo *HoldingUpdateOne) Mutation() *HoldingMutation {
 	return huo.mutation
+}
+
+// ClearLots clears all "lots" edges to the HoldingLot entity.
+func (huo *HoldingUpdateOne) ClearLots() *HoldingUpdateOne {
+	huo.mutation.ClearLots()
+	return huo
+}
+
+// RemoveLotIDs removes the "lots" edge to HoldingLot entities by IDs.
+func (huo *HoldingUpdateOne) RemoveLotIDs(ids ...uuid.UUID) *HoldingUpdateOne {
+	huo.mutation.RemoveLotIDs(ids...)
+	return huo
+}
+
+// RemoveLots removes "lots" edges to HoldingLot entities.
+func (huo *HoldingUpdateOne) RemoveLots(h ...*HoldingLot) *HoldingUpdateOne {
+	ids := make([]uuid.UUID, len(h))
+	for i := range h {
+		ids[i] = h[i].ID
+	}
+	return huo.RemoveLotIDs(ids...)
 }
 
 // Where appends a list predicates to the HoldingUpdate builder.
@@ -426,6 +544,51 @@ func (huo *HoldingUpdateOne) sqlSave(ctx context.Context) (_node *Holding, err e
 	}
 	if value, ok := huo.mutation.UpdatedAt(); ok {
 		_spec.SetField(holding.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if huo.mutation.LotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   holding.LotsTable,
+			Columns: []string{holding.LotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := huo.mutation.RemovedLotsIDs(); len(nodes) > 0 && !huo.mutation.LotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   holding.LotsTable,
+			Columns: []string{holding.LotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := huo.mutation.LotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   holding.LotsTable,
+			Columns: []string{holding.LotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holdinglot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Holding{config: huo.config}
 	_spec.Assign = _node.assignValues

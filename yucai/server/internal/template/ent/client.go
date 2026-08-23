@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/template/ent/templaterecordlog"
 	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
@@ -315,6 +316,22 @@ func (c *TemplateRecordLogClient) GetX(ctx context.Context, id uuid.UUID) *Templ
 	return obj
 }
 
+// QueryTemplate queries the template edge of a TemplateRecordLog.
+func (c *TemplateRecordLogClient) QueryTemplate(trl *TemplateRecordLog) *TransactionTemplateQuery {
+	query := (&TransactionTemplateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := trl.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(templaterecordlog.Table, templaterecordlog.FieldID, id),
+			sqlgraph.To(transactiontemplate.Table, transactiontemplate.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, templaterecordlog.TemplateTable, templaterecordlog.TemplateColumn),
+		)
+		fromV = sqlgraph.Neighbors(trl.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TemplateRecordLogClient) Hooks() []Hook {
 	return c.hooks.TemplateRecordLog
@@ -446,6 +463,22 @@ func (c *TransactionTemplateClient) GetX(ctx context.Context, id uuid.UUID) *Tra
 		panic(err)
 	}
 	return obj
+}
+
+// QueryRecordLogs queries the record_logs edge of a TransactionTemplate.
+func (c *TransactionTemplateClient) QueryRecordLogs(tt *TransactionTemplate) *TemplateRecordLogQuery {
+	query := (&TemplateRecordLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := tt.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transactiontemplate.Table, transactiontemplate.FieldID, id),
+			sqlgraph.To(templaterecordlog.Table, templaterecordlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, transactiontemplate.RecordLogsTable, transactiontemplate.RecordLogsColumn),
+		)
+		fromV = sqlgraph.Neighbors(tt.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/ent/goal"
+	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 	"github.com/yucai/server/internal/goal/ent/predicate"
 )
 
@@ -234,9 +235,45 @@ func (gu *GoalUpdate) SetUpdatedAt(t time.Time) *GoalUpdate {
 	return gu
 }
 
+// AddProgressSnapshotIDs adds the "progress_snapshots" edge to the GoalProgressSnapshot entity by IDs.
+func (gu *GoalUpdate) AddProgressSnapshotIDs(ids ...uuid.UUID) *GoalUpdate {
+	gu.mutation.AddProgressSnapshotIDs(ids...)
+	return gu
+}
+
+// AddProgressSnapshots adds the "progress_snapshots" edges to the GoalProgressSnapshot entity.
+func (gu *GoalUpdate) AddProgressSnapshots(g ...*GoalProgressSnapshot) *GoalUpdate {
+	ids := make([]uuid.UUID, len(g))
+	for i := range g {
+		ids[i] = g[i].ID
+	}
+	return gu.AddProgressSnapshotIDs(ids...)
+}
+
 // Mutation returns the GoalMutation object of the builder.
 func (gu *GoalUpdate) Mutation() *GoalMutation {
 	return gu.mutation
+}
+
+// ClearProgressSnapshots clears all "progress_snapshots" edges to the GoalProgressSnapshot entity.
+func (gu *GoalUpdate) ClearProgressSnapshots() *GoalUpdate {
+	gu.mutation.ClearProgressSnapshots()
+	return gu
+}
+
+// RemoveProgressSnapshotIDs removes the "progress_snapshots" edge to GoalProgressSnapshot entities by IDs.
+func (gu *GoalUpdate) RemoveProgressSnapshotIDs(ids ...uuid.UUID) *GoalUpdate {
+	gu.mutation.RemoveProgressSnapshotIDs(ids...)
+	return gu
+}
+
+// RemoveProgressSnapshots removes "progress_snapshots" edges to GoalProgressSnapshot entities.
+func (gu *GoalUpdate) RemoveProgressSnapshots(g ...*GoalProgressSnapshot) *GoalUpdate {
+	ids := make([]uuid.UUID, len(g))
+	for i := range g {
+		ids[i] = g[i].ID
+	}
+	return gu.RemoveProgressSnapshotIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -353,6 +390,51 @@ func (gu *GoalUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := gu.mutation.UpdatedAt(); ok {
 		_spec.SetField(goal.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if gu.mutation.ProgressSnapshotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   goal.ProgressSnapshotsTable,
+			Columns: []string{goal.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := gu.mutation.RemovedProgressSnapshotsIDs(); len(nodes) > 0 && !gu.mutation.ProgressSnapshotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   goal.ProgressSnapshotsTable,
+			Columns: []string{goal.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := gu.mutation.ProgressSnapshotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   goal.ProgressSnapshotsTable,
+			Columns: []string{goal.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, gu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -579,9 +661,45 @@ func (guo *GoalUpdateOne) SetUpdatedAt(t time.Time) *GoalUpdateOne {
 	return guo
 }
 
+// AddProgressSnapshotIDs adds the "progress_snapshots" edge to the GoalProgressSnapshot entity by IDs.
+func (guo *GoalUpdateOne) AddProgressSnapshotIDs(ids ...uuid.UUID) *GoalUpdateOne {
+	guo.mutation.AddProgressSnapshotIDs(ids...)
+	return guo
+}
+
+// AddProgressSnapshots adds the "progress_snapshots" edges to the GoalProgressSnapshot entity.
+func (guo *GoalUpdateOne) AddProgressSnapshots(g ...*GoalProgressSnapshot) *GoalUpdateOne {
+	ids := make([]uuid.UUID, len(g))
+	for i := range g {
+		ids[i] = g[i].ID
+	}
+	return guo.AddProgressSnapshotIDs(ids...)
+}
+
 // Mutation returns the GoalMutation object of the builder.
 func (guo *GoalUpdateOne) Mutation() *GoalMutation {
 	return guo.mutation
+}
+
+// ClearProgressSnapshots clears all "progress_snapshots" edges to the GoalProgressSnapshot entity.
+func (guo *GoalUpdateOne) ClearProgressSnapshots() *GoalUpdateOne {
+	guo.mutation.ClearProgressSnapshots()
+	return guo
+}
+
+// RemoveProgressSnapshotIDs removes the "progress_snapshots" edge to GoalProgressSnapshot entities by IDs.
+func (guo *GoalUpdateOne) RemoveProgressSnapshotIDs(ids ...uuid.UUID) *GoalUpdateOne {
+	guo.mutation.RemoveProgressSnapshotIDs(ids...)
+	return guo
+}
+
+// RemoveProgressSnapshots removes "progress_snapshots" edges to GoalProgressSnapshot entities.
+func (guo *GoalUpdateOne) RemoveProgressSnapshots(g ...*GoalProgressSnapshot) *GoalUpdateOne {
+	ids := make([]uuid.UUID, len(g))
+	for i := range g {
+		ids[i] = g[i].ID
+	}
+	return guo.RemoveProgressSnapshotIDs(ids...)
 }
 
 // Where appends a list predicates to the GoalUpdate builder.
@@ -728,6 +846,51 @@ func (guo *GoalUpdateOne) sqlSave(ctx context.Context) (_node *Goal, err error) 
 	}
 	if value, ok := guo.mutation.UpdatedAt(); ok {
 		_spec.SetField(goal.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if guo.mutation.ProgressSnapshotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   goal.ProgressSnapshotsTable,
+			Columns: []string{goal.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := guo.mutation.RemovedProgressSnapshotsIDs(); len(nodes) > 0 && !guo.mutation.ProgressSnapshotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   goal.ProgressSnapshotsTable,
+			Columns: []string{goal.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := guo.mutation.ProgressSnapshotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   goal.ProgressSnapshotsTable,
+			Columns: []string{goal.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Goal{config: guo.config}
 	_spec.Assign = _node.assignValues

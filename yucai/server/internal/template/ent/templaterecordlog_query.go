@@ -14,15 +14,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/predicate"
 	"github.com/yucai/server/internal/template/ent/templaterecordlog"
+	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
 
 // TemplateRecordLogQuery is the builder for querying TemplateRecordLog entities.
 type TemplateRecordLogQuery struct {
 	config
-	ctx        *QueryContext
-	order      []templaterecordlog.OrderOption
-	inters     []Interceptor
-	predicates []predicate.TemplateRecordLog
+	ctx          *QueryContext
+	order        []templaterecordlog.OrderOption
+	inters       []Interceptor
+	predicates   []predicate.TemplateRecordLog
+	withTemplate *TransactionTemplateQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +59,28 @@ func (trlq *TemplateRecordLogQuery) Unique(unique bool) *TemplateRecordLogQuery 
 func (trlq *TemplateRecordLogQuery) Order(o ...templaterecordlog.OrderOption) *TemplateRecordLogQuery {
 	trlq.order = append(trlq.order, o...)
 	return trlq
+}
+
+// QueryTemplate chains the current query on the "template" edge.
+func (trlq *TemplateRecordLogQuery) QueryTemplate() *TransactionTemplateQuery {
+	query := (&TransactionTemplateClient{config: trlq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := trlq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := trlq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(templaterecordlog.Table, templaterecordlog.FieldID, selector),
+			sqlgraph.To(transactiontemplate.Table, transactiontemplate.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, templaterecordlog.TemplateTable, templaterecordlog.TemplateColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(trlq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first TemplateRecordLog entity from the query.
@@ -246,15 +270,27 @@ func (trlq *TemplateRecordLogQuery) Clone() *TemplateRecordLogQuery {
 		return nil
 	}
 	return &TemplateRecordLogQuery{
-		config:     trlq.config,
-		ctx:        trlq.ctx.Clone(),
-		order:      append([]templaterecordlog.OrderOption{}, trlq.order...),
-		inters:     append([]Interceptor{}, trlq.inters...),
-		predicates: append([]predicate.TemplateRecordLog{}, trlq.predicates...),
+		config:       trlq.config,
+		ctx:          trlq.ctx.Clone(),
+		order:        append([]templaterecordlog.OrderOption{}, trlq.order...),
+		inters:       append([]Interceptor{}, trlq.inters...),
+		predicates:   append([]predicate.TemplateRecordLog{}, trlq.predicates...),
+		withTemplate: trlq.withTemplate.Clone(),
 		// clone intermediate query.
 		sql:  trlq.sql.Clone(),
 		path: trlq.path,
 	}
+}
+
+// WithTemplate tells the query-builder to eager-load the nodes that are connected to
+// the "template" edge. The optional arguments are used to configure the query builder of the edge.
+func (trlq *TemplateRecordLogQuery) WithTemplate(opts ...func(*TransactionTemplateQuery)) *TemplateRecordLogQuery {
+	query := (&TransactionTemplateClient{config: trlq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	trlq.withTemplate = query
+	return trlq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +369,11 @@ func (trlq *TemplateRecordLogQuery) prepareQuery(ctx context.Context) error {
 
 func (trlq *TemplateRecordLogQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*TemplateRecordLog, error) {
 	var (
-		nodes = []*TemplateRecordLog{}
-		_spec = trlq.querySpec()
+		nodes       = []*TemplateRecordLog{}
+		_spec       = trlq.querySpec()
+		loadedTypes = [1]bool{
+			trlq.withTemplate != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*TemplateRecordLog).scanValues(nil, columns)
@@ -342,6 +381,7 @@ func (trlq *TemplateRecordLogQuery) sqlAll(ctx context.Context, hooks ...queryHo
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &TemplateRecordLog{config: trlq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +393,43 @@ func (trlq *TemplateRecordLogQuery) sqlAll(ctx context.Context, hooks ...queryHo
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := trlq.withTemplate; query != nil {
+		if err := trlq.loadTemplate(ctx, query, nodes, nil,
+			func(n *TemplateRecordLog, e *TransactionTemplate) { n.Edges.Template = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (trlq *TemplateRecordLogQuery) loadTemplate(ctx context.Context, query *TransactionTemplateQuery, nodes []*TemplateRecordLog, init func(*TemplateRecordLog), assign func(*TemplateRecordLog, *TransactionTemplate)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*TemplateRecordLog)
+	for i := range nodes {
+		fk := nodes[i].TemplateID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(transactiontemplate.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "template_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (trlq *TemplateRecordLogQuery) sqlCount(ctx context.Context) (int, error) {
@@ -380,6 +456,9 @@ func (trlq *TemplateRecordLogQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != templaterecordlog.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if trlq.withTemplate != nil {
+			_spec.Node.AddColumnOnce(templaterecordlog.FieldTemplateID)
 		}
 	}
 	if ps := trlq.predicates; len(ps) > 0 {

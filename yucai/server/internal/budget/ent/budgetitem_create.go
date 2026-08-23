@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/budget/ent/budget"
 	"github.com/yucai/server/internal/budget/ent/budgetitem"
 )
 
@@ -88,6 +89,11 @@ func (bic *BudgetItemCreate) SetNillableID(u *uuid.UUID) *BudgetItemCreate {
 	return bic
 }
 
+// SetBudget sets the "budget" edge to the Budget entity.
+func (bic *BudgetItemCreate) SetBudget(b *Budget) *BudgetItemCreate {
+	return bic.SetBudgetID(b.ID)
+}
+
 // Mutation returns the BudgetItemMutation object of the builder.
 func (bic *BudgetItemCreate) Mutation() *BudgetItemMutation {
 	return bic.mutation
@@ -155,6 +161,9 @@ func (bic *BudgetItemCreate) check() error {
 	if _, ok := bic.mutation.ActualAmountCents(); !ok {
 		return &ValidationError{Name: "actual_amount_cents", err: errors.New(`ent: missing required field "BudgetItem.actual_amount_cents"`)}
 	}
+	if len(bic.mutation.BudgetIDs()) == 0 {
+		return &ValidationError{Name: "budget", err: errors.New(`ent: missing required edge "BudgetItem.budget"`)}
+	}
 	return nil
 }
 
@@ -190,10 +199,6 @@ func (bic *BudgetItemCreate) createSpec() (*BudgetItem, *sqlgraph.CreateSpec) {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
-	if value, ok := bic.mutation.BudgetID(); ok {
-		_spec.SetField(budgetitem.FieldBudgetID, field.TypeUUID, value)
-		_node.BudgetID = value
-	}
 	if value, ok := bic.mutation.AccountID(); ok {
 		_spec.SetField(budgetitem.FieldAccountID, field.TypeUUID, value)
 		_node.AccountID = value
@@ -209,6 +214,23 @@ func (bic *BudgetItemCreate) createSpec() (*BudgetItem, *sqlgraph.CreateSpec) {
 	if value, ok := bic.mutation.Notes(); ok {
 		_spec.SetField(budgetitem.FieldNotes, field.TypeString, value)
 		_node.Notes = value
+	}
+	if nodes := bic.mutation.BudgetIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   budgetitem.BudgetTable,
+			Columns: []string{budgetitem.BudgetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budget.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.BudgetID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

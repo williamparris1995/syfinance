@@ -49,8 +49,40 @@ type DebtDetails struct {
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the DebtDetailsQuery when eager-loading is set.
+	Edges        DebtDetailsEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// DebtDetailsEdges holds the relations/edges for other nodes in the graph.
+type DebtDetailsEdges struct {
+	// Schedule holds the value of the schedule edge.
+	Schedule []*PaymentSchedule `json:"schedule,omitempty"`
+	// ProgressSnapshots holds the value of the progress_snapshots edge.
+	ProgressSnapshots []*DebtProgressSnapshot `json:"progress_snapshots,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [2]bool
+}
+
+// ScheduleOrErr returns the Schedule value or an error if the edge
+// was not loaded in eager-loading.
+func (e DebtDetailsEdges) ScheduleOrErr() ([]*PaymentSchedule, error) {
+	if e.loadedTypes[0] {
+		return e.Schedule, nil
+	}
+	return nil, &NotLoadedError{edge: "schedule"}
+}
+
+// ProgressSnapshotsOrErr returns the ProgressSnapshots value or an error if the edge
+// was not loaded in eager-loading.
+func (e DebtDetailsEdges) ProgressSnapshotsOrErr() ([]*DebtProgressSnapshot, error) {
+	if e.loadedTypes[1] {
+		return e.ProgressSnapshots, nil
+	}
+	return nil, &NotLoadedError{edge: "progress_snapshots"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -199,6 +231,16 @@ func (dd *DebtDetails) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (dd *DebtDetails) Value(name string) (ent.Value, error) {
 	return dd.selectValues.Get(name)
+}
+
+// QuerySchedule queries the "schedule" edge of the DebtDetails entity.
+func (dd *DebtDetails) QuerySchedule() *PaymentScheduleQuery {
+	return NewDebtDetailsClient(dd.config).QuerySchedule(dd)
+}
+
+// QueryProgressSnapshots queries the "progress_snapshots" edge of the DebtDetails entity.
+func (dd *DebtDetails) QueryProgressSnapshots() *DebtProgressSnapshotQuery {
+	return NewDebtDetailsClient(dd.config).QueryProgressSnapshots(dd)
 }
 
 // Update returns a builder for updating this DebtDetails.

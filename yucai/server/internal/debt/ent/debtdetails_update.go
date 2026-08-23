@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
+	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
+	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
 
@@ -244,9 +246,81 @@ func (ddu *DebtDetailsUpdate) SetUpdatedAt(t time.Time) *DebtDetailsUpdate {
 	return ddu
 }
 
+// AddScheduleIDs adds the "schedule" edge to the PaymentSchedule entity by IDs.
+func (ddu *DebtDetailsUpdate) AddScheduleIDs(ids ...uuid.UUID) *DebtDetailsUpdate {
+	ddu.mutation.AddScheduleIDs(ids...)
+	return ddu
+}
+
+// AddSchedule adds the "schedule" edges to the PaymentSchedule entity.
+func (ddu *DebtDetailsUpdate) AddSchedule(p ...*PaymentSchedule) *DebtDetailsUpdate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return ddu.AddScheduleIDs(ids...)
+}
+
+// AddProgressSnapshotIDs adds the "progress_snapshots" edge to the DebtProgressSnapshot entity by IDs.
+func (ddu *DebtDetailsUpdate) AddProgressSnapshotIDs(ids ...uuid.UUID) *DebtDetailsUpdate {
+	ddu.mutation.AddProgressSnapshotIDs(ids...)
+	return ddu
+}
+
+// AddProgressSnapshots adds the "progress_snapshots" edges to the DebtProgressSnapshot entity.
+func (ddu *DebtDetailsUpdate) AddProgressSnapshots(d ...*DebtProgressSnapshot) *DebtDetailsUpdate {
+	ids := make([]uuid.UUID, len(d))
+	for i := range d {
+		ids[i] = d[i].ID
+	}
+	return ddu.AddProgressSnapshotIDs(ids...)
+}
+
 // Mutation returns the DebtDetailsMutation object of the builder.
 func (ddu *DebtDetailsUpdate) Mutation() *DebtDetailsMutation {
 	return ddu.mutation
+}
+
+// ClearSchedule clears all "schedule" edges to the PaymentSchedule entity.
+func (ddu *DebtDetailsUpdate) ClearSchedule() *DebtDetailsUpdate {
+	ddu.mutation.ClearSchedule()
+	return ddu
+}
+
+// RemoveScheduleIDs removes the "schedule" edge to PaymentSchedule entities by IDs.
+func (ddu *DebtDetailsUpdate) RemoveScheduleIDs(ids ...uuid.UUID) *DebtDetailsUpdate {
+	ddu.mutation.RemoveScheduleIDs(ids...)
+	return ddu
+}
+
+// RemoveSchedule removes "schedule" edges to PaymentSchedule entities.
+func (ddu *DebtDetailsUpdate) RemoveSchedule(p ...*PaymentSchedule) *DebtDetailsUpdate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return ddu.RemoveScheduleIDs(ids...)
+}
+
+// ClearProgressSnapshots clears all "progress_snapshots" edges to the DebtProgressSnapshot entity.
+func (ddu *DebtDetailsUpdate) ClearProgressSnapshots() *DebtDetailsUpdate {
+	ddu.mutation.ClearProgressSnapshots()
+	return ddu
+}
+
+// RemoveProgressSnapshotIDs removes the "progress_snapshots" edge to DebtProgressSnapshot entities by IDs.
+func (ddu *DebtDetailsUpdate) RemoveProgressSnapshotIDs(ids ...uuid.UUID) *DebtDetailsUpdate {
+	ddu.mutation.RemoveProgressSnapshotIDs(ids...)
+	return ddu
+}
+
+// RemoveProgressSnapshots removes "progress_snapshots" edges to DebtProgressSnapshot entities.
+func (ddu *DebtDetailsUpdate) RemoveProgressSnapshots(d ...*DebtProgressSnapshot) *DebtDetailsUpdate {
+	ids := make([]uuid.UUID, len(d))
+	for i := range d {
+		ids[i] = d[i].ID
+	}
+	return ddu.RemoveProgressSnapshotIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -347,6 +421,96 @@ func (ddu *DebtDetailsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := ddu.mutation.UpdatedAt(); ok {
 		_spec.SetField(debtdetails.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if ddu.mutation.ScheduleCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ScheduleTable,
+			Columns: []string{debtdetails.ScheduleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ddu.mutation.RemovedScheduleIDs(); len(nodes) > 0 && !ddu.mutation.ScheduleCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ScheduleTable,
+			Columns: []string{debtdetails.ScheduleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ddu.mutation.ScheduleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ScheduleTable,
+			Columns: []string{debtdetails.ScheduleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if ddu.mutation.ProgressSnapshotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ProgressSnapshotsTable,
+			Columns: []string{debtdetails.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ddu.mutation.RemovedProgressSnapshotsIDs(); len(nodes) > 0 && !ddu.mutation.ProgressSnapshotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ProgressSnapshotsTable,
+			Columns: []string{debtdetails.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ddu.mutation.ProgressSnapshotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ProgressSnapshotsTable,
+			Columns: []string{debtdetails.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, ddu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -583,9 +747,81 @@ func (dduo *DebtDetailsUpdateOne) SetUpdatedAt(t time.Time) *DebtDetailsUpdateOn
 	return dduo
 }
 
+// AddScheduleIDs adds the "schedule" edge to the PaymentSchedule entity by IDs.
+func (dduo *DebtDetailsUpdateOne) AddScheduleIDs(ids ...uuid.UUID) *DebtDetailsUpdateOne {
+	dduo.mutation.AddScheduleIDs(ids...)
+	return dduo
+}
+
+// AddSchedule adds the "schedule" edges to the PaymentSchedule entity.
+func (dduo *DebtDetailsUpdateOne) AddSchedule(p ...*PaymentSchedule) *DebtDetailsUpdateOne {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return dduo.AddScheduleIDs(ids...)
+}
+
+// AddProgressSnapshotIDs adds the "progress_snapshots" edge to the DebtProgressSnapshot entity by IDs.
+func (dduo *DebtDetailsUpdateOne) AddProgressSnapshotIDs(ids ...uuid.UUID) *DebtDetailsUpdateOne {
+	dduo.mutation.AddProgressSnapshotIDs(ids...)
+	return dduo
+}
+
+// AddProgressSnapshots adds the "progress_snapshots" edges to the DebtProgressSnapshot entity.
+func (dduo *DebtDetailsUpdateOne) AddProgressSnapshots(d ...*DebtProgressSnapshot) *DebtDetailsUpdateOne {
+	ids := make([]uuid.UUID, len(d))
+	for i := range d {
+		ids[i] = d[i].ID
+	}
+	return dduo.AddProgressSnapshotIDs(ids...)
+}
+
 // Mutation returns the DebtDetailsMutation object of the builder.
 func (dduo *DebtDetailsUpdateOne) Mutation() *DebtDetailsMutation {
 	return dduo.mutation
+}
+
+// ClearSchedule clears all "schedule" edges to the PaymentSchedule entity.
+func (dduo *DebtDetailsUpdateOne) ClearSchedule() *DebtDetailsUpdateOne {
+	dduo.mutation.ClearSchedule()
+	return dduo
+}
+
+// RemoveScheduleIDs removes the "schedule" edge to PaymentSchedule entities by IDs.
+func (dduo *DebtDetailsUpdateOne) RemoveScheduleIDs(ids ...uuid.UUID) *DebtDetailsUpdateOne {
+	dduo.mutation.RemoveScheduleIDs(ids...)
+	return dduo
+}
+
+// RemoveSchedule removes "schedule" edges to PaymentSchedule entities.
+func (dduo *DebtDetailsUpdateOne) RemoveSchedule(p ...*PaymentSchedule) *DebtDetailsUpdateOne {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return dduo.RemoveScheduleIDs(ids...)
+}
+
+// ClearProgressSnapshots clears all "progress_snapshots" edges to the DebtProgressSnapshot entity.
+func (dduo *DebtDetailsUpdateOne) ClearProgressSnapshots() *DebtDetailsUpdateOne {
+	dduo.mutation.ClearProgressSnapshots()
+	return dduo
+}
+
+// RemoveProgressSnapshotIDs removes the "progress_snapshots" edge to DebtProgressSnapshot entities by IDs.
+func (dduo *DebtDetailsUpdateOne) RemoveProgressSnapshotIDs(ids ...uuid.UUID) *DebtDetailsUpdateOne {
+	dduo.mutation.RemoveProgressSnapshotIDs(ids...)
+	return dduo
+}
+
+// RemoveProgressSnapshots removes "progress_snapshots" edges to DebtProgressSnapshot entities.
+func (dduo *DebtDetailsUpdateOne) RemoveProgressSnapshots(d ...*DebtProgressSnapshot) *DebtDetailsUpdateOne {
+	ids := make([]uuid.UUID, len(d))
+	for i := range d {
+		ids[i] = d[i].ID
+	}
+	return dduo.RemoveProgressSnapshotIDs(ids...)
 }
 
 // Where appends a list predicates to the DebtDetailsUpdate builder.
@@ -716,6 +952,96 @@ func (dduo *DebtDetailsUpdateOne) sqlSave(ctx context.Context) (_node *DebtDetai
 	}
 	if value, ok := dduo.mutation.UpdatedAt(); ok {
 		_spec.SetField(debtdetails.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if dduo.mutation.ScheduleCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ScheduleTable,
+			Columns: []string{debtdetails.ScheduleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := dduo.mutation.RemovedScheduleIDs(); len(nodes) > 0 && !dduo.mutation.ScheduleCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ScheduleTable,
+			Columns: []string{debtdetails.ScheduleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := dduo.mutation.ScheduleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ScheduleTable,
+			Columns: []string{debtdetails.ScheduleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentschedule.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if dduo.mutation.ProgressSnapshotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ProgressSnapshotsTable,
+			Columns: []string{debtdetails.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := dduo.mutation.RemovedProgressSnapshotsIDs(); len(nodes) > 0 && !dduo.mutation.ProgressSnapshotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ProgressSnapshotsTable,
+			Columns: []string{debtdetails.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := dduo.mutation.ProgressSnapshotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   debtdetails.ProgressSnapshotsTable,
+			Columns: []string{debtdetails.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &DebtDetails{config: dduo.config}
 	_spec.Assign = _node.assignValues

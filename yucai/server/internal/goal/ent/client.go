@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/goal/ent/goal"
 	"github.com/yucai/server/internal/goal/ent/goalaccountlinks"
 	"github.com/yucai/server/internal/goal/ent/goaldebtlinks"
@@ -333,6 +334,22 @@ func (c *GoalClient) GetX(ctx context.Context, id uuid.UUID) *Goal {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryProgressSnapshots queries the progress_snapshots edge of a Goal.
+func (c *GoalClient) QueryProgressSnapshots(_go *Goal) *GoalProgressSnapshotQuery {
+	query := (&GoalProgressSnapshotClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _go.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(goal.Table, goal.FieldID, id),
+			sqlgraph.To(goalprogresssnapshot.Table, goalprogresssnapshot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, goal.ProgressSnapshotsTable, goal.ProgressSnapshotsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_go.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -732,6 +749,22 @@ func (c *GoalProgressSnapshotClient) GetX(ctx context.Context, id uuid.UUID) *Go
 		panic(err)
 	}
 	return obj
+}
+
+// QueryGoal queries the goal edge of a GoalProgressSnapshot.
+func (c *GoalProgressSnapshotClient) QueryGoal(gps *GoalProgressSnapshot) *GoalQuery {
+	query := (&GoalClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := gps.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(goalprogresssnapshot.Table, goalprogresssnapshot.FieldID, id),
+			sqlgraph.To(goal.Table, goal.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, goalprogresssnapshot.GoalTable, goalprogresssnapshot.GoalColumn),
+		)
+		fromV = sqlgraph.Neighbors(gps.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.

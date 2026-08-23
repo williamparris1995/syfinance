@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -14,15 +15,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/transaction/ent/predicate"
 	"github.com/yucai/server/internal/transaction/ent/transaction"
+	"github.com/yucai/server/internal/transaction/ent/transactionentry"
 )
 
 // TransactionQuery is the builder for querying Transaction entities.
 type TransactionQuery struct {
 	config
-	ctx        *QueryContext
-	order      []transaction.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Transaction
+	ctx         *QueryContext
+	order       []transaction.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.Transaction
+	withEntries *TransactionEntryQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +60,28 @@ func (tq *TransactionQuery) Unique(unique bool) *TransactionQuery {
 func (tq *TransactionQuery) Order(o ...transaction.OrderOption) *TransactionQuery {
 	tq.order = append(tq.order, o...)
 	return tq
+}
+
+// QueryEntries chains the current query on the "entries" edge.
+func (tq *TransactionQuery) QueryEntries() *TransactionEntryQuery {
+	query := (&TransactionEntryClient{config: tq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := tq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := tq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transaction.Table, transaction.FieldID, selector),
+			sqlgraph.To(transactionentry.Table, transactionentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, transaction.EntriesTable, transaction.EntriesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(tq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Transaction entity from the query.
@@ -246,15 +271,27 @@ func (tq *TransactionQuery) Clone() *TransactionQuery {
 		return nil
 	}
 	return &TransactionQuery{
-		config:     tq.config,
-		ctx:        tq.ctx.Clone(),
-		order:      append([]transaction.OrderOption{}, tq.order...),
-		inters:     append([]Interceptor{}, tq.inters...),
-		predicates: append([]predicate.Transaction{}, tq.predicates...),
+		config:      tq.config,
+		ctx:         tq.ctx.Clone(),
+		order:       append([]transaction.OrderOption{}, tq.order...),
+		inters:      append([]Interceptor{}, tq.inters...),
+		predicates:  append([]predicate.Transaction{}, tq.predicates...),
+		withEntries: tq.withEntries.Clone(),
 		// clone intermediate query.
 		sql:  tq.sql.Clone(),
 		path: tq.path,
 	}
+}
+
+// WithEntries tells the query-builder to eager-load the nodes that are connected to
+// the "entries" edge. The optional arguments are used to configure the query builder of the edge.
+func (tq *TransactionQuery) WithEntries(opts ...func(*TransactionEntryQuery)) *TransactionQuery {
+	query := (&TransactionEntryClient{config: tq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	tq.withEntries = query
+	return tq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +370,11 @@ func (tq *TransactionQuery) prepareQuery(ctx context.Context) error {
 
 func (tq *TransactionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Transaction, error) {
 	var (
-		nodes = []*Transaction{}
-		_spec = tq.querySpec()
+		nodes       = []*Transaction{}
+		_spec       = tq.querySpec()
+		loadedTypes = [1]bool{
+			tq.withEntries != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Transaction).scanValues(nil, columns)
@@ -342,6 +382,7 @@ func (tq *TransactionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Transaction{config: tq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +394,45 @@ func (tq *TransactionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := tq.withEntries; query != nil {
+		if err := tq.loadEntries(ctx, query, nodes,
+			func(n *Transaction) { n.Edges.Entries = []*TransactionEntry{} },
+			func(n *Transaction, e *TransactionEntry) { n.Edges.Entries = append(n.Edges.Entries, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (tq *TransactionQuery) loadEntries(ctx context.Context, query *TransactionEntryQuery, nodes []*Transaction, init func(*Transaction), assign func(*Transaction, *TransactionEntry)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Transaction)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(transactionentry.FieldTransactionID)
+	}
+	query.Where(predicate.TransactionEntry(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(transaction.EntriesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TransactionID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "transaction_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (tq *TransactionQuery) sqlCount(ctx context.Context) (int, error) {

@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/holding/ent/holding"
 	"github.com/yucai/server/internal/holding/ent/holdinglot"
 )
 
@@ -97,6 +98,11 @@ func (hlc *HoldingLotCreate) SetNillableID(u *uuid.UUID) *HoldingLotCreate {
 	return hlc
 }
 
+// SetHolding sets the "holding" edge to the Holding entity.
+func (hlc *HoldingLotCreate) SetHolding(h *Holding) *HoldingLotCreate {
+	return hlc.SetHoldingID(h.ID)
+}
+
 // Mutation returns the HoldingLotMutation object of the builder.
 func (hlc *HoldingLotCreate) Mutation() *HoldingLotMutation {
 	return hlc.mutation
@@ -171,6 +177,9 @@ func (hlc *HoldingLotCreate) check() error {
 	if _, ok := hlc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "HoldingLot.created_at"`)}
 	}
+	if len(hlc.mutation.HoldingIDs()) == 0 {
+		return &ValidationError{Name: "holding", err: errors.New(`ent: missing required edge "HoldingLot.holding"`)}
+	}
 	return nil
 }
 
@@ -210,10 +219,6 @@ func (hlc *HoldingLotCreate) createSpec() (*HoldingLot, *sqlgraph.CreateSpec) {
 		_spec.SetField(holdinglot.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
-	if value, ok := hlc.mutation.HoldingID(); ok {
-		_spec.SetField(holdinglot.FieldHoldingID, field.TypeUUID, value)
-		_node.HoldingID = value
-	}
 	if value, ok := hlc.mutation.SecurityID(); ok {
 		_spec.SetField(holdinglot.FieldSecurityID, field.TypeUUID, value)
 		_node.SecurityID = value
@@ -241,6 +246,23 @@ func (hlc *HoldingLotCreate) createSpec() (*HoldingLot, *sqlgraph.CreateSpec) {
 	if value, ok := hlc.mutation.CreatedAt(); ok {
 		_spec.SetField(holdinglot.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := hlc.mutation.HoldingIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   holdinglot.HoldingTable,
+			Columns: []string{holdinglot.HoldingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(holding.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.HoldingID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

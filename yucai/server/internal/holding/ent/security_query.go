@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -14,15 +15,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 	"github.com/yucai/server/internal/holding/ent/security"
+	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
 // SecurityQuery is the builder for querying Security entities.
 type SecurityQuery struct {
 	config
-	ctx        *QueryContext
-	order      []security.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Security
+	ctx              *QueryContext
+	order            []security.OrderOption
+	inters           []Interceptor
+	predicates       []predicate.Security
+	withPriceHistory *SecurityPriceHistoryQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +60,28 @@ func (sq *SecurityQuery) Unique(unique bool) *SecurityQuery {
 func (sq *SecurityQuery) Order(o ...security.OrderOption) *SecurityQuery {
 	sq.order = append(sq.order, o...)
 	return sq
+}
+
+// QueryPriceHistory chains the current query on the "price_history" edge.
+func (sq *SecurityQuery) QueryPriceHistory() *SecurityPriceHistoryQuery {
+	query := (&SecurityPriceHistoryClient{config: sq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := sq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := sq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(security.Table, security.FieldID, selector),
+			sqlgraph.To(securitypricehistory.Table, securitypricehistory.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, security.PriceHistoryTable, security.PriceHistoryColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(sq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Security entity from the query.
@@ -246,15 +271,27 @@ func (sq *SecurityQuery) Clone() *SecurityQuery {
 		return nil
 	}
 	return &SecurityQuery{
-		config:     sq.config,
-		ctx:        sq.ctx.Clone(),
-		order:      append([]security.OrderOption{}, sq.order...),
-		inters:     append([]Interceptor{}, sq.inters...),
-		predicates: append([]predicate.Security{}, sq.predicates...),
+		config:           sq.config,
+		ctx:              sq.ctx.Clone(),
+		order:            append([]security.OrderOption{}, sq.order...),
+		inters:           append([]Interceptor{}, sq.inters...),
+		predicates:       append([]predicate.Security{}, sq.predicates...),
+		withPriceHistory: sq.withPriceHistory.Clone(),
 		// clone intermediate query.
 		sql:  sq.sql.Clone(),
 		path: sq.path,
 	}
+}
+
+// WithPriceHistory tells the query-builder to eager-load the nodes that are connected to
+// the "price_history" edge. The optional arguments are used to configure the query builder of the edge.
+func (sq *SecurityQuery) WithPriceHistory(opts ...func(*SecurityPriceHistoryQuery)) *SecurityQuery {
+	query := (&SecurityPriceHistoryClient{config: sq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	sq.withPriceHistory = query
+	return sq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +370,11 @@ func (sq *SecurityQuery) prepareQuery(ctx context.Context) error {
 
 func (sq *SecurityQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Security, error) {
 	var (
-		nodes = []*Security{}
-		_spec = sq.querySpec()
+		nodes       = []*Security{}
+		_spec       = sq.querySpec()
+		loadedTypes = [1]bool{
+			sq.withPriceHistory != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Security).scanValues(nil, columns)
@@ -342,6 +382,7 @@ func (sq *SecurityQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Sec
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Security{config: sq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +394,45 @@ func (sq *SecurityQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Sec
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := sq.withPriceHistory; query != nil {
+		if err := sq.loadPriceHistory(ctx, query, nodes,
+			func(n *Security) { n.Edges.PriceHistory = []*SecurityPriceHistory{} },
+			func(n *Security, e *SecurityPriceHistory) { n.Edges.PriceHistory = append(n.Edges.PriceHistory, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (sq *SecurityQuery) loadPriceHistory(ctx context.Context, query *SecurityPriceHistoryQuery, nodes []*Security, init func(*Security), assign func(*Security, *SecurityPriceHistory)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Security)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(securitypricehistory.FieldSecurityID)
+	}
+	query.Where(predicate.SecurityPriceHistory(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(security.PriceHistoryColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SecurityID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "security_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (sq *SecurityQuery) sqlCount(ctx context.Context) (int, error) {

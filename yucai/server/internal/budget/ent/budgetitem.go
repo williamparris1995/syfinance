@@ -9,6 +9,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/budget/ent/budget"
 	"github.com/yucai/server/internal/budget/ent/budgetitem"
 )
 
@@ -26,8 +27,31 @@ type BudgetItem struct {
 	// ActualAmountCents holds the value of the "actual_amount_cents" field.
 	ActualAmountCents int64 `json:"actual_amount_cents,omitempty"`
 	// Notes holds the value of the "notes" field.
-	Notes        string `json:"notes,omitempty"`
+	Notes string `json:"notes,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the BudgetItemQuery when eager-loading is set.
+	Edges        BudgetItemEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// BudgetItemEdges holds the relations/edges for other nodes in the graph.
+type BudgetItemEdges struct {
+	// Budget holds the value of the budget edge.
+	Budget *Budget `json:"budget,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// BudgetOrErr returns the Budget value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e BudgetItemEdges) BudgetOrErr() (*Budget, error) {
+	if e.Budget != nil {
+		return e.Budget, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: budget.Label}
+	}
+	return nil, &NotLoadedError{edge: "budget"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -103,6 +127,11 @@ func (bi *BudgetItem) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (bi *BudgetItem) Value(name string) (ent.Value, error) {
 	return bi.selectValues.Get(name)
+}
+
+// QueryBudget queries the "budget" edge of the BudgetItem entity.
+func (bi *BudgetItem) QueryBudget() *BudgetQuery {
+	return NewBudgetItemClient(bi.config).QueryBudget(bi)
 }
 
 // Update returns a builder for updating this BudgetItem.

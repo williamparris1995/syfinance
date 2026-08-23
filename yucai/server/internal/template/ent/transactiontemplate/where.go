@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/predicate"
 )
@@ -1088,6 +1089,29 @@ func UpdatedAtLT(v time.Time) predicate.TransactionTemplate {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.TransactionTemplate {
 	return predicate.TransactionTemplate(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasRecordLogs applies the HasEdge predicate on the "record_logs" edge.
+func HasRecordLogs() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, RecordLogsTable, RecordLogsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRecordLogsWith applies the HasEdge predicate on the "record_logs" edge with a given conditions (other predicates).
+func HasRecordLogsWith(preds ...predicate.TemplateRecordLog) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(func(s *sql.Selector) {
+		step := newRecordLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

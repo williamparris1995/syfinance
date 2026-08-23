@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/ent/goal"
+	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 )
 
 // GoalCreate is the builder for creating a Goal entity.
@@ -197,6 +198,21 @@ func (gc *GoalCreate) SetNillableID(u *uuid.UUID) *GoalCreate {
 		gc.SetID(*u)
 	}
 	return gc
+}
+
+// AddProgressSnapshotIDs adds the "progress_snapshots" edge to the GoalProgressSnapshot entity by IDs.
+func (gc *GoalCreate) AddProgressSnapshotIDs(ids ...uuid.UUID) *GoalCreate {
+	gc.mutation.AddProgressSnapshotIDs(ids...)
+	return gc
+}
+
+// AddProgressSnapshots adds the "progress_snapshots" edges to the GoalProgressSnapshot entity.
+func (gc *GoalCreate) AddProgressSnapshots(g ...*GoalProgressSnapshot) *GoalCreate {
+	ids := make([]uuid.UUID, len(g))
+	for i := range g {
+		ids[i] = g[i].ID
+	}
+	return gc.AddProgressSnapshotIDs(ids...)
 }
 
 // Mutation returns the GoalMutation object of the builder.
@@ -395,6 +411,22 @@ func (gc *GoalCreate) createSpec() (*Goal, *sqlgraph.CreateSpec) {
 	if value, ok := gc.mutation.UpdatedAt(); ok {
 		_spec.SetField(goal.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := gc.mutation.ProgressSnapshotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   goal.ProgressSnapshotsTable,
+			Columns: []string{goal.ProgressSnapshotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(goalprogresssnapshot.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

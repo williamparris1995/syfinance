@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
 )
 
@@ -31,8 +32,31 @@ type DebtProgressSnapshot struct {
 	// cumulative paid (principal+interest) at snapshot_date, original currency
 	PaidTotalCents int64 `json:"paid_total_cents,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the DebtProgressSnapshotQuery when eager-loading is set.
+	Edges        DebtProgressSnapshotEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// DebtProgressSnapshotEdges holds the relations/edges for other nodes in the graph.
+type DebtProgressSnapshotEdges struct {
+	// Debt holds the value of the debt edge.
+	Debt *DebtDetails `json:"debt,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// DebtOrErr returns the Debt value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e DebtProgressSnapshotEdges) DebtOrErr() (*DebtDetails, error) {
+	if e.Debt != nil {
+		return e.Debt, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: debtdetails.Label}
+	}
+	return nil, &NotLoadedError{edge: "debt"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -120,6 +144,11 @@ func (dps *DebtProgressSnapshot) assignValues(columns []string, values []any) er
 // This includes values selected through modifiers, order, etc.
 func (dps *DebtProgressSnapshot) Value(name string) (ent.Value, error) {
 	return dps.selectValues.Get(name)
+}
+
+// QueryDebt queries the "debt" edge of the DebtProgressSnapshot entity.
+func (dps *DebtProgressSnapshot) QueryDebt() *DebtDetailsQuery {
+	return NewDebtProgressSnapshotClient(dps.config).QueryDebt(dps)
 }
 
 // Update returns a builder for updating this DebtProgressSnapshot.

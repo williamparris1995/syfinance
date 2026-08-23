@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -30,8 +31,17 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeLots holds the string denoting the lots edge name in mutations.
+	EdgeLots = "lots"
 	// Table holds the table name of the holding in the database.
 	Table = "holdings"
+	// LotsTable is the table that holds the lots relation/edge.
+	LotsTable = "holding_lots"
+	// LotsInverseTable is the table name for the HoldingLot entity.
+	// It exists in this package in order to avoid circular dependency with the "holdinglot" package.
+	LotsInverseTable = "holding_lots"
+	// LotsColumn is the table column denoting the lots relation/edge.
+	LotsColumn = "holding_id"
 )
 
 // Columns holds all SQL columns for holding fields.
@@ -120,4 +130,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByLotsCount orders the results by lots count.
+func ByLotsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLotsStep(), opts...)
+	}
+}
+
+// ByLots orders the results by lots terms.
+func ByLots(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLotsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newLotsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LotsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LotsTable, LotsColumn),
+	)
 }

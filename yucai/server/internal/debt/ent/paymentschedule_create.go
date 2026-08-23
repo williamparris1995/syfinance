@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 )
 
@@ -131,6 +132,11 @@ func (psc *PaymentScheduleCreate) SetNillableID(u *uuid.UUID) *PaymentScheduleCr
 	return psc
 }
 
+// SetDebt sets the "debt" edge to the DebtDetails entity.
+func (psc *PaymentScheduleCreate) SetDebt(d *DebtDetails) *PaymentScheduleCreate {
+	return psc.SetDebtID(d.ID)
+}
+
 // Mutation returns the PaymentScheduleMutation object of the builder.
 func (psc *PaymentScheduleCreate) Mutation() *PaymentScheduleMutation {
 	return psc.mutation
@@ -215,6 +221,9 @@ func (psc *PaymentScheduleCreate) check() error {
 	if _, ok := psc.mutation.PaidCents(); !ok {
 		return &ValidationError{Name: "paid_cents", err: errors.New(`ent: missing required field "PaymentSchedule.paid_cents"`)}
 	}
+	if len(psc.mutation.DebtIDs()) == 0 {
+		return &ValidationError{Name: "debt", err: errors.New(`ent: missing required edge "PaymentSchedule.debt"`)}
+	}
 	return nil
 }
 
@@ -250,10 +259,6 @@ func (psc *PaymentScheduleCreate) createSpec() (*PaymentSchedule, *sqlgraph.Crea
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
-	if value, ok := psc.mutation.DebtID(); ok {
-		_spec.SetField(paymentschedule.FieldDebtID, field.TypeUUID, value)
-		_node.DebtID = value
-	}
 	if value, ok := psc.mutation.PaymentDate(); ok {
 		_spec.SetField(paymentschedule.FieldPaymentDate, field.TypeTime, value)
 		_node.PaymentDate = value
@@ -281,6 +286,23 @@ func (psc *PaymentScheduleCreate) createSpec() (*PaymentSchedule, *sqlgraph.Crea
 	if value, ok := psc.mutation.TransactionID(); ok {
 		_spec.SetField(paymentschedule.FieldTransactionID, field.TypeUUID, value)
 		_node.TransactionID = &value
+	}
+	if nodes := psc.mutation.DebtIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   paymentschedule.DebtTable,
+			Columns: []string{paymentschedule.DebtColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.DebtID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -46,8 +47,26 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeSchedule holds the string denoting the schedule edge name in mutations.
+	EdgeSchedule = "schedule"
+	// EdgeProgressSnapshots holds the string denoting the progress_snapshots edge name in mutations.
+	EdgeProgressSnapshots = "progress_snapshots"
 	// Table holds the table name of the debtdetails in the database.
 	Table = "debt_details"
+	// ScheduleTable is the table that holds the schedule relation/edge.
+	ScheduleTable = "payment_schedules"
+	// ScheduleInverseTable is the table name for the PaymentSchedule entity.
+	// It exists in this package in order to avoid circular dependency with the "paymentschedule" package.
+	ScheduleInverseTable = "payment_schedules"
+	// ScheduleColumn is the table column denoting the schedule relation/edge.
+	ScheduleColumn = "debt_id"
+	// ProgressSnapshotsTable is the table that holds the progress_snapshots relation/edge.
+	ProgressSnapshotsTable = "debt_progress_snapshots"
+	// ProgressSnapshotsInverseTable is the table name for the DebtProgressSnapshot entity.
+	// It exists in this package in order to avoid circular dependency with the "debtprogresssnapshot" package.
+	ProgressSnapshotsInverseTable = "debt_progress_snapshots"
+	// ProgressSnapshotsColumn is the table column denoting the progress_snapshots relation/edge.
+	ProgressSnapshotsColumn = "debt_id"
 )
 
 // Columns holds all SQL columns for debtdetails fields.
@@ -188,4 +207,46 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByScheduleCount orders the results by schedule count.
+func ByScheduleCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newScheduleStep(), opts...)
+	}
+}
+
+// BySchedule orders the results by schedule terms.
+func BySchedule(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newScheduleStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByProgressSnapshotsCount orders the results by progress_snapshots count.
+func ByProgressSnapshotsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProgressSnapshotsStep(), opts...)
+	}
+}
+
+// ByProgressSnapshots orders the results by progress_snapshots terms.
+func ByProgressSnapshots(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProgressSnapshotsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newScheduleStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ScheduleInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ScheduleTable, ScheduleColumn),
+	)
+}
+func newProgressSnapshotsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProgressSnapshotsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProgressSnapshotsTable, ProgressSnapshotsColumn),
+	)
 }

@@ -42,7 +42,6 @@ var (
 	HoldingLotsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
-		{Name: "holding_id", Type: field.TypeUUID},
 		{Name: "security_id", Type: field.TypeUUID, Comment: "denormalized"},
 		{Name: "acquired_date", Type: field.TypeTime, Comment: "buy trade date; FIFO ordering key"},
 		{Name: "acquired_trade_id", Type: field.TypeUUID, Comment: "holding_transaction.id of the buy"},
@@ -50,12 +49,21 @@ var (
 		{Name: "quantity", Type: field.TypeFloat64, Comment: "original acquired quantity"},
 		{Name: "remaining_quantity", Type: field.TypeFloat64, Comment: "remaining after sells/splits"},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "holding_id", Type: field.TypeUUID},
 	}
 	// HoldingLotsTable holds the schema information for the "holding_lots" table.
 	HoldingLotsTable = &schema.Table{
 		Name:       "holding_lots",
 		Columns:    HoldingLotsColumns,
 		PrimaryKey: []*schema.Column{HoldingLotsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "holding_lots_holdings_lots",
+				Columns:    []*schema.Column{HoldingLotsColumns[9]},
+				RefColumns: []*schema.Column{HoldingsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "holdinglot_tenant_id",
@@ -65,7 +73,7 @@ var (
 			{
 				Name:    "holdinglot_tenant_id_holding_id_acquired_date",
 				Unique:  false,
-				Columns: []*schema.Column{HoldingLotsColumns[1], HoldingLotsColumns[2], HoldingLotsColumns[4]},
+				Columns: []*schema.Column{HoldingLotsColumns[1], HoldingLotsColumns[9], HoldingLotsColumns[3]},
 			},
 		},
 	}
@@ -177,23 +185,31 @@ var (
 	// SecurityPriceHistoriesColumns holds the columns for the "security_price_histories" table.
 	SecurityPriceHistoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "security_id", Type: field.TypeUUID, Comment: "owning security (incl. benchmark 000300)"},
 		{Name: "price_date", Type: field.TypeTime, Comment: "one row per security per date"},
 		{Name: "price_cents", Type: field.TypeInt64, Comment: "close price in original currency cents"},
 		{Name: "currency_code", Type: field.TypeString, Default: "CNY"},
 		{Name: "source", Type: field.TypeString, Comment: "sina / backfill / manual", Default: "sina"},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "security_id", Type: field.TypeUUID, Comment: "owning security (incl. benchmark 000300)"},
 	}
 	// SecurityPriceHistoriesTable holds the schema information for the "security_price_histories" table.
 	SecurityPriceHistoriesTable = &schema.Table{
 		Name:       "security_price_histories",
 		Columns:    SecurityPriceHistoriesColumns,
 		PrimaryKey: []*schema.Column{SecurityPriceHistoriesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "security_price_histories_securities_price_history",
+				Columns:    []*schema.Column{SecurityPriceHistoriesColumns[6]},
+				RefColumns: []*schema.Column{SecuritiesColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "securitypricehistory_security_id_price_date",
 				Unique:  true,
-				Columns: []*schema.Column{SecurityPriceHistoriesColumns[1], SecurityPriceHistoriesColumns[2]},
+				Columns: []*schema.Column{SecurityPriceHistoriesColumns[6], SecurityPriceHistoriesColumns[1]},
 			},
 		},
 	}
@@ -209,4 +225,6 @@ var (
 )
 
 func init() {
+	HoldingLotsTable.ForeignKeys[0].RefTable = HoldingsTable
+	SecurityPriceHistoriesTable.ForeignKeys[0].RefTable = SecuritiesTable
 }

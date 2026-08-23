@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
@@ -933,6 +934,52 @@ func UpdatedAtLT(v time.Time) predicate.DebtDetails {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasSchedule applies the HasEdge predicate on the "schedule" edge.
+func HasSchedule() predicate.DebtDetails {
+	return predicate.DebtDetails(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ScheduleTable, ScheduleColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasScheduleWith applies the HasEdge predicate on the "schedule" edge with a given conditions (other predicates).
+func HasScheduleWith(preds ...predicate.PaymentSchedule) predicate.DebtDetails {
+	return predicate.DebtDetails(func(s *sql.Selector) {
+		step := newScheduleStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasProgressSnapshots applies the HasEdge predicate on the "progress_snapshots" edge.
+func HasProgressSnapshots() predicate.DebtDetails {
+	return predicate.DebtDetails(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProgressSnapshotsTable, ProgressSnapshotsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProgressSnapshotsWith applies the HasEdge predicate on the "progress_snapshots" edge with a given conditions (other predicates).
+func HasProgressSnapshotsWith(preds ...predicate.DebtProgressSnapshot) predicate.DebtDetails {
+	return predicate.DebtDetails(func(s *sql.Selector) {
+		step := newProgressSnapshotsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

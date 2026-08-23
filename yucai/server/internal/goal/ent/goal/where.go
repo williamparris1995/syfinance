@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/ent/predicate"
 )
@@ -793,6 +794,29 @@ func UpdatedAtLT(v time.Time) predicate.Goal {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.Goal {
 	return predicate.Goal(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasProgressSnapshots applies the HasEdge predicate on the "progress_snapshots" edge.
+func HasProgressSnapshots() predicate.Goal {
+	return predicate.Goal(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProgressSnapshotsTable, ProgressSnapshotsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProgressSnapshotsWith applies the HasEdge predicate on the "progress_snapshots" edge with a given conditions (other predicates).
+func HasProgressSnapshotsWith(preds ...predicate.GoalProgressSnapshot) predicate.Goal {
+	return predicate.Goal(func(s *sql.Selector) {
+		step := newProgressSnapshotsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.
