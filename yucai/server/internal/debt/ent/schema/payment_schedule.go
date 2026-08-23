@@ -26,7 +26,7 @@ func (PaymentSchedule) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
 		field.UUID("debt_id", uuid.UUID{}).
-			Comment("FK to DebtDetails"),
+			Comment("FK to DebtDetails").Immutable(),
 		field.Time("payment_date"),
 		field.Int64("principal_cents").
 			Default(0).Min(0),
@@ -41,7 +41,7 @@ func (PaymentSchedule) Fields() []ent.Field {
 		field.UUID("transaction_id", uuid.UUID{}).
 			Optional().
 			Nillable().
-			Comment("Linked transaction"),
+			Comment("Linked transaction").Immutable(),
 	}
 }
 

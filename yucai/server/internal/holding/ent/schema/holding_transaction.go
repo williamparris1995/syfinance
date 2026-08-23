@@ -33,8 +33,8 @@ func (HoldingTransaction) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
-		field.UUID("account_id", uuid.UUID{}),
-		field.UUID("security_id", uuid.UUID{}),
+		field.UUID("account_id", uuid.UUID{}).Immutable(),
+		field.UUID("security_id", uuid.UUID{}).Immutable(),
 		field.String("trade_type").
 			Comment("buy, sell, dividend, split"),
 		field.Float("quantity").Min(0),
@@ -52,7 +52,7 @@ func (HoldingTransaction) Fields() []ent.Field {
 		field.UUID("transaction_id", uuid.UUID{}).
 			Optional().
 			Nillable().
-			Comment("Linked accounting transaction"),
+			Comment("Linked accounting transaction").Immutable(),
 		field.String("notes").
 			Optional().
 			Default(""),

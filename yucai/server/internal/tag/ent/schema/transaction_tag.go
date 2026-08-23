@@ -24,8 +24,8 @@ func (TransactionTag) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
-		field.UUID("transaction_id", uuid.UUID{}),
-		field.UUID("tag_id", uuid.UUID{}),
+		field.UUID("transaction_id", uuid.UUID{}).Immutable(),
+		field.UUID("tag_id", uuid.UUID{}).Immutable(),
 	}
 }
 

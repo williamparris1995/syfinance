@@ -7,8 +7,8 @@ import (
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/index"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/ent/schema/mixin"
 )

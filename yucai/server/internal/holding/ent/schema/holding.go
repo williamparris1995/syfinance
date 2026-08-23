@@ -34,8 +34,8 @@ func (Holding) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
-		field.UUID("account_id", uuid.UUID{}),
-		field.UUID("security_id", uuid.UUID{}),
+		field.UUID("account_id", uuid.UUID{}).Immutable(),
+		field.UUID("security_id", uuid.UUID{}).Immutable(),
 		field.Float("quantity").
 			Default(0),
 		field.Int64("avg_cost_cents").

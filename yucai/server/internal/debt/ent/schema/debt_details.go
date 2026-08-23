@@ -35,7 +35,7 @@ func (DebtDetails) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
 		field.UUID("account_id", uuid.UUID{}).
-			Comment("FK to Account (UNIQUE, 1:1)"),
+			Comment("FK to Account (UNIQUE, 1:1)").Immutable(),
 		field.String("counterparty").
 			Comment("Lender name"),
 		field.Float("interest_rate").

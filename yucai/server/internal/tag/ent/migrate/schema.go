@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -34,6 +35,9 @@ var (
 				Name:    "tag_tenant_id_name",
 				Unique:  true,
 				Columns: []*schema.Column{TagsColumns[1], TagsColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
 			},
 		},
 	}

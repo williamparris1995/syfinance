@@ -10,7 +10,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/google/uuid"
 	"github.com/yucai/server/internal/tag/ent/predicate"
 	"github.com/yucai/server/internal/tag/ent/transactiontag"
 )
@@ -25,34 +24,6 @@ type TransactionTagUpdate struct {
 // Where appends a list predicates to the TransactionTagUpdate builder.
 func (ttu *TransactionTagUpdate) Where(ps ...predicate.TransactionTag) *TransactionTagUpdate {
 	ttu.mutation.Where(ps...)
-	return ttu
-}
-
-// SetTransactionID sets the "transaction_id" field.
-func (ttu *TransactionTagUpdate) SetTransactionID(u uuid.UUID) *TransactionTagUpdate {
-	ttu.mutation.SetTransactionID(u)
-	return ttu
-}
-
-// SetNillableTransactionID sets the "transaction_id" field if the given value is not nil.
-func (ttu *TransactionTagUpdate) SetNillableTransactionID(u *uuid.UUID) *TransactionTagUpdate {
-	if u != nil {
-		ttu.SetTransactionID(*u)
-	}
-	return ttu
-}
-
-// SetTagID sets the "tag_id" field.
-func (ttu *TransactionTagUpdate) SetTagID(u uuid.UUID) *TransactionTagUpdate {
-	ttu.mutation.SetTagID(u)
-	return ttu
-}
-
-// SetNillableTagID sets the "tag_id" field if the given value is not nil.
-func (ttu *TransactionTagUpdate) SetNillableTagID(u *uuid.UUID) *TransactionTagUpdate {
-	if u != nil {
-		ttu.SetTagID(*u)
-	}
 	return ttu
 }
 
@@ -97,12 +68,6 @@ func (ttu *TransactionTagUpdate) sqlSave(ctx context.Context) (n int, err error)
 			}
 		}
 	}
-	if value, ok := ttu.mutation.TransactionID(); ok {
-		_spec.SetField(transactiontag.FieldTransactionID, field.TypeUUID, value)
-	}
-	if value, ok := ttu.mutation.TagID(); ok {
-		_spec.SetField(transactiontag.FieldTagID, field.TypeUUID, value)
-	}
 	if n, err = sqlgraph.UpdateNodes(ctx, ttu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{transactiontag.Label}
@@ -121,34 +86,6 @@ type TransactionTagUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *TransactionTagMutation
-}
-
-// SetTransactionID sets the "transaction_id" field.
-func (ttuo *TransactionTagUpdateOne) SetTransactionID(u uuid.UUID) *TransactionTagUpdateOne {
-	ttuo.mutation.SetTransactionID(u)
-	return ttuo
-}
-
-// SetNillableTransactionID sets the "transaction_id" field if the given value is not nil.
-func (ttuo *TransactionTagUpdateOne) SetNillableTransactionID(u *uuid.UUID) *TransactionTagUpdateOne {
-	if u != nil {
-		ttuo.SetTransactionID(*u)
-	}
-	return ttuo
-}
-
-// SetTagID sets the "tag_id" field.
-func (ttuo *TransactionTagUpdateOne) SetTagID(u uuid.UUID) *TransactionTagUpdateOne {
-	ttuo.mutation.SetTagID(u)
-	return ttuo
-}
-
-// SetNillableTagID sets the "tag_id" field if the given value is not nil.
-func (ttuo *TransactionTagUpdateOne) SetNillableTagID(u *uuid.UUID) *TransactionTagUpdateOne {
-	if u != nil {
-		ttuo.SetTagID(*u)
-	}
-	return ttuo
 }
 
 // Mutation returns the TransactionTagMutation object of the builder.
@@ -221,12 +158,6 @@ func (ttuo *TransactionTagUpdateOne) sqlSave(ctx context.Context) (_node *Transa
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := ttuo.mutation.TransactionID(); ok {
-		_spec.SetField(transactiontag.FieldTransactionID, field.TypeUUID, value)
-	}
-	if value, ok := ttuo.mutation.TagID(); ok {
-		_spec.SetField(transactiontag.FieldTagID, field.TypeUUID, value)
 	}
 	_node = &TransactionTag{config: ttuo.config}
 	_spec.Assign = _node.assignValues

@@ -37,13 +37,13 @@ func (HoldingLot) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
-		field.UUID("holding_id", uuid.UUID{}),
+		field.UUID("holding_id", uuid.UUID{}).Immutable(),
 		field.UUID("security_id", uuid.UUID{}).
-			Comment("denormalized"),
+			Comment("denormalized").Immutable(),
 		field.Time("acquired_date").
 			Comment("buy trade date; FIFO ordering key"),
 		field.UUID("acquired_trade_id", uuid.UUID{}).
-			Comment("holding_transaction.id of the buy"),
+			Comment("holding_transaction.id of the buy").Immutable(),
 		field.Int64("price_cents").
 			Comment("buy cost price").Min(0),
 		field.Float("quantity").

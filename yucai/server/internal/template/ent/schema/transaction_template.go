@@ -42,10 +42,10 @@ func (TransactionTemplate) Fields() []ent.Field {
 		field.Int64("amount_cents"),
 		field.String("direction").
 			Comment("expense, income, transfer"),
-		field.UUID("source_account_id", uuid.UUID{}),
+		field.UUID("source_account_id", uuid.UUID{}).Immutable(),
 		field.UUID("destination_account_id", uuid.UUID{}).
 			Optional().
-			Nillable(),
+			Nillable().Immutable(),
 		field.String("cycle").
 			Comment("weekly, monthly, yearly, custom"),
 		field.Int32("cycle_days").

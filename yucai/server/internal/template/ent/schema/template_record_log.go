@@ -51,13 +51,13 @@ func (TemplateRecordLog) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).Default(uuid.New),
 		field.UUID("template_id", uuid.UUID{}).
-			Comment("FK to transaction_template — which template was recorded"),
+			Comment("FK to transaction_template — which template was recorded").Immutable(),
 		field.Time("record_date").
 			Comment("The template.NextDate that was recorded (idempotency key component)"),
 		field.UUID("transaction_id", uuid.UUID{}).
 			Optional().
 			Nillable().
-			Comment("FK to the recorded transaction; back-filled after recorder.Record"),
+			Comment("FK to the recorded transaction; back-filled after recorder.Record").Immutable(),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),
