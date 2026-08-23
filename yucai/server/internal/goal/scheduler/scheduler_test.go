@@ -50,7 +50,7 @@ func TestStartRunsOnceImmediately(t *testing.T) {
 	src := &fakeIntervalSource{hours: 9999}
 	lister := &mockTenantLister{ids: []uuid.UUID{uuid.New(), uuid.New()}}
 	syncer := &mockGoalSyncer{perTenant: 2}
-	s := NewScheduler(syncer, lister, src, 10*time.Millisecond, nil)
+	s := NewScheduler(syncer, lister, src, 10*time.Millisecond, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -66,7 +66,7 @@ func TestStartDoesNotSyncBeforeInterval(t *testing.T) {
 	src := &fakeIntervalSource{hours: 9999}
 	lister := &mockTenantLister{ids: []uuid.UUID{uuid.New()}}
 	syncer := &mockGoalSyncer{perTenant: 1}
-	s := NewScheduler(syncer, lister, src, 5*time.Millisecond, nil)
+	s := NewScheduler(syncer, lister, src, 5*time.Millisecond, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -86,7 +86,7 @@ func TestCtxCancelStopsGoroutine(t *testing.T) {
 	src := &fakeIntervalSource{hours: 0}
 	lister := &mockTenantLister{ids: []uuid.UUID{uuid.New()}}
 	syncer := &mockGoalSyncer{perTenant: 1}
-	s := NewScheduler(syncer, lister, src, 5*time.Millisecond, nil)
+	s := NewScheduler(syncer, lister, src, 5*time.Millisecond, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -122,7 +122,7 @@ func TestSyncNowContinuesPastTenantError(t *testing.T) {
 		perTenant: 3,
 		errOn:     map[uuid.UUID]error{bad: errors.New("upstream holding provider unavailable")},
 	}
-	s := NewScheduler(syncer, lister, src, time.Hour, nil)
+	s := NewScheduler(syncer, lister, src, time.Hour, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -144,7 +144,7 @@ func TestSyncNowCtxCancelledShortCircuits(t *testing.T) {
 	src := &fakeIntervalSource{hours: 9999}
 	lister := &mockTenantLister{ids: []uuid.UUID{uuid.New()}}
 	syncer := &mockGoalSyncer{perTenant: 1}
-	s := NewScheduler(syncer, lister, src, time.Hour, nil)
+	s := NewScheduler(syncer, lister, src, time.Hour, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

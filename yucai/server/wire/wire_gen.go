@@ -275,7 +275,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// templateScheduler fans out RecordTransaction across every due auto-record
 	// template (cross-tenant via repo.FindDue). templateService was declared in
 	// the Template module above and structurally implements scheduler.AutoRecorder.
-	templateScheduler := provideTemplateScheduler(templateService)
+	templateScheduler := provideTemplateScheduler(templateService, restoreFreeze)
 	// backupScheduler fans out auto-backup creation across tenants (per-tenant
 	// AutoBackupSettings gate). backupService was declared in the Backup module
 	// above and structurally implements both BackupCreator (CreateBackup) and

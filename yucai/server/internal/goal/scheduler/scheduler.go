@@ -44,11 +44,11 @@ type Scheduler struct {
 	lastSync time.Time
 }
 
-func NewScheduler(syncer GoalSyncer, lister TenantLister, src IntervalSource, tick time.Duration, log *slog.Logger) *Scheduler {
+func NewScheduler(syncer GoalSyncer, lister TenantLister, src IntervalSource, tick time.Duration, log *slog.Logger, freeze FreezeChecker) *Scheduler {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Scheduler{syncer: syncer, lister: lister, src: src, tick: tick, log: log}
+	return &Scheduler{syncer: syncer, lister: lister, src: src, tick: tick, log: log, freeze: freeze}
 }
 
 // Start runs the scheduler loop until ctx is cancelled. Immediate doSync on

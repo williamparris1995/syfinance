@@ -44,11 +44,11 @@ type Scheduler struct {
 	lastSync time.Time
 }
 
-func NewScheduler(syncer DebtSyncer, lister TenantLister, src IntervalSource, tick time.Duration, log *slog.Logger) *Scheduler {
+func NewScheduler(syncer DebtSyncer, lister TenantLister, src IntervalSource, tick time.Duration, log *slog.Logger, freeze FreezeChecker) *Scheduler {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Scheduler{syncer: syncer, lister: lister, src: src, tick: tick, log: log}
+	return &Scheduler{syncer: syncer, lister: lister, src: src, tick: tick, log: log, freeze: freeze}
 }
 
 // Start runs the scheduler loop until ctx is cancelled. Immediate doSync on
@@ -95,6 +95,10 @@ func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 	}
 	total := 0
 	for _, tid := range tenants {
+		if s.freeze != nil && s.freeze.IsFrozen(tid) {
+			s.log.Debug("skip: restore in progress", "tenant_id", tid.String(), "operation", "DebtScheduler")
+			continue
+		}
 		if err := ctx.Err(); err != nil {
 			return total, err
 		}

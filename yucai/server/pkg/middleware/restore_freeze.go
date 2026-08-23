@@ -39,6 +39,10 @@ var writeMethodPrefixes = []string{
 	"Create", "Update", "Delete", "Record", "Buy", "Sell", "Save", "Import",
 	"Restore", "Upload", "Add", "Remove", "Pause", "Resume", "Complete",
 	"Clone", "Apply", "Write", "Mark", "Set",
+	// Audit-round additions: existing write RPCs whose prefixes the original
+	// list missed (review C-H3) — Simple* shortcuts land in transaction
+	// (purged), sync engine mutates tenant data, etc.
+	"Simple", "Push", "Resolve", "Reorder", "Compute",
 }
 
 // readMethodPrefixes is the allowlist for known read RPCs. Anything that

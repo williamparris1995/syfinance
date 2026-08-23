@@ -61,7 +61,7 @@ func TestFreezeInterceptorReadAllowed(t *testing.T) {
 func TestFreezeInterceptorUnknownMethodAllowed(t *testing.T) {
 	tid := uuid.New()
 	c := &fakeChecker{frozen: map[uuid.UUID]bool{tid: true}}
-	if err := runInterceptor(t, c, withTenant(context.Background(), tid), "/yucai.sync.v1.SyncService/PushChanges"); err != nil {
+	if err := runInterceptor(t, c, withTenant(context.Background(), tid), "/yucai.sync.v1.SyncService/QueryStatus"); err != nil {
 		t.Fatalf("unknown (unlisted write) defaults to allow: %v", err)
 	}
 }

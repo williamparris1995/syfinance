@@ -545,8 +545,8 @@ func provideTemplateHandler(svc *tmplapp.Service) *tmplgrpc.TemplateHandler {
 // FindDueForAutoRecord (cross-tenant fan-out via repo.FindDue, no TenantLister)
 // + RecordTransaction. tick is 24h in prod; no IntervalSource gate — autoRecord
 // is idempotent per day (RecordTransaction advances NextDate past today).
-func provideTemplateScheduler(svc *tmplapp.Service) *tmplscheduler.Scheduler {
-	return tmplscheduler.NewScheduler(svc, 24*time.Hour, nil)
+func provideTemplateScheduler(svc *tmplapp.Service, freeze *backupapp.RestoreFreeze) *tmplscheduler.Scheduler {
+	return tmplscheduler.NewScheduler(svc, 24*time.Hour, nil, freeze)
 }
 
 // Holding providers
@@ -873,7 +873,7 @@ func provideSnapshotScheduler(svc *holdingapp.Service, src holdingscheduler.Inte
 // same adapter as the currency/price/snapshot schedulers. tick is 1h in prod.
 func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepository, freeze *backupapp.RestoreFreeze) *goalscheduler.Scheduler {
 	src := tenantIntervalSource{tr: tenantRepo}
-	return goalscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
+	return goalscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil, freeze)
 }
 
 // provideDebtScheduler builds the debt snapshot-sync scheduler (Task 6/7).
@@ -885,7 +885,7 @@ func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepos
 // currency/price/snapshot/goal schedulers. tick is 1h in prod.
 func provideDebtScheduler(svc *debtapp.Service, tenantRepo *authrepo.TenantRepository, freeze *backupapp.RestoreFreeze) *debtscheduler.Scheduler {
 	src := tenantIntervalSource{tr: tenantRepo}
-	return debtscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
+	return debtscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil, freeze)
 }
 
 // provideBackupScheduler builds the auto-backup scheduler (P1). *backupapp.Service
