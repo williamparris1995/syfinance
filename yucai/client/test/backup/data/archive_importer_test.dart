@@ -10,7 +10,6 @@ import 'package:yucai_client/backup/data/archive_importer.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db
     hide Holding, Transaction, TransactionEntry;
-import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 
 void main() {
   late db.AppDatabase source;

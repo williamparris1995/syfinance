@@ -319,8 +319,10 @@ class SettingsPage extends StatelessWidget {
       if (!kIsWeb && !File(path).existsSync()) {
         await File(path).writeAsBytes(sealed);
       }
+      if (!context.mounted) return;
       _toast(context, '存档已导出');
     } on Exception catch (e) {
+      if (!context.mounted) return;
       _toast(context, '导出失败：$e');
     }
   }
@@ -345,16 +347,22 @@ class SettingsPage extends StatelessWidget {
       final confirmed = await _confirmReplace(context);
       if (confirmed != true) return;
       await getIt<ArchiveImporter>().importAll(envelope);
+      if (!context.mounted) return;
       _toast(context, '存档已导入（本地数据已替换）');
     } on NotArchiveError {
+      if (!context.mounted) return;
       _toast(context, '不是有效的御财存档文件');
     } on WrongPasswordError {
+      if (!context.mounted) return;
       _toast(context, '密码错误');
     } on ArchiveFormatError {
+      if (!context.mounted) return;
       _toast(context, '存档格式无法读取（可能已损坏）');
     } on ValidationFailure catch (e) {
+      if (!context.mounted) return;
       _toast(context, e.message);
     } on Exception catch (e) {
+      if (!context.mounted) return;
       _toast(context, '导入失败：$e');
     }
   }
