@@ -22,6 +22,11 @@ class HoldingDao extends DatabaseAccessor<AppDatabase>
       (update(holdings)..where((t) => t.id.equals(entry.id.value)))
           .write(entry);
 
+
+  Future<int> deleteAllHoldings() => delete(holdings).go();
+
+  Future<int> deleteAllHoldingTransactions() =>
+      delete(holdingTransactions).go();
   Future<int> deleteHoldingById(String id) =>
       (delete(holdings)..where((t) => t.id.equals(id))).go();
 

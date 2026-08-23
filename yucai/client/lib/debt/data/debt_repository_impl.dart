@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
 import 'package:yucai_client/debt/data/debt_remote_ds.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -12,11 +15,12 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 
 @LazySingleton(as: DebtRepository)
 class DebtRepositoryImpl implements DebtRepository {
-  DebtRepositoryImpl(this._remote, this._local, this._tracker);
+  DebtRepositoryImpl(this._remote, this._local, this._tracker, [this._mirror]);
 
   final DebtRemoteDataSource _remote;
   final DebtLocalDataSource _local;
   final SessionModeTracker _tracker;
+  final BoundMirror? _mirror;
 
   bool get _useLocal => _tracker.isGuest;
 
@@ -44,7 +48,7 @@ class DebtRepositoryImpl implements DebtRepository {
     String contractRef = '',
     String? collectionAccountId,
   }) =>
-      _guard(() => _useLocal ? _local.create(
+      _mirrored(MirrorModule.debt, () => _guard(() => _useLocal ? _local.create(
             accountId: accountId,
             counterparty: counterparty,
             interestRate: interestRate,
@@ -72,7 +76,7 @@ class DebtRepositoryImpl implements DebtRepository {
             contact: contact,
             contractRef: contractRef,
             collectionAccountId: collectionAccountId,
-          ));
+          )));
 
   @override
   Future<Either<Failure, Debt>> update({
@@ -84,7 +88,7 @@ class DebtRepositoryImpl implements DebtRepository {
     String contractRef = '',
     String? collectionAccountId,
   }) =>
-      _guard(() => _useLocal ? _local.update(
+      _mirrored(MirrorModule.debt, () => _guard(() => _useLocal ? _local.update(
             id: id,
             counterparty: counterparty,
             interestRate: interestRate,
@@ -100,11 +104,11 @@ class DebtRepositoryImpl implements DebtRepository {
             contact: contact,
             contractRef: contractRef,
             collectionAccountId: collectionAccountId,
-          ));
+          )));
 
   @override
   Future<Either<Failure, void>> delete(String id) =>
-      _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id));
+      _mirrored(MirrorModule.debt, () => _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id)));
 
   @override
   Future<Either<Failure, PaymentEntry>> recordPayment({
@@ -112,7 +116,7 @@ class DebtRepositoryImpl implements DebtRepository {
     required String scheduleEntryId,
     required String fromAccountId,
   }) =>
-      _guard(() => _useLocal ? _local.recordPayment(
+      _mirrored(MirrorModule.debt, () => _guard(() => _useLocal ? _local.recordPayment(
             debtId: debtId,
             scheduleEntryId: scheduleEntryId,
             fromAccountId: fromAccountId,
@@ -120,13 +124,24 @@ class DebtRepositoryImpl implements DebtRepository {
             debtId: debtId,
             scheduleEntryId: scheduleEntryId,
             fromAccountId: fromAccountId,
-          ));
+          )));
 
   @override
   Future<Either<Failure, List<Debt>>> upcomingPayments(int daysAhead) =>
       _guard(() => _useLocal ? _local.upcomingPayments(daysAhead) : _remote.upcomingPayments(daysAhead));
 
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
+  /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
+  /// write, refresh this module's local mirror (fire-and-forget).
+  Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
+      Future<Either<Failure, T>> Function() body) async {
+    final r = await body();
+    if (r.isRight() && !_useLocal && _mirror != null) {
+      unawaited(_mirror.refreshModule(m));
+    }
+    return r;
+  }
+
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
       return Right(await op());

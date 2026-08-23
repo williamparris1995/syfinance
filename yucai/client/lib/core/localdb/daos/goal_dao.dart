@@ -19,6 +19,14 @@ class GoalDao extends DatabaseAccessor<AppDatabase> with _$GoalDaoMixin {
   Future<int> updateGoal(GoalsCompanion entry) =>
       (update(goals)..where((t) => t.id.equals(entry.id.value))).write(entry);
 
+
+  Future<int> deleteAllGoals() => delete(goals).go();
+
+  Future<void> deleteAllLinks() async {
+    await delete(goalAccountLinks).go();
+    await delete(goalDebtLinks).go();
+  }
+
   Future<int> deleteGoalById(String id) =>
       (delete(goals)..where((t) => t.id.equals(id))).go();
 

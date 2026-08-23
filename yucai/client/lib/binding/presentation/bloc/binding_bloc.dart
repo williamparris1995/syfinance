@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:yucai_client/backup/data/backup_remote_ds.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -22,6 +23,7 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
     this._exporter,
     this._backupRemote,
     this._database,
+    this._boundMarker,
   ) : super(const BindingState()) {
     on<BindingStarted>(_onStarted);
     on<BindingUploadConfirmed>(_onUploadConfirmed);
@@ -34,6 +36,7 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
   final LocalSnapshotExporter _exporter;
   final BackupRemoteDataSource _backupRemote;
   final db.AppDatabase _database;
+  final BoundMarker _boundMarker;
 
   Future<void> _onStarted(
       BindingEvent event, Emitter<BindingState> emit) async {
@@ -87,6 +90,9 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
             failureMessage: '上传后校验不一致（本地 ${localAccounts.length} vs 服务端 $accountCount），请重试或联系支持'));
         return;
       }
+      // Persist the bound marker so future logins skip the wizard
+      // (re-login idempotency, R6 H FR-3).
+      await _boundMarker.markBound('bound');
       emit(state.copyWith(
         status: BindingStatus.success,
         uploadedEntities: localAccounts.length,

@@ -11,6 +11,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/backup/data/backup_remote_ds.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db hide Holding;
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
@@ -21,6 +22,14 @@ class _MockAccounts extends Mock implements AccountRepository {}
 class _MockTxns extends Mock implements TransactionRepository {}
 class _MockHoldings extends Mock implements HoldingRepository {}
 class _MockBackupRemote extends Mock implements BackupRemoteDataSource {}
+
+class _StubBoundMarker extends Fake implements BoundMarker {
+  @override
+  Future<bool> isBound() async => false;
+
+  @override
+  Future<void> markBound(String tenantId) async {}
+}
 
 final _account = Account(
   id: 'a1',
@@ -49,7 +58,7 @@ void main() {
     backupRemote = _MockBackupRemote();
     database = db.AppDatabase(NativeDatabase.memory());
     bloc = BindingBloc(accounts, txns, holdings,
-        LocalSnapshotExporter(database), backupRemote, database);
+        LocalSnapshotExporter(database), backupRemote, database, _StubBoundMarker());
     registerFallbackValue(ListTransactionsParams());
   });
 

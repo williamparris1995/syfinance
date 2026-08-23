@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
@@ -7,15 +9,17 @@ import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/budget/data/budget_local_ds.dart';
 
 @LazySingleton(as: BudgetRepository)
 class BudgetRepositoryImpl implements BudgetRepository {
-  BudgetRepositoryImpl(this._remote, this._local, this._tracker);
+  BudgetRepositoryImpl(this._remote, this._local, this._tracker, [this._mirror]);
 
   final BudgetRemoteDataSource _remote;
   final BudgetLocalDataSource _local;
   final SessionModeTracker _tracker;
+  final BoundMirror? _mirror;
 
   bool get _useLocal => _tracker.isGuest;
 
@@ -38,7 +42,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required String currencyCode,
     required List<({String accountId, int plannedAmountCents, String? notes})> items,
   }) =>
-      _guard(() => _useLocal ? _local.createBudget(
+      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.createBudget(
             name: name,
             month: month,
             currencyCode: currencyCode,
@@ -48,11 +52,11 @@ class BudgetRepositoryImpl implements BudgetRepository {
             month: month,
             currencyCode: currencyCode,
             items: items,
-          ));
+          )));
 
   @override
   Future<Either<Failure, void>> deleteBudget(String id) =>
-      _guard(() => _useLocal ? _local.deleteBudget(id) : _remote.deleteBudget(id));
+      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.deleteBudget(id) : _remote.deleteBudget(id)));
 
   @override
   Future<Either<Failure, BudgetView>> addItem({
@@ -61,7 +65,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required int plannedAmountCents,
     String? notes,
   }) =>
-      _guard(() => _useLocal ? _local.addItem(
+      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.addItem(
             budgetId: budgetId,
             accountId: accountId,
             plannedAmountCents: plannedAmountCents,
@@ -71,20 +75,20 @@ class BudgetRepositoryImpl implements BudgetRepository {
             accountId: accountId,
             plannedAmountCents: plannedAmountCents,
             notes: notes,
-          ));
+          )));
 
   @override
   Future<Either<Failure, BudgetView>> removeItem({
     required String budgetId,
     required String itemId,
   }) =>
-      _guard(() => _useLocal ? _local.removeItem(
+      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.removeItem(
             budgetId: budgetId,
             itemId: itemId,
           ) : _remote.removeItem(
             budgetId: budgetId,
             itemId: itemId,
-          ));
+          )));
 
   @override
   Future<Either<Failure, BudgetView>> updateBudget({
@@ -93,7 +97,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required String currencyCode,
     required List<({String accountId, int plannedAmountCents, String? notes})> items,
   }) =>
-      _guard(() => _useLocal ? _local.updateBudget(
+      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.updateBudget(
             id: id,
             name: name,
             currencyCode: currencyCode,
@@ -103,9 +107,20 @@ class BudgetRepositoryImpl implements BudgetRepository {
             name: name,
             currencyCode: currencyCode,
             items: items,
-          ));
+          )));
 
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
+  /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
+  /// write, refresh this module's local mirror (fire-and-forget).
+  Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
+      Future<Either<Failure, T>> Function() body) async {
+    final r = await body();
+    if (r.isRight() && !_useLocal && _mirror != null) {
+      unawaited(_mirror.refreshModule(m));
+    }
+    return r;
+  }
+
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
       return Right(await op());

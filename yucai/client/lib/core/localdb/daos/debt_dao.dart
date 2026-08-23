@@ -19,6 +19,10 @@ class DebtDao extends DatabaseAccessor<AppDatabase> with _$DebtDaoMixin {
   Future<int> updateDebt(DebtsCompanion entry) =>
       (update(debts)..where((t) => t.id.equals(entry.id.value))).write(entry);
 
+
+  Future<int> deleteAllDebts() => delete(debts).go();
+
+  Future<int> deleteAllSchedule() => delete(paymentScheduleEntries).go();
   Future<int> deleteDebtById(String id) =>
       (delete(debts)..where((t) => t.id.equals(id))).go();
 

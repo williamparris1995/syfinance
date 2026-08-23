@@ -25,6 +25,8 @@ class TemplateDao extends DatabaseAccessor<AppDatabase>
             ..where((t) => t.id.equals(entry.id.value)))
           .write(entry);
 
+
+  Future<int> deleteAllTemplates() => delete(transactionTemplates).go();
   Future<int> deleteTemplateById(String id) =>
       (delete(transactionTemplates)..where((t) => t.id.equals(id))).go();
 }

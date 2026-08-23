@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:grpc/grpc.dart';
@@ -8,6 +10,7 @@ import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/tag_dao.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/tag/data/tag_remote_ds.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
@@ -110,11 +113,12 @@ class TagLocalDataSource {
 /// sessions keep the remote path byte-for-byte.
 @LazySingleton(as: TagRepository)
 class TagRepositoryImpl implements TagRepository {
-  TagRepositoryImpl(this._remote, this._local, this._tracker);
+  TagRepositoryImpl(this._remote, this._local, this._tracker, [this._mirror]);
 
   final TagRemoteDataSource _remote;
   final TagLocalDataSource _local;
   final SessionModeTracker _tracker;
+  final BoundMirror? _mirror;
 
   bool get _useLocal => _tracker.isGuest;
 
@@ -124,9 +128,9 @@ class TagRepositoryImpl implements TagRepository {
 
   @override
   Future<Either<Failure, Tag>> create({required String name, required String color}) =>
-      _guard(() => _useLocal
+      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal
           ? _local.create(name: name, color: color)
-          : _remote.create(name: name, color: color));
+          : _remote.create(name: name, color: color)));
 
   @override
   Future<Either<Failure, Tag>> update({
@@ -135,31 +139,31 @@ class TagRepositoryImpl implements TagRepository {
     required String color,
     required int version,
   }) =>
-      _guard(() => _useLocal
+      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal
           ? _local.update(id: id, name: name, color: color, version: version)
-          : _remote.update(id: id, name: name, color: color, version: version));
+          : _remote.update(id: id, name: name, color: color, version: version)));
 
   @override
   Future<Either<Failure, void>> delete(String id) =>
-      _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id));
+      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id)));
 
   @override
   Future<Either<Failure, void>> addTagToTransaction({
     required String tagId,
     required String transactionId,
   }) =>
-      _guard(() => _useLocal
+      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal
           ? _local.addTagToTransaction(tagId: tagId, transactionId: transactionId)
-          : _remote.addTagToTransaction(tagId: tagId, transactionId: transactionId));
+          : _remote.addTagToTransaction(tagId: tagId, transactionId: transactionId)));
 
   @override
   Future<Either<Failure, void>> removeTagFromTransaction({
     required String tagId,
     required String transactionId,
   }) =>
-      _guard(() => _useLocal
+      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal
           ? _local.removeTagFromTransaction(tagId: tagId, transactionId: transactionId)
-          : _remote.removeTagFromTransaction(tagId: tagId, transactionId: transactionId));
+          : _remote.removeTagFromTransaction(tagId: tagId, transactionId: transactionId)));
 
   @override
   Future<Either<Failure, List<Tag>>> getTransactionTags(String transactionId) =>
@@ -168,6 +172,17 @@ class TagRepositoryImpl implements TagRepository {
           : _remote.getTransactionTags(transactionId));
 
   /// 统一 try/Either 包装(对齐 BackupRepositoryImpl._guard)。
+  /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
+  /// write, refresh this module's local mirror (fire-and-forget).
+  Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
+      Future<Either<Failure, T>> Function() body) async {
+    final r = await body();
+    if (r.isRight() && !_useLocal && _mirror != null) {
+      unawaited(_mirror.refreshModule(m));
+    }
+    return r;
+  }
+
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
       return Right(await op());

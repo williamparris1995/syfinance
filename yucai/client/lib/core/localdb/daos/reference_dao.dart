@@ -38,6 +38,8 @@ class ReferenceDao extends DatabaseAccessor<AppDatabase>
       (update(securities)..where((t) => t.id.equals(id)))
           .write(SecuritiesCompanion(currentPriceCents: Value(priceCents)));
 
+
+  Future<int> deleteAllSecurities() => delete(securities).go();
   Future<void> insertSecurityPriceHistory(
           SecurityPriceHistoriesCompanion entry) =>
       into(securityPriceHistories).insert(entry);

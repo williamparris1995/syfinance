@@ -44,6 +44,7 @@ import '../../backup/data/local_snapshot_exporter.dart' as _i115;
 import '../../backup/domain/repositories/backup_repository.dart' as _i335;
 import '../../backup/presentation/bloc/backup_bloc.dart' as _i852;
 import '../../backup/presentation/bloc/backup_settings_bloc.dart' as _i86;
+import '../../binding/data/bound_mirror.dart' as _i507;
 import '../../binding/presentation/bloc/binding_bloc.dart' as _i740;
 import '../../budget/data/budget_local_ds.dart' as _i15;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
@@ -98,6 +99,7 @@ import '../../transaction/presentation/bloc/category_bloc.dart' as _i159;
 import '../localdb/app_database.dart' as _i581;
 import '../network/auth_retry.dart' as _i763;
 import '../network/grpc_client.dart' as _i160;
+import '../session_mode/bound_marker.dart' as _i98;
 import '../session_mode/session_mode_tracker.dart' as _i781;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -131,6 +133,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i380.CurrencyMapper>(),
       ),
     );
+    gh.lazySingleton<_i98.BoundMarker>(
+      () => _i98.BoundMarker(backend: gh<_i558.FlutterSecureStorage>()),
+    );
     gh.lazySingleton<_i666.TransactionRemoteDataSource>(
       () => _i666.TransactionRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -150,6 +155,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i414.AccountRemoteDataSource>(),
         gh<_i697.AccountLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
+        gh<_i507.BoundMirror>(),
       ),
     );
     gh.lazySingleton<_i115.LocalSnapshotExporter>(
@@ -256,13 +262,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i781.SessionModeTracker>(),
       ),
     );
-    gh.lazySingleton<_i822.TransactionRepository>(
-      () => _i733.TransactionRepositoryImpl(
-        gh<_i666.TransactionRemoteDataSource>(),
-        gh<_i991.TransactionLocalDataSource>(),
-        gh<_i781.SessionModeTracker>(),
-      ),
-    );
     gh.factory<_i82.CreateAccountUseCase>(
       () => _i82.CreateAccountUseCase(gh<_i270.AccountRepository>()),
     );
@@ -315,6 +314,22 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i726.UpdateAccountUseCase>(),
       ),
     );
+    gh.lazySingleton<_i74.TemplateRepository>(
+      () => _i554.TemplateRepositoryImpl(
+        gh<_i889.TemplateRemoteDataSource>(),
+        gh<_i97.TemplateLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
+        gh<_i507.BoundMirror>(),
+      ),
+    );
+    gh.lazySingleton<_i585.TagRepository>(
+      () => _i603.TagRepositoryImpl(
+        gh<_i648.TagRemoteDataSource>(),
+        gh<_i603.TagLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
+        gh<_i507.BoundMirror>(),
+      ),
+    );
     gh.lazySingleton<_i322.ReceivablesSummaryRepository>(
       () => _i31.ReceivablesSummaryRepositoryImpl(
         gh<_i536.ReceivablesSummaryDataSource>(),
@@ -336,19 +351,12 @@ extension GetItInjectableX on _i174.GetIt {
         uuid: gh<_i706.Uuid>(),
       ),
     );
-    gh.lazySingleton<_i585.TagRepository>(
-      () => _i603.TagRepositoryImpl(
-        gh<_i648.TagRemoteDataSource>(),
-        gh<_i603.TagLocalDataSource>(),
+    gh.lazySingleton<_i665.BudgetRepository>(
+      () => _i364.BudgetRepositoryImpl(
+        gh<_i749.BudgetRemoteDataSource>(),
+        gh<_i15.BudgetLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
-      ),
-    );
-    gh.lazySingleton<_i255.HoldingRepository>(
-      () => _i427.HoldingRepositoryImpl(
-        gh<_i620.HoldingRemoteDataSource>(),
-        gh<_i898.HoldingLocalDataSource>(),
-        gh<_i781.SessionModeTracker>(),
-        gh<_i616.GoalViewDataSource>(),
+        gh<_i507.BoundMirror>(),
       ),
     );
     gh.lazySingleton<_i335.BackupRepository>(
@@ -366,20 +374,24 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i752.RefreshTokenUseCase>(
       () => _i752.RefreshTokenUseCase(gh<_i937.AuthRepository>()),
     );
-    gh.lazySingleton<_i74.TemplateRepository>(
-      () => _i554.TemplateRepositoryImpl(
-        gh<_i889.TemplateRemoteDataSource>(),
-        gh<_i97.TemplateLocalDataSource>(),
+    gh.factory<_i933.TemplateBloc>(
+      () => _i933.TemplateBloc(gh<_i74.TemplateRepository>()),
+    );
+    gh.lazySingleton<_i255.HoldingRepository>(
+      () => _i427.HoldingRepositoryImpl(
+        gh<_i620.HoldingRemoteDataSource>(),
+        gh<_i898.HoldingLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
+        gh<_i616.GoalViewDataSource>(),
+        gh<_i507.BoundMirror>(),
       ),
     );
-    gh.factory<_i946.AuthBloc>(
-      () => _i946.AuthBloc(
-        gh<_i990.OidcLoginUseCase>(),
-        gh<_i922.GetProfileUseCase>(),
-        gh<_i231.LogoutUseCase>(),
-        gh<_i912.HasStoredCredentialsUseCase>(),
+    gh.lazySingleton<_i822.TransactionRepository>(
+      () => _i733.TransactionRepositoryImpl(
+        gh<_i666.TransactionRemoteDataSource>(),
+        gh<_i991.TransactionLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
+        gh<_i507.BoundMirror>(),
       ),
     );
     gh.factory<_i803.AccountBloc>(
@@ -397,14 +409,28 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i493.PerformanceBloc>(
       () => _i493.PerformanceBloc(gh<_i255.HoldingRepository>()),
     );
-    gh.lazySingleton<_i665.BudgetRepository>(
-      () => _i364.BudgetRepositoryImpl(
-        gh<_i749.BudgetRemoteDataSource>(),
-        gh<_i15.BudgetLocalDataSource>(),
+    gh.factory<_i946.AuthBloc>(
+      () => _i946.AuthBloc(
+        gh<_i990.OidcLoginUseCase>(),
+        gh<_i922.GetProfileUseCase>(),
+        gh<_i231.LogoutUseCase>(),
+        gh<_i912.HasStoredCredentialsUseCase>(),
         gh<_i781.SessionModeTracker>(),
+        gh<_i507.BoundMirror>(),
       ),
     );
     gh.factory<_i847.TagBloc>(() => _i847.TagBloc(gh<_i585.TagRepository>()));
+    gh.lazySingleton<_i670.DebtRepository>(
+      () => _i1060.DebtRepositoryImpl(
+        gh<_i243.DebtRemoteDataSource>(),
+        gh<_i464.DebtLocalDataSource>(),
+        gh<_i781.SessionModeTracker>(),
+        gh<_i507.BoundMirror>(),
+      ),
+    );
+    gh.factory<_i383.DebtBloc>(
+      () => _i383.DebtBloc(gh<_i670.DebtRepository>()),
+    );
     gh.lazySingleton<_i94.GoalLocalDataSource>(
       () => _i94.GoalLocalDataSource(
         gh<_i581.AppDatabase>(),
@@ -420,13 +446,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i115.LocalSnapshotExporter>(),
         gh<_i877.BackupRemoteDataSource>(),
         gh<_i581.AppDatabase>(),
-      ),
-    );
-    gh.lazySingleton<_i670.DebtRepository>(
-      () => _i1060.DebtRepositoryImpl(
-        gh<_i243.DebtRemoteDataSource>(),
-        gh<_i464.DebtLocalDataSource>(),
-        gh<_i781.SessionModeTracker>(),
+        gh<_i98.BoundMarker>(),
       ),
     );
     gh.factory<_i852.BackupBloc>(
@@ -438,18 +458,26 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i763.BudgetBloc>(
       () => _i763.BudgetBloc(gh<_i665.BudgetRepository>()),
     );
-    gh.factory<_i933.TemplateBloc>(
-      () => _i933.TemplateBloc(gh<_i74.TemplateRepository>()),
-    );
     gh.lazySingleton<_i835.GoalRepository>(
       () => _i425.GoalRepositoryImpl(
         gh<_i628.GoalRemoteDataSource>(),
         gh<_i94.GoalLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
+        gh<_i507.BoundMirror>(),
       ),
     );
-    gh.factory<_i383.DebtBloc>(
-      () => _i383.DebtBloc(gh<_i670.DebtRepository>()),
+    gh.lazySingleton<_i507.BoundMirror>(
+      () => _i507.BoundMirror(
+        gh<_i581.AppDatabase>(),
+        gh<_i270.AccountRepository>(),
+        gh<_i822.TransactionRepository>(),
+        gh<_i670.DebtRepository>(),
+        gh<_i665.BudgetRepository>(),
+        gh<_i835.GoalRepository>(),
+        gh<_i255.HoldingRepository>(),
+        gh<_i585.TagRepository>(),
+        gh<_i74.TemplateRepository>(),
+      ),
     );
     gh.factory<_i703.GoalBloc>(
       () => _i703.GoalBloc(gh<_i835.GoalRepository>()),

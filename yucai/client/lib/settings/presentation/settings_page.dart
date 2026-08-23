@@ -8,6 +8,7 @@ import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide Currency;
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
@@ -28,7 +29,6 @@ import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 /// 御财 token：surface card (`AppColors.surface` + `AppRadius.lgBorder` +
 /// `AppSpacing.md`)；dropdown 选中色 `AppColors.accent`。
 class SettingsPage extends StatelessWidget {
-  static bool _bindingWizardShown = false;
   /// 生产用默认 getIt 实例；测试可注入 mock。
   const SettingsPage({
     super.key,
@@ -74,12 +74,10 @@ class SettingsPage extends StatelessWidget {
                     // binding wizard (R6 G).
                     BlocListener<AuthBloc, AuthState>(
                       listener: (context, authState) async {
-                        // One-shot: only fire on the Guest→Authenticated
-                        // TRANSITION (not every Authenticated emission after
-                        // re-login) — review G-J4.
+                        // Persistent bound marker (R6 H FR-3): bound devices
+                        // skip the wizard on every future login.
                         if (authState is Authenticated &&
-                            !_bindingWizardShown) {
-                          _bindingWizardShown = true;
+                            !await getIt<BoundMarker>().isBound()) {
                           final accounts =
                               await getIt<AppDatabase>().accountDao.getAllAccounts();
                           final txns = await getIt<AppDatabase>()

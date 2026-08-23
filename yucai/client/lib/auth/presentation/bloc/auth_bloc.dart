@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
@@ -7,6 +9,7 @@ import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 
 @injectable
@@ -16,8 +19,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     this._getProfile,
     this._logout,
     this._hasCredentials,
-    this._sessionMode,
-  ) : super(AuthInitial()) {
+    this._sessionMode, [
+    this._mirror,
+  ]) : super(AuthInitial()) {
     on<AppStarted>(_onAppStarted);
     on<OIDCLoginRequested>(_onOIDCLogin);
     on<SkipLoginRequested>(_onSkipLogin);
@@ -30,6 +34,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LogoutUseCase _logout;
   final HasStoredCredentialsUseCase _hasCredentials;
   final SessionModeTracker _sessionMode;
+  final BoundMirror? _mirror;
 
   /// Single-point sync into the core-layer session flag consumed by the
   /// dual-source seam (R6 ADR-2) — data-layer repos never read this bloc.
@@ -37,6 +42,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   void onChange(Change<AuthState> change) {
     super.onChange(change);
     _sessionMode.isGuest = change.nextState is Guest;
+    // Login-refresh: entering Authenticated mirrors all modules so the
+    // logout-into-guest experience works immediately (R6 H, ADR-3).
+    if (change.nextState is Authenticated) {
+      unawaited(_mirror?.refreshAll() ?? Future<void>.value());
+    }
   }
 
   Future<void> _onAppStarted(AppStarted event, Emitter<AuthState> emit) async {
@@ -71,6 +81,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onLogout(LogoutRequested event, Emitter<AuthState> emit) async {
+    // Terminal mirror refresh while tokens are still valid (offline → catch,
+    // fall back to the existing mirror). R6 H, design ADR-3.
+    if (_mirror != null) {
+      try {
+        await _mirror.refreshAll();
+      } catch (_) {}
+    }
     await _logout.call();
     // Binding is the user's free choice (R6 M2): logout lands in guest mode,
     // not the login page.

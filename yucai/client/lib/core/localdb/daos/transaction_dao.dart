@@ -23,6 +23,10 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
       (update(transactions)..where((t) => t.id.equals(entry.id.value)))
           .write(entry);
 
+
+  Future<int> deleteAllTransactions() => delete(transactions).go();
+
+  Future<int> deleteAllEntries() => delete(transactionEntries).go();
   Future<int> deleteTransactionById(String id) =>
       (delete(transactions)..where((t) => t.id.equals(id))).go();
 

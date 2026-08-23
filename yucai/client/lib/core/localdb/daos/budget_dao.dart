@@ -20,6 +20,10 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
   Future<int> updateBudget(BudgetsCompanion entry) =>
       (update(budgets)..where((t) => t.id.equals(entry.id.value))).write(entry);
 
+
+  Future<int> deleteAllBudgets() => delete(budgets).go();
+
+  Future<int> deleteAllItems() => delete(budgetItems).go();
   Future<int> deleteBudgetById(String id) =>
       (delete(budgets)..where((t) => t.id.equals(id))).go();
 

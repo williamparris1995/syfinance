@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/template/data/template_local_ds.dart';
 import 'package:yucai_client/template/data/template_remote_ds.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
@@ -11,11 +14,12 @@ import 'package:yucai_client/template/domain/repositories/template_repository.da
 
 @LazySingleton(as: TemplateRepository)
 class TemplateRepositoryImpl implements TemplateRepository {
-  TemplateRepositoryImpl(this._remote, this._local, this._tracker);
+  TemplateRepositoryImpl(this._remote, this._local, this._tracker, [this._mirror]);
 
   final TemplateRemoteDataSource _remote;
   final TemplateLocalDataSource _local;
   final SessionModeTracker _tracker;
+  final BoundMirror? _mirror;
 
   bool get _useLocal => _tracker.isGuest;
 
@@ -108,22 +112,33 @@ class TemplateRepositoryImpl implements TemplateRepository {
             ));
 
   @override
-  Future<Either<Failure, void>> delete(String id) => _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id));
+  Future<Either<Failure, void>> delete(String id) => _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id)));
 
   @override
-  Future<Either<Failure, Template>> pause(String id) => _guard(() => _useLocal ? _local.pause(id) : _remote.pause(id));
+  Future<Either<Failure, Template>> pause(String id) => _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.pause(id) : _remote.pause(id)));
 
   @override
-  Future<Either<Failure, Template>> resume(String id) => _guard(() => _useLocal ? _local.resume(id) : _remote.resume(id));
+  Future<Either<Failure, Template>> resume(String id) => _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.resume(id) : _remote.resume(id)));
 
   @override
   Future<Either<Failure, Template>> get(String id) => _guard(() => _useLocal ? _local.get(id) : _remote.get(id));
 
   @override
   Future<Either<Failure, RecordResult>> record(String templateId) =>
-      _guard(() => _useLocal ? _local.record(templateId) : _remote.record(templateId));
+      _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.record(templateId) : _remote.record(templateId)));
 
   /// 统一 try/Either 包装(对齐 TagRepositoryImpl._guard / BackupRepositoryImpl._guard)。
+  /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
+  /// write, refresh this module's local mirror (fire-and-forget).
+  Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
+      Future<Either<Failure, T>> Function() body) async {
+    final r = await body();
+    if (r.isRight() && !_useLocal && _mirror != null) {
+      unawaited(_mirror.refreshModule(m));
+    }
+    return r;
+  }
+
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
       return Right(await op());

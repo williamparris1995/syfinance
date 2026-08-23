@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/holding/data/holding_local_ds.dart';
 import 'package:yucai_client/holding/data/goal_view_ds.dart';
 import 'package:yucai_client/holding/data/holding_remote_ds.dart';
@@ -15,11 +18,12 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 
 @LazySingleton(as: HoldingRepository)
 class HoldingRepositoryImpl implements HoldingRepository {
-  HoldingRepositoryImpl(this._remote, this._local, this._tracker, this._goalViewDs);
+  HoldingRepositoryImpl(this._remote, this._local, this._tracker, this._goalViewDs, [this._mirror]);
 
   final HoldingRemoteDataSource _remote;
   final HoldingLocalDataSource _local;
   final SessionModeTracker _tracker;
+  final BoundMirror? _mirror;
 
   bool get _useLocal => _tracker.isGuest;
   final GoalViewDataSource _goalViewDs;
@@ -54,7 +58,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String tradeDate,
     String? notes,
   }) =>
-      _guard(() => _useLocal ? _local.buy(
+      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.buy(
             accountId: accountId,
             securityId: securityId,
             fromAccountId: fromAccountId,
@@ -72,7 +76,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
             feeCents: feeCents,
             tradeDate: tradeDate,
             notes: notes,
-          ));
+          )));
 
   @override
   Future<Either<Failure, HoldingTransaction>> sell({
@@ -85,7 +89,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String tradeDate,
     String? notes,
   }) =>
-      _guard(() => _useLocal ? _local.sell(
+      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.sell(
             accountId: accountId,
             securityId: securityId,
             fromAccountId: fromAccountId,
@@ -103,7 +107,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
             feeCents: feeCents,
             tradeDate: tradeDate,
             notes: notes,
-          ));
+          )));
 
   // —— 公司行动(dividend / split)——
   @override
@@ -116,7 +120,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String tradeDate,
     String? notes,
   }) =>
-      _guard(() => _useLocal ? _local.recordDividend(
+      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.recordDividend(
             accountId: accountId,
             securityId: securityId,
             quantity: quantity,
@@ -132,7 +136,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
             totalAmountCents: totalAmountCents,
             tradeDate: tradeDate,
             notes: notes,
-          ));
+          )));
 
   @override
   Future<Either<Failure, HoldingTransaction>> recordSplit({
@@ -142,7 +146,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String splitDate,
     String? notes,
   }) =>
-      _guard(() => _useLocal ? _local.recordSplit(
+      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.recordSplit(
             accountId: accountId,
             securityId: securityId,
             ratio: ratio,
@@ -154,7 +158,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
             ratio: ratio,
             splitDate: splitDate,
             notes: notes,
-          ));
+          )));
 
   // —— 证券主数据 ——
   @override
@@ -165,7 +169,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
     String? exchange,
     required String currency,
   }) =>
-      _guard(() => _useLocal ? _local.createSecurity(
+      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.createSecurity(
             symbol: symbol,
             name: name,
             type: type,
@@ -177,7 +181,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
             type: type,
             exchange: exchange,
             currency: currency,
-          ));
+          )));
 
   @override
   Future<Either<Failure, List<Security>>> listSecurities({SecurityType? type}) =>
@@ -192,13 +196,13 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String id,
     required int priceCents,
   }) =>
-      _guard(() => _useLocal ? _local.updateSecurityPrice(
+      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.updateSecurityPrice(
             id: id,
             priceCents: priceCents,
           ) : _remote.updateSecurityPrice(
             id: id,
             priceCents: priceCents,
-          ));
+          )));
 
   // —— 价格批量同步(Task 9 新增)——
   @override
@@ -251,6 +255,17 @@ class HoldingRepositoryImpl implements HoldingRepository {
           : _goalViewDs.listInvestmentGoals());
 
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
+  /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
+  /// write, refresh this module's local mirror (fire-and-forget).
+  Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
+      Future<Either<Failure, T>> Function() body) async {
+    final r = await body();
+    if (r.isRight() && !_useLocal && _mirror != null) {
+      unawaited(_mirror.refreshModule(m));
+    }
+    return r;
+  }
+
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
       return Right(await op());

@@ -25,6 +25,8 @@ class AccountDao extends DatabaseAccessor<AppDatabase> with _$AccountDaoMixin {
   Future<int> updateAccount(AccountsCompanion entry) =>
       (update(accounts)..where((t) => t.id.equals(entry.id.value))).write(entry);
 
+
+  Future<int> deleteAllAccounts() => delete(accounts).go();
   Future<int> deleteAccountById(String id) =>
       (delete(accounts)..where((t) => t.id.equals(id))).go();
 

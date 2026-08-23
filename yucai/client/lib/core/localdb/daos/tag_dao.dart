@@ -20,6 +20,8 @@ class TagDao extends DatabaseAccessor<AppDatabase> with _$TagDaoMixin {
   Future<int> updateTag(TagsCompanion entry) =>
       (update(tags)..where((t) => t.id.equals(entry.id.value))).write(entry);
 
+
+  Future<int> deleteAllTags() => delete(tags).go();
   Future<int> deleteTagById(String id) =>
       (delete(tags)..where((t) => t.id.equals(id))).go();
 

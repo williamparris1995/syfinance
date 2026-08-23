@@ -106,7 +106,7 @@ class DebtLocalDataSource {
           description: '借出 $counterparty',
           entries: [
             TransactionEntry(
-                accountId: sourceAccountId!,
+                accountId: sourceAccountId,
                 debitCents: 0,
                 creditCents: totalPrincipalCents),
             TransactionEntry(
