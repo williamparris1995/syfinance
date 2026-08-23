@@ -13,13 +13,12 @@
 
 ## Current position
 
-**Status:** yucai-server `release-r5-audit` sprint-1 — A(D5)✅ + B(D6)✅ + **C(D12 写冻结)done**(merged `d650d955`,2026-08-23——per-tenant mutex+写 RPC 冻结 interceptor+四 scheduler 跳过;两轮 review 拦下接线断链)。
+**Status:** yucai-server `release-r5-audit` — **sprint-1 done**(2026-08-23,A/B/C/D 四 feature 全 merged——04 备份恢复可靠性收官:快照隔离+原子 restore+写冻结+加密分层[D19a v2 KDF header,v1 永久兼容])。
 
 - Current product: **yucai-server**
 - Current release: [release-r5-audit](../products/yucai-server/release-r5-audit/release.md)(R5 审计整改,scope 03-09,全 server-side)
-- Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
-- **Next**:feature D(d13-encryption-layering,D13 加密分层+D19a scrypt 版本化 KDF——依赖 B✓;**sprint-1 最后一个**)。
-- **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——ticket 16 线)。
+- Current sprint: sprint-1 ✅ done。**Next**:sprint-2 规划(05 DB 约束 + 06 财务计算——数据完整性+计算正确性)。
+- **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——含 J codec 补 YC2E 解码[R5 D 的 contract drift]与 ticket 16 线)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
 

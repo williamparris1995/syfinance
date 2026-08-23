@@ -28,7 +28,7 @@
 
 > sprint 分组提案(可调)。03 已 done 作 prerequisite,不单列 sprint。
 
-- [ ] **sprint-1**:04 备份恢复(03 刚 unblock,首个实施)
+- [x] **sprint-1**:04 备份恢复(03 刚 unblock,首个实施)✅ done(2026-08-23,A/B/C/D 全 merged)
 - [ ] **sprint-2**:05 DB 约束 + 06 财务计算(数据完整性 + 计算正确性)
 - [ ] **sprint-3**:08 错误处理 + 09 DDD-port(架构 polish + depguard 落地)
 
