@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"strings"
 	"context"
 	"testing"
 	"time"
@@ -10,14 +11,43 @@ import (
 	"github.com/yucai/server/internal/holding/adapter/driven/repository"
 	"github.com/yucai/server/internal/holding/domain"
 	holdingent "github.com/yucai/server/internal/holding/ent"
+	"github.com/yucai/server/internal/holding/ent/security"
 )
 
 // TestPriceHistoryRepoFindBySecurity_RangeAndOrder verifies the date range
 // filter (inclusive both ends) and ascending date ordering.
+
+// seedSecurityParent creates the Security parent so price history satisfies
+// the new FK edge (D8 — R5 feature E).
+func seedSecurityParent(t *testing.T, client *holdingent.Client, securityID uuid.UUID) {
+	t.Helper()
+	// Idempotent: multiple seedPrice calls for the same security must not
+	// trip the (symbol, exchange) unique — OnConflictDoNothing (D18 pattern).
+	exists, err := client.Security.Query().Where(security.ID(securityID)).Exist(context.Background())
+	if err != nil {
+		t.Fatalf("seedSecurityParent exist: %v", err)
+	}
+	if exists {
+		return
+	}
+	if err := client.Security.Create().
+		SetID(securityID).
+		SetSymbol(strings.ReplaceAll(securityID.String(), "-", "")).
+		SetName("test").
+		SetSecurityType("stock").
+		SetExchange("TEST").
+		SetCurrencyCode("CNY").
+		SetCurrentPriceCents(1).
+		Exec(context.Background()); err != nil {
+		t.Fatalf("seedSecurityParent: %v", err)
+	}
+}
+
 func TestPriceHistoryRepoFindBySecurity_RangeAndOrder(t *testing.T) {
 	client := setupHoldingTestDB(t)
 	ctx := context.Background()
 	security := uuid.New()
+	seedSecurityParent(t, client, security)
 	other := uuid.New()
 
 	// Three rows for `security`: Jan-01, Jan-03, Jan-05. Query [Jan-02, Jan-05]
@@ -74,6 +104,7 @@ func TestPriceHistoryRepoSaveAll_BulkInsert(t *testing.T) {
 	client := setupHoldingTestDB(t)
 	ctx := context.Background()
 	security := uuid.New()
+	seedSecurityParent(t, client, security)
 
 	// Service callers leave ID empty (uuid.Nil); the repo does not SetID, so
 	// ent's Default(uuid.New) generates ids for each row. Passing empty IDs here
@@ -111,6 +142,7 @@ func TestPriceHistoryRepoSaveAll_UpsertOnConflict(t *testing.T) {
 	client := setupHoldingTestDB(t)
 	ctx := context.Background()
 	security := uuid.New()
+	seedSecurityParent(t, client, security)
 
 	// First save — fresh rows.
 	first := []domain.SecurityPriceHistory{
@@ -164,6 +196,7 @@ func TestPriceHistoryRepoSave_UpsertOnConflict(t *testing.T) {
 	client := setupHoldingTestDB(t)
 	ctx := context.Background()
 	security := uuid.New()
+	seedSecurityParent(t, client, security)
 	repo := repository.NewPriceHistoryRepository(client)
 
 	p := domain.SecurityPriceHistory{
@@ -205,6 +238,7 @@ func TestPriceHistoryRepoSaveAll_Empty(t *testing.T) {
 
 // seedPrice inserts one price-history row for a security.
 func seedPrice(t *testing.T, client *holdingent.Client, securityID uuid.UUID, priceDate time.Time, priceCents int64) {
+	seedSecurityParent(t, client, securityID)
 	t.Helper()
 	ctx := context.Background()
 	if _, err := client.SecurityPriceHistory.Create().

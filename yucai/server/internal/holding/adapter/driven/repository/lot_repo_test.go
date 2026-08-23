@@ -14,12 +14,31 @@ import (
 
 // TestLotRepoFindByHolding_OrdersByAcquiredDateAsc verifies the FIFO contract:
 // lots come back ordered by acquired_date ascending regardless of insert order.
+
+// seedHoldingParent creates the Holding parent row so lots satisfy the new FK
+// edge (D8 same-module FK + Cascade — R5 feature E).
+func seedHoldingParent(t *testing.T, client *holdingent.Client, tenantID, holdingID, accountID, securityID uuid.UUID) {
+	t.Helper()
+	if err := client.Holding.Create().
+		SetID(holdingID).
+		SetTenantID(tenantID).
+		SetAccountID(accountID).
+		SetSecurityID(securityID).
+		SetQuantity(1).
+		SetAvgCostCents(1).
+		SetVersion(1).
+		Exec(context.Background()); err != nil {
+		t.Fatalf("seedHoldingParent: %v", err)
+	}
+}
+
 func TestLotRepoFindByHolding_OrdersByAcquiredDateAsc(t *testing.T) {
 	client := setupHoldingTestDB(t)
 	ctx := context.Background()
 	tenant := uuid.New()
 	holding := uuid.New()
 	security := uuid.New()
+	seedHoldingParent(t, client, tenant, holding, uuid.New(), security)
 
 	// Insert out of order: newer lot first, older lot second. The repo must
 	// return them oldest-first (FIFO consume order).
@@ -138,6 +157,7 @@ func TestLotRepoSaveAll_CreateAndUpdate(t *testing.T) {
 func seedLot(t *testing.T, client *holdingent.Client, tenantID, holdingID, securityID uuid.UUID, acquiredDate time.Time, priceCents int64, qty float64) domain.HoldingLot {
 	t.Helper()
 	ctx := context.Background()
+	seedHoldingParent(t, client, tenantID, holdingID, uuid.New(), securityID)
 	row, err := client.HoldingLot.Create().
 		SetTenantID(tenantID).SetHoldingID(holdingID).SetSecurityID(securityID).
 		SetAcquiredDate(acquiredDate).SetAcquiredTradeID(uuid.New()).

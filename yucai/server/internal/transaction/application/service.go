@@ -251,11 +251,14 @@ func (s *Service) UpdateTransaction(ctx context.Context, req UpdateTransactionRe
 		return nil, fmt.Errorf("reverse old balances: %w", err)
 	}
 
-	// Build new entries
+	// Build new entries. TransactionID must be stamped here (same invariant
+	// domain.NewTransaction enforces on create): the transaction_entries FK
+	// to transactions rejects uuid.Nil.
 	entries := make([]domain.TransactionEntry, len(req.Entries))
 	for i, e := range req.Entries {
 		entries[i] = domain.TransactionEntry{
 			ID:                 uuid.New(),
+			TransactionID:      req.TransactionID,
 			AccountID:          e.AccountID,
 			ChartOfAccountCode: e.ChartOfAccountCode,
 			DebitCents:         e.DebitCents,
