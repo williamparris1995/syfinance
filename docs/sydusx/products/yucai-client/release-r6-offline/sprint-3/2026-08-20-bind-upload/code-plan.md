@@ -26,3 +26,9 @@
 - **H2 补齐**:yucai/buf.gen.*.yaml git rm --cached + 删盘(它们是 main 的 yucai/proto/ 下 untracked 文件,feature 提交误挪误 track);gen-dart.sh 已回位。
 - 小清:bloc 死代码 fold/失败文案取真实面错误;测试 unused import ×2。
 - 二轮修复后:exporter+binding +26 全绿;analyze 383;backup go 7 包 ok。
+
+## Review + Test(2026-08-23,pass — 三轮)
+
+- 首轮 reject(H1 TenantID 空串炸全模块 Import/H2 工具链事故 2.1 万行孤儿树)→ 修复 → 二轮 reject(H1 残留 3 处/H2 buf 未 untrack——修复脚本匹配不全+未 grep 验证)→ 二轮修复(清零+untrack)→ 三审 **pass**(grep 零残留/4 验收点过/gen-dart 链路自包含)。
+- Test 裁决:**pass** — go test ./... exit 0 + flutter +1078 -4(=基线);analyze 383;requirement coverage:FR-1 导出器 6 测(形状/嵌套/聚合/兄弟数组/幂等)/FR-2 guard 三面(fail-closed after J2)/FR-3 状态机 4 测(含失败本地无损+验证比对)/FR-4 one-shot 触发/NFR-2 server 仅 backup 模块。
+- **教训(→harness 候选)**:①修复轮必须 grep 验证清零,不信脚本返回值(二轮 reject 根因);②跨语言 wire 契约的测试双侧必须吃**真实对端样本**(双侧 fake 各自假形状放走 H1);③生成工具链配置(untracked buf yaml)禁止挪动/track。
