@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-22-archive-export-import
-status: drafted
+status: confirmed
 ---
 
 # Spec — 存档导出/导入(加密存档文件,多设备迁移/云盘备份)
