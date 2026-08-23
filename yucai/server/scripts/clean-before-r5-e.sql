@@ -18,10 +18,12 @@
 -- SQLite database if ever needed.
 --
 -- Deletion policy (per design ADR-3):
---   users.email duplicates ....... keep the NEWEST row (created_at, id)
+--   users.email duplicates ....... keep the NEWEST row (created_at, id);
+--                                  loser identities are reassigned to the
+--                                  keeper, except provider collisions
 --   backups.filename duplicates .. keep the NEWEST row (created_at, id)
---   budget_items composite ....... keep the FIRST row (created_at, id)
---   payment_schedules composite .. keep the FIRST row (created_at, id)
+--   budget_items composite ....... keep the row with the most data
+--   payment_schedules composite .. keep the PAID row
 --   orphan child rows ............ deleted outright (no parent to keep)
 
 BEGIN;
@@ -29,7 +31,52 @@ BEGIN;
 ------------------------------------------------------------------------
 -- 1. Duplicate users.email (non-empty). The new partial unique index is
 --    (email) WHERE email <> '' — duplicate non-empty emails block it.
+--    user_identities.user_id has an FK to users with ON DELETE NO ACTION
+--    and a unique (user_id, provider) index, so losers' identities must be
+--    handled first: drop identities whose provider the keeper already has
+--    (collisions), reassign the rest to the keeper (preserves logins).
 ------------------------------------------------------------------------
+WITH ranked AS (
+    SELECT id, email,
+           ROW_NUMBER() OVER (
+               PARTITION BY email
+               ORDER BY created_at DESC, id DESC
+           ) AS rn
+    FROM users
+    WHERE email IS NOT NULL AND email <> ''
+)
+DELETE FROM user_identities
+WHERE id IN (
+    SELECT ul.id
+    FROM user_identities ul
+    JOIN users lu ON lu.id = ul.user_id
+    JOIN ranked lr ON lr.id = lu.id AND lr.rn > 1
+    JOIN ranked kr ON kr.email = lu.email AND kr.rn = 1
+    JOIN user_identities uk ON uk.user_id = kr.id AND uk.provider = ul.provider
+);
+
+WITH ranked AS (
+    SELECT id, email,
+           ROW_NUMBER() OVER (
+               PARTITION BY email
+               ORDER BY created_at DESC, id DESC
+           ) AS rn
+    FROM users
+    WHERE email IS NOT NULL AND email <> ''
+)
+UPDATE user_identities
+SET user_id = (
+    SELECT kr.id
+    FROM users ku
+    JOIN ranked kr ON kr.id = ku.id AND kr.rn = 1
+    WHERE ku.email = (
+        SELECT lu.email FROM users lu WHERE lu.id = user_identities.user_id
+    )
+)
+WHERE user_id IN (
+    SELECT lr.id FROM ranked lr WHERE lr.rn > 1
+);
+
 DELETE FROM users
 WHERE id IN (
     SELECT id FROM (
@@ -62,14 +109,15 @@ WHERE id IN (
 ------------------------------------------------------------------------
 -- 3. Duplicate budget_items (budget_id, account_id). The new composite
 --    unique index blocks two rows budgeting the same account. The table
---    has no created_at; id ASC is the deterministic "first".
+--    has no created_at; prefer the row carrying the most data, then id
+--    ASC as the deterministic tiebreak.
 ------------------------------------------------------------------------
 DELETE FROM budget_items
 WHERE id IN (
     SELECT id FROM (
         SELECT id, ROW_NUMBER() OVER (
             PARTITION BY budget_id, account_id
-            ORDER BY id ASC
+            ORDER BY planned_amount_cents DESC, actual_amount_cents DESC, id ASC
         ) AS rn
         FROM budget_items
     ) ranked
@@ -79,14 +127,15 @@ WHERE id IN (
 ------------------------------------------------------------------------
 -- 4. Duplicate payment_schedules (debt_id, payment_date). The new
 --    composite unique index blocks two installments on the same day.
---    The table has no created_at; id ASC is the deterministic "first".
+--    Prefer the PAID row (payment state and transaction link survive),
+--    then the higher paid amount, then id ASC.
 ------------------------------------------------------------------------
 DELETE FROM payment_schedules
 WHERE id IN (
     SELECT id FROM (
         SELECT id, ROW_NUMBER() OVER (
             PARTITION BY debt_id, payment_date
-            ORDER BY id ASC
+            ORDER BY paid DESC, paid_cents DESC, id ASC
         ) AS rn
         FROM payment_schedules
     ) ranked
@@ -95,8 +144,7 @@ WHERE id IN (
 
 ------------------------------------------------------------------------
 -- 5. Orphan child rows. The new FK constraints (child -> parent) fail to
---    apply while orphan rows exist. Order: children first, and children
---    of children (holding_lots via holding) before holdings is touched.
+--    apply while orphan rows exist.
 ------------------------------------------------------------------------
 
 -- transaction_entries -> transactions
