@@ -54,7 +54,7 @@ func (PaymentSchedule) Edges() []ent.Edge {
 
 func (PaymentSchedule) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("debt_id"),
+		index.Fields("debt_id", "payment_date").Unique(),
 		index.Fields("payment_date"),
 	}
 }

@@ -78,6 +78,8 @@ var (
 	NameValidator func(string) error
 	// DefaultTotalAmountCents holds the default value on creation for the "total_amount_cents" field.
 	DefaultTotalAmountCents int64
+	// TotalAmountCentsValidator is a validator for the "total_amount_cents" field. It is called by the builders before save.
+	TotalAmountCentsValidator func(int64) error
 	// DefaultCurrencyCode holds the default value on creation for the "currency_code" field.
 	DefaultCurrencyCode string
 	// DefaultIsActive holds the default value on creation for the "is_active" field.

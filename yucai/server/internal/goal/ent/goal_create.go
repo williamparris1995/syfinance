@@ -303,6 +303,11 @@ func (gc *GoalCreate) check() error {
 	if _, ok := gc.mutation.TargetAmountCents(); !ok {
 		return &ValidationError{Name: "target_amount_cents", err: errors.New(`ent: missing required field "Goal.target_amount_cents"`)}
 	}
+	if v, ok := gc.mutation.TargetAmountCents(); ok {
+		if err := goal.TargetAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "target_amount_cents", err: fmt.Errorf(`ent: validator failed for field "Goal.target_amount_cents": %w`, err)}
+		}
+	}
 	if _, ok := gc.mutation.CurrentAmountCents(); !ok {
 		return &ValidationError{Name: "current_amount_cents", err: errors.New(`ent: missing required field "Goal.current_amount_cents"`)}
 	}

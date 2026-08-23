@@ -64,8 +64,12 @@ var (
 	DefaultChartOfAccountCode string
 	// DefaultDebitCents holds the default value on creation for the "debit_cents" field.
 	DefaultDebitCents int64
+	// DebitCentsValidator is a validator for the "debit_cents" field. It is called by the builders before save.
+	DebitCentsValidator func(int64) error
 	// DefaultCreditCents holds the default value on creation for the "credit_cents" field.
 	DefaultCreditCents int64
+	// CreditCentsValidator is a validator for the "credit_cents" field. It is called by the builders before save.
+	CreditCentsValidator func(int64) error
 	// DefaultNote holds the default value on creation for the "note" field.
 	DefaultNote string
 	// DefaultID holds the default value on creation for the "id" field.

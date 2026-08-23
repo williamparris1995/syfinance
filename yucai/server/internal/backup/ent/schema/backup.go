@@ -2,6 +2,7 @@ package schema
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/schema/index"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
@@ -41,5 +42,7 @@ func (Backup) Fields() []ent.Field {
 func (Backup) Edges() []ent.Edge { return nil }
 
 func (Backup) Indexes() []ent.Index {
-	return nil
+	return []ent.Index{
+		index.Fields("filename").Unique(),
+	}
 }

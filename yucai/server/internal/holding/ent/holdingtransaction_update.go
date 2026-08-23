@@ -268,7 +268,35 @@ func (htu *HoldingTransactionUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (htu *HoldingTransactionUpdate) check() error {
+	if v, ok := htu.mutation.Quantity(); ok {
+		if err := holdingtransaction.QuantityValidator(v); err != nil {
+			return &ValidationError{Name: "quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.quantity": %w`, err)}
+		}
+	}
+	if v, ok := htu.mutation.PriceCents(); ok {
+		if err := holdingtransaction.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.price_cents": %w`, err)}
+		}
+	}
+	if v, ok := htu.mutation.AmountCents(); ok {
+		if err := holdingtransaction.AmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "amount_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.amount_cents": %w`, err)}
+		}
+	}
+	if v, ok := htu.mutation.FeeCents(); ok {
+		if err := holdingtransaction.FeeCentsValidator(v); err != nil {
+			return &ValidationError{Name: "fee_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.fee_cents": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (htu *HoldingTransactionUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := htu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(holdingtransaction.Table, holdingtransaction.Columns, sqlgraph.NewFieldSpec(holdingtransaction.FieldID, field.TypeUUID))
 	if ps := htu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -606,7 +634,35 @@ func (htuo *HoldingTransactionUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (htuo *HoldingTransactionUpdateOne) check() error {
+	if v, ok := htuo.mutation.Quantity(); ok {
+		if err := holdingtransaction.QuantityValidator(v); err != nil {
+			return &ValidationError{Name: "quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.quantity": %w`, err)}
+		}
+	}
+	if v, ok := htuo.mutation.PriceCents(); ok {
+		if err := holdingtransaction.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.price_cents": %w`, err)}
+		}
+	}
+	if v, ok := htuo.mutation.AmountCents(); ok {
+		if err := holdingtransaction.AmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "amount_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.amount_cents": %w`, err)}
+		}
+	}
+	if v, ok := htuo.mutation.FeeCents(); ok {
+		if err := holdingtransaction.FeeCentsValidator(v); err != nil {
+			return &ValidationError{Name: "fee_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.fee_cents": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (htuo *HoldingTransactionUpdateOne) sqlSave(ctx context.Context) (_node *HoldingTransaction, err error) {
+	if err := htuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(holdingtransaction.Table, holdingtransaction.Columns, sqlgraph.NewFieldSpec(holdingtransaction.FieldID, field.TypeUUID))
 	id, ok := htuo.mutation.ID()
 	if !ok {

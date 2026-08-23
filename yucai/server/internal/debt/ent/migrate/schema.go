@@ -120,9 +120,9 @@ var (
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "paymentschedule_debt_id",
-				Unique:  false,
-				Columns: []*schema.Column{PaymentSchedulesColumns[8]},
+				Name:    "paymentschedule_debt_id_payment_date",
+				Unique:  true,
+				Columns: []*schema.Column{PaymentSchedulesColumns[8], PaymentSchedulesColumns[1]},
 			},
 			{
 				Name:    "paymentschedule_payment_date",

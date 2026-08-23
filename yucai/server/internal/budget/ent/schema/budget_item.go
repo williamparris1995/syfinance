@@ -48,7 +48,7 @@ func (BudgetItem) Edges() []ent.Edge {
 
 func (BudgetItem) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("budget_id"),
+		index.Fields("budget_id", "account_id").Unique(),
 		index.Fields("account_id"),
 	}
 }

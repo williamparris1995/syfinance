@@ -179,8 +179,18 @@ func (tec *TransactionEntryCreate) check() error {
 	if _, ok := tec.mutation.DebitCents(); !ok {
 		return &ValidationError{Name: "debit_cents", err: errors.New(`ent: missing required field "TransactionEntry.debit_cents"`)}
 	}
+	if v, ok := tec.mutation.DebitCents(); ok {
+		if err := transactionentry.DebitCentsValidator(v); err != nil {
+			return &ValidationError{Name: "debit_cents", err: fmt.Errorf(`ent: validator failed for field "TransactionEntry.debit_cents": %w`, err)}
+		}
+	}
 	if _, ok := tec.mutation.CreditCents(); !ok {
 		return &ValidationError{Name: "credit_cents", err: errors.New(`ent: missing required field "TransactionEntry.credit_cents"`)}
+	}
+	if v, ok := tec.mutation.CreditCents(); ok {
+		if err := transactionentry.CreditCentsValidator(v); err != nil {
+			return &ValidationError{Name: "credit_cents", err: fmt.Errorf(`ent: validator failed for field "TransactionEntry.credit_cents": %w`, err)}
+		}
 	}
 	if len(tec.mutation.TransactionIDs()) == 0 {
 		return &ValidationError{Name: "transaction", err: errors.New(`ent: missing required edge "TransactionEntry.transaction"`)}

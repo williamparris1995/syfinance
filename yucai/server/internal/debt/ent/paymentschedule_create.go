@@ -209,17 +209,37 @@ func (psc *PaymentScheduleCreate) check() error {
 	if _, ok := psc.mutation.PrincipalCents(); !ok {
 		return &ValidationError{Name: "principal_cents", err: errors.New(`ent: missing required field "PaymentSchedule.principal_cents"`)}
 	}
+	if v, ok := psc.mutation.PrincipalCents(); ok {
+		if err := paymentschedule.PrincipalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "principal_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.principal_cents": %w`, err)}
+		}
+	}
 	if _, ok := psc.mutation.InterestCents(); !ok {
 		return &ValidationError{Name: "interest_cents", err: errors.New(`ent: missing required field "PaymentSchedule.interest_cents"`)}
 	}
+	if v, ok := psc.mutation.InterestCents(); ok {
+		if err := paymentschedule.InterestCentsValidator(v); err != nil {
+			return &ValidationError{Name: "interest_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.interest_cents": %w`, err)}
+		}
+	}
 	if _, ok := psc.mutation.TotalCents(); !ok {
 		return &ValidationError{Name: "total_cents", err: errors.New(`ent: missing required field "PaymentSchedule.total_cents"`)}
+	}
+	if v, ok := psc.mutation.TotalCents(); ok {
+		if err := paymentschedule.TotalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.total_cents": %w`, err)}
+		}
 	}
 	if _, ok := psc.mutation.Paid(); !ok {
 		return &ValidationError{Name: "paid", err: errors.New(`ent: missing required field "PaymentSchedule.paid"`)}
 	}
 	if _, ok := psc.mutation.PaidCents(); !ok {
 		return &ValidationError{Name: "paid_cents", err: errors.New(`ent: missing required field "PaymentSchedule.paid_cents"`)}
+	}
+	if v, ok := psc.mutation.PaidCents(); ok {
+		if err := paymentschedule.PaidCentsValidator(v); err != nil {
+			return &ValidationError{Name: "paid_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.paid_cents": %w`, err)}
+		}
 	}
 	if len(psc.mutation.DebtIDs()) == 0 {
 		return &ValidationError{Name: "debt", err: errors.New(`ent: missing required edge "PaymentSchedule.debt"`)}

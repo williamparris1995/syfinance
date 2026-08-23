@@ -49,6 +49,18 @@ func init() {
 	holding.DefaultID = holdingDescID.Default.(func() uuid.UUID)
 	holdinglotFields := schema.HoldingLot{}.Fields()
 	_ = holdinglotFields
+	// holdinglotDescPriceCents is the schema descriptor for price_cents field.
+	holdinglotDescPriceCents := holdinglotFields[5].Descriptor()
+	// holdinglot.PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
+	holdinglot.PriceCentsValidator = holdinglotDescPriceCents.Validators[0].(func(int64) error)
+	// holdinglotDescQuantity is the schema descriptor for quantity field.
+	holdinglotDescQuantity := holdinglotFields[6].Descriptor()
+	// holdinglot.QuantityValidator is a validator for the "quantity" field. It is called by the builders before save.
+	holdinglot.QuantityValidator = holdinglotDescQuantity.Validators[0].(func(float64) error)
+	// holdinglotDescRemainingQuantity is the schema descriptor for remaining_quantity field.
+	holdinglotDescRemainingQuantity := holdinglotFields[7].Descriptor()
+	// holdinglot.RemainingQuantityValidator is a validator for the "remaining_quantity" field. It is called by the builders before save.
+	holdinglot.RemainingQuantityValidator = holdinglotDescRemainingQuantity.Validators[0].(func(float64) error)
 	// holdinglotDescCreatedAt is the schema descriptor for created_at field.
 	holdinglotDescCreatedAt := holdinglotFields[8].Descriptor()
 	// holdinglot.DefaultCreatedAt holds the default value on creation for the created_at field.
@@ -73,18 +85,28 @@ func init() {
 	holdingsnapshot.DefaultID = holdingsnapshotDescID.Default.(func() uuid.UUID)
 	holdingtransactionFields := schema.HoldingTransaction{}.Fields()
 	_ = holdingtransactionFields
+	// holdingtransactionDescQuantity is the schema descriptor for quantity field.
+	holdingtransactionDescQuantity := holdingtransactionFields[4].Descriptor()
+	// holdingtransaction.QuantityValidator is a validator for the "quantity" field. It is called by the builders before save.
+	holdingtransaction.QuantityValidator = holdingtransactionDescQuantity.Validators[0].(func(float64) error)
 	// holdingtransactionDescPriceCents is the schema descriptor for price_cents field.
 	holdingtransactionDescPriceCents := holdingtransactionFields[5].Descriptor()
 	// holdingtransaction.DefaultPriceCents holds the default value on creation for the price_cents field.
 	holdingtransaction.DefaultPriceCents = holdingtransactionDescPriceCents.Default.(int64)
+	// holdingtransaction.PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
+	holdingtransaction.PriceCentsValidator = holdingtransactionDescPriceCents.Validators[0].(func(int64) error)
 	// holdingtransactionDescAmountCents is the schema descriptor for amount_cents field.
 	holdingtransactionDescAmountCents := holdingtransactionFields[6].Descriptor()
 	// holdingtransaction.DefaultAmountCents holds the default value on creation for the amount_cents field.
 	holdingtransaction.DefaultAmountCents = holdingtransactionDescAmountCents.Default.(int64)
+	// holdingtransaction.AmountCentsValidator is a validator for the "amount_cents" field. It is called by the builders before save.
+	holdingtransaction.AmountCentsValidator = holdingtransactionDescAmountCents.Validators[0].(func(int64) error)
 	// holdingtransactionDescFeeCents is the schema descriptor for fee_cents field.
 	holdingtransactionDescFeeCents := holdingtransactionFields[7].Descriptor()
 	// holdingtransaction.DefaultFeeCents holds the default value on creation for the fee_cents field.
 	holdingtransaction.DefaultFeeCents = holdingtransactionDescFeeCents.Default.(int64)
+	// holdingtransaction.FeeCentsValidator is a validator for the "fee_cents" field. It is called by the builders before save.
+	holdingtransaction.FeeCentsValidator = holdingtransactionDescFeeCents.Validators[0].(func(int64) error)
 	// holdingtransactionDescRealizedPnlCents is the schema descriptor for realized_pnl_cents field.
 	holdingtransactionDescRealizedPnlCents := holdingtransactionFields[8].Descriptor()
 	// holdingtransaction.DefaultRealizedPnlCents holds the default value on creation for the realized_pnl_cents field.

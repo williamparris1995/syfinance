@@ -238,6 +238,11 @@ func (bu *BudgetUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Budget.name": %w`, err)}
 		}
 	}
+	if v, ok := bu.mutation.TotalAmountCents(); ok {
+		if err := budget.TotalAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_amount_cents", err: fmt.Errorf(`ent: validator failed for field "Budget.total_amount_cents": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -570,6 +575,11 @@ func (buo *BudgetUpdateOne) check() error {
 	if v, ok := buo.mutation.Name(); ok {
 		if err := budget.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Budget.name": %w`, err)}
+		}
+	}
+	if v, ok := buo.mutation.TotalAmountCents(); ok {
+		if err := budget.TotalAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_amount_cents", err: fmt.Errorf(`ent: validator failed for field "Budget.total_amount_cents": %w`, err)}
 		}
 	}
 	return nil

@@ -67,6 +67,7 @@ func (Budget) Edges() []ent.Edge {
 
 func (Budget) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("tenant_id", "month").Unique(),
+		index.Fields("tenant_id", "month").Unique().
+			Annotations(&entsql.IndexAnnotation{Where: "deleted_at IS NULL"}),
 	}
 }

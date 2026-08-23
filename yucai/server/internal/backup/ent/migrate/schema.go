@@ -33,6 +33,11 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{BackupsColumns[1]},
 			},
+			{
+				Name:    "backup_filename",
+				Unique:  true,
+				Columns: []*schema.Column{BackupsColumns[3]},
+			},
 		},
 	}
 	// BackupSettingsColumns holds the columns for the "backup_settings" table.

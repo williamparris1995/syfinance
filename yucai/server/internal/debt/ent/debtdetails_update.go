@@ -359,7 +359,20 @@ func (ddu *DebtDetailsUpdate) defaults() {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (ddu *DebtDetailsUpdate) check() error {
+	if v, ok := ddu.mutation.TotalPrincipalCents(); ok {
+		if err := debtdetails.TotalPrincipalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_principal_cents", err: fmt.Errorf(`ent: validator failed for field "DebtDetails.total_principal_cents": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (ddu *DebtDetailsUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := ddu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(debtdetails.Table, debtdetails.Columns, sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID))
 	if ps := ddu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -873,7 +886,20 @@ func (dduo *DebtDetailsUpdateOne) defaults() {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (dduo *DebtDetailsUpdateOne) check() error {
+	if v, ok := dduo.mutation.TotalPrincipalCents(); ok {
+		if err := debtdetails.TotalPrincipalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_principal_cents", err: fmt.Errorf(`ent: validator failed for field "DebtDetails.total_principal_cents": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (dduo *DebtDetailsUpdateOne) sqlSave(ctx context.Context) (_node *DebtDetails, err error) {
+	if err := dduo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(debtdetails.Table, debtdetails.Columns, sqlgraph.NewFieldSpec(debtdetails.FieldID, field.TypeUUID))
 	id, ok := dduo.mutation.ID()
 	if !ok {

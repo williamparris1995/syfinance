@@ -101,6 +101,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// TotalPrincipalCentsValidator is a validator for the "total_principal_cents" field. It is called by the builders before save.
+	TotalPrincipalCentsValidator func(int64) error
 	// DefaultDebtType holds the default value on creation for the "debt_type" field.
 	DefaultDebtType string
 	// DefaultSubtype holds the default value on creation for the "subtype" field.

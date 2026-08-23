@@ -158,8 +158,18 @@ func (bic *BudgetItemCreate) check() error {
 	if _, ok := bic.mutation.PlannedAmountCents(); !ok {
 		return &ValidationError{Name: "planned_amount_cents", err: errors.New(`ent: missing required field "BudgetItem.planned_amount_cents"`)}
 	}
+	if v, ok := bic.mutation.PlannedAmountCents(); ok {
+		if err := budgetitem.PlannedAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "planned_amount_cents", err: fmt.Errorf(`ent: validator failed for field "BudgetItem.planned_amount_cents": %w`, err)}
+		}
+	}
 	if _, ok := bic.mutation.ActualAmountCents(); !ok {
 		return &ValidationError{Name: "actual_amount_cents", err: errors.New(`ent: missing required field "BudgetItem.actual_amount_cents"`)}
+	}
+	if v, ok := bic.mutation.ActualAmountCents(); ok {
+		if err := budgetitem.ActualAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "actual_amount_cents", err: fmt.Errorf(`ent: validator failed for field "BudgetItem.actual_amount_cents": %w`, err)}
+		}
 	}
 	if len(bic.mutation.BudgetIDs()) == 0 {
 		return &ValidationError{Name: "budget", err: errors.New(`ent: missing required edge "BudgetItem.budget"`)}

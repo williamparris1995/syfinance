@@ -53,10 +53,14 @@ func init() {
 	transactionentryDescDebitCents := transactionentryFields[4].Descriptor()
 	// transactionentry.DefaultDebitCents holds the default value on creation for the debit_cents field.
 	transactionentry.DefaultDebitCents = transactionentryDescDebitCents.Default.(int64)
+	// transactionentry.DebitCentsValidator is a validator for the "debit_cents" field. It is called by the builders before save.
+	transactionentry.DebitCentsValidator = transactionentryDescDebitCents.Validators[0].(func(int64) error)
 	// transactionentryDescCreditCents is the schema descriptor for credit_cents field.
 	transactionentryDescCreditCents := transactionentryFields[5].Descriptor()
 	// transactionentry.DefaultCreditCents holds the default value on creation for the credit_cents field.
 	transactionentry.DefaultCreditCents = transactionentryDescCreditCents.Default.(int64)
+	// transactionentry.CreditCentsValidator is a validator for the "credit_cents" field. It is called by the builders before save.
+	transactionentry.CreditCentsValidator = transactionentryDescCreditCents.Validators[0].(func(int64) error)
 	// transactionentryDescNote is the schema descriptor for note field.
 	transactionentryDescNote := transactionentryFields[6].Descriptor()
 	// transactionentry.DefaultNote holds the default value on creation for the note field.

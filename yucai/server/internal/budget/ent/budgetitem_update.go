@@ -164,6 +164,16 @@ func (biu *BudgetItemUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (biu *BudgetItemUpdate) check() error {
+	if v, ok := biu.mutation.PlannedAmountCents(); ok {
+		if err := budgetitem.PlannedAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "planned_amount_cents", err: fmt.Errorf(`ent: validator failed for field "BudgetItem.planned_amount_cents": %w`, err)}
+		}
+	}
+	if v, ok := biu.mutation.ActualAmountCents(); ok {
+		if err := budgetitem.ActualAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "actual_amount_cents", err: fmt.Errorf(`ent: validator failed for field "BudgetItem.actual_amount_cents": %w`, err)}
+		}
+	}
 	if biu.mutation.BudgetCleared() && len(biu.mutation.BudgetIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "BudgetItem.budget"`)
 	}
@@ -400,6 +410,16 @@ func (biuo *BudgetItemUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (biuo *BudgetItemUpdateOne) check() error {
+	if v, ok := biuo.mutation.PlannedAmountCents(); ok {
+		if err := budgetitem.PlannedAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "planned_amount_cents", err: fmt.Errorf(`ent: validator failed for field "BudgetItem.planned_amount_cents": %w`, err)}
+		}
+	}
+	if v, ok := biuo.mutation.ActualAmountCents(); ok {
+		if err := budgetitem.ActualAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "actual_amount_cents", err: fmt.Errorf(`ent: validator failed for field "BudgetItem.actual_amount_cents": %w`, err)}
+		}
+	}
 	if biuo.mutation.BudgetCleared() && len(biuo.mutation.BudgetIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "BudgetItem.budget"`)
 	}

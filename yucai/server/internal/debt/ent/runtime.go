@@ -18,6 +18,10 @@ import (
 func init() {
 	debtdetailsFields := schema.DebtDetails{}.Fields()
 	_ = debtdetailsFields
+	// debtdetailsDescTotalPrincipalCents is the schema descriptor for total_principal_cents field.
+	debtdetailsDescTotalPrincipalCents := debtdetailsFields[7].Descriptor()
+	// debtdetails.TotalPrincipalCentsValidator is a validator for the "total_principal_cents" field. It is called by the builders before save.
+	debtdetails.TotalPrincipalCentsValidator = debtdetailsDescTotalPrincipalCents.Validators[0].(func(int64) error)
 	// debtdetailsDescDebtType is the schema descriptor for debt_type field.
 	debtdetailsDescDebtType := debtdetailsFields[8].Descriptor()
 	// debtdetails.DefaultDebtType holds the default value on creation for the debt_type field.
@@ -68,14 +72,20 @@ func init() {
 	paymentscheduleDescPrincipalCents := paymentscheduleFields[3].Descriptor()
 	// paymentschedule.DefaultPrincipalCents holds the default value on creation for the principal_cents field.
 	paymentschedule.DefaultPrincipalCents = paymentscheduleDescPrincipalCents.Default.(int64)
+	// paymentschedule.PrincipalCentsValidator is a validator for the "principal_cents" field. It is called by the builders before save.
+	paymentschedule.PrincipalCentsValidator = paymentscheduleDescPrincipalCents.Validators[0].(func(int64) error)
 	// paymentscheduleDescInterestCents is the schema descriptor for interest_cents field.
 	paymentscheduleDescInterestCents := paymentscheduleFields[4].Descriptor()
 	// paymentschedule.DefaultInterestCents holds the default value on creation for the interest_cents field.
 	paymentschedule.DefaultInterestCents = paymentscheduleDescInterestCents.Default.(int64)
+	// paymentschedule.InterestCentsValidator is a validator for the "interest_cents" field. It is called by the builders before save.
+	paymentschedule.InterestCentsValidator = paymentscheduleDescInterestCents.Validators[0].(func(int64) error)
 	// paymentscheduleDescTotalCents is the schema descriptor for total_cents field.
 	paymentscheduleDescTotalCents := paymentscheduleFields[5].Descriptor()
 	// paymentschedule.DefaultTotalCents holds the default value on creation for the total_cents field.
 	paymentschedule.DefaultTotalCents = paymentscheduleDescTotalCents.Default.(int64)
+	// paymentschedule.TotalCentsValidator is a validator for the "total_cents" field. It is called by the builders before save.
+	paymentschedule.TotalCentsValidator = paymentscheduleDescTotalCents.Validators[0].(func(int64) error)
 	// paymentscheduleDescPaid is the schema descriptor for paid field.
 	paymentscheduleDescPaid := paymentscheduleFields[6].Descriptor()
 	// paymentschedule.DefaultPaid holds the default value on creation for the paid field.
@@ -84,6 +94,8 @@ func init() {
 	paymentscheduleDescPaidCents := paymentscheduleFields[7].Descriptor()
 	// paymentschedule.DefaultPaidCents holds the default value on creation for the paid_cents field.
 	paymentschedule.DefaultPaidCents = paymentscheduleDescPaidCents.Default.(int64)
+	// paymentschedule.PaidCentsValidator is a validator for the "paid_cents" field. It is called by the builders before save.
+	paymentschedule.PaidCentsValidator = paymentscheduleDescPaidCents.Validators[0].(func(int64) error)
 	// paymentscheduleDescID is the schema descriptor for id field.
 	paymentscheduleDescID := paymentscheduleFields[0].Descriptor()
 	// paymentschedule.DefaultID holds the default value on creation for the id field.

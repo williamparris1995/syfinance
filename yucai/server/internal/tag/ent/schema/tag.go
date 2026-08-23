@@ -57,6 +57,7 @@ func (Tag) Edges() []ent.Edge {
 
 func (Tag) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("tenant_id", "name").Unique(),
+		index.Fields("tenant_id", "name").Unique().
+			Annotations(&entsql.IndexAnnotation{Where: "deleted_at IS NULL"}),
 	}
 }

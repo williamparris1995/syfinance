@@ -251,14 +251,34 @@ func (htc *HoldingTransactionCreate) check() error {
 	if _, ok := htc.mutation.Quantity(); !ok {
 		return &ValidationError{Name: "quantity", err: errors.New(`ent: missing required field "HoldingTransaction.quantity"`)}
 	}
+	if v, ok := htc.mutation.Quantity(); ok {
+		if err := holdingtransaction.QuantityValidator(v); err != nil {
+			return &ValidationError{Name: "quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.quantity": %w`, err)}
+		}
+	}
 	if _, ok := htc.mutation.PriceCents(); !ok {
 		return &ValidationError{Name: "price_cents", err: errors.New(`ent: missing required field "HoldingTransaction.price_cents"`)}
+	}
+	if v, ok := htc.mutation.PriceCents(); ok {
+		if err := holdingtransaction.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.price_cents": %w`, err)}
+		}
 	}
 	if _, ok := htc.mutation.AmountCents(); !ok {
 		return &ValidationError{Name: "amount_cents", err: errors.New(`ent: missing required field "HoldingTransaction.amount_cents"`)}
 	}
+	if v, ok := htc.mutation.AmountCents(); ok {
+		if err := holdingtransaction.AmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "amount_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.amount_cents": %w`, err)}
+		}
+	}
 	if _, ok := htc.mutation.FeeCents(); !ok {
 		return &ValidationError{Name: "fee_cents", err: errors.New(`ent: missing required field "HoldingTransaction.fee_cents"`)}
+	}
+	if v, ok := htc.mutation.FeeCents(); ok {
+		if err := holdingtransaction.FeeCentsValidator(v); err != nil {
+			return &ValidationError{Name: "fee_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingTransaction.fee_cents": %w`, err)}
+		}
 	}
 	if _, ok := htc.mutation.TradeDate(); !ok {
 		return &ValidationError{Name: "trade_date", err: errors.New(`ent: missing required field "HoldingTransaction.trade_date"`)}

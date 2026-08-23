@@ -319,6 +319,11 @@ func (gu *GoalUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Goal.name": %w`, err)}
 		}
 	}
+	if v, ok := gu.mutation.TargetAmountCents(); ok {
+		if err := goal.TargetAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "target_amount_cents", err: fmt.Errorf(`ent: validator failed for field "Goal.target_amount_cents": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -756,6 +761,11 @@ func (guo *GoalUpdateOne) check() error {
 	if v, ok := guo.mutation.Name(); ok {
 		if err := goal.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Goal.name": %w`, err)}
+		}
+	}
+	if v, ok := guo.mutation.TargetAmountCents(); ok {
+		if err := goal.TargetAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "target_amount_cents", err: fmt.Errorf(`ent: validator failed for field "Goal.target_amount_cents": %w`, err)}
 		}
 	}
 	return nil

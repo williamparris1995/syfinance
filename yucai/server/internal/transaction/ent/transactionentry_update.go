@@ -178,6 +178,16 @@ func (teu *TransactionEntryUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (teu *TransactionEntryUpdate) check() error {
+	if v, ok := teu.mutation.DebitCents(); ok {
+		if err := transactionentry.DebitCentsValidator(v); err != nil {
+			return &ValidationError{Name: "debit_cents", err: fmt.Errorf(`ent: validator failed for field "TransactionEntry.debit_cents": %w`, err)}
+		}
+	}
+	if v, ok := teu.mutation.CreditCents(); ok {
+		if err := transactionentry.CreditCentsValidator(v); err != nil {
+			return &ValidationError{Name: "credit_cents", err: fmt.Errorf(`ent: validator failed for field "TransactionEntry.credit_cents": %w`, err)}
+		}
+	}
 	if teu.mutation.TransactionCleared() && len(teu.mutation.TransactionIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "TransactionEntry.transaction"`)
 	}
@@ -431,6 +441,16 @@ func (teuo *TransactionEntryUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (teuo *TransactionEntryUpdateOne) check() error {
+	if v, ok := teuo.mutation.DebitCents(); ok {
+		if err := transactionentry.DebitCentsValidator(v); err != nil {
+			return &ValidationError{Name: "debit_cents", err: fmt.Errorf(`ent: validator failed for field "TransactionEntry.debit_cents": %w`, err)}
+		}
+	}
+	if v, ok := teuo.mutation.CreditCents(); ok {
+		if err := transactionentry.CreditCentsValidator(v); err != nil {
+			return &ValidationError{Name: "credit_cents", err: fmt.Errorf(`ent: validator failed for field "TransactionEntry.credit_cents": %w`, err)}
+		}
+	}
 	if teuo.mutation.TransactionCleared() && len(teuo.mutation.TransactionIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "TransactionEntry.transaction"`)
 	}

@@ -251,6 +251,11 @@ func (bc *BudgetCreate) check() error {
 	if _, ok := bc.mutation.TotalAmountCents(); !ok {
 		return &ValidationError{Name: "total_amount_cents", err: errors.New(`ent: missing required field "Budget.total_amount_cents"`)}
 	}
+	if v, ok := bc.mutation.TotalAmountCents(); ok {
+		if err := budget.TotalAmountCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_amount_cents", err: fmt.Errorf(`ent: validator failed for field "Budget.total_amount_cents": %w`, err)}
+		}
+	}
 	if _, ok := bc.mutation.CurrencyCode(); !ok {
 		return &ValidationError{Name: "currency_code", err: errors.New(`ent: missing required field "Budget.currency_code"`)}
 	}

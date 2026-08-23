@@ -59,8 +59,12 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultPlannedAmountCents holds the default value on creation for the "planned_amount_cents" field.
 	DefaultPlannedAmountCents int64
+	// PlannedAmountCentsValidator is a validator for the "planned_amount_cents" field. It is called by the builders before save.
+	PlannedAmountCentsValidator func(int64) error
 	// DefaultActualAmountCents holds the default value on creation for the "actual_amount_cents" field.
 	DefaultActualAmountCents int64
+	// ActualAmountCentsValidator is a validator for the "actual_amount_cents" field. It is called by the builders before save.
+	ActualAmountCentsValidator func(int64) error
 	// DefaultNotes holds the default value on creation for the "notes" field.
 	DefaultNotes string
 	// DefaultID holds the default value on creation for the "id" field.

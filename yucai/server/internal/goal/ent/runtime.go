@@ -23,6 +23,10 @@ func init() {
 	goalDescName := goalFields[1].Descriptor()
 	// goal.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	goal.NameValidator = goalDescName.Validators[0].(func(string) error)
+	// goalDescTargetAmountCents is the schema descriptor for target_amount_cents field.
+	goalDescTargetAmountCents := goalFields[3].Descriptor()
+	// goal.TargetAmountCentsValidator is a validator for the "target_amount_cents" field. It is called by the builders before save.
+	goal.TargetAmountCentsValidator = goalDescTargetAmountCents.Validators[0].(func(int64) error)
 	// goalDescCurrentAmountCents is the schema descriptor for current_amount_cents field.
 	goalDescCurrentAmountCents := goalFields[4].Descriptor()
 	// goal.DefaultCurrentAmountCents holds the default value on creation for the current_amount_cents field.

@@ -168,11 +168,26 @@ func (hlc *HoldingLotCreate) check() error {
 	if _, ok := hlc.mutation.PriceCents(); !ok {
 		return &ValidationError{Name: "price_cents", err: errors.New(`ent: missing required field "HoldingLot.price_cents"`)}
 	}
+	if v, ok := hlc.mutation.PriceCents(); ok {
+		if err := holdinglot.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.price_cents": %w`, err)}
+		}
+	}
 	if _, ok := hlc.mutation.Quantity(); !ok {
 		return &ValidationError{Name: "quantity", err: errors.New(`ent: missing required field "HoldingLot.quantity"`)}
 	}
+	if v, ok := hlc.mutation.Quantity(); ok {
+		if err := holdinglot.QuantityValidator(v); err != nil {
+			return &ValidationError{Name: "quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.quantity": %w`, err)}
+		}
+	}
 	if _, ok := hlc.mutation.RemainingQuantity(); !ok {
 		return &ValidationError{Name: "remaining_quantity", err: errors.New(`ent: missing required field "HoldingLot.remaining_quantity"`)}
+	}
+	if v, ok := hlc.mutation.RemainingQuantity(); ok {
+		if err := holdinglot.RemainingQuantityValidator(v); err != nil {
+			return &ValidationError{Name: "remaining_quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.remaining_quantity": %w`, err)}
+		}
 	}
 	if _, ok := hlc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "HoldingLot.created_at"`)}

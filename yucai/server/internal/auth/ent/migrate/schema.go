@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -46,6 +47,14 @@ var (
 				Name:    "user_tenant_id",
 				Unique:  false,
 				Columns: []*schema.Column{UsersColumns[1]},
+			},
+			{
+				Name:    "user_email",
+				Unique:  true,
+				Columns: []*schema.Column{UsersColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "email <> ''",
+				},
 			},
 		},
 	}

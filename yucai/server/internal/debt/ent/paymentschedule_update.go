@@ -221,6 +221,26 @@ func (psu *PaymentScheduleUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (psu *PaymentScheduleUpdate) check() error {
+	if v, ok := psu.mutation.PrincipalCents(); ok {
+		if err := paymentschedule.PrincipalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "principal_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.principal_cents": %w`, err)}
+		}
+	}
+	if v, ok := psu.mutation.InterestCents(); ok {
+		if err := paymentschedule.InterestCentsValidator(v); err != nil {
+			return &ValidationError{Name: "interest_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.interest_cents": %w`, err)}
+		}
+	}
+	if v, ok := psu.mutation.TotalCents(); ok {
+		if err := paymentschedule.TotalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.total_cents": %w`, err)}
+		}
+	}
+	if v, ok := psu.mutation.PaidCents(); ok {
+		if err := paymentschedule.PaidCentsValidator(v); err != nil {
+			return &ValidationError{Name: "paid_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.paid_cents": %w`, err)}
+		}
+	}
 	if psu.mutation.DebtCleared() && len(psu.mutation.DebtIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "PaymentSchedule.debt"`)
 	}
@@ -528,6 +548,26 @@ func (psuo *PaymentScheduleUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (psuo *PaymentScheduleUpdateOne) check() error {
+	if v, ok := psuo.mutation.PrincipalCents(); ok {
+		if err := paymentschedule.PrincipalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "principal_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.principal_cents": %w`, err)}
+		}
+	}
+	if v, ok := psuo.mutation.InterestCents(); ok {
+		if err := paymentschedule.InterestCentsValidator(v); err != nil {
+			return &ValidationError{Name: "interest_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.interest_cents": %w`, err)}
+		}
+	}
+	if v, ok := psuo.mutation.TotalCents(); ok {
+		if err := paymentschedule.TotalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.total_cents": %w`, err)}
+		}
+	}
+	if v, ok := psuo.mutation.PaidCents(); ok {
+		if err := paymentschedule.PaidCentsValidator(v); err != nil {
+			return &ValidationError{Name: "paid_cents", err: fmt.Errorf(`ent: validator failed for field "PaymentSchedule.paid_cents": %w`, err)}
+		}
+	}
 	if psuo.mutation.DebtCleared() && len(psuo.mutation.DebtIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "PaymentSchedule.debt"`)
 	}

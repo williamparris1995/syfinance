@@ -194,6 +194,21 @@ func (hlu *HoldingLotUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (hlu *HoldingLotUpdate) check() error {
+	if v, ok := hlu.mutation.PriceCents(); ok {
+		if err := holdinglot.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.price_cents": %w`, err)}
+		}
+	}
+	if v, ok := hlu.mutation.Quantity(); ok {
+		if err := holdinglot.QuantityValidator(v); err != nil {
+			return &ValidationError{Name: "quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.quantity": %w`, err)}
+		}
+	}
+	if v, ok := hlu.mutation.RemainingQuantity(); ok {
+		if err := holdinglot.RemainingQuantityValidator(v); err != nil {
+			return &ValidationError{Name: "remaining_quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.remaining_quantity": %w`, err)}
+		}
+	}
 	if hlu.mutation.HoldingCleared() && len(hlu.mutation.HoldingIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "HoldingLot.holding"`)
 	}
@@ -465,6 +480,21 @@ func (hluo *HoldingLotUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (hluo *HoldingLotUpdateOne) check() error {
+	if v, ok := hluo.mutation.PriceCents(); ok {
+		if err := holdinglot.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.price_cents": %w`, err)}
+		}
+	}
+	if v, ok := hluo.mutation.Quantity(); ok {
+		if err := holdinglot.QuantityValidator(v); err != nil {
+			return &ValidationError{Name: "quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.quantity": %w`, err)}
+		}
+	}
+	if v, ok := hluo.mutation.RemainingQuantity(); ok {
+		if err := holdinglot.RemainingQuantityValidator(v); err != nil {
+			return &ValidationError{Name: "remaining_quantity", err: fmt.Errorf(`ent: validator failed for field "HoldingLot.remaining_quantity": %w`, err)}
+		}
+	}
 	if hluo.mutation.HoldingCleared() && len(hluo.mutation.HoldingIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "HoldingLot.holding"`)
 	}

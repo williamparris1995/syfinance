@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
+	"entgo.io/ent/schema/index"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/ent/schema/mixin"
@@ -76,5 +77,8 @@ func (User) Edges() []ent.Edge {
 }
 
 func (User) Indexes() []ent.Index {
-	return nil
+	return []ent.Index{
+		index.Fields("email").Unique().
+			Annotations(&entsql.IndexAnnotation{Where: "email <> ''"}),
+	}
 }

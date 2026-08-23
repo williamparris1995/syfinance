@@ -73,12 +73,20 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// QuantityValidator is a validator for the "quantity" field. It is called by the builders before save.
+	QuantityValidator func(float64) error
 	// DefaultPriceCents holds the default value on creation for the "price_cents" field.
 	DefaultPriceCents int64
+	// PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
+	PriceCentsValidator func(int64) error
 	// DefaultAmountCents holds the default value on creation for the "amount_cents" field.
 	DefaultAmountCents int64
+	// AmountCentsValidator is a validator for the "amount_cents" field. It is called by the builders before save.
+	AmountCentsValidator func(int64) error
 	// DefaultFeeCents holds the default value on creation for the "fee_cents" field.
 	DefaultFeeCents int64
+	// FeeCentsValidator is a validator for the "fee_cents" field. It is called by the builders before save.
+	FeeCentsValidator func(int64) error
 	// DefaultRealizedPnlCents holds the default value on creation for the "realized_pnl_cents" field.
 	DefaultRealizedPnlCents int64
 	// DefaultNotes holds the default value on creation for the "notes" field.

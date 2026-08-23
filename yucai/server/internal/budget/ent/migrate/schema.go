@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -37,6 +38,9 @@ var (
 				Name:    "budget_tenant_id_month",
 				Unique:  true,
 				Columns: []*schema.Column{BudgetsColumns[1], BudgetsColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
 			},
 		},
 	}
@@ -64,9 +68,9 @@ var (
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "budgetitem_budget_id",
-				Unique:  false,
-				Columns: []*schema.Column{BudgetItemsColumns[5]},
+				Name:    "budgetitem_budget_id_account_id",
+				Unique:  true,
+				Columns: []*schema.Column{BudgetItemsColumns[5], BudgetItemsColumns[1]},
 			},
 			{
 				Name:    "budgetitem_account_id",

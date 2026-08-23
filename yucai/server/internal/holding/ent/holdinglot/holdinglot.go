@@ -71,6 +71,12 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
+	PriceCentsValidator func(int64) error
+	// QuantityValidator is a validator for the "quantity" field. It is called by the builders before save.
+	QuantityValidator func(float64) error
+	// RemainingQuantityValidator is a validator for the "remaining_quantity" field. It is called by the builders before save.
+	RemainingQuantityValidator func(float64) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultID holds the default value on creation for the "id" field.

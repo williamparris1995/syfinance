@@ -68,14 +68,22 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultPrincipalCents holds the default value on creation for the "principal_cents" field.
 	DefaultPrincipalCents int64
+	// PrincipalCentsValidator is a validator for the "principal_cents" field. It is called by the builders before save.
+	PrincipalCentsValidator func(int64) error
 	// DefaultInterestCents holds the default value on creation for the "interest_cents" field.
 	DefaultInterestCents int64
+	// InterestCentsValidator is a validator for the "interest_cents" field. It is called by the builders before save.
+	InterestCentsValidator func(int64) error
 	// DefaultTotalCents holds the default value on creation for the "total_cents" field.
 	DefaultTotalCents int64
+	// TotalCentsValidator is a validator for the "total_cents" field. It is called by the builders before save.
+	TotalCentsValidator func(int64) error
 	// DefaultPaid holds the default value on creation for the "paid" field.
 	DefaultPaid bool
 	// DefaultPaidCents holds the default value on creation for the "paid_cents" field.
 	DefaultPaidCents int64
+	// PaidCentsValidator is a validator for the "paid_cents" field. It is called by the builders before save.
+	PaidCentsValidator func(int64) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )

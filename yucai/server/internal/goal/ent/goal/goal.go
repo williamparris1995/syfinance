@@ -88,6 +88,8 @@ func ValidColumn(column string) bool {
 var (
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// TargetAmountCentsValidator is a validator for the "target_amount_cents" field. It is called by the builders before save.
+	TargetAmountCentsValidator func(int64) error
 	// DefaultCurrentAmountCents holds the default value on creation for the "current_amount_cents" field.
 	DefaultCurrentAmountCents int64
 	// DefaultCurrencyCode holds the default value on creation for the "currency_code" field.

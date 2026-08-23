@@ -25,6 +25,8 @@ func init() {
 	budgetDescTotalAmountCents := budgetFields[3].Descriptor()
 	// budget.DefaultTotalAmountCents holds the default value on creation for the total_amount_cents field.
 	budget.DefaultTotalAmountCents = budgetDescTotalAmountCents.Default.(int64)
+	// budget.TotalAmountCentsValidator is a validator for the "total_amount_cents" field. It is called by the builders before save.
+	budget.TotalAmountCentsValidator = budgetDescTotalAmountCents.Validators[0].(func(int64) error)
 	// budgetDescCurrencyCode is the schema descriptor for currency_code field.
 	budgetDescCurrencyCode := budgetFields[4].Descriptor()
 	// budget.DefaultCurrencyCode holds the default value on creation for the currency_code field.
@@ -57,10 +59,14 @@ func init() {
 	budgetitemDescPlannedAmountCents := budgetitemFields[3].Descriptor()
 	// budgetitem.DefaultPlannedAmountCents holds the default value on creation for the planned_amount_cents field.
 	budgetitem.DefaultPlannedAmountCents = budgetitemDescPlannedAmountCents.Default.(int64)
+	// budgetitem.PlannedAmountCentsValidator is a validator for the "planned_amount_cents" field. It is called by the builders before save.
+	budgetitem.PlannedAmountCentsValidator = budgetitemDescPlannedAmountCents.Validators[0].(func(int64) error)
 	// budgetitemDescActualAmountCents is the schema descriptor for actual_amount_cents field.
 	budgetitemDescActualAmountCents := budgetitemFields[4].Descriptor()
 	// budgetitem.DefaultActualAmountCents holds the default value on creation for the actual_amount_cents field.
 	budgetitem.DefaultActualAmountCents = budgetitemDescActualAmountCents.Default.(int64)
+	// budgetitem.ActualAmountCentsValidator is a validator for the "actual_amount_cents" field. It is called by the builders before save.
+	budgetitem.ActualAmountCentsValidator = budgetitemDescActualAmountCents.Validators[0].(func(int64) error)
 	// budgetitemDescNotes is the schema descriptor for notes field.
 	budgetitemDescNotes := budgetitemFields[5].Descriptor()
 	// budgetitem.DefaultNotes holds the default value on creation for the notes field.

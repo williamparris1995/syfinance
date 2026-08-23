@@ -322,6 +322,11 @@ func (ddc *DebtDetailsCreate) check() error {
 	if _, ok := ddc.mutation.TotalPrincipalCents(); !ok {
 		return &ValidationError{Name: "total_principal_cents", err: errors.New(`ent: missing required field "DebtDetails.total_principal_cents"`)}
 	}
+	if v, ok := ddc.mutation.TotalPrincipalCents(); ok {
+		if err := debtdetails.TotalPrincipalCentsValidator(v); err != nil {
+			return &ValidationError{Name: "total_principal_cents", err: fmt.Errorf(`ent: validator failed for field "DebtDetails.total_principal_cents": %w`, err)}
+		}
+	}
 	if _, ok := ddc.mutation.DebtType(); !ok {
 		return &ValidationError{Name: "debt_type", err: errors.New(`ent: missing required field "DebtDetails.debt_type"`)}
 	}
