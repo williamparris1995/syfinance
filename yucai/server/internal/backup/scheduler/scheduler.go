@@ -59,11 +59,12 @@ type Scheduler struct {
 
 	mu   sync.Mutex
 	last map[uuid.UUID]time.Time
+	freeze *backupapp.RestoreFreeze // nil = no restore-freeze check (tests)
 }
 
 // NewScheduler builds a Scheduler. tick is the polling cadence (prod 1h; tests
 // use ~10ms). A nil log falls back to slog.Default().
-func NewScheduler(creator BackupCreator, lister TenantLister, src AutoBackupSource, tick time.Duration, log *slog.Logger) *Scheduler {
+func NewScheduler(creator BackupCreator, lister TenantLister, src AutoBackupSource, tick time.Duration, log *slog.Logger, freeze *backupapp.RestoreFreeze) *Scheduler {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -125,6 +126,10 @@ func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 	}
 	created := 0
 	for _, tid := range tenants {
+		if s.freeze != nil && s.freeze.IsFrozen(tid) {
+			s.log.Debug("skip: restore in progress", "tenant_id", tid.String(), "operation", "AutoBackupScheduler")
+			continue
+		}
 		if err := ctx.Err(); err != nil {
 			return created, err
 		}

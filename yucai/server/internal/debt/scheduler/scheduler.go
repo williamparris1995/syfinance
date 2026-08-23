@@ -38,6 +38,7 @@ type Scheduler struct {
 	src    IntervalSource
 	tick   time.Duration
 	log    *slog.Logger
+	freeze FreezeChecker // nil = no restore-freeze check (tests)
 
 	mu       sync.Mutex
 	lastSync time.Time
@@ -109,4 +110,12 @@ func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 	s.lastSync = time.Now()
 	s.mu.Unlock()
 	return total, nil
+}
+
+
+// FreezeChecker is the restore-freeze probe (satisfied structurally by
+// *backup/application.RestoreFreeze; declared locally to keep the module
+// boundary — D12).
+type FreezeChecker interface {
+	IsFrozen(tenantID uuid.UUID) bool
 }

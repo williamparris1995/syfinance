@@ -624,11 +624,19 @@ func provideBackupSettingsRepo(client *backupent.Client) *backuprepo.BackupSetti
 func provideLocalCloudProvider(cfg *config.Config) *backupcloud.LocalProvider {
 	return backupcloud.NewLocalProvider(cfg.BackupDir)
 }
-func provideBackupService(repo *backuprepo.BackupRepository, settingsRepo *backuprepo.BackupSettingsRepository, localProvider *backupcloud.LocalProvider, ports []domain.TenantDataPort, db *sql.DB) *backupapp.Service {
+func provideBackupService(repo *backuprepo.BackupRepository, settingsRepo *backuprepo.BackupSettingsRepository, localProvider *backupcloud.LocalProvider, ports []domain.TenantDataPort, db *sql.DB, freeze *backupapp.RestoreFreeze) *backupapp.Service {
 	cloudProviders := map[domain.BackupProvider]backupapp.CloudProvider{
 		domain.BackupProviderLocal: localProvider,
 	}
-	return backupapp.NewService(repo, settingsRepo, cloudProviders, ports, db, string(dialect.Postgres))
+	// D12: the interceptor reads the freeze table via the package-level
+	// checker (TokenService-style injection — wire runs before serving).
+	middleware.SetRestoreFreezeChecker(freeze)
+	return backupapp.NewService(repo, settingsRepo, cloudProviders, ports, db, string(dialect.Postgres), freeze)
+}
+
+// provideRestoreFreeze is the process-wide freeze table (singleton).
+func provideRestoreFreeze() *backupapp.RestoreFreeze {
+	return backupapp.NewRestoreFreeze()
 }
 
 // provideBackupExporters 聚合各模块 TenantDataPort(Purge 顺序:依赖模块在前,account 最后;
@@ -863,7 +871,7 @@ func provideSnapshotScheduler(svc *holdingapp.Service, src holdingscheduler.Inte
 // (FindAllIDs, C Task 7). For IntervalSource the repo is wrapped in
 // tenantIntervalSource (FindAllIntervalHours → MinIntervalHours), reusing the
 // same adapter as the currency/price/snapshot schedulers. tick is 1h in prod.
-func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepository) *goalscheduler.Scheduler {
+func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepository, freeze *backupapp.RestoreFreeze) *goalscheduler.Scheduler {
 	src := tenantIntervalSource{tr: tenantRepo}
 	return goalscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
 }
@@ -875,7 +883,7 @@ func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepos
 // (FindAllIDs). For IntervalSource the repo is wrapped in tenantIntervalSource
 // (FindAllIntervalHours → MinIntervalHours), reusing the same adapter as the
 // currency/price/snapshot/goal schedulers. tick is 1h in prod.
-func provideDebtScheduler(svc *debtapp.Service, tenantRepo *authrepo.TenantRepository) *debtscheduler.Scheduler {
+func provideDebtScheduler(svc *debtapp.Service, tenantRepo *authrepo.TenantRepository, freeze *backupapp.RestoreFreeze) *debtscheduler.Scheduler {
 	src := tenantIntervalSource{tr: tenantRepo}
 	return debtscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
 }
@@ -889,8 +897,8 @@ func provideDebtScheduler(svc *debtapp.Service, tenantRepo *authrepo.TenantRepos
 // backupscheduler.TenantLister (FindAllIDs), reusing the same port the goal/
 // debt schedulers consume. tick is 1h in prod (the per-tenant AutoBackupInterval
 // Hours gate is enforced inside doSync, not via a global IntervalSource).
-func provideBackupScheduler(svc *backupapp.Service, tenantRepo *authrepo.TenantRepository) *backupscheduler.Scheduler {
-	return backupscheduler.NewScheduler(svc, tenantRepo, svc, 1*time.Hour, nil)
+func provideBackupScheduler(svc *backupapp.Service, tenantRepo *authrepo.TenantRepository, freeze *backupapp.RestoreFreeze) *backupscheduler.Scheduler {
+	return backupscheduler.NewScheduler(svc, tenantRepo, svc, 1*time.Hour, nil, freeze)
 }
 
 // Networth providers
@@ -924,7 +932,7 @@ func provideNetWorthHandler(svc *networthapp.Service) *networthgrpc.NetWorthHand
 func provideGRPCServer(ts *authjwt.TokenService, bl *session.RedisTokenBlacklist) *GRPCServer {
 	middleware.TokenService = ts
 	middleware.TokenBlacklist = bl
-	// Logging is OUTERMOST (logs even auth-rejected calls); auth parses the JWT
+	// Logging is OUTERMOST (logs even auth-rejected calls, restoreFreeze); auth parses the JWT
 	// and injects user_id/tenant_id/is_admin into context; RequireAdmin reads
 	// is_admin to authorize securities write RPCs (CreateSecurity /
 	// UpdateSecurityPrice / SyncPrices / BackfillPriceHistory). Order matters:
@@ -932,6 +940,7 @@ func provideGRPCServer(ts *authjwt.TokenService, bl *session.RedisTokenBlacklist
 	srv := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		middleware.UnaryLoggingInterceptor,
 		middleware.AuthInterceptor,
+		middleware.RestoreFreezeInterceptor,
 		middleware.RequireAdmin,
 	))
 	return &GRPCServer{Server: srv}
