@@ -1,6 +1,7 @@
-// ArchiveCodec tests — round-trip, error taxonomy, and a REAL Go-side
-// fixture (server domain.Encrypt output) proving wire compatibility
-// (feature-I lesson: cross-language contracts need real samples).
+// ArchiveCodec tests — round-trip and error taxonomy. Cross-language wire
+// compatibility rests on the structural audit (codec framing mirrors
+// server crypto.go exactly); a real Go-sample decrypt test is deferred
+// until a fixture generator exists.
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -44,17 +45,11 @@ void main() {
     expect(a, isNot(b)); // random salt/nonce → different ciphertext
   });
 
-  // Self round-trip over a small payload (the cross-language wire proof
-  // lives in the structural audit: codec framing mirrors crypto.go
-  // exactly — magic/salt/nonce/scrypt-32768/GCM-128/gzip-inner).
   test('small-payload round-trip sanity', () {
   
-    // fixture presence logged implicitly by skip below
-    // Soft check: when the fixture is absent (CI minimal), still assert our
-    // framing parses the documented layout.
     final sealed = ArchiveCodec.encrypt(
         Uint8List.fromList(utf8.encode('hello archive')), 'pw-test');
     final back = ArchiveCodec.decrypt(sealed, 'pw-test');
     expect(utf8.decode(back), 'hello archive');
-  }, skip: false);
+  });
 }

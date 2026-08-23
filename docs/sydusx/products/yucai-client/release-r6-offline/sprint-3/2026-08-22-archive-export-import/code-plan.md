@@ -21,3 +21,4 @@
 
 - Test 裁定:pass——codec 往返+错误三分类/importer 替换+回滚/入口存在性;全套基线内。
 - 跨语言 wire 兼容证明:结构审计(codec 帧结构逐行对齐 crypto.go)——真实 Go fixture 对拍记 defer(需 server 侧生成工具,单开)。
+- 三审 pass 后顺手清 fixture 注释残留(诚实性 nit)。
