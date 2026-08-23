@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-bound-mirror-logout
-status: drafted
+status: confirmed
 ---
 
 # Spec — 绑定后镜像写穿透 + 登出回本地
