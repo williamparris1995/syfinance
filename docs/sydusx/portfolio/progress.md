@@ -13,14 +13,13 @@
 
 ## Current position
 
-**Status:** yucai-server `release-r5-audit` sprint-1 — feature B(D6 restore atomic)**analysis done**(spec drafted)。
+**Status:** yucai-server `release-r5-audit` sprint-1 — feature A(D5)✅ + **feature B(D6 restore atomic)done**(merged `0cfedbe7`,2026-08-23——purge+import 单跨模块 tx,restore 与 R6 G 的 upload 两入口同享原子性;11 处裸 client 补 clientFor)。
 
 - Current product: **yucai-server**
 - Current release: [release-r5-audit](../products/yucai-server/release-r5-audit/release.md)(R5 审计整改,scope 03-09,全 server-side)
 - Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
-- Current feature: [2026-08-01-d6-restore-atomic](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d6-restore-atomic/state.md)(feature B;current_stage: analysis / status: analysis-done)
-- **Next**:feature B design(HLD/LLD:tx 包 purge+import 循环 + 各 repo DeleteByTenant/Save tx-aware 验证)或先 review spec。
-- **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged,release gate 终检过——三判据 e2e 4/4 绿+DoD 全过+基线守住;人工清单真机执行待用户归档)。next:R6 defer 清单(ticket 16 线:绑定后离线续写/多设备同步/存档上云)或新 release 规划。
+- **Next**:feature C(d12-restore-freeze,D12 写冻结三件套)或 feature D(d13-encryption-layering,依赖 B✓)——C/D 无相互依赖,可任选。
+- **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——ticket 16 线)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
 
