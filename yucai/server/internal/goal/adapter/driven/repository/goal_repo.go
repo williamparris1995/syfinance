@@ -371,7 +371,7 @@ func (r *GoalRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID)
 // the current set (mirror of the budget delete-all-then-insert item pattern).
 // Idempotent: empty LinkedAccountIDs clears the table.
 func (r *GoalRepository) replaceAccountLinks(ctx context.Context, g *domain.Goal) error {
-	if _, err := r.client.GoalAccountLinks.Delete().
+	if _, err := r.clientFor(ctx).GoalAccountLinks.Delete().
 		Where(
 			goalaccountlinks.TenantIDEQ(g.TenantID),
 			goalaccountlinks.GoalIDEQ(g.ID),
@@ -379,7 +379,7 @@ func (r *GoalRepository) replaceAccountLinks(ctx context.Context, g *domain.Goal
 		return fmt.Errorf("delete goal account links: %w", err)
 	}
 	for _, accID := range g.LinkedAccountIDs {
-		if err := r.client.GoalAccountLinks.Create().
+		if err := r.clientFor(ctx).GoalAccountLinks.Create().
 			SetTenantID(g.TenantID).
 			SetGoalID(g.ID).
 			SetAccountID(accID).
@@ -393,7 +393,7 @@ func (r *GoalRepository) replaceAccountLinks(ctx context.Context, g *domain.Goal
 // replaceDebtLinks deletes all debt links for the goal then re-inserts the
 // current set. Idempotent: empty LinkedDebtIDs clears the table.
 func (r *GoalRepository) replaceDebtLinks(ctx context.Context, g *domain.Goal) error {
-	if _, err := r.client.GoalDebtLinks.Delete().
+	if _, err := r.clientFor(ctx).GoalDebtLinks.Delete().
 		Where(
 			goaldebtlinks.TenantIDEQ(g.TenantID),
 			goaldebtlinks.GoalIDEQ(g.ID),
@@ -401,7 +401,7 @@ func (r *GoalRepository) replaceDebtLinks(ctx context.Context, g *domain.Goal) e
 		return fmt.Errorf("delete goal debt links: %w", err)
 	}
 	for _, debtID := range g.LinkedDebtIDs {
-		if err := r.client.GoalDebtLinks.Create().
+		if err := r.clientFor(ctx).GoalDebtLinks.Create().
 			SetTenantID(g.TenantID).
 			SetGoalID(g.ID).
 			SetDebtID(debtID).

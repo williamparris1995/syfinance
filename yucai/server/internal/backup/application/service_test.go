@@ -1070,13 +1070,15 @@ func newRealAccountPort(t *testing.T) (domain.TenantDataPort, *ent.Client) {
 
 // TestRestoreRollsBackPurgeOnImportFailure: an import error mid-chain must
 // roll the WHOLE restore back — the account module's live rows survive.
+// The restore target carries HETEROGENEOUS data (a "restored" name) so the
+// assertion distinguishes "rolled back to live state" from "import applied"
+// (a backup identical to the live data would pass vacuously).
 func TestRestoreRollsBackPurgeOnImportFailure(t *testing.T) {
 	tenantID := uuid.New()
 	accountPort, client := newRealAccountPort(t)
 	txnPort := &failingImportPort{fakePort: newFakePort("transaction", nil)}
 	svc, _, _ := newTestService([]domain.TenantDataPort{accountPort, txnPort})
 
-	// Seed one live account row (cleaned up after the test — shared testDB).
 	t.Cleanup(func() { client.Account.Delete().ExecX(context.Background()) })
 	// Seed one live account row.
 	if _, err := client.Account.Create().
@@ -1096,13 +1098,25 @@ func TestRestoreRollsBackPurgeOnImportFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBackup: %v", err)
 	}
+	// Diverge the live state from the backup so the rollback assertion is
+	// discriminating (backup: keep-me → post-purge+import would leave
+	// keep-me; live: renamed-live must survive a rollback).
+	if _, err := client.Account.Update().SetName("renamed-live").Save(context.Background()); err != nil {
+		t.Fatalf("diverge: %v", err)
+	}
 	if err := svc.RestoreBackup(context.Background(), tenantID, dto.ID, ""); err == nil {
 		t.Fatal("import failure must surface")
 	}
-	// Oracle: the row must STILL exist (purge rolled back).
+	// Oracle: the LIVE row survives; the backup's "restored" row (which the
+	// purge deleted and the import would have re-created) must NOT appear —
+	// proving the delete was rolled back, not the import re-applied.
 	n, _ := client.Account.Query().Count(context.Background())
 	if n != 1 {
 		t.Fatalf("purge became fait accompli: rows = %d, want 1", n)
+	}
+	row, _ := client.Account.Query().First(context.Background())
+	if row.Name != "renamed-live" {
+		t.Fatalf("live state not restored by rollback: %s", row.Name)
 	}
 }
 

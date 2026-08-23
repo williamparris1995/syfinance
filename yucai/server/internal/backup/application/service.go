@@ -269,23 +269,10 @@ func (s *Service) restoreNoSafety(ctx context.Context, tenantID uuid.UUID, backu
 		return fmt.Errorf("unmarshal envelope: %w", err)
 	}
 
-	// Purge (dependents first, account last).
-	for _, p := range s.orderedPortsForPurge() {
-		if err := p.Purge(ctx, tenantID); err != nil {
-			return fmt.Errorf("purge %s: %w", p.Name(), err)
-		}
-	}
-	// Import (account first, then dependents).
-	for _, p := range s.orderedPortsForImport() {
-		raw, ok := envelope.Modules[p.Name()]
-		if !ok {
-			continue // older backup may lack this module
-		}
-		if err := p.Import(ctx, tenantID, raw); err != nil {
-			return fmt.Errorf("import %s: %w", p.Name(), err)
-		}
-	}
-	return nil
+	// Purge + import inside one cross-module tx (D6): dependents-first
+	// purge, account-first import, atomic on failure. The download/decrypt/
+	// decompress/unmarshal above stays outside the tx (no DB surface).
+	return s.purgeAndImport(ctx, tenantID, envelope)
 }
 
 // orderedPortsForPurge returns ports in dependency order (account last).
