@@ -20,3 +20,9 @@
 - **restore oracle 重建为区分性**:live 数据 post-backup 改名(renamed-live)→ 回滚断言改名存活(备份同数据时 count=1 是 vacuous);**双 oracle 非空验证**:去 tx → restore+upload 双 FAIL ✓。
 - code-plan 前版 T1「两入口接线」虚报与 vacuous 归因错误——本轮记录勘误。
 - 修复后:go test 61 包全绿。
+
+## Review + Test(2026-08-23,pass — 两轮)
+
+- 首轮 reject(2 Critical:restore 入口未接线[名为 restore 原子却裸跑——文本替换未命中分支]/goal link 绕 tx)→ 修复(接线收敛单一 helper/link 辅助全 tx 化/区分性 oracle)→ 复审 **pass**。
+- Test 裁定:pass——go test 61 包全绿;双 oracle(restore+upload)区分性成立(无 tx 三态全 FAIL);requirement coverage:FR-1 两入口原子 ✓/FR-2 goal link tx 化(全链无绕过)✓/FR-3 回滚 purge(双 oracle)✓/NFR-1 显式 ReadCommitted ✓/NFR-2 safety 定位注释 ✓/NFR-3 scope ✓。
+- **教训**:re-apply 脚本的 replace 目标必须逐分支验证命中(restore 循环文本有注释差异 → upload 命中 restore 未命中,但 commit message 全称量词——**两入口类改动提交前必须 grep 两处接线点**)。
