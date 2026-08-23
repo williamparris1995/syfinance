@@ -10,6 +10,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/data/account_remote_ds.dart';
+import 'package:yucai_client/account/data/account_repository_impl.dart';
+import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/backup/data/backup_remote_ds.dart';
@@ -36,6 +39,7 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/account/domain/value_objects.dart' as av;
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
+class _MockAccountRemoteDS extends Mock implements AccountRemoteDataSource {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 class _MockBackupRemote extends Mock implements BackupRemoteDataSource {}
@@ -290,6 +294,12 @@ void main() {
     test('guest data + mirrored bound-period writes all readable', () async {
       await runGuestChain(); // guest-era data
 
+      // Capture the guest-era transactions as they were uploaded (G's
+      // envelope carries them — see e2e-②).
+      final guestTxns = await database.transactionDao.getAllTransactions();
+      final guestEntries = await database.transactionDao.getAllEntries();
+      final guestIds = guestTxns.map((t) => t.id).toSet();
+
       // Bound period: the remote now holds the UPLOADED guest data PLUS one
       // new bound-state write (with real entries — remote lists always
       // carry them). This is the faithful post-G remote shape.
@@ -329,22 +339,51 @@ void main() {
             acc('food', '餐饮', av.AccountType.expense, 0),
             acc('inv', '投资', av.AccountType.asset, 2000),
           ]));
-      when(() => txnRepo.list(any())).thenAnswer((_) async => Right(
-              ListTransactionsResult(
-                  transactions: boundTxn.entries
-                      .map((e) => e)
-                      .toList()
-                      .isEmpty
-                      ? []
-                      : [boundTxn],
-                  totalCount: 1)));
+      // The remote list = the uploaded guest transactions (rebuilt from the
+      // captured rows) + the bound-period write.
+      final remoteTxns = [
+        ...guestTxns.map((t) => Transaction(
+              id: t.id,
+              transactionDate: t.transactionDate,
+              description: t.description,
+              entries: guestEntries
+                  .where((e) => e.transactionId == t.id)
+                  .map((e) => TransactionEntry(
+                        id: e.id,
+                        accountId: e.accountId,
+                        debitCents: e.debitCents,
+                        creditCents: e.creditCents,
+                        note: e.note,
+                      ))
+                  .toList(),
+              version: t.version,
+              createdAt: t.createdAt,
+            )),
+        boundTxn,
+      ];
+      when(() => txnRepo.list(any())).thenAnswer((_) async =>
+          Right(ListTransactionsResult(
+              transactions: remoteTxns, totalCount: remoteTxns.length)));
       registerGetItMock<AccountRepository>(accounts);
       registerGetItMock<TransactionRepository>(txnRepo);
       addTearDown(getIt.reset);
 
-      // "Login": tracker flips to bound — the seam now reads remote.
+      // "Login": the tracker flips the DUAL-SOURCE SEAM to remote — verified
+      // by reading THROUGH a repo (not the bare DAO).
       final tracker = SessionModeTracker()..isGuest = false;
-      expect(tracker.isGuest, isFalse);
+      final remoteDs = _MockAccountRemoteDS();
+      when(() => remoteDs.list()).thenAnswer((_) async => [
+            acc('cash', '现金', av.AccountType.asset, 5400),
+            acc('food', '餐饮', av.AccountType.expense, 0),
+            acc('inv', '投资', av.AccountType.asset, 2000),
+          ]);
+      final accountRepo = AccountRepositoryImpl(
+          remoteDs, AccountLocalDataSource(database), tracker);
+      final boundList = await accountRepo.list();
+      expect(
+          boundList.fold((_) => fail('remote read failed'),
+              (list) => list.firstWhere((a) => a.id == 'cash').currentBalanceCents),
+          5400); // remote truth while bound
 
       final mirror = BoundMirror(database);
       await mirror.refreshAll(); // bound-state write arrives via mirror
@@ -361,6 +400,11 @@ void main() {
           .thenAnswer((_) async => throw Exception('offline at logout'));
       await mirror.refreshAll(); // must not throw (silent degrade)
       tracker.isGuest = true; // logout: seam reads local again
+      final guestList = await accountRepo.list();
+      expect(
+          guestList.fold((_) => fail('guest read failed'),
+              (list) => list.firstWhere((a) => a.id == 'cash').currentBalanceCents),
+          5400); // same value via the LOCAL store — the flip is real
 
       // FR-4 verdict: guest-era uploads + the bound write are ALL visible
       // in guest mode (the remote list mirrors the uploaded guest data
@@ -371,9 +415,10 @@ void main() {
           accountsNow.firstWhere((a) => a.id == 'cash').currentBalanceCents,
           5400); // mirrored bound-truth balance
       final txnsNow = await database.transactionDao.getAllTransactions();
-      expect(txnsNow.map((t) => t.id), contains('remote-1'));
-      // ...and the guest-era data survived the upload cycle because the
-      // post-bind remote carried it (bound write ADDED to it).
+      // MERGED visibility: every guest-era transaction AND the bound write.
+      expect(txnsNow.map((t) => t.id),
+          containsAll([...guestIds, 'remote-1']));
+      expect(txnsNow, hasLength(guestIds.length + 1));
       final entriesNow =
           (await database.transactionDao.getAllEntries())
               .where((e) => e.transactionId == 'remote-1');

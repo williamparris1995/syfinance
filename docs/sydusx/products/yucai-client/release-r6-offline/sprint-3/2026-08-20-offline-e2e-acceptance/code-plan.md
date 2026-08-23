@@ -14,3 +14,15 @@
 - **FR-2 强化**:8 模块键 containsAll(exporter 漏模块不可静默过)+账户实体 ID 集合与本地比对;计数改精确(=2)。
 - **14 诊断清零**(unused imports/const 化/下划线局部变量);evaluate:首轮的「口径重塑」批判成立——原实现没测 spec 说的合并可见,mock 形态决定可测性。
 - 修复后:e2e 4/4 绿;全套 +1089 -4(=基线);analyze 385;零 server。
+
+## 二轮修复(复审 reject:FR-4 transaction 模块 mock 仍不忠实 + tracker 翻转无消费者)
+
+- **远端 txn mock 补齐 guest 交易**:上传前 capture 本地头+entries→重建为远端返回列表(guest×2+remote-1);终态断言 containsAll(guestIds+remote-1) 且精确计数+1——「合并可见」真正可断言。
+- **tracker 翻转接入真 seam**:构造 AccountRepositoryImpl(remoteDs mock, local ds, tracker)——bound 态经 repo 读远端真值 5400;isGuest=true 后同值经本地返回(数据源切换可观察);删除裸 tracker 装饰代码。
+- 恒等映射死代码清除。
+- 二轮修复后:e2e 4/4;全套 +1089 -4(=基线);analyze 385 该文件 0 诊断。
+
+## Review + Test(2026-08-23,pass — 三轮)
+
+- 三轮收敛(首轮 FR-4 Critical/二轮 transaction 模块 mock 复发[评审者原话:「mock 形态决定可测性」]/三轮补齐)——纯测试 feature 的 review 焦点=断言充分性+mock 保真度,教训:**mock 的形状就是被测世界的形状,不忠实的 mock 会把判据变成不可断言**。
+- Test 裁定:pass——4 组判据测试真验各自 spec 场景(合并可见/8 模键+ID 比对/3 轮累计/终刷断网降级)。
