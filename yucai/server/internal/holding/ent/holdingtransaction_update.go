@@ -11,7 +11,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/holdingtransaction"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 )
@@ -26,34 +25,6 @@ type HoldingTransactionUpdate struct {
 // Where appends a list predicates to the HoldingTransactionUpdate builder.
 func (htu *HoldingTransactionUpdate) Where(ps ...predicate.HoldingTransaction) *HoldingTransactionUpdate {
 	htu.mutation.Where(ps...)
-	return htu
-}
-
-// SetAccountID sets the "account_id" field.
-func (htu *HoldingTransactionUpdate) SetAccountID(u uuid.UUID) *HoldingTransactionUpdate {
-	htu.mutation.SetAccountID(u)
-	return htu
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (htu *HoldingTransactionUpdate) SetNillableAccountID(u *uuid.UUID) *HoldingTransactionUpdate {
-	if u != nil {
-		htu.SetAccountID(*u)
-	}
-	return htu
-}
-
-// SetSecurityID sets the "security_id" field.
-func (htu *HoldingTransactionUpdate) SetSecurityID(u uuid.UUID) *HoldingTransactionUpdate {
-	htu.mutation.SetSecurityID(u)
-	return htu
-}
-
-// SetNillableSecurityID sets the "security_id" field if the given value is not nil.
-func (htu *HoldingTransactionUpdate) SetNillableSecurityID(u *uuid.UUID) *HoldingTransactionUpdate {
-	if u != nil {
-		htu.SetSecurityID(*u)
-	}
 	return htu
 }
 
@@ -196,26 +167,6 @@ func (htu *HoldingTransactionUpdate) SetNillableTradeDate(t *time.Time) *Holding
 	return htu
 }
 
-// SetTransactionID sets the "transaction_id" field.
-func (htu *HoldingTransactionUpdate) SetTransactionID(u uuid.UUID) *HoldingTransactionUpdate {
-	htu.mutation.SetTransactionID(u)
-	return htu
-}
-
-// SetNillableTransactionID sets the "transaction_id" field if the given value is not nil.
-func (htu *HoldingTransactionUpdate) SetNillableTransactionID(u *uuid.UUID) *HoldingTransactionUpdate {
-	if u != nil {
-		htu.SetTransactionID(*u)
-	}
-	return htu
-}
-
-// ClearTransactionID clears the value of the "transaction_id" field.
-func (htu *HoldingTransactionUpdate) ClearTransactionID() *HoldingTransactionUpdate {
-	htu.mutation.ClearTransactionID()
-	return htu
-}
-
 // SetNotes sets the "notes" field.
 func (htu *HoldingTransactionUpdate) SetNotes(s string) *HoldingTransactionUpdate {
 	htu.mutation.SetNotes(s)
@@ -305,12 +256,6 @@ func (htu *HoldingTransactionUpdate) sqlSave(ctx context.Context) (n int, err er
 			}
 		}
 	}
-	if value, ok := htu.mutation.AccountID(); ok {
-		_spec.SetField(holdingtransaction.FieldAccountID, field.TypeUUID, value)
-	}
-	if value, ok := htu.mutation.SecurityID(); ok {
-		_spec.SetField(holdingtransaction.FieldSecurityID, field.TypeUUID, value)
-	}
 	if value, ok := htu.mutation.TradeType(); ok {
 		_spec.SetField(holdingtransaction.FieldTradeType, field.TypeString, value)
 	}
@@ -350,9 +295,6 @@ func (htu *HoldingTransactionUpdate) sqlSave(ctx context.Context) (n int, err er
 	if value, ok := htu.mutation.TradeDate(); ok {
 		_spec.SetField(holdingtransaction.FieldTradeDate, field.TypeTime, value)
 	}
-	if value, ok := htu.mutation.TransactionID(); ok {
-		_spec.SetField(holdingtransaction.FieldTransactionID, field.TypeUUID, value)
-	}
 	if htu.mutation.TransactionIDCleared() {
 		_spec.ClearField(holdingtransaction.FieldTransactionID, field.TypeUUID)
 	}
@@ -380,34 +322,6 @@ type HoldingTransactionUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *HoldingTransactionMutation
-}
-
-// SetAccountID sets the "account_id" field.
-func (htuo *HoldingTransactionUpdateOne) SetAccountID(u uuid.UUID) *HoldingTransactionUpdateOne {
-	htuo.mutation.SetAccountID(u)
-	return htuo
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (htuo *HoldingTransactionUpdateOne) SetNillableAccountID(u *uuid.UUID) *HoldingTransactionUpdateOne {
-	if u != nil {
-		htuo.SetAccountID(*u)
-	}
-	return htuo
-}
-
-// SetSecurityID sets the "security_id" field.
-func (htuo *HoldingTransactionUpdateOne) SetSecurityID(u uuid.UUID) *HoldingTransactionUpdateOne {
-	htuo.mutation.SetSecurityID(u)
-	return htuo
-}
-
-// SetNillableSecurityID sets the "security_id" field if the given value is not nil.
-func (htuo *HoldingTransactionUpdateOne) SetNillableSecurityID(u *uuid.UUID) *HoldingTransactionUpdateOne {
-	if u != nil {
-		htuo.SetSecurityID(*u)
-	}
-	return htuo
 }
 
 // SetTradeType sets the "trade_type" field.
@@ -549,26 +463,6 @@ func (htuo *HoldingTransactionUpdateOne) SetNillableTradeDate(t *time.Time) *Hol
 	return htuo
 }
 
-// SetTransactionID sets the "transaction_id" field.
-func (htuo *HoldingTransactionUpdateOne) SetTransactionID(u uuid.UUID) *HoldingTransactionUpdateOne {
-	htuo.mutation.SetTransactionID(u)
-	return htuo
-}
-
-// SetNillableTransactionID sets the "transaction_id" field if the given value is not nil.
-func (htuo *HoldingTransactionUpdateOne) SetNillableTransactionID(u *uuid.UUID) *HoldingTransactionUpdateOne {
-	if u != nil {
-		htuo.SetTransactionID(*u)
-	}
-	return htuo
-}
-
-// ClearTransactionID clears the value of the "transaction_id" field.
-func (htuo *HoldingTransactionUpdateOne) ClearTransactionID() *HoldingTransactionUpdateOne {
-	htuo.mutation.ClearTransactionID()
-	return htuo
-}
-
 // SetNotes sets the "notes" field.
 func (htuo *HoldingTransactionUpdateOne) SetNotes(s string) *HoldingTransactionUpdateOne {
 	htuo.mutation.SetNotes(s)
@@ -688,12 +582,6 @@ func (htuo *HoldingTransactionUpdateOne) sqlSave(ctx context.Context) (_node *Ho
 			}
 		}
 	}
-	if value, ok := htuo.mutation.AccountID(); ok {
-		_spec.SetField(holdingtransaction.FieldAccountID, field.TypeUUID, value)
-	}
-	if value, ok := htuo.mutation.SecurityID(); ok {
-		_spec.SetField(holdingtransaction.FieldSecurityID, field.TypeUUID, value)
-	}
 	if value, ok := htuo.mutation.TradeType(); ok {
 		_spec.SetField(holdingtransaction.FieldTradeType, field.TypeString, value)
 	}
@@ -732,9 +620,6 @@ func (htuo *HoldingTransactionUpdateOne) sqlSave(ctx context.Context) (_node *Ho
 	}
 	if value, ok := htuo.mutation.TradeDate(); ok {
 		_spec.SetField(holdingtransaction.FieldTradeDate, field.TypeTime, value)
-	}
-	if value, ok := htuo.mutation.TransactionID(); ok {
-		_spec.SetField(holdingtransaction.FieldTransactionID, field.TypeUUID, value)
 	}
 	if htuo.mutation.TransactionIDCleared() {
 		_spec.ClearField(holdingtransaction.FieldTransactionID, field.TypeUUID)

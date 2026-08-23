@@ -37,7 +37,7 @@ func (HoldingLot) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
-		field.UUID("holding_id", uuid.UUID{}).Immutable(),
+		field.UUID("holding_id", uuid.UUID{}),
 		field.UUID("security_id", uuid.UUID{}).
 			Comment("denormalized").Immutable(),
 		field.Time("acquired_date").

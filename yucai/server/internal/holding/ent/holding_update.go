@@ -30,34 +30,6 @@ func (hu *HoldingUpdate) Where(ps ...predicate.Holding) *HoldingUpdate {
 	return hu
 }
 
-// SetAccountID sets the "account_id" field.
-func (hu *HoldingUpdate) SetAccountID(u uuid.UUID) *HoldingUpdate {
-	hu.mutation.SetAccountID(u)
-	return hu
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (hu *HoldingUpdate) SetNillableAccountID(u *uuid.UUID) *HoldingUpdate {
-	if u != nil {
-		hu.SetAccountID(*u)
-	}
-	return hu
-}
-
-// SetSecurityID sets the "security_id" field.
-func (hu *HoldingUpdate) SetSecurityID(u uuid.UUID) *HoldingUpdate {
-	hu.mutation.SetSecurityID(u)
-	return hu
-}
-
-// SetNillableSecurityID sets the "security_id" field if the given value is not nil.
-func (hu *HoldingUpdate) SetNillableSecurityID(u *uuid.UUID) *HoldingUpdate {
-	if u != nil {
-		hu.SetSecurityID(*u)
-	}
-	return hu
-}
-
 // SetQuantity sets the "quantity" field.
 func (hu *HoldingUpdate) SetQuantity(f float64) *HoldingUpdate {
 	hu.mutation.ResetQuantity()
@@ -213,12 +185,6 @@ func (hu *HoldingUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
-	if value, ok := hu.mutation.AccountID(); ok {
-		_spec.SetField(holding.FieldAccountID, field.TypeUUID, value)
-	}
-	if value, ok := hu.mutation.SecurityID(); ok {
-		_spec.SetField(holding.FieldSecurityID, field.TypeUUID, value)
-	}
 	if value, ok := hu.mutation.Quantity(); ok {
 		_spec.SetField(holding.FieldQuantity, field.TypeFloat64, value)
 	}
@@ -303,34 +269,6 @@ type HoldingUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *HoldingMutation
-}
-
-// SetAccountID sets the "account_id" field.
-func (huo *HoldingUpdateOne) SetAccountID(u uuid.UUID) *HoldingUpdateOne {
-	huo.mutation.SetAccountID(u)
-	return huo
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (huo *HoldingUpdateOne) SetNillableAccountID(u *uuid.UUID) *HoldingUpdateOne {
-	if u != nil {
-		huo.SetAccountID(*u)
-	}
-	return huo
-}
-
-// SetSecurityID sets the "security_id" field.
-func (huo *HoldingUpdateOne) SetSecurityID(u uuid.UUID) *HoldingUpdateOne {
-	huo.mutation.SetSecurityID(u)
-	return huo
-}
-
-// SetNillableSecurityID sets the "security_id" field if the given value is not nil.
-func (huo *HoldingUpdateOne) SetNillableSecurityID(u *uuid.UUID) *HoldingUpdateOne {
-	if u != nil {
-		huo.SetSecurityID(*u)
-	}
-	return huo
 }
 
 // SetQuantity sets the "quantity" field.
@@ -517,12 +455,6 @@ func (huo *HoldingUpdateOne) sqlSave(ctx context.Context) (_node *Holding, err e
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := huo.mutation.AccountID(); ok {
-		_spec.SetField(holding.FieldAccountID, field.TypeUUID, value)
-	}
-	if value, ok := huo.mutation.SecurityID(); ok {
-		_spec.SetField(holding.FieldSecurityID, field.TypeUUID, value)
 	}
 	if value, ok := huo.mutation.Quantity(); ok {
 		_spec.SetField(holding.FieldQuantity, field.TypeFloat64, value)

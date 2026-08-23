@@ -45,7 +45,7 @@ func (TransactionTemplate) Fields() []ent.Field {
 		field.UUID("source_account_id", uuid.UUID{}).Immutable(),
 		field.UUID("destination_account_id", uuid.UUID{}).
 			Optional().
-			Nillable().Immutable(),
+			Nillable(),
 		field.String("cycle").
 			Comment("weekly, monthly, yearly, custom"),
 		field.Int32("cycle_days").

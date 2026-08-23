@@ -43,20 +43,6 @@ func (biu *BudgetItemUpdate) SetNillableBudgetID(u *uuid.UUID) *BudgetItemUpdate
 	return biu
 }
 
-// SetAccountID sets the "account_id" field.
-func (biu *BudgetItemUpdate) SetAccountID(u uuid.UUID) *BudgetItemUpdate {
-	biu.mutation.SetAccountID(u)
-	return biu
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (biu *BudgetItemUpdate) SetNillableAccountID(u *uuid.UUID) *BudgetItemUpdate {
-	if u != nil {
-		biu.SetAccountID(*u)
-	}
-	return biu
-}
-
 // SetPlannedAmountCents sets the "planned_amount_cents" field.
 func (biu *BudgetItemUpdate) SetPlannedAmountCents(i int64) *BudgetItemUpdate {
 	biu.mutation.ResetPlannedAmountCents()
@@ -192,9 +178,6 @@ func (biu *BudgetItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
-	if value, ok := biu.mutation.AccountID(); ok {
-		_spec.SetField(budgetitem.FieldAccountID, field.TypeUUID, value)
-	}
 	if value, ok := biu.mutation.PlannedAmountCents(); ok {
 		_spec.SetField(budgetitem.FieldPlannedAmountCents, field.TypeInt64, value)
 	}
@@ -272,20 +255,6 @@ func (biuo *BudgetItemUpdateOne) SetBudgetID(u uuid.UUID) *BudgetItemUpdateOne {
 func (biuo *BudgetItemUpdateOne) SetNillableBudgetID(u *uuid.UUID) *BudgetItemUpdateOne {
 	if u != nil {
 		biuo.SetBudgetID(*u)
-	}
-	return biuo
-}
-
-// SetAccountID sets the "account_id" field.
-func (biuo *BudgetItemUpdateOne) SetAccountID(u uuid.UUID) *BudgetItemUpdateOne {
-	biuo.mutation.SetAccountID(u)
-	return biuo
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (biuo *BudgetItemUpdateOne) SetNillableAccountID(u *uuid.UUID) *BudgetItemUpdateOne {
-	if u != nil {
-		biuo.SetAccountID(*u)
 	}
 	return biuo
 }
@@ -454,9 +423,6 @@ func (biuo *BudgetItemUpdateOne) sqlSave(ctx context.Context) (_node *BudgetItem
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := biuo.mutation.AccountID(); ok {
-		_spec.SetField(budgetitem.FieldAccountID, field.TypeUUID, value)
 	}
 	if value, ok := biuo.mutation.PlannedAmountCents(); ok {
 		_spec.SetField(budgetitem.FieldPlannedAmountCents, field.TypeInt64, value)

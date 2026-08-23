@@ -44,20 +44,6 @@ func (hlu *HoldingLotUpdate) SetNillableHoldingID(u *uuid.UUID) *HoldingLotUpdat
 	return hlu
 }
 
-// SetSecurityID sets the "security_id" field.
-func (hlu *HoldingLotUpdate) SetSecurityID(u uuid.UUID) *HoldingLotUpdate {
-	hlu.mutation.SetSecurityID(u)
-	return hlu
-}
-
-// SetNillableSecurityID sets the "security_id" field if the given value is not nil.
-func (hlu *HoldingLotUpdate) SetNillableSecurityID(u *uuid.UUID) *HoldingLotUpdate {
-	if u != nil {
-		hlu.SetSecurityID(*u)
-	}
-	return hlu
-}
-
 // SetAcquiredDate sets the "acquired_date" field.
 func (hlu *HoldingLotUpdate) SetAcquiredDate(t time.Time) *HoldingLotUpdate {
 	hlu.mutation.SetAcquiredDate(t)
@@ -68,20 +54,6 @@ func (hlu *HoldingLotUpdate) SetAcquiredDate(t time.Time) *HoldingLotUpdate {
 func (hlu *HoldingLotUpdate) SetNillableAcquiredDate(t *time.Time) *HoldingLotUpdate {
 	if t != nil {
 		hlu.SetAcquiredDate(*t)
-	}
-	return hlu
-}
-
-// SetAcquiredTradeID sets the "acquired_trade_id" field.
-func (hlu *HoldingLotUpdate) SetAcquiredTradeID(u uuid.UUID) *HoldingLotUpdate {
-	hlu.mutation.SetAcquiredTradeID(u)
-	return hlu
-}
-
-// SetNillableAcquiredTradeID sets the "acquired_trade_id" field if the given value is not nil.
-func (hlu *HoldingLotUpdate) SetNillableAcquiredTradeID(u *uuid.UUID) *HoldingLotUpdate {
-	if u != nil {
-		hlu.SetAcquiredTradeID(*u)
 	}
 	return hlu
 }
@@ -227,14 +199,8 @@ func (hlu *HoldingLotUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
-	if value, ok := hlu.mutation.SecurityID(); ok {
-		_spec.SetField(holdinglot.FieldSecurityID, field.TypeUUID, value)
-	}
 	if value, ok := hlu.mutation.AcquiredDate(); ok {
 		_spec.SetField(holdinglot.FieldAcquiredDate, field.TypeTime, value)
-	}
-	if value, ok := hlu.mutation.AcquiredTradeID(); ok {
-		_spec.SetField(holdinglot.FieldAcquiredTradeID, field.TypeUUID, value)
 	}
 	if value, ok := hlu.mutation.PriceCents(); ok {
 		_spec.SetField(holdinglot.FieldPriceCents, field.TypeInt64, value)
@@ -317,20 +283,6 @@ func (hluo *HoldingLotUpdateOne) SetNillableHoldingID(u *uuid.UUID) *HoldingLotU
 	return hluo
 }
 
-// SetSecurityID sets the "security_id" field.
-func (hluo *HoldingLotUpdateOne) SetSecurityID(u uuid.UUID) *HoldingLotUpdateOne {
-	hluo.mutation.SetSecurityID(u)
-	return hluo
-}
-
-// SetNillableSecurityID sets the "security_id" field if the given value is not nil.
-func (hluo *HoldingLotUpdateOne) SetNillableSecurityID(u *uuid.UUID) *HoldingLotUpdateOne {
-	if u != nil {
-		hluo.SetSecurityID(*u)
-	}
-	return hluo
-}
-
 // SetAcquiredDate sets the "acquired_date" field.
 func (hluo *HoldingLotUpdateOne) SetAcquiredDate(t time.Time) *HoldingLotUpdateOne {
 	hluo.mutation.SetAcquiredDate(t)
@@ -341,20 +293,6 @@ func (hluo *HoldingLotUpdateOne) SetAcquiredDate(t time.Time) *HoldingLotUpdateO
 func (hluo *HoldingLotUpdateOne) SetNillableAcquiredDate(t *time.Time) *HoldingLotUpdateOne {
 	if t != nil {
 		hluo.SetAcquiredDate(*t)
-	}
-	return hluo
-}
-
-// SetAcquiredTradeID sets the "acquired_trade_id" field.
-func (hluo *HoldingLotUpdateOne) SetAcquiredTradeID(u uuid.UUID) *HoldingLotUpdateOne {
-	hluo.mutation.SetAcquiredTradeID(u)
-	return hluo
-}
-
-// SetNillableAcquiredTradeID sets the "acquired_trade_id" field if the given value is not nil.
-func (hluo *HoldingLotUpdateOne) SetNillableAcquiredTradeID(u *uuid.UUID) *HoldingLotUpdateOne {
-	if u != nil {
-		hluo.SetAcquiredTradeID(*u)
 	}
 	return hluo
 }
@@ -530,14 +468,8 @@ func (hluo *HoldingLotUpdateOne) sqlSave(ctx context.Context) (_node *HoldingLot
 			}
 		}
 	}
-	if value, ok := hluo.mutation.SecurityID(); ok {
-		_spec.SetField(holdinglot.FieldSecurityID, field.TypeUUID, value)
-	}
 	if value, ok := hluo.mutation.AcquiredDate(); ok {
 		_spec.SetField(holdinglot.FieldAcquiredDate, field.TypeTime, value)
-	}
-	if value, ok := hluo.mutation.AcquiredTradeID(); ok {
-		_spec.SetField(holdinglot.FieldAcquiredTradeID, field.TypeUUID, value)
 	}
 	if value, ok := hluo.mutation.PriceCents(); ok {
 		_spec.SetField(holdinglot.FieldPriceCents, field.TypeInt64, value)

@@ -99,20 +99,6 @@ func (ttu *TransactionTemplateUpdate) SetNillableDirection(s *string) *Transacti
 	return ttu
 }
 
-// SetSourceAccountID sets the "source_account_id" field.
-func (ttu *TransactionTemplateUpdate) SetSourceAccountID(u uuid.UUID) *TransactionTemplateUpdate {
-	ttu.mutation.SetSourceAccountID(u)
-	return ttu
-}
-
-// SetNillableSourceAccountID sets the "source_account_id" field if the given value is not nil.
-func (ttu *TransactionTemplateUpdate) SetNillableSourceAccountID(u *uuid.UUID) *TransactionTemplateUpdate {
-	if u != nil {
-		ttu.SetSourceAccountID(*u)
-	}
-	return ttu
-}
-
 // SetDestinationAccountID sets the "destination_account_id" field.
 func (ttu *TransactionTemplateUpdate) SetDestinationAccountID(u uuid.UUID) *TransactionTemplateUpdate {
 	ttu.mutation.SetDestinationAccountID(u)
@@ -461,9 +447,6 @@ func (ttu *TransactionTemplateUpdate) sqlSave(ctx context.Context) (n int, err e
 	if value, ok := ttu.mutation.Direction(); ok {
 		_spec.SetField(transactiontemplate.FieldDirection, field.TypeString, value)
 	}
-	if value, ok := ttu.mutation.SourceAccountID(); ok {
-		_spec.SetField(transactiontemplate.FieldSourceAccountID, field.TypeUUID, value)
-	}
 	if value, ok := ttu.mutation.DestinationAccountID(); ok {
 		_spec.SetField(transactiontemplate.FieldDestinationAccountID, field.TypeUUID, value)
 	}
@@ -660,20 +643,6 @@ func (ttuo *TransactionTemplateUpdateOne) SetDirection(s string) *TransactionTem
 func (ttuo *TransactionTemplateUpdateOne) SetNillableDirection(s *string) *TransactionTemplateUpdateOne {
 	if s != nil {
 		ttuo.SetDirection(*s)
-	}
-	return ttuo
-}
-
-// SetSourceAccountID sets the "source_account_id" field.
-func (ttuo *TransactionTemplateUpdateOne) SetSourceAccountID(u uuid.UUID) *TransactionTemplateUpdateOne {
-	ttuo.mutation.SetSourceAccountID(u)
-	return ttuo
-}
-
-// SetNillableSourceAccountID sets the "source_account_id" field if the given value is not nil.
-func (ttuo *TransactionTemplateUpdateOne) SetNillableSourceAccountID(u *uuid.UUID) *TransactionTemplateUpdateOne {
-	if u != nil {
-		ttuo.SetSourceAccountID(*u)
 	}
 	return ttuo
 }
@@ -1055,9 +1024,6 @@ func (ttuo *TransactionTemplateUpdateOne) sqlSave(ctx context.Context) (_node *T
 	}
 	if value, ok := ttuo.mutation.Direction(); ok {
 		_spec.SetField(transactiontemplate.FieldDirection, field.TypeString, value)
-	}
-	if value, ok := ttuo.mutation.SourceAccountID(); ok {
-		_spec.SetField(transactiontemplate.FieldSourceAccountID, field.TypeUUID, value)
 	}
 	if value, ok := ttuo.mutation.DestinationAccountID(); ok {
 		_spec.SetField(transactiontemplate.FieldDestinationAccountID, field.TypeUUID, value)

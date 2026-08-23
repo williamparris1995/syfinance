@@ -31,20 +31,6 @@ func (ddu *DebtDetailsUpdate) Where(ps ...predicate.DebtDetails) *DebtDetailsUpd
 	return ddu
 }
 
-// SetAccountID sets the "account_id" field.
-func (ddu *DebtDetailsUpdate) SetAccountID(u uuid.UUID) *DebtDetailsUpdate {
-	ddu.mutation.SetAccountID(u)
-	return ddu
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (ddu *DebtDetailsUpdate) SetNillableAccountID(u *uuid.UUID) *DebtDetailsUpdate {
-	if u != nil {
-		ddu.SetAccountID(*u)
-	}
-	return ddu
-}
-
 // SetCounterparty sets the "counterparty" field.
 func (ddu *DebtDetailsUpdate) SetCounterparty(s string) *DebtDetailsUpdate {
 	ddu.mutation.SetCounterparty(s)
@@ -381,9 +367,6 @@ func (ddu *DebtDetailsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
-	if value, ok := ddu.mutation.AccountID(); ok {
-		_spec.SetField(debtdetails.FieldAccountID, field.TypeUUID, value)
-	}
 	if value, ok := ddu.mutation.Counterparty(); ok {
 		_spec.SetField(debtdetails.FieldCounterparty, field.TypeString, value)
 	}
@@ -543,20 +526,6 @@ type DebtDetailsUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *DebtDetailsMutation
-}
-
-// SetAccountID sets the "account_id" field.
-func (dduo *DebtDetailsUpdateOne) SetAccountID(u uuid.UUID) *DebtDetailsUpdateOne {
-	dduo.mutation.SetAccountID(u)
-	return dduo
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (dduo *DebtDetailsUpdateOne) SetNillableAccountID(u *uuid.UUID) *DebtDetailsUpdateOne {
-	if u != nil {
-		dduo.SetAccountID(*u)
-	}
-	return dduo
 }
 
 // SetCounterparty sets the "counterparty" field.
@@ -924,9 +893,6 @@ func (dduo *DebtDetailsUpdateOne) sqlSave(ctx context.Context) (_node *DebtDetai
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := dduo.mutation.AccountID(); ok {
-		_spec.SetField(debtdetails.FieldAccountID, field.TypeUUID, value)
 	}
 	if value, ok := dduo.mutation.Counterparty(); ok {
 		_spec.SetField(debtdetails.FieldCounterparty, field.TypeString, value)

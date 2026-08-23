@@ -43,20 +43,6 @@ func (teu *TransactionEntryUpdate) SetNillableTransactionID(u *uuid.UUID) *Trans
 	return teu
 }
 
-// SetAccountID sets the "account_id" field.
-func (teu *TransactionEntryUpdate) SetAccountID(u uuid.UUID) *TransactionEntryUpdate {
-	teu.mutation.SetAccountID(u)
-	return teu
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (teu *TransactionEntryUpdate) SetNillableAccountID(u *uuid.UUID) *TransactionEntryUpdate {
-	if u != nil {
-		teu.SetAccountID(*u)
-	}
-	return teu
-}
-
 // SetChartOfAccountCode sets the "chart_of_account_code" field.
 func (teu *TransactionEntryUpdate) SetChartOfAccountCode(s string) *TransactionEntryUpdate {
 	teu.mutation.SetChartOfAccountCode(s)
@@ -206,9 +192,6 @@ func (teu *TransactionEntryUpdate) sqlSave(ctx context.Context) (n int, err erro
 			}
 		}
 	}
-	if value, ok := teu.mutation.AccountID(); ok {
-		_spec.SetField(transactionentry.FieldAccountID, field.TypeUUID, value)
-	}
 	if value, ok := teu.mutation.ChartOfAccountCode(); ok {
 		_spec.SetField(transactionentry.FieldChartOfAccountCode, field.TypeString, value)
 	}
@@ -289,20 +272,6 @@ func (teuo *TransactionEntryUpdateOne) SetTransactionID(u uuid.UUID) *Transactio
 func (teuo *TransactionEntryUpdateOne) SetNillableTransactionID(u *uuid.UUID) *TransactionEntryUpdateOne {
 	if u != nil {
 		teuo.SetTransactionID(*u)
-	}
-	return teuo
-}
-
-// SetAccountID sets the "account_id" field.
-func (teuo *TransactionEntryUpdateOne) SetAccountID(u uuid.UUID) *TransactionEntryUpdateOne {
-	teuo.mutation.SetAccountID(u)
-	return teuo
-}
-
-// SetNillableAccountID sets the "account_id" field if the given value is not nil.
-func (teuo *TransactionEntryUpdateOne) SetNillableAccountID(u *uuid.UUID) *TransactionEntryUpdateOne {
-	if u != nil {
-		teuo.SetAccountID(*u)
 	}
 	return teuo
 }
@@ -485,9 +454,6 @@ func (teuo *TransactionEntryUpdateOne) sqlSave(ctx context.Context) (_node *Tran
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := teuo.mutation.AccountID(); ok {
-		_spec.SetField(transactionentry.FieldAccountID, field.TypeUUID, value)
 	}
 	if value, ok := teuo.mutation.ChartOfAccountCode(); ok {
 		_spec.SetField(transactionentry.FieldChartOfAccountCode, field.TypeString, value)

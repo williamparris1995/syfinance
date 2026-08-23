@@ -31,7 +31,7 @@ func (SecurityPriceHistory) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
 		field.UUID("security_id", uuid.UUID{}).
-			Comment("owning security (incl. benchmark 000300)").Immutable(),
+			Comment("owning security (incl. benchmark 000300)"),
 		field.Time("price_date").
 			Comment("one row per security per date"),
 		field.Int64("price_cents").

@@ -27,7 +27,7 @@ func (TransactionEntry) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
 		field.UUID("transaction_id", uuid.UUID{}).
-			Comment("FK to Transaction").Immutable(),
+			Comment("FK to Transaction"),
 		field.UUID("account_id", uuid.UUID{}).
 			Comment("FK to Account").Immutable(),
 		field.String("chart_of_account_code").

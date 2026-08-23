@@ -26,7 +26,7 @@ func (BudgetItem) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
 		field.UUID("budget_id", uuid.UUID{}).
-			Comment("FK to Budget").Immutable(),
+			Comment("FK to Budget"),
 		field.UUID("account_id", uuid.UUID{}).
 			Comment("FK to Account").Immutable(),
 		field.Int64("planned_amount_cents").
