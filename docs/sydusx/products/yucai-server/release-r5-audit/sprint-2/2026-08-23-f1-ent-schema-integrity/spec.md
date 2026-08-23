@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-23-f1-ent-schema-integrity
-status: drafted
+status: confirmed
 ---
 
 # Spec — ent schema 完整性(FK+Min(0)+UNIQUE+Immutable+partial unique)
