@@ -37,7 +37,7 @@ func (s *Service) SetAccountReferenceSources(sources []domain.AccountReferenceSo
 // blocks deletion with a caller-presentable reason; a counting error or a
 // missing wiring (empty sources) also refuses, never silently reverting to
 // the orphan-leaving behavior this guard exists to prevent.
-func (s *Service) rejectIfReferenced(ctx context.Context, tenantID, accountID uuid.UUID) error {
+func (s *Service) rejectIfReferenced(ctx context.Context, tenantID, accountID uuid.UUID, noun string) error {
 	if len(s.refSources) == 0 {
 		return fmt.Errorf("account reference sources not configured")
 	}
@@ -47,8 +47,8 @@ func (s *Service) rejectIfReferenced(ctx context.Context, tenantID, accountID uu
 			return fmt.Errorf("check %s references: %w", src.AccountReferenceSourceName(), err)
 		}
 		if n > 0 {
-			return fmt.Errorf("cannot delete account: referenced by %d %s record(s)",
-				n, src.AccountReferenceSourceName())
+			return fmt.Errorf("cannot delete %s: referenced by %d %s record(s)",
+				noun, n, src.AccountReferenceSourceName())
 		}
 	}
 	return nil
@@ -173,7 +173,7 @@ func (s *Service) DeleteAccount(ctx context.Context, tenantID, accountID uuid.UU
 	if account.CurrentBalanceCents != 0 {
 		return fmt.Errorf("cannot delete account with non-zero balance")
 	}
-	if err := s.rejectIfReferenced(ctx, tenantID, accountID); err != nil {
+	if err := s.rejectIfReferenced(ctx, tenantID, accountID, "account"); err != nil {
 		return err
 	}
 	return s.accountRepo.SoftDelete(ctx, tenantID, accountID)
@@ -249,7 +249,7 @@ func (s *Service) DeleteCategory(ctx context.Context, tenantID, categoryID uuid.
 	}
 	// Categories are referenced by transactions like any other account
 	// (entries.account_id) — same rejection guard.
-	if err := s.rejectIfReferenced(ctx, tenantID, categoryID); err != nil {
+	if err := s.rejectIfReferenced(ctx, tenantID, categoryID, "category"); err != nil {
 		return err
 	}
 	return s.accountRepo.SoftDelete(ctx, tenantID, categoryID)

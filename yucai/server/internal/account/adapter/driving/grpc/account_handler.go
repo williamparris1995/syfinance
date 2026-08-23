@@ -610,7 +610,8 @@ func mapError(err error) error {
 		return status.Error(codes.InvalidArgument, msg)
 	case contains(msg, "optimistic lock"):
 		return status.Error(codes.Aborted, msg)
-	case contains(msg, "non-zero balance"), contains(msg, "system category"):
+	case contains(msg, "non-zero balance"), contains(msg, "system category"),
+		contains(msg, "referenced by"):
 		return status.Error(codes.FailedPrecondition, msg)
 	default:
 		return status.Error(codes.Internal, msg)

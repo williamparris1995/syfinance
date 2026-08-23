@@ -170,8 +170,9 @@ func TestDeleteGuard_EachModuleBlocks(t *testing.T) {
 			}
 		}},
 		{"debt", func(t *testing.T, s guardSeeders, tenant, acct uuid.UUID) {
+			// via collection_account_id (account_id is a random other account)
 			if _, err := s.debt.DebtDetails.Create().
-				SetTenantID(tenant).SetAccountID(acct).
+				SetTenantID(tenant).SetAccountID(uuid.New()).SetCollectionAccountID(acct).
 				SetCounterparty("bank").SetInterestRate(3).
 				SetAmortizationMethod("equal_principal_interest").
 				SetStartDate(time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)).
@@ -182,25 +183,23 @@ func TestDeleteGuard_EachModuleBlocks(t *testing.T) {
 			}
 		}},
 		{"holding", func(t *testing.T, s guardSeeders, tenant, acct uuid.UUID) {
-			if _, err := s.holding.Holding.Create().
+			// via a bare holding_transactions row (holdings stay on other accounts)
+			if _, err := s.holding.HoldingTransaction.Create().
 				SetTenantID(tenant).SetAccountID(acct).SetSecurityID(uuid.New()).
-				SetQuantity(10).SetAvgCostCents(100).
+				SetTradeType("buy").SetQuantity(10).SetPriceCents(100).
+				SetTradeDate(time.Now()).
 				Save(ctx); err != nil {
-				t.Fatalf("seed holding: %v", err)
+				t.Fatalf("seed trade: %v", err)
 			}
 		}},
 		{"goal", func(t *testing.T, s guardSeeders, tenant, acct uuid.UUID) {
-			g, err := s.goal.Goal.Create().
+			// via goals.linked_account_id directly (no link rows)
+			if _, err := s.goal.Goal.Create().
 				SetTenantID(tenant).SetName("ref").SetGoalType("savings").
 				SetTargetAmountCents(100_00).SetCurrencyCode("CNY").
-				Save(ctx)
-			if err != nil {
-				t.Fatalf("seed goal: %v", err)
-			}
-			if _, err := s.goal.GoalAccountLinks.Create().
-				SetTenantID(tenant).SetGoalID(g.ID).SetAccountID(acct).
+				SetLinkedAccountID(acct).
 				Save(ctx); err != nil {
-				t.Fatalf("seed link: %v", err)
+				t.Fatalf("seed goal: %v", err)
 			}
 		}},
 		{"template", func(t *testing.T, s guardSeeders, tenant, acct uuid.UUID) {
@@ -273,7 +272,9 @@ func TestDeleteGuard_OtherTenantReferenceDoesNotBlock(t *testing.T) {
 	tenant := uuid.New()
 	id := seedGuardAccount(t, acctClient, tenant)
 
-	// A budget of a DIFFERENT tenant budgeting an unrelated account.
+	// A budget of a DIFFERENT tenant budgeting THE SAME account: the row
+	// exists and matches account_id, so only the tenant filter can keep the
+	// count at zero.
 	b, err := seeders.budget.Budget.Create().
 		SetTenantID(uuid.New()).SetName("other").SetMonth("2026-08").
 		Save(ctx)
@@ -281,12 +282,65 @@ func TestDeleteGuard_OtherTenantReferenceDoesNotBlock(t *testing.T) {
 		t.Fatalf("seed other-tenant budget: %v", err)
 	}
 	if _, err := seeders.budget.BudgetItem.Create().
-		SetBudgetID(b.ID).SetAccountID(uuid.New()).
+		SetBudgetID(b.ID).SetAccountID(id).
 		Save(ctx); err != nil {
 		t.Fatalf("seed other-tenant item: %v", err)
 	}
 
 	if err := svc.DeleteAccount(ctx, tenant, id); err != nil {
 		t.Fatalf("other tenant's references must not block: %v", err)
+	}
+}
+
+// Soft-deleted budgets must NOT block (live items under a dead parent are
+// invisible to users, same semantics as soft-deleted transactions).
+func TestDeleteGuard_SoftDeletedBudgetDoesNotBlock(t *testing.T) {
+	svc, acctClient, seeders := setupDeleteGuardDB(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	id := seedGuardAccount(t, acctClient, tenant)
+
+	b, err := seeders.budget.Budget.Create().
+		SetTenantID(tenant).SetName("dead").SetMonth("2026-08").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed budget: %v", err)
+	}
+	if _, err := seeders.budget.BudgetItem.Create().
+		SetBudgetID(b.ID).SetAccountID(id).
+		Save(ctx); err != nil {
+		t.Fatalf("seed item: %v", err)
+	}
+	if err := seeders.budget.Budget.UpdateOneID(b.ID).
+		SetDeletedAt(time.Now()).Exec(ctx); err != nil {
+		t.Fatalf("soft delete budget: %v", err)
+	}
+
+	if err := svc.DeleteAccount(ctx, tenant, id); err != nil {
+		t.Fatalf("soft-deleted budget must not block deletion: %v", err)
+	}
+}
+
+// DeleteByTenant (disaster-cleanup path) must keep working untouched by the
+// guard — ticket 05 decision 5 keeps it for purge/restore flows.
+func TestDeleteGuard_DeleteByTenantUnchanged(t *testing.T) {
+	_, acctClient, _ := setupDeleteGuardDB(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	id := seedGuardAccount(t, acctClient, tenant)
+
+	// The repo-level path (what D6's purge uses), not the guarded service.
+	repo := accountrepo.NewAccountRepository(acctClient)
+	if err := repo.DeleteByTenant(ctx, tenant); err != nil {
+		t.Fatalf("DeleteByTenant: %v", err)
+	}
+	exists, err := acctClient.Account.Query().Where().IDs(ctx)
+	if err != nil {
+		t.Fatalf("query accounts: %v", err)
+	}
+	for _, got := range exists {
+		if got == id {
+			t.Error("account should be purged by DeleteByTenant")
+		}
 	}
 }
