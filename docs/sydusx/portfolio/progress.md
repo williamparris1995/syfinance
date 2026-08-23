@@ -20,7 +20,7 @@
 - Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
 - Current feature: [2026-08-01-d6-restore-atomic](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d6-restore-atomic/state.md)(feature B;current_stage: analysis / status: analysis-done)
 - **Next**:feature B design(HLD/LLD:tx 包 purge+import 循环 + 各 repo DeleteByTenant/Save tx-aware 验证)或先 review spec。
-- **并行线**:yucai-client [R6 offline-first](../products/yucai-client/release-r6-offline/release.md) sprint-1+2 done + sprint-3 G/H/I **done**(merged `bc0dbbd3`,2026-08-23;三判据自动化验收 4/4+人工清单待执行)。next:sprint-3 feature J(archive-export-import,存档导出导入——最后一个,R6 收官件)。
+- **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged,release gate 终检过——三判据 e2e 4/4 绿+DoD 全过+基线守住;人工清单真机执行待用户归档)。next:R6 defer 清单(ticket 16 线:绑定后离线续写/多设备同步/存档上云)或新 release 规划。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
 
