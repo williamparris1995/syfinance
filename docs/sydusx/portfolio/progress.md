@@ -20,7 +20,7 @@
 - Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
 - Current feature: [2026-08-01-d6-restore-atomic](../products/yucai-server/release-r5-audit/sprint-1/2026-08-01-d6-restore-atomic/state.md)(feature B;current_stage: analysis / status: analysis-done)
 - **Next**:feature B design(HLD/LLD:tx 包 purge+import 循环 + 各 repo DeleteByTenant/Save tx-aware 验证)或先 review spec。
-- **并行线**:yucai-client [R6 offline-first](../products/yucai-client/release-r6-offline/release.md) sprint-1 done + sprint-2 D/E **done**(merged `53b0a80d`,2026-08-22;游客单机功能面完整:记账+资产全模块零网络)。next:sprint-2 feature F(offline-write-integrity,写完整性收口:余额联动/引用约束/断网 UX——D/E 的 accepted 边界多归此处)。
+- **并行线**:yucai-client [R6 offline-first](../products/yucai-client/release-r6-offline/release.md) **sprint-1 + sprint-2 全 done**(2026-08-23 merged `89f0cb71`;游客单机版完整:全模块读写零网络+余额联动复式经济学+写完整性)。next:sprint-3 绑定链路(G bind-upload → H 镜像+登出 → I 三判据 e2e → J 存档导出导入)——「离线→上云」最后闭环。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
 

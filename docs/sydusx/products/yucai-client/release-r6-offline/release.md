@@ -42,7 +42,7 @@
 > sprint 分组提案(依赖排序,可调)。
 
 - [x] **sprint-1**:本地模式地基(drift schema + 鉴权分流 + 双源 seam 试点)✅ done(2026-08-22)
-- [ ] **sprint-2**:全模块本地读写(核心记账 + 资产类 + 写完整性)
+- [x] **sprint-2**:全模块本地读写(核心记账 + 资产类 + 写完整性)✅ done(2026-08-23)
 - [ ] **sprint-3**:绑定上传 + 镜像 + e2e 验收
 
 ## Done-criteria(release gate)
