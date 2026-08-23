@@ -15,7 +15,7 @@
 - 绑定=OIDC 登录 → **空账号预检 guard**(非空阻止,合并 defer)→ 本地快照经现有 `RestoreBackup` 路径单向上传 → 回切在线。
 - 绑定后本地 drift 作**镜像持续写入**(写穿透);登出=回本地模式用最后镜像(M2)。
 - 绑定后离线**续写** defer ticket 16(M1:绑定后离线=现状降级,矛盾显式接受)。
-- **硬约束:v1 零 server 代码改动**(避免撞 R5 在途的 D6 区域;若必须动 server,等 R5 merge 后走 fast-lane)。
+- **硬约束(2026-08-23 修订)**:v1 除 feature G 的 backup `UploadBackup` 单向上传 RPC 外零 server 代码改动(原「完全零 server」的理由——避免撞 R5 在途 D6——已随 R5 merge 消失;G 的通路裁定见其 spec)。
 - 双 schema 漂移(G1):drift↔ent 以 backup 格式/proto DTO 为唯一契约;模式切换 seam(G2)为 LLD 决策。
 
 ## Scope

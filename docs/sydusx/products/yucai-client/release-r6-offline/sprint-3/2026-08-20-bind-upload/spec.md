@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-bind-upload
-status: drafted
+status: confirmed
 ---
 
 # Spec — 绑定上传(空账号 guard + 本地快照上云 + 回切在线)
@@ -8,7 +8,7 @@ status: drafted
 > R6 sprint-3 feature G。**wire 事实修正(2026-08-23 analysis)**:backup 服务为「服务端自管存储」模型——CreateBackup(encrypted?,password?) 由 server 从自身 DB 导出,RestoreBackup(backup_id,password) 从备份存储恢复,**无任何 RPC 接受客户端数据**。R6 立项时「经现有 RestoreBackup 单向上传」的假设在 wire 层不成立(release.md 已定决策需同步修订,见下)。
 > 佐证:业务 CRUD 的 server 侧 NewAccount 等自产 UUID(不接受 caller ID)→ CRUD 逐条上传需跨 8 模块的 ID 映射重写;backup Service 的 ports/purge+import 基建(R5 D6 加固)齐备,仅缺接受 envelope 字节的 driving 入口。
 
-## 通路决策(待用户裁定,推荐 B)
+## 通路决策(已裁定 2026-08-23:选 B)
 
 - **选项 A:CRUD 逐条上传(维持零 server)**——绑定后逐模块调业务 Create RPC。代价:①server 自产 ID → 本地需维护 UUID→serverID 映射并**重写全部跨模块外键**(entries.accountId/budget_items/goal links/holding/debt schedule/template 账户引用/余额联动交易),8 模块×两种 ID 空间的映射引擎,复杂且脆弱;②数百条 RPC 的部分失败恢复(重试幂等)复杂;③transaction_tag 联结也须逐条(且 backup 契约不含它,server 端仍会丢)。
 - **选项 B(推荐):server 增一个上传 RPC**——`UploadBackup(bytes envelope, optional password)`:driving 层新入口 → 校验/解密 → **复用现有 R5 D6 加固的 purge+import 原子路径**(orderedPortsForPurge/Import + sqltx.WithTx + 快照安全备份)。R6 立项时「零 server」的理由(避免撞 R5 在途 D6)**已消失**(R5 已 merge);client 侧一个 RPC 单向上传,绑定语义与原 spec 完全一致;server 改动面小(proto 一字段+handler+service 方法+测试)。代价:破「零 server」约束,server 侧约 +1 RPC 面。
@@ -46,8 +46,8 @@ status: drafted
 ### Requirement: NFR-1 质量基线
 - [ ] `flutter test` 基线不退化(≤ 4 fail / 3 文件);`flutter analyze` 不新增;分层不倒置;若裁定 B,server `go test ./...` 全绿 + 新 RPC 有单测。
 
-### Requirement: NFR-2 server 改动面(随通路决策)
-- [ ] 选项 A:零 server(维持原约束);选项 B:仅 backup 模块新增一个 RPC(不动业务模块;复用 R5 加固;含 handler/service 测试)——release.md 硬约束条目随裁定同步修订。
+### Requirement: NFR-2 server 改动面(裁定 B)
+- [ ] server 改动 SHALL 限定在 backup 模块:proto +`UploadBackup(bytes data, string password)` 一字段 + handler + Service.UploadExternal(解析 envelope→**tenant_id 以鉴权身份覆盖**(防跨租户注入)→复用 R5 D6 purge+import 原子路径含 safety 快照) + 单测;业务模块零改动;`go test ./...` 全绿。R6 release「v1 零 server」条目同步修订为「除 feature G 的 backup 上传 RPC 外零 server」。
 
 ## scope boundary
 
