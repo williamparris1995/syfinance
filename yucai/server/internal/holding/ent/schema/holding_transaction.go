@@ -37,13 +37,13 @@ func (HoldingTransaction) Fields() []ent.Field {
 		field.UUID("security_id", uuid.UUID{}),
 		field.String("trade_type").
 			Comment("buy, sell, dividend, split"),
-		field.Float("quantity"),
+		field.Float("quantity").Min(0),
 		field.Int64("price_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.Int64("amount_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.Int64("fee_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.Int64("realized_pnl_cents").
 			Default(0).
 			Optional().

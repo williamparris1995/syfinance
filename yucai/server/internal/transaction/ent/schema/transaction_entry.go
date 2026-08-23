@@ -34,10 +34,10 @@ func (TransactionEntry) Fields() []ent.Field {
 			Default(""),
 		field.Int64("debit_cents").
 			Default(0).
-			Comment("Debit amount in cents"),
+			Comment("Debit amount in cents").Min(0),
 		field.Int64("credit_cents").
 			Default(0).
-			Comment("Credit amount in cents"),
+			Comment("Credit amount in cents").Min(0),
 		field.String("note").
 			Optional().
 			Default(""),

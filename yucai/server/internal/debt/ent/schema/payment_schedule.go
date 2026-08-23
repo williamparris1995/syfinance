@@ -29,15 +29,15 @@ func (PaymentSchedule) Fields() []ent.Field {
 			Comment("FK to DebtDetails"),
 		field.Time("payment_date"),
 		field.Int64("principal_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.Int64("interest_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.Int64("total_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.Bool("paid").
 			Default(false),
 		field.Int64("paid_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.UUID("transaction_id", uuid.UUID{}).
 			Optional().
 			Nillable().

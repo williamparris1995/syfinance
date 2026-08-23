@@ -38,7 +38,7 @@ func (Goal) Fields() []ent.Field {
 			NotEmpty(),
 		field.String("goal_type").
 			Comment("savings, debt_payoff, investment"),
-		field.Int64("target_amount_cents"),
+		field.Int64("target_amount_cents").Min(0),
 		field.Int64("current_amount_cents").
 			Default(0),
 		field.String("currency_code").

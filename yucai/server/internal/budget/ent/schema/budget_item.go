@@ -30,9 +30,9 @@ func (BudgetItem) Fields() []ent.Field {
 		field.UUID("account_id", uuid.UUID{}).
 			Comment("FK to Account"),
 		field.Int64("planned_amount_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.Int64("actual_amount_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.String("notes").
 			Optional().
 			Default(""),

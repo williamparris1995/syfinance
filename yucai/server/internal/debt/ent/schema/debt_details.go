@@ -44,7 +44,7 @@ func (DebtDetails) Fields() []ent.Field {
 			Comment("equal_principal_interest, equal_principal, lump_sum"),
 		field.Time("start_date"),
 		field.Time("due_date"),
-		field.Int64("total_principal_cents"),
+		field.Int64("total_principal_cents").Min(0),
 		field.String("debt_type").
 			Default("borrowed_in").
 			Comment("borrowed_in(我借入) / borrowed_out(我借出/债权)"),

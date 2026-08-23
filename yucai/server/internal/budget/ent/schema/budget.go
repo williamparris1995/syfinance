@@ -39,7 +39,7 @@ func (Budget) Fields() []ent.Field {
 		field.String("month").
 			Comment("Format YYYY-MM"),
 		field.Int64("total_amount_cents").
-			Default(0),
+			Default(0).Min(0),
 		field.String("currency_code").
 			Default("CNY"),
 		field.Bool("is_active").

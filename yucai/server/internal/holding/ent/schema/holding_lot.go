@@ -45,11 +45,11 @@ func (HoldingLot) Fields() []ent.Field {
 		field.UUID("acquired_trade_id", uuid.UUID{}).
 			Comment("holding_transaction.id of the buy"),
 		field.Int64("price_cents").
-			Comment("buy cost price"),
+			Comment("buy cost price").Min(0),
 		field.Float("quantity").
-			Comment("original acquired quantity"),
+			Comment("original acquired quantity").Min(0),
 		field.Float("remaining_quantity").
-			Comment("remaining after sells/splits"),
+			Comment("remaining after sells/splits").Min(0),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),
