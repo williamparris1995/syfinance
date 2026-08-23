@@ -49,7 +49,7 @@ func (r *GoalRepository) clientFor(ctx context.Context) *goalent.Client {
 
 // Save persists a new goal and its multi-account links.
 func (r *GoalRepository) Save(ctx context.Context, g *domain.Goal) error {
-	create := r.client.Goal.Create().
+	create := r.clientFor(ctx).Goal.Create().
 		SetID(g.ID).
 		SetTenantID(g.TenantID).
 		SetName(g.Name).
@@ -347,17 +347,17 @@ func (r *GoalRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUI
 // (no goal-ID collection needed); goals are deleted last. Snapshots are left
 // for the scheduler to recompute (derived data, out of backup scope).
 func (r *GoalRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
-	if _, err := r.client.GoalAccountLinks.Delete().
+	if _, err := r.clientFor(ctx).GoalAccountLinks.Delete().
 		Where(goalaccountlinks.TenantIDEQ(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("backup purge goal account links: %w", err)
 	}
-	if _, err := r.client.GoalDebtLinks.Delete().
+	if _, err := r.clientFor(ctx).GoalDebtLinks.Delete().
 		Where(goaldebtlinks.TenantIDEQ(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("backup purge goal debt links: %w", err)
 	}
-	if _, err := r.client.Goal.Delete().
+	if _, err := r.clientFor(ctx).Goal.Delete().
 		Where(goal.TenantID(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("backup purge goals: %w", err)

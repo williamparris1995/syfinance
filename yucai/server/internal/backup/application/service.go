@@ -133,6 +133,9 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 // ent client/driver; shared *sql.Tx would need architecture-wide refactor).
 func (s *Service) RestoreBackup(ctx context.Context, tenantID uuid.UUID, backupID uuid.UUID, password string) error {
 	// 1. Safety net: auto-create a pre-restore backup BEFORE touching any data.
+//    (Defense split: the tx below guarantees ATOMICITY against failures;
+//    this safety backup guards HUMAN errors — restoring the wrong file or
+//    garbage data — which a rollback cannot prevent.)
 	preRestore, err := s.CreateBackup(ctx, tenantID, false, "", true)
 	if err != nil {
 		return fmt.Errorf("pre-restore safety backup: %w", err)
@@ -188,21 +191,35 @@ func (s *Service) uploadImport(ctx context.Context, tenantID uuid.UUID, data []b
 	// reaches the import layer.
 	envelope.TenantID = tenantID
 
-	for _, p := range s.orderedPortsForPurge() {
-		if err := p.Purge(ctx, tenantID); err != nil {
-			return fmt.Errorf("purge %s: %w", p.Name(), err)
+	return s.purgeAndImport(ctx, tenantID, envelope)
+}
+
+// purgeAndImport runs the purge + import loops inside ONE cross-module
+// transaction (D6 atomicity): any module failure rolls the whole restore
+// back — purge can no longer become a fait accompli. Read Committed is
+// sufficient: atomicity comes from rollback, not snapshot isolation (the
+// concurrent-write freeze is D12, feature C). Shared by restoreNoSafety and
+// uploadImport (R6 feature G rides the same guarantee).
+func (s *Service) purgeAndImport(ctx context.Context, tenantID uuid.UUID, envelope domain.BackupEnvelope) error {
+	return sqltx.WithTx(ctx, s.db, s.dialect, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	}, func(ctxT context.Context) error {
+		for _, p := range s.orderedPortsForPurge() {
+			if err := p.Purge(ctxT, tenantID); err != nil {
+				return fmt.Errorf("purge %s: %w", p.Name(), err)
+			}
 		}
-	}
-	for _, p := range s.orderedPortsForImport() {
-		raw, ok := envelope.Modules[p.Name()]
-		if !ok {
-			continue
+		for _, p := range s.orderedPortsForImport() {
+			raw, ok := envelope.Modules[p.Name()]
+			if !ok {
+				continue
+			}
+			if err := p.Import(ctxT, tenantID, raw); err != nil {
+				return fmt.Errorf("import %s: %w", p.Name(), err)
+			}
 		}
-		if err := p.Import(ctx, tenantID, raw); err != nil {
-			return fmt.Errorf("import %s: %w", p.Name(), err)
-		}
-	}
-	return nil
+		return nil
+	})
 }
 
 // restoreNoSafety holds the pre-safety-net restore logic (download/decrypt/

@@ -37,7 +37,7 @@ func (r *TagRepository) clientFor(ctx context.Context) *tagent.Client {
 
 // Save persists a new tag.
 func (r *TagRepository) Save(ctx context.Context, t *domain.Tag) error {
-	_, err := r.client.Tag.Create().
+	_, err := r.clientFor(ctx).Tag.Create().
 		SetID(t.ID).
 		SetTenantID(t.TenantID).
 		SetName(t.Name).
@@ -242,20 +242,20 @@ func (r *TagRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID
 // tenant's tag IDs are collected first and used to scope the junction cleanup.
 // Ordering: junction rows first (logically child of tags), then tags.
 func (r *TagRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
-	tagIDs, err := r.client.Tag.Query().
+	tagIDs, err := r.clientFor(ctx).Tag.Query().
 		Where(tag.TenantID(tenantID)).
 		IDs(ctx)
 	if err != nil {
 		return fmt.Errorf("collect tag IDs for delete: %w", err)
 	}
 	if len(tagIDs) > 0 {
-		if _, err := r.client.TransactionTag.Delete().
+		if _, err := r.clientFor(ctx).TransactionTag.Delete().
 			Where(transactiontag.TagIDIn(tagIDs...)).
 			Exec(ctx); err != nil {
 			return fmt.Errorf("delete transaction_tag junction: %w", err)
 		}
 	}
-	if _, err := r.client.Tag.Delete().
+	if _, err := r.clientFor(ctx).Tag.Delete().
 		Where(tag.TenantID(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("delete tags: %w", err)

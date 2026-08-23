@@ -37,7 +37,7 @@ func (r *BudgetRepository) clientFor(ctx context.Context) *budgetent.Client {
 
 // Save persists a budget and its items.
 func (r *BudgetRepository) Save(ctx context.Context, b *domain.Budget) error {
-	_, err := r.client.Budget.Create().
+	_, err := r.clientFor(ctx).Budget.Create().
 		SetID(b.ID).
 		SetTenantID(b.TenantID).
 		SetName(b.Name).
@@ -54,7 +54,7 @@ func (r *BudgetRepository) Save(ctx context.Context, b *domain.Budget) error {
 	}
 
 	for _, item := range b.Items {
-		_, err := r.client.BudgetItem.Create().
+		_, err := r.clientFor(ctx).BudgetItem.Create().
 			SetID(item.ID).
 			SetBudgetID(item.BudgetID).
 			SetAccountID(item.AccountID).
@@ -294,20 +294,20 @@ func (r *BudgetRepository) FindAllForBackup(ctx context.Context, tenantID uuid.U
 // Items have no tenant_id (scoped via budget_id FK), so collect budget IDs first,
 // delete items, then delete budgets. Used by backup Import's purge step.
 func (r *BudgetRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
-	budgetIDs, err := r.client.Budget.Query().
+	budgetIDs, err := r.clientFor(ctx).Budget.Query().
 		Where(budget.TenantID(tenantID)).
 		IDs(ctx)
 	if err != nil {
 		return fmt.Errorf("backup collect budget ids: %w", err)
 	}
 	if len(budgetIDs) > 0 {
-		if _, err := r.client.BudgetItem.Delete().
+		if _, err := r.clientFor(ctx).BudgetItem.Delete().
 			Where(budgetitem.BudgetIDIn(budgetIDs...)).
 			Exec(ctx); err != nil {
 			return fmt.Errorf("backup purge budget items: %w", err)
 		}
 	}
-	if _, err := r.client.Budget.Delete().
+	if _, err := r.clientFor(ctx).Budget.Delete().
 		Where(budget.TenantID(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("backup purge budgets: %w", err)

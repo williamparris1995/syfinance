@@ -1,7 +1,7 @@
 ---
 feature: 2026-08-01-d6-restore-atomic
-current_stage: analysis
-status: analysis-done
+current_stage: design
+status: design-done
 ---
 
 # State — D6 restore purge+import 跨模块 tx 原子

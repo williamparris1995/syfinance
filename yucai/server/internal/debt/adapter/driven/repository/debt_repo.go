@@ -282,20 +282,20 @@ func (r *DebtRepository) loadSchedulesByDebt(ctx context.Context, debtIDs []uuid
 // tenant_id column of their own (scope by the tenant's debt IDs). Used by the
 // backup exporter's Purge step.
 func (r *DebtRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
-	debtIDs, err := r.client.DebtDetails.Query().
+	debtIDs, err := r.clientFor(ctx).DebtDetails.Query().
 		Where(debtdetails.TenantID(tenantID)).
 		IDs(ctx)
 	if err != nil {
 		return fmt.Errorf("list debt ids for purge: %w", err)
 	}
 	if len(debtIDs) > 0 {
-		if _, err := r.client.PaymentSchedule.Delete().
+		if _, err := r.clientFor(ctx).PaymentSchedule.Delete().
 			Where(paymentschedule.DebtIDIn(debtIDs...)).
 			Exec(ctx); err != nil {
 			return fmt.Errorf("purge payment schedules: %w", err)
 		}
 	}
-	if _, err := r.client.DebtDetails.Delete().
+	if _, err := r.clientFor(ctx).DebtDetails.Delete().
 		Where(debtdetails.TenantID(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("purge debts: %w", err)

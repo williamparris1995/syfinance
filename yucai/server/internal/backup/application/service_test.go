@@ -14,8 +14,13 @@ import (
 	"testing"
 
 	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
+	"github.com/yucai/server/internal/account/adapter/driven/repository"
+	accountent "github.com/yucai/server/internal/account/ent/account"
+	"github.com/yucai/server/internal/account/ent"
+	"github.com/yucai/server/internal/backup/adapter/driven/exporter"
 	"github.com/yucai/server/internal/backup/domain"
 	"github.com/yucai/server/internal/sqltx"
 )
@@ -30,7 +35,7 @@ import (
 var testDB *sql.DB
 
 func TestMain(m *testing.M) {
-	db, err := sql.Open("sqlite", "file:backup_app_test?mode=memory")
+	db, err := sql.Open("sqlite", "file:backup_app_test?mode=memory&_pragma=foreign_keys(1)")
 	if err != nil {
 		panic(fmt.Sprintf("open test db: %v", err))
 	}
@@ -1036,5 +1041,104 @@ func TestUploadExternalImportFailureKeepsSafetyBackup(t *testing.T) {
 	}
 	if len(res.Items) != 1 {
 		t.Fatalf("safety backup must remain on failure: %d", len(res.Items))
+	}
+}
+
+// --- D6 restore atomicity (R5 feature B) ---
+//
+// The rollback oracle needs REAL tx participants: fakePort mutates memory
+// (not the DB), so a rollback would never restore it. These tests wire a
+// real ent/sqlite account repo as the account port plus a failing
+// transaction port — the purge deletes rows, the import fails, and the
+// assertion reads the DB to prove the delete was rolled back.
+
+// newRealAccountPort builds the account ent client on the SERVICE's testDB
+// so the tx driver propagated via sqltx.DriverFrom routes this port's
+// queries into the same transaction the service opens — a real tx
+// participant (a separate DB would make the port error on the tx driver's
+// missing tables, vacuously "passing" rollback assertions).
+func newRealAccountPort(t *testing.T) (domain.TenantDataPort, *ent.Client) {
+	t.Helper()
+	drv := entsql.OpenDB(dialect.SQLite, testDB)
+	client := ent.NewClient(ent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	repo := repository.NewAccountRepository(client)
+	return exporter.NewAccountExporter(repo), client
+}
+
+// TestRestoreRollsBackPurgeOnImportFailure: an import error mid-chain must
+// roll the WHOLE restore back — the account module's live rows survive.
+func TestRestoreRollsBackPurgeOnImportFailure(t *testing.T) {
+	tenantID := uuid.New()
+	accountPort, client := newRealAccountPort(t)
+	txnPort := &failingImportPort{fakePort: newFakePort("transaction", nil)}
+	svc, _, _ := newTestService([]domain.TenantDataPort{accountPort, txnPort})
+
+	// Seed one live account row (cleaned up after the test — shared testDB).
+	t.Cleanup(func() { client.Account.Delete().ExecX(context.Background()) })
+	// Seed one live account row.
+	if _, err := client.Account.Create().
+		SetTenantID(tenantID).
+		SetName("keep-me").
+		SetAccountType(accountent.AccountType("asset")).
+		SetCategory(accountent.Category("savings")).
+		SetCurrencyCode("CNY").
+		SetOwnership(accountent.Ownership("personal")).
+		SetStatus(accountent.Status("active")).
+		SetVersion(1).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
+	if err != nil {
+		t.Fatalf("CreateBackup: %v", err)
+	}
+	if err := svc.RestoreBackup(context.Background(), tenantID, dto.ID, ""); err == nil {
+		t.Fatal("import failure must surface")
+	}
+	// Oracle: the row must STILL exist (purge rolled back).
+	n, _ := client.Account.Query().Count(context.Background())
+	if n != 1 {
+		t.Fatalf("purge became fait accompli: rows = %d, want 1", n)
+	}
+}
+
+// TestUploadExternalRollsBackOnImportFailure: the R6 upload path rides the
+// same purgeAndImport transaction — pre-existing rows survive a mid-chain
+// failure.
+func TestUploadExternalRollsBackOnImportFailure(t *testing.T) {
+	tenantID := uuid.New()
+	accountPort, client := newRealAccountPort(t)
+	txnPort := &failingImportPort{fakePort: newFakePort("transaction", nil)}
+	svc, _, _ := newTestService([]domain.TenantDataPort{accountPort, txnPort})
+
+	t.Cleanup(func() { client.Account.Delete().ExecX(context.Background()) })
+	if _, err := client.Account.Create().
+		SetTenantID(tenantID).
+		SetName("existing").
+		SetAccountType(accountent.AccountType("asset")).
+		SetCategory(accountent.Category("savings")).
+		SetCurrencyCode("CNY").
+		SetOwnership(accountent.Ownership("personal")).
+		SetStatus(accountent.Status("active")).
+		SetVersion(1).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	envelope := `{"version":1,"modules":{"account":[{"Name":"new"}],"transaction":[{"x":1}]}}`
+	if err := svc.UploadExternal(context.Background(), tenantID, []byte(envelope), ""); err == nil {
+		t.Fatal("import failure must surface")
+	}
+	n, _ := client.Account.Query().Count(context.Background())
+	if n != 1 {
+		t.Fatalf("upload rollback failed: rows = %d, want 1", n)
+	}
+	name, _ := client.Account.Query().First(context.Background())
+	if name.Name != "existing" {
+		t.Fatalf("row was replaced, not rolled back: %s", name.Name)
 	}
 }

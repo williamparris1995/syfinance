@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-01-d6-restore-atomic
-status: drafted
+status: confirmed
 ---
 
 # Design — D6 restore purge+import 跨模块 tx 原子
