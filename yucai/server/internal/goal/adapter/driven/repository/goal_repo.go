@@ -504,3 +504,35 @@ func truncateToDay(t time.Time) time.Time {
 
 // Compile-time check.
 var _ domain.GoalRepository = (*GoalRepository)(nil)
+
+// AccountReferenceSourceName implements the account module's
+// AccountReferenceSource port (structural — this package does not import
+// account).
+func (r *GoalRepository) AccountReferenceSourceName() string {
+	return "goal"
+}
+
+// CountAccountReferences counts goals that link accountID — either as the
+// single linked account (DebtPayoff legacy shape) or via a multi-account
+// link row (Investment / Savings goals). Goals have no soft delete.
+func (r *GoalRepository) CountAccountReferences(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error) {
+	n, err := r.clientFor(ctx).Goal.Query().
+		Where(
+			goal.TenantID(tenantID),
+			goal.LinkedAccountID(accountID),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count goals referencing account %s: %w", accountID, err)
+	}
+	links, err := r.clientFor(ctx).GoalAccountLinks.Query().
+		Where(
+			goalaccountlinks.TenantID(tenantID),
+			goalaccountlinks.AccountID(accountID),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count goal account links referencing account %s: %w", accountID, err)
+	}
+	return int64(n + links), nil
+}

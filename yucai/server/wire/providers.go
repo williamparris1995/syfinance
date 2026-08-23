@@ -11,6 +11,7 @@ import (
 	accountrepo "github.com/yucai/server/internal/account/adapter/driven/repository"
 	accountgrpc "github.com/yucai/server/internal/account/adapter/driving/grpc"
 	accountapp "github.com/yucai/server/internal/account/application"
+	accountdomain "github.com/yucai/server/internal/account/domain"
 	accountent "github.com/yucai/server/internal/account/ent"
 	authrepo "github.com/yucai/server/internal/auth/adapter/driven/repository"
 	"github.com/yucai/server/internal/auth/adapter/driven/session"
@@ -278,6 +279,29 @@ func provideChartRepo(client *accountent.Client) *accountrepo.ChartRepository {
 }
 func provideAccountService(ar *accountrepo.AccountRepository, cr *accountrepo.ChartRepository) *accountapp.Service {
 	return accountapp.NewService(ar, cr)
+}
+
+// wireAccountReferenceSources injects the cross-module reference counters
+// backing DeleteAccount / DeleteCategory's rejection guard (ticket 05
+// decision 5: cross-module orphans are prevented by refusing to delete
+// referenced accounts). Called from wire_gen AFTER the six consumer repos
+// exist (they are declared later than accountService, which auth's
+// preset-seeder chain needs early) — each repo implements
+// account/domain.AccountReferenceSource structurally, so only this
+// composition site sees both sides. Order is fixed so the rejection error
+// names the first referencing module deterministically.
+func wireAccountReferenceSources(
+	svc *accountapp.Service,
+	txnRefs *txnrepo.TransactionRepository,
+	budgetRefs *budgetrepo.BudgetRepository,
+	debtRefs *debtrepo.DebtRepository,
+	holdingRefs *holdingsec.HoldingRepository,
+	goalRefs *goalrepo.GoalRepository,
+	templateRefs *tmplrepo.TemplateRepository,
+) {
+	svc.SetAccountReferenceSources([]accountdomain.AccountReferenceSource{
+		txnRefs, budgetRefs, debtRefs, holdingRefs, goalRefs, templateRefs,
+	})
 }
 func provideAccountHandler(svc *accountapp.Service) *accountgrpc.AccountHandler {
 	return accountgrpc.NewAccountHandler(svc)

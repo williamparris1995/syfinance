@@ -39,12 +39,24 @@ func setupAccountTestDB(t *testing.T) *accountent.Client {
 	return client
 }
 
+// zeroRefCountSource stands in for the six cross-module reference sources
+// wired in production (wireAccountReferenceSources): this DB migrates only
+// the account schema, so nothing can reference the account.
+type zeroRefCountSource struct{}
+
+func (zeroRefCountSource) AccountReferenceSourceName() string { return "test" }
+func (zeroRefCountSource) CountAccountReferences(context.Context, uuid.UUID, uuid.UUID) (int64, error) {
+	return 0, nil
+}
+
 func setupAccountTestService(t *testing.T) *application.Service {
 	t.Helper()
 	client := setupAccountTestDB(t)
 	accountRepo := repository.NewAccountRepository(client)
 	chartRepo := repository.NewChartRepository(client)
-	return application.NewService(accountRepo, chartRepo)
+	svc := application.NewService(accountRepo, chartRepo)
+	svc.SetAccountReferenceSources([]domain.AccountReferenceSource{zeroRefCountSource{}})
+	return svc
 }
 
 func TestAccountCRUD(t *testing.T) {

@@ -381,3 +381,28 @@ func toDomainEntry(e *debtent.PaymentSchedule) domain.PaymentScheduleEntry {
 
 // Compile-time check.
 var _ domain.DebtRepository = (*DebtRepository)(nil)
+
+// AccountReferenceSourceName implements the account module's
+// AccountReferenceSource port (structural — this package does not import
+// account).
+func (r *DebtRepository) AccountReferenceSourceName() string {
+	return "debt"
+}
+
+// CountAccountReferences counts debts whose asset account or collection
+// account is accountID. Debts have no soft delete, so every row counts.
+func (r *DebtRepository) CountAccountReferences(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error) {
+	n, err := r.clientFor(ctx).DebtDetails.Query().
+		Where(
+			debtdetails.TenantID(tenantID),
+			debtdetails.Or(
+				debtdetails.AccountID(accountID),
+				debtdetails.CollectionAccountID(accountID),
+			),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count debts referencing account %s: %w", accountID, err)
+	}
+	return int64(n), nil
+}

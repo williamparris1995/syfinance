@@ -1008,3 +1008,31 @@ func toDomainTransaction(t *txnent.Transaction, entries []*txnent.TransactionEnt
 
 // Compile-time check.
 var _ domain.TransactionRepository = (*TransactionRepository)(nil)
+
+// AccountReferenceSourceName implements the account module's
+// AccountReferenceSource port (structural — this package does not import
+// account).
+func (r *TransactionRepository) AccountReferenceSourceName() string {
+	return "transaction"
+}
+
+// CountAccountReferences counts non-soft-deleted transactions that have an
+// entry on accountID. Soft-deleted transactions do not block account
+// deletion (they are invisible to users and their entries cannot be
+// un-deleted into a ghost account without the restore path, which rebuilds
+// from a full snapshot).
+func (r *TransactionRepository) CountAccountReferences(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error) {
+	n, err := r.clientFor(ctx).Transaction.Query().
+		Where(
+			transaction.TenantID(tenantID),
+			transaction.DeletedAtIsNil(),
+			transaction.HasEntriesWith(
+				txnentryent.AccountID(accountID),
+			),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count transactions referencing account %s: %w", accountID, err)
+	}
+	return int64(n), nil
+}

@@ -185,3 +185,36 @@ func (r *HoldingRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UU
 }
 
 var _ domain.HoldingRepository = (*HoldingRepository)(nil)
+
+// AccountReferenceSourceName implements the account module's
+// AccountReferenceSource port (structural — this package does not import
+// account).
+func (r *HoldingRepository) AccountReferenceSourceName() string {
+	return "holding"
+}
+
+// CountAccountReferences counts holdings held in accountID plus individual
+// trade rows booked against it. Holdings are never soft-deleted (trade
+// history must stay complete and reversible — R5-E ticket 05 decision 5),
+// so every row counts.
+func (r *HoldingRepository) CountAccountReferences(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error) {
+	holdings, err := r.clientFor(ctx).Holding.Query().
+		Where(
+			holding.TenantID(tenantID),
+			holding.AccountID(accountID),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count holdings referencing account %s: %w", accountID, err)
+	}
+	trades, err := r.clientFor(ctx).HoldingTransaction.Query().
+		Where(
+			holdingtransaction.TenantID(tenantID),
+			holdingtransaction.AccountID(accountID),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count holding trades referencing account %s: %w", accountID, err)
+	}
+	return int64(holdings + trades), nil
+}

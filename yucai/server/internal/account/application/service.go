@@ -15,11 +15,43 @@ import (
 type Service struct {
 	accountRepo domain.AccountRepository
 	chartRepo   domain.ChartRepository
+	refSources  []domain.AccountReferenceSource
 }
 
 // NewService creates a new account application service.
 func NewService(accountRepo domain.AccountRepository, chartRepo domain.ChartRepository) *Service {
 	return &Service{accountRepo: accountRepo, chartRepo: chartRepo}
+}
+
+// SetAccountReferenceSources injects the cross-module reference counters used
+// by DeleteAccount / DeleteCategory (R5-E ticket 05 decision 5: cross-module
+// orphans are prevented by rejecting deletion of referenced accounts, since
+// cross-module FKs are deliberately not modeled). The slice is built at the
+// composition root from the consumer-module repositories, which implement the
+// port structurally.
+func (s *Service) SetAccountReferenceSources(sources []domain.AccountReferenceSource) {
+	s.refSources = sources
+}
+
+// rejectIfReferenced fails-closed on every configured source: any count > 0
+// blocks deletion with a caller-presentable reason; a counting error or a
+// missing wiring (empty sources) also refuses, never silently reverting to
+// the orphan-leaving behavior this guard exists to prevent.
+func (s *Service) rejectIfReferenced(ctx context.Context, tenantID, accountID uuid.UUID) error {
+	if len(s.refSources) == 0 {
+		return fmt.Errorf("account reference sources not configured")
+	}
+	for _, src := range s.refSources {
+		n, err := src.CountAccountReferences(ctx, tenantID, accountID)
+		if err != nil {
+			return fmt.Errorf("check %s references: %w", src.AccountReferenceSourceName(), err)
+		}
+		if n > 0 {
+			return fmt.Errorf("cannot delete account: referenced by %d %s record(s)",
+				n, src.AccountReferenceSourceName())
+		}
+	}
+	return nil
 }
 
 // CreateAccount creates a new account and returns its DTO.
@@ -130,7 +162,9 @@ func (s *Service) UpdateAccount(ctx context.Context, req UpdateAccountRequest) (
 	return &dto, nil
 }
 
-// DeleteAccount soft-deletes an account (only if balance is zero).
+// DeleteAccount soft-deletes an account (only if balance is zero and nothing
+// references it — transactions, budgets, debts, holdings, goals, templates;
+// R5-E ticket 05 decision 5).
 func (s *Service) DeleteAccount(ctx context.Context, tenantID, accountID uuid.UUID) error {
 	account, err := s.accountRepo.FindByID(ctx, tenantID, accountID)
 	if err != nil {
@@ -138,6 +172,9 @@ func (s *Service) DeleteAccount(ctx context.Context, tenantID, accountID uuid.UU
 	}
 	if account.CurrentBalanceCents != 0 {
 		return fmt.Errorf("cannot delete account with non-zero balance")
+	}
+	if err := s.rejectIfReferenced(ctx, tenantID, accountID); err != nil {
+		return err
 	}
 	return s.accountRepo.SoftDelete(ctx, tenantID, accountID)
 }
@@ -209,6 +246,11 @@ func (s *Service) DeleteCategory(ctx context.Context, tenantID, categoryID uuid.
 	}
 	if account.AccountType != domain.AccountTypeExpense && account.AccountType != domain.AccountTypeIncome {
 		return fmt.Errorf("not a category account: type %s", account.AccountType)
+	}
+	// Categories are referenced by transactions like any other account
+	// (entries.account_id) — same rejection guard.
+	if err := s.rejectIfReferenced(ctx, tenantID, categoryID); err != nil {
+		return err
 	}
 	return s.accountRepo.SoftDelete(ctx, tenantID, categoryID)
 }

@@ -211,6 +211,15 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	goalService := provideGoalService(goalRepo, holdingService, accountService, debtService)
 	goalHandler := provideGoalHandler(goalService)
 
+	// DeleteAccount reference guard (R5-E ticket 05 decision 5): now that all
+	// six consumer repos are in scope (txnRepo/budgetRepo/debtRepo above,
+	// templateRepo in the Template module, holdingRepo here, goalRepo in the
+	// Goal module), inject them into accountService as AccountReferenceSource
+	// implementations. accountService itself was constructed early (auth's
+	// preset-seeder chain), so the setter runs here — the guard fail-closes
+	// (deletion refused) until this wiring executes.
+	wireAccountReferenceSources(accountService, txnRepo, budgetRepo, debtRepo, holdingRepo, goalRepo, templateRepo)
+
 	// Networth module: aggregates account balances + holding market value −
 	// debt remaining, 折算 to a base currency via CNY-base rate_history cross
 	// rates. The three application Services satisfy the source ports

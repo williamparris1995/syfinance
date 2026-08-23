@@ -259,6 +259,7 @@ func TestDeleteCategory_RejectsSystemCategory(t *testing.T) {
 func TestDeleteCategory_DeletesUserCategory(t *testing.T) {
 	repo := newMockAccountRepo()
 	svc := NewService(repo, newMockChartRepo())
+	svc.SetAccountReferenceSources([]domain.AccountReferenceSource{stubRefSource{name: "transaction", count: 0}})
 	tenantID := uuid.New()
 
 	dto, err := svc.CreateCategory(context.Background(), CreateCategoryRequest{

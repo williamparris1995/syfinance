@@ -264,3 +264,28 @@ func (r *TemplateRepository) DeleteByTenant(ctx context.Context, tenantID uuid.U
 
 var _ domain.TemplateRepository = (*TemplateRepository)(nil)
 var _ = time.Time{}
+
+// AccountReferenceSourceName implements the account module's
+// AccountReferenceSource port (structural — this package does not import
+// account).
+func (r *TemplateRepository) AccountReferenceSourceName() string {
+	return "template"
+}
+
+// CountAccountReferences counts transaction templates whose source or
+// destination account is accountID. Templates have no soft delete.
+func (r *TemplateRepository) CountAccountReferences(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error) {
+	n, err := r.clientFor(ctx).TransactionTemplate.Query().
+		Where(
+			transactiontemplate.TenantID(tenantID),
+			transactiontemplate.Or(
+				transactiontemplate.SourceAccountID(accountID),
+				transactiontemplate.DestinationAccountID(accountID),
+			),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count templates referencing account %s: %w", accountID, err)
+	}
+	return int64(n), nil
+}

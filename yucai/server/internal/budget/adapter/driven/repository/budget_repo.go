@@ -345,3 +345,29 @@ func toDomainBudget(b *budgetent.Budget, items []*budgetent.BudgetItem) *domain.
 
 // Compile-time check.
 var _ domain.BudgetRepository = (*BudgetRepository)(nil)
+
+// AccountReferenceSourceName implements the account module's
+// AccountReferenceSource port (structural — this package does not import
+// account).
+func (r *BudgetRepository) AccountReferenceSourceName() string {
+	return "budget"
+}
+
+// CountAccountReferences counts non-soft-deleted budgets that budget for
+// accountID (a budget_item row). Soft-deleted budgets do not block account
+// deletion.
+func (r *BudgetRepository) CountAccountReferences(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error) {
+	n, err := r.clientFor(ctx).Budget.Query().
+		Where(
+			budget.TenantID(tenantID),
+			budget.DeletedAtIsNil(),
+			budget.HasItemsWith(
+				budgetitem.AccountID(accountID),
+			),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count budgets referencing account %s: %w", accountID, err)
+	}
+	return int64(n), nil
+}
