@@ -4,6 +4,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -56,7 +57,10 @@ func (Transaction) Fields() []ent.Field {
 }
 
 func (Transaction) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.To("entries", TransactionEntry.Type).
+			Annotations(entsql.OnDelete(entsql.Cascade)),
+	}
 }
 
 func (Transaction) Indexes() []ent.Index {

@@ -4,6 +4,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -39,7 +40,10 @@ func (BudgetItem) Fields() []ent.Field {
 }
 
 func (BudgetItem) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.From("budget", Budget.Type).Ref("items").
+			Field("budget_id").Unique().Required(),
+	}
 }
 
 func (BudgetItem) Indexes() []ent.Index {

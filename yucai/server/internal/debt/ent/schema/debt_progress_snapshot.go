@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -55,7 +56,10 @@ func (DebtProgressSnapshot) Fields() []ent.Field {
 }
 
 func (DebtProgressSnapshot) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.From("debt", DebtDetails.Type).Ref("progress_snapshots").
+			Field("debt_id").Unique().Required(),
+	}
 }
 
 func (DebtProgressSnapshot) Indexes() []ent.Index {

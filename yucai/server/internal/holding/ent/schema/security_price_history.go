@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -47,7 +48,10 @@ func (SecurityPriceHistory) Fields() []ent.Field {
 }
 
 func (SecurityPriceHistory) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.From("security", Security.Type).Ref("price_history").
+			Field("security_id").Unique().Required(),
+	}
 }
 
 func (SecurityPriceHistory) Indexes() []ent.Index {

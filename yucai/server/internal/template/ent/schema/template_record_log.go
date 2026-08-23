@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -63,7 +64,12 @@ func (TemplateRecordLog) Fields() []ent.Field {
 	}
 }
 
-func (TemplateRecordLog) Edges() []ent.Edge { return nil }
+func (TemplateRecordLog) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.From("template", TransactionTemplate.Type).Ref("record_logs").
+			Field("template_id").Unique().Required(),
+	}
+}
 
 func (TemplateRecordLog) Indexes() []ent.Index {
 	return []ent.Index{

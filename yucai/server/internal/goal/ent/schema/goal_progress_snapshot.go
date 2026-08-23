@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -49,7 +50,10 @@ func (GoalProgressSnapshot) Fields() []ent.Field {
 }
 
 func (GoalProgressSnapshot) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.From("goal", Goal.Type).Ref("progress_snapshots").
+			Field("goal_id").Unique().Required(),
+	}
 }
 
 func (GoalProgressSnapshot) Indexes() []ent.Index {

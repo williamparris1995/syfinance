@@ -4,6 +4,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -46,7 +47,10 @@ func (Security) Fields() []ent.Field {
 }
 
 func (Security) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.To("price_history", SecurityPriceHistory.Type).
+			Annotations(entsql.OnDelete(entsql.Cascade)),
+	}
 }
 
 func (Security) Indexes() []ent.Index {
