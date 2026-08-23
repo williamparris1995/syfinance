@@ -46,11 +46,11 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
     // account empty — block the upload rather than risk a silent overwrite
     // of a non-empty account (review G-J2).
     for (final result in [accounts, transactions, holdings]) {
-      if (result.isLeft()) {
-        result.fold((f) => null, (_) => null);
+      final failure = result.fold((f) => f, (_) => null);
+      if (failure != null) {
         emit(state.copyWith(
             status: BindingStatus.failed,
-            failureMessage: '无法确认账号状态（${accounts.fold((f) => f.displayMessage, (_) => "")}），已阻止上传'));
+            failureMessage: '无法确认账号状态（${failure.displayMessage}），已阻止上传'));
         return;
       }
     }

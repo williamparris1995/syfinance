@@ -19,3 +19,10 @@
 - **J3**:上传后验证真比对(计数不等→failed);**J4**:向导触发 one-shot 闸(static flag,仅 Guest→Authenticated 转变触发)。
 - 测试同步:exporter 测试 6 处 key 期望更新。
 - 修复后:go exit 0 + flutter +1078 -4(=基线);analyze 385。
+
+## 复审修复(二轮 reject:H1 残留 3 处 + H2 buf 未 untrack)
+
+- **H1 残留**:debt/budget/goal 三处 TenantID 空串漏删(修复脚本 replace 匹配带尾换行变体不全)→ 全清(grep 零残留)。**复审者实证**:server uuid v1.6.0 对空串报 invalid UUID length: 0;缺键→零值无错。教训:修复轮必须 grep 验证清零,不能信脚本返回值。
+- **H2 补齐**:yucai/buf.gen.*.yaml git rm --cached + 删盘(它们是 main 的 yucai/proto/ 下 untracked 文件,feature 提交误挪误 track);gen-dart.sh 已回位。
+- 小清:bloc 死代码 fold/失败文案取真实面错误;测试 unused import ×2。
+- 二轮修复后:exporter+binding +26 全绿;analyze 383;backup go 7 包 ok。

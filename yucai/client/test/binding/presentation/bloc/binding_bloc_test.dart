@@ -14,7 +14,6 @@ import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db hide Holding;
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
-import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 

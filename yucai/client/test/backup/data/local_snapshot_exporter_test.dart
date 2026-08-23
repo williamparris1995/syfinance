@@ -13,7 +13,6 @@ import 'package:yucai_client/holding/data/holding_local_ds.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
-import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
 void main() {

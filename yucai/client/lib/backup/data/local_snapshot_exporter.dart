@@ -134,8 +134,7 @@ class LocalSnapshotExporter {
       final schedule = await _database.debtDao.getScheduleByDebt(d.id);
       out.add({
         'ID': d.id,
-        'TenantID': '',
-        'AccountID': d.accountId,
+                'AccountID': d.accountId,
         'Counterparty': d.counterparty,
         'InterestRate': d.interestRate,
         'AmortizationMethod': d.amortizationMethod,
@@ -175,8 +174,7 @@ class LocalSnapshotExporter {
       final items = await _database.budgetDao.getItemsByBudget(b.id);
       out.add({
         'ID': b.id,
-        'TenantID': '',
-        'Name': b.name,
+                'Name': b.name,
         'Month': b.month,
         'TotalAmountCents': b.totalAmountCents,
         'CurrencyCode': b.currencyCode,
@@ -207,8 +205,7 @@ class LocalSnapshotExporter {
       final (accounts, debts) = await _database.goalDao.linksFor(g.id);
       out.add({
         'ID': g.id,
-        'TenantID': '',
-        'Name': g.name,
+                'Name': g.name,
         'GoalType': g.goalType,
         'TargetAmountCents': g.targetAmountCents,
         'CurrentAmountCents': g.currentAmountCents,
