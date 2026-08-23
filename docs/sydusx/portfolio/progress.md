@@ -13,12 +13,12 @@
 
 ## Current position
 
-**Status:** yucai-server `release-r5-audit` sprint-1 — feature A(D5)✅ + **feature B(D6 restore atomic)done**(merged `0cfedbe7`,2026-08-23——purge+import 单跨模块 tx,restore 与 R6 G 的 upload 两入口同享原子性;11 处裸 client 补 clientFor)。
+**Status:** yucai-server `release-r5-audit` sprint-1 — A(D5)✅ + B(D6)✅ + **C(D12 写冻结)done**(merged `d650d955`,2026-08-23——per-tenant mutex+写 RPC 冻结 interceptor+四 scheduler 跳过;两轮 review 拦下接线断链)。
 
 - Current product: **yucai-server**
 - Current release: [release-r5-audit](../products/yucai-server/release-r5-audit/release.md)(R5 审计整改,scope 03-09,全 server-side)
 - Current sprint: [sprint-1](../products/yucai-server/release-r5-audit/sprint-1/sprint.md)(04 备份恢复可靠性)
-- **Next**:feature C(d12-restore-freeze,D12 写冻结三件套)或 feature D(d13-encryption-layering,依赖 B✓)——C/D 无相互依赖,可任选。
+- **Next**:feature D(d13-encryption-layering,D13 加密分层+D19a scrypt 版本化 KDF——依赖 B✓;**sprint-1 最后一个**)。
 - **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——ticket 16 线)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
