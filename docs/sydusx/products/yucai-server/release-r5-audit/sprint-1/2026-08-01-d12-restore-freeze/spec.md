@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-01-d12-restore-freeze
-status: drafted
+status: confirmed
 ---
 
 # Spec — D12 restore 期间写冻结(三件套)
