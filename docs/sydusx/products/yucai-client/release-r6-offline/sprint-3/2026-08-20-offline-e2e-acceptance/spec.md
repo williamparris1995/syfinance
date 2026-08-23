@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-20-offline-e2e-acceptance
-status: drafted
+status: confirmed
 ---
 
 # Spec — R6 三条成功判据 e2e 验收(release gate)
