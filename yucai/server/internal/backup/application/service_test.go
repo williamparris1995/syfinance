@@ -212,7 +212,7 @@ func newTestServiceWithSettings(ports []domain.TenantDataPort) (*Service, *fakeR
 	settingsRepo := newFakeSettingsRepo()
 	prov := newFakeProvider()
 	cloud := map[domain.BackupProvider]CloudProvider{domain.BackupProviderLocal: prov}
-	svc := NewService(repo, settingsRepo, cloud, ports, testDB, "sqlite3")
+	svc := NewService(repo, settingsRepo, cloud, ports, testDB, "sqlite3", NewRestoreFreeze())
 	return svc, repo, prov, settingsRepo
 }
 

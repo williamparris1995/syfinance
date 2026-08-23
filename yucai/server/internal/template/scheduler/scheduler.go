@@ -37,15 +37,16 @@ type Scheduler struct {
 	recorder AutoRecorder
 	tick     time.Duration
 	log      *slog.Logger
+	freeze   FreezeChecker // nil = no restore-freeze check (tests)
 }
 
 // NewScheduler builds a Scheduler. tick is the polling cadence (prod 24h;
 // tests use ~10ms). A nil log falls back to slog.Default().
-func NewScheduler(recorder AutoRecorder, tick time.Duration, log *slog.Logger) *Scheduler {
+func NewScheduler(recorder AutoRecorder, tick time.Duration, log *slog.Logger, freeze FreezeChecker) *Scheduler {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Scheduler{recorder: recorder, tick: tick, log: log}
+	return &Scheduler{recorder: recorder, tick: tick, log: log, freeze: freeze}
 }
 
 // Start runs the scheduler loop until ctx is cancelled. It performs an
@@ -97,6 +98,9 @@ func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 	}
 	recorded := 0
 	for _, t := range templates {
+		if s.freeze != nil && s.freeze.IsFrozen(t.TenantID) {
+			continue // restore in progress — skip this template this tick (D12)
+		}
 		if err := ctx.Err(); err != nil {
 			return recorded, err
 		}
@@ -111,4 +115,11 @@ func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 	s.log.Info("template auto-record completed",
 		"recorded", recorded, "due", len(templates), "operation", "TemplateScheduler")
 	return recorded, nil
+}
+
+
+// FreezeChecker is the restore-freeze probe (satisfied structurally by
+// *backup/application.RestoreFreeze; declared locally — D12).
+type FreezeChecker interface {
+	IsFrozen(tenantID uuid.UUID) bool
 }

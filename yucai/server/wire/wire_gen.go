@@ -240,7 +240,8 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	templateExporter := provideTemplateExporter(templateRepo)
 	tagExporter := provideTagExporter(tagRepo)
 	backupExporters := provideBackupExporters(accountExporter, txnExporter, debtExporter, budgetExporter, goalExporter, holdingExporter, templateExporter, tagExporter)
-	backupService := provideBackupService(backupRepo, backupSettingsRepo, localCloudProvider, backupExporters, db)
+	restoreFreeze := provideRestoreFreeze()
+	backupService := provideBackupService(backupRepo, backupSettingsRepo, localCloudProvider, backupExporters, db, restoreFreeze)
 	backupHandler := provideBackupHandler(backupService)
 
 	// Sync module
@@ -266,20 +267,20 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	snapshotScheduler := provideSnapshotScheduler(holdingService, intervalSource)
 	// goalScheduler fans out SyncAllGoals across tenants. Reuses the
 	// tenantIntervalSource adapter (MinIntervalHours) + tenantRepo (TenantLister).
-	goalScheduler := provideGoalScheduler(goalService, tenantRepo)
+	goalScheduler := provideGoalScheduler(goalService, tenantRepo, restoreFreeze)
 	// debtScheduler fans out SyncAllDebts across tenants (Σ remaining/paid per
 	// debt → debt_progress_snapshot). Reuses tenantIntervalSource + tenantRepo,
 	// mirroring goalScheduler.
-	debtScheduler := provideDebtScheduler(debtService, tenantRepo)
+	debtScheduler := provideDebtScheduler(debtService, tenantRepo, restoreFreeze)
 	// templateScheduler fans out RecordTransaction across every due auto-record
 	// template (cross-tenant via repo.FindDue). templateService was declared in
 	// the Template module above and structurally implements scheduler.AutoRecorder.
-	templateScheduler := provideTemplateScheduler(templateService)
+	templateScheduler := provideTemplateScheduler(templateService, restoreFreeze)
 	// backupScheduler fans out auto-backup creation across tenants (per-tenant
 	// AutoBackupSettings gate). backupService was declared in the Backup module
 	// above and structurally implements both BackupCreator (CreateBackup) and
 	// AutoBackupSource (AutoBackupSettings); tenantRepo is TenantLister.
-	backupScheduler := provideBackupScheduler(backupService, tenantRepo)
+	backupScheduler := provideBackupScheduler(backupService, tenantRepo, restoreFreeze)
 
 	// Auth service (depends on currencyRepo via the CurrencyCodeChecker port,
 	// so it must be wired after the Currency module). oidcExchangeHandler,

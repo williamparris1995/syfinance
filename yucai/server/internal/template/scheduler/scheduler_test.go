@@ -59,7 +59,7 @@ func TestSyncNowRecordsAllDueTemplates(t *testing.T) {
 		{ID: b, TenantID: uuid.New(), AutoRecord: true},
 		{ID: c, TenantID: uuid.New(), AutoRecord: true},
 	}}
-	s := NewScheduler(recorder, time.Hour, nil)
+	s := NewScheduler(recorder, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -86,7 +86,7 @@ func TestSyncNowContinuesPastTemplateError(t *testing.T) {
 		},
 		errOn: map[uuid.UUID]error{bad: errors.New("account closed")},
 	}
-	s := NewScheduler(recorder, time.Hour, nil)
+	s := NewScheduler(recorder, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -104,7 +104,7 @@ func TestSyncNowContinuesPastTemplateError(t *testing.T) {
 
 func TestSyncNowEmptyDueIsZeroCount(t *testing.T) {
 	recorder := &fakeAutoRecorder{due: nil}
-	s := NewScheduler(recorder, time.Hour, nil)
+	s := NewScheduler(recorder, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -119,7 +119,7 @@ func TestSyncNowCtxCancelledShortCircuits(t *testing.T) {
 	recorder := &fakeAutoRecorder{due: []tmpldomain.TransactionTemplate{
 		{ID: uuid.New(), TenantID: uuid.New(), AutoRecord: true},
 	}}
-	s := NewScheduler(recorder, time.Hour, nil)
+	s := NewScheduler(recorder, time.Hour, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -144,7 +144,7 @@ func TestStartRunsImmediateThenTicks(t *testing.T) {
 	recorder := &fakeAutoRecorder{due: []tmpldomain.TransactionTemplate{
 		{ID: a, TenantID: uuid.New(), AutoRecord: true},
 	}}
-	s := NewScheduler(recorder, 20*time.Millisecond, nil)
+	s := NewScheduler(recorder, 20*time.Millisecond, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -175,7 +175,7 @@ func TestCtxCancelStopsGoroutine(t *testing.T) {
 	recorder := &fakeAutoRecorder{due: []tmpldomain.TransactionTemplate{
 		{ID: uuid.New(), TenantID: uuid.New(), AutoRecord: true},
 	}}
-	s := NewScheduler(recorder, 5*time.Millisecond, nil)
+	s := NewScheduler(recorder, 5*time.Millisecond, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})

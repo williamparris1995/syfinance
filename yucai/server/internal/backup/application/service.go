@@ -22,6 +22,8 @@ type Service struct {
 	ports          []domain.TenantDataPort
 	db             *sql.DB // shared pool; CreateBackup opens the snapshot tx on it (D5)
 	dialect        string  // ent dialect string ("postgres" prod / "sqlite3" tests) for sqltx placeholder style
+
+	freeze *RestoreFreeze
 }
 
 // CloudProvider is the port interface for cloud backup providers.
@@ -40,8 +42,8 @@ type CloudProvider interface {
 // db + dialect back CreateBackup's snapshot transaction (D5): the Export loop
 // runs inside one REPEATABLE READ + ReadOnly tx opened on db, and dialect is the
 // ent dialect string forwarded to sqltx so builders emit the right placeholders.
-func NewService(repo domain.BackupRepository, settingsRepo domain.BackupSettingsRepository, cloudProviders map[domain.BackupProvider]CloudProvider, ports []domain.TenantDataPort, db *sql.DB, dialect string) *Service {
-	return &Service{repo: repo, settingsRepo: settingsRepo, cloudProviders: cloudProviders, ports: ports, db: db, dialect: dialect}
+func NewService(repo domain.BackupRepository, settingsRepo domain.BackupSettingsRepository, cloudProviders map[domain.BackupProvider]CloudProvider, ports []domain.TenantDataPort, db *sql.DB, dialect string, freeze *RestoreFreeze) *Service {
+	return &Service{repo: repo, settingsRepo: settingsRepo, cloudProviders: cloudProviders, ports: ports, db: db, dialect: dialect, freeze: freeze}
 }
 
 // CreateBackup serializes tenant data → optionally encrypts → Upload →
@@ -132,6 +134,11 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 // Pragmatic substitute for cross-module DB atomicity (each module has its own
 // ent client/driver; shared *sql.Tx would need architecture-wide refactor).
 func (s *Service) RestoreBackup(ctx context.Context, tenantID uuid.UUID, backupID uuid.UUID, password string) error {
+	// D12 freeze for the WHOLE restore (download + tx + import) — user
+	// writes and scheduler ticks for this tenant see "restore in progress".
+	release := s.freeze.Acquire(tenantID)
+	defer release()
+
 	// 1. Safety net: auto-create a pre-restore backup BEFORE touching any data.
 //    (Defense split: the tx below guarantees ATOMICITY against failures;
 //    this safety backup guards HUMAN errors — restoring the wrong file or
@@ -160,6 +167,10 @@ func (s *Service) RestoreBackup(ctx context.Context, tenantID uuid.UUID, backupI
 // authenticated tenant (anti cross-tenant injection); password is reserved
 // for the encrypted-archive future (empty = plaintext envelope).
 func (s *Service) UploadExternal(ctx context.Context, tenantID uuid.UUID, data []byte, password string) error {
+	// D12 freeze (same whole-operation window as RestoreBackup).
+	release := s.freeze.Acquire(tenantID)
+	defer release()
+
 	// 1. Safety net: even though binding targets an empty account, keep the
 	// pre-import backup as defense in depth (same contract as restore).
 	preUpload, err := s.CreateBackup(ctx, tenantID, false, "", true)

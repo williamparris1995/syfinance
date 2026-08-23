@@ -99,7 +99,7 @@ func TestSyncNowAutoBackupElapsedCreatesBackup(t *testing.T) {
 	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
 		tid: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil)
+	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -132,7 +132,7 @@ func TestSyncNowAutoBackupDisabledSkips(t *testing.T) {
 	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
 		tid: {autoBackup: false, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil)
+	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -156,7 +156,7 @@ func TestSyncNowIntervalNotElapsedSkips(t *testing.T) {
 	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
 		tid: {autoBackup: true, intervalHours: 24},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil)
+	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
 
 	// Simulate a backup that just ran: preset last[tid] to now.
 	s.mu.Lock()
@@ -187,7 +187,7 @@ func TestSyncNowFansOutPerTenantIndependently(t *testing.T) {
 		t1: {autoBackup: true, intervalHours: 1},
 		t2: {autoBackup: false, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil)
+	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -221,7 +221,7 @@ func TestSyncNowAutoBackupSourceErrContinues(t *testing.T) {
 		t1: {autoBackup: true, intervalHours: 1, readErr: errors.New("settings repo unavailable")},
 		t2: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil)
+	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -256,7 +256,7 @@ func TestSyncNowCreateBackupErrContinues(t *testing.T) {
 		t1: {autoBackup: true, intervalHours: 1},
 		t2: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil)
+	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -279,7 +279,7 @@ func TestSyncNowCtxCancelledShortCircuits(t *testing.T) {
 	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
 		tid: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil)
+	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -308,7 +308,7 @@ func TestStartRunsOnceImmediately(t *testing.T) {
 		t1: {autoBackup: true, intervalHours: 1},
 		t2: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil)
+	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -330,7 +330,7 @@ func TestCtxCancelStopsGoroutine(t *testing.T) {
 		tid: {autoBackup: true, intervalHours: 0},
 	}}
 	// Short tick so multiple passes fire before cancel.
-	s := NewScheduler(creator, lister, src, 5*time.Millisecond, nil)
+	s := NewScheduler(creator, lister, src, 5*time.Millisecond, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
