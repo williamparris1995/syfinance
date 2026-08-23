@@ -1,6 +1,6 @@
 ---
 feature: 2026-08-01-d13-encryption-layering
-status: drafted
+status: confirmed
 ---
 
 # Spec — D13 加密分层 + D19a scrypt 版本化 KDF header
@@ -23,9 +23,7 @@ status: drafted
 - WHEN RestoreBackup(P, password="")(现状调用形态)
 - THEN SHALL 拒绝并提示需要 safety 密码?或 SHALL 以 password 参数为 safety 密码(空=明文 safety 维持)?
 
-**决策点(待用户裁定,推荐 B)**:
-- A. 明文 restore 时 server 拒绝空 password(强制 client 改造——proto 语义收紧,R6 J 导入对话框已收集密码可复用,但 R5 server-only scope 外溢)。
-- **B(推荐)**:password 非空→safety 加密;password 空→safety 明文维持(现状)——audit 原文针对的 D6 safety 是"加密备份 restore 时的明文 safety"(那时用户已证明在场且有密码);明文备份本身已是用户的明文选择,其 safety 明文与用户已有选择一致。零 client 改动,语义自洽。
+**决策(已裁定 2026-08-23:B)**:password 非空→safety 加密;空→safety 明文维持。audit 原文针对的是"加密备份 restore 时的明文 safety"(用户已证明在场且有密码);明文备份本身是用户的明文选择,其 safety 明文与之一致;零 client 改动。
 
 ### Requirement: FR-2 proto 字段语义(零 breaking)
 - [ ] 现有字段复用,SHALL NOT 新增 proto 字段:`RestoreBackupRequest.password`(restore 解密密码 + 兼作 safety 加密密码,FR-1-B);`CreateBackupRequest.password`(手动加密备份,现状已支持)。
