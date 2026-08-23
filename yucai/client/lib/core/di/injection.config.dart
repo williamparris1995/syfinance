@@ -38,6 +38,7 @@ import '../../auth/domain/usecases/logout_usecase.dart' as _i231;
 import '../../auth/domain/usecases/oidc_login_usecase.dart' as _i990;
 import '../../auth/domain/usecases/refresh_token_usecase.dart' as _i752;
 import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
+import '../../backup/data/archive_importer.dart' as _i750;
 import '../../backup/data/backup_remote_ds.dart' as _i877;
 import '../../backup/data/backup_repository_impl.dart' as _i594;
 import '../../backup/data/local_snapshot_exporter.dart' as _i115;
@@ -160,6 +161,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i781.SessionModeTracker>(),
         gh<_i507.BoundMirror>(),
       ),
+    );
+    gh.lazySingleton<_i750.ArchiveImporter>(
+      () => _i750.ArchiveImporter(gh<_i581.AppDatabase>()),
     );
     gh.lazySingleton<_i115.LocalSnapshotExporter>(
       () => _i115.LocalSnapshotExporter(gh<_i581.AppDatabase>()),

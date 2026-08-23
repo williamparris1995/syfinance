@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +9,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/backup/data/archive_codec.dart';
+import 'package:yucai_client/backup/data/archive_importer.dart';
+import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
+import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide Currency;
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
@@ -108,6 +115,35 @@ class SettingsPage extends StatelessWidget {
                       },
                     ),
                     ),
+                    // Archive export/import (R6 J) — full interaction.
+                    _SettingsCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _showExportArchive(context),
+                            child: const _PreferenceRow(
+                              label: '导出存档',
+                              description: '加密备份到任意位置（U盘/云盘）',
+                              control: Icon(LucideIcons.fileDown),
+                            ),
+                          ),
+                          const Divider(height: 1, color: AppColors.border),
+                          const SizedBox(height: AppSpacing.md),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _showImportArchive(context),
+                            child: const _PreferenceRow(
+                              label: '导入存档',
+                              description: '从存档文件恢复（覆盖本地数据）',
+                              control: Icon(LucideIcons.fileUp),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                     _SettingsCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,6 +298,135 @@ class SettingsPage extends StatelessWidget {
         SnackBar(content: Text('更新失败：$e')),
       );
     }
+  }
+
+  Future<void> _showExportArchive(BuildContext context) async {
+    final password = await _askArchivePassword(context, confirm: true);
+    if (password == null || password.isEmpty) return;
+    try {
+      final envelope = await getIt<LocalSnapshotExporter>().exportAll();
+      final sealed = ArchiveCodec.encrypt(envelope, password);
+      final now = DateTime.now();
+      String two(int n) => n.toString().padLeft(2, '0');
+      final stamp =
+          '${now.year}${two(now.month)}${two(now.day)}-${two(now.hour)}${two(now.minute)}${two(now.second)}';
+      final path = await FilePicker.saveFile(
+        dialogTitle: '导出存档',
+        fileName: 'yucai-backup-$stamp.ycb',
+        bytes: sealed,
+      );
+      if (path == null) return; // cancelled
+      if (!kIsWeb && !File(path).existsSync()) {
+        await File(path).writeAsBytes(sealed);
+      }
+      _toast(context, '存档已导出');
+    } on Exception catch (e) {
+      _toast(context, '导出失败：$e');
+    }
+  }
+
+  Future<void> _showImportArchive(BuildContext context) async {
+    final picked = await FilePicker.pickFiles(
+      dialogTitle: '选择存档文件',
+      type: FileType.custom,
+      allowedExtensions: const ['ycb'],
+      withData: true,
+    );
+    if (picked == null ||
+        picked.files.isEmpty ||
+        picked.files.single.bytes == null) {
+      return;
+    }
+    final password = await _askArchivePassword(context, confirm: false);
+    if (password == null) return;
+    try {
+      final envelope =
+          ArchiveCodec.decrypt(picked.files.single.bytes!, password);
+      final confirmed = await _confirmReplace(context);
+      if (confirmed != true) return;
+      await getIt<ArchiveImporter>().importAll(envelope);
+      _toast(context, '存档已导入（本地数据已替换）');
+    } on NotArchiveError {
+      _toast(context, '不是有效的御财存档文件');
+    } on WrongPasswordError {
+      _toast(context, '密码错误');
+    } on ArchiveFormatError {
+      _toast(context, '存档格式无法读取（可能已损坏）');
+    } on ValidationFailure catch (e) {
+      _toast(context, e.message);
+    } on Exception catch (e) {
+      _toast(context, '导入失败：$e');
+    }
+  }
+
+  Future<String?> _askArchivePassword(BuildContext context,
+      {required bool confirm}) async {
+    final controller = TextEditingController();
+    final controller2 = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(confirm ? '设置存档密码' : '输入存档密码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              obscureText: true,
+              decoration: const InputDecoration(hintText: '密码'),
+            ),
+            if (confirm)
+              TextField(
+                controller: controller2,
+                obscureText: true,
+                decoration: const InputDecoration(hintText: '再次输入密码'),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.isEmpty) return;
+              if (confirm && controller.text != controller2.text) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('两次输入不一致')));
+                return;
+              }
+              Navigator.of(ctx).pop(controller.text);
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _confirmReplace(BuildContext context) => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('覆盖本地数据？'),
+          content: const Text(
+              '导入将替换本设备上的全部本地数据（账户、交易、资产等）。此操作不可撤销。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('覆盖导入'),
+            ),
+          ],
+        ),
+      );
+
+  void _toast(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

@@ -17,12 +17,17 @@ class ArchiveImporter {
   final db.AppDatabase _database;
 
   Future<void> importAll(Uint8List envelopeJson) async {
-    final envelope =
-        jsonDecode(utf8.decode(envelopeJson)) as Map<String, dynamic>;
-    final modules = envelope['modules'] as Map<String, dynamic>;
-    if (envelope['version'] != 1) {
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(envelopeJson));
+    } catch (_) {
+      throw const ValidationFailure('存档内容无法解析');
+    }
+    if (decoded is! Map<String, dynamic> || decoded['version'] != 1) {
       throw const ValidationFailure('存档版本不支持');
     }
+    final envelope = decoded;
+    final modules = (envelope['modules'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
 
     await _database.transaction(() async {
       // Purge dependents-first, import account-first — the server's restore
@@ -121,25 +126,25 @@ class ArchiveImporter {
         cardNumberTail: a['CardNumberTail'] as String? ?? '',
         notes: a['Notes'] as String? ?? '',
         openingDate: Value(_dt(a['OpeningDate'])),
-        interestRate: Value(a['InterestRate'] as double?),
+        interestRate: Value((a['InterestRate'] as num?)?.toDouble()),
         creditBillingDay: Value(a['CreditBillingDay'] as int?),
         creditRepaymentDay: Value(a['CreditRepaymentDay'] as int?),
         creditAnnualFeeCents: Value(a['CreditAnnualFeeCents'] as int?),
         investCostCents: Value(a['InvestCostCents'] as int?),
         investMarketValueCents: Value(a['InvestMarketValueCents'] as int?),
-        investReturnYtd: Value(a['InvestReturnYtd'] as double?),
+        investReturnYtd: Value((a['InvestReturnYtd'] as num?)?.toDouble()),
         fixedPrincipalCents: Value(a['FixedPrincipalCents'] as int?),
         fixedStartDate: Value(_dt(a['FixedStartDate'])),
         fixedMaturityDate: Value(_dt(a['FixedMaturityDate'])),
         fixedTermMonths: Value(a['FixedTermMonths'] as int?),
         goldProductType: a['GoldProductType'] as String? ?? '',
-        goldQuantity: Value(a['GoldQuantity'] as double?),
+        goldQuantity: Value((a['GoldQuantity'] as num?)?.toDouble()),
         goldBuyPriceCents: Value(a['GoldBuyPriceCents'] as int?),
         goldCurrentPriceCents: Value(a['GoldCurrentPriceCents'] as int?),
         estatePurchasePriceCents: Value(a['EstatePurchasePriceCents'] as int?),
         estateCurrentValueCents: Value(a['EstateCurrentValueCents'] as int?),
         estatePurchaseDate: Value(_dt(a['EstatePurchaseDate'])),
-        estateDepreciationRate: Value(a['EstateDepreciationRate'] as double?),
+        estateDepreciationRate: Value((a['EstateDepreciationRate'] as num?)?.toDouble()),
         loanOriginalCents: Value(a['LoanOriginalCents'] as int?),
         loanRemainingCents: Value(a['LoanRemainingCents'] as int?),
         loanMonthlyCents: Value(a['LoanMonthlyCents'] as int?),
