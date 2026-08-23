@@ -10,7 +10,7 @@
 
 - [x] **feature G** 2026-08-20-bind-upload — 绑定上传:OIDC 登录 → 空账号预检 guard(M3)→ 本地快照转 backup 格式经 RestoreBackup 单向上传 → 回切 server 权威在线(零 server 改动)(依赖 sprint-2)✅ done(merged `a6dd545d`,2026-08-23;**通路经 wire 事实修正裁定 B**:server backup +UploadBackup RPC 复用 R5 加固;envelope 导出器+BindingBloc 向导+guard fail-closed;三轮 review 收敛)
 - [x] **feature H** 2026-08-20-bound-mirror-logout — 绑定后镜像写穿透(在线写成功同步写 drift)+ 登出=回本地模式用最后镜像(M2)(依赖 G)✅ done(merged `042a152c`,2026-08-23;模块级刷新镜像+41 写钩子+BoundMarker 持久标记,两轮 review[拦下 2 DI BLOCKER+登入刷数据丢失])
-- [ ] **feature I** 2026-08-20-offline-e2e-acceptance — 三条成功判据 e2e 验收(断网安装记账 / 登录上云 / 不绑定永远本地)(依赖 G,H)
+- [ ] **feature I** 2026-08-20-offline-e2e-acceptance — 三条成功判据 e2e 验收(断网安装记账 / 登录上云 / 不绑定永远本地)(依赖 G,H) `claimed: zcode-main 2026-08-23`
 - [ ] **feature J** 2026-08-22-archive-export-import — 存档导出/导入:加密 backup 文件 file picker 手动流转,多设备迁移/云盘备份(依赖 G)
 
 **defer**:绑定后离线续写(ticket 16);非空账号合并。
