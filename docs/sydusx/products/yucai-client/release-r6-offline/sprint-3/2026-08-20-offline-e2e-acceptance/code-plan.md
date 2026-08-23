@@ -26,3 +26,4 @@
 
 - 三轮收敛(首轮 FR-4 Critical/二轮 transaction 模块 mock 复发[评审者原话:「mock 形态决定可测性」]/三轮补齐)——纯测试 feature 的 review 焦点=断言充分性+mock 保真度,教训:**mock 的形状就是被测世界的形状,不忠实的 mock 会把判据变成不可断言**。
 - Test 裁定:pass——4 组判据测试真验各自 spec 场景(合并可见/8 模键+ID 比对/3 轮累计/终刷断网降级)。
+- 三审 pass 后顺手采纳非阻塞建议(登出段 remoteDs 也 re-stub 抛异常,guest 向翻转 e2e 自身可区分)。

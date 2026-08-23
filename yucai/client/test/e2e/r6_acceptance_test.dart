@@ -398,6 +398,8 @@ void main() {
           .thenAnswer((_) async => throw Exception('offline at logout'));
       when(() => txnRepo.list(any()))
           .thenAnswer((_) async => throw Exception('offline at logout'));
+      when(() => remoteDs.list())
+          .thenAnswer((_) async => throw Exception('offline at logout'));
       await mirror.refreshAll(); // must not throw (silent degrade)
       tracker.isGuest = true; // logout: seam reads local again
       final guestList = await accountRepo.list();
