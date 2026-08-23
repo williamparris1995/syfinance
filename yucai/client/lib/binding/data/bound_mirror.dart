@@ -1,34 +1,18 @@
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
-import 'package:yucai_client/core/localdb/daos/account_dao.dart';
-import 'package:yucai_client/core/localdb/daos/budget_dao.dart';
-import 'package:yucai_client/core/localdb/daos/debt_dao.dart';
-import 'package:yucai_client/core/localdb/daos/goal_dao.dart';
-import 'package:yucai_client/core/localdb/daos/holding_dao.dart';
-import 'package:yucai_client/core/localdb/daos/reference_dao.dart';
-import 'package:yucai_client/core/localdb/daos/tag_dao.dart';
-import 'package:yucai_client/core/localdb/daos/template_dao.dart';
-import 'package:yucai_client/core/localdb/daos/transaction_dao.dart';
 import 'package:yucai_client/binding/data/mirror_mappers.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
-import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
-import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
-import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
-import 'package:yucai_client/template/domain/entities/template_entity.dart';
 import 'package:yucai_client/template/domain/repositories/template_repository.dart';
-import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 

@@ -22,3 +22,9 @@
 - 测试改 getIt 注册 repo(mirror 惰性解析);清理未用 mock。
 - 修复后:全套 +1085 -4(=基线);analyze 401;零 server。
 - **教训强化**:脚本重写器跳多行方法已两次(H1 复发)——修复后必须 grep 数钩子数(41)核对清单,记 harness 候选。
+
+## Review + Test(2026-08-23,pass — 两轮)
+
+- 首轮 reject(2 DI BLOCKER[双注册/构造环] + W4 登入刷数据丢失 + W3 template 漏钩[脚本跳多行方法,H1 类复发] + J5/J6)→ 修复(marker 单注册/mirror 惰性 getIt 断环/isBound 守卫/手工补钩 41/41/junction 清+终刷)→ 复审 **pass**(六项证据确凿)。
+- Test 裁决:**pass** — 全套 +1085 -4(=基线);analyze 399(未用 import 顺手清后);requirement coverage:FR-1 镜像替换/失败静默/钩子触发✓(guest 不触发)/FR-2 登出终刷 try-catch✓(TokenRefreshFailed 补齐)/FR-3 markBound 时机+isBound 读点✓;mapper 形状抽查(account/template[直 index]/holding/debt 逆向)✓。
+- **Accepted 记档**:镜像刷新 inFlight 去抖丢尾刷窗口(写 2 完成于刷新 1 进行中→该次钩子刷被丢,下次触发补)——窄窗口,登出终刷兜底;tag 联结镜像后消失(与 backup 契约一致)。
