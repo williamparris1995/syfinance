@@ -112,15 +112,6 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 	if !ok {
 		return nil, fmt.Errorf("local provider not configured")
 	}
-	if encrypted && !auto {
-		// D13/D19b-alternative: audit-trail warning — an encrypted backup's
-		// password is the ONLY recovery path (no DEK, no recovery code).
-		slog.Info("encrypted backup created",
-			"tenant_id", tenantID.String(),
-			"backup_id", backup.ID.String(),
-			"operation", "EncryptedBackupCreated",
-			"warning", "password loss is unrecoverable")
-	}
 	if err := provider.Upload(ctx, backup.Filename, data); err != nil {
 		return nil, fmt.Errorf("upload backup: %w", err)
 	}
@@ -130,6 +121,14 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 
 	if err := s.repo.Save(ctx, backup); err != nil {
 		return nil, fmt.Errorf("save backup: %w", err)
+	}
+	// Audit AFTER persistence — only then is the creation a fact (D13).
+	if encrypted && !auto {
+		slog.Info("encrypted backup created",
+			"tenant_id", tenantID.String(),
+			"backup_id", backup.ID.String(),
+			"operation", "EncryptedBackupCreated",
+			"warning", "password loss is unrecoverable")
 	}
 
 	dto := BackupToDTO(backup)

@@ -94,9 +94,9 @@ func TestV2RoundTrip(t *testing.T) {
 // TestV1LegacyStillDecrypts: a hand-built v1 blob (2^15 params) — the
 // format every existing encrypted backup uses — must decrypt forever.
 func TestV1LegacyStillDecrypts(t *testing.T) {
-	plain, err := decryptV1(v1Blob(t), "legacy-pw")
+	plain, err := Decrypt(v1Blob(t), "legacy-pw") // through the public dispatch
 	if err != nil {
-		t.Fatalf("decryptV1: %v", err)
+		t.Fatalf("Decrypt(v1): %v", err)
 	}
 	if string(plain) != "legacy payload" {
 		t.Fatalf("plain = %q", plain)
@@ -130,14 +130,27 @@ func v1Blob(t *testing.T) []byte {
 // rejected as format errors, not fed to scrypt (DoS guard).
 func TestV2BoundsRejectHostileParams(t *testing.T) {
 	sealed, _ := Encrypt([]byte("x"), "pw")
-	// Corrupt N to 2^30 (out of bounds).
+	// Corrupt N to 2^30 (out of bounds) — independent of r.
 	binary.LittleEndian.PutUint32(sealed[5:9], 1<<30)
 	if _, err := Decrypt(sealed, "pw"); err == nil {
 		t.Fatal("hostile N must be rejected")
 	}
-	// Corrupt r to 0.
-	binary.LittleEndian.PutUint32(sealed[9:13], 0)
-	if _, err := Decrypt(sealed, "pw"); err == nil {
+	// Fresh blob, corrupt only r to 0 — independent of N.
+	fresh, _ := Encrypt([]byte("x"), "pw")
+	binary.LittleEndian.PutUint32(fresh[9:13], 0)
+	if _, err := Decrypt(fresh, "pw"); err == nil {
 		t.Fatal("hostile r must be rejected")
+	}
+	// In-range individually but product over cap: N=2^22, r=32 (128·N·r=16 GiB).
+	over, _ := Encrypt([]byte("x"), "pw")
+	binary.LittleEndian.PutUint32(over[5:9], 1<<22)
+	binary.LittleEndian.PutUint32(over[9:13], 32)
+	if _, err := Decrypt(over, "pw"); err == nil {
+		t.Fatal("product-cap violation must be rejected")
+	}
+	// Truncated legacy blob (v1 magic + short body) → error, not panic.
+	trunc := append([]byte("YC1E"), make([]byte, 8)...)
+	if _, err := Decrypt(trunc, "pw"); err == nil {
+		t.Fatal("truncated v1 must error")
 	}
 }

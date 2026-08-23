@@ -42,7 +42,9 @@ const (
 )
 
 // ErrWrongPassword 表示解密时密码错误(GCM Open 失败或 magic 不符)。
+// ErrNotEncrypted 表示数据根本不是加密备份格式(明文数据误送 Decrypt 的调用方 bug)。
 var ErrWrongPassword = errors.New("wrong password or corrupted backup")
+var ErrNotEncrypted = errors.New("data is not an encrypted backup")
 
 // IsEncrypted 检测 data 是否为加密格式(以 magic 头 "YC1E" 开头)。
 func IsEncrypted(data []byte) bool {
@@ -100,13 +102,17 @@ func Decrypt(data []byte, password string) ([]byte, error) {
 	if len(data) >= len(magic) && string(data[:len(magic)]) == magic {
 		return decryptV1(data, password)
 	}
-	return nil, ErrWrongPassword // unrecognized format: same class as wrong password (per IsEncrypted contract)
+	return nil, ErrNotEncrypted // not an encrypted blob at all (caller bug)
 }
 
 // decryptV1 reads the legacy framing with hard-coded 2^15 parameters —
 // every existing encrypted backup stays decryptable forever (D19a compat).
 func decryptV1(data []byte, password string) ([]byte, error) {
-	return decryptWithParams(data[len(magic):], password, scryptN, scryptR, scryptP)
+	body := data[len(magic):]
+	if len(body) < saltLen+nonceLen+16 {
+		return nil, ErrWrongPassword // truncated legacy blob: same class as corrupt
+	}
+	return decryptWithParams(body, password, scryptN, scryptR, scryptP)
 }
 
 // decryptV2 reads the self-describing header, validates the KDF bounds,
@@ -123,6 +129,11 @@ func decryptV2(data []byte, password string) ([]byte, error) {
 	r := binary.LittleEndian.Uint32(data[9:13])
 	p := binary.LittleEndian.Uint32(data[13:17])
 	if n < scryptNMin || n > scryptNMax || r < scryptRMin || r > scryptRMax || p < scryptPMin || p > scryptPMax {
+		return nil, ErrBackupFormatOutdated
+	}
+	// Product cap: worst-case scrypt memory is ~128·N·r bytes — N·r ≤ 2^23
+	// keeps that under 1 GiB (review D: independent ranges alone allow 16 GiB).
+	if int64(n)*int64(r) > 1<<23 {
 		return nil, ErrBackupFormatOutdated
 	}
 	return decryptWithParams(data[headerLen:], password, int(n), int(r), int(p))

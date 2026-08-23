@@ -1160,42 +1160,54 @@ func TestUploadExternalRollsBackOnImportFailure(t *testing.T) {
 // --- D13 safety backup encryption (R5 feature D) ---
 
 // TestRestoreEncryptedSafetyAlsoEncrypted: restoring an ENCRYPTED backup
-// must produce a pre-restore safety backup encrypted with the SAME
-// password — the human-error rollback path keeps the password strength.
+// whose import FAILS mid-chain must leave an encrypted+auto safety backup
+// that decrypts with the SAME password — the human-error rollback path
+// keeps the password strength (D13 FR-1).
 func TestRestoreEncryptedSafetyAlsoEncrypted(t *testing.T) {
 	tenantID := uuid.New()
-	port := newFakePort("account", []byte(`[{"name":"Secret"}]`))
+	port := &failingImportPort{fakePort: newFakePort("account", []byte(`[{"name":"Secret"}]`))}
 	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
 
 	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "correct-horse", false)
 	if err != nil {
 		t.Fatalf("CreateBackup: %v", err)
 	}
-	// Mutate live state so the restore fails mid-import — the safety stays.
-	port.data = []byte(`[{"name":"Changed"}]`)
 
-	if err := svc.RestoreBackup(context.Background(), tenantID, dto.ID, "correct-horse"); err != nil {
-		t.Fatalf("RestoreBackup: %v", err)
+	// Import fails (failingImportPort) → safety STAYS (D6 contract).
+	if err := svc.RestoreBackup(context.Background(), tenantID, dto.ID, "correct-horse"); err == nil {
+		t.Fatal("restore must fail via failingImportPort")
 	}
 
-	// The safety backup created BEFORE the restore must be encrypted.
 	res, err := repo.FindAll(context.Background(), tenantID, nil, domain.PageRequest{})
 	if err != nil {
 		t.Fatalf("FindAll: %v", err)
 	}
+	var found bool
 	for _, b := range res.Items {
-		if b.Encrypted && b.Auto {
-			data := prov.files[b.Filename]
-			if len(data) < 4 || string(data[:4]) != "YC2E" {
-				t.Fatalf("safety backup not encrypted (magic=%q)", data[:min(4, len(data))])
-			}
+		if !b.Encrypted || !b.Auto {
+			continue
 		}
+		found = true
+		data := prov.files[b.Filename]
+		if len(data) < 4 || string(data[:4]) != "YC2E" {
+			t.Fatalf("safety not v2-encrypted (magic=%v)", data[:4])
+		}
+		// The safety decrypts with the SAME password and decompresses to a
+		// valid envelope (pre-restore state).
+		plain, err := domain.Decrypt(data, "correct-horse")
+		if err != nil {
+			t.Fatalf("safety decrypt with restore password: %v", err)
+		}
+		raw, err := domain.Decompress(plain)
+		if err != nil {
+			t.Fatalf("safety decompress: %v", err)
+		}
+		if !strings.Contains(string(raw), `"Secret"`) {
+			t.Fatalf("safety payload = %s", raw)
+		}
+		break
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
+	if !found {
+		t.Fatal("no encrypted+auto safety backup retained after failed restore")
 	}
-	return b
 }
