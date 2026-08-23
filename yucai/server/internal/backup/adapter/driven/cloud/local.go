@@ -24,7 +24,7 @@ func (p *LocalProvider) Upload(ctx context.Context, filename string, data []byte
 	}
 
 	path := filepath.Join(p.baseDir, filename)
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("write backup file: %w", err)
 	}
 	return nil
@@ -37,7 +37,7 @@ func (p *LocalProvider) TestConnection(ctx context.Context) error {
 	}
 	// Write and remove a test file to verify write permission
 	testPath := filepath.Join(p.baseDir, ".test")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		return fmt.Errorf("backup directory not writable: %w", err)
 	}
 	os.Remove(testPath)

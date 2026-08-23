@@ -1156,3 +1156,46 @@ func TestUploadExternalRollsBackOnImportFailure(t *testing.T) {
 		t.Fatalf("row was replaced, not rolled back: %s", name.Name)
 	}
 }
+
+// --- D13 safety backup encryption (R5 feature D) ---
+
+// TestRestoreEncryptedSafetyAlsoEncrypted: restoring an ENCRYPTED backup
+// must produce a pre-restore safety backup encrypted with the SAME
+// password — the human-error rollback path keeps the password strength.
+func TestRestoreEncryptedSafetyAlsoEncrypted(t *testing.T) {
+	tenantID := uuid.New()
+	port := newFakePort("account", []byte(`[{"name":"Secret"}]`))
+	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
+
+	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "correct-horse", false)
+	if err != nil {
+		t.Fatalf("CreateBackup: %v", err)
+	}
+	// Mutate live state so the restore fails mid-import — the safety stays.
+	port.data = []byte(`[{"name":"Changed"}]`)
+
+	if err := svc.RestoreBackup(context.Background(), tenantID, dto.ID, "correct-horse"); err != nil {
+		t.Fatalf("RestoreBackup: %v", err)
+	}
+
+	// The safety backup created BEFORE the restore must be encrypted.
+	res, err := repo.FindAll(context.Background(), tenantID, nil, domain.PageRequest{})
+	if err != nil {
+		t.Fatalf("FindAll: %v", err)
+	}
+	for _, b := range res.Items {
+		if b.Encrypted && b.Auto {
+			data := prov.files[b.Filename]
+			if len(data) < 4 || string(data[:4]) != "YC2E" {
+				t.Fatalf("safety backup not encrypted (magic=%q)", data[:min(4, len(data))])
+			}
+		}
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

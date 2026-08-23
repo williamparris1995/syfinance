@@ -112,6 +112,15 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 	if !ok {
 		return nil, fmt.Errorf("local provider not configured")
 	}
+	if encrypted && !auto {
+		// D13/D19b-alternative: audit-trail warning — an encrypted backup's
+		// password is the ONLY recovery path (no DEK, no recovery code).
+		slog.Info("encrypted backup created",
+			"tenant_id", tenantID.String(),
+			"backup_id", backup.ID.String(),
+			"operation", "EncryptedBackupCreated",
+			"warning", "password loss is unrecoverable")
+	}
 	if err := provider.Upload(ctx, backup.Filename, data); err != nil {
 		return nil, fmt.Errorf("upload backup: %w", err)
 	}
@@ -128,7 +137,10 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 }
 
 // RestoreBackup downloads → decrypts → per-module Purge + Import.
-// Before purging, auto-creates a pre-restore safety backup (unencrypted,
+// Before purging, auto-creates a pre-restore safety backup (encrypted with
+// the SAME password the user just supplied when restoring an encrypted
+// backup — D13 layering; plaintext restores keep a plaintext safety, the
+// user's own existing choice (spec FR-1-B),
 // Auto=true → client shows「自动」badge); on success it is removed, on
 // failure/crash it remains so the user can recover the pre-restore state.
 // Pragmatic substitute for cross-module DB atomicity (each module has its own
@@ -143,7 +155,7 @@ func (s *Service) RestoreBackup(ctx context.Context, tenantID uuid.UUID, backupI
 //    (Defense split: the tx below guarantees ATOMICITY against failures;
 //    this safety backup guards HUMAN errors — restoring the wrong file or
 //    garbage data — which a rollback cannot prevent.)
-	preRestore, err := s.CreateBackup(ctx, tenantID, false, "", true)
+	preRestore, err := s.CreateBackup(ctx, tenantID, password != "", password, true)
 	if err != nil {
 		return fmt.Errorf("pre-restore safety backup: %w", err)
 	}
