@@ -4,6 +4,8 @@ import 'package:injectable/injectable.dart';
 import 'package:yucai_client/backup/data/backup_remote_ds.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
+import 'package:yucai_client/binding/data/bound_mirror.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -90,8 +92,14 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
             failureMessage: '上传后校验不一致（本地 ${localAccounts.length} vs 服务端 $accountCount），请重试或联系支持'));
         return;
       }
-      // Persist the bound marker so future logins skip the wizard
-      // (re-login idempotency, R6 H FR-3).
+      // First-binding's own mirror refresh (replaces the login-triggered
+      // refresh that only fires for already-bound devices, review H-W4),
+      // then persist the marker so future logins skip the wizard (FR-3).
+      // Resolve lazily — BoundMirror depends on the same repos this bloc
+      // holds, eager injection would cycle.
+      getIt.isRegistered<BoundMirror>()
+          ? await getIt<BoundMirror>().refreshAll()
+          : null;
       await _boundMarker.markBound('bound');
       emit(state.copyWith(
         status: BindingStatus.success,

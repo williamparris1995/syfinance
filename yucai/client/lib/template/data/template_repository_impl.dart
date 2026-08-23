@@ -43,7 +43,7 @@ class TemplateRepositoryImpl implements TemplateRepository {
     bool autoRecord = false,
     String? category,
   }) =>
-      _guard(() => _useLocal
+      _mirrored(MirrorModule.template, () => _guard(() => _useLocal
           ? _local.create(
               name: name,
               description: description,
@@ -73,7 +73,7 @@ class TemplateRepositoryImpl implements TemplateRepository {
               endDate: endDate,
               autoRecord: autoRecord,
               category: category,
-            ));
+            )));
 
   @override
   Future<Either<Failure, Template>> update({
@@ -87,7 +87,7 @@ class TemplateRepositoryImpl implements TemplateRepository {
     String? endDate,
     bool? autoRecord,
   }) =>
-      _guard(() => _useLocal
+      _mirrored(MirrorModule.template, () => _guard(() => _useLocal
           ? _local.update(
               id: id,
               version: version,
@@ -109,7 +109,7 @@ class TemplateRepositoryImpl implements TemplateRepository {
               cycleDays: cycleDays,
               endDate: endDate,
               autoRecord: autoRecord,
-            ));
+            )));
 
   @override
   Future<Either<Failure, void>> delete(String id) => _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id)));

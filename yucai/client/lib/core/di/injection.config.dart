@@ -136,6 +136,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i98.BoundMarker>(
       () => _i98.BoundMarker(backend: gh<_i558.FlutterSecureStorage>()),
     );
+    gh.lazySingleton<_i507.BoundMirror>(
+      () => _i507.BoundMirror(gh<_i581.AppDatabase>()),
+    );
     gh.lazySingleton<_i666.TransactionRemoteDataSource>(
       () => _i666.TransactionRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -377,6 +380,17 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i933.TemplateBloc>(
       () => _i933.TemplateBloc(gh<_i74.TemplateRepository>()),
     );
+    gh.factory<_i946.AuthBloc>(
+      () => _i946.AuthBloc(
+        gh<_i990.OidcLoginUseCase>(),
+        gh<_i922.GetProfileUseCase>(),
+        gh<_i231.LogoutUseCase>(),
+        gh<_i912.HasStoredCredentialsUseCase>(),
+        gh<_i781.SessionModeTracker>(),
+        gh<_i507.BoundMirror>(),
+        gh<_i98.BoundMarker>(),
+      ),
+    );
     gh.lazySingleton<_i255.HoldingRepository>(
       () => _i427.HoldingRepositoryImpl(
         gh<_i620.HoldingRemoteDataSource>(),
@@ -408,16 +422,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i493.PerformanceBloc>(
       () => _i493.PerformanceBloc(gh<_i255.HoldingRepository>()),
-    );
-    gh.factory<_i946.AuthBloc>(
-      () => _i946.AuthBloc(
-        gh<_i990.OidcLoginUseCase>(),
-        gh<_i922.GetProfileUseCase>(),
-        gh<_i231.LogoutUseCase>(),
-        gh<_i912.HasStoredCredentialsUseCase>(),
-        gh<_i781.SessionModeTracker>(),
-        gh<_i507.BoundMirror>(),
-      ),
     );
     gh.factory<_i847.TagBloc>(() => _i847.TagBloc(gh<_i585.TagRepository>()));
     gh.lazySingleton<_i670.DebtRepository>(
@@ -464,19 +468,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i94.GoalLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
         gh<_i507.BoundMirror>(),
-      ),
-    );
-    gh.lazySingleton<_i507.BoundMirror>(
-      () => _i507.BoundMirror(
-        gh<_i581.AppDatabase>(),
-        gh<_i270.AccountRepository>(),
-        gh<_i822.TransactionRepository>(),
-        gh<_i670.DebtRepository>(),
-        gh<_i665.BudgetRepository>(),
-        gh<_i835.GoalRepository>(),
-        gh<_i255.HoldingRepository>(),
-        gh<_i585.TagRepository>(),
-        gh<_i74.TemplateRepository>(),
       ),
     );
     gh.factory<_i703.GoalBloc>(

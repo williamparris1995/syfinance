@@ -3,6 +3,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -16,23 +17,13 @@ import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/tag/data/tag_repository_impl.dart';
 import 'package:dartz/dartz.dart';
 import 'package:yucai_client/tag/data/tag_remote_ds.dart';
-import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
-import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
-import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
-import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
-import 'package:yucai_client/template/domain/repositories/template_repository.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 
+final getIt = GetIt.instance;
+
 class _MockAccountRepo extends Mock implements AccountRepository {}
-class _MockTxnRepo extends Mock implements TransactionRepository {}
-class _MockDebtRepo extends Mock implements DebtRepository {}
-class _MockBudgetRepo extends Mock implements BudgetRepository {}
-class _MockGoalRepo extends Mock implements GoalRepository {}
-class _MockHoldingRepo extends Mock implements HoldingRepository {}
-class _MockTagRepo extends Mock implements TagRepository {}
-class _MockTemplateRepo extends Mock implements TemplateRepository {}
 class _MockTagRemote extends Mock implements TagRemoteDataSource {}
 class _MockSecureStorage extends Mock implements FlutterSecureStorage {}
 
@@ -84,6 +75,8 @@ void main() {
       ));
       final repo = _MockAccountRepo();
       when(() => repo.list()).thenAnswer((_) async => Right([_account]));
+      getIt.registerSingleton<AccountRepository>(repo);
+      addTearDown(() => getIt.reset());
       final mirror = _makeMirror(database, repo);
       await mirror.refreshModule(MirrorModule.account);
       final rows = await database.accountDao.getAllAccounts();
@@ -119,6 +112,8 @@ void main() {
       ));
       final repo = _MockAccountRepo();
       when(() => repo.list()).thenAnswer((_) async => throw Exception('network'));
+      getIt.registerSingleton<AccountRepository>(repo);
+      addTearDown(() => getIt.reset());
       final mirror = _makeMirror(database, repo);
       await mirror.refreshModule(MirrorModule.account); // must not throw
       expect((await database.accountDao.getAllAccounts()).single.id, 'keep');
@@ -186,25 +181,13 @@ void main() {
 }
 
 _makeMirror(db.AppDatabase database, AccountRepository accounts) => BoundMirror(
-      database, accounts, _MockTxnRepo(), _MockDebtRepo(), _MockBudgetRepo(),
-      _MockGoalRepo(), _MockHoldingRepo(), _MockTagRepo(), _MockTemplateRepo());
+      database);
 class _RecordingMirror extends BoundMirror {
-  _RecordingMirror(this._record)
-      : super(_neverDb, _neverAccounts(), _neverTxn(), _neverDebt(),
-            _neverBudget(), _neverGoal(), _neverHolding(), _neverTagRepo(),
-            _neverTemplate());
+  _RecordingMirror(this._record) : super(_neverDb);
   static db.AppDatabase get _neverDb {
     final d = db.AppDatabase(NativeDatabase.memory());
     return d;
   }
-  static _MockAccountRepo _neverAccounts() => _MockAccountRepo();
-  static _MockTxnRepo _neverTxn() => _MockTxnRepo();
-  static _MockDebtRepo _neverDebt() => _MockDebtRepo();
-  static _MockBudgetRepo _neverBudget() => _MockBudgetRepo();
-  static _MockGoalRepo _neverGoal() => _MockGoalRepo();
-  static _MockHoldingRepo _neverHolding() => _MockHoldingRepo();
-  static _MockTagRepo _neverTagRepo() => _MockTagRepo();
-  static _MockTemplateRepo _neverTemplate() => _MockTemplateRepo();
   final void Function(MirrorModule) _record;
   @override
   Future<void> refreshAll() async {}

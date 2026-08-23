@@ -10,6 +10,7 @@ import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 
 @injectable
@@ -21,6 +22,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     this._hasCredentials,
     this._sessionMode, [
     this._mirror,
+    this._boundMarker = const _NoopBoundMarker(),
   ]) : super(AuthInitial()) {
     on<AppStarted>(_onAppStarted);
     on<OIDCLoginRequested>(_onOIDCLogin);
@@ -35,6 +37,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final HasStoredCredentialsUseCase _hasCredentials;
   final SessionModeTracker _sessionMode;
   final BoundMirror? _mirror;
+  final BoundMarker _boundMarker;
 
   /// Single-point sync into the core-layer session flag consumed by the
   /// dual-source seam (R6 ADR-2) — data-layer repos never read this bloc.
@@ -42,10 +45,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   void onChange(Change<AuthState> change) {
     super.onChange(change);
     _sessionMode.isGuest = change.nextState is Guest;
-    // Login-refresh: entering Authenticated mirrors all modules so the
-    // logout-into-guest experience works immediately (R6 H, ADR-3).
+    // Login-refresh (BOUND devices only, review H-W4): an unbound guest
+    // logging into an empty account is the FIRST-BINDING flow — refreshing
+    // there would wipe the local store before the upload wizard runs.
+    // BindingBloc mirrors after its own upload instead.
     if (change.nextState is Authenticated) {
-      unawaited(_mirror?.refreshAll() ?? Future<void>.value());
+      unawaited(() async {
+        if (await _boundMarker.isBound()) {
+          await _mirror?.refreshAll();
+        }
+      }());
     }
   }
 
@@ -95,7 +104,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onTokenRefreshFailed(TokenRefreshFailed event, Emitter<AuthState> emit) async {
+    // Best-effort terminal refresh (tokens may already be dead — try/catch,
+    // ADR-3). Matches the LogoutRequested path.
+    if (_mirror != null) {
+      try {
+        await _mirror.refreshAll();
+      } catch (_) {}
+    }
     await _logout.call();
     emit(Guest());
   }
+}
+
+
+/// Const default for tests that construct AuthBloc without a marker.
+class _NoopBoundMarker implements BoundMarker {
+  const _NoopBoundMarker();
+
+  @override
+  Future<void> markBound(String tenantId) async {}
+
+  @override
+  Future<bool> isBound() async => false;
+
+  @override
+  Future<void> clear() async {}
 }

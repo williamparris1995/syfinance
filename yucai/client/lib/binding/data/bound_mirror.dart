@@ -6,6 +6,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 import 'package:yucai_client/core/localdb/daos/budget_dao.dart';
@@ -53,27 +54,22 @@ enum MirrorModule {
 /// serializes concurrent refreshes of the same module.
 @LazySingleton()
 class BoundMirror {
-  BoundMirror(
-    this._db,
-    this._accounts,
-    this._transactions,
-    this._debts,
-    this._budgets,
-    this._goals,
-    this._holdings,
-    this._tags,
-    this._templates,
-  );
+  /// Repos are resolved LAZILY from getIt at first refresh: the mirror is
+  /// constructor-injected into every dual-source repo, and those same repos
+  /// back the mirror — eager constructor injection creates a resolution
+  /// cycle that overflows the stack on first resolve (review H-H2).
+  BoundMirror(this._db);
 
   final db.AppDatabase _db;
-  final AccountRepository _accounts;
-  final TransactionRepository _transactions;
-  final DebtRepository _debts;
-  final BudgetRepository _budgets;
-  final GoalRepository _goals;
-  final HoldingRepository _holdings;
-  final TagRepository _tags;
-  final TemplateRepository _templates;
+
+  AccountRepository get _accounts => getIt<AccountRepository>();
+  TransactionRepository get _transactions => getIt<TransactionRepository>();
+  DebtRepository get _debts => getIt<DebtRepository>();
+  BudgetRepository get _budgets => getIt<BudgetRepository>();
+  GoalRepository get _goals => getIt<GoalRepository>();
+  HoldingRepository get _holdings => getIt<HoldingRepository>();
+  TagRepository get _tags => getIt<TagRepository>();
+  TemplateRepository get _templates => getIt<TemplateRepository>();
 
   final _inFlight = <MirrorModule>{};
 
@@ -246,6 +242,7 @@ class BoundMirror {
     await result.fold((_) async {}, (list) async {
       await _db.transaction(() async {
         await _db.tagDao.deleteAllTags();
+        await _db.tagDao.deleteAllTransactionTags();
         for (final t in list) {
           await _db.tagDao.insertTag(mirrorTagToRow(t));
         }

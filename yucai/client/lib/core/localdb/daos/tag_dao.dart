@@ -22,6 +22,11 @@ class TagDao extends DatabaseAccessor<AppDatabase> with _$TagDaoMixin {
 
 
   Future<int> deleteAllTags() => delete(tags).go();
+
+  /// Mirroring wipes junction rows too (tags without transactions lose
+  /// their links until re-applied — matches the server backup contract
+  /// which excludes the junction, review H-J5).
+  Future<int> deleteAllTransactionTags() => delete(transactionTags).go();
   Future<int> deleteTagById(String id) =>
       (delete(tags)..where((t) => t.id.equals(id))).go();
 
