@@ -300,6 +300,76 @@ class RestoreBackupRequest extends $pb.GeneratedMessage {
   void clearPassword() => $_clearField(2);
 }
 
+class UploadBackupRequest extends $pb.GeneratedMessage {
+  factory UploadBackupRequest({
+    $core.List<$core.int>? data,
+    $core.String? password,
+  }) {
+    final result = create();
+    if (data != null) result.data = data;
+    if (password != null) result.password = password;
+    return result;
+  }
+
+  UploadBackupRequest._();
+
+  factory UploadBackupRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory UploadBackupRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'UploadBackupRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.backup.v1'),
+      createEmptyInstance: create)
+    ..a<$core.List<$core.int>>(
+        1, _omitFieldNames ? '' : 'data', $pb.PbFieldType.OY)
+    ..aOS(2, _omitFieldNames ? '' : 'password')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UploadBackupRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UploadBackupRequest copyWith(void Function(UploadBackupRequest) updates) =>
+      super.copyWith((message) => updates(message as UploadBackupRequest))
+          as UploadBackupRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static UploadBackupRequest create() => UploadBackupRequest._();
+  @$core.override
+  UploadBackupRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static UploadBackupRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<UploadBackupRequest>(create);
+  static UploadBackupRequest? _defaultInstance;
+
+  /// Plaintext BackupEnvelope JSON (transport security via TLS). Reserved
+  /// password for the encrypted-archive future (feature J); empty = plain.
+  @$pb.TagNumber(1)
+  $core.List<$core.int> get data => $_getN(0);
+  @$pb.TagNumber(1)
+  set data($core.List<$core.int> value) => $_setBytes(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasData() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearData() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get password => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set password($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPassword() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPassword() => $_clearField(2);
+}
+
 class ListBackupsRequest extends $pb.GeneratedMessage {
   factory ListBackupsRequest({
     $3.PageRequest? page,

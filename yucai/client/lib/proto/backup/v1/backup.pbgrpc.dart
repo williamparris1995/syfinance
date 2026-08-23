@@ -47,6 +47,18 @@ class BackupServiceClient extends $grpc.Client {
     return $createUnaryCall(_$restoreBackup, request, options: options);
   }
 
+  /// UploadBackup imports an externally-produced BackupEnvelope (R6 offline
+  /// first: one-way guest → server migration on account binding). The data is
+  /// a plaintext envelope JSON; the authenticated tenant OVERRIDES the
+  /// envelope's tenant_id, and the import reuses the hardened purge+import
+  /// path (R5 D6) with a pre-upload safety backup.
+  $grpc.ResponseFuture<$1.Empty> uploadBackup(
+    $0.UploadBackupRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$uploadBackup, request, options: options);
+  }
+
   $grpc.ResponseFuture<$0.ListBackupsResponse> listBackups(
     $0.ListBackupsRequest request, {
     $grpc.CallOptions? options,
@@ -91,6 +103,11 @@ class BackupServiceClient extends $grpc.Client {
           '/yucai.backup.v1.BackupService/RestoreBackup',
           ($0.RestoreBackupRequest value) => value.writeToBuffer(),
           $1.Empty.fromBuffer);
+  static final _$uploadBackup =
+      $grpc.ClientMethod<$0.UploadBackupRequest, $1.Empty>(
+          '/yucai.backup.v1.BackupService/UploadBackup',
+          ($0.UploadBackupRequest value) => value.writeToBuffer(),
+          $1.Empty.fromBuffer);
   static final _$listBackups =
       $grpc.ClientMethod<$0.ListBackupsRequest, $0.ListBackupsResponse>(
           '/yucai.backup.v1.BackupService/ListBackups',
@@ -133,6 +150,14 @@ abstract class BackupServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) =>
             $0.RestoreBackupRequest.fromBuffer(value),
+        ($1.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.UploadBackupRequest, $1.Empty>(
+        'UploadBackup',
+        uploadBackup_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.UploadBackupRequest.fromBuffer(value),
         ($1.Empty value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.ListBackupsRequest, $0.ListBackupsResponse>(
@@ -183,6 +208,14 @@ abstract class BackupServiceBase extends $grpc.Service {
 
   $async.Future<$1.Empty> restoreBackup(
       $grpc.ServiceCall call, $0.RestoreBackupRequest request);
+
+  $async.Future<$1.Empty> uploadBackup_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.UploadBackupRequest> $request) async {
+    return uploadBackup($call, await $request);
+  }
+
+  $async.Future<$1.Empty> uploadBackup(
+      $grpc.ServiceCall call, $0.UploadBackupRequest request);
 
   $async.Future<$0.ListBackupsResponse> listBackups_Pre($grpc.ServiceCall $call,
       $async.Future<$0.ListBackupsRequest> $request) async {

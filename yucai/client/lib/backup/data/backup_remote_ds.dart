@@ -62,6 +62,15 @@ class BackupRemoteDataSource {
     });
   }
 
+  /// UploadBackup (R6 feature G)：guest→server 一次性迁移，明文 envelope
+  /// 经 TLS；server 以鉴权 tenant 覆盖 envelope 内 tenant_id。
+  Future<void> uploadBackup(List<int> data) async {
+    return _retry.call(() async {
+      await _client
+          .uploadBackup(pb.UploadBackupRequest(data: data, password: ''));
+    });
+  }
+
   /// DeleteBackup：按 id 删除。
   Future<void> delete(String id) async {
     return _retry.call(() async {

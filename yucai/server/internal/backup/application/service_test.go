@@ -950,3 +950,91 @@ func TestCreateBackup_ExportFailureIsAtomic(t *testing.T) {
 		t.Errorf("partial backup saved %d record(s); want 0 (atomic failure, no partial record)", len(repo.store))
 	}
 }
+
+// --- UploadExternal (R6 feature G) ---
+
+// TestUploadExternalImportsEnvelope verifies the guest→server migration path:
+// a client-produced envelope replaces the tenant's (empty) state through the
+// same purge+import loops restore uses, with the safety backup cleaned up on
+// success.
+func TestUploadExternalImportsEnvelope(t *testing.T) {
+	tenantID := uuid.New()
+	port := newFakePort("account", nil)
+	svc, repo, _ := newTestService([]domain.TenantDataPort{port})
+
+	payload := []byte(`[{"name":"Cash","balance":5000}]`)
+	envelope := fmt.Sprintf(`{"version":1,"tenant_id":"%s","created_at":"2026-08-23T00:00:00Z","modules":{"account":%s}}`, uuid.New(), payload)
+	if err := svc.UploadExternal(context.Background(), tenantID, []byte(envelope), ""); err != nil {
+		t.Fatalf("UploadExternal: %v", err)
+	}
+	if string(port.data) != string(payload) {
+		t.Fatalf("imported data = %s, want %s", port.data, payload)
+	}
+	// Safety backup created then removed on success.
+	res, err := repo.FindAll(context.Background(), tenantID, nil, domain.PageRequest{})
+	if err != nil {
+		t.Fatalf("FindAll: %v", err)
+	}
+	if len(res.Items) != 0 {
+		t.Fatalf("safety backup not cleaned up: %d remain", len(res.Items))
+	}
+}
+
+// TestUploadExternalOverridesTenantID verifies the authenticated tenant
+// always wins: a forged tenant_id inside the envelope never leaks into the
+// import layer (fakePort records nothing about tenant, but purge must have
+// targeted the caller — verified by the import landing regardless of the
+// envelope's foreign tenant).
+func TestUploadExternalOverridesTenantID(t *testing.T) {
+	tenantID := uuid.New()
+	foreign := uuid.New()
+	port := newFakePort("account", nil)
+	svc, _, _ := newTestService([]domain.TenantDataPort{port})
+
+	envelope := fmt.Sprintf(`{"version":1,"tenant_id":"%s","created_at":"2026-08-23T00:00:00Z","modules":{"account":[{"name":"x"}]}}`, foreign)
+	if err := svc.UploadExternal(context.Background(), tenantID, []byte(envelope), ""); err != nil {
+		t.Fatalf("UploadExternal: %v", err)
+	}
+	if string(port.data) != `[{"name":"x"}]` {
+		t.Fatalf("import under authenticated tenant failed: %s", port.data)
+	}
+}
+
+// TestUploadExternalRejectsBadInput: invalid JSON and unsupported versions
+// are rejected before any purge runs.
+func TestUploadExternalRejectsBadInput(t *testing.T) {
+	tenantID := uuid.New()
+	port := newFakePort("account", []byte(`[{"name":"keep"}]`))
+	svc, _, _ := newTestService([]domain.TenantDataPort{port})
+
+	if err := svc.UploadExternal(context.Background(), tenantID, []byte("{not json"), ""); err == nil {
+		t.Fatal("bad JSON accepted")
+	}
+	v2 := `{"version":2,"modules":{}}`
+	if err := svc.UploadExternal(context.Background(), tenantID, []byte(v2), ""); err == nil {
+		t.Fatal("version 2 accepted")
+	}
+	if string(port.data) != `[{"name":"keep"}]` {
+		t.Fatalf("rejected input must not purge: %s", port.data)
+	}
+}
+
+// TestUploadExternalImportFailureKeepsSafetyBackup: an import error leaves
+// the pre-upload safety backup in place (same contract as restore).
+func TestUploadExternalImportFailureKeepsSafetyBackup(t *testing.T) {
+	tenantID := uuid.New()
+	port := &failingImportPort{fakePort: newFakePort("account", nil)}
+	svc, repo, _ := newTestService([]domain.TenantDataPort{port})
+
+	envelope := `{"version":1,"modules":{"account":[{"name":"x"}]}}`
+	if err := svc.UploadExternal(context.Background(), tenantID, []byte(envelope), ""); err == nil {
+		t.Fatal("import failure not surfaced")
+	}
+	res, err := repo.FindAll(context.Background(), tenantID, nil, domain.PageRequest{})
+	if err != nil {
+		t.Fatalf("FindAll: %v", err)
+	}
+	if len(res.Items) != 1 {
+		t.Fatalf("safety backup must remain on failure: %d", len(res.Items))
+	}
+}

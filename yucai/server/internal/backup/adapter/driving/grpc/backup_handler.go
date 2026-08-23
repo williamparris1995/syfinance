@@ -45,6 +45,21 @@ func (h *BackupHandler) CreateBackup(ctx context.Context, req *pb.CreateBackupRe
 	return &pb.BackupResponse{Backup: dtoToProto(*result)}, nil
 }
 
+// UploadBackup imports an external envelope (R6 guest -> server migration).
+func (h *BackupHandler) UploadBackup(ctx context.Context, req *pb.UploadBackupRequest) (*emptypb.Empty, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(req.Data) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "empty upload data")
+	}
+	if err := h.service.UploadExternal(ctx, tenantID, req.Data, req.Password); err != nil {
+		return nil, mapError(err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
 // RestoreBackup restores from a backup.
 func (h *BackupHandler) RestoreBackup(ctx context.Context, req *pb.RestoreBackupRequest) (*emptypb.Empty, error) {
 	tenantID, err := getTenantID(ctx)

@@ -150,6 +150,61 @@ func (s *Service) RestoreBackup(ctx context.Context, tenantID uuid.UUID, backupI
 	return restoreErr
 }
 
+// UploadExternal imports an externally-produced BackupEnvelope (R6 offline
+// first: one-way guest -> server migration on account binding). It reuses
+// the hardened purge+import path with a pre-upload safety backup, mirroring
+// RestoreBackup's shape. The envelope's TenantID is OVERRIDDEN by the
+// authenticated tenant (anti cross-tenant injection); password is reserved
+// for the encrypted-archive future (empty = plaintext envelope).
+func (s *Service) UploadExternal(ctx context.Context, tenantID uuid.UUID, data []byte, password string) error {
+	// 1. Safety net: even though binding targets an empty account, keep the
+	// pre-import backup as defense in depth (same contract as restore).
+	preUpload, err := s.CreateBackup(ctx, tenantID, false, "", true)
+	if err != nil {
+		return fmt.Errorf("pre-upload safety backup: %w", err)
+	}
+
+	importErr := s.uploadImport(ctx, tenantID, data)
+
+	if importErr == nil {
+		if delErr := s.DeleteBackup(ctx, tenantID, preUpload.ID); delErr != nil {
+			slog.Error("pre-upload safety cleanup failed", "backup_id", preUpload.ID, "err", delErr)
+		}
+	}
+	return importErr
+}
+
+// uploadImport parses the envelope and runs the purge+import loops (the
+// shared tail of restoreNoSafety, minus the backup-storage download path).
+func (s *Service) uploadImport(ctx context.Context, tenantID uuid.UUID, data []byte) error {
+	var envelope domain.BackupEnvelope
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return fmt.Errorf("unmarshal envelope: %w", err)
+	}
+	if envelope.Version != 1 {
+		return domain.ErrBackupFormatOutdated
+	}
+	// Authenticated tenant always wins — a client-crafted tenant_id never
+	// reaches the import layer.
+	envelope.TenantID = tenantID
+
+	for _, p := range s.orderedPortsForPurge() {
+		if err := p.Purge(ctx, tenantID); err != nil {
+			return fmt.Errorf("purge %s: %w", p.Name(), err)
+		}
+	}
+	for _, p := range s.orderedPortsForImport() {
+		raw, ok := envelope.Modules[p.Name()]
+		if !ok {
+			continue
+		}
+		if err := p.Import(ctx, tenantID, raw); err != nil {
+			return fmt.Errorf("import %s: %w", p.Name(), err)
+		}
+	}
+	return nil
+}
+
 // restoreNoSafety holds the pre-safety-net restore logic (download/decrypt/
 // purge/import). Extracted from RestoreBackup so the safety net can wrap it.
 func (s *Service) restoreNoSafety(ctx context.Context, tenantID uuid.UUID, backupID uuid.UUID, password string) error {

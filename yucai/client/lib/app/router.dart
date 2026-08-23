@@ -15,6 +15,8 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
 import 'package:yucai_client/app/widgets/app_shell.dart';
+import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
+import 'package:yucai_client/binding/presentation/pages/binding_page.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart'
     as budget_event;
@@ -119,6 +121,13 @@ GoRouter buildRouter(
     },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
+      GoRoute(
+        path: '/binding',
+        builder: (_, __) => BlocProvider<BindingBloc>(
+          create: (_) => getIt<BindingBloc>()..add(BindingStarted()),
+          child: const BindingPage(),
+        ),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             AppShell(navigationShell: navigationShell),

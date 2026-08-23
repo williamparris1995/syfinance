@@ -106,6 +106,20 @@ final $typed_data.Uint8List restoreBackupRequestDescriptor = $convert.base64Deco
     'ChRSZXN0b3JlQmFja3VwUmVxdWVzdBIbCgliYWNrdXBfaWQYASABKAlSCGJhY2t1cElkEhoKCH'
     'Bhc3N3b3JkGAIgASgJUghwYXNzd29yZA==');
 
+@$core.Deprecated('Use uploadBackupRequestDescriptor instead')
+const UploadBackupRequest$json = {
+  '1': 'UploadBackupRequest',
+  '2': [
+    {'1': 'data', '3': 1, '4': 1, '5': 12, '10': 'data'},
+    {'1': 'password', '3': 2, '4': 1, '5': 9, '10': 'password'},
+  ],
+};
+
+/// Descriptor for `UploadBackupRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List uploadBackupRequestDescriptor = $convert.base64Decode(
+    'ChNVcGxvYWRCYWNrdXBSZXF1ZXN0EhIKBGRhdGEYASABKAxSBGRhdGESGgoIcGFzc3dvcmQYAi'
+    'ABKAlSCHBhc3N3b3Jk');
+
 @$core.Deprecated('Use listBackupsRequestDescriptor instead')
 const ListBackupsRequest$json = {
   '1': 'ListBackupsRequest',

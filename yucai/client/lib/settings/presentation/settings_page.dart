@@ -7,6 +7,7 @@ import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' hide Currency;
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
@@ -68,7 +69,22 @@ class SettingsPage extends StatelessWidget {
                     const SizedBox(height: AppSpacing.md),
                     // Guest-only binding entry (R6 FR-3): login lives in
                     // settings so the app opens straight into offline mode.
-                    BlocBuilder<AuthBloc, AuthState>(
+                    // After a successful login with local data, route into the
+                    // binding wizard (R6 G).
+                    BlocListener<AuthBloc, AuthState>(
+                      listener: (context, authState) async {
+                        if (authState is Authenticated) {
+                          final accounts =
+                              await getIt<AppDatabase>().accountDao.getAllAccounts();
+                          final txns = await getIt<AppDatabase>()
+                              .transactionDao
+                              .getAllTransactions();
+                          if (accounts.isNotEmpty || txns.isNotEmpty) {
+                            context.push('/binding');
+                          }
+                        }
+                      },
+                      child: BlocBuilder<AuthBloc, AuthState>(
                       builder: (context, authState) {
                         if (authState is! Guest) return const SizedBox.shrink();
                         return Padding(
@@ -86,6 +102,7 @@ class SettingsPage extends StatelessWidget {
                           ),
                         );
                       },
+                    ),
                     ),
                     _SettingsCard(
                       child: Column(

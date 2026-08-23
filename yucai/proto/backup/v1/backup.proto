@@ -11,6 +11,12 @@ import "google/protobuf/timestamp.proto";
 service BackupService {
   rpc CreateBackup(CreateBackupRequest) returns (BackupResponse);
   rpc RestoreBackup(RestoreBackupRequest) returns (google.protobuf.Empty);
+  // UploadBackup imports an externally-produced BackupEnvelope (R6 offline
+  // first: one-way guest → server migration on account binding). The data is
+  // a plaintext envelope JSON; the authenticated tenant OVERRIDES the
+  // envelope's tenant_id, and the import reuses the hardened purge+import
+  // path (R5 D6) with a pre-upload safety backup.
+  rpc UploadBackup(UploadBackupRequest) returns (google.protobuf.Empty);
   rpc ListBackups(ListBackupsRequest) returns (ListBackupsResponse);
   rpc DeleteBackup(DeleteBackupRequest) returns (google.protobuf.Empty);
   // SaveCloudSettings / GetCloudSettings persist per-tenant auto-backup
@@ -44,6 +50,13 @@ message CreateBackupRequest {
 
 message RestoreBackupRequest {
   string backup_id = 1;
+  string password = 2;
+}
+
+message UploadBackupRequest {
+  // Plaintext BackupEnvelope JSON (transport security via TLS). Reserved
+  // password for the encrypted-archive future (feature J); empty = plain.
+  bytes data = 1;
   string password = 2;
 }
 

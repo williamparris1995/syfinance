@@ -40,9 +40,11 @@ import '../../auth/domain/usecases/refresh_token_usecase.dart' as _i752;
 import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
 import '../../backup/data/backup_remote_ds.dart' as _i877;
 import '../../backup/data/backup_repository_impl.dart' as _i594;
+import '../../backup/data/local_snapshot_exporter.dart' as _i115;
 import '../../backup/domain/repositories/backup_repository.dart' as _i335;
 import '../../backup/presentation/bloc/backup_bloc.dart' as _i852;
 import '../../backup/presentation/bloc/backup_settings_bloc.dart' as _i86;
+import '../../binding/presentation/bloc/binding_bloc.dart' as _i740;
 import '../../budget/data/budget_local_ds.dart' as _i15;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
 import '../../budget/data/budget_repository_impl.dart' as _i364;
@@ -149,6 +151,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i697.AccountLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
       ),
+    );
+    gh.lazySingleton<_i115.LocalSnapshotExporter>(
+      () => _i115.LocalSnapshotExporter(gh<_i581.AppDatabase>()),
     );
     gh.lazySingleton<_i254.CurrencyLocalDataSource>(
       () => _i254.CurrencyLocalDataSource(gh<_i581.AppDatabase>()),
@@ -405,6 +410,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i581.AppDatabase>(),
         gh<_i898.HoldingLocalDataSource>(),
         uuid: gh<_i706.Uuid>(),
+      ),
+    );
+    gh.factory<_i740.BindingBloc>(
+      () => _i740.BindingBloc(
+        gh<_i270.AccountRepository>(),
+        gh<_i822.TransactionRepository>(),
+        gh<_i255.HoldingRepository>(),
+        gh<_i115.LocalSnapshotExporter>(),
+        gh<_i877.BackupRemoteDataSource>(),
+        gh<_i581.AppDatabase>(),
       ),
     );
     gh.lazySingleton<_i670.DebtRepository>(
