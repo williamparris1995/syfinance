@@ -9,7 +9,7 @@
 ## Feature roster(依赖排序)
 
 - [x] **feature B** 2026-08-29-b1-local-notifications — Windows 本地通知基础设施 + debt 期次到期提醒 ✅ done(2026-08-29;leanflutter 四件套[local_notifier/tray_manager/launch_at_startup/flutter_single_instance];三档策略 T-3/T-0/逾期每日+当日去重[ReminderLogs 唯一索引];托盘常驻+自启默认开+卸载清理;单实例信号文件;21 单测;2 轮 review 闭环 PASS;运行时冒烟 blocked-on-user)
-- [ ] **feature C** 2026-08-29-b2-auto-record-scheduler — autoRecord 本地调度器:周期模板在本地模式按 schedule 生成交易(镜像 server template 调度语义);依赖 B(调度事件可复用通知通道)
+- [ ] **feature C** 2026-08-29-b2-auto-record-scheduler — autoRecord 本地调度器:周期模板在本地模式按 schedule 生成交易(镜像 server template 调度语义);依赖 B(调度事件可复用通知通道) `claimed: zcode-main 2026-08-29`
 
 ## defer
 
