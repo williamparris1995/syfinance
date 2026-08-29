@@ -52,3 +52,9 @@
 - computeTWR ~150 行 Long Method(borderline)——walk+fold 结构内聚、逐分支有注释;接受。
 - ADR-5 "两侧一致测试"以结构性保证替代(单点定义 + 全仓 grep 零残留截断点);handler e2e 需完整 account 校验 harness,边际保障近零。
 - Excel fixture 1/3-5——离线无法新增可信 Excel 值,闭式解 + 文档例 + 残差断言替代;记录为已知缺口。
+
+## review round 2(2026-08-29)→ 裁决 reject(1 blocker)→ 已修
+
+**blocker**:回代校验绝对阈值 1e-6 在陡梯度区(11 年 -97% 深亏,|f'|≈5e16)误杀机器精度级正确解 → silent nil(F3/F4 同类病)。
+
+**修复**:噪声模型预算 `|npv(r)| ≤ 100·eps·Σ|折现项| + 8·|npv'(r)|·xtol`——物理上正确:回代残差下限 = Brent 率收敛余量(|f'|·xtol,陡区主导)+ 求值噪声(eps·Σ,平缓区主导)。reviewer 建议的纯 κ·eps·Σ(κ≈10-100)经推导在其自己的深亏 case 需 κ≈2300、且在平缓区同样误杀(残差=|f'|·xtol≈y·scale·2e-12 vs 预算 eps·scale·κ)——导数项不可省。垃圾根残差 O(Σ|折现项|) 与预算差 ~10 量级,拒绝力保持。回归测试 TestXIRRSteepGradientDeepLossResolves(-0.9697111967122702 独立对拍值)。另按 nit 修 2^53 有效上限注释。

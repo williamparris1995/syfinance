@@ -240,6 +240,25 @@ func TestXIRRNaNFloorFallbackGraceful(t *testing.T) {
 	}
 }
 
+// 陡梯度深亏回归(review R2):11 年 -97% 组合,局部 |f'| ≈ 5e16——
+// 任何可表示 double 的 NPV 残差 ≥ ~6,绝对阈值的回代校验会误杀为 nil。
+// 根值 -0.9697111967122702 为独立数值复算(reviewer 机器对拍)。
+func TestXIRRSteepGradientDeepLossResolves(t *testing.T) {
+	cfs := []CashFlow{
+		{Date: mustDate("2010-01-01"), Amount: -1e6},
+		{Date: mustDate("2015-01-01"), Amount: -1e6},
+		{Date: mustDate("2020-01-01"), Amount: -1e6},
+		{Date: mustDate("2021-01-01"), Amount: 3e4},
+	}
+	rate, err := XIRR(cfs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v (steep-gradient root must not be false-rejected)", err)
+	}
+	if math.Abs(rate-(-0.9697111967122702)) > 1e-9 {
+		t.Errorf("rate = %.16f, want -0.9697111967122702", rate)
+	}
+}
+
 // FR-7 多笔样本 NPV 残差表:解的质量由 |NPV(r)| ≤ tol·scale 独立断言
 // (Excel 文档例另作值对拍 0.373362535,见 TestXIRRMatchesExcel)。
 func TestXIRRMultiFlowNPVResidual(t *testing.T) {

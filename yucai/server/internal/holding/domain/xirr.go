@@ -105,8 +105,9 @@ func XIRR(cashflows []CashFlow) (float64, error) {
 	}
 
 	// 自适应几何扩展:hi 自 0.1(先跨过 1)逐次翻倍直至与 lo 反号。
-	// 超包络检查在反号测试之前——包络 (lo, 1e16] 外的根按 spec 返 ErrNoSolution,
-	// 不因 2^k 采样点偶然跨过 1e16 而漏放行(有效上限 = 2^54 的采样缺陷)。
+	// 超包络检查在反号测试之前——包络 (lo, 1e16] 外的根按 spec 返 ErrNoSolution;
+	// 2^k 采样的实际可达上限为 2^53 < 1e16,(2^53, 1e16] 的窄带按 fail-closed
+	// 拒绝(与包络语义同向,接受的采样缺陷)。
 	hi, nHi := 0.1, npv(0.1)
 	if !(nLo*nHi <= 0) {
 		found := false
@@ -134,9 +135,20 @@ func XIRR(cashflows []CashFlow) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	// 解回代校验(design LLD ⑦):归一化单位下残差仍大 = 求解异常,
-	// fail-closed 拒绝伪根而非返回错误解。
-	if res := npv(root); math.IsNaN(res) || math.Abs(res) > 1e-6 {
+	// 解回代校验(design LLD ⑦),物理噪声模型预算:
+	//   |npv(r)| ≤ κ·eps·Σ|折现项| + κ'·|npv'(r)|·xtol
+	// Brent 收敛判据在率空间(xtol),回代残差下限由 |f'|·xtol 主导(陡梯度
+	// 深亏区);eps 项覆盖求值噪声。垃圾根残差 O(Σ|折现项|),与预算差
+	// ~10 个量级仍被拒;纯绝对/纯 eps 阈值都会误杀机器精度级正确解(review R2)。
+	eps := math.Nextafter(1, 2) - 1
+	absSum, deriv := 0.0, 0.0
+	for i := range sorted {
+		term := amounts[i] / math.Pow(1+root, years[i])
+		absSum += math.Abs(term)
+		deriv -= years[i] * amounts[i] / math.Pow(1+root, years[i]+1)
+	}
+	budget := 100*eps*absSum + 8*math.Abs(deriv)*xirrBrentXTol
+	if res := npv(root); math.IsNaN(res) || math.Abs(res) > budget {
 		return 0, ErrNoSolution
 	}
 	return root, nil
