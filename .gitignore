@@ -42,3 +42,4 @@ yucai/server/backups/
 
 # graphify knowledge-graph output (regenerable; graph.json ~36MB)
 graphify-out/
+docs/**/*.claim.lock
