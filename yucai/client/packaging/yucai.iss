@@ -41,3 +41,7 @@ Name: "{autodesktop}\御财"; Filename: "{app}\{#AppExeName}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "立即启动御财"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+; 清理 app 运行时注册的开机自启(R7-B FR-3;launch_at_startup 写 HKCU Run/yucai_client)。
+Filename: "reg.exe"; Parameters: "delete HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v yucai_client /f"; Flags: runhidden; RunOnceId: "RemoveAutostup"
