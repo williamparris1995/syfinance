@@ -12,8 +12,8 @@
 - [x] **feature E** 2026-08-23-f1-ent-schema-integrity — 05 决策 1/2/4/5 前半:同模块 ent edge FK+OnDelete / 金额 field.Min(0) 清单 / UNIQUE 4 项(User.email·Backup.filename·BudgetItem·PaymentSchedule)/ FK 列 Immutable / 软删表 partial unique;regen+既有数据兼容验证 ✅ done(2026-08-23;9 Immutable 合法回退;挖出并修复 UpdateTransaction uuid.Nil entries 存量 bug;scripts/clean-before-r5-e.sql 升级前置清理+冒烟测试;review PASS-with-nits 修复后 merge)
 - [x] **feature F** 2026-08-23-f2-delete-account-guard — 05 决策 5 后半:DeleteAccount 拒绝有引用(查 transaction/holding/budget/debt 引用方)+ orphan 清理测试;version CAS 现状 grep 确认(决策 3 已纠正误判) ✅ done(2026-08-23;六源 port[含 goal/template 扩展]/fail-closed/DeleteByTenant 保留;review PASS-with-nits 修复后 merge)
 - [x] **feature G** 2026-08-23-f3-xirr-twr-correctness — 06 决策 2/3/4:XIRR 入口归一化+自适应 bracket+Brent;TWR 零端值 sentinel+清仓分段链乘+<-1 防御;AmountCents math.Round+等额本金均摊;真实样本 oracle(大额 1e8/清仓重建/Excel 对拍) ✅ done(2026-08-29;Brent-only 对齐 scipy/MATLAB+包络 1e16+GIPS 三态 TWR[分段/终止/坏价 sentinel]+4 处 round+split 守卫[F12 折入]+噪声模型回代校验;2 轮 review 修复闭环 PASS;陡梯度深亏回归锁定)
-- [ ] **feature H** 2026-08-23-f4-cagr-primary-switch — 06 决策 1:portfolioXIRR 切主指标;portfolioCAGR 降级辅助+口径标注(「仅当前持仓成本→市值」;client UI 重命名/tooltip 属 R5 scope 外——server DTO 层就位+client defer 记档);依赖 G(XIRR 修后数值稳定)——pivot A 裁决:G 后评估顺手/延后 `claimed: zcode-main 2026-08-29`
+- [x] **feature H** 2026-08-23-f4-cagr-primary-switch — 06 决策 1:portfolioXIRR 切主指标;portfolioCAGR 降级辅助+口径标注(「仅当前持仓成本→市值」;client UI 重命名/tooltip 属 R5 scope 外——server DTO 层就位+client defer 记档);依赖 G(XIRR 修后数值稳定) ✅ done(2026-08-29;β 方案 enum 进 wire:ReturnMetric/CagrScope+optional 15/16,server 恒填;仅 server regen[buf.gen.go.yaml 重建并入库,修复设备交接断链];契约记档 yucai-api 向后兼容+client 消费 defer;review PASS+minors 即修)
 
 **defer**:TimeMixin 抽取(→10 A10)/ SyncLog·SyncDevice unique(→16 sync 重开)/ F12-F13 P2(F12 守卫已随 G 折入)/ client UI 口径(client defer)。
 
-## status: in-progress(E/F done 2026-08-23;G ✅ done 2026-08-29[06 计算正确性核心落地];H 待评估[pivot A];sprint-3 挂起)
+## status: done(E/F 2026-08-23;G/H 2026-08-29——05+06 全落地,sprint-2 收官;R5 余 sprint-3[08/09]按 pivot 挂起)
