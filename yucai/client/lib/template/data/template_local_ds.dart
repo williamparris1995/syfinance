@@ -1,3 +1,4 @@
+import 'package:yucai_client/template/data/advance_next_date.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
@@ -250,23 +251,11 @@ class TemplateLocalDataSource {
     return DateTime.utc(targetYear, m, day);
   }
 
-  /// AdvanceNextDate rules copied from the server (record_port.go):
-  /// weekly +7d / monthly +1 month (AddDate direct) / yearly +1 year /
-  /// custom +cycleDays / unspecified unchanged.
-  DateTime _advance(DateTime current, int cycle, int cycleDays) {
-    switch (cycle) {
-      case 1:
-        return current.add(const Duration(days: 7));
-      case 2:
-        return DateTime.utc(current.year, current.month + 1, current.day);
-      case 3:
-        return DateTime.utc(current.year + 1, current.month, current.day);
-      case 4:
-        return current.add(Duration(days: cycleDays));
-      default:
-        return current;
-    }
-  }
+  /// 推进算法委托 advance_next_date(R7-C FR-5):月度从「构造器滚动」修正为
+  /// server 的月末钳制+billingDay(旧实现 1/31 会滚到 3/1+ 漂移);oracle 测试
+  /// 见 test/template/data/advance_next_date_test.dart。
+  DateTime _advance(DateTime current, int cycle, int cycleDays) =>
+      advanceNextDate(current, cycle: cycle, cycleDays: cycleDays, billingDay: 0);
 
   Template? _toEntityOrNull(db.TransactionTemplate? row) =>
       row == null ? null : _toEntity(row);

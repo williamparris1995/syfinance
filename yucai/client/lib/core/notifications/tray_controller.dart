@@ -7,10 +7,13 @@ import 'package:yucai_client/core/notifications/due_scanner.dart';
 
 /// 托盘常驻控制器(FR-3):托盘菜单 + 关闭=最小化 + 每日扫描调度 + 启动首扫。
 class TrayController with TrayListener, WindowListener {
-  TrayController({required this.scan});
+  TrayController({required this.scan, this.autoRecord});
 
-  /// 扫描入口(注入 NotificationService.scanNow)。
+  /// 扫描入口(注入到期提醒扫描)。
   final Future<ScanResult> Function() scan;
+
+  /// autoRecord 调度入口(R7-C;null=未接线则跳过)。
+  final Future<void> Function()? autoRecord;
 
   DateTime? _lastScanDay;
   Timer? _tick;
@@ -27,7 +30,7 @@ class TrayController with TrayListener, WindowListener {
     await trayManager.setToolTip('御财');
     await trayManager.setContextMenu(Menu(items: [
       MenuItem(key: _kShow, label: '显示御财'),
-      MenuItem(key: _kCheck, label: '立即检查提醒'),
+      MenuItem(key: _kCheck, label: '立即检查(提醒/记账)'),
       MenuItem(key: _kQuit, label: '退出'),
     ]));
     _tick = Timer.periodic(const Duration(minutes: 30), (_) => _maybeScan());
@@ -52,6 +55,13 @@ class TrayController with TrayListener, WindowListener {
   }
 
   Future<void> _scanAndMark() async {
+    // autoRecord 与到期提醒独立容错:一方失败不影响另一方(R7-C FR-3)。
+    final auto = autoRecord;
+    if (auto != null) {
+      try {
+        await auto();
+      } catch (_) {}
+    }
     try {
       await scan();
     } catch (_) {

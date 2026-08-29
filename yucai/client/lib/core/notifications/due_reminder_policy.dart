@@ -57,7 +57,9 @@ class DueReminderPolicy {
     return db.difference(da).inDays;
   }
 
-  /// 分 → 「1,234.56」式元字符串(千分位,通知可读性)。
+  /// 分 → 「1,234.56」式元字符串(千分位;通知/记账文案共用,R7-C 提升)。
+  static String formatYuan(int totalCents) => _formatYuan(totalCents);
+
   static String _formatYuan(int totalCents) {
     final neg = totalCents < 0;
     final s = (totalCents.abs() / 100).toStringAsFixed(2);
