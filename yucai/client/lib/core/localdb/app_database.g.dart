@@ -5633,6 +5633,304 @@ class PaymentScheduleEntriesCompanion
   }
 }
 
+class $ReminderLogsTable extends ReminderLogs
+    with TableInfo<$ReminderLogsTable, ReminderLog> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReminderLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _entryIdMeta = const VerificationMeta(
+    'entryId',
+  );
+  @override
+  late final GeneratedColumn<String> entryId = GeneratedColumn<String>(
+    'entry_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tierMeta = const VerificationMeta('tier');
+  @override
+  late final GeneratedColumn<int> tier = GeneratedColumn<int>(
+    'tier',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sentDateMeta = const VerificationMeta(
+    'sentDate',
+  );
+  @override
+  late final GeneratedColumn<String> sentDate = GeneratedColumn<String>(
+    'sent_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, entryId, tier, sentDate];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reminder_logs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReminderLog> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('entry_id')) {
+      context.handle(
+        _entryIdMeta,
+        entryId.isAcceptableOrUnknown(data['entry_id']!, _entryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entryIdMeta);
+    }
+    if (data.containsKey('tier')) {
+      context.handle(
+        _tierMeta,
+        tier.isAcceptableOrUnknown(data['tier']!, _tierMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tierMeta);
+    }
+    if (data.containsKey('sent_date')) {
+      context.handle(
+        _sentDateMeta,
+        sentDate.isAcceptableOrUnknown(data['sent_date']!, _sentDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sentDateMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReminderLog map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReminderLog(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      entryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entry_id'],
+      )!,
+      tier: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tier'],
+      )!,
+      sentDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sent_date'],
+      )!,
+    );
+  }
+
+  @override
+  $ReminderLogsTable createAlias(String alias) {
+    return $ReminderLogsTable(attachedDatabase, alias);
+  }
+}
+
+class ReminderLog extends DataClass implements Insertable<ReminderLog> {
+  final int id;
+  final String entryId;
+  final int tier;
+  final String sentDate;
+  const ReminderLog({
+    required this.id,
+    required this.entryId,
+    required this.tier,
+    required this.sentDate,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['entry_id'] = Variable<String>(entryId);
+    map['tier'] = Variable<int>(tier);
+    map['sent_date'] = Variable<String>(sentDate);
+    return map;
+  }
+
+  ReminderLogsCompanion toCompanion(bool nullToAbsent) {
+    return ReminderLogsCompanion(
+      id: Value(id),
+      entryId: Value(entryId),
+      tier: Value(tier),
+      sentDate: Value(sentDate),
+    );
+  }
+
+  factory ReminderLog.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReminderLog(
+      id: serializer.fromJson<int>(json['id']),
+      entryId: serializer.fromJson<String>(json['entryId']),
+      tier: serializer.fromJson<int>(json['tier']),
+      sentDate: serializer.fromJson<String>(json['sentDate']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'entryId': serializer.toJson<String>(entryId),
+      'tier': serializer.toJson<int>(tier),
+      'sentDate': serializer.toJson<String>(sentDate),
+    };
+  }
+
+  ReminderLog copyWith({
+    int? id,
+    String? entryId,
+    int? tier,
+    String? sentDate,
+  }) => ReminderLog(
+    id: id ?? this.id,
+    entryId: entryId ?? this.entryId,
+    tier: tier ?? this.tier,
+    sentDate: sentDate ?? this.sentDate,
+  );
+  ReminderLog copyWithCompanion(ReminderLogsCompanion data) {
+    return ReminderLog(
+      id: data.id.present ? data.id.value : this.id,
+      entryId: data.entryId.present ? data.entryId.value : this.entryId,
+      tier: data.tier.present ? data.tier.value : this.tier,
+      sentDate: data.sentDate.present ? data.sentDate.value : this.sentDate,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderLog(')
+          ..write('id: $id, ')
+          ..write('entryId: $entryId, ')
+          ..write('tier: $tier, ')
+          ..write('sentDate: $sentDate')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, entryId, tier, sentDate);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReminderLog &&
+          other.id == this.id &&
+          other.entryId == this.entryId &&
+          other.tier == this.tier &&
+          other.sentDate == this.sentDate);
+}
+
+class ReminderLogsCompanion extends UpdateCompanion<ReminderLog> {
+  final Value<int> id;
+  final Value<String> entryId;
+  final Value<int> tier;
+  final Value<String> sentDate;
+  const ReminderLogsCompanion({
+    this.id = const Value.absent(),
+    this.entryId = const Value.absent(),
+    this.tier = const Value.absent(),
+    this.sentDate = const Value.absent(),
+  });
+  ReminderLogsCompanion.insert({
+    this.id = const Value.absent(),
+    required String entryId,
+    required int tier,
+    required String sentDate,
+  }) : entryId = Value(entryId),
+       tier = Value(tier),
+       sentDate = Value(sentDate);
+  static Insertable<ReminderLog> custom({
+    Expression<int>? id,
+    Expression<String>? entryId,
+    Expression<int>? tier,
+    Expression<String>? sentDate,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entryId != null) 'entry_id': entryId,
+      if (tier != null) 'tier': tier,
+      if (sentDate != null) 'sent_date': sentDate,
+    });
+  }
+
+  ReminderLogsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? entryId,
+    Value<int>? tier,
+    Value<String>? sentDate,
+  }) {
+    return ReminderLogsCompanion(
+      id: id ?? this.id,
+      entryId: entryId ?? this.entryId,
+      tier: tier ?? this.tier,
+      sentDate: sentDate ?? this.sentDate,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (entryId.present) {
+      map['entry_id'] = Variable<String>(entryId.value);
+    }
+    if (tier.present) {
+      map['tier'] = Variable<int>(tier.value);
+    }
+    if (sentDate.present) {
+      map['sent_date'] = Variable<String>(sentDate.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderLogsCompanion(')
+          ..write('id: $id, ')
+          ..write('entryId: $entryId, ')
+          ..write('tier: $tier, ')
+          ..write('sentDate: $sentDate')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -14632,6 +14930,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DebtsTable debts = $DebtsTable(this);
   late final $PaymentScheduleEntriesTable paymentScheduleEntries =
       $PaymentScheduleEntriesTable(this);
+  late final $ReminderLogsTable reminderLogs = $ReminderLogsTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $BudgetItemsTable budgetItems = $BudgetItemsTable(this);
   late final $GoalsTable goals = $GoalsTable(this);
@@ -14684,6 +14983,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     transactionEntries,
     debts,
     paymentScheduleEntries,
+    reminderLogs,
     budgets,
     budgetItems,
     goals,
@@ -17863,6 +18163,181 @@ typedef $$PaymentScheduleEntriesTableProcessedTableManager =
       (PaymentScheduleEntry, $$PaymentScheduleEntriesTableReferences),
       PaymentScheduleEntry,
       PrefetchHooks Function({bool debtId})
+    >;
+typedef $$ReminderLogsTableCreateCompanionBuilder =
+    ReminderLogsCompanion Function({
+      Value<int> id,
+      required String entryId,
+      required int tier,
+      required String sentDate,
+    });
+typedef $$ReminderLogsTableUpdateCompanionBuilder =
+    ReminderLogsCompanion Function({
+      Value<int> id,
+      Value<String> entryId,
+      Value<int> tier,
+      Value<String> sentDate,
+    });
+
+class $$ReminderLogsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReminderLogsTable> {
+  $$ReminderLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entryId => $composableBuilder(
+    column: $table.entryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tier => $composableBuilder(
+    column: $table.tier,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sentDate => $composableBuilder(
+    column: $table.sentDate,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReminderLogsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReminderLogsTable> {
+  $$ReminderLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entryId => $composableBuilder(
+    column: $table.entryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tier => $composableBuilder(
+    column: $table.tier,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sentDate => $composableBuilder(
+    column: $table.sentDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReminderLogsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReminderLogsTable> {
+  $$ReminderLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entryId =>
+      $composableBuilder(column: $table.entryId, builder: (column) => column);
+
+  GeneratedColumn<int> get tier =>
+      $composableBuilder(column: $table.tier, builder: (column) => column);
+
+  GeneratedColumn<String> get sentDate =>
+      $composableBuilder(column: $table.sentDate, builder: (column) => column);
+}
+
+class $$ReminderLogsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReminderLogsTable,
+          ReminderLog,
+          $$ReminderLogsTableFilterComposer,
+          $$ReminderLogsTableOrderingComposer,
+          $$ReminderLogsTableAnnotationComposer,
+          $$ReminderLogsTableCreateCompanionBuilder,
+          $$ReminderLogsTableUpdateCompanionBuilder,
+          (
+            ReminderLog,
+            BaseReferences<_$AppDatabase, $ReminderLogsTable, ReminderLog>,
+          ),
+          ReminderLog,
+          PrefetchHooks Function()
+        > {
+  $$ReminderLogsTableTableManager(_$AppDatabase db, $ReminderLogsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReminderLogsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReminderLogsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReminderLogsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> entryId = const Value.absent(),
+                Value<int> tier = const Value.absent(),
+                Value<String> sentDate = const Value.absent(),
+              }) => ReminderLogsCompanion(
+                id: id,
+                entryId: entryId,
+                tier: tier,
+                sentDate: sentDate,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String entryId,
+                required int tier,
+                required String sentDate,
+              }) => ReminderLogsCompanion.insert(
+                id: id,
+                entryId: entryId,
+                tier: tier,
+                sentDate: sentDate,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReminderLogsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReminderLogsTable,
+      ReminderLog,
+      $$ReminderLogsTableFilterComposer,
+      $$ReminderLogsTableOrderingComposer,
+      $$ReminderLogsTableAnnotationComposer,
+      $$ReminderLogsTableCreateCompanionBuilder,
+      $$ReminderLogsTableUpdateCompanionBuilder,
+      (
+        ReminderLog,
+        BaseReferences<_$AppDatabase, $ReminderLogsTable, ReminderLog>,
+      ),
+      ReminderLog,
+      PrefetchHooks Function()
     >;
 typedef $$BudgetsTableCreateCompanionBuilder =
     BudgetsCompanion Function({
@@ -23496,6 +23971,8 @@ class $AppDatabaseManager {
         _db,
         _db.paymentScheduleEntries,
       );
+  $$ReminderLogsTableTableManager get reminderLogs =>
+      $$ReminderLogsTableTableManager(_db, _db.reminderLogs);
   $$BudgetsTableTableManager get budgets =>
       $$BudgetsTableTableManager(_db, _db.budgets);
   $$BudgetItemsTableTableManager get budgetItems =>

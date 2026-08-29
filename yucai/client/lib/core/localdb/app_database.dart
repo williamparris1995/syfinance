@@ -17,6 +17,7 @@ import 'daos/transaction_dao.dart';
 import 'tables/account_tables.dart';
 import 'tables/budget_tables.dart';
 import 'tables/debt_tables.dart';
+import 'tables/reminder_tables.dart';
 import 'tables/derived_tables.dart';
 import 'tables/goal_tables.dart';
 import 'tables/holding_tables.dart';
@@ -39,6 +40,7 @@ part 'app_database.g.dart';
     TransactionEntries,
     Debts,
     PaymentScheduleEntries,
+    ReminderLogs,
     Budgets,
     BudgetItems,
     Goals,
@@ -118,14 +120,19 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         // Mechanism only (spec FR-5): add per-version steps when the schema
         // evolves beyond v1.
-        onUpgrade: (m, from, to) async {},
+        onUpgrade: (m, from, to) async {
+          // v1→v2(B1 通知):新增 ReminderLogs(当日去重记录)。
+          if (from < 2) {
+            await m.createTable(reminderLogs);
+          }
+        },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)
         // need the pragma enabled per connection.
         beforeOpen: (details) async {
