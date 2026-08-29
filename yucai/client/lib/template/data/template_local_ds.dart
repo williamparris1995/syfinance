@@ -157,7 +157,7 @@ class TemplateLocalDataSource {
       txnId = await _createTxnForRow(row, next);
       await _dao.updateTemplate(db.TransactionTemplatesCompanion(
         id: Value(templateId),
-        nextDate: Value(_advance(next, row.cycle, row.cycleDays)),
+        nextDate: Value(_advance(next, row.cycle, row.cycleDays, row.billingDay)),
         lastTransactionId: Value(txnId),
         version: Value(row.version + 1),
         updatedAt: Value(DateTime.now().toUtc()),
@@ -254,8 +254,9 @@ class TemplateLocalDataSource {
   /// 推进算法委托 advance_next_date(R7-C FR-5):月度从「构造器滚动」修正为
   /// server 的月末钳制+billingDay(旧实现 1/31 会滚到 3/1+ 漂移);oracle 测试
   /// 见 test/template/data/advance_next_date_test.dart。
-  DateTime _advance(DateTime current, int cycle, int cycleDays) =>
-      advanceNextDate(current, cycle: cycle, cycleDays: cycleDays, billingDay: 0);
+  DateTime _advance(DateTime current, int cycle, int cycleDays, int billingDay) =>
+      advanceNextDate(
+          current, cycle: cycle, cycleDays: cycleDays, billingDay: billingDay);
 
   Template? _toEntityOrNull(db.TransactionTemplate? row) =>
       row == null ? null : _toEntity(row);

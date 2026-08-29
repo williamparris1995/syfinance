@@ -1,7 +1,9 @@
 /// 周期模板 nextDate 推进算法(FR-5;oracle=server template/domain 用例移植)。
 /// 语义:weekly +7d;monthly 月加+billingDay 钳制月末(server addMonthsClamped);
-/// yearly +1y(闰日钳制);custom +cycleDays 天(client 语义,纠正 server +1d 存根,
-/// spec grill #3 记档)。UTC 日粒度。
+/// yearly +1y;custom +cycleDays 天(client 语义,纠正 server +1d 存根,grill #3)。
+/// 有意分歧:yearly 2/29 → 次年 2/28 钳制(server AddDate 归一化为 3/1)——
+/// 按财务惯例(周年账单日落入二月末);unspecified 回退 +1d(server 为 +1mo,
+/// 该分支创建即拒绝,实际不可达)。UTC 日粒度。
 library;
 
 DateTime advanceNextDate(

@@ -5,6 +5,7 @@ library;
 
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
+import 'package:yucai_client/template/domain/repositories/template_repository.dart';
 
 /// 到期模板的调度视图(适配器从 repo Template 映射)。
 class AutoRecordTemplate {
@@ -22,7 +23,7 @@ class AutoRecordTemplate {
   final DateTime? endDate;
 }
 
-/// 模板源抽象(bootstrap 适配 template repo:list + record)。
+/// 模板源抽象(适配 template repo:list + record)。
 abstract class AutoRecordTemplates {
   Future<List<AutoRecordTemplate>> listAutoRecordDue();
   /// 记一笔并返回推进后的 nextDate(null=失败/未推进,调用方停)。
@@ -35,7 +36,7 @@ class AutoRecordRunResult {
     required this.recorded,
     required this.failed,
   });
-  final int templates; // 命中到期条件的模板数
+  final int templates; // autoRecord 开且未暂停的模板数(未到期者循环零笔)
   final int recorded; // 实际生成笔数
   final int failed; // 失败模板数
 }
@@ -90,5 +91,45 @@ class AutoRecordScheduler {
       await notifier.show(copy);
     }
     return count;
+  }
+}
+
+
+/// AutoRecordTemplates 适配器:template 双源 repo(list/record)。
+/// Template 实体的 nextDate/endDate 是 date-only String,在此解析为 DateTime。
+/// Left 一律抛错(调度器按失败计数——review R1:静默吞 Left 使 failed 恒 0)。
+class TemplateRepoAutoRecord implements AutoRecordTemplates {
+  TemplateRepoAutoRecord(this._repo);
+  final TemplateRepository _repo;
+
+  static DateTime? _parse(String? s) =>
+      s == null || s.isEmpty ? null : DateTime.tryParse(s);
+
+  @override
+  Future<List<AutoRecordTemplate>> listAutoRecordDue() async {
+    final res = await _repo.list();
+    return res.fold(
+      (l) => throw StateError('auto-record list failed'),
+      (all) => [
+        for (final t in all)
+          if (t.autoRecord && !t.paused)
+            AutoRecordTemplate(
+              id: t.id,
+              name: t.name,
+              amountCents: t.amountCents,
+              nextDate: _parse(t.nextDate) ?? DateTime.now(),
+              endDate: _parse(t.endDate),
+            ),
+      ],
+    );
+  }
+
+  @override
+  Future<DateTime?> record(String templateId) async {
+    final res = await _repo.record(templateId);
+    return res.fold(
+      (l) => throw StateError('auto-record record failed'),
+      (r) => r.nextDate,
+    );
   }
 }
