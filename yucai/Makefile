@@ -1,4 +1,4 @@
-.PHONY: all generate build test test-unit lint proto gen-dart clean docker-up docker-down flutter-get flutter-build-runner flutter-test validate
+.PHONY: all generate build test test-unit lint proto gen-dart clean docker-up docker-down flutter-get flutter-build-runner flutter-test windows-installer validate
 
 # Go server
 SERVER_DIR := server
@@ -45,6 +45,14 @@ flutter-build-runner: ## Run Flutter code generation
 
 flutter-test: ## Run Flutter tests
 	cd client && flutter test
+
+ISCC := $(LOCALAPPDATA)/Programs/Inno Setup 6/ISCC.exe
+
+windows-installer: ## Build Windows installer (flutter release + Inno Setup); 版本取自 client/pubspec.yaml
+	cd client && flutter build windows --release
+	$(eval APP_VERSION := $(shell grep -m1 '^version' client/pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1))
+	"$(ISCC)" /DAppVersion=$(APP_VERSION) client/packaging/yucai.iss
+	@echo "installer ready: client/dist/yucai-setup-$(APP_VERSION).exe"
 
 # Full validation
 validate: lint test flutter-test ## Run all checks
