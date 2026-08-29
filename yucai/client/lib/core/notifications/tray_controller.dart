@@ -52,7 +52,13 @@ class TrayController with TrayListener, WindowListener {
   }
 
   Future<void> _scanAndMark() async {
-    await scan();
+    try {
+      await scan();
+    } catch (_) {
+      // 扫描失败不冒泡(Timer 回调里会变未捕获异步异常);当日不标记,
+      // 30 分钟 tick 自然重试(review R2 polish)。
+      return;
+    }
     // 成功后才标记当日已扫(失败 → 30 分钟 tick 自然重试;review R1)。
     final now = DateTime.now();
     _lastScanDay = DateTime(now.year, now.month, now.day);
