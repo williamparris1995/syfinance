@@ -20,3 +20,7 @@ proto 定义在 [`yucai/proto/`](../../../../../yucai/proto/)(toolchain:Buf Go +
 ## Bump 规则
 
 server 的 `sydusx-design` 在 proto 破坏性改动时:写新 `vN` + 移动 CURRENT + 扫描所有产品 `spec.md`/`design.md` 的 `depends on yucai-api` 通知 consumer(harness advisory)。当前 `proto/` 单版本未切片,待首次破坏性改动时建立 vN 目录。
+
+## 变更记录
+
+- **2026-08-29(R5 feature H,向后兼容)**:`PortfolioPerformanceResponse` 新增 `ReturnMetric`/`CagrScope` enum + optional 字段 `primary_return_metric=15` / `cagr_scope=16`(server 恒填 XIRR / CURRENT_HOLDINGS_COST_TO_MV)。纯新增 optional,旧 client 无感;**消费方 defer**:client 线收益本地化时随行 `gen-dart` regen 并消费(重命名/tooltip/头部指标切换)。

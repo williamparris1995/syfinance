@@ -529,6 +529,13 @@ func TestGetPortfolioPerformanceReturnsCurve(t *testing.T) {
 	if resp == nil {
 		t.Fatal("nil response")
 	}
+	// FR-1/FR-2(audit 06 决策 1):主指标语义进 wire——XIRR 主指标 + CAGR 口径标注。
+	if got := resp.GetPrimaryReturnMetric(); got != pb.ReturnMetric_RETURN_METRIC_XIRR {
+		t.Errorf("primary_return_metric = %v, want RETURN_METRIC_XIRR", got)
+	}
+	if got := resp.GetCagrScope(); got != pb.CagrScope_CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV {
+		t.Errorf("cagr_scope = %v, want CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV", got)
+	}
 	// 2 portfolio points, values 100.00 and 200.00 元, ascending by time.
 	if len(resp.PortfolioPoints) != 2 {
 		t.Fatalf("portfolio points = %d, want 2", len(resp.PortfolioPoints))

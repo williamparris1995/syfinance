@@ -195,6 +195,101 @@ func (CurveRange) EnumDescriptor() ([]byte, []int) {
 	return file_holding_v1_holding_proto_rawDescGZIP(), []int{2}
 }
 
+// ReturnMetric 组合收益头部主指标(语义归 server,展示归 client)。
+type ReturnMetric int32
+
+const (
+	ReturnMetric_RETURN_METRIC_UNSPECIFIED ReturnMetric = 0
+	ReturnMetric_RETURN_METRIC_XIRR        ReturnMetric = 1 // money-weighted,全现金流(audit 06 决策 1 主指标)
+)
+
+// Enum value maps for ReturnMetric.
+var (
+	ReturnMetric_name = map[int32]string{
+		0: "RETURN_METRIC_UNSPECIFIED",
+		1: "RETURN_METRIC_XIRR",
+	}
+	ReturnMetric_value = map[string]int32{
+		"RETURN_METRIC_UNSPECIFIED": 0,
+		"RETURN_METRIC_XIRR":        1,
+	}
+)
+
+func (x ReturnMetric) Enum() *ReturnMetric {
+	p := new(ReturnMetric)
+	*p = x
+	return p
+}
+
+func (x ReturnMetric) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReturnMetric) Descriptor() protoreflect.EnumDescriptor {
+	return file_holding_v1_holding_proto_enumTypes[3].Descriptor()
+}
+
+func (ReturnMetric) Type() protoreflect.EnumType {
+	return &file_holding_v1_holding_proto_enumTypes[3]
+}
+
+func (x ReturnMetric) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReturnMetric.Descriptor instead.
+func (ReturnMetric) EnumDescriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{3}
+}
+
+// CagrScope CAGR(辅助指标)统计口径,机器可读。
+type CagrScope int32
+
+const (
+	CagrScope_CAGR_SCOPE_UNSPECIFIED CagrScope = 0
+	// 仅当前持仓 costBasis→市值,忽略已实现盈亏。
+	CagrScope_CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV CagrScope = 1
+)
+
+// Enum value maps for CagrScope.
+var (
+	CagrScope_name = map[int32]string{
+		0: "CAGR_SCOPE_UNSPECIFIED",
+		1: "CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV",
+	}
+	CagrScope_value = map[string]int32{
+		"CAGR_SCOPE_UNSPECIFIED":                 0,
+		"CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV": 1,
+	}
+)
+
+func (x CagrScope) Enum() *CagrScope {
+	p := new(CagrScope)
+	*p = x
+	return p
+}
+
+func (x CagrScope) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CagrScope) Descriptor() protoreflect.EnumDescriptor {
+	return file_holding_v1_holding_proto_enumTypes[4].Descriptor()
+}
+
+func (CagrScope) Type() protoreflect.EnumType {
+	return &file_holding_v1_holding_proto_enumTypes[4]
+}
+
+func (x CagrScope) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CagrScope.Descriptor instead.
+func (CagrScope) EnumDescriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{4}
+}
+
 type SecurityDTO struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1661,10 +1756,16 @@ type PortfolioPerformanceResponse struct {
 	RangeAnnualizedPct     *float64               `protobuf:"fixed64,10,opt,name=range_annualized_pct,json=rangeAnnualizedPct,proto3,oneof" json:"range_annualized_pct,omitempty"`               // 区间 XIRR 年化%(随 CurveRange)
 	TwrAnnualizedPct       *float64               `protobuf:"fixed64,11,opt,name=twr_annualized_pct,json=twrAnnualizedPct,proto3,oneof" json:"twr_annualized_pct,omitempty"`                     // TWR 时间加权年化%(全期,nil=降级)
 	RangeTwrAnnualizedPct  *float64               `protobuf:"fixed64,12,opt,name=range_twr_annualized_pct,json=rangeTwrAnnualizedPct,proto3,oneof" json:"range_twr_annualized_pct,omitempty"`    // TWR 区间年化%(随 CurveRange,nil=降级/区间不足)
-	CagrAnnualizedPct      *float64               `protobuf:"fixed64,13,opt,name=cagr_annualized_pct,json=cagrAnnualizedPct,proto3,oneof" json:"cagr_annualized_pct,omitempty"`                  // CAGR: simple 复合年化 (final/initial)^(365/days)-1, nil=降级
+	CagrAnnualizedPct      *float64               `protobuf:"fixed64,13,opt,name=cagr_annualized_pct,json=cagrAnnualizedPct,proto3,oneof" json:"cagr_annualized_pct,omitempty"`                  // CAGR: simple 复合年化 (final/initial)^(365/days)-1, 辅助指标, nil=降级
 	RangeCagrAnnualizedPct *float64               `protobuf:"fixed64,14,opt,name=range_cagr_annualized_pct,json=rangeCagrAnnualizedPct,proto3,oneof" json:"range_cagr_annualized_pct,omitempty"` // range CAGR (range start→now, nil=降级)
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Primary return metric designation (audit 06 decision 1): XIRR (money-weighted,
+	// all cash flows) is the primary headline metric; CAGR is auxiliary — its scope
+	// is current-holdings cost basis → market value only and IGNORES realized PnL
+	// (severely understates portfolios with liquidation+rebuild).
+	PrimaryReturnMetric *ReturnMetric `protobuf:"varint,15,opt,name=primary_return_metric,json=primaryReturnMetric,proto3,enum=yucai.holding.v1.ReturnMetric,oneof" json:"primary_return_metric,omitempty"` // server 恒填 XIRR(主指标语义,client 展示层消费)
+	CagrScope           *CagrScope    `protobuf:"varint,16,opt,name=cagr_scope,json=cagrScope,proto3,enum=yucai.holding.v1.CagrScope,oneof" json:"cagr_scope,omitempty"`                                    // CAGR 口径标注(server 恒填 CURRENT_HOLDINGS_COST_TO_MV;client 渲染本地化 tooltip)
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PortfolioPerformanceResponse) Reset() {
@@ -1793,6 +1894,20 @@ func (x *PortfolioPerformanceResponse) GetRangeCagrAnnualizedPct() float64 {
 		return *x.RangeCagrAnnualizedPct
 	}
 	return 0
+}
+
+func (x *PortfolioPerformanceResponse) GetPrimaryReturnMetric() ReturnMetric {
+	if x != nil && x.PrimaryReturnMetric != nil {
+		return *x.PrimaryReturnMetric
+	}
+	return ReturnMetric_RETURN_METRIC_UNSPECIFIED
+}
+
+func (x *PortfolioPerformanceResponse) GetCagrScope() CagrScope {
+	if x != nil && x.CagrScope != nil {
+		return *x.CagrScope
+	}
+	return CagrScope_CAGR_SCOPE_UNSPECIFIED
 }
 
 type GetHoldingPerformanceRequest struct {
@@ -2202,7 +2317,7 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x122\n" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\x12+\n" +
 	"\x11include_benchmark\x18\x03 \x01(\bR\x10includeBenchmark\x12#\n" +
-	"\rbase_currency\x18\x04 \x01(\tR\fbaseCurrency\"\xe2\x06\n" +
+	"\rbase_currency\x18\x04 \x01(\tR\fbaseCurrency\"\xa5\b\n" +
 	"\x1cPortfolioPerformanceResponse\x12G\n" +
 	"\x10portfolio_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fportfolioPoints\x12G\n" +
 	"\x10benchmark_points\x18\x02 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fbenchmarkPoints\x12%\n" +
@@ -2219,13 +2334,18 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\x12twr_annualized_pct\x18\v \x01(\x01H\x02R\x10twrAnnualizedPct\x88\x01\x01\x12<\n" +
 	"\x18range_twr_annualized_pct\x18\f \x01(\x01H\x03R\x15rangeTwrAnnualizedPct\x88\x01\x01\x123\n" +
 	"\x13cagr_annualized_pct\x18\r \x01(\x01H\x04R\x11cagrAnnualizedPct\x88\x01\x01\x12>\n" +
-	"\x19range_cagr_annualized_pct\x18\x0e \x01(\x01H\x05R\x16rangeCagrAnnualizedPct\x88\x01\x01B\x11\n" +
+	"\x19range_cagr_annualized_pct\x18\x0e \x01(\x01H\x05R\x16rangeCagrAnnualizedPct\x88\x01\x01\x12W\n" +
+	"\x15primary_return_metric\x18\x0f \x01(\x0e2\x1e.yucai.holding.v1.ReturnMetricH\x06R\x13primaryReturnMetric\x88\x01\x01\x12?\n" +
+	"\n" +
+	"cagr_scope\x18\x10 \x01(\x0e2\x1b.yucai.holding.v1.CagrScopeH\aR\tcagrScope\x88\x01\x01B\x11\n" +
 	"\x0f_annualized_pctB\x17\n" +
 	"\x15_range_annualized_pctB\x15\n" +
 	"\x13_twr_annualized_pctB\x1b\n" +
 	"\x19_range_twr_annualized_pctB\x16\n" +
 	"\x14_cagr_annualized_pctB\x1c\n" +
-	"\x1a_range_cagr_annualized_pct\"\x96\x01\n" +
+	"\x1a_range_cagr_annualized_pctB\x18\n" +
+	"\x16_primary_return_metricB\r\n" +
+	"\v_cagr_scope\"\x96\x01\n" +
 	"\x1cGetHoldingPerformanceRequest\x12\x1d\n" +
 	"\n" +
 	"holding_id\x18\x01 \x01(\tR\tholdingId\x122\n" +
@@ -2273,7 +2393,13 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\x17CURVE_RANGE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fCURVE_RANGE_DAY\x10\x01\x12\x15\n" +
 	"\x11CURVE_RANGE_MONTH\x10\x02\x12\x14\n" +
-	"\x10CURVE_RANGE_YEAR\x10\x032\xb0\v\n" +
+	"\x10CURVE_RANGE_YEAR\x10\x03*E\n" +
+	"\fReturnMetric\x12\x1d\n" +
+	"\x19RETURN_METRIC_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12RETURN_METRIC_XIRR\x10\x01*S\n" +
+	"\tCagrScope\x12\x1a\n" +
+	"\x16CAGR_SCOPE_UNSPECIFIED\x10\x00\x12*\n" +
+	"&CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV\x10\x012\xb0\v\n" +
 	"\x0eHoldingService\x12]\n" +
 	"\x0eCreateSecurity\x12'.yucai.holding.v1.CreateSecurityRequest\x1a\".yucai.holding.v1.SecurityResponse\x12c\n" +
 	"\x0eListSecurities\x12'.yucai.holding.v1.ListSecuritiesRequest\x1a(.yucai.holding.v1.ListSecuritiesResponse\x12S\n" +
@@ -2290,8 +2416,7 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"SyncPrices\x12#.yucai.holding.v1.SyncPricesRequest\x1a$.yucai.holding.v1.SyncPricesResponse\x12{\n" +
 	"\x17GetPortfolioPerformance\x120.yucai.holding.v1.GetPortfolioPerformanceRequest\x1a..yucai.holding.v1.PortfolioPerformanceResponse\x12u\n" +
 	"\x15GetHoldingPerformance\x12..yucai.holding.v1.GetHoldingPerformanceRequest\x1a,.yucai.holding.v1.HoldingPerformanceResponse\x12u\n" +
-	"\x14BackfillPriceHistory\x12-.yucai.holding.v1.BackfillPriceHistoryRequest\x1a..yucai.holding.v1.BackfillPriceHistoryResponseB\xc3\x01\n" +
-	"\x14com.yucai.holding.v1B\fHoldingProtoP\x01Z;github.com/yucai/server/internal/proto/holding/v1;holdingv1\xa2\x02\x03YHX\xaa\x02\x10Yucai.Holding.V1\xca\x02\x10Yucai\\Holding\\V1\xe2\x02\x1cYucai\\Holding\\V1\\GPBMetadata\xea\x02\x12Yucai::Holding::V1b\x06proto3"
+	"\x14BackfillPriceHistory\x12-.yucai.holding.v1.BackfillPriceHistoryRequest\x1a..yucai.holding.v1.BackfillPriceHistoryResponseB3Z1github.com/yucai/server/internal/proto/holding/v1b\x06proto3"
 
 var (
 	file_holding_v1_holding_proto_rawDescOnce sync.Once
@@ -2305,104 +2430,108 @@ func file_holding_v1_holding_proto_rawDescGZIP() []byte {
 	return file_holding_v1_holding_proto_rawDescData
 }
 
-var file_holding_v1_holding_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_holding_v1_holding_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
 var file_holding_v1_holding_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_holding_v1_holding_proto_goTypes = []any{
 	(SecurityType)(0),                      // 0: yucai.holding.v1.SecurityType
 	(TradeType)(0),                         // 1: yucai.holding.v1.TradeType
 	(CurveRange)(0),                        // 2: yucai.holding.v1.CurveRange
-	(*SecurityDTO)(nil),                    // 3: yucai.holding.v1.SecurityDTO
-	(*HoldingDTO)(nil),                     // 4: yucai.holding.v1.HoldingDTO
-	(*HoldingTransactionDTO)(nil),          // 5: yucai.holding.v1.HoldingTransactionDTO
-	(*CreateSecurityRequest)(nil),          // 6: yucai.holding.v1.CreateSecurityRequest
-	(*ListSecuritiesRequest)(nil),          // 7: yucai.holding.v1.ListSecuritiesRequest
-	(*UpdatePriceRequest)(nil),             // 8: yucai.holding.v1.UpdatePriceRequest
-	(*SearchSecuritiesRequest)(nil),        // 9: yucai.holding.v1.SearchSecuritiesRequest
-	(*HoldingTradeRequest)(nil),            // 10: yucai.holding.v1.HoldingTradeRequest
-	(*RecordDividendRequest)(nil),          // 11: yucai.holding.v1.RecordDividendRequest
-	(*RecordSplitRequest)(nil),             // 12: yucai.holding.v1.RecordSplitRequest
-	(*ListHoldingsRequest)(nil),            // 13: yucai.holding.v1.ListHoldingsRequest
-	(*ListTradesRequest)(nil),              // 14: yucai.holding.v1.ListTradesRequest
-	(*SecurityResponse)(nil),               // 15: yucai.holding.v1.SecurityResponse
-	(*ListSecuritiesResponse)(nil),         // 16: yucai.holding.v1.ListSecuritiesResponse
-	(*SearchSecuritiesResponse)(nil),       // 17: yucai.holding.v1.SearchSecuritiesResponse
-	(*HoldingTransactionResponse)(nil),     // 18: yucai.holding.v1.HoldingTransactionResponse
-	(*ListHoldingsResponse)(nil),           // 19: yucai.holding.v1.ListHoldingsResponse
-	(*ListTradesResponse)(nil),             // 20: yucai.holding.v1.ListTradesResponse
-	(*SyncPricesRequest)(nil),              // 21: yucai.holding.v1.SyncPricesRequest
-	(*SyncPricesResponse)(nil),             // 22: yucai.holding.v1.SyncPricesResponse
-	(*CurvePoint)(nil),                     // 23: yucai.holding.v1.CurvePoint
-	(*GetPortfolioPerformanceRequest)(nil), // 24: yucai.holding.v1.GetPortfolioPerformanceRequest
-	(*PortfolioPerformanceResponse)(nil),   // 25: yucai.holding.v1.PortfolioPerformanceResponse
-	(*GetHoldingPerformanceRequest)(nil),   // 26: yucai.holding.v1.GetHoldingPerformanceRequest
-	(*HoldingPerformanceResponse)(nil),     // 27: yucai.holding.v1.HoldingPerformanceResponse
-	(*BackfillPriceHistoryRequest)(nil),    // 28: yucai.holding.v1.BackfillPriceHistoryRequest
-	(*BackfillPriceHistoryResponse)(nil),   // 29: yucai.holding.v1.BackfillPriceHistoryResponse
-	(*timestamppb.Timestamp)(nil),          // 30: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),                 // 31: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),                // 32: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),                  // 33: google.protobuf.Empty
+	(ReturnMetric)(0),                      // 3: yucai.holding.v1.ReturnMetric
+	(CagrScope)(0),                         // 4: yucai.holding.v1.CagrScope
+	(*SecurityDTO)(nil),                    // 5: yucai.holding.v1.SecurityDTO
+	(*HoldingDTO)(nil),                     // 6: yucai.holding.v1.HoldingDTO
+	(*HoldingTransactionDTO)(nil),          // 7: yucai.holding.v1.HoldingTransactionDTO
+	(*CreateSecurityRequest)(nil),          // 8: yucai.holding.v1.CreateSecurityRequest
+	(*ListSecuritiesRequest)(nil),          // 9: yucai.holding.v1.ListSecuritiesRequest
+	(*UpdatePriceRequest)(nil),             // 10: yucai.holding.v1.UpdatePriceRequest
+	(*SearchSecuritiesRequest)(nil),        // 11: yucai.holding.v1.SearchSecuritiesRequest
+	(*HoldingTradeRequest)(nil),            // 12: yucai.holding.v1.HoldingTradeRequest
+	(*RecordDividendRequest)(nil),          // 13: yucai.holding.v1.RecordDividendRequest
+	(*RecordSplitRequest)(nil),             // 14: yucai.holding.v1.RecordSplitRequest
+	(*ListHoldingsRequest)(nil),            // 15: yucai.holding.v1.ListHoldingsRequest
+	(*ListTradesRequest)(nil),              // 16: yucai.holding.v1.ListTradesRequest
+	(*SecurityResponse)(nil),               // 17: yucai.holding.v1.SecurityResponse
+	(*ListSecuritiesResponse)(nil),         // 18: yucai.holding.v1.ListSecuritiesResponse
+	(*SearchSecuritiesResponse)(nil),       // 19: yucai.holding.v1.SearchSecuritiesResponse
+	(*HoldingTransactionResponse)(nil),     // 20: yucai.holding.v1.HoldingTransactionResponse
+	(*ListHoldingsResponse)(nil),           // 21: yucai.holding.v1.ListHoldingsResponse
+	(*ListTradesResponse)(nil),             // 22: yucai.holding.v1.ListTradesResponse
+	(*SyncPricesRequest)(nil),              // 23: yucai.holding.v1.SyncPricesRequest
+	(*SyncPricesResponse)(nil),             // 24: yucai.holding.v1.SyncPricesResponse
+	(*CurvePoint)(nil),                     // 25: yucai.holding.v1.CurvePoint
+	(*GetPortfolioPerformanceRequest)(nil), // 26: yucai.holding.v1.GetPortfolioPerformanceRequest
+	(*PortfolioPerformanceResponse)(nil),   // 27: yucai.holding.v1.PortfolioPerformanceResponse
+	(*GetHoldingPerformanceRequest)(nil),   // 28: yucai.holding.v1.GetHoldingPerformanceRequest
+	(*HoldingPerformanceResponse)(nil),     // 29: yucai.holding.v1.HoldingPerformanceResponse
+	(*BackfillPriceHistoryRequest)(nil),    // 30: yucai.holding.v1.BackfillPriceHistoryRequest
+	(*BackfillPriceHistoryResponse)(nil),   // 31: yucai.holding.v1.BackfillPriceHistoryResponse
+	(*timestamppb.Timestamp)(nil),          // 32: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),                 // 33: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),                // 34: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),                  // 35: google.protobuf.Empty
 }
 var file_holding_v1_holding_proto_depIdxs = []int32{
 	0,  // 0: yucai.holding.v1.SecurityDTO.security_type:type_name -> yucai.holding.v1.SecurityType
-	30, // 1: yucai.holding.v1.SecurityDTO.created_at:type_name -> google.protobuf.Timestamp
+	32, // 1: yucai.holding.v1.SecurityDTO.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: yucai.holding.v1.HoldingTransactionDTO.trade_type:type_name -> yucai.holding.v1.TradeType
-	30, // 3: yucai.holding.v1.HoldingTransactionDTO.created_at:type_name -> google.protobuf.Timestamp
+	32, // 3: yucai.holding.v1.HoldingTransactionDTO.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 4: yucai.holding.v1.CreateSecurityRequest.security_type:type_name -> yucai.holding.v1.SecurityType
-	31, // 5: yucai.holding.v1.ListSecuritiesRequest.page:type_name -> yucai.common.v1.PageRequest
+	33, // 5: yucai.holding.v1.ListSecuritiesRequest.page:type_name -> yucai.common.v1.PageRequest
 	0,  // 6: yucai.holding.v1.ListSecuritiesRequest.security_type:type_name -> yucai.holding.v1.SecurityType
-	31, // 7: yucai.holding.v1.ListHoldingsRequest.page:type_name -> yucai.common.v1.PageRequest
-	31, // 8: yucai.holding.v1.ListTradesRequest.page:type_name -> yucai.common.v1.PageRequest
-	3,  // 9: yucai.holding.v1.SecurityResponse.security:type_name -> yucai.holding.v1.SecurityDTO
-	3,  // 10: yucai.holding.v1.ListSecuritiesResponse.securities:type_name -> yucai.holding.v1.SecurityDTO
-	32, // 11: yucai.holding.v1.ListSecuritiesResponse.page:type_name -> yucai.common.v1.PageResponse
-	3,  // 12: yucai.holding.v1.SearchSecuritiesResponse.securities:type_name -> yucai.holding.v1.SecurityDTO
-	5,  // 13: yucai.holding.v1.HoldingTransactionResponse.transaction:type_name -> yucai.holding.v1.HoldingTransactionDTO
-	4,  // 14: yucai.holding.v1.ListHoldingsResponse.holdings:type_name -> yucai.holding.v1.HoldingDTO
-	32, // 15: yucai.holding.v1.ListHoldingsResponse.page:type_name -> yucai.common.v1.PageResponse
-	5,  // 16: yucai.holding.v1.ListTradesResponse.trades:type_name -> yucai.holding.v1.HoldingTransactionDTO
-	32, // 17: yucai.holding.v1.ListTradesResponse.page:type_name -> yucai.common.v1.PageResponse
-	30, // 18: yucai.holding.v1.SyncPricesResponse.synced_at:type_name -> google.protobuf.Timestamp
-	30, // 19: yucai.holding.v1.CurvePoint.time:type_name -> google.protobuf.Timestamp
+	33, // 7: yucai.holding.v1.ListHoldingsRequest.page:type_name -> yucai.common.v1.PageRequest
+	33, // 8: yucai.holding.v1.ListTradesRequest.page:type_name -> yucai.common.v1.PageRequest
+	5,  // 9: yucai.holding.v1.SecurityResponse.security:type_name -> yucai.holding.v1.SecurityDTO
+	5,  // 10: yucai.holding.v1.ListSecuritiesResponse.securities:type_name -> yucai.holding.v1.SecurityDTO
+	34, // 11: yucai.holding.v1.ListSecuritiesResponse.page:type_name -> yucai.common.v1.PageResponse
+	5,  // 12: yucai.holding.v1.SearchSecuritiesResponse.securities:type_name -> yucai.holding.v1.SecurityDTO
+	7,  // 13: yucai.holding.v1.HoldingTransactionResponse.transaction:type_name -> yucai.holding.v1.HoldingTransactionDTO
+	6,  // 14: yucai.holding.v1.ListHoldingsResponse.holdings:type_name -> yucai.holding.v1.HoldingDTO
+	34, // 15: yucai.holding.v1.ListHoldingsResponse.page:type_name -> yucai.common.v1.PageResponse
+	7,  // 16: yucai.holding.v1.ListTradesResponse.trades:type_name -> yucai.holding.v1.HoldingTransactionDTO
+	34, // 17: yucai.holding.v1.ListTradesResponse.page:type_name -> yucai.common.v1.PageResponse
+	32, // 18: yucai.holding.v1.SyncPricesResponse.synced_at:type_name -> google.protobuf.Timestamp
+	32, // 19: yucai.holding.v1.CurvePoint.time:type_name -> google.protobuf.Timestamp
 	2,  // 20: yucai.holding.v1.GetPortfolioPerformanceRequest.range:type_name -> yucai.holding.v1.CurveRange
-	23, // 21: yucai.holding.v1.PortfolioPerformanceResponse.portfolio_points:type_name -> yucai.holding.v1.CurvePoint
-	23, // 22: yucai.holding.v1.PortfolioPerformanceResponse.benchmark_points:type_name -> yucai.holding.v1.CurvePoint
-	2,  // 23: yucai.holding.v1.GetHoldingPerformanceRequest.range:type_name -> yucai.holding.v1.CurveRange
-	23, // 24: yucai.holding.v1.HoldingPerformanceResponse.price_points:type_name -> yucai.holding.v1.CurvePoint
-	2,  // 25: yucai.holding.v1.BackfillPriceHistoryRequest.range:type_name -> yucai.holding.v1.CurveRange
-	6,  // 26: yucai.holding.v1.HoldingService.CreateSecurity:input_type -> yucai.holding.v1.CreateSecurityRequest
-	7,  // 27: yucai.holding.v1.HoldingService.ListSecurities:input_type -> yucai.holding.v1.ListSecuritiesRequest
-	8,  // 28: yucai.holding.v1.HoldingService.UpdateSecurityPrice:input_type -> yucai.holding.v1.UpdatePriceRequest
-	9,  // 29: yucai.holding.v1.HoldingService.SearchSecurities:input_type -> yucai.holding.v1.SearchSecuritiesRequest
-	10, // 30: yucai.holding.v1.HoldingService.BuyHolding:input_type -> yucai.holding.v1.HoldingTradeRequest
-	10, // 31: yucai.holding.v1.HoldingService.SellHolding:input_type -> yucai.holding.v1.HoldingTradeRequest
-	11, // 32: yucai.holding.v1.HoldingService.RecordDividend:input_type -> yucai.holding.v1.RecordDividendRequest
-	12, // 33: yucai.holding.v1.HoldingService.RecordSplit:input_type -> yucai.holding.v1.RecordSplitRequest
-	13, // 34: yucai.holding.v1.HoldingService.ListHoldings:input_type -> yucai.holding.v1.ListHoldingsRequest
-	14, // 35: yucai.holding.v1.HoldingService.ListHoldingTransactions:input_type -> yucai.holding.v1.ListTradesRequest
-	21, // 36: yucai.holding.v1.HoldingService.SyncPrices:input_type -> yucai.holding.v1.SyncPricesRequest
-	24, // 37: yucai.holding.v1.HoldingService.GetPortfolioPerformance:input_type -> yucai.holding.v1.GetPortfolioPerformanceRequest
-	26, // 38: yucai.holding.v1.HoldingService.GetHoldingPerformance:input_type -> yucai.holding.v1.GetHoldingPerformanceRequest
-	28, // 39: yucai.holding.v1.HoldingService.BackfillPriceHistory:input_type -> yucai.holding.v1.BackfillPriceHistoryRequest
-	15, // 40: yucai.holding.v1.HoldingService.CreateSecurity:output_type -> yucai.holding.v1.SecurityResponse
-	16, // 41: yucai.holding.v1.HoldingService.ListSecurities:output_type -> yucai.holding.v1.ListSecuritiesResponse
-	33, // 42: yucai.holding.v1.HoldingService.UpdateSecurityPrice:output_type -> google.protobuf.Empty
-	17, // 43: yucai.holding.v1.HoldingService.SearchSecurities:output_type -> yucai.holding.v1.SearchSecuritiesResponse
-	18, // 44: yucai.holding.v1.HoldingService.BuyHolding:output_type -> yucai.holding.v1.HoldingTransactionResponse
-	18, // 45: yucai.holding.v1.HoldingService.SellHolding:output_type -> yucai.holding.v1.HoldingTransactionResponse
-	18, // 46: yucai.holding.v1.HoldingService.RecordDividend:output_type -> yucai.holding.v1.HoldingTransactionResponse
-	18, // 47: yucai.holding.v1.HoldingService.RecordSplit:output_type -> yucai.holding.v1.HoldingTransactionResponse
-	19, // 48: yucai.holding.v1.HoldingService.ListHoldings:output_type -> yucai.holding.v1.ListHoldingsResponse
-	20, // 49: yucai.holding.v1.HoldingService.ListHoldingTransactions:output_type -> yucai.holding.v1.ListTradesResponse
-	22, // 50: yucai.holding.v1.HoldingService.SyncPrices:output_type -> yucai.holding.v1.SyncPricesResponse
-	25, // 51: yucai.holding.v1.HoldingService.GetPortfolioPerformance:output_type -> yucai.holding.v1.PortfolioPerformanceResponse
-	27, // 52: yucai.holding.v1.HoldingService.GetHoldingPerformance:output_type -> yucai.holding.v1.HoldingPerformanceResponse
-	29, // 53: yucai.holding.v1.HoldingService.BackfillPriceHistory:output_type -> yucai.holding.v1.BackfillPriceHistoryResponse
-	40, // [40:54] is the sub-list for method output_type
-	26, // [26:40] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	25, // 21: yucai.holding.v1.PortfolioPerformanceResponse.portfolio_points:type_name -> yucai.holding.v1.CurvePoint
+	25, // 22: yucai.holding.v1.PortfolioPerformanceResponse.benchmark_points:type_name -> yucai.holding.v1.CurvePoint
+	3,  // 23: yucai.holding.v1.PortfolioPerformanceResponse.primary_return_metric:type_name -> yucai.holding.v1.ReturnMetric
+	4,  // 24: yucai.holding.v1.PortfolioPerformanceResponse.cagr_scope:type_name -> yucai.holding.v1.CagrScope
+	2,  // 25: yucai.holding.v1.GetHoldingPerformanceRequest.range:type_name -> yucai.holding.v1.CurveRange
+	25, // 26: yucai.holding.v1.HoldingPerformanceResponse.price_points:type_name -> yucai.holding.v1.CurvePoint
+	2,  // 27: yucai.holding.v1.BackfillPriceHistoryRequest.range:type_name -> yucai.holding.v1.CurveRange
+	8,  // 28: yucai.holding.v1.HoldingService.CreateSecurity:input_type -> yucai.holding.v1.CreateSecurityRequest
+	9,  // 29: yucai.holding.v1.HoldingService.ListSecurities:input_type -> yucai.holding.v1.ListSecuritiesRequest
+	10, // 30: yucai.holding.v1.HoldingService.UpdateSecurityPrice:input_type -> yucai.holding.v1.UpdatePriceRequest
+	11, // 31: yucai.holding.v1.HoldingService.SearchSecurities:input_type -> yucai.holding.v1.SearchSecuritiesRequest
+	12, // 32: yucai.holding.v1.HoldingService.BuyHolding:input_type -> yucai.holding.v1.HoldingTradeRequest
+	12, // 33: yucai.holding.v1.HoldingService.SellHolding:input_type -> yucai.holding.v1.HoldingTradeRequest
+	13, // 34: yucai.holding.v1.HoldingService.RecordDividend:input_type -> yucai.holding.v1.RecordDividendRequest
+	14, // 35: yucai.holding.v1.HoldingService.RecordSplit:input_type -> yucai.holding.v1.RecordSplitRequest
+	15, // 36: yucai.holding.v1.HoldingService.ListHoldings:input_type -> yucai.holding.v1.ListHoldingsRequest
+	16, // 37: yucai.holding.v1.HoldingService.ListHoldingTransactions:input_type -> yucai.holding.v1.ListTradesRequest
+	23, // 38: yucai.holding.v1.HoldingService.SyncPrices:input_type -> yucai.holding.v1.SyncPricesRequest
+	26, // 39: yucai.holding.v1.HoldingService.GetPortfolioPerformance:input_type -> yucai.holding.v1.GetPortfolioPerformanceRequest
+	28, // 40: yucai.holding.v1.HoldingService.GetHoldingPerformance:input_type -> yucai.holding.v1.GetHoldingPerformanceRequest
+	30, // 41: yucai.holding.v1.HoldingService.BackfillPriceHistory:input_type -> yucai.holding.v1.BackfillPriceHistoryRequest
+	17, // 42: yucai.holding.v1.HoldingService.CreateSecurity:output_type -> yucai.holding.v1.SecurityResponse
+	18, // 43: yucai.holding.v1.HoldingService.ListSecurities:output_type -> yucai.holding.v1.ListSecuritiesResponse
+	35, // 44: yucai.holding.v1.HoldingService.UpdateSecurityPrice:output_type -> google.protobuf.Empty
+	19, // 45: yucai.holding.v1.HoldingService.SearchSecurities:output_type -> yucai.holding.v1.SearchSecuritiesResponse
+	20, // 46: yucai.holding.v1.HoldingService.BuyHolding:output_type -> yucai.holding.v1.HoldingTransactionResponse
+	20, // 47: yucai.holding.v1.HoldingService.SellHolding:output_type -> yucai.holding.v1.HoldingTransactionResponse
+	20, // 48: yucai.holding.v1.HoldingService.RecordDividend:output_type -> yucai.holding.v1.HoldingTransactionResponse
+	20, // 49: yucai.holding.v1.HoldingService.RecordSplit:output_type -> yucai.holding.v1.HoldingTransactionResponse
+	21, // 50: yucai.holding.v1.HoldingService.ListHoldings:output_type -> yucai.holding.v1.ListHoldingsResponse
+	22, // 51: yucai.holding.v1.HoldingService.ListHoldingTransactions:output_type -> yucai.holding.v1.ListTradesResponse
+	24, // 52: yucai.holding.v1.HoldingService.SyncPrices:output_type -> yucai.holding.v1.SyncPricesResponse
+	27, // 53: yucai.holding.v1.HoldingService.GetPortfolioPerformance:output_type -> yucai.holding.v1.PortfolioPerformanceResponse
+	29, // 54: yucai.holding.v1.HoldingService.GetHoldingPerformance:output_type -> yucai.holding.v1.HoldingPerformanceResponse
+	31, // 55: yucai.holding.v1.HoldingService.BackfillPriceHistory:output_type -> yucai.holding.v1.BackfillPriceHistoryResponse
+	42, // [42:56] is the sub-list for method output_type
+	28, // [28:42] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_holding_v1_holding_proto_init() }
@@ -2417,7 +2546,7 @@ func file_holding_v1_holding_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_holding_v1_holding_proto_rawDesc), len(file_holding_v1_holding_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      5,
 			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,

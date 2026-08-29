@@ -147,23 +147,47 @@ type CurvePointDTO struct {
 	Value float64
 }
 
+// ReturnMetric 标识组合收益的头部主指标(audit 06 决策 1:切 XIRR/MWRR——
+// 多现金流场景 CAGR 方法论失真;契约语义,client 展示层消费)。
+// 值序与 proto ReturnMetric 对齐(handler 直转)。
+type ReturnMetric int
+
+const (
+	ReturnMetricUnspecified ReturnMetric = iota
+	ReturnMetricXIRR
+)
+
+// CagrScope 标注 CAGR(辅助指标)的统计口径——机器可读,client 自行渲染
+// 本地化 tooltip(文案不跨端)。
+// 值序与 proto CagrScope 对齐(handler 直转)。
+type CagrScope int
+
+const (
+	CagrScopeUnspecified CagrScope = iota
+	// CagrScopeCurrentHoldingsCostToMV:仅当前持仓 costBasis→市值,
+	// 忽略已实现盈亏(清仓+重建场景严重低估)。
+	CagrScopeCurrentHoldingsCostToMV
+)
+
 // PortfolioPerformance is the portfolio-level curve + foot (Task 6 fills).
 // All monetary foot fields are CNY cents; curve points are CNY 元 (double).
 type PortfolioPerformance struct {
 	PortfolioPoints        []CurvePointDTO // CNY market value over time
 	BenchmarkPoints        []CurvePointDTO // CSI300 (empty if !include_benchmark)
 	BenchmarkName          string
-	RealizedCents          int64    // Σ sell FIFO realized + dividend, CNY
-	UnrealizedCents        int64    // current portfolio unrealized, CNY
-	TotalCents             int64    // realized + unrealized
-	AnnualizedPct          *float64 // 全期 XIRR 年化%(nil=降级)
-	RangeAnnualizedPct     *float64 // 区间 XIRR 年化%(随 CurveRange,nil=降级)
-	TwrAnnualizedPct       *float64 // TWR 时间加权年化%(全期,nil=降级)
-	RangeTwrAnnualizedPct  *float64 // 区间 TWR 时间加权年化%(随 CurveRange,nil=降级/区间不足)
-	CagrAnnualizedPct      *float64 // CAGR simple 复合年化(costBasis→MV,nil=降级)
-	RangeCagrAnnualizedPct *float64 // 区间 CAGR(rangeStartMV→MV,nil=降级)
-	TotalPct               float64  // cumulative return %
-	Currency               string   // "CNY"
+	RealizedCents          int64        // Σ sell FIFO realized + dividend, CNY
+	UnrealizedCents        int64        // current portfolio unrealized, CNY
+	TotalCents             int64        // realized + unrealized
+	PrimaryReturnMetric    ReturnMetric // 主指标(恒 XIRR;audit 06 决策 1)
+	CagrScope              CagrScope    // CAGR 口径标注(恒 CURRENT_HOLDINGS_COST_TO_MV)
+	AnnualizedPct          *float64     // 全期 XIRR 年化%(nil=降级)
+	RangeAnnualizedPct     *float64     // 区间 XIRR 年化%(随 CurveRange,nil=降级)
+	TwrAnnualizedPct       *float64     // TWR 时间加权年化%(全期,nil=降级)
+	RangeTwrAnnualizedPct  *float64     // 区间 TWR 时间加权年化%(随 CurveRange,nil=降级/区间不足)
+	CagrAnnualizedPct      *float64     // CAGR simple 复合年化(costBasis→MV,辅助指标,nil=降级)
+	RangeCagrAnnualizedPct *float64     // 区间 CAGR(rangeStartMV→MV,nil=降级)
+	TotalPct               float64      // cumulative return %
+	Currency               string       // "CNY"
 }
 
 // HoldingPerformance is the single-holding curve + foot.

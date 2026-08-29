@@ -306,8 +306,11 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 		RangeTwrAnnualizedPct:  perf.RangeTwrAnnualizedPct,
 		CagrAnnualizedPct:      perf.CagrAnnualizedPct,
 		RangeCagrAnnualizedPct: perf.RangeCagrAnnualizedPct,
-		TotalPct:               perf.TotalPct,
-		Currency:               perf.Currency,
+		// 主指标语义(audit 06 决策 1):本地枚举值序与 pb 对齐,直转。
+		PrimaryReturnMetric: pb.ReturnMetric(perf.PrimaryReturnMetric).Enum(),
+		CagrScope:           pb.CagrScope(perf.CagrScope).Enum(),
+		TotalPct:            perf.TotalPct,
+		Currency:            perf.Currency,
 	}, nil
 }
 

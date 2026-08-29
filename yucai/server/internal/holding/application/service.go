@@ -819,6 +819,8 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 		TotalCents: total, AnnualizedPct: fullXirr, RangeAnnualizedPct: rangeXirr,
 		TwrAnnualizedPct: fullTwr, RangeTwrAnnualizedPct: rangeTwr,
 		CagrAnnualizedPct: fullCagr, RangeCagrAnnualizedPct: rangeCagr,
+		// 主指标语义常量(audit 06 决策 1):XIRR 主指标,CAGR 辅助+口径标注。
+		PrimaryReturnMetric: ReturnMetricXIRR, CagrScope: CagrScopeCurrentHoldingsCostToMV,
 		TotalPct: totalPct, Currency: base,
 	}
 	if withBenchmark {

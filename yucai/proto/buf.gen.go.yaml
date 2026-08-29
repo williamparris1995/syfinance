@@ -1,0 +1,11 @@
+version: v2
+inputs:
+  - directory: .
+    paths:
+      - holding/v1/holding.proto
+plugins:
+  - local: protoc-gen-go
+    out: ../server/internal/proto
+    opt:
+      - paths=source_relative
+      - "Mholding/v1/holding.proto=github.com/yucai/server/internal/proto/holding/v1;holdingv1"

@@ -195,8 +195,27 @@ message PortfolioPerformanceResponse {
   optional double range_annualized_pct = 10; // 区间 XIRR 年化%(随 CurveRange)
   optional double twr_annualized_pct = 11;   // TWR 时间加权年化%(全期,nil=降级)
   optional double range_twr_annualized_pct = 12; // TWR 区间年化%(随 CurveRange,nil=降级/区间不足)
-  optional double cagr_annualized_pct = 13;        // CAGR: simple 复合年化 (final/initial)^(365/days)-1, nil=降级
+  optional double cagr_annualized_pct = 13;        // CAGR: simple 复合年化 (final/initial)^(365/days)-1, 辅助指标, nil=降级
   optional double range_cagr_annualized_pct = 14;  // range CAGR (range start→now, nil=降级)
+  // Primary return metric designation (audit 06 decision 1): XIRR (money-weighted,
+  // all cash flows) is the primary headline metric; CAGR is auxiliary — its scope
+  // is current-holdings cost basis → market value only and IGNORES realized PnL
+  // (severely understates portfolios with liquidation+rebuild).
+  optional ReturnMetric primary_return_metric = 15; // server 恒填 XIRR(主指标语义,client 展示层消费)
+  optional CagrScope cagr_scope = 16;                // CAGR 口径标注(server 恒填 CURRENT_HOLDINGS_COST_TO_MV;client 渲染本地化 tooltip)
+}
+
+// ReturnMetric 组合收益头部主指标(语义归 server,展示归 client)。
+enum ReturnMetric {
+  RETURN_METRIC_UNSPECIFIED = 0;
+  RETURN_METRIC_XIRR = 1; // money-weighted,全现金流(audit 06 决策 1 主指标)
+}
+
+// CagrScope CAGR(辅助指标)统计口径,机器可读。
+enum CagrScope {
+  CAGR_SCOPE_UNSPECIFIED = 0;
+  // 仅当前持仓 costBasis→市值,忽略已实现盈亏。
+  CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV = 1;
 }
 
 message GetHoldingPerformanceRequest {
