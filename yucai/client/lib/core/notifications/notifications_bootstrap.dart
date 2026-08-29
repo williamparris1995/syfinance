@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:window_manager/window_manager.dart';
+import 'dart:async';
+
+import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/drift_due_source.dart';
@@ -45,13 +48,26 @@ Future<void> _bootstrap(AppDatabase db) async {
     notifier: adapter,
   );
 
+  Future<void> runAutoRecord() async {
+    await autoScheduler.run(DateTime.now());
+  }
+
   final tray = TrayController(
     scan: () => scanner.scan(DateTime.now()),
-    autoRecord: () async {
-      await autoScheduler.run(DateTime.now());
-    },
+    autoRecord: runAutoRecord,
   );
   await tray.start();
+
+  // 回网触发(review R2 polish):绑定模式断网期间的 autoRecord 延迟落账,
+  // 网络恢复即刻补齐(spec grill #0「回网后一次性补齐」的完整语义;
+  // tick 日门控会让日内回网等到次日)。
+  StreamSubscription<bool>? netSub;
+  netSub = getIt<ConnectivityGateway>().online.listen((online) {
+    if (online) {
+      runAutoRecord().catchError((Object _) {});
+    }
+  });
+  _netSub = netSub;
 
   // 次实例信号:唤起主窗口(FR-4)。
   SingleInstanceGuard.startWatching(focusMainWindow);
@@ -72,3 +88,6 @@ Future<bool> acquireSingleInstance() async {
   await SingleInstanceGuard.signalExistingAndExit();
   return false;
 }
+
+// ignore: unused_element — 回网订阅持有(防 GC;生命周期=进程)。
+StreamSubscription<bool>? _netSub;
