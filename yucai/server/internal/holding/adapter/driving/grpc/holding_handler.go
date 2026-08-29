@@ -101,7 +101,7 @@ func (h *HoldingHandler) BuyHolding(ctx context.Context, req *pb.HoldingTradeReq
 	}
 	td, _ := parseDate(req.TradeDate)
 	// amount = priceCents × quantity (double-write 金额，与 service AmountCents 一致)。
-	amountCents := int64(float64(req.PriceCents) * req.Quantity)
+	amountCents := application.TradeAmountCents(req.PriceCents, req.Quantity)
 
 	fromAcc, holdAcc, err := h.validateTradeFromAccount(ctx, tenantID, fromAccountID, holdingAccountID, amountCents, true /*buy*/)
 	if err != nil {
@@ -137,7 +137,7 @@ func (h *HoldingHandler) SellHolding(ctx context.Context, req *pb.HoldingTradeRe
 	}
 	td, _ := parseDate(req.TradeDate)
 	// amount = priceCents × quantity (double-write 金额，与 service AmountCents 一致)。
-	amountCents := int64(float64(req.PriceCents) * req.Quantity)
+	amountCents := application.TradeAmountCents(req.PriceCents, req.Quantity)
 
 	// sell: from 不查余额(现金入账),isBuy=false。
 	fromAcc, holdAcc, err := h.validateTradeFromAccount(ctx, tenantID, fromAccountID, holdingAccountID, amountCents, false /*sell*/)

@@ -43,21 +43,27 @@ func (c *AmortizationCalculator) lumpSum(debt *DebtDetails) []PaymentScheduleEnt
 	}
 }
 
-// equalPrincipal: fixed monthly principal = total/months; interest = remaining * monthly_rate.
+// equalPrincipal: monthly principal = total/months(float 均摊,每月四舍五入);
+// last month absorbs the remainder(总额守恒);interest = remaining × monthly_rate
+// 按真实(未截断)remaining 复算(F7:旧实现整除截断 + 按截断 remaining 复息,
+// 系统性偏差;与 equalPrincipalInterest 的 round+float 模式对齐)。
+// 存量已生成 schedule 不受影响(仅新生成走本路径)。
 func (c *AmortizationCalculator) equalPrincipal(debt *DebtDetails) []PaymentScheduleEntry {
 	months := debt.TermInMonths()
 	monthlyRate := debt.InterestRate / 12.0
-	monthlyPrincipal := debt.TotalPrincipalCents / int64(months)
+	monthlyPrincipal := float64(debt.TotalPrincipalCents) / float64(months)
 	remainingPrincipal := float64(debt.TotalPrincipalCents)
 
 	entries := make([]PaymentScheduleEntry, months)
 	for i := 0; i < months; i++ {
 		interestCents := roundToInt64(remainingPrincipal * monthlyRate)
 
-		// Last entry gets the remainder to avoid rounding gaps
-		principalCents := monthlyPrincipal
+		var principalCents int64
 		if i == months-1 {
+			// Last entry gets the remainder to avoid rounding gaps
 			principalCents = roundToInt64(remainingPrincipal)
+		} else {
+			principalCents = roundToInt64(monthlyPrincipal)
 		}
 
 		entries[i] = PaymentScheduleEntry{

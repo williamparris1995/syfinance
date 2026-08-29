@@ -147,7 +147,7 @@ func (s *Service) buyHolding(ctx context.Context, req HoldingTradeRequest) (*Hol
 		ID: tradeID, TenantID: req.TenantID,
 		AccountID: req.AccountID, SecurityID: req.SecurityID,
 		TradeType: domain.TradeTypeBuy, Quantity: req.Quantity,
-		PriceCents: req.PriceCents, AmountCents: int64(float64(req.PriceCents) * req.Quantity),
+		PriceCents: req.PriceCents, AmountCents: TradeAmountCents(req.PriceCents, req.Quantity),
 		FeeCents: req.FeeCents, TradeDate: req.TradeDate, Notes: req.Notes,
 		CreatedAt: h.UpdatedAt,
 	}
@@ -241,7 +241,7 @@ func (s *Service) sellHolding(ctx context.Context, req HoldingTradeRequest) (*Ho
 		ID: uuid.New(), TenantID: req.TenantID,
 		AccountID: req.AccountID, SecurityID: req.SecurityID,
 		TradeType: domain.TradeTypeSell, Quantity: req.Quantity,
-		PriceCents: req.PriceCents, AmountCents: int64(float64(req.PriceCents) * req.Quantity),
+		PriceCents: req.PriceCents, AmountCents: TradeAmountCents(req.PriceCents, req.Quantity),
 		FeeCents: req.FeeCents, TradeDate: req.TradeDate, Notes: req.Notes,
 		RealizedPnLCents: realized, CreatedAt: h.UpdatedAt,
 	}
@@ -279,6 +279,11 @@ func (s *Service) RecordDividend(ctx context.Context, req RecordDividendRequest)
 
 // RecordSplit records a stock split.
 func (s *Service) RecordSplit(ctx context.Context, req RecordSplitRequest) (*HoldingTransactionDTO, error) {
+	// F12 守卫:ratio≤0 会把 quantity 乘成 0/负且成本不调整(数据静默损坏),
+	// fail-closed 在任何读取/持久化之前拒绝(mapError → InvalidArgument)。
+	if req.Ratio <= 0 {
+		return nil, fmt.Errorf("record split: invalid ratio %v (must be > 0)", req.Ratio)
+	}
 	h, err := s.holdingRepo.FindByAccountAndSecurity(ctx, req.TenantID, req.AccountID, req.SecurityID)
 	if err != nil {
 		return nil, fmt.Errorf("holding not found: %w", err)
@@ -1412,15 +1417,22 @@ func (s *Service) cachedMV(ctx context.Context, cache mvCache, trades []domain.H
 	return val, ok
 }
 
-// computeTWR computes GIPS TWR over [rangeStart, now] using sub-period chaining.
-// Generalized from portfolioTWR: full-period is rangeStart=cashFlowDays[0] (a
-// special case — byte-identical to the original portfolioTWR). Returns nil on
-// insufficient data or missing prices (degrade, mirrors portfolioTWR).
+// computeTWR computes GIPS TWR over [rangeStart, now] using sub-period chaining
+// with full-liquidation segmentation (design ADR-4, spec FR-3):
+//
+//   - 中途完全清仓段(qty=0 区间)整段跳过,重建日重启子链,逐段链乘
+//     (GIPS:完全清仓=组合终止,重建视为新 track;清仓 gap 不贡献收益也不贡献天数);
+//   - 终态完全清仓:链终止于清仓日(尾因子=1),年化按实际存续天数——不乘 0
+//     (乘 0 会把"清仓"误报为 -100%);
+//   - qty>0 但 MV=0(退市/坏价格)= 数据错误 ≠ 收益:sentinel 降级 nil + 英文日志。
 //
 //	effectiveDays = cashFlowDays strictly after rangeStart (sub-period endpoints)
 //	begin = BV_after(rangeStart) = qty@rangeStart+1d × price@rangeStart
 //	subPeriods[i] = {Begin: prevAfter, End: BV_before(day_i)}
-//	finalValue = current market value; totalDays = rangeStart→now
+//	finalValue = current market value (open final segment only)
+//
+// 无清仓路径与旧实现 byte-identical(单段 = 同样的 subs + 尾因子 + totalDays)。
+// Returns nil on insufficient data or missing prices (degrade, mirrors portfolioTWR).
 //
 // cache memoizes marketValueAtDateAsOfWithTrades results across calls sharing the
 // same BV(day) (e.g. portfolioTWR's full + range computeTWR). Transparent: a nil
@@ -1439,30 +1451,164 @@ func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID 
 	if !ok {
 		return nil, nil
 	}
-	prevAfter := float64(beginAfter)
-	subPeriods := make([]domain.SubPeriodReturn, 0, len(effectiveDays))
+
+	// twrSegment 是清仓分段链乘中的一段。
+	type twrSegment struct {
+		subs       []domain.SubPeriodReturn
+		lastAfter  float64   // BV_after(段内最后处理的现金流日)
+		tailBase   float64   // terminated 段的尾因子基准 = BV_before(清仓日)
+		finalMV    float64   // 开段闭合时的当前市值(尾因子分子)
+		startDay   time.Time // 段起点(rangeStart 或重建日)
+		endDay     time.Time // 段终点(清仓日或 now)
+		terminated bool      // 段末为完全清仓(GIPS discontinued)
+	}
+	var (
+		segments []twrSegment
+		cur      twrSegment
+		active   bool
+	)
+	if beginAfter > 0 {
+		cur = twrSegment{startDay: rangeStart, lastAfter: float64(beginAfter)}
+		active = true
+	} else if !s.portfolioEmptyAt(ctx, trades, tenantID, accountID, rangeStart.AddDate(0, 0, 1)) {
+		// 开盘 MV=0 但持仓非空:坏价 sentinel(数据错误 ≠ 收益)。
+		slog.Warn("portfolio twr degrade: zero market value with open quantity at range start",
+			slog.String("qty_as_of", rangeStart.AddDate(0, 0, 1).Format("2006-01-02")),
+			slog.String("operation", "computeTWR"))
+		return nil, nil
+	}
+
 	for _, day := range effectiveDays {
-		bvBefore, ok := s.cachedMV(ctx, cache, trades, tenantID, accountID, day, day, rateBase, base)
-		if !ok {
+		bvBefore, okB := s.cachedMV(ctx, cache, trades, tenantID, accountID, day, day, rateBase, base)
+		if !okB {
 			return nil, nil
 		}
-		subPeriods = append(subPeriods, domain.SubPeriodReturn{
-			BeginValueAfterCF: prevAfter,
+		bvAfter, okA := s.cachedMV(ctx, cache, trades, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
+		if !okA {
+			return nil, nil
+		}
+		if !active {
+			// 清仓 gap 中:等待重建日(trade 后 MV>0 的首个现金流日)。
+			if bvAfter > 0 {
+				cur = twrSegment{startDay: day, lastAfter: float64(bvAfter)}
+				active = true
+			} else if bvAfter == 0 && !s.portfolioEmptyAt(ctx, trades, tenantID, accountID, day.AddDate(0, 0, 1)) {
+				slog.Warn("portfolio twr degrade: zero market value with open quantity in liquidation gap",
+					slog.String("qty_as_of", day.AddDate(0, 0, 1).Format("2006-01-02")),
+					slog.String("operation", "computeTWR"))
+				return nil, nil
+			}
+			continue
+		}
+		if bvBefore == 0 {
+			// active 段的端点不可能合法为 0(前一现金流日后有持仓):
+			// 必为坏价(价格拍到 0)→ sentinel 降级。
+			slog.Warn("portfolio twr degrade: zero market value with open quantity at sub-period end",
+				slog.String("price_as_of", day.Format("2006-01-02")),
+				slog.String("operation", "computeTWR"))
+			return nil, nil
+		}
+		cur.subs = append(cur.subs, domain.SubPeriodReturn{
+			BeginValueAfterCF: cur.lastAfter,
 			EndValueBeforeCF:  float64(bvBefore),
 		})
-		bvAfter, ok := s.cachedMV(ctx, cache, trades, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
-		if !ok {
+		cur.lastAfter = float64(bvAfter)
+		if bvAfter == 0 {
+			// 当日完全清仓 → 闭段(终止语义:尾因子基准 = 清仓日前市值)。
+			if !s.portfolioEmptyAt(ctx, trades, tenantID, accountID, day.AddDate(0, 0, 1)) {
+				slog.Warn("portfolio twr degrade: zero market value with open quantity at liquidation day",
+					slog.String("qty_as_of", day.AddDate(0, 0, 1).Format("2006-01-02")),
+					slog.String("operation", "computeTWR"))
+				return nil, nil
+			}
+			cur.tailBase = float64(bvBefore)
+			cur.endDay = day
+			cur.terminated = true
+			segments = append(segments, cur)
+			cur = twrSegment{}
+			active = false
+		}
+	}
+	if active {
+		finalValue := s.currentMarketValueInBase(ctx, tenantID, accountID, base)
+		if float64(finalValue) == 0 && cur.lastAfter > 0 {
+			slog.Warn("portfolio twr degrade: zero current market value with open quantity",
+				slog.String("operation", "computeTWR"))
 			return nil, nil
 		}
-		prevAfter = float64(bvAfter)
+		cur.finalMV = float64(finalValue)
+		cur.endDay = s.now()
+		segments = append(segments, cur)
 	}
-	finalValue := s.currentMarketValueInBase(ctx, tenantID, accountID, base)
-	totalDays := int(s.now().Sub(rangeStart).Hours() / 24)
-	rate, err := domain.TWR(subPeriods, float64(finalValue), prevAfter, totalDays)
+	if len(segments) == 0 {
+		return nil, nil // 全程空仓无重建:无收益可算
+	}
+
+	chainProduct := 1.0
+	totalDays := 0
+	for _, seg := range segments {
+		var cum float64
+		if seg.terminated {
+			// 终止段:尾因子 = tailBase/tailBase = 1(收益止于清仓日)。
+			c, err := domain.CumulativeTWR(seg.subs, seg.tailBase, seg.tailBase)
+			if err != nil {
+				slog.Warn("portfolio twr degrade: segment cumulative rejected",
+					slog.String("error", err.Error()),
+					slog.String("operation", "computeTWR"))
+				return nil, nil
+			}
+			cum = c
+		} else if len(seg.subs) == 0 {
+			// 重建后无后续现金流日:单尾因子段(rebuild → now)。
+			if seg.lastAfter == 0 {
+				return nil, nil
+			}
+			cum = seg.finalMV/seg.lastAfter - 1
+		} else {
+			c, err := domain.CumulativeTWR(seg.subs, seg.finalMV, seg.lastAfter)
+			if err != nil {
+				slog.Warn("portfolio twr degrade: segment cumulative rejected",
+					slog.String("error", err.Error()),
+					slog.String("operation", "computeTWR"))
+				return nil, nil
+			}
+			cum = c
+		}
+		chainProduct *= 1 + cum
+		totalDays += int(seg.endDay.Sub(seg.startDay).Hours() / 24)
+	}
+	rate, err := domain.AnnualizeTWR(chainProduct-1, totalDays)
 	if err != nil {
+		slog.Warn("portfolio twr degrade: annualization rejected",
+			slog.String("error", err.Error()),
+			slog.String("operation", "computeTWR"))
 		return nil, nil
 	}
 	return ptrFloat(rate), nil
+}
+
+// portfolioEmptyAt 判断 qtyAsOf 时点全部持仓数量是否为零(纯清仓态)。
+// 用于区分 MV=0 的两种成因:完全清仓(合法,链终止/分段)vs 持仓未清但价格
+// 为 0(数据错误 → sentinel 降级)。repo 出错时返回 false(fail-closed:
+// 无法确认清仓 → 按"非空"处理 → 上层降级而非误判终止)。
+func (s *Service) portfolioEmptyAt(ctx context.Context, secTrades []domain.HoldingTransaction, tenantID uuid.UUID, accountID *uuid.UUID, qtyAsOf time.Time) bool {
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		res, err := s.holdingRepo.FindAll(ctx, tenantID, accountID, page)
+		if err != nil {
+			return false
+		}
+		for _, h := range res.Items {
+			if domain.QtyAtDate(filterTradesBySecurity(secTrades, h.SecurityID), qtyAsOf) != 0 {
+				return false
+			}
+		}
+		if res.NextPageToken == "" || len(res.Items) == 0 {
+			break
+		}
+		page.PageToken = res.NextPageToken
+	}
+	return true
 }
 
 // portfolioTWR computes full-period + range TWR (base currency), mirroring
@@ -1614,7 +1760,11 @@ func (s *Service) holdingTWR(ctx context.Context, tenantID uuid.UUID, holdingID 
 		rate := math.Pow(finalValue/prevAfterCF, 365.0/float64(totalDays)) - 1
 		return ptrFloat(rate), nil
 	}
-	rate, err := domain.TWR(subPeriods, finalValue, prevAfterCF, totalDays)
+	cum, err := domain.CumulativeTWR(subPeriods, finalValue, prevAfterCF)
+	if err != nil {
+		return nil, nil
+	}
+	rate, err := domain.AnnualizeTWR(cum, totalDays)
 	if err != nil {
 		return nil, nil
 	}

@@ -163,6 +163,48 @@ func TestEqualPrincipalSchedule(t *testing.T) {
 	}
 }
 
+// F7:不可整除本金——月供本金浮点均摊 + 每月四舍五入,末月吸收余差;
+// 利息按真实(未截断)remaining 复算。旧实现整除截断(333333)系统性偏差。
+//
+//	本金 1000001 / 3 月:月供 = round(333333.67) = 333334,末月余 333333;
+//	利息:round(1000001×0.05/12)=4167 → round(666667×r)=2778 → round(333333×r)=1389。
+func TestEqualPrincipalNonDivisibleRoundsMonthly(t *testing.T) {
+	d, _ := NewDebtDetails(
+		uuid.New(), uuid.New(),
+		"Lender", 0.05, AmortizationEqualPrincipal,
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		1000001, // 3 个月,不可整除
+		DebtTypeUnspecified,
+		"",
+		"", "", nil,
+	)
+	entries := d.GenerateSchedule()
+	if len(entries) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(entries))
+	}
+	wantPrincipal := []int64{333334, 333334, 333333}
+	wantInterest := []int64{4167, 2778, 1389}
+	for i, e := range entries {
+		if e.PrincipalCents != wantPrincipal[i] {
+			t.Errorf("entry %d: principal %d, want %d (float amortization + round)", i, e.PrincipalCents, wantPrincipal[i])
+		}
+		if e.InterestCents != wantInterest[i] {
+			t.Errorf("entry %d: interest %d, want %d (interest on true remaining)", i, e.InterestCents, wantInterest[i])
+		}
+		if e.TotalCents != e.PrincipalCents+e.InterestCents {
+			t.Errorf("entry %d: total %d != principal+interest", i, e.TotalCents)
+		}
+	}
+	var total int64
+	for _, e := range entries {
+		total += e.PrincipalCents
+	}
+	if total != 1000001 {
+		t.Errorf("total principal = %d, want 1000001 (conservation)", total)
+	}
+}
+
 func TestEqualPrincipalInterestSchedule(t *testing.T) {
 	d, _ := NewDebtDetails(
 		uuid.New(), uuid.New(),

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -198,12 +199,14 @@ func TestPortfolioTWRRangeDegradeLate(t *testing.T) {
 // TestPortfolioTWRRangeDegradeEarly:rangeStart < 首笔 trade → 区间初空仓
 // (qty@(rangeStart+1d)=0 → begin MV=0 → 首子区间 BeginValueAfterCF=0 → ErrZeroValue)→ rng nil。
 // full 仍解出(rangeStart=cashFlowDays[0],day0 buy 后有持仓)。
-func TestPortfolioTWRRangeDegradeEarly(t *testing.T) {
+func TestPortfolioTWRRangeStartsBeforeFirstTrade(t *testing.T) {
 	secID := uuid.New()
 	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
 	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
-	// rangeStart 早于 day0 两天 → rangeStart+1d = day0 前一天 → qty=0(空仓)。
+	// rangeStart 早于 day0 两天 → rangeStart+1d = day0 前一天 → qty=0(空仓 gap)。
+	// 行为变更(F6 分段语义):旧实现空仓开盘 → ErrZeroValue → nil 降级;
+	// 新实现链从首个重建日(首笔 buy)重启 → 返回真值(恒价 → ~0)。
 	rangeStart := day0.AddDate(0, 0, -2)
 	svc := &Service{
 		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 10000}},
@@ -223,8 +226,11 @@ func TestPortfolioTWRRangeDegradeEarly(t *testing.T) {
 	if full == nil {
 		t.Fatal("full nil, want non-nil (full-period independent of rangeStart)")
 	}
-	if rng != nil {
-		t.Errorf("rng = %v, want nil (rangeStart < first trade → empty opening position → ErrZeroValue)", *rng)
+	if rng == nil {
+		t.Fatal("rng nil, want non-nil (chain restarts at first trade day, gap before it skipped)")
+	}
+	if math.Abs(*rng) > 1e-9 {
+		t.Errorf("rng = %v, want ~0 (constant price, chain from first buy)", *rng)
 	}
 }
 
