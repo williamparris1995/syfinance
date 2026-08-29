@@ -64,4 +64,10 @@ void main() {
       expect(n.body, '已逾期 5 天,应还 ¥990.05');
     });
   });
+  /// 档位序数契约守卫(review R1):ReminderLogs 持久化 DueTier.index,
+  /// 枚举重排会静默错读历史记录 —— 此处钉死顺序。
+  test('DueTier 枚举顺序契约(t3=0/t0=1/overdue=2,持久化依赖)', () {
+    expect(DueTier.values.map((t) => t.index).toList(), [0, 1, 2]);
+    expect(DueTier.values.toList(), [DueTier.t3, DueTier.t0, DueTier.overdue]);
+  });
 }

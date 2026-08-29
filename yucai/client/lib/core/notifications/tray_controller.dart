@@ -31,7 +31,8 @@ class TrayController with TrayListener, WindowListener {
       MenuItem(key: _kQuit, label: '退出'),
     ]));
     _tick = Timer.periodic(const Duration(minutes: 30), (_) => _maybeScan());
-    await _scanAndMark(); // 启动首扫
+    // 启动延迟首扫(design ADR-5:不阻塞 runApp 首帧;失败则当日稍后 tick 重试)。
+    Timer(const Duration(seconds: 10), _scanAndMark);
   }
 
   Future<void> stop() async {
@@ -51,9 +52,10 @@ class TrayController with TrayListener, WindowListener {
   }
 
   Future<void> _scanAndMark() async {
+    await scan();
+    // 成功后才标记当日已扫(失败 → 30 分钟 tick 自然重试;review R1)。
     final now = DateTime.now();
     _lastScanDay = DateTime(now.year, now.month, now.day);
-    await scan();
   }
 
   // ---- window_manager:关闭=隐藏到托盘,退出只走托盘菜单 ----

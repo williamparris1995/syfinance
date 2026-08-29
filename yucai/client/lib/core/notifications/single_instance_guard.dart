@@ -22,14 +22,16 @@ class SingleInstanceGuard {
   static Timer startWatching(void Function() onShowSignal) {
     Timer? t;
     t = Timer.periodic(const Duration(milliseconds: 500), (_) async {
-      final f = await _signalFile();
-      if (!await f.exists()) return;
-      final content = await f.readAsString();
-      // 消费后立即删除,防止重复触发。
       try {
+        final f = await _signalFile();
+        if (!await f.exists()) return;
+        final content = await f.readAsString();
+        // 消费后立即删除,防止重复触发(读/删均容错:偶发丢信号可接受,
+        // 未捕获异常不可接受 —— Timer 回调里会变 zone error)。
         await f.delete();
+        if (content.trim().isNotEmpty) onShowSignal();
       } catch (_) {}
-      if (content.trim().isNotEmpty) onShowSignal();
+
     });
     return t;
   }

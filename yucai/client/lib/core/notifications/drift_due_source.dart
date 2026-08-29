@@ -9,7 +9,8 @@ import 'package:yucai_client/core/notifications/due_scanner.dart';
 /// 未付期次候选:paymentDate ≤ today+windowDays(档位细分留给 policy),
 /// join Debts 取 counterparty 作债务展示名。
 class DriftDueSource implements DueScheduleSource {
-  DriftDueSource(this.db, {this.windowDays = 3});
+  DriftDueSource(this.db, {int? windowDays})
+      : windowDays = windowDays ?? DueReminderPolicy.advanceDays;
   final AppDatabase db;
   final int windowDays;
 
@@ -51,7 +52,9 @@ class DriftReminderLogStore implements ReminderLogStore {
           t.entryId.equals(entryId) &
           t.tier.equals(tier.index) &
           t.sentDate.equals(_day(today)));
-    return await q.getSingleOrNull() != null;
+    // 唯一索引保证至多一行;用 isNotEmpty 而非 getSingleOrNull,
+    // 历史脏数据(重复行)不再炸扫描(review R1)。
+    return (await q.get()).isNotEmpty;
   }
 
   @override

@@ -11,8 +11,18 @@ import 'package:yucai_client/core/notifications/tray_controller.dart';
 
 /// 通知/托盘/自启 bootstrap(FR-1..FR-5 接线;仅 Windows)。
 /// main 在 runApp 前调用 [bootstrapNotifications](单实例守卫在更早处)。
+/// 错误隔离:通知是附属功能,任一环节失败只降级不阻断 app 启动(review R1)。
 Future<void> bootstrapNotifications(AppDatabase db) async {
   if (!notificationsSupported()) return;
+  try {
+    await _bootstrap(db);
+  } catch (e) {
+    // ignore: avoid_print — 附属功能降级,不阻断主程序。
+    print('notifications bootstrap degraded: $e');
+  }
+}
+
+Future<void> _bootstrap(AppDatabase db) async {
 
   final source = DriftDueSource(db);
   final logStore = DriftReminderLogStore(db);

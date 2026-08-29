@@ -11,4 +11,11 @@ class ReminderLogs extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  /// 同日同档唯一(insertOrIgnore 幂等的约束基础;review R1:无索引则
+  /// 并发扫描可插重行,消费端 getSingleOrNull 会抛错)。
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {entryId, tier, sentDate}
+      ];
 }

@@ -16,7 +16,7 @@
 main.dart ── bootstrap: single_instance(次实例→show 主窗→exit)
    ├─ window_manager(关闭→hide)
    ├─ tray_controller(托盘菜单:显示/立即检查/退出;每日 Timer)
-   └─ getIt<NotificationService>
+   └─ bootstrapNotifications(直构,不经 getIt —— 模块无 getIt 消费方,死注册更差;review R1 裁决)
         ├─ DueReminderPolicy(纯函数:tier/应发/文案)      ← TDD 核心
         ├─ DueScanner(编排:source→policy→log→notifier)   ← TDD 核心
         ├─ DriftDueSource(AppDatabase join)               ← drift 内存库测
