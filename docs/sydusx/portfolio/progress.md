@@ -9,14 +9,14 @@
 | product | domain | vision | 当前 release | 说明 |
 |---|---|---|---|---|
 | [yucai-server](../products/yucai-server/) | software | [vision](../products/yucai-server/vision.md) | [R5 审计整改](../products/yucai-server/release-r5-audit/release.md)(🔄 active) | Go 后端;produces [yucai-api](contracts/yucai-api/README.md) |
-| [yucai-client](../products/yucai-client/) | software | [vision](../products/yucai-client/vision.md) | [R6 offline-first 本地模式](../products/yucai-client/release-r6-offline/release.md)(🔄 active) | Flutter 客户端;consumes yucai-api |
+| [yucai-client](../products/yucai-client/) | software | [vision](../products/yucai-client/vision.md) | [R7 windows-usable](../products/yucai-client/release-r7-windows-usable/release.md)(🔄 active) | Flutter 客户端;consumes yucai-api |
 
 ## Current position
 
-**Status:** yucai-server `release-r5-audit` — **sprint-2 ✅ done(2026-08-29,G+H)——05+06 全落地;server 线按 pivot 暂停,下一线 client**(真机验收→打包→定时通知→收益本地化)。sprint-1 done(2026-08-23,A/B/C/D 四 feature 全 merged——04 备份恢复可靠性收官:快照隔离+原子 restore+写冻结+加密分层[D19a v2 KDF header,v1 永久兼容])。
+**Status:** yucai-client `release-r7-windows-usable` — **立项 2026-08-29**(sprint-1 打包通路 in-progress;用户拍板 Windows 优先、移动端→R8)。yucai-server R5 sprint-2 ✅ done 2026-08-29(G+H,05+06 全落地),server 线按 pivot 暂停(sprint-3 挂起)。server sprint-1 done(2026-08-23,A/B/C/D 四 feature 全 merged——04 备份恢复可靠性收官:快照隔离+原子 restore+写冻结+加密分层[D19a v2 KDF header,v1 永久兼容])。
 
-- Current product: **yucai-server**
-- Current release: [release-r5-audit](../products/yucai-server/release-r5-audit/release.md)(R5 审计整改,scope 03-09,全 server-side)
+- Current product: **yucai-client**(R7 windows-usable;server 线暂停)
+- Current release: [release-r7-windows-usable](../products/yucai-client/release-r7-windows-usable/release.md)(Windows 可分发可日常自用:打包/通知/收益本地化)
 - Current sprint: sprint-2 ✅ **done**(2026-08-29 收官——E/F[05 完整性]+G[XIRR/TWR 正确性:Brent-only+GIPS 三态+round+守卫+oracle,2 轮 review 闭环]+H[主指标 enum 进 wire,契约记档,client 消费 defer];两 feature 均 review PASS+全量绿后 merge,worktree 已清理)。
 - **2026-08-29 优先级 pivot(用户拍板方案 A)**:client 可用优先。G+H ✅ 顺手连做完毕;sprint-3(08/09)与 server 线挂起;转 client 线:R6 真机人工验收 → 打包/安装通路 → 定时通知(全新 client feature:本地通知+后台调度+autoRecord 本地调度器,零 server)→ 收益引擎本地化(XIRR/TWR Dart 镜像,G 算法+oracle 为基准)。AI 语音助手=后续 feature 待 ticket 化。
 - **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——含 J codec 补 YC2E 解码[R5 D 的 contract drift]与 ticket 16 线)。
