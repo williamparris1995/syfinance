@@ -1,3 +1,4 @@
+# protoc-gen-go 版本以目标 pb.go 头部注释为准(当前 v1.36.12);plugin 经 PATH 解析。
 version: v2
 inputs:
   - directory: .

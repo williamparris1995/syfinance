@@ -41,3 +41,11 @@ func TestGetPortfolioPerformanceFillsPrimaryMetricSemantics(t *testing.T) {
 		}
 	}
 }
+
+// 本地枚举与 pb 枚举值序对齐守卫(review 建议):handler 直转依赖此契约,
+// 漂移必须在此失败而非 wire 上静默错值。
+func TestLocalEnumValuesMatchProto(t *testing.T) {
+	if int(ReturnMetricXIRR) != 1 || int(CagrScopeCurrentHoldingsCostToMV) != 1 {
+		t.Fatalf("local enum drift: XIRR=%d CagrScope=%d, want 1/1", int(ReturnMetricXIRR), int(CagrScopeCurrentHoldingsCostToMV))
+	}
+}
