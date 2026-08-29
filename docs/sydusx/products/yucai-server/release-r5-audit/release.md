@@ -39,4 +39,4 @@
 - `go test ./...` 全绿 + `flutter test` 基线不退化(≤ 3 fail/2 文件)。
 - vision 近期标尺相关项达标(财务计算有 oracle 测试 / 备份恢复有跨模块 tx e2e / 跨租户 + port 边界有机械守卫)。
 
-## status: in-progress(sprint-1 done 2026-08-23[04 备份恢复收官];sprint-2 E/F done 2026-08-23[05 DB 完整性收官,余 06 计算正确性 G/H];sprint-3 未开)
+## status: in-progress(sprint-1 done 2026-08-23[04 备份恢复收官];sprint-2 E/F done 2026-08-23[05 收官],G 🔄 claimed 2026-08-29;**2026-08-29 portfolio pivot(client 优先)**:G 收尾后 H 评估(顺手/延后),sprint-3[08/09]挂起,server 线暂停转 client 线——详见 progress.md pivot 记录)
