@@ -13,12 +13,12 @@
 
 ## Current position
 
-**Status:** yucai-server `release-r5-audit` — **sprint-1 done**(2026-08-23,A/B/C/D 四 feature 全 merged——04 备份恢复可靠性收官:快照隔离+原子 restore+写冻结+加密分层[D19a v2 KDF header,v1 永久兼容])。
+**Status:** yucai-server `release-r5-audit` — **sprint-2 ✅ done(2026-08-29,G+H)——05+06 全落地;server 线按 pivot 暂停,下一线 client**(真机验收→打包→定时通知→收益本地化)。sprint-1 done(2026-08-23,A/B/C/D 四 feature 全 merged——04 备份恢复可靠性收官:快照隔离+原子 restore+写冻结+加密分层[D19a v2 KDF header,v1 永久兼容])。
 
 - Current product: **yucai-server**
 - Current release: [release-r5-audit](../products/yucai-server/release-r5-audit/release.md)(R5 审计整改,scope 03-09,全 server-side)
-- Current sprint: sprint-2 🔄 in-progress(E/F ✅ done 2026-08-23;feature G xirr-twr-correctness ✅ done 2026-08-29——XIRR 归一化+Brent-only[对齐 scipy/MATLAB]+TWR GIPS 三态[清仓分段/终止/坏价 sentinel]+4 处 round+等额本金均摊+split 守卫+oracle e2e;2 轮 review 修复闭环 PASS;worktree 已清理;余 H 待评估)。
-- **2026-08-29 优先级 pivot(用户拍板方案 A)**:client 可用优先。G 已收尾 ✅;H 评估(顺手/延后——当前倾向:评估后决定),sprint-3(08/09)与 server 线挂起;转 client 线:R6 真机人工验收 → 打包/安装通路 → 定时通知(全新 client feature:本地通知+后台调度+autoRecord 本地调度器,零 server)→ 收益引擎本地化(XIRR/TWR Dart 镜像,G 算法+oracle 为基准)。AI 语音助手=后续 feature 待 ticket 化。
+- Current sprint: sprint-2 ✅ **done**(2026-08-29 收官——E/F[05 完整性]+G[XIRR/TWR 正确性:Brent-only+GIPS 三态+round+守卫+oracle,2 轮 review 闭环]+H[主指标 enum 进 wire,契约记档,client 消费 defer];两 feature 均 review PASS+全量绿后 merge,worktree 已清理)。
+- **2026-08-29 优先级 pivot(用户拍板方案 A)**:client 可用优先。G+H ✅ 顺手连做完毕;sprint-3(08/09)与 server 线挂起;转 client 线:R6 真机人工验收 → 打包/安装通路 → 定时通知(全新 client feature:本地通知+后台调度+autoRecord 本地调度器,零 server)→ 收益引擎本地化(XIRR/TWR Dart 镜像,G 算法+oracle 为基准)。AI 语音助手=后续 feature 待 ticket 化。
 - **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——含 J codec 补 YC2E 解码[R5 D 的 contract drift]与 ticket 16 线)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
