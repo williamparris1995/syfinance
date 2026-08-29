@@ -1,4 +1,4 @@
-; 御财(yucai_client)Windows 安装脚本 — Inno Setup 6。
+﻿; 御财(yucai_client)Windows 安装脚本 — Inno Setup 6。
 ; 构建:make windows-installer(AppVersion 经 /D 从 pubspec 注入,勿手改)。
 ; 形态(grill 2026-08-29):per-user 免管理员安装 + 中文向导 + 免签名
 ; (SmartScreen 警告为已知代价,自用优先)。
@@ -18,7 +18,7 @@ DefaultDirName={localappdata}\Programs\yucai
 DefaultGroupName=御财
 PrivilegesRequired=lowest
 OutputDir=..\dist
-OutputBaseName=yucai-setup-{#AppVersion}
+OutputBaseFilename=yucai-setup-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible

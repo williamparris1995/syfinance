@@ -51,7 +51,7 @@ ISCC := $(LOCALAPPDATA)/Programs/Inno Setup 6/ISCC.exe
 windows-installer: ## Build Windows installer (flutter release + Inno Setup); 版本取自 client/pubspec.yaml
 	cd client && flutter build windows --release
 	$(eval APP_VERSION := $(shell grep -m1 '^version' client/pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1))
-	"$(ISCC)" /DAppVersion=$(APP_VERSION) client/packaging/yucai.iss
+	MSYS2_ARG_CONV_EXCL="/D" "$(ISCC)" /DAppVersion=$(APP_VERSION) client/packaging/yucai.iss
 	@echo "installer ready: client/dist/yucai-setup-$(APP_VERSION).exe"
 
 # Full validation
