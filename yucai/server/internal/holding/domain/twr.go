@@ -27,12 +27,15 @@ type SubPeriodReturn struct {
 //
 //	TWR_cumulative = ∏(End_i/Begin_i) × (finalValue/lastAfterCF) − 1
 //
-// 任一端点为零(Begin/End/lastAfterCF)→ ErrZeroValue(可判别 sentinel:
-// 旧实现零 End 会静默 product×0 返 -100%,F6 陷阱;清仓分段由 application
-// 层负责,本函数不猜测)。
+// 任一端点为零(Begin/End/lastAfterCF/finalValue)→ ErrZeroValue(可判别
+// sentinel:零 End/final 旧实现会静默 product×0 返 -100%,F6 陷阱;清仓
+// 分段由 application 层负责,本函数不猜测)。
 func CumulativeTWR(subPeriods []SubPeriodReturn, finalValue, lastAfterCF float64) (float64, error) {
 	if len(subPeriods) == 0 {
 		return 0, ErrInsufficientPeriods
+	}
+	if finalValue == 0 {
+		return 0, ErrZeroValue
 	}
 	product := 1.0
 	for _, sp := range subPeriods {

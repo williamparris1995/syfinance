@@ -37,3 +37,18 @@
 
 - `go build ./...` ✓;`go test ./... -count=1` 全绿(exit 0,2026-08-29)。
 - holding 6 包 + debt 6 包 + 全仓其余包全过。
+
+## review round 1(2026-08-29,fresh agent 两轴 review)→ 裁决 reject → 已修
+
+**修复项(3 Important + 3 Minor)**:
+1. xirr.go NaN 下界回退算术错误((lo+1)×0.05 → 正值)→ 改逐级 ×10 上移,lo 恒 ∈ (-1,-0.99];graceful 测试锁定(多根非常规流干净 ErrNoSolution,与旧实现同判,spec 排除多根)。
+2. holdingTWR 降级无日志(HARD,NFR)→ CumulativeTWR/AnnualizeTWR 两处错误路径补 slog.Warn(英文结构化)。
+3. CumulativeTWR 漏 finalValue==0 哨兵 → 补 domain 守卫 + 测试(holdingTWR 坏价不再 -100%)。
+4. 有效上限 2^54→包络字面 1e16(ceiling 检查移到反号测试前)。
+5. portfolioTWR 过期注释(range 空仓 gap 行为已变)→ 更新。
+6. design LLD ⑦ 解回代校验落地(|npv(root)| ≤ 1e-6 归一化单位,fail-closed)。
+
+**裁决记录(不修,理由)**:
+- computeTWR ~150 行 Long Method(borderline)——walk+fold 结构内聚、逐分支有注释;接受。
+- ADR-5 "两侧一致测试"以结构性保证替代(单点定义 + 全仓 grep 零残留截断点);handler e2e 需完整 account 校验 harness,边际保障近零。
+- Excel fixture 1/3-5——离线无法新增可信 Excel 值,闭式解 + 文档例 + 残差断言替代;记录为已知缺口。

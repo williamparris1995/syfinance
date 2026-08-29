@@ -108,6 +108,15 @@ func TestCumulativeTWRZeroEndValueReturnsSentinel(t *testing.T) {
 	}
 }
 
+// finalValue==0(qty>0 但现价拍到 0)同样 sentinel——不让尾因子 ×0 产出 -100%。
+// (review R1:旧漏检此端点,holdingTWR 坏价场景会返误导性 -100%。)
+func TestCumulativeTWRZeroFinalValueReturnsSentinel(t *testing.T) {
+	_, err := CumulativeTWR([]SubPeriodReturn{{BeginValueAfterCF: 100, EndValueBeforeCF: 110}}, 0, 110)
+	if err != ErrZeroValue {
+		t.Errorf("err = %v, want ErrZeroValue (zero final value)", err)
+	}
+}
+
 // F10:累计 < -100% 年化会得 NaN → sentinel 防御(而非静默 NaN/0)。
 func TestAnnualizeTWRCumulativeBelowMinusOneReturnsSentinel(t *testing.T) {
 	_, err := AnnualizeTWR(-1.5, 365)

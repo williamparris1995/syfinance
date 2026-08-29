@@ -214,6 +214,32 @@ func TestXIRRBeyondCeilingReturnsNoSolution(t *testing.T) {
 	}
 }
 
+// 下界 NaN 回退路径:>54 年混号尾流使 (1+floor)^years 下溢 → ±Inf 相消 NaN
+// (仅非常规现金流可达——常规流的 NaN 需要晚段混号,spec 排除多根语义)。
+// 修复后 lo 逐级上移且始终 ∈ (-1, -0.99](review R1:旧算术会推成正值);
+// 行为断言:优雅返回——要么给出残差合格的根,要么干净的 ErrNoSolution,
+// 绝不 panic/泄漏 Inf。
+func TestXIRRNaNFloorFallbackGraceful(t *testing.T) {
+	cfs := []CashFlow{
+		{Date: mustDate("1970-01-01"), Amount: -100},
+		{Date: mustDate("2025-01-01"), Amount: 500}, // y55:(1e-6)^55 下溢 → +Inf @floor
+		{Date: mustDate("2026-01-01"), Amount: -3},  // y56:→ -Inf @floor → NaN
+	}
+	rate, err := XIRR(cfs)
+	if err != nil {
+		if err != ErrNoSolution {
+			t.Fatalf("err = %v, want ErrNoSolution or nil (graceful NaN-floor handling)", err)
+		}
+		return // 多根非常规流:干净拒绝(spec 边界:多根不处理)
+	}
+	if math.IsNaN(rate) || math.IsInf(rate, 0) {
+		t.Fatalf("rate = %v, want finite", rate)
+	}
+	if res := npvAt(cfs, rate); math.Abs(res) > 1e-6 {
+		t.Errorf("NPV residual %.3e exceeds tol after NaN-floor fallback", res)
+	}
+}
+
 // FR-7 多笔样本 NPV 残差表:解的质量由 |NPV(r)| ≤ tol·scale 独立断言
 // (Excel 文档例另作值对拍 0.373362535,见 TestXIRRMatchesExcel)。
 func TestXIRRMultiFlowNPVResidual(t *testing.T) {

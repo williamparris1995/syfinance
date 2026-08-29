@@ -1619,8 +1619,9 @@ func (s *Service) portfolioEmptyAt(ctx context.Context, secTrades []domain.Holdi
 //	rng:  rangeStart = curveWindow(rangeName).from (passed by caller).
 //
 // Returns (nil, nil, nil) on insufficient data; full + rng degrade independently
-// (range degrades when rangeStart is outside [first, last] cashFlowDay or the
-// opening position is empty, but full still resolves).
+// (range degrades when rangeStart is outside [first, last] cashFlowDay or a
+// historical price is missing, but full still resolves; rangeStart falling in a
+// fully-liquidated gap now restarts the chain at the rebuild day — F6).
 func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, baseCurrency string, rangeStart time.Time) (full, rng *float64, err error) {
 	base := baseCurrency
 	if base == "" {
@@ -1762,10 +1763,18 @@ func (s *Service) holdingTWR(ctx context.Context, tenantID uuid.UUID, holdingID 
 	}
 	cum, err := domain.CumulativeTWR(subPeriods, finalValue, prevAfterCF)
 	if err != nil {
+		slog.Warn("holding twr degrade: cumulative rejected",
+			slog.String("holding_id", holdingID.String()),
+			slog.String("error", err.Error()),
+			slog.String("operation", "holdingTWR"))
 		return nil, nil
 	}
 	rate, err := domain.AnnualizeTWR(cum, totalDays)
 	if err != nil {
+		slog.Warn("holding twr degrade: annualization rejected",
+			slog.String("holding_id", holdingID.String()),
+			slog.String("error", err.Error()),
+			slog.String("operation", "holdingTWR"))
 		return nil, nil
 	}
 	return ptrFloat(rate), nil

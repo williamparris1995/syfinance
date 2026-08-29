@@ -89,12 +89,15 @@ func XIRR(cashflows []CashFlow) (float64, error) {
 	}
 
 	// 下界评估:超长年限下 (1+floor)^years 可能下溢出为 0 导致 ±Inf/NaN,
-	// 逐级回退到较温和的 floor(个人理财年限远够用;全 NaN → ErrNoSolution)。
+	// 逐级上移 lo(每次离 -1 远 10 倍,封顶 -0.99)直至 NPV 有限;
+	// 全程 NaN → ErrNoSolution(fail-closed)。
 	lo := xirrRateFloor
 	nLo := npv(lo)
 	for math.IsNaN(nLo) && lo < -0.99 {
-		lo = (lo + 1) * 0.5 * 0.1 // 向 0 收敛一步后重试(保持 < -0.99 语义内)
-		lo = math.Max(lo, -0.99)
+		lo = -1 + (lo+1)*10
+		if lo > -0.99 {
+			lo = -0.99
+		}
 		nLo = npv(lo)
 	}
 	if math.IsNaN(nLo) {
@@ -102,6 +105,8 @@ func XIRR(cashflows []CashFlow) (float64, error) {
 	}
 
 	// 自适应几何扩展:hi 自 0.1(先跨过 1)逐次翻倍直至与 lo 反号。
+	// 超包络检查在反号测试之前——包络 (lo, 1e16] 外的根按 spec 返 ErrNoSolution,
+	// 不因 2^k 采样点偶然跨过 1e16 而漏放行(有效上限 = 2^54 的采样缺陷)。
 	hi, nHi := 0.1, npv(0.1)
 	if !(nLo*nHi <= 0) {
 		found := false
@@ -111,12 +116,12 @@ func XIRR(cashflows []CashFlow) (float64, error) {
 			} else {
 				hi *= 2
 			}
+			if hi > xirrRateCeiling {
+				break
+			}
 			nHi = npv(hi)
 			if nLo*nHi <= 0 {
 				found = true
-				break
-			}
-			if hi > xirrRateCeiling {
 				break
 			}
 		}
@@ -125,7 +130,16 @@ func XIRR(cashflows []CashFlow) (float64, error) {
 		}
 	}
 
-	return brentRoot(npv, lo, hi, nLo, nHi, xirrBrentXTol, 4*(math.Nextafter(1, 2)-1))
+	root, err := brentRoot(npv, lo, hi, nLo, nHi, xirrBrentXTol, 4*(math.Nextafter(1, 2)-1))
+	if err != nil {
+		return 0, err
+	}
+	// 解回代校验(design LLD ⑦):归一化单位下残差仍大 = 求解异常,
+	// fail-closed 拒绝伪根而非返回错误解。
+	if res := npv(root); math.IsNaN(res) || math.Abs(res) > 1e-6 {
+		return 0, ErrNoSolution
+	}
+	return root, nil
 }
 
 // QtyAtDate 按 transaction 时间序回放,返回 date 开盘前持有的份额
