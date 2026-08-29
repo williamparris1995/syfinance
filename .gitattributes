@@ -1,0 +1,3 @@
+# Inno Setup 脚本必须 CRLF + UTF-8 BOM(LF 会致 directive 解析错位)
+*.iss text eol=crlf
+*.isl text eol=crlf
