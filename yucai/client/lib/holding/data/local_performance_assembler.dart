@@ -100,12 +100,16 @@ class LocalPerformanceAssembler {
   }
 
   /// 组合 MV(cents);-1 = 坏价哨兵(有持仓无价格)。
-  double _mvAt(DateTime date) {
+  double _mvAt(DateTime date) => _mvAsOf(date, date);
+
+  /// qty 与 price 分离 as-of 的组合 MV(G computeTWR 的 AsOf 语义:
+  /// BV_after(day) = qty@(day+1) × price@day —— before/after 同价不同量)。
+  double _mvAsOf(DateTime qtyDate, DateTime priceDate) {
     var mv = 0.0;
     for (final h in holdings) {
-      final qty = _qtyAt(h.securityId, date);
+      final qty = _qtyAt(h.securityId, qtyDate);
       if (qty == 0) continue;
-      final price = _priceOf(h.securityId, date);
+      final price = _priceOf(h.securityId, priceDate);
       if (price == 0) return -1;
       mv += qty * price;
     }
@@ -194,7 +198,9 @@ class LocalPerformanceAssembler {
   List<xirr.CashFlow> _cashFlows(DateTime? rangeStart) {
     final out = <xirr.CashFlow>[];
     for (final t in trades) {
-      if (rangeStart != null && t.tradeDate.isBefore(rangeStart)) continue;
+      // 本地日归一再比(防 UTC 存量与本地 rangeStart 混比丢日,J2)。
+      final day = DateTime(t.tradeDate.year, t.tradeDate.month, t.tradeDate.day);
+      if (rangeStart != null && day.isBefore(rangeStart)) continue;
       switch (t.tradeType) {
         case typeBuy:
           out.add(xirr.CashFlow(
@@ -214,26 +220,26 @@ class LocalPerformanceAssembler {
   /// GIPS 三态分段(镜像 G computeTWR):中间清仓跳段重启;终态纯清仓
   /// 链终止(不乘 0);qty>0 但无价(坏价)→ 整体 null 降级。
   double? _segmentedTwr(DateTime start, DateTime today, double terminalMV) {
-    final days = _cashFlowDays(start, today);
+    // 日算术统一本地日(测试/存量的 UTC 输入与本地 today 混比会差一天)。
+    final startDay = DateTime(start.year, start.month, start.day);
+    final days = _cashFlowDays(startDay, today);
     if (days.isEmpty) return null;
 
     var chain = 1.0;
     var any = false;
     var totalDays = 0; // GIPS:gap 不计收益天数(G computeTWR 同口径,累加各段)
-
-    // 开盘:BV_after(首现金流日)。0=空仓 gap;负=坏价。
-    // G 语义:effectiveDays = 首日之后的日子;首日自身不产 sub
-    // (其 before=建仓前 0,会误触零端点哨兵)。
-    var segBeginAfter = _mvAt(days.first.add(const Duration(days: 1)));
-    if (segBeginAfter < 0) return null;
-    // 段起点 = 首个(有效)现金流日,非 rangeStart(rangeStart 落在清仓
-    // gap 时,其前的空仓期不计收益天数)。
-    DateTime segStart = days.first;
     final subs = <twr.SubPeriodReturn>[];
 
-    for (final day in days.skip(1)) {
-      final before = _mvAt(day);
-      final after = _mvAt(day.add(const Duration(days: 1)));
+    // 开盘 = BV_after(start)(Go computeTWR 同锚:full 时 start=首个现金流日,
+    // range 时 start=rangeStart —— 窗口开盘前已建仓的仓位计入期初)。
+    var segBeginAfter = _mvAsOf(startDay.add(const Duration(days: 1)), startDay);
+    if (segBeginAfter < 0) return null;
+    DateTime segStart = startDay;
+
+    for (final day in days) {
+      if (!day.isAfter(startDay)) continue; // 全期:首现金流日即 start,自身不产 sub
+      final before = _mvAsOf(day, day);
+      final after = _mvAsOf(day.add(const Duration(days: 1)), day);
       if (before < 0 || after < 0) return null; // 坏价降级
 
       if (segBeginAfter == 0) {
@@ -259,6 +265,8 @@ class LocalPerformanceAssembler {
       }
     }
     if (segBeginAfter > 0) {
+      // 终值零守卫(G 同语义:qty>0 而终值 0 = 数据矛盾 → 降级 null)。
+      if (terminalMV == 0) return null;
       // 开段收尾:尾因子 = 终值/最后 after;段天数累加。
       // 重建后无中间现金流日 → 单尾因子段(G 同语义:final/lastAfter − 1)。
       final cum = subs.isEmpty

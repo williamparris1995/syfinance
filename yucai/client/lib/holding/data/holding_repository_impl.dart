@@ -283,11 +283,24 @@ class HoldingRepositoryImpl implements HoldingRepository {
     return r;
   }
 
+  /// GrpcError → Failure 分类(对齐 account/transaction 等兄弟模块;
+  /// R7-D:unavailable → NetworkFailure 是绑定断网本地兜底的前提)。
+  Failure _mapGrpcError(GrpcError e) {
+    switch (e.code) {
+      case StatusCode.unavailable:
+        return NetworkFailure(e.message ?? '无法连接服务器');
+      case StatusCode.unauthenticated:
+        return AuthFailure(e.message ?? '凭证无效');
+      default:
+        return ServerFailure(e.message ?? 'gRPC error');
+    }
+  }
+
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
       return Right(await op());
     } on GrpcError catch (e) {
-      return Left(ServerFailure(e.message ?? 'gRPC error'));
+      return Left(_mapGrpcError(e));
     } on Failure catch (f) {
       // Local data source failures pass through untouched.
       return Left(f);

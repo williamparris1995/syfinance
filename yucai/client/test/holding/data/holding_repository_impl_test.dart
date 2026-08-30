@@ -5,6 +5,7 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:drift/native.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/core/localdb/app_database.dart'
     hide Holding, HoldingTransaction, Security;
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
@@ -224,11 +225,38 @@ void main() {
       );
     });
 
-    test('GrpcError → Left<ServerFailure>', () async {
+    test('GrpcError.unavailable → Left<NetworkFailure>(R7-D 分类对齐兄弟模块)', () async {
       when(() => remote.syncPrices())
           .thenThrow(const GrpcError.unavailable('upstream down'));
       final result = await repo.syncPrices();
-      expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
+      expect(result.fold((l) => l, (_) => null), isA<NetworkFailure>());
+    });
+
+    test('β 兜底:绑定 + remote unavailable → 本地值 + offlineScope 标注(R7-D FR-3)', () async {
+      when(() => remote.getPortfolioPerformance(
+            range: any(named: 'range'),
+            accountId: any(named: 'accountId'),
+            includeBenchmark: any(named: 'includeBenchmark'),
+            baseCurrency: any(named: 'baseCurrency'),
+          )).thenThrow(const GrpcError.unavailable('offline'));
+      // harness 用真 local ds(空 drift 库)——兜底走本地引擎空装配。
+      final result = await repo.getPortfolioPerformance(range: 'MONTH');
+      expect(result.isRight(), isTrue, reason: '断网应本地兜底而非报错');
+      result.fold((_) => fail('expected Right'), (r) {
+        expect(r.offlineScope, isTrue, reason: '本地兜底值带离线口径标注');
+      });
+    });
+
+    test('β 非网络错误不兜底:remote internal → Left 原样', () async {
+      when(() => remote.getPortfolioPerformance(
+            range: any(named: 'range'),
+            accountId: any(named: 'accountId'),
+            includeBenchmark: any(named: 'includeBenchmark'),
+            baseCurrency: any(named: 'baseCurrency'),
+          )).thenThrow(const GrpcError.internal('bug'));
+      final result = await repo.getPortfolioPerformance(range: 'MONTH');
+      expect(result.isLeft(), isTrue, reason: 'internal 错误应原样上抛');
     });
   });
 }
+

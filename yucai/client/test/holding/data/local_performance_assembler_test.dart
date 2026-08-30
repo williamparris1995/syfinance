@@ -74,6 +74,27 @@ void main() {
     expect(p.rangeTwrAnnualizedPct!, closeTo(want, 0.5));
   });
 
+  test('range 开盘锚定 G 语义:窗口前已建仓 → 期初 MV 计入(review R1 J1)', () {
+    final a = LocalPerformanceAssembler(
+      holdings: const [AssemblerHolding('sec1', 150, 10333)], // 现值 150 股(两笔买后)
+      trades: [
+        AssemblerTrade(securityId: 'sec1', tradeType: 1, quantity: 100, priceCents: 10000,
+            amountCents: 1000000, feeCents: 0, realizedPnlCents: 0, tradeDate: d('2026-07-01')),
+        AssemblerTrade(securityId: 'sec1', tradeType: 1, quantity: 50, priceCents: 11000,
+            amountCents: 550000, feeCents: 0, realizedPnlCents: 0, tradeDate: d('2026-08-01')),
+      ],
+      securities: const {'sec1': AssemblerSecurity('sec1', 12100)},
+      now: d('2026-09-01'),
+    );
+    // rangeStart=07-15(建仓后、首窗口交易日前):开盘=100 股@10000=1M;
+    // 08-01 sub{1M→1.1M} HPR 1.1;开段尾 1,815,000/1,650,000=1.1 → chain 1.21;
+    // 段天数 07-15→09-01=48。
+    final p = a.assemble(rangeStart: d('2026-07-15'));
+    expect(p.rangeTwrAnnualizedPct, isNotNull);
+    final want = (math.pow(1.21, 365.0 / 48) - 1) * 100;
+    expect(p.rangeTwrAnnualizedPct!, closeTo(want, 0.5));
+  });
+
   test('曲线:现金流日+今日 BV 点(元);split 不产点', () {
     final a = LocalPerformanceAssembler(
       holdings: const [AssemblerHolding('sec1', 100, 10000)],
