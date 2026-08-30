@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · 投资组合</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="assets/theme.css?v=4">
+<style>
+  /* 页面专属:持仓业绩 */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .tabs a{padding:10px 16px;font-size:13.5px;font-weight:600;color:var(--muted);position:relative}
+  .tabs a.on{color:var(--fg)}
+  .tabs a.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2.5px;border-radius:3px;background:var(--nav-ind)}
+  .metric-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:18px}
+  .perf-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start}
+  .col{display:grid;gap:18px}
+  .chart-box{padding:8px 4px 0}
+  .chart-box svg{width:100%;height:auto;display:block}
+  .hlist .grid-head,.hlist .grid-row{grid-template-columns:1.6fr .6fr .95fr .95fr .8fr .7fr}
+  .hlist .grid-head span:nth-child(n+2),.hlist .grid-row span:nth-child(n+2){text-align:right}
+  @media (max-width:900px){
+    .metric-strip{grid-template-columns:1fr 1fr;gap:14px}
+    .perf-grid{grid-template-columns:1fr}
+    .hlist .grid-head{display:none}
+    .hlist .grid-row{grid-template-columns:1fr auto;grid-template-areas:"n v" "s a" "m c" "r d";row-gap:4px}
+    .hlist .c-name{grid-area:n}
+    .hlist .c-share{grid-area:s}
+    .hlist .c-mv{grid-area:v}
+    .hlist .c-cost{grid-area:m}
+    .hlist .c-ret{grid-area:a}
+    .hlist .c-day{grid-area:d}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item active" href="performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">资产 <span class="sep">›</span> <b>投资组合</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索持仓…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>投资组合</h1>
+        <p class="date">华泰证券 · 2026-08-30 收盘</p>
+      </div>
+      <div class="page-head-actions">
+        <button class="btn-ghost"><svg class="ic"><use href="#i-repeat"/></svg>转账转入</button>
+        <button class="btn-primary"><svg class="ic"><use href="#i-plus"/></svg>记一笔交易</button>
+      </div>
+    </div>
+
+    <section class="hero">
+      <div class="hero-label">组合总市值</div>
+      <div class="hero-row">
+        <div class="hero-amount num">¥539,553<span class="cents">.00</span></div>
+        <span class="delta up">今日 +¥6,380 · +1.2%</span>
+      </div>
+      <div class="hero-foot num">
+        <span>总成本 <b>¥480,000</b></span>
+        <span>总收益 <b style="color:var(--pos)">+¥59,553 · +12.4%</b></span>
+        <span>持仓 <b>6 只</b></span>
+      </div>
+    </section>
+
+    <div class="tabs">
+      <a class="on" href="#">持仓</a>
+      <a href="#">业绩</a>
+      <a href="#">历史交易</a>
+    </div>
+
+    <section class="metric-strip">
+      <div class="card">
+        <div class="mini-head"><span class="mini-title">XIRR 年化收益</span><span class="chip">含现金流</span></div>
+        <div class="mini-big num" style="color:var(--pos)">+8.6%</div>
+        <div class="mini-foot num">近 3 年 · Brent 求解</div>
+      </div>
+      <div class="card">
+        <div class="mini-head"><span class="mini-title">TWR 今年以来</span><span class="chip">时间加权</span></div>
+        <div class="mini-big num" style="color:var(--pos)">+9.2%</div>
+        <div class="mini-foot num">同期沪深300 +4.8%</div>
+      </div>
+      <div class="card">
+        <div class="mini-head"><span class="mini-title">最大回撤</span><span class="chip">近 1 年</span></div>
+        <div class="mini-big num" style="color:var(--neg)">−7.8%</div>
+        <div class="mini-foot num">2026-04 阶段低点</div>
+      </div>
+      <div class="card">
+        <div class="mini-head"><span class="mini-title">股债现金比</span></div>
+        <div class="mini-big num">78 / 22</div>
+        <div class="mini-foot num">偏股型 · 风险等级 中高</div>
+      </div>
+    </section>
+
+    <section class="perf-grid">
+      <div class="col">
+        <div class="card">
+          <div class="card-head"><h2>累计收益走势</h2><span class="chip">近 8 个月 · 起点=100</span></div>
+          <div class="chart-box">
+            <svg viewBox="0 0 600 230">
+              <defs>
+                <linearGradient id="perfFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop class="stop-hi" offset="0"/>
+                  <stop class="stop-lo" offset="1"/>
+                </linearGradient>
+              </defs>
+              <g stroke="var(--line)" stroke-width="1">
+                <line x1="30" y1="186" x2="590" y2="186"/>
+                <line x1="30" y1="138" x2="590" y2="138"/>
+                <line x1="30" y1="91" x2="590" y2="91"/>
+                <line x1="30" y1="43" x2="590" y2="43"/>
+              </g>
+              <g fill="var(--muted)" font-size="10" text-anchor="start">
+                <text x="34" y="181">100</text>
+                <text x="34" y="133">104</text>
+                <text x="34" y="86">108</text>
+                <text x="34" y="38">112</text>
+                <text x="30" y="222">1月</text><text x="188" y="222">3月</text><text x="346" y="222">5月</text><text x="504" y="222">7月</text>
+              </g>
+              <path d="M30,186.3 L110,172 L190,144.7 L270,161.3 L350,117.4 L430,92.5 L510,65.2 L590,39.1 L590,210 L30,210 Z" fill="url(#perfFill)"/>
+              <path d="M30,186.3 L110,172 L190,144.7 L270,161.3 L350,117.4 L430,92.5 L510,65.2 L590,39.1" fill="none" stroke="var(--spark)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M30,186.3 L110,195.8 L190,164.9 L270,180.3 L350,160.1 L430,167.3 L510,145.9 L590,129.3" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-dasharray="5 5" stroke-linecap="round"/>
+              <circle cx="590" cy="39.1" r="3.6" fill="var(--spark)"/>
+            </svg>
+            <div class="chart-legend">
+              <span><i style="background:var(--spark)"></i>本组合 <b class="num" style="color:var(--pos)">+12.4%</b></span>
+              <span><i style="background:var(--muted)"></i>沪深300 <b class="num">+4.8%</b></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card hlist">
+          <div class="card-head"><h2>持仓明细</h2><a href="#">按占比 ↓</a></div>
+          <div class="grid-head num">
+            <span>持仓</span><span>占比</span><span>市值</span><span>成本</span><span>收益</span><span>今日</span>
+          </div>
+          <div class="grid-row num">
+            <span class="c-name"><div class="g-strong">沪深300ETF</div><div class="g-sub">510300</div></span>
+            <span class="c-share g-sub">40.2%</span>
+            <span class="c-mv g-num">¥216,800</span>
+            <span class="c-cost g-sub">¥195,000</span>
+            <span class="c-ret g-num pos">+11.2%</span>
+            <span class="c-day g-num pos">+1.4%</span>
+          </div>
+          <div class="grid-row num">
+            <span class="c-name"><div class="g-strong">贵州茅台</div><div class="g-sub">600519</div></span>
+            <span class="c-share g-sub">18.3%</span>
+            <span class="c-mv g-num">¥98,600</span>
+            <span class="c-cost g-sub">¥92,000</span>
+            <span class="c-ret g-num pos">+7.2%</span>
+            <span class="c-day g-num pos">+0.6%</span>
+          </div>
+          <div class="grid-row num">
+            <span class="c-name"><div class="g-strong">中证500ETF</div><div class="g-sub">510500</div></span>
+            <span class="c-share g-sub">16.0%</span>
+            <span class="c-mv g-num">¥86,400</span>
+            <span class="c-cost g-sub">¥78,500</span>
+            <span class="c-ret g-num pos">+10.1%</span>
+            <span class="c-day g-num pos">+1.8%</span>
+          </div>
+          <div class="grid-row num">
+            <span class="c-name"><div class="g-strong">腾讯控股</div><div class="g-sub">00700 · 港股</div></span>
+            <span class="c-share g-sub">13.4%</span>
+            <span class="c-mv g-num">¥72,300</span>
+            <span class="c-cost g-sub">¥68,000</span>
+            <span class="c-ret g-num pos">+6.3%</span>
+            <span class="c-day g-num" style="color:var(--neg)">−0.4%</span>
+          </div>
+          <div class="grid-row num">
+            <span class="c-name"><div class="g-strong">黄金ETF</div><div class="g-sub">518880</div></span>
+            <span class="c-share g-sub">8.4%</span>
+            <span class="c-mv g-num">¥45,200</span>
+            <span class="c-cost g-sub">¥38,500</span>
+            <span class="c-ret g-num pos">+17.4%</span>
+            <span class="c-day g-num pos">+2.1%</span>
+          </div>
+          <div class="grid-row num">
+            <span class="c-name"><div class="g-strong">现金及逆回购</div><div class="g-sub">GC001 滚动</div></span>
+            <span class="c-share g-sub">3.8%</span>
+            <span class="c-mv g-num">¥20,253</span>
+            <span class="c-cost g-sub">—</span>
+            <span class="c-ret g-sub">—</span>
+            <span class="c-day g-sub">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card">
+          <div class="card-head"><h2>持仓分布</h2></div>
+          <div class="alloc">
+            <svg class="donut" viewBox="0 0 140 140" style="width:128px;height:128px">
+              <circle class="tr" cx="70" cy="70" r="54" fill="none" stroke-width="16"/>
+              <circle class="c1" cx="70" cy="70" r="54" fill="none" stroke-width="16" stroke-dasharray="136.4 339.29" stroke-dashoffset="0" transform="rotate(-90 70 70)"/>
+              <circle class="c2" cx="70" cy="70" r="54" fill="none" stroke-width="16" stroke-dasharray="62.1 339.29" stroke-dashoffset="-136.4" transform="rotate(-90 70 70)"/>
+              <circle class="c3" cx="70" cy="70" r="54" fill="none" stroke-width="16" stroke-dasharray="54.3 339.29" stroke-dashoffset="-198.5" transform="rotate(-90 70 70)"/>
+              <circle class="c4" cx="70" cy="70" r="54" fill="none" stroke-width="16" stroke-dasharray="45.5 339.29" stroke-dashoffset="-252.8" transform="rotate(-90 70 70)"/>
+              <circle class="c5" cx="70" cy="70" r="54" fill="none" stroke-width="16" stroke-dasharray="28.5 339.29" stroke-dashoffset="-298.3" transform="rotate(-90 70 70)"/>
+              <circle class="c6" cx="70" cy="70" r="54" fill="none" stroke-width="16" stroke-dasharray="12.9 339.29" stroke-dashoffset="-326.8" transform="rotate(-90 70 70)"/>
+              <text class="t1" x="70" y="66" text-anchor="middle" font-size="14" font-weight="700">6 只</text>
+              <text class="t2" x="70" y="84" text-anchor="middle" font-size="10">持仓</text>
+            </svg>
+            <div class="legend num">
+              <div class="lg-row"><span class="sw sw-1"></span><span class="lg-name">沪深300ETF</span><span class="lg-amt">216.8k</span><span class="lg-pct">40%</span></div>
+              <div class="lg-row"><span class="sw sw-2"></span><span class="lg-name">贵州茅台</span><span class="lg-amt">98.6k</span><span class="lg-pct">18%</span></div>
+              <div class="lg-row"><span class="sw sw-3"></span><span class="lg-name">中证500ETF</span><span class="lg-amt">86.4k</span><span class="lg-pct">16%</span></div>
+              <div class="lg-row"><span class="sw sw-4"></span><span class="lg-name">腾讯控股</span><span class="lg-amt">72.3k</span><span class="lg-pct">13%</span></div>
+              <div class="lg-row"><span class="sw sw-5"></span><span class="lg-name">黄金ETF</span><span class="lg-amt">45.2k</span><span class="lg-pct">8%</span></div>
+              <div class="lg-row"><span class="sw sw-6"></span><span class="lg-name">现金等</span><span class="lg-amt">20.3k</span><span class="lg-pct">4%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>最近调仓</h2></div>
+          <div class="txn">
+            <div class="txn-ic">📈</div>
+            <div class="txn-main"><div class="txn-name">买入 沪深300ETF</div><div class="txn-cat num">8/28 · ¥5,000 · 均价 3.982</div></div>
+          </div>
+          <div class="txn">
+            <div class="txn-ic">💰</div>
+            <div class="txn-main"><div class="txn-name">基金分红入账</div><div class="txn-cat num">8/24 · +¥860</div></div>
+          </div>
+          <div class="txn">
+            <div class="txn-ic">⚖️</div>
+            <div class="txn-main"><div class="txn-name">减持 黄金ETF 10%</div><div class="txn-cat num">8/15 · +¥4,900 · 落袋部分收益</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">御财 v2 设计原型 · A+B 亮暗双主题 · 投资组合 · 演示数据</footer>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a href="transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a class="active" href="accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

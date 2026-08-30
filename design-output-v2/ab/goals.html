@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · 目标追踪</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="assets/theme.css?v=4">
+<style>
+  /* 页面专属:目标追踪 */
+  .goal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+  .goal{display:flex;flex-direction:column;gap:13px}
+  .goal .g-top{display:flex;align-items:center;justify-content:space-between}
+  .goal .g-name{display:flex;align-items:center;gap:11px;font-weight:700;font-size:14px}
+  .goal .g-amt{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+  .goal .g-amt small{font-size:13px;color:var(--muted);font-weight:500}
+  .goal .g-foot{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .goal.hero-goal{grid-column:1/-1;display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+  .ring{width:132px;height:132px;flex:none}
+  .ring .bgc{stroke:var(--seg-track)}
+  .ring .fgc{stroke:url(#ringGrad);stroke-linecap:round}
+  .ring .t1{fill:var(--fg)} .ring .t2{fill:var(--muted)}
+  .goal.hero-goal .info{flex:1;min-width:240px;display:flex;flex-direction:column;gap:10px}
+  .goal.hero-goal .milestone{display:flex;gap:10px;flex-wrap:wrap}
+  .goal.hero-goal .ms{font-size:11.5px;color:var(--muted);background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:999px;padding:3px 11px;font-variant-numeric:tabular-nums}
+  .goal.hero-goal .ms.hit{color:var(--pos);background:var(--pos-soft);border-color:transparent}
+  @media (max-width:900px){
+    .goal-grid{grid-template-columns:1fr}
+    .goal.hero-goal{flex-direction:column;align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="debts.html"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="receivables.html"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item active" href="goals.html"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="settings.html"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">收支 <span class="sep">›</span> <b>目标追踪</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索目标…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>目标追踪</h1>
+        <p class="date">1 个进行中 · 1 个已达成 · 累计存入 ¥84,200</p>
+      </div>
+      <div class="page-head-actions">
+        <button class="btn-primary"><svg class="ic"><use href="#i-plus"/></svg>新建目标</button>
+      </div>
+    </div>
+
+    <section class="goal-grid">
+      <div class="card goal hero-goal">
+        <svg class="ring" viewBox="0 0 140 140">
+          <defs>
+            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop class="stop-hi" offset="0"/>
+              <stop offset="1" style="stop-color:var(--acc-deep);stop-opacity:1"/>
+            </linearGradient>
+          </defs>
+          <circle class="bgc" cx="70" cy="70" r="58" fill="none" stroke-width="13"/>
+          <circle class="fgc" cx="70" cy="70" r="58" fill="none" stroke-width="13"
+                  stroke-dasharray="163.8 364.4" stroke-dashoffset="0" transform="rotate(-90 70 70)"/>
+          <text class="t1" x="70" y="66" text-anchor="middle" font-size="20" font-weight="800">45%</text>
+          <text class="t2" x="70" y="86" text-anchor="middle" font-size="10.5">环球旅行</text>
+        </svg>
+        <div class="info">
+          <div class="g-name" style="font-size:16px">🌍 环球旅行基金 <span class="chip pos">进行中</span></div>
+          <div class="g-amt num">¥54,000 <small>/ ¥120,000 · 还差 ¥66,000</small></div>
+          <div class="bar" style="height:9px"><i style="width:45%"></i></div>
+          <div class="milestone num">
+            <span class="ms hit">✓ 2026-01 启动</span>
+            <span class="ms hit">✓ 2026-05 过半里程碑 ¥30k</span>
+            <span class="ms">目标 2027-06 · 每月存 ¥4,500</span>
+          </div>
+        </div>
+        <div class="page-head-actions">
+          <button class="btn-primary">存入一笔</button>
+        </div>
+      </div>
+
+      <div class="card goal">
+        <div class="g-top">
+          <div class="g-name"><span class="acct-logo lg-green">🛡️</span>应急基金<span class="chip pos">已达成</span></div>
+          <span class="chip">6 个月支出</span>
+        </div>
+        <div class="g-amt num">¥60,000 <small>/ ¥60,000</small></div>
+        <div class="bar"><i style="width:100%"></i></div>
+        <div class="g-foot num"><span>2026-06-30 达成 · 历时 11 个月</span><span>存放 零钱通</span></div>
+      </div>
+      <div class="card goal">
+        <div class="g-top">
+          <div class="g-name"><span class="acct-logo lg-slate">💻</span>换新笔记本<span class="chip warn">已暂停</span></div>
+        </div>
+        <div class="g-amt num">¥2,400 <small>/ ¥12,000</small></div>
+        <div class="bar"><i class="warn" style="width:20%"></i></div>
+        <div class="g-foot num"><span>2026-07 暂停 · 资金并入旅行基金</span><span>随时可重启</span></div>
+      </div>
+    </section>
+
+    <div class="callout pos" style="margin-top:18px">
+      <span class="c-ic">🎯</span>
+      <div>
+        <div class="c-title">进度健康</div>
+        <div class="c-body num">环球旅行按计划推进（当前 45% vs 时间进度 41%），按每月 ¥4,500 存入，预计 2027-06 达成。应急基金已就位，目标资金建议与日常现金隔离存放。</div>
+      </div>
+    </div>
+
+    <footer class="foot">御财 v2 设计原型 · A+B 亮暗双主题 · 目标追踪 · 演示数据</footer>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a href="transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a href="accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
