@@ -417,7 +417,8 @@ void main() {
     Debt existingDebt({
       String id = 'd-1',
       String counterparty = '招商银行',
-      double interestRate = 4.25,
+      // 存储约定=小数(0.0425 即 4.25%;表单回显转百分数,提交 /100)。
+      double interestRate = 0.0425,
       int totalPrincipalCents = 15000000,
       int version = 3,
     }) =>

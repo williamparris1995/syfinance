@@ -76,6 +76,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
   DateTime? _dueDate;
 
   List<Account> _accounts = const [];
+  // 借入到账账户(资产侧,可选):选择后创建时自动双记现金入账。
+  List<Account> _assetAccounts = const [];
+  String? _disbursementAccountId;
   bool _accountsLoading = true;
 
   int _step = 0;
@@ -97,7 +100,11 @@ class _DebtFormPageState extends State<DebtFormPage> {
     if (e != null) {
       _counterpartyCtrl.text = e.counterparty;
       _principalCtrl.text = (e.totalPrincipalCents / 100).toStringAsFixed(2);
-      _rateCtrl.text = e.interestRate.toString();
+      // 存储为小数(0.05),输入框按百分数回显(5)。
+      _rateCtrl.text = (e.interestRate * 100)
+          .toStringAsFixed(4)
+          .replaceFirst(RegExp(r'0+$'), '')
+          .replaceFirst(RegExp(r'\.$'), '');
       _amortization = e.amortization;
       _startDate = e.startDate;
       _dueDate = e.dueDate;
@@ -139,6 +146,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
       setState(() {
         _accounts =
             list.where((a) => a.accountType == AccountType.liability).toList();
+        _assetAccounts =
+            list.where((a) => a.accountType == AccountType.asset).toList();
         _accountsLoading = false;
         _refillCreditCardFields();
       });
@@ -345,7 +354,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
       AppToast.show(context, '请输入借款本金', type: ToastType.warning);
       return;
     }
-    final rate = double.tryParse(_rateCtrl.text);
+    // 输入为百分数(如 5 表示 5%),存储为小数 0.05 —— 与预览公式同口径
+    // (user-acceptance 修复:此前漏 /100,5% 被存成 500% 年化,期次利息 ×100)。
+    final rate = (double.tryParse(_rateCtrl.text) ?? 0) / 100;
     if (_rateCtrl.text.isEmpty || rate == null || rate < 0) {
       AppToast.show(context, '请输入年利率', type: ToastType.warning);
       return;
@@ -383,6 +394,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
         counterparty: _counterpartyCtrl.text.trim(),
         interestRate: rate,
         amortizationIndex: _amortization.index,
+        sourceAccountId: _disbursementAccountId,
         startDateOption: _startDate,
         dueDateOption: _dueDate,
         totalPrincipalCents: principalCents,
@@ -680,6 +692,22 @@ class _DebtFormPageState extends State<DebtFormPage> {
             ],
             onChanged: _onAccountChanged,
             validator: (v) => v == null || v.isEmpty ? '请选择关联账户' : null,
+          ),
+        ),
+        _ODField(
+          label: '到账账户(可选)',
+          hint: '借款现金自动入账的资产账户',
+          child: DropdownButtonFormField<String>(
+            key: const ValueKey('disbursementDropdown'),
+            value: _disbursementAccountId,
+            isExpanded: true,
+            decoration: _odDec(hint: '选择资产账户(不选则不自动入账)'),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('不自动入账')),
+              for (final a in _assetAccounts)
+                DropdownMenuItem(value: a.id, child: Text(a.name)),
+            ],
+            onChanged: (v) => setState(() => _disbursementAccountId = v),
           ),
         ),
       ]),

@@ -95,6 +95,29 @@ class DebtLocalDataSource {
       )) {
         await _dao.insertScheduleEntry(e);
       }
+      // borrowedIn create double-writes cash IN(user-acceptance 补齐;server
+      // 现状借入创建不入账 → 净资产误降,经济学上缺现金侧 —— 本地先对齐
+      // 用户语义,server 侧跟随为后续 ticket):
+      //   debit 到账账户(资产 +本金)/ credit 关联债务账户(负债 +本金)。
+      if (type == DebtType.borrowedIn && (sourceAccountId ?? '').isNotEmpty) {
+        final dst = await _database.accountDao.getAccountById(sourceAccountId!);
+        if (dst == null) throw ServerFailure('到账账户不存在');
+        await _txns.recordTransaction(RecordTransactionParams(
+          transactionDate:
+              DateTime.utc(startDate.year, startDate.month, startDate.day),
+          description: '借入 $counterparty 到账',
+          entries: [
+            TransactionEntry(
+                accountId: sourceAccountId,
+                debitCents: totalPrincipalCents,
+                creditCents: 0),
+            TransactionEntry(
+                accountId: accountId,
+                debitCents: 0,
+                creditCents: totalPrincipalCents),
+          ],
+        ));
+      }
       // borrowedOut create double-writes cash out (server buildCreateEntries):
       // credit source (cash−) + debit receivable account (+).
       if (type == DebtType.borrowedOut && (sourceAccountId ?? '').isNotEmpty) {

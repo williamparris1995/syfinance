@@ -514,7 +514,8 @@ void main() {
     Debt existingDebt({
       String id = 'r-1',
       String counterparty = '李四',
-      double interestRate = 8.0,
+      // 存储约定=小数(0.08 即 8%;对齐 debt 表单修复)。
+      double interestRate = 0.08,
       int totalPrincipalCents = 10000000,
       int version = 3,
       String subtype = '',
@@ -568,7 +569,7 @@ void main() {
       expect(
           find.descendant(
               of: find.byKey(const ValueKey('rateField')),
-              matching: find.textContaining('8.0')),
+              matching: find.textContaining('8')),
           findsWidgets);
     });
 

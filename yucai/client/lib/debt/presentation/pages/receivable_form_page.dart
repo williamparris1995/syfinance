@@ -123,7 +123,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       _counterpartyCtrl.text = e.counterparty;
       _principalCtrl.text =
           (e.totalPrincipalCents / 100).toStringAsFixed(2);
-      _rateCtrl.text = e.interestRate.toString();
+      _rateCtrl.text = (e.interestRate * 100)
+            .toStringAsFixed(4)
+            .replaceFirst(RegExp(r'0+$'), '')
+            .replaceFirst(RegExp(r'\.$'), '');
       _amortization = e.amortization;
       _startDate = e.startDate;
       _dueDate = e.dueDate;
@@ -339,7 +342,8 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       AppToast.show(context, '请输入借出本金', type: ToastType.warning);
       return;
     }
-    final rate = double.tryParse(_rateCtrl.text);
+    // 输入为百分数(5=5%),存储小数 —— 对齐 debt 表单修复(此前漏 /100)。
+    final rate = (double.tryParse(_rateCtrl.text) ?? 0) / 100;
     if (_rateCtrl.text.isEmpty || rate == null || rate < 0) {
       AppToast.show(context, '请输入年利率', type: ToastType.warning);
       return;
