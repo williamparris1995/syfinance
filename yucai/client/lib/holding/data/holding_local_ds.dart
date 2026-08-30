@@ -9,6 +9,8 @@ import 'package:yucai_client/core/localdb/daos/derived_dao.dart';
 import 'package:yucai_client/core/localdb/daos/reference_dao.dart';
 import 'package:yucai_client/holding/domain/entities/goal_view_entity.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
+import 'package:yucai_client/holding/data/local_performance_assembler.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
@@ -445,20 +447,75 @@ class HoldingLocalDataSource {
   Future<Never> syncPrices() async =>
       throw const ServerFailure('离线暂不支持行情同步');
 
-  Future<Never> getPortfolioPerformance({
+  Future<PortfolioPerformance> getPortfolioPerformance({
     String range = 'MONTH',
     String? accountId,
     bool includeBenchmark = false,
     String baseCurrency = '',
-  }) async =>
-      throw const ServerFailure('离线暂不支持收益分析');
+  }) async {
+    final now = DateTime.now();
+    final rangeStart = switch (range) {
+      'DAY' => DateTime(now.year, now.month, now.day)
+          .subtract(const Duration(days: 30)),
+      'MONTH' => DateTime(now.year, now.month, now.day)
+          .subtract(const Duration(days: 365)),
+      'YEAR' => DateTime(now.year, now.month, now.day)
+          .subtract(const Duration(days: 365 * 3)),
+      _ => null, // 全期
+    };
+    final hRows = await _database.select(_database.holdings).get();
+    final tRows = await _database.select(_database.holdingTransactions).get();
+    final sRows = await _database.select(_database.securities).get();
 
-  Future<Never> getHoldingPerformance({
+    final assembler = LocalPerformanceAssembler(
+      holdings: [
+        for (final h in hRows)
+          if (accountId == null || h.accountId == accountId)
+            AssemblerHolding(h.securityId, h.quantity, h.avgCostCents),
+      ],
+      trades: [
+        for (final t in tRows)
+          if (accountId == null || t.accountId == accountId)
+            AssemblerTrade(
+              securityId: t.securityId,
+              tradeType: t.tradeType,
+              quantity: t.quantity,
+              priceCents: t.priceCents,
+              amountCents: t.amountCents,
+              feeCents: t.feeCents,
+              realizedPnlCents: t.realizedPnlCents,
+              tradeDate: t.tradeDate,
+            ),
+      ],
+      securities: {
+        for (final s in sRows) s.id: AssemblerSecurity(s.id, s.currentPriceCents),
+      },
+      now: now,
+    );
+    return assembler.assemble(rangeStart: rangeStart);
+  }
+
+  /// holding 级 performance 本地化 → 后续 polish(R7-D scope boundary):
+  /// 优雅降级(空曲线+null 指标),不再 throw 炸页。
+  Future<HoldingPerformance> getHoldingPerformance({
     required String holdingId,
     String range = 'MONTH',
     String baseCurrency = '',
-  }) async =>
-      throw const ServerFailure('离线暂不支持收益分析');
+  }) async {
+    final h = await _dao.getHoldingById(holdingId);
+    return HoldingPerformance(
+      pricePoints: const [],
+      realizedCents: 0,
+      unrealizedCents: 0,
+      totalCents: 0,
+      currency: h != null ? await _securityCurrency(h.securityId) : 'CNY',
+    );
+  }
+
+  Future<String> _securityCurrency(String securityId) async {
+    final s = await _reference.getSecurityById(securityId);
+    return s?.currencyCode ?? 'CNY';
+  }
 
   /// Market value of one holding: live price when available, else the
   /// (stale) avgCost basis — shared by the holding page and goal actuals so

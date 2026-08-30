@@ -34,6 +34,7 @@ class PortfolioPerformance extends Equatable {
     this.rangeCagrAnnualizedPct, // double?(区间 CAGR,null=降级/区间不足)
     this.totalPct = 0,
     this.currency = 'CNY',
+    this.offlineScope = false, // R7-D:本地引擎计算(离线口径·按成交价)
   });
 
   final List<PerfPoint> portfolioPoints;
@@ -63,6 +64,9 @@ class PortfolioPerformance extends Equatable {
   final double totalPct;
   final String currency;
 
+  /// R7-D:本地计算标记(TWR 为成交价锚口径,UI 展示「离线口径」标注)。
+  final bool offlineScope;
+
   @override
   List<Object?> get props => [
         portfolioPoints,
@@ -79,6 +83,7 @@ class PortfolioPerformance extends Equatable {
         rangeCagrAnnualizedPct,
         totalPct,
         currency,
+        offlineScope,
       ];
 }
 

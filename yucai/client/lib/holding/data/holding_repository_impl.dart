@@ -216,18 +216,35 @@ class HoldingRepositoryImpl implements HoldingRepository {
     String? accountId,
     bool includeBenchmark = false,
     String baseCurrency = '',
-  }) =>
-      _guard(() => _useLocal ? _local.getPortfolioPerformance(
-            range: range,
-            accountId: accountId,
-            includeBenchmark: includeBenchmark,
-            baseCurrency: baseCurrency,
-          ) : _remote.getPortfolioPerformance(
+  }) async {
+    if (_useLocal) {
+      return _guard(() => _local.getPortfolioPerformance(
             range: range,
             accountId: accountId,
             includeBenchmark: includeBenchmark,
             baseCurrency: baseCurrency,
           ));
+    }
+    // 绑定在线:server 权威;NetworkFailure(断网)→ 本地引擎兜底
+    // (R7-D FR-3 β;本地值 offlineScope=true,UI 标「离线口径」)。
+    final remote = await _guard(() => _remote.getPortfolioPerformance(
+          range: range,
+          accountId: accountId,
+          includeBenchmark: includeBenchmark,
+          baseCurrency: baseCurrency,
+        ));
+    return remote.fold(
+      (f) => f is NetworkFailure
+          ? _guard(() => _local.getPortfolioPerformance(
+                range: range,
+                accountId: accountId,
+                includeBenchmark: includeBenchmark,
+                baseCurrency: baseCurrency,
+              ))
+          : Left<Failure, PortfolioPerformance>(f),
+      (r) => Right<Failure, PortfolioPerformance>(r),
+    );
+  }
 
   @override
   Future<Either<Failure, HoldingPerformance>> getHoldingPerformance({
