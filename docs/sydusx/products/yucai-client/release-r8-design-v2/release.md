@@ -27,4 +27,11 @@
 
 ## 状态
 
-- 2026-08-30 F1 开工(worktree),执行+测试门禁:flutter analyze 0 issue、flutter test 不劣于基线(容忍 account_detail_page_test / receivable_detail_page_test drift)。
+- 2026-08-30 **F1 ✅ done**(worktree `feature/r8-f1-design-tokens-v2` → merge `6c48ed8c` → main,worktree 已清理):
+  - `app_design.dart` v2([YucaiTheme] ThemeExtension 晨白/墨鎏金双令牌 + legacy AppColors 重指向 v2 亮色 + 全无衬线 + 圆角放大一档)。
+  - `app_theme.dart`:`light()` 重写 + 新增 `dark()`;`app.dart` 接 themeMode。
+  - `theme_settings.dart`(新):flutter_secure_storage 持久化主题模式(镜像 CurrencySettings 模式);`injection` 注册 + bootstrap load。
+  - 设置页「主题模式」(跟随系统/亮/暗)SegmentedButton,实时生效。
+  - `app_shell.dart` 全面迁移 context.yucai(侧栏/顶栏/底栏/横幅,0 静态色残留)。
+  - 测试:新增 18 个令牌/主题单测;budget/goal v1 hex 断言改语义色;router/settings/archive 测试 harness 补 ThemeSettings fake;全量 flutter test 回到 3 文件 drift 基线,flutter analyze 无新增 error(hook 在 worktree 提交时指向主仓库不生效,gate 人工执行:analyze + 全量 test 均过)。
+- Next(F2+,待 ticket 化):各模块页面暗色感知迁移(context.yucai)与按原型逐页布局重构。

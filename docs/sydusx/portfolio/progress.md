@@ -13,12 +13,12 @@
 
 ## Current position
 
-**Status:** yucai-client `release-r7-windows-usable` — **立项 2026-08-29**(R7 四 feature A/B/C/D **全部 done 2026-08-29**——Windows 打包通路/三档到期提醒+托盘常驻/autoRecord 双模式调度+一次性补齐/收益引擎 Dart 本地化[G-oracle 对拍+β 兜底];**R7 release 收官**,余运行时冒烟+R6 人工验收 blocked-on-user;next:R8 移动端或 UI polish 线待规划)。yucai-server R5 sprint-2 ✅ done 2026-08-29(G+H,05+06 全落地),server 线按 pivot 暂停(sprint-3 挂起)。server sprint-1 done(2026-08-23,A/B/C/D 四 feature 全 merged——04 备份恢复可靠性收官:快照隔离+原子 restore+写冻结+加密分层[D19a v2 KDF header,v1 永久兼容])。
+**Status:** yucai-client **[R8 design-v2 立项 2026-08-30](../products/yucai-client/release-r8-design-v2/release.md)**(A+B 亮暗双主题设计系统:用户从 A墨鎏金/B晨白/C琥珀 三方向打样中裁定 A+B 合并;[design-v2.md](../products/yucai-client/design-v2.md) 为视觉事实源,原型 12 页 `design-output-v2/ab/`)。**F1 令牌+双主题地基 ✅ done**(merge `6c48ed8c`:YucaiTheme ThemeExtension + AppTheme.dark + ThemeSettings 持久化 + 设置页主题切换 + app_shell 主题感知;全量 test 回 3 文件 drift 基线;模块页暗色感知迁移 defer F2+)。R7 windows-usable 已收官(2026-08-29)。yucai-server R5 sprint-2 ✅ done(2026-08-29),server 线按 pivot 暂停(sprint-3 挂起)。
 
-- Current product: **yucai-client**(R7 windows-usable;server 线暂停)
-- Current release: [release-r7-windows-usable](../products/yucai-client/release-r7-windows-usable/release.md)(Windows 可分发可日常自用:打包/通知/收益本地化)
-- Current sprint: sprint-2 ✅ **done**(2026-08-29 收官——E/F[05 完整性]+G[XIRR/TWR 正确性:Brent-only+GIPS 三态+round+守卫+oracle,2 轮 review 闭环]+H[主指标 enum 进 wire,契约记档,client 消费 defer];两 feature 均 review PASS+全量绿后 merge,worktree 已清理)。
-- **2026-08-29 优先级 pivot(用户拍板方案 A)**:client 可用优先。G+H ✅ 顺手连做完毕;sprint-3(08/09)与 server 线挂起;转 client 线:R6 真机人工验收 → 打包/安装通路 → 定时通知(全新 client feature:本地通知+后台调度+autoRecord 本地调度器,零 server)→ 收益引擎本地化(XIRR/TWR Dart 镜像,G 算法+oracle 为基准)。AI 语音助手=后续 feature 待 ticket 化。
+- Current product: **yucai-client**(R8 design-v2)
+- Current release: [release-r8-design-v2](../products/yucai-client/release-r8-design-v2/release.md)(F1 done;next:F2+ 模块页暗色感知/布局迁移待 ticket 化)
+- Current sprint: R8 sprint-1(F1)✅ done;后续 sprint 未规划。
+- **2026-08-29 优先级 pivot(用户拍板方案 A)**:client 可用优先 → R7 四 feature 全落地收官后转入 R6 人工验收(待用户)与 R8 UI 线(已立项)。AI 语音助手=后续 feature 待 ticket 化。
 - **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——含 J codec 补 YC2E 解码[R5 D 的 contract drift]与 ticket 16 线)。
 
 ## Legacy milestones(pre-split,pre-sydusx,统一御财)
