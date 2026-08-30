@@ -13,7 +13,7 @@
 
 ## Current position
 
-**Status:** yucai-client `release-r7-windows-usable` — **立项 2026-08-29**(sprint-1 A 打包 ✅ + sprint-2 B 通知/托盘 ✅ + C autoRecord 调度 ✅ done 2026-08-29[sprint-2 收官:三档提醒/托盘常驻/一次性补齐/回网即补];next:sprint-3 收益本地化[XIRR/TWR Dart 镜像];运行时冒烟+R6 人工验收 blocked-on-user;移动端→R8)。yucai-server R5 sprint-2 ✅ done 2026-08-29(G+H,05+06 全落地),server 线按 pivot 暂停(sprint-3 挂起)。server sprint-1 done(2026-08-23,A/B/C/D 四 feature 全 merged——04 备份恢复可靠性收官:快照隔离+原子 restore+写冻结+加密分层[D19a v2 KDF header,v1 永久兼容])。
+**Status:** yucai-client `release-r7-windows-usable` — **立项 2026-08-29**(R7 四 feature A/B/C/D **全部 done 2026-08-29**——Windows 打包通路/三档到期提醒+托盘常驻/autoRecord 双模式调度+一次性补齐/收益引擎 Dart 本地化[G-oracle 对拍+β 兜底];**R7 release 收官**,余运行时冒烟+R6 人工验收 blocked-on-user;next:R8 移动端或 UI polish 线待规划)。yucai-server R5 sprint-2 ✅ done 2026-08-29(G+H,05+06 全落地),server 线按 pivot 暂停(sprint-3 挂起)。server sprint-1 done(2026-08-23,A/B/C/D 四 feature 全 merged——04 备份恢复可靠性收官:快照隔离+原子 restore+写冻结+加密分层[D19a v2 KDF header,v1 永久兼容])。
 
 - Current product: **yucai-client**(R7 windows-usable;server 线暂停)
 - Current release: [release-r7-windows-usable](../products/yucai-client/release-r7-windows-usable/release.md)(Windows 可分发可日常自用:打包/通知/收益本地化)

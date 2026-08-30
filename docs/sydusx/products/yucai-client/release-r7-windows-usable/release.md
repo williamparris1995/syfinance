@@ -28,7 +28,7 @@
 
 - [ ] **sprint-1** 分发基础(打包通路 + R6 人工验收归档)
 - [x] **sprint-2** 定时通知(通知基础设施 + autoRecord 本地调度器)✅ done 2026-08-29(B/C)
-- [ ] **sprint-3** 收益本地化(XIRR/TWR Dart 镜像 + 双源接线)
+- [x] **sprint-3** 收益本地化 ✅ done 2026-08-29(D)
 
 ## Done-criteria(release gate)
 
@@ -37,4 +37,4 @@
 - 断网(从未绑定)下 performance 页有 XIRR/TWR 数值(本地计算)。
 - `flutter test` 基线不退化 + `flutter analyze` 不新增 + `go test ./...` 全绿(server 零改动)。
 
-## status: in-progress(sprint-1 ✅ sprint-2 ✅[2026-08-29];next:sprint-3 收益本地化)
+## status: done(2026-08-29——A 打包/B 通知+托盘/C autoRecord 调度/D 收益本地化全落地;运行时冒烟+R6 人工验收 blocked-on-user 归档后彻底关闭;R8=移动端)

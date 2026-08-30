@@ -8,10 +8,10 @@
 
 ## Feature roster(依赖排序)
 
-- [ ] **feature D** 2026-08-29-d1-local-return-engine — XIRR/TWR/CAGR Dart 镜像(归一化+Brent+GIPS 三态分段,server oracle 移植)+ performance 本地数据装配(本地模式现金流/MV 重建)+ 双源接线(本地算/在线 server 权威) `claimed: zcode-main 2026-08-29`
+- [x] **feature D** 2026-08-29-d1-local-return-engine ✅ done(2026-08-29;G-oracle Dart 引擎逐值移植[归一化+Brent+GIPS 三态];成交价锚装配;β 兜底[GrpcError 分类修复激活];2 轮 review 闭环 PASS)
 
 ## defer
 
 - 主指标语义消费(重命名/tooltip,server 已 enum 进 wire[R5-H])→ client UI polish 线;holding 级别收益本地化视 portfolio 落地成本;Android→R8。
 
-## status: in-progress(feature D claimed)
+## status: done(D ✅ 2026-08-29——R7 收官)
