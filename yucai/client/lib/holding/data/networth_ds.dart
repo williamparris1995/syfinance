@@ -13,6 +13,7 @@
 // baseCurrency 由调用方(home _NetWorthCard)从 CurrencySettings.getBaseCurrency()
 // 取得后传入(空串/CNY → server 不折算,直接按原币汇总;USD 等 → server 解析
 // CNY→base 交叉汇率折算)。mapper Int64 cents → int 对齐 holding_mapper 模式。
+import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
@@ -46,12 +47,23 @@ class NetWorthDataSource {
   /// 空串/CNY → server 不折算;USD 等 → server 解析 CNY→base 交叉汇率折算。
   Future<NetWorthView> getNetWorth({required String baseCurrency}) async {
     if (_tracker.isGuest) return _local.getNetWorth(baseCurrency: baseCurrency);
-    return _retry.call(() async {
-      final resp = await _client.getNetWorth(pb.GetNetWorthRequest(
-        baseCurrency: baseCurrency,
-      ));
-      return _toView(resp);
-    });
+    try {
+      return await _retry.call(() async {
+        final resp = await _client.getNetWorth(pb.GetNetWorthRequest(
+          baseCurrency: baseCurrency,
+        ));
+        return _toView(resp);
+      });
+    } on GrpcError catch (e) {
+      // β 兜底(R7 收官补丁):绑定 + server 不可达 → 本地三源计算。
+      // 与 performance 同语义(离线降级不报错);unavailable/deadline-exceeded
+      // 视为网络类,其余原样抛。
+      if (e.code == StatusCode.unavailable ||
+          e.code == StatusCode.deadlineExceeded) {
+        return _local.getNetWorth(baseCurrency: baseCurrency);
+      }
+      rethrow;
+    }
   }
 
   static NetWorthView _toView(pb.GetNetWorthResponse resp) {
