@@ -44,7 +44,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   @override
   void onChange(Change<AuthState> change) {
     super.onChange(change);
-    _sessionMode.isGuest = change.nextState is Guest;
+    // 会话旗标状态机(user-acceptance 修复):AuthLoading/AuthInitial 保持
+    // 原值 —— 此前 Loading 一律判非 Guest,首页面板在鉴权解析窗口期全部
+    // 打到远端(离线即全灭,且不重试)。OfflineAuthenticated(绑定+离线)
+    // 切本地读:离线完整功能可用(宪法),回网 Online 后恢复 server 权威。
+    final next = change.nextState;
+    if (next is Guest) {
+      _sessionMode.isGuest = true;
+    } else if (next is Authenticated || next is OfflineAuthenticated) {
+      _sessionMode.isGuest = false;
+    }
+    // AuthLoading / AuthInitial / AuthError:保持上次值。
     // Login-refresh (BOUND devices only, review H-W4): an unbound guest
     // logging into an empty account is the FIRST-BINDING flow — refreshing
     // there would wipe the local store before the upload wizard runs.

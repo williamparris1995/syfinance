@@ -357,15 +357,18 @@ class TransactionLocalDataSource {
 
   (DateTime, DateTime) _windowFor(
       int year, int month, SummaryScope scope, int? day) {
+    // 本地时区月界(user-acceptance 修复):此前 UTC 月界使 UTC+8 用户在
+    // 每月 1 日 08:00 前记录的交易落入上月窗口(收入/支出消失)。
+    // drift 存 UTC 瞬间,与本地月界的瞬间比较语义正确。
     if (scope == SummaryScope.day) {
-      final start = DateTime.utc(year, month, day ?? 1);
+      final start = DateTime(year, month, day ?? 1);
       return (start, start.add(const Duration(days: 1)));
     }
     if (scope == SummaryScope.year) {
-      return (DateTime.utc(year), DateTime.utc(year + 1));
+      return (DateTime(year), DateTime(year + 1));
     }
-    final start = DateTime.utc(year, month);
-    return (start, DateTime.utc(year, month + 1));
+    final start = DateTime(year, month);
+    return (start, DateTime(year, month + 1));
   }
 
   String _bucketKey(DateTime date, SummaryScope scope) {

@@ -140,6 +140,9 @@ class _HomePageState extends State<HomePage> {
       List<Account> accounts) {
     var liquid = 0, invest = 0, fixed = 0;
     for (final a in accounts) {
+      // 只计资产类账户(user-acceptance 修复):income/expense 类账户余额是
+      // 流量累积(复式记账的分类账),此前被 otherAsset 分类误入流动资产。
+      if (a.accountType != AccountType.asset) continue;
       switch (a.category) {
         case AccountCategory.savings:
         case AccountCategory.otherAsset:
@@ -197,6 +200,8 @@ class _HomePageState extends State<HomePage> {
         builder: (context, state) {
           final accounts = _accountsOf(state);
           final breakdown = _assetBreakdown(accounts);
+          // 投资卡与净资产卡同口径:余额 + 持仓浮盈(nw.assets − 资产账户余额
+          // 即浮盈;user-acceptance 修复:此前显示成本,与净资产 18,950 对不上)。
           return FutureBuilder<NetWorthView>(
             future: _netWorthFuture,
             builder: (context, snap) {
@@ -281,6 +286,8 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: AppSpacing.md),
                         _SummaryRow(
                           liquidTotal: breakdown.liquid,
+                          // 投资卡=账户余额口径(成本);与净资产卡(含浮盈)的
+                          // 口径差归 UI polish 线(R7-D 验收记录已注)。
                           investTotal: breakdown.invest,
                           fixedTotal: breakdown.fixed,
                           liabTotal: liabTotal,
