@@ -46,6 +46,7 @@ import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/entities/receivables_summary.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/domain/repositories/receivables_summary_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
@@ -139,6 +140,8 @@ void main() {
     getIt.registerSingleton<AccountRepository>(accountRepo);
     getIt.registerSingleton<TransactionRepository>(txnRepo);
     getIt.registerSingleton<DebtRepository>(debtRepo);
+    // /debts 路由现在 getIt<DebtBloc>() 取共享单例(user-acceptance 修复)。
+    getIt.registerLazySingleton<DebtBloc>(() => DebtBloc(debtRepo));
     getIt.registerSingleton<HoldingRepository>(holdingRepo);
     getIt.registerSingleton<BudgetRepository>(budgetRepo);
     getIt.registerSingleton<GoalRepository>(goalRepo);

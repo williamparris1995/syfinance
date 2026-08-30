@@ -436,7 +436,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i507.BoundMirror>(),
       ),
     );
-    gh.factory<_i383.DebtBloc>(
+    gh.lazySingleton<_i383.DebtBloc>(
       () => _i383.DebtBloc(gh<_i670.DebtRepository>()),
     );
     gh.lazySingleton<_i94.GoalLocalDataSource>(

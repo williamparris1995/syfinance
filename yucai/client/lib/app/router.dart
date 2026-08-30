@@ -325,8 +325,11 @@ GoRouter buildRouter(
                 builder: (_, __) => MultiBlocProvider(
                   providers: [
                     BlocProvider<DebtBloc>(
+                      // getIt 单例(user-acceptance 修复):与 /debts/new 表单
+                      // 共享实例——表单创建成功的 LoadDebtsRequested 直接刷新
+                      // 本列表(此前兄弟路由独立 provide,新债不显示)。
                       create: (_) {
-                        final b = DebtBloc(getIt<DebtRepository>());
+                        final b = getIt<DebtBloc>();
                         b.add(const LoadDebtsRequested(
                             typeFilter: DebtType.borrowedIn));
                         return b;
@@ -352,7 +355,8 @@ GoRouter buildRouter(
                     // 嵌套路由是 /debts 的兄弟子树（非 DebtsPage 子节点），
                     // 不能继承 /debts builder 的 BlocProvider，故这里独立 provide。
                     builder: (_, __) => BlocProvider<DebtBloc>(
-                      create: (_) => DebtBloc(getIt<DebtRepository>()),
+                      // getIt 单例:与 /debts 列表同实例,创建成功即刷新列表。
+                      create: (_) => getIt<DebtBloc>(),
                       child: const DebtFormPage(),
                     ),
                   ),
