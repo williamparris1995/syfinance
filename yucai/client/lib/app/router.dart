@@ -20,6 +20,7 @@ import 'package:yucai_client/binding/presentation/pages/binding_page.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart'
     as budget_event;
+
 import 'package:yucai_client/budget/presentation/pages/budget_detail_page.dart';
 import 'package:yucai_client/budget/presentation/pages/budget_form_page.dart';
 import 'package:yucai_client/budget/presentation/pages/budget_list_page.dart';
@@ -437,13 +438,10 @@ GoRouter buildRouter(
                 // CurrencyBloc 提供总计/小计换算（对齐 /debts /accounts）。
                 builder: (_, __) => MultiBlocProvider(
                   providers: [
-                    BlocProvider<DebtBloc>(
-                      create: (_) {
-                        final b = DebtBloc(getIt<DebtRepository>());
-                        b.add(const LoadDebtsRequested(
-                            typeFilter: DebtType.borrowedOut));
-                        return b;
-                      },
+                    BlocProvider<DebtBloc>.value(
+                      // 共享单例(user-acceptance 修复,同 /debts):/receivables/new
+                      // 创建成功后的 LoadDebtsRequested 直接刷新本列表。
+                      value: getIt<DebtBloc>(),
                     ),
                     BlocProvider<CurrencyBloc>(
                       create: (_) {
@@ -462,8 +460,9 @@ GoRouter buildRouter(
                     // 表单页：嵌套路由是 /receivables 的兄弟子树，不继承
                     // /receivables builder 的 BlocProvider，故独立 provide。
                     // type 在表单内部固定 borrowedOut（Task 9）。
-                    builder: (_, __) => BlocProvider<DebtBloc>(
-                      create: (_) => DebtBloc(getIt<DebtRepository>()),
+                    builder: (_, __) => BlocProvider<DebtBloc>.value(
+                      // 共享单例:创建成功的刷新事件直达 /receivables 列表。
+                      value: getIt<DebtBloc>(),
                       child: const ReceivableFormPage(),
                     ),
                   ),
@@ -730,12 +729,11 @@ GoRouter buildRouter(
                 // 列表页：路由层 provide BudgetBloc，进入即拉 LoadListRequested
                 //（BudgetListPage.initState 也会 dispatch 同样事件，双重保险：
                 // 路由层先发，页面 initState 再发一次幂等）。
-                builder: (_, __) => BlocProvider<BudgetBloc>(
-                  create: (_) {
-                    final b = getIt<BudgetBloc>();
-                    b.add(const budget_event.LoadListRequested());
-                    return b;
-                  },
+                builder: (_, __) => BlocProvider<BudgetBloc>.value(
+                  // 共享单例(user-acceptance 修复,同 /debts):/budgets/new 创建
+                  // 成功后的 LoadListRequested 直接刷新本列表。列表页 initState
+                  // 仍会幂等重发 LoadListRequested。
+                  value: getIt<BudgetBloc>(),
                   child: const BudgetListPage(),
                 ),
                 routes: [
@@ -746,35 +744,29 @@ GoRouter buildRouter(
                     // 表单 _loadAccounts 读 GetIt<AccountRepository>（已注册），
                     // 创建模式不读 BudgetBloc（_isEdit == false），但 BlocConsumer
                     // 在树里需要 BlocProvider 祖先 → provide 一个独立实例。
-                    builder: (_, __) => BlocProvider<BudgetBloc>(
-                      create: (_) => getIt<BudgetBloc>(),
+                    builder: (_, __) => BlocProvider<BudgetBloc>.value(
+                      // 共享单例:创建成功的 BudgetListLoaded 直接刷新列表。
+                      value: getIt<BudgetBloc>(),
                       child: const BudgetFormPage(),
                     ),
                   ),
                   GoRoute(
                     path: ':id',
-                    // 详情页：独立 BudgetBloc，进入即 LoadDetailRequested(id)。
-                    builder: (_, state) => BlocProvider<BudgetBloc>(
-                      create: (_) {
-                        final id = state.pathParameters['id']!;
-                        final b = getIt<BudgetBloc>();
-                        b.add(budget_event.LoadDetailRequested(id));
-                        return b;
-                      },
-                      child: BudgetDetailPage(id: state.pathParameters['id']!),
+                    // 详情页：共享单例，进入即 LoadDetailRequested(id)。
+                    builder: (_, state) => BlocProvider<BudgetBloc>.value(
+                      value: getIt<BudgetBloc>()
+                        ..add(budget_event.LoadDetailRequested(
+                            state.pathParameters['id']!)),
+                      child: BudgetDetailPage(
+                          id: state.pathParameters['id']!),
                     ),
                     routes: [
                       GoRoute(
                         path: 'edit',
                         // 编辑表单：BudgetFormPage(budgetId: id) = 编辑模式，
                         // _loadExisting 会 context.read<BudgetBloc>() → provide。
-                        builder: (_, state) => BlocProvider<BudgetBloc>(
-                          create: (_) {
-                            final id = state.pathParameters['id']!;
-                            final b = getIt<BudgetBloc>();
-                            b.add(budget_event.LoadDetailRequested(id));
-                            return b;
-                          },
+                        builder: (_, state) => BlocProvider<BudgetBloc>.value(
+                          value: getIt<BudgetBloc>(),
                           child: BudgetFormPage(
                             budgetId: state.pathParameters['id'],
                           ),

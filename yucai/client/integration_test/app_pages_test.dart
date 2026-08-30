@@ -3,9 +3,12 @@
 /// 覆盖用户验收暴露的缺陷类别(跨层集成缝):真实启动 app(guest 本地模式 +
 /// 演示种子)→ 逐页导航 → 断言关键数值。手算 oracle 见 demo_seed.dart 文档。
 ///
+/// Windows 桌面注意:请单独运行本文件(两个集成文件同跑会有设备启动竞争,第二个文件 loading 失败)。
 /// 运行:`flutter test integration_test -d windows`
 /// 前置:本地库含演示数据(seedDemoData 幂等;首次运行自动注入)。
 library;
+
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +16,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/app/app.dart';
 import 'package:yucai_client/core/demo/demo_seed.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 
 Future<void> _pumpPage(WidgetTester t, String label) async {
@@ -36,28 +40,16 @@ Finder textContainingRich(String needle) =>
       return false;
     });
 
-/// 轮询等待 future 类内容上屏(实机异步完成时序抖动免疫)。
-Future<void> _waitForText(WidgetTester t, String needle,
-    {int seconds = 10}) async {
-  final end = DateTime.now().add(Duration(seconds: seconds));
-  while (DateTime.now().isBefore(end)) {
-    await t.pump(const Duration(milliseconds: 200));
-    if (textContainingRich(needle).evaluate().isNotEmpty ||
-        find.textContaining(needle, skipOffstage: false)
-            .evaluate()
-            .isNotEmpty) {
-      await t.pumpAndSettle();
-      return;
-    }
-  }
-}
-
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
 
   setUpAll(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    // 确定性起点:删除本地库 → 种子全新注入(账户数等绝对断言才成立)。
+    final support = await getApplicationSupportDirectory();
+    final dbFile = File('${support.path}/yucai.db');
+    if (await dbFile.exists()) await dbFile.delete();
     await configureDependencies();
     await seedDemoData(getIt<AppDatabase>());
   });
