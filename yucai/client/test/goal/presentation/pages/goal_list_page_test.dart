@@ -27,6 +27,7 @@ import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_event.dart';
 import 'package:yucai_client/goal/presentation/pages/goal_list_page.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 
 class _MockRepo extends Mock implements GoalRepository {}
 
@@ -182,7 +183,8 @@ void main() {
         .widgetList<ConicProgressRing>(find.byKey(const ValueKey('goalRing')))
         .toList();
     // g4(已完成)是第 4 张卡(已完成分组),颜色应为 AppColors.positive。
-    expect(rings[3].color, const Color(0xFF2D8A6E)); // AppColors.positive
+    // R8 v2:positive 2D8A6E→059669,断言改语义色不再钉 hex。
+    expect(rings[3].color, AppColors.positive);
   });
 
   testWidgets('deadline countdown: days / months / 已达成', (t) async {

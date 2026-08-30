@@ -26,12 +26,26 @@ import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
+import 'package:yucai_client/core/theme/theme_settings.dart';
 
 class _MockAuthRemote extends Mock implements AuthRemoteDataSource {}
 
 /// Fake CurrencySettings — fixed base code + records setBaseCurrency calls
 /// (Task 12 D-currency picker). getBaseCurrency drives the FutureBuilder value
 /// of the base dropdown; setBaseCurrency captures the code the user picked.
+class _FakeThemeSettings extends Fake implements ThemeSettings {
+  final ValueNotifier<ThemeMode> _notifier =
+      ValueNotifier<ThemeMode>(ThemeMode.system);
+  @override
+  ValueListenable<ThemeMode> get listenable => _notifier;
+  @override
+  ThemeMode get value => ThemeMode.system;
+  @override
+  Future<void> load() async {}
+  @override
+  Future<void> setThemeMode(ThemeMode mode) async {}
+}
+
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
   _FakeCurrencySettings(this._base) : _notifier = ValueNotifier<String>(_base);
   String _base;
@@ -108,6 +122,10 @@ Widget _harness(
   final getIt = GetIt.instance;
   if (!getIt.isRegistered<CurrencySettings>()) {
     getIt.registerSingleton<CurrencySettings>(currencySettings);
+  }
+  // SettingsPage reads ThemeSettings from getIt (R8 F1 主题模式)。
+  if (!getIt.isRegistered<ThemeSettings>()) {
+    getIt.registerSingleton<ThemeSettings>(_FakeThemeSettings());
   }
   // SettingsPage reads AuthBloc (guest login card, R6) — provide a stub the
   // same way the production tree does (app.dart BlocProvider above router).

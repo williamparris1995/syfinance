@@ -92,12 +92,14 @@ class AppShell extends StatelessWidget {
     final location = GoRouterState.of(context).uri.toString();
     // receivable detail / 分类管理 用专属 topbar,隐藏全局 _TopBar。
     final hideTopBar = _isReceivableDetail(location) || _isCategoryManagement(location);
+    // v2 主题语义令牌(R8 F1):亮=晨白 / 暗=墨鎏金。
+    final t = context.yucai;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 1100) {
           return Scaffold(
-            backgroundColor: AppColors.bg,
+            backgroundColor: t.bg,
             body: Row(
               children: [
                 _Sidebar(
@@ -108,7 +110,7 @@ class AppShell extends StatelessWidget {
                   onLogout: () =>
                       context.read<AuthBloc>().add(LogoutRequested()),
                 ),
-                const VerticalDivider(width: 1, color: AppColors.border),
+                VerticalDivider(width: 1, color: t.border),
                 Expanded(
                   child: Column(
                     children: [
@@ -130,7 +132,7 @@ class AppShell extends StatelessWidget {
                           location: location,
                         ),
                       if (!hideTopBar)
-                        const Divider(height: 1, color: AppColors.border),
+                        Divider(height: 1, color: t.border),
                       Expanded(child: navigationShell),
                     ],
                   ),
@@ -141,7 +143,7 @@ class AppShell extends StatelessWidget {
         }
         // 窄屏：底部导航 + 简化顶栏
         return Scaffold(
-          backgroundColor: AppColors.bg,
+          backgroundColor: t.bg,
           appBar: hideTopBar
               ? null
               : PreferredSize(
@@ -230,9 +232,10 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.yucai;
     return Container(
       width: 240,
-      color: AppColors.sidebar,
+      color: t.sidebarBg,
       child: Column(
         children: [
           // 品牌区
@@ -243,11 +246,10 @@ class _Sidebar extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: AppColors.accent,
+                  color: t.accent,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(LucideIcons.gem,
-                    color: Colors.white, size: 18),
+                child: Icon(LucideIcons.gem, color: t.onAccent, size: 18),
               ),
               const SizedBox(width: 10),
               Column(
@@ -256,7 +258,7 @@ class _Sidebar extends StatelessWidget {
                   Text(
                     '御财',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: t.fg,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       fontFamily: AppTypography.displayFamily,
@@ -265,7 +267,7 @@ class _Sidebar extends StatelessWidget {
                   ),
                   Text('财务管家',
                       style: TextStyle(
-                          color: AppColors.sidebarFg.withValues(alpha: 0.8),
+                          color: t.sidebarFg.withValues(alpha: 0.8),
                           fontSize: 11)),
                 ],
               ),
@@ -281,7 +283,7 @@ class _Sidebar extends StatelessWidget {
                     child: Text(
                       g.title,
                       style: TextStyle(
-                        color: AppColors.sidebarFg.withValues(alpha: 0.6),
+                        color: t.sidebarFg.withValues(alpha: 0.6),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.2,
@@ -316,17 +318,17 @@ class _Sidebar extends StatelessWidget {
           ),
           // 用户区
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
                 border: Border(
-                    top: BorderSide(color: AppColors.sidebarDivider))),
+                    top: BorderSide(color: t.sidebarBorder))),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: AppColors.accent,
+                backgroundColor: t.accentSoft,
                 child: Text(
                   userName.isNotEmpty ? userName.characters.first : '财',
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  style: TextStyle(color: t.sidebarActiveFg, fontSize: 13),
                 ),
               ),
               const SizedBox(width: 10),
@@ -335,20 +337,20 @@ class _Sidebar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(userName,
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: t.fg,
                             fontSize: 13,
                             fontWeight: FontWeight.w500)),
                     Text('高级会员',
                         style: TextStyle(
-                            color: AppColors.sidebarFg, fontSize: 11)),
+                            color: t.sidebarFg, fontSize: 11)),
                   ],
                 ),
               ),
               IconButton(
                 tooltip: '退出登录',
-                icon: const Icon(LucideIcons.logOut,
-                    color: AppColors.sidebarFg, size: 18),
+                icon: Icon(LucideIcons.logOut,
+                    color: t.sidebarFg, size: 18),
                 onPressed: onLogout,
               ),
             ]),
@@ -381,25 +383,26 @@ class _NavItemTileState extends State<_NavItemTile> {
   Widget build(BuildContext context) {
     final enabled = widget.onTap != null;
     final selected = widget.selected;
+    final t = context.yucai;
 
     Color bg;
     if (selected) {
-      bg = AppColors.sidebarActive;
+      bg = t.sidebarActiveBg;
     } else if (_hover && enabled) {
-      bg = AppColors.sidebarHover;
+      bg = t.sidebarHover;
     } else {
       bg = Colors.transparent;
     }
     final fg = selected
-        ? Colors.white
+        ? t.sidebarActiveFg
         : (enabled
-            ? (_hover ? Colors.white : AppColors.sidebarFg)
-            : AppColors.sidebarFg.withValues(alpha: 0.4));
+            ? (_hover ? t.fg : t.sidebarFg)
+            : t.sidebarFg.withValues(alpha: 0.4));
     final iconColor = selected
-        ? AppColors.accent
+        ? t.sidebarActiveFg
         : (enabled
-            ? (_hover ? Colors.white : AppColors.sidebarFg)
-            : AppColors.sidebarFg.withValues(alpha: 0.4));
+            ? (_hover ? t.fg : t.sidebarFg)
+            : t.sidebarFg.withValues(alpha: 0.4));
 
     return MouseRegion(
       cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
@@ -416,7 +419,7 @@ class _NavItemTileState extends State<_NavItemTile> {
             borderRadius: AppRadius.smBorder,
             border: Border(
               left: BorderSide(
-                color: selected ? AppColors.accent : Colors.transparent,
+                color: selected ? t.accent : Colors.transparent,
                 width: 3,
               ),
             ),
@@ -436,17 +439,16 @@ class _NavItemTileState extends State<_NavItemTile> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: AppColors.accent,
+                  color: t.accent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(widget.item.badge!,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 10)),
+                    style: TextStyle(color: t.onAccent, fontSize: 10)),
               )
             else if (!enabled)
               Text('敬请期待',
                   style: TextStyle(
-                      color: AppColors.sidebarFg.withValues(alpha: 0.4),
+                      color: t.sidebarFg.withValues(alpha: 0.4),
                       fontSize: 10)),
           ]),
         ),
@@ -471,6 +473,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meta = _branchMetaOf(branchIndex);
+    final t = context.yucai;
     // 创建按钮仅 list 页显(location == rootPath;detail/form/new/edit 不显)。
     final showCreate = meta.createLabel != null && location == meta.rootPath;
     return ClipRect(
@@ -479,8 +482,8 @@ class _TopBar extends StatelessWidget {
         child: Container(
           height: 60,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          // OD .topbar: rgba(247,246,242,.85)
-          color: const Color(0xFFF7F6F2).withValues(alpha: 0.85),
+          // v2 顶栏毛玻璃屏障(暗 rgba(11,14,19,.72) / 亮 rgba(255,255,255,.82))。
+          color: t.topbarBarrier,
           child: Row(children: [
             // 面包屑:section › page(对齐 OD .crumbs)。
             _BreadCrumb(section: meta.section, page: meta.page),
@@ -495,8 +498,8 @@ class _TopBar extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: '搜索交易、账户…',
                     isDense: true,
-                    prefixIcon: const Icon(LucideIcons.search,
-                        size: 16, color: AppColors.muted),
+                    prefixIcon: Icon(LucideIcons.search,
+                        size: 16, color: t.muted),
                     prefixIconConstraints:
                         const BoxConstraints(minWidth: 32, minHeight: 32),
                     // 高度收紧(vertical 6 + isDense),对齐 OD .tb-search 紧凑。
@@ -531,13 +534,14 @@ class _TopBarIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.yucai;
     return IconButton(
       tooltip: tooltip,
-      icon: Icon(icon, size: 20, color: AppColors.muted),
+      icon: Icon(icon, size: 20, color: t.muted),
       style: IconButton.styleFrom(
         backgroundColor: Colors.transparent,
         highlightColor: Colors.transparent,
-        hoverColor: AppColors.accentSoft.withValues(alpha: 0.4),
+        hoverColor: t.accentSoft,
         padding: EdgeInsets.zero,
         minimumSize: const Size(36, 36),
       ),
@@ -554,10 +558,11 @@ class _BreadCrumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.yucai;
     final pageStyle = TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w600,
-      color: AppColors.fg,
+      color: t.fg,
       fontFamily: AppTypography.displayFamily,
       fontFamilyFallback: AppTypography.displayFallback,
     );
@@ -565,10 +570,9 @@ class _BreadCrumb extends StatelessWidget {
       return Text(page, style: pageStyle);
     }
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Text(section,
-          style: const TextStyle(fontSize: 14, color: AppColors.muted)),
+      Text(section, style: TextStyle(fontSize: 14, color: t.muted)),
       const SizedBox(width: 6),
-      const Icon(LucideIcons.chevronRight, size: 14, color: AppColors.muted),
+      Icon(LucideIcons.chevronRight, size: 14, color: t.muted),
       const SizedBox(width: 6),
       Text(page, style: pageStyle),
     ]);
@@ -583,6 +587,7 @@ class _TopBarCreate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.yucai;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -590,22 +595,22 @@ class _TopBarCreate extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.accent,
+            color: t.accent,
             borderRadius: AppRadius.smBorder,
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x33B08D57),
+                color: t.accent.withValues(alpha: 0.2),
                 blurRadius: 8,
-                offset: Offset(0, 2),
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(LucideIcons.plus, size: 15, color: Colors.white),
+            Icon(LucideIcons.plus, size: 15, color: t.onAccent),
             const SizedBox(width: 6),
             Text(label,
-                style: const TextStyle(
-                    color: Colors.white,
+                style: TextStyle(
+                    color: t.onAccent,
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
           ]),
@@ -632,9 +637,10 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     // 底栏映射已实现的分支：仪表盘(0) / 交易(2) / 账户(1) / 债务(3) / 债权(4) / 退出
     // 五个分支索引 0/2/1/3/4 + 退出（末位），用 _branchSlots 把底栏位序 → 分支索引。
+    final t = context.yucai;
     return NavigationBar(
-      backgroundColor: AppColors.surface,
-      indicatorColor: AppColors.accentSoft,
+      backgroundColor: t.surface,
+      indicatorColor: t.accentSoft,
       selectedIndex: _slotIndexOf(currentIndex),
       onDestinationSelected: (i) {
         if (i < _branchSlots.length) {
@@ -695,15 +701,23 @@ class OfflineBadge extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.muted.withValues(alpha: 0.15),
+              color: Theme.of(context)
+                  .extension<YucaiTheme>()!
+                  .muted
+                  .withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(LucideIcons.wifiOff, size: 13, color: AppColors.muted),
+              Icon(LucideIcons.wifiOff,
+                  size: 13,
+                  color: Theme.of(context).extension<YucaiTheme>()!.muted),
               const SizedBox(width: 4),
               Text('离线',
                   style: TextStyle(
-                      fontSize: 11, color: AppColors.muted)),
+                      fontSize: 11,
+                      color: Theme.of(context)
+                          .extension<YucaiTheme>()!
+                          .muted)),
             ]),
           ),
         );
@@ -721,12 +735,13 @@ class IntegrityBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.yucai;
     return Material(
-      color: const Color(0xFFFCE8E6),
+      color: t.negative.withValues(alpha: 0.12),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(children: [
-          Icon(LucideIcons.triangleAlert, size: 14, color: AppColors.muted),
+          Icon(LucideIcons.triangleAlert, size: 14, color: t.muted),
           const SizedBox(width: 6),
           Expanded(
             child: Text('本地数据异常:$message(建议导出存档备份)',

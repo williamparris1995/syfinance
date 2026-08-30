@@ -13,6 +13,7 @@ import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
+import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
 
 class _MockAuthRemote extends Mock implements AuthRemoteDataSource {}
@@ -43,6 +44,10 @@ void main() {
     if (!gi.isRegistered<AuthRemoteDataSource>()) {
       gi.registerSingleton<AuthRemoteDataSource>(authRemote);
     }
+    // SettingsPage reads ThemeSettings from getIt (R8 F1 主题模式)。
+    if (!gi.isRegistered<ThemeSettings>()) {
+      gi.registerSingleton<ThemeSettings>(_FakeThemeSettings());
+    }
     addTearDown(gi.reset);
 
     await t.pumpWidget(MaterialApp(
@@ -59,6 +64,19 @@ void main() {
     expect(find.text('导出存档'), findsOneWidget);
     expect(find.text('导入存档'), findsOneWidget);
   });
+}
+
+class _FakeThemeSettings extends Fake implements ThemeSettings {
+  final ValueNotifier<ThemeMode> _notifier =
+      ValueNotifier<ThemeMode>(ThemeMode.system);
+  @override
+  ValueListenable<ThemeMode> get listenable => _notifier;
+  @override
+  ThemeMode get value => ThemeMode.system;
+  @override
+  Future<void> load() async {}
+  @override
+  Future<void> setThemeMode(ThemeMode mode) async {}
 }
 
 class _FakeCurrencySettings extends Fake implements CurrencySettings {

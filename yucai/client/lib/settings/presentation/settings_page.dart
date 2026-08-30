@@ -17,6 +17,7 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide Currency;
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
@@ -41,17 +42,21 @@ class SettingsPage extends StatelessWidget {
     super.key,
     AuthRemoteDataSource? authRemote,
     CurrencySettings? currencySettings,
+    ThemeSettings? themeSettings,
   })  : _authRemote = authRemote,
-        _currencySettings = currencySettings;
+        _currencySettings = currencySettings,
+        _themeSettings = themeSettings;
 
   final AuthRemoteDataSource? _authRemote;
   final CurrencySettings? _currencySettings;
+  final ThemeSettings? _themeSettings;
 
   @override
   Widget build(BuildContext context) {
     // 延迟到 build 取 getIt，避免测试构造时未配置 DI 就崩溃；显式注入优先。
     final ds = _authRemote ?? getIt<AuthRemoteDataSource>();
     final settings = _currencySettings ?? getIt<CurrencySettings>();
+    final theme = _themeSettings ?? getIt<ThemeSettings>();
     return Scaffold(
       backgroundColor: AppColors.bg,
       // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
@@ -115,6 +120,35 @@ class SettingsPage extends StatelessWidget {
                       },
                     ),
                     ),
+                    // 外观(R8 F1):主题模式 跟随系统/亮/暗,持久化 ThemeSettings,
+                    // ValueListenableBuilder 让选中态随 theme.listenable 实时刷新。
+                    _SettingsCard(
+                      child: ValueListenableBuilder<ThemeMode>(
+                        valueListenable: theme.listenable,
+                        builder: (context, mode, _) => _PreferenceRow(
+                          label: '主题模式',
+                          description: '亮色=晨白 · 暗色=墨鎏金 · 即时生效',
+                          control: SegmentedButton<ThemeMode>(
+                            segments: const [
+                              ButtonSegment(
+                                  value: ThemeMode.system,
+                                  label: Text('跟随系统')),
+                              ButtonSegment(
+                                  value: ThemeMode.light,
+                                  label: Text('亮色')),
+                              ButtonSegment(
+                                  value: ThemeMode.dark,
+                                  label: Text('暗色')),
+                            ],
+                            selected: {mode},
+                            showSelectedIcon: false,
+                            onSelectionChanged: (selection) =>
+                                theme.setThemeMode(selection.first),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                     // Archive export/import (R6 J) — full interaction.
                     _SettingsCard(
                       child: Column(

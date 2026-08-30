@@ -24,6 +24,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/pages/budget_list_page.dart';
 import 'package:yucai_client/core/error/failures.dart';
@@ -126,19 +127,20 @@ void main() {
     expect(find.text('120%'), findsWidgets);
   });
 
-  testWidgets('over-budget card conic ring color = #c0392b; normal = 御财金',
+  testWidgets('over-budget card conic ring color = #c0392b; normal = accent(v2 翡翠绿)',
       (t) async {
     setDesktop(t);
     await t.pumpWidget(_harness(budgets));
     await t.pumpAndSettle();
-    // 找到所有 conic 环,断言超支卡那根色 #c0392b,正常卡金。
+    // 找到所有 conic 环,断言超支卡那根色 #c0392b,正常卡主色。
     final rings = t
         .widgetList<ConicProgressRing>(find.byType(ConicProgressRing))
         .toList();
     expect(rings.length, 2);
     // 分组排序:超支(b2)在前,正常(b1)在后。
     expect(rings[0].color, const Color(0xFFC0392B), reason: '超支卡 conic 环色 #c0392b');
-    expect(rings[1].color, const Color(0xFFB08D57), reason: '正常卡 conic 环色 御财金');
+    // R8 v2:主色 御财金→翡翠绿,断言改语义色不再钉 hex。
+    expect(rings[1].color, AppColors.accent, reason: '正常卡 conic 环色 = AppColors.accent');
     // 超支卡的"超支"文案存在。
     expect(find.textContaining('超支'), findsWidgets);
   });

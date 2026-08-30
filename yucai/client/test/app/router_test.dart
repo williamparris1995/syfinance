@@ -60,6 +60,7 @@ import 'package:yucai_client/holding/presentation/pages/trade_sheet_page.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/data/networth_ds.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
+import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -79,6 +80,19 @@ class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
 class _MockHasCredentials extends Mock implements HasStoredCredentialsUseCase {}
 class _MockAuthRemoteDataSource extends Mock implements AuthRemoteDataSource {}
+
+class _FakeThemeSettings extends Fake implements ThemeSettings {
+  final ValueNotifier<ThemeMode> _notifier =
+      ValueNotifier<ThemeMode>(ThemeMode.system);
+  @override
+  ValueListenable<ThemeMode> get listenable => _notifier;
+  @override
+  ThemeMode get value => ThemeMode.system;
+  @override
+  Future<void> load() async {}
+  @override
+  Future<void> setThemeMode(ThemeMode mode) async {}
+}
 
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
   final ValueNotifier<String> _notifier = ValueNotifier<String>('CNY');
@@ -171,6 +185,9 @@ void main() {
     // cross-page refresh listener in initState). Register a fake so the home
     // branch resolves without pulling in the full DI graph.
     getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings());
+    // SettingsPage reads ThemeSettings from getIt (R8 F1 主题模式)。Register a
+    // fake so the settings branch resolves without the full DI graph.
+    getIt.registerSingleton<ThemeSettings>(_FakeThemeSettings());
     // HomePage _loadNetWorth reads getIt<NetWorthDataSource>() at initState
     // (68508b2); register a fake so /home resolves(P0-1 摘要卡 + 既有净资产卡 都依赖)。
     getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs());

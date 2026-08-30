@@ -15,6 +15,7 @@ import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 
 final getIt = GetIt.instance;
@@ -79,6 +80,10 @@ Future<void> configureDependencies() async {
   //     pages reading it (home/performance/detail) start with the right value
   //     and can listen for changes (cross-page refresh).
   await getIt<CurrencySettings>().load();
+
+  // 2b. Sync the persisted theme mode (R8 F1) so MaterialApp starts on the
+  //     user's saved light/dark/system instead of the system default.
+  await getIt<ThemeSettings>().load();
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
   final refreshTokenUseCase = getIt<RefreshTokenUseCase>();

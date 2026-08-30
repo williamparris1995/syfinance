@@ -2,156 +2,189 @@ import 'package:flutter/material.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 
-/// 御财亮色主题。映射设计令牌到 Material 3 [ThemeData]：
-/// - 主色 = 御财金，背景 = 奶油白
-/// - 标题（display/headline/title）= serif，正文 = sans
-/// - 输入框、按钮、卡片、圆角全部对齐设计规范。
+/// 御财主题 v2 —— A+B 亮暗双主题。
+/// - [AppTheme.light] = 晨白:净白底 + 翡翠绿主色,无边框卡片 + 柔阴影。
+/// - [AppTheme.dark]  = 墨鎏金:墨黑底 + 鎏金主色,描边分层。
+/// 两套主题均把 [YucaiTheme] 语义令牌挂到 ThemeData.extensions,组件层经
+/// `context.yucai` 读取;标题不再用 serif(v2 全无衬线)。
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData light() {
+  static ThemeData light() => _build(YucaiTheme.light(), Brightness.light);
+
+  static ThemeData dark() => _build(YucaiTheme.dark(), Brightness.dark);
+
+  static ThemeData _build(YucaiTheme t, Brightness brightness) {
     final scheme = ColorScheme(
-      brightness: Brightness.light,
-      primary: AppColors.accent,
-      onPrimary: Colors.white,
-      primaryContainer: AppColors.accentSoft,
-      onPrimaryContainer: AppColors.accentHover,
-      secondary: AppColors.accent,
-      onSecondary: Colors.white,
-      error: AppColors.negative,
+      brightness: brightness,
+      primary: t.accent,
+      onPrimary: t.onAccent,
+      primaryContainer: t.accentSoft,
+      onPrimaryContainer: t.accentDeep,
+      secondary: t.accent,
+      onSecondary: t.onAccent,
+      error: t.negative,
       onError: Colors.white,
-      surface: AppColors.surface,
-      onSurface: AppColors.fg,
-      surfaceContainerHighest: AppColors.surfaceAlt,
-      outline: AppColors.border,
-      outlineVariant: AppColors.border,
+      surface: t.surface,
+      onSurface: t.fg,
+      surfaceContainerHighest: t.surfaceAlt,
+      outline: t.border,
+      outlineVariant: t.border,
     );
 
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: AppColors.bg,
+      scaffoldBackgroundColor: t.bg,
       fontFamily: AppTypography.bodyFamily,
       fontFamilyFallback: AppTypography.bodyFallback,
       visualDensity: VisualDensity.standard,
       splashFactory: InkSparkle.splashFactory,
-      dividerTheme: const DividerThemeData(
-        color: AppColors.border,
+      extensions: [t],
+      dividerTheme: DividerThemeData(
+        color: t.border,
         thickness: 1,
         space: 1,
       ),
     );
 
-    // 标题层级用 serif；正文沿用默认 sans。
-    final serif = TextStyle(
-      fontFamily: AppTypography.displayFamily,
-      fontFamilyFallback: AppTypography.displayFallback,
-      color: AppColors.fg,
-    );
-    final serifText = base.textTheme.copyWith(
-      displayLarge: base.textTheme.displayLarge?.merge(serif),
-      displayMedium: base.textTheme.displayMedium?.merge(serif),
-      displaySmall: base.textTheme.displaySmall?.merge(serif),
-      headlineLarge: base.textTheme.headlineLarge?.merge(serif),
-      headlineMedium: base.textTheme.headlineMedium?.merge(serif),
-      headlineSmall: base.textTheme.headlineSmall?.merge(serif),
-      titleLarge: base.textTheme.titleLarge?.merge(serif),
+    // v2 全无衬线:标题不再单独 serif,仅统一字色。
+    final text = base.textTheme.copyWith(
+      displayLarge:
+          base.textTheme.displayLarge?.copyWith(color: t.fg, fontWeight: w8),
+      displayMedium:
+          base.textTheme.displayMedium?.copyWith(color: t.fg, fontWeight: w8),
+      displaySmall:
+          base.textTheme.displaySmall?.copyWith(color: t.fg, fontWeight: w8),
+      headlineLarge:
+          base.textTheme.headlineLarge?.copyWith(color: t.fg, fontWeight: w7),
+      headlineMedium:
+          base.textTheme.headlineMedium?.copyWith(color: t.fg, fontWeight: w7),
+      headlineSmall:
+          base.textTheme.headlineSmall?.copyWith(color: t.fg, fontWeight: w7),
+      titleLarge:
+          base.textTheme.titleLarge?.copyWith(color: t.fg, fontWeight: w7),
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(color: t.fg),
+      bodySmall: base.textTheme.bodySmall?.copyWith(color: t.muted),
     );
 
+    final isDark = brightness == Brightness.dark;
+
     return base.copyWith(
-      textTheme: serifText,
-      appBarTheme: const AppBarTheme(
+      textTheme: text,
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.fg,
+        foregroundColor: t.fg,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
       ),
       cardTheme: CardThemeData(
-        color: AppColors.surface,
-        elevation: 0,
+        color: t.surface,
+        elevation: isDark ? 0 : 4,
+        // 晨白柔阴影;墨鎏金 0 晕 + 描边分层。
+        shadowColor: const Color(0x0D0F172A),
+        surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.lgBorder),
         margin: EdgeInsets.zero,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        hintStyle: const TextStyle(color: AppColors.muted, fontSize: 14),
-        labelStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
-        floatingLabelStyle:
-            const TextStyle(color: AppColors.accent, fontSize: 13),
-        border: const OutlineInputBorder(
+        fillColor: isDark ? t.surface : t.surfaceAlt,
+        hintStyle: TextStyle(color: t.muted, fontSize: 14),
+        labelStyle: TextStyle(color: t.muted, fontSize: 13),
+        floatingLabelStyle: TextStyle(color: t.accentDeep, fontSize: 13),
+        border: OutlineInputBorder(
           borderRadius: AppRadius.smBorder,
-          borderSide: BorderSide(color: AppColors.border),
+          borderSide: BorderSide(
+              color: isDark ? t.border : Colors.transparent),
         ),
-        enabledBorder: const OutlineInputBorder(
+        enabledBorder: OutlineInputBorder(
           borderRadius: AppRadius.smBorder,
-          borderSide: BorderSide(color: AppColors.border),
+          borderSide: BorderSide(
+              color: isDark ? t.border : Colors.transparent),
         ),
-        focusedBorder: const OutlineInputBorder(
+        focusedBorder: OutlineInputBorder(
           borderRadius: AppRadius.smBorder,
-          borderSide: BorderSide(color: AppColors.accent, width: 1.4),
+          borderSide: BorderSide(color: t.accent, width: 1.4),
         ),
-        errorBorder: const OutlineInputBorder(
+        errorBorder: OutlineInputBorder(
           borderRadius: AppRadius.smBorder,
-          borderSide: BorderSide(color: AppColors.negative),
+          borderSide: BorderSide(color: t.negative),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.accent,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.4),
+          backgroundColor: t.accent,
+          foregroundColor: t.onAccent,
+          disabledBackgroundColor: t.accent.withValues(alpha: 0.4),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: const RoundedRectangleBorder(
-              borderRadius: AppRadius.smBorder),
-          textStyle: const TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w600),
+          shape:
+              const RoundedRectangleBorder(borderRadius: AppRadius.smBorder),
+          textStyle:
+              const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.surface,
-          foregroundColor: AppColors.fg,
+          backgroundColor: t.surface,
+          foregroundColor: t.fg,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: const RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
               borderRadius: AppRadius.smBorder,
-              side: BorderSide(color: AppColors.border)),
+              side: BorderSide(color: t.border)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.muted,
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          foregroundColor: t.accentDeep,
+          textStyle:
+              const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
-      iconTheme: const IconThemeData(color: AppColors.fg, size: 20),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: AppRadius.smBorder),
+          ),
+          side: const WidgetStatePropertyAll(BorderSide.none),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected) ? t.onAccent : t.muted),
+        trackColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected) ? t.accent : t.surfaceAlt),
+      ),
+      iconTheme: IconThemeData(color: t.fg, size: 20),
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: t.surface,
         elevation: 0,
-        shape: const RoundedRectangleBorder(borderRadius: AppRadius.lgBorder),
-        titleTextStyle: const TextStyle(
+        shape:
+            const RoundedRectangleBorder(borderRadius: AppRadius.lgBorder),
+        titleTextStyle: TextStyle(
           fontFamily: AppTypography.displayFamily,
           fontFamilyFallback: AppTypography.displayFallback,
           fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: AppColors.fg,
+          fontWeight: FontWeight.w700,
+          color: t.fg,
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.fg,
-        contentTextStyle:
-            const TextStyle(color: AppColors.surface, fontSize: 14),
-        shape: const RoundedRectangleBorder(borderRadius: AppRadius.smBorder),
+        backgroundColor: t.fg,
+        contentTextStyle: TextStyle(color: t.surface, fontSize: 14),
+        shape: const RoundedRectangleBorder(
+            borderRadius: AppRadius.smBorder),
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.accent,
-        linearTrackColor: AppColors.border,
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: t.accent,
+        linearTrackColor: t.surfaceAlt,
       ),
     );
   }
+
+  static const w7 = FontWeight.w700;
+  static const w8 = FontWeight.w800;
 }

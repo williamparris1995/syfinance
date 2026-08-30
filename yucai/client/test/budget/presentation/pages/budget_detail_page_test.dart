@@ -25,6 +25,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/pages/budget_detail_page.dart';
 import 'package:yucai_client/core/error/failures.dart';
@@ -168,7 +169,7 @@ void main() {
     expect(find.textContaining('超'), findsWidgets);
   });
 
-  testWidgets('over-budget item mini bar is red (#c0392b); normal is gold',
+  testWidgets('over-budget item mini bar is red (#c0392b); normal is accent(v2 翡翠绿)',
       (t) async {
     setDesktop(t);
     final repo = _MockRepo();
@@ -189,7 +190,8 @@ void main() {
     expect(overColor, const Color(0xFFC0392B));
     final normalColor =
         (bars[1].valueColor as AlwaysStoppedAnimation<Color>).value;
-    expect(normalColor, const Color(0xFFB08D57));
+    // R8 v2:主色 御财金→翡翠绿,断言改语义色不再钉 hex。
+    expect(normalColor, AppColors.accent);
   });
 
   testWidgets('loading state shows CircularProgressIndicator', (t) async {
