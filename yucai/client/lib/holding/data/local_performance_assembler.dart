@@ -222,6 +222,8 @@ class LocalPerformanceAssembler {
   double? _segmentedTwr(DateTime start, DateTime today, double terminalMV) {
     // 日算术统一本地日(测试/存量的 UTC 输入与本地 today 混比会差一天)。
     final startDay = DateTime(start.year, start.month, start.day);
+    // 有意分歧(G 超集):锚点后无现金流日时本实现仍算单期 TWR(终值/开盘,
+    // 经济上正确),Go computeTWR 因 effectiveDays 空而返 nil。
     final days = _cashFlowDays(startDay, today);
     if (days.isEmpty) return null;
 
