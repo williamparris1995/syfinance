@@ -38,4 +38,5 @@
   - **Bad state 修复**:/debts 与 /debts/new 的 BlocProvider `create:` 拥有共享 DebtBloc 单例,路由 dispose 时 close → 切页返回 `Bad state: Cannot add new events after calling close`;改 `.value`(页面自加载,对齐 /receivables)。全库排查确认仅此两处单例误用,其余 bloc 均 factory 作用域无此问题。
   - **v1 残留色清理**:debt/receivable detail 奶油白底、report 顶栏、交易红绿、stat 图标底 → 语义令牌;分类饼图色板为数据可视化序列色按设计保留。
   - **drift 基线清零(历史首次全量绿,1178 tests)**:3 个长期容忍的 drift 文件根因均为测试腐烂而非页面缺陷 —— receivables L4(断言未圈列表区,overview callout 按设计不随筛选变化)、固定日期时间炸弹(2026-08-15/2026-07-15 写作"未来"已真实逾期 → 夹具改相对日期)、account_detail 统计(Issue-② scope 过滤后夹具旧日期计 0 → 当月日期)。
-- Next(F3+,待 ticket 化):各模块页面暗色感知迁移(context.yucai)与按原型逐页布局重构。
+- 2026-08-30 **F3 ✅ done**(全页面设计一致性 pass,merge `5b6a8f11`):审计发现 20+ 文件散落 **49 处 v1 一-off 色值**(奶油底变体 FBFAF6/F1EDE5/EFECE5…、v1 金系 E0BD84/98773F、旧红绿 6FCF9A/E57373、暖灰 7A776E/A8A298)—— 即"页面之间色调不一致"的根源;全部映射到语义令牌(surfaceAlt/accentSoft/accent·accentHover/positive·negative/muted),16 个模块页在 v2 净白下色调统一。有意保留:超预算深红 #C0392B(文档化区分色)、净资产深色 hero 渐变(v1 设计特征,F4 重设计)、图表系列色/类型徽章色对(数据可视化编码)。
+- Next(F4+,待 ticket 化):① 各模块页暗色感知迁移(context.yucai 逐页);② 借贷共享组件(debt_detail_widgets/debt_list_widgets,55 处)深迁移;③ 净资产深色 hero 按 v2 原型重设计;④ 遗留占位文案清理(待接入标记 ×10 文件)。
