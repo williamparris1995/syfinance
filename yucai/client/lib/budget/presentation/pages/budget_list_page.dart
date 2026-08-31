@@ -10,7 +10,7 @@
 //
 // 御财设计语言(复用 AppColors/AppTypography/lucide):
 //  - 御财金 #b08d57(btn-gold + 正常金);超支用 brief 指定 #c0392b(比
-//    AppColors.negative 更暗,区分「超预算」,单独取 overBudget 红常量)。
+//    context.yucai.negative 更暗,区分「超预算」,单独取 overBudget 红常量)。
 //  - 进度环:ConicProgressRing(progress=clamp[0,1],复用 core/widgets);超支色 overBudget
 //    红、正常色 accent 金。
 //  - ConicProgressRing 由 goal 对齐产出,此处直接 import 复用(不重写)。
@@ -34,7 +34,7 @@ import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 
-/// 超支红(brief 指定 #c0392b,比 AppColors.negative 更暗,区分「超预算」)。
+/// 超支红(brief 指定 #c0392b,比 context.yucai.negative 更暗,区分「超预算」)。
 const Color _overBudgetRed = Color(0xFFC0392B);
 
 /// 预算列表页。对齐 OD 原型:topbar + 月份切换 + 状态筛选 chips + conic 环卡片 +
@@ -81,7 +81,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocBuilder<BudgetBloc, BudgetState>(
         builder: (context, state) {
           // topbar 永远显示(标题 + sub + 月份切换 + 新建),body 三态切换。
@@ -102,7 +102,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
     final monthBudgets = state is BudgetListLoaded ? _filteredByMonth(state.budgets) : const <BudgetView>[];
     final count = monthBudgets.length;
     return Material(
-      color: AppColors.bg,
+      color: context.yucai.bg,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
@@ -129,8 +129,8 @@ class _BudgetListPageState extends State<BudgetListPage> {
                       Text(
                         '月度预算 · 按月切换 · 当前月份共 $count 个预算',
                         key: const ValueKey('budgetListSub'),
-                        style: const TextStyle(
-                            fontSize: 12.5, color: AppColors.muted),
+                        style: TextStyle(
+                            fontSize: 12.5, color: context.yucai.muted),
                       ),
                     ],
                   ),
@@ -141,7 +141,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
                   key: const ValueKey('budgetListRefresh'),
                   tooltip: '刷新',
                   icon: const Icon(LucideIcons.refreshCw, size: 18),
-                  color: AppColors.muted,
+                  color: context.yucai.muted,
                   onPressed: () => context
                       .read<BudgetBloc>()
                       .add(const LoadListRequested()),
@@ -216,7 +216,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
       _FilterChipData(
           _StatusFilter.over, '超支', overCount, _overBudgetRed, LucideIcons.alertTriangle),
       _FilterChipData(
-          _StatusFilter.normal, '正常', normalCount, AppColors.accent, LucideIcons.checkCircle2),
+          _StatusFilter.normal, '正常', normalCount, context.yucai.accent, LucideIcons.checkCircle2),
     ];
     return Wrap(
       spacing: AppSpacing.xs,
@@ -238,11 +238,11 @@ class _BudgetListPageState extends State<BudgetListPage> {
     final normalList = budgets.where((b) => !b.isOverBudget).toList();
     if (overList.isEmpty && normalList.isEmpty) {
       // 状态筛选下无匹配。
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
         child: Center(
           child: Text('该状态本月无预算',
-              style: TextStyle(color: AppColors.muted, fontSize: 13)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 13)),
         ),
       );
     }
@@ -267,7 +267,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
               title: '正常',
               icon: LucideIcons.checkCircle2,
               count: normalList.length,
-              color: AppColors.accent),
+              color: context.yucai.accent),
           const SizedBox(height: AppSpacing.sm),
           for (var i = 0; i < normalList.length; i++) ...[
             _BudgetCard(budget: normalList[i]),
@@ -323,20 +323,20 @@ class _BudgetListPageState extends State<BudgetListPage> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.accentSoft,
+              color: context.yucai.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(LucideIcons.wallet,
-                size: 30, color: AppColors.accent),
+            child: Icon(LucideIcons.wallet,
+                size: 30, color: context.yucai.accent),
           ),
           const SizedBox(height: AppSpacing.md),
           const Text('本月暂无预算',
               style:
                   TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             '切换月份或点击右上「新建预算」开始',
-            style: TextStyle(color: AppColors.muted, fontSize: 14),
+            style: TextStyle(color: context.yucai.muted, fontSize: 14),
           ),
           const SizedBox(height: AppSpacing.md),
           _GoldButton(
@@ -356,14 +356,14 @@ class _BudgetListPageState extends State<BudgetListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.alertCircle, size: 40, color: AppColors.negative),
+            Icon(LucideIcons.alertCircle, size: 40, color: context.yucai.negative),
             const SizedBox(height: 12),
             const Text('加载失败',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 13)),
             const SizedBox(height: AppSpacing.md),
             _GoldButton(
               icon: LucideIcons.refreshCw,
@@ -466,12 +466,12 @@ class _FilterChipState extends State<_FilterChip> {
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
-    final chipColor = widget.data.color ?? AppColors.accent;
+    final chipColor = widget.data.color ?? context.yucai.accent;
     final bg = selected
         ? chipColor
-        : (_hover ? AppColors.surfaceAlt : AppColors.surface);
-    final fg = selected ? Colors.white : AppColors.muted;
-    final border = selected ? chipColor : AppColors.border;
+        : (_hover ? context.yucai.surfaceAlt : context.yucai.surface);
+    final fg = selected ? Colors.white : context.yucai.muted;
+    final border = selected ? chipColor : context.yucai.border;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -503,7 +503,7 @@ class _FilterChipState extends State<_FilterChip> {
               const SizedBox(width: 5),
               Text('${widget.data.count}',
                   style: TextStyle(
-                      color: selected ? Colors.white : AppColors.muted,
+                      color: selected ? Colors.white : context.yucai.muted,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       fontFeatures: AppTypography.tabularFigures)),
@@ -541,7 +541,7 @@ class _GoldButton extends StatelessWidget {
           key: ValueKey('goldBtnLabel_$label'),
           style: const TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.accent,
+        backgroundColor: context.yucai.accent,
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -572,10 +572,10 @@ class _GroupHeader extends StatelessWidget {
         Icon(icon, size: 16, color: color),
         const SizedBox(width: 6),
         Text(title,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontFamily: AppTypography.displayFamily,
                 fontFamilyFallback: AppTypography.displayFallback)),
         const SizedBox(width: 8),
@@ -608,8 +608,8 @@ class _BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final over = budget.isOverBudget;
-    final ringColor = over ? _overBudgetRed : AppColors.accent;
-    final accentColor = over ? _overBudgetRed : AppColors.accent;
+    final ringColor = over ? _overBudgetRed : context.yucai.accent;
+    final accentColor = over ? _overBudgetRed : context.yucai.accent;
     // ConicProgressRing progress 限定 [0,1];超支时满格(1.0)。
     final rawPct = budget.totalAmountCents == 0
         ? 0.0
@@ -656,13 +656,13 @@ class _BudgetCard extends StatelessWidget {
                             const SizedBox(height: 3),
                             Row(
                               children: [
-                                const Icon(LucideIcons.calendar,
-                                    size: 12, color: AppColors.muted),
+                                Icon(LucideIcons.calendar,
+                                    size: 12, color: context.yucai.muted),
                                 const SizedBox(width: 4),
                                 Text(budget.month,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 11.5,
-                                        color: AppColors.muted,
+                                        color: context.yucai.muted,
                                         fontFeatures:
                                             AppTypography.tabularFigures)),
                               ],
@@ -714,16 +714,16 @@ class _BudgetCard extends StatelessWidget {
                               style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: over ? _overBudgetRed : AppColors.fg,
+                                  color: over ? _overBudgetRed : context.yucai.fg,
                                   fontFeatures:
                                       AppTypography.tabularFigures),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               '预算 ${_fmtSymbol(budget.totalAmountCents, budget.currencyCode)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 12.5,
-                                  color: AppColors.muted,
+                                  color: context.yucai.muted,
                                   fontFeatures:
                                       AppTypography.tabularFigures),
                             ),
@@ -741,7 +741,7 @@ class _BudgetCard extends StatelessWidget {
                               ? LucideIcons.alertTriangle
                               : LucideIcons.checkCircle2,
                           size: 13,
-                          color: over ? _overBudgetRed : AppColors.positive),
+                          color: over ? _overBudgetRed : context.yucai.positive),
                       const SizedBox(width: 4),
                       Text(
                         over
@@ -751,7 +751,7 @@ class _BudgetCard extends StatelessWidget {
                             fontSize: 12,
                             color: over
                                 ? _overBudgetRed
-                                : AppColors.positive,
+                                : context.yucai.positive,
                             fontWeight: FontWeight.w600,
                             fontFeatures: AppTypography.tabularFigures),
                       ),

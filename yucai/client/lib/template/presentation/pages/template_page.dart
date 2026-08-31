@@ -94,7 +94,7 @@ class _TemplatePageState extends State<TemplatePage> {
               onPressed: () => Navigator.pop(dctx, false),
               child: const Text('取消')),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.negative),
+            style: TextButton.styleFrom(foregroundColor: context.yucai.negative),
             onPressed: () => Navigator.pop(dctx, true),
             child: const Text('删除'),
           ),
@@ -114,7 +114,7 @@ class _TemplatePageState extends State<TemplatePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocListener<TemplateBloc, TemplateState>(
         listenWhen: (p, c) => c is TemplateActionSuccess,
         listener: (ctx, s) {
@@ -133,13 +133,13 @@ class _TemplatePageState extends State<TemplatePage> {
                   children: [
                     IconButton(
                         tooltip: '返回',
-                        icon: const Icon(LucideIcons.chevronLeft,
-                            color: AppColors.fg),
+                        icon: Icon(LucideIcons.chevronLeft,
+                            color: context.yucai.fg),
                         onPressed: () => context.pop()),
-                    const Expanded(
+                    Expanded(
                       child: Text('周期模板',
                           style: TextStyle(
-                              color: AppColors.fg,
+                              color: context.yucai.fg,
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
                               fontFamily: AppTypography.displayFamily,
@@ -152,7 +152,7 @@ class _TemplatePageState extends State<TemplatePage> {
                   ],
                 ),
               ),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: context.yucai.border),
               Expanded(child: _body()),
             ],
           ),
@@ -173,12 +173,12 @@ class _TemplatePageState extends State<TemplatePage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(LucideIcons.alertCircle,
-                    color: AppColors.negative, size: 36),
+                Icon(LucideIcons.alertCircle,
+                    color: context.yucai.negative, size: 36),
                 const SizedBox(height: AppSpacing.md),
                 Text(state.message,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 13)),
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 13)),
                 const SizedBox(height: AppSpacing.md),
                 FilledButton(
                     onPressed: () => ctx
@@ -189,22 +189,22 @@ class _TemplatePageState extends State<TemplatePage> {
             ),
           );
         } else if (list.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(LucideIcons.repeat,
-                    color: AppColors.accent, size: 28),
+                    color: context.yucai.accent, size: 28),
                 SizedBox(height: AppSpacing.md),
                 Text('暂无周期模板',
                     style: TextStyle(
-                        color: AppColors.fg,
+                        color: context.yucai.fg,
                         fontSize: 16,
                         fontWeight: FontWeight.w600)),
                 SizedBox(height: AppSpacing.xs),
                 Text('点击「新建模板」创建房租 / 工资等周期交易',
                     style:
-                        TextStyle(color: AppColors.muted, fontSize: 13)),
+                        TextStyle(color: context.yucai.muted, fontSize: 13)),
               ],
             ),
           );
@@ -235,7 +235,7 @@ class _TemplatePageState extends State<TemplatePage> {
               Positioned.fill(
                 child: AbsorbPointer(
                   child: Container(
-                    color: AppColors.bg.withValues(alpha: 0.5),
+                    color: context.yucai.bg.withValues(alpha: 0.5),
                     alignment: Alignment.center,
                     child: const CircularProgressIndicator(),
                   ),

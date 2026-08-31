@@ -144,8 +144,8 @@ class AmortizationPreview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(sectionLabel,
-              style: const TextStyle(
-                  color: Color(0xFF9AA0A8),
+              style: TextStyle(
+                  color: AppColors.muted,
                   fontSize: 10.5,
                   letterSpacing: 2,
                   fontFamily: AppTypography.displayFamily)),
@@ -163,8 +163,8 @@ class AmortizationPreview extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(p == null ? '' : p.label,
-                  style: const TextStyle(
-                      color: Color(0xFF9AA0A8), fontSize: 11.5)),
+                  style: TextStyle(
+                      color: AppColors.muted, fontSize: 11.5)),
               const SizedBox(width: 8),
               Text(
                 p == null ? '—' : _fmtSymbol(p.headlineAmount, currencyCode),
@@ -275,8 +275,8 @@ class AmortizationPreview extends StatelessWidget {
                         fontSize: 11,
                         fontFeatures: AppTypography.tabularFigures)),
                 Text(date,
-                    style: const TextStyle(
-                        color: Color(0xFF9AA0A8), fontSize: 10)),
+                    style: TextStyle(
+                        color: AppColors.muted, fontSize: 10)),
               ],
             ),
           ),
@@ -292,8 +292,8 @@ class AmortizationPreview extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         fontFeatures: AppTypography.tabularFigures)),
                 Text('$interestRowLabel ${_fmtSymbol(r.interest, currencyCode)}',
-                    style: const TextStyle(
-                        color: Color(0xFF9AA0A8), fontSize: 10.5)),
+                    style: TextStyle(
+                        color: AppColors.muted, fontSize: 10.5)),
               ],
             ),
           ),
@@ -339,8 +339,8 @@ class AmortizationPreview extends StatelessWidget {
         children: [
           Expanded(
             child: Text(footNote,
-                style: const TextStyle(
-                    color: Color(0xFF9AA0A8), fontSize: 11.5)),
+                style: TextStyle(
+                    color: AppColors.muted, fontSize: 11.5)),
           ),
           Text('年化 ${p == null ? '—' : '${p.annualRate.toStringAsFixed(1)}%'}',
               style: const TextStyle(

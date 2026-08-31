@@ -131,7 +131,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       // 创建入口移至全局 _TopBar(app_shell 路由感知创建按钮 /transactions/new);
       // emptyState 仍保留 _openCreateForm 引导。
       body: BlocConsumer<TransactionBloc, TransactionState>(
@@ -354,7 +354,7 @@ class _Content extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.yucai.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -476,8 +476,8 @@ class _Header extends StatelessWidget {
               // OD sub：「2026年6月 · 共 47 笔交易 · 已对账 45 笔」。已对账笔数
               // 无数据源（backend 未返回 reconciled 计数）→ defer，仅展示月份+笔数。
               Text('$monthLabel · 共 $count 笔',
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 12)),
+                  style: TextStyle(
+                      color: context.yucai.muted, fontSize: 12)),
             ],
           ),
         ),
@@ -499,8 +499,8 @@ class _CreateButton extends StatelessWidget {
         onTap: onPressed,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          decoration: const BoxDecoration(
-            color: AppColors.accent,
+          decoration: BoxDecoration(
+            color: context.yucai.accent,
             borderRadius: AppRadius.smBorder,
           ),
           child: const Row(
@@ -534,18 +534,18 @@ class _ExportButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.yucai.surface,
             borderRadius: AppRadius.smBorder,
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.yucai.border),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(LucideIcons.download, size: 15, color: AppColors.muted),
+              Icon(LucideIcons.download, size: 15, color: context.yucai.muted),
               SizedBox(width: 6),
               Text('导出',
                   style: TextStyle(
-                      color: AppColors.muted,
+                      color: context.yucai.muted,
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
             ],
@@ -603,7 +603,7 @@ class _TxCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _TableHeader(),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: context.yucai.border),
           for (final entry in groups.entries) ...[
             _DayRow(label: entry.key, count: entry.value.length),
             for (final t in entry.value)
@@ -630,13 +630,13 @@ class _TxCard extends StatelessWidget {
 class _TableHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    const headerStyle = TextStyle(
-      color: AppColors.muted,
+    final headerStyle = TextStyle(
+      color: context.yucai.muted,
       fontSize: 11.5,
       letterSpacing: 0.8,
       fontWeight: FontWeight.w500,
     );
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
       child: Row(
@@ -672,7 +672,7 @@ class _DayRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
-      color: AppColors.surfaceAlt,
+      color: context.yucai.surfaceAlt,
       child: Row(
         children: [
           Text(label,
@@ -683,7 +683,7 @@ class _DayRow extends StatelessWidget {
           const SizedBox(width: 8),
           Text('$count 笔',
               style:
-                  const TextStyle(color: AppColors.muted, fontSize: 11)),
+                  TextStyle(color: context.yucai.muted, fontSize: 11)),
         ],
       ),
     );
@@ -740,8 +740,8 @@ class _TxTableRow extends StatelessWidget {
             SizedBox(
               width: 56,
               child: Text(_formatDate(txn.transactionDate),
-                  style: const TextStyle(
-                      color: AppColors.muted,
+                  style: TextStyle(
+                      color: context.yucai.muted,
                       fontSize: 13,
                       fontFeatures: AppTypography.tabularFigures)),
             ),
@@ -880,9 +880,9 @@ class _TransferAccounts extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(child: _AccountTag(label: fromLabel, account: null)),
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Icon(LucideIcons.arrowRight, size: 14, color: AppColors.muted),
+          child: Icon(LucideIcons.arrowRight, size: 14, color: context.yucai.muted),
         ),
         Flexible(child: _AccountTag(label: toLabel, account: null)),
       ],
@@ -918,8 +918,8 @@ class _TxMain extends StatelessWidget {
             children: [
               Text(
                 description.isEmpty ? '(无描述)' : description,
-                style: const TextStyle(
-                    color: AppColors.fg,
+                style: TextStyle(
+                    color: context.yucai.fg,
                     fontSize: 14,
                     fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
@@ -927,8 +927,8 @@ class _TxMain extends StatelessWidget {
               if (secondary.isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Text(secondary,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 12),
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 12),
                     overflow: TextOverflow.ellipsis),
               ],
             ],
@@ -997,11 +997,11 @@ class _CategoryChip extends StatelessWidget {
     final isIncomeType = account!.accountType == AccountType.income;
     final isExpenseType = account!.accountType == AccountType.expense;
     final fg = isIncomeType
-        ? AppColors.positive
-        : (isExpenseType ? AppColors.negative : AppColors.muted);
+        ? context.yucai.positive
+        : (isExpenseType ? context.yucai.negative : context.yucai.muted);
     final bg = isIncomeType
         ? const Color(0x1A2D8A6E)
-        : (isExpenseType ? const Color(0x1AC4544D) : AppColors.surfaceAlt);
+        : (isExpenseType ? const Color(0x1AC4544D) : context.yucai.surfaceAlt);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -1046,21 +1046,21 @@ class _AccountTag extends StatelessWidget {
           width: 20,
           height: 20,
           decoration: BoxDecoration(
-            color: AppColors.surfaceAlt,
+            color: context.yucai.surfaceAlt,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.yucai.border),
           ),
           alignment: Alignment.center,
           child: Text(ab,
-              style: const TextStyle(
-                  color: AppColors.muted,
+              style: TextStyle(
+                  color: context.yucai.muted,
                   fontSize: 10,
                   fontWeight: FontWeight.w600)),
         ),
         const SizedBox(width: 6),
         Flexible(
           child: Text(label,
-              style: const TextStyle(color: AppColors.fg, fontSize: 13),
+              style: TextStyle(color: context.yucai.fg, fontSize: 13),
               overflow: TextOverflow.ellipsis),
         ),
       ],
@@ -1079,9 +1079,9 @@ class _RowOpMenu extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.all(4),
-          child: Icon(LucideIcons.moreHorizontal, size: 16, color: AppColors.muted),
+          child: Icon(LucideIcons.moreHorizontal, size: 16, color: context.yucai.muted),
         ),
       ),
     );
@@ -1108,13 +1108,13 @@ class _PagerFooter extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: context.yucai.border)),
       ),
       child: Row(
         children: [
           Text('显示 $showing 条',
-              style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 13)),
           const Spacer(),
           if (hasMore || loadingMore)
             _LoadMoreControl(
@@ -1123,8 +1123,8 @@ class _PagerFooter extends StatelessWidget {
               onTap: onLoadMore,
             )
           else
-            const Text('已全部加载',
-                style: TextStyle(color: AppColors.muted, fontSize: 12)),
+            Text('已全部加载',
+                style: TextStyle(color: context.yucai.muted, fontSize: 12)),
         ],
       ),
     );
@@ -1145,8 +1145,8 @@ class TxnTypeSeg extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: BorderRadius.circular(11),
       ),
       child: Row(
@@ -1160,7 +1160,7 @@ class TxnTypeSeg extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: type == tf
-                        ? AppColors.accentSoft
+                        ? context.yucai.accentSoft
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -1168,7 +1168,7 @@ class TxnTypeSeg extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color:
-                              type == tf ? AppColors.accent : AppColors.muted,
+                              type == tf ? context.yucai.accent : context.yucai.muted,
                           fontSize: 14,
                           fontWeight:
                               type == tf ? FontWeight.w600 : FontWeight.w400)),
@@ -1326,9 +1326,9 @@ class _MobileTxnCard extends StatelessWidget {
             horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.yucai.surface,
           borderRadius: AppRadius.smBorder,
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.yucai.border),
         ),
         child: Row(
           children: [
@@ -1343,8 +1343,8 @@ class _MobileTxnCard extends StatelessWidget {
                 children: [
                   Text(
                     txn.description.isEmpty ? '(无描述)' : txn.description,
-                    style: const TextStyle(
-                        color: AppColors.fg,
+                    style: TextStyle(
+                        color: context.yucai.fg,
                         fontSize: 14,
                         fontWeight: FontWeight.w500),
                   ),
@@ -1362,10 +1362,10 @@ class _MobileTxnCard extends StatelessWidget {
                                     (e) => e.creditCents > 0,
                                     orElse: () => txn.entries.first)
                                 .accountId)),
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.symmetric(horizontal: 2),
                           child: Icon(LucideIcons.arrowRight,
-                              size: 14, color: AppColors.muted),
+                              size: 14, color: context.yucai.muted),
                         ),
                         _AccountTag(
                             label: toLabel,
@@ -1376,8 +1376,8 @@ class _MobileTxnCard extends StatelessWidget {
                                 .accountId)),
                         if (txn.transactionTime != null)
                           Text('· $_hhmm',
-                              style: const TextStyle(
-                                  color: AppColors.muted, fontSize: 12)),
+                              style: TextStyle(
+                                  color: context.yucai.muted, fontSize: 12)),
                       ],
                     )
                   else
@@ -1398,8 +1398,8 @@ class _MobileTxnCard extends StatelessWidget {
                                   .accountId)),
                         if (txn.transactionTime != null)
                           Text('· $_hhmm',
-                              style: const TextStyle(
-                                  color: AppColors.muted, fontSize: 12)),
+                              style: TextStyle(
+                                  color: context.yucai.muted, fontSize: 12)),
                       ],
                     ),
                 ],
@@ -1448,7 +1448,7 @@ class _DayHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Text('$count 笔',
               style:
-                  const TextStyle(color: AppColors.muted, fontSize: 12)),
+                  TextStyle(color: context.yucai.muted, fontSize: 12)),
         ],
       ),
     );
@@ -1500,14 +1500,14 @@ class _EmptyListHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.receipt,
-                size: 36, color: AppColors.muted),
+            Icon(LucideIcons.receipt,
+                size: 36, color: context.yucai.muted),
             const SizedBox(height: 12),
-            const Text('本月暂无交易',
+            Text('本月暂无交易',
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.muted)),
+                    color: context.yucai.muted)),
             const SizedBox(height: 16),
             _CreateButton(onPressed: onCreate),
           ],
@@ -1535,12 +1535,12 @@ class _ErrorView extends StatelessWidget {
         Center(
           child: Column(
             children: [
-              const Icon(LucideIcons.alertCircle,
-                  size: 40, color: AppColors.negative),
+              Icon(LucideIcons.alertCircle,
+                  size: 40, color: context.yucai.negative),
               const SizedBox(height: AppSpacing.md),
               Text(message,
-                  style: const TextStyle(
-                      color: AppColors.negative, fontSize: 15)),
+                  style: TextStyle(
+                      color: context.yucai.negative, fontSize: 15)),
               const SizedBox(height: AppSpacing.lg),
               Wrap(
                 spacing: AppSpacing.sm,
@@ -1642,7 +1642,7 @@ class _MobileFilterSheetState extends State<MobileFilterSheet> {
           Padding(
             padding: const EdgeInsets.only(bottom: 9),
             child: Text(label,
-                style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 12.5)),
           ),
           Wrap(
             spacing: 8,
@@ -1666,14 +1666,14 @@ class _MobileFilterSheetState extends State<MobileFilterSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
         decoration: BoxDecoration(
-          color: on ? AppColors.accentSoft : AppColors.surfaceAlt,
+          color: on ? context.yucai.accentSoft : context.yucai.surfaceAlt,
           border:
-              Border.all(color: on ? AppColors.accentHover : AppColors.border),
+              Border.all(color: on ? context.yucai.accentDeep : context.yucai.border),
           borderRadius: BorderRadius.circular(9),
         ),
         child: Text(text,
             style: TextStyle(
-                color: on ? AppColors.accentHover : AppColors.fg,
+                color: on ? context.yucai.accentDeep : context.yucai.fg,
                 fontSize: 13.5,
                 fontWeight: on ? FontWeight.w500 : FontWeight.w400)),
       ),
@@ -1686,10 +1686,10 @@ class _MobileFilterSheetState extends State<MobileFilterSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 9),
             child: Text('交易类型',
-                style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 12.5)),
           ),
           Wrap(
             spacing: 8,
@@ -1719,7 +1719,7 @@ class _MobileFilterSheetState extends State<MobileFilterSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 14),
                 decoration: BoxDecoration(
-                    color: AppColors.border,
+                    color: context.yucai.border,
                     borderRadius: BorderRadius.circular(2)),
               ),
               const Text('筛选交易',
@@ -1771,7 +1771,7 @@ class _MobileFilterSheetState extends State<MobileFilterSheet> {
                     child: ElevatedButton(
                       onPressed: () => widget.onApply(_draft),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
+                        backgroundColor: context.yucai.accent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: const RoundedRectangleBorder(
@@ -1902,8 +1902,8 @@ class _MobileHeaderState extends State<MobileHeader> {
                           fontWeight: FontWeight.w600,
                           fontFamily: 'Georgia')),
                   Text('本月 · 共 ${widget.count} 笔',
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 11)),
+                      style: TextStyle(
+                          color: context.yucai.muted, fontSize: 11)),
                 ],
               ),
               IconButton(
@@ -1918,17 +1918,17 @@ class _MobileHeaderState extends State<MobileHeader> {
         Container(
           margin: const EdgeInsets.only(bottom: 14),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.border),
+            color: context.yucai.surface,
+            border: Border.all(color: context.yucai.border),
             borderRadius: AppRadius.lgBorder,
           ),
           child: Column(
             children: [
               Row(
                 children: [
-                  _sumCol('本月收入', s?.incomeCents ?? 0, AppColors.positive),
+                  _sumCol('本月收入', s?.incomeCents ?? 0, context.yucai.positive),
                   _vd(),
-                  _sumCol('本月支出', s?.expenseCents ?? 0, AppColors.negative),
+                  _sumCol('本月支出', s?.expenseCents ?? 0, context.yucai.negative),
                   _vd(),
                   _sumCol('本月净额', s?.netCents ?? 0, null),
                 ],
@@ -1937,22 +1937,22 @@ class _MobileHeaderState extends State<MobileHeader> {
                 onTap: () => setState(() => _expanded = !_expanded),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                       border:
-                          Border(top: BorderSide(color: AppColors.border))),
+                          Border(top: BorderSide(color: context.yucai.border))),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                           _expanded ? '收起月度明细' : '查看月度明细',
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 12.5)),
+                          style: TextStyle(
+                              color: context.yucai.muted, fontSize: 12.5)),
                       Icon(
                         _expanded
                             ? LucideIcons.chevronUp
                             : LucideIcons.chevronDown,
                         size: 16,
-                        color: AppColors.muted,
+                        color: context.yucai.muted,
                       ),
                     ],
                   ),
@@ -1983,13 +1983,13 @@ class _MobileHeaderState extends State<MobileHeader> {
         child: Column(
           children: [
             Text(label,
-                style: const TextStyle(
-                    color: AppColors.muted, fontSize: 11.5)),
+                style: TextStyle(
+                    color: context.yucai.muted, fontSize: 11.5)),
             const SizedBox(height: 6),
             Text(
               _formatCents(cents, signed: cents != 0),
               style: TextStyle(
-                  color: color ?? AppColors.fg,
+                  color: color ?? context.yucai.fg,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   fontFeatures: AppTypography.tabularFigures),
@@ -2003,7 +2003,7 @@ class _MobileHeaderState extends State<MobileHeader> {
   Widget _vd() => Container(
       width: 1,
       margin: const EdgeInsets.symmetric(vertical: 12),
-      color: AppColors.border);
+      color: context.yucai.border);
 
   Widget _extraRow(String label, int cents) {
     return Padding(
@@ -2011,10 +2011,10 @@ class _MobileHeaderState extends State<MobileHeader> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          Text(label, style: TextStyle(color: context.yucai.muted, fontSize: 13)),
           Text(_formatCents(cents),
-              style: const TextStyle(
-                  color: AppColors.fg,
+              style: TextStyle(
+                  color: context.yucai.fg,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   fontFeatures: AppTypography.tabularFigures)),

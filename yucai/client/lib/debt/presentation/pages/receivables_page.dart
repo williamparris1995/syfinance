@@ -91,7 +91,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocBuilder<DebtBloc, DebtState>(
         builder: (context, state) {
           final debts = _debtsOf(state);
@@ -113,24 +113,24 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.accentSoft,
+              color: context.yucai.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(_sem.emptyIcon, size: 30, color: AppColors.accent),
+            child: Icon(_sem.emptyIcon, size: 30, color: context.yucai.accent),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(_sem.emptyTitle,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text(_sem.emptySub,
-              style: const TextStyle(color: AppColors.muted, fontSize: 14)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 14)),
           const SizedBox(height: AppSpacing.lg),
           FilledButton.icon(
             onPressed: () => context.push(_sem.newRoute),
             icon: const Icon(LucideIcons.plus),
             label: Text(_sem.emptyBtn),
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.accent,
+              backgroundColor: context.yucai.accent,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             ),
           ),
@@ -199,12 +199,12 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
               _sectionHeadWithFilter(debts.length),
               const SizedBox(height: AppSpacing.sm),
               if (filtered.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
                     child: Text('该筛选下无债权',
                         style:
-                            TextStyle(color: AppColors.muted, fontSize: 12)),
+                            TextStyle(color: context.yucai.muted, fontSize: 12)),
                   ),
                 )
               else
@@ -257,7 +257,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
       DebtListStatCardData(
           label: _sem.statCollectedLabel,
           value: sharedFmtSymbol(s.totalCollectedCents, preferred),
-          color: AppColors.positive,
+          color: context.yucai.positive,
           icon: LucideIcons.trendingUp,
           sub: (s.totalCollectedCents + s.totalRemainingCents) > 0
               ? '${(s.totalCollectedCents * 100 / (s.totalCollectedCents + s.totalRemainingCents)).toStringAsFixed(1)}% 已收回'
@@ -270,7 +270,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
       DebtListStatCardData(
           label: _sem.statOverdueLabel,
           value: sharedFmtSymbol(s.overdueAmountCents, preferred),
-          color: AppColors.negative,
+          color: context.yucai.negative,
           sub: '${s.overdueCount} 笔',
           icon: LucideIcons.triangleAlert),
     ];
@@ -294,9 +294,9 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
               fontFamilyFallback: AppTypography.displayFallback)),
       const SizedBox(width: 6),
       Text('$count 笔',
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 12.5,
-              color: AppColors.muted,
+              color: context.yucai.muted,
               fontFeatures: AppTypography.tabularFigures)),
     ]);
     return LayoutBuilder(builder: (context, c) {
@@ -330,7 +330,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
       final label = ReceivableSubtypes.labels[debt.subtype];
       if (label != null) {
         return DebtBadgeStyle(
-            label: label, fg: AppColors.accentHover, bg: AppColors.accentSoft);
+            label: label, fg: context.yucai.accentDeep, bg: context.yucai.accentSoft);
       }
     }
     return _inferBadge(debt.counterparty);
@@ -350,19 +350,19 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
         counterparty.contains('家人') ||
         s.contains('family') ||
         s.contains('friend')) {
-      return const DebtBadgeStyle(
-          label: '亲友借款', fg: AppColors.positive, bg: Color(0x1A2D8A6E));
+      return DebtBadgeStyle(
+          label: '亲友借款', fg: context.yucai.positive, bg: Color(0x1A2D8A6E));
     }
     if (counterparty.contains('信用卡') || s.contains('credit')) {
-      return const DebtBadgeStyle(
-          label: '信用卡', fg: AppColors.negative, bg: Color(0x1AC4544D));
+      return DebtBadgeStyle(
+          label: '信用卡', fg: context.yucai.negative, bg: Color(0x1AC4544D));
     }
-    return const DebtBadgeStyle(
-        label: '私人借款', fg: AppColors.accentHover, bg: AppColors.accentSoft);
+    return DebtBadgeStyle(
+        label: '私人借款', fg: context.yucai.accentDeep, bg: context.yucai.accentSoft);
   }
 
   Color _avatarColorFor(Debt debt) {
-    if (debt.subtype.isNotEmpty) return AppColors.accentHover;
+    if (debt.subtype.isNotEmpty) return context.yucai.accentDeep;
     final s = debt.counterparty.toLowerCase();
     if (debt.counterparty.contains('公司') ||
         debt.counterparty.contains('企业') ||
@@ -375,11 +375,11 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
         debt.counterparty.contains('家人') ||
         s.contains('family') ||
         s.contains('friend')) {
-      return AppColors.positive;
+      return context.yucai.positive;
     }
     if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
-      return AppColors.negative;
+      return context.yucai.negative;
     }
-    return AppColors.muted;
+    return context.yucai.muted;
   }
 }

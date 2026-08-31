@@ -296,7 +296,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         title: Text(_isEdit ? '编辑目标' : '新建目标'),
@@ -373,7 +373,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
                                     color: Colors.white, fontSize: 13),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accent,
+                                backgroundColor: context.yucai.accent,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(
@@ -417,11 +417,11 @@ class _GoalFormPageState extends State<GoalFormPage> {
     return FormSection(
       title: '从模板开始',
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(bottom: AppSpacing.sm),
           child: Text(
             '选择常用目标模板,快速预填(关联账户/债务仍需手选)',
-            style: TextStyle(fontSize: 12, color: AppColors.muted),
+            style: TextStyle(fontSize: 12, color: context.yucai.muted),
           ),
         ),
         Wrap(
@@ -446,9 +446,9 @@ class _GoalFormPageState extends State<GoalFormPage> {
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
-          color: AppColors.accentSoft.withValues(alpha: 0.5),
+          color: context.yucai.accentSoft.withValues(alpha: 0.5),
           borderRadius: AppRadius.smBorder,
-          border: Border.all(color: AppColors.accent, width: 1.2),
+          border: Border.all(color: context.yucai.accent, width: 1.2),
         ),
         child: Row(
           children: [
@@ -456,10 +456,10 @@ class _GoalFormPageState extends State<GoalFormPage> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.12),
+                color: context.yucai.accent.withValues(alpha: 0.12),
                 borderRadius: AppRadius.smBorder,
               ),
-              child: Icon(t.icon, size: 18, color: AppColors.accent),
+              child: Icon(t.icon, size: 18, color: context.yucai.accent),
             ),
             const SizedBox(width: AppSpacing.xs + 2),
             Expanded(
@@ -467,16 +467,16 @@ class _GoalFormPageState extends State<GoalFormPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(t.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
                           fontFamily: AppTypography.displayFamily,
                           fontFamilyFallback: AppTypography.displayFallback,
-                          color: AppColors.fg)),
+                          color: context.yucai.fg)),
                   const SizedBox(height: 2),
                   Text(t.description,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.muted)),
+                      style: TextStyle(
+                          fontSize: 11, color: context.yucai.muted)),
                 ],
               ),
             ),
@@ -497,10 +497,10 @@ class _GoalFormPageState extends State<GoalFormPage> {
         width: 220,
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: selected ? meta.color.withValues(alpha: 0.08) : AppColors.surface,
+          color: selected ? meta.color.withValues(alpha: 0.08) : context.yucai.surface,
           borderRadius: AppRadius.lgBorder,
           border: Border.all(
-            color: selected ? meta.color : AppColors.border,
+            color: selected ? meta.color : context.yucai.border,
             width: selected ? 2 : 1,
           ),
         ),
@@ -524,10 +524,10 @@ class _GoalFormPageState extends State<GoalFormPage> {
                     fontWeight: FontWeight.w600,
                     fontFamily: AppTypography.displayFamily,
                     fontFamilyFallback: AppTypography.displayFallback,
-                    color: selected ? meta.color : AppColors.fg)),
+                    color: selected ? meta.color : context.yucai.fg)),
             const SizedBox(height: 4),
             Text(meta.desc,
-                style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                style: TextStyle(fontSize: 11.5, color: context.yucai.muted)),
           ],
         ),
       ),
@@ -595,7 +595,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
           ),
           child: Text(
             '${_deadline.year}-${_deadline.month.toString().padLeft(2, '0')}-${_deadline.day.toString().padLeft(2, '0')}',
-            style: const TextStyle(color: AppColors.fg),
+            style: TextStyle(color: context.yucai.fg),
           ),
         ),
       ),
@@ -689,7 +689,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
 
   Widget _placeholder(String text) => Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+        child: Text(text, style: TextStyle(color: context.yucai.muted, fontSize: 13)),
       );
 }
 

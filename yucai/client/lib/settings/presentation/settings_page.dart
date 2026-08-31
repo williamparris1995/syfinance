@@ -34,8 +34,8 @@ import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 /// onChange → [CurrencySettings.setBaseCurrency] 持久化 → toast 提示
 /// 「重启或刷新生效」(performance/detail/home 下次进入即用新本位币折算)。
 ///
-/// 御财 token：surface card (`AppColors.surface` + `AppRadius.lgBorder` +
-/// `AppSpacing.md`)；dropdown 选中色 `AppColors.accent`。
+/// 御财 token：surface card (`context.yucai.surface` + `AppRadius.lgBorder` +
+/// `AppSpacing.md`)；dropdown 选中色 `context.yucai.accent`。
 class SettingsPage extends StatelessWidget {
   /// 生产用默认 getIt 实例；测试可注入 mock。
   const SettingsPage({
@@ -58,7 +58,7 @@ class SettingsPage extends StatelessWidget {
     final settings = _currencySettings ?? getIt<CurrencySettings>();
     final theme = _themeSettings ?? getIt<ThemeSettings>();
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
       // (不 pop,原 BackButton pop 在 branch 内栈空 → 黑屏)。
       body: BlocBuilder<CurrencyBloc, CurrencyState>(
@@ -74,7 +74,7 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     Text('偏好设置',
                         style: TextStyle(
-                            color: AppColors.fg,
+                            color: context.yucai.fg,
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                             fontFamily: AppTypography.displayFamily,
@@ -163,7 +163,7 @@ class SettingsPage extends StatelessWidget {
                               control: Icon(LucideIcons.fileDown),
                             ),
                           ),
-                          const Divider(height: 1, color: AppColors.border),
+                          Divider(height: 1, color: context.yucai.border),
                           const SizedBox(height: AppSpacing.md),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
@@ -191,8 +191,8 @@ class SettingsPage extends StatelessWidget {
                                   context, ds, code, state.intervalHours),
                             ),
                           ),
-                          const Divider(
-                              height: 1, color: AppColors.border),
+                          Divider(
+                              height: 1, color: context.yucai.border),
                           const SizedBox(height: AppSpacing.md),
                           _PreferenceRow(
                             label: '本位币',
@@ -204,8 +204,8 @@ class SettingsPage extends StatelessWidget {
                                   _onBaseCurrencyChanged(context, code),
                             ),
                           ),
-                          const Divider(
-                              height: 1, color: AppColors.border),
+                          Divider(
+                              height: 1, color: context.yucai.border),
                           const SizedBox(height: AppSpacing.md),
                           _PreferenceRow(
                             label: '汇率同步频率',
@@ -230,8 +230,8 @@ class SettingsPage extends StatelessWidget {
                             description: '导出 / 恢复数据备份文件',
                             onTap: () => context.push('/settings/backup'),
                           ),
-                          const Divider(
-                              height: 1, color: AppColors.border),
+                          Divider(
+                              height: 1, color: context.yucai.border),
                           const SizedBox(height: AppSpacing.md),
                           _NavRow(
                             icon: LucideIcons.timer,
@@ -239,8 +239,8 @@ class SettingsPage extends StatelessWidget {
                             description: '配置服务端定时备份（开关 + 频率）',
                             onTap: () => context.push('/settings/backup/auto'),
                           ),
-                          const Divider(
-                              height: 1, color: AppColors.border),
+                          Divider(
+                              height: 1, color: context.yucai.border),
                           const SizedBox(height: AppSpacing.md),
                           _NavRow(
                             icon: LucideIcons.tag,
@@ -248,8 +248,8 @@ class SettingsPage extends StatelessWidget {
                             description: '管理交易标签(名称/颜色)',
                             onTap: () => context.push('/settings/tags'),
                           ),
-                          const Divider(
-                              height: 1, color: AppColors.border),
+                          Divider(
+                              height: 1, color: context.yucai.border),
                           const SizedBox(height: AppSpacing.md),
                           _NavRow(
                             icon: LucideIcons.calendarClock,
@@ -472,7 +472,7 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-/// 御财 surface card：`AppColors.surface` + `AppRadius.lgBorder` + 内边距
+/// 御财 surface card：`context.yucai.surface` + `AppRadius.lgBorder` + 内边距
 /// `AppSpacing.md`。
 class _SettingsCard extends StatelessWidget {
   const _SettingsCard({required this.child});
@@ -484,9 +484,9 @@ class _SettingsCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.yucai.surface,
         borderRadius: AppRadius.lgBorder,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
       ),
       child: child,
     );
@@ -514,14 +514,14 @@ class _PreferenceRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: const TextStyle(
-                      color: AppColors.fg,
+                  style: TextStyle(
+                      color: context.yucai.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
               Text(description,
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 12)),
+                  style: TextStyle(
+                      color: context.yucai.muted, fontSize: 12)),
             ],
           ),
         ),
@@ -560,9 +560,9 @@ class _CurrencyDropdown extends StatelessWidget {
         isExpanded: true,
         underline: const SizedBox(),
         // 御财金强调选中态：通过 dropdownColor + iconColor 表达。
-        dropdownColor: AppColors.surface,
-        icon: const Icon(LucideIcons.chevronDown,
-            color: AppColors.accent, size: 20),
+        dropdownColor: context.yucai.surface,
+        icon: Icon(LucideIcons.chevronDown,
+            color: context.yucai.accent, size: 20),
         onChanged: (v) {
           if (v != null) onChanged(v);
         },
@@ -626,9 +626,9 @@ class _BaseCurrencyDropdown extends StatelessWidget {
             items: items,
             isExpanded: true,
             underline: const SizedBox(),
-            dropdownColor: AppColors.surface,
-            icon: const Icon(LucideIcons.chevronDown,
-                color: AppColors.accent, size: 20),
+            dropdownColor: context.yucai.surface,
+            icon: Icon(LucideIcons.chevronDown,
+                color: context.yucai.accent, size: 20),
             onChanged: (v) {
               if (v != null) onChanged(v);
             },
@@ -664,9 +664,9 @@ class _IntervalDropdown extends StatelessWidget {
         items: items,
         isExpanded: true,
         underline: const SizedBox(),
-        dropdownColor: AppColors.surface,
-        icon: const Icon(LucideIcons.chevronDown,
-            color: AppColors.accent, size: 20),
+        dropdownColor: context.yucai.surface,
+        icon: Icon(LucideIcons.chevronDown,
+            color: context.yucai.accent, size: 20),
         onChanged: (h) {
           if (h != null) onChanged(h);
         },
@@ -698,7 +698,7 @@ class _NavRow extends StatelessWidget {
       borderRadius: AppRadius.smBorder,
       child: Row(
         children: [
-          Icon(icon, color: AppColors.accent, size: 20),
+          Icon(icon, color: context.yucai.accent, size: 20),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -706,8 +706,8 @@ class _NavRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: AppColors.fg,
+                  style: TextStyle(
+                    color: context.yucai.fg,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -715,13 +715,13 @@ class _NavRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   description,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                  style: TextStyle(color: context.yucai.muted, fontSize: 12),
                 ),
               ],
             ),
           ),
-          const Icon(LucideIcons.chevronRight,
-              color: AppColors.muted, size: 20),
+          Icon(LucideIcons.chevronRight,
+              color: context.yucai.muted, size: 20),
         ],
       ),
     );

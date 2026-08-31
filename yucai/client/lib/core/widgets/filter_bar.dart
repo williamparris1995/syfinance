@@ -49,8 +49,8 @@ class FilterBar<T> extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: searchHint ?? '搜索',
                 isDense: true,
-                prefixIcon: const Icon(LucideIcons.search,
-                    size: 18, color: AppColors.muted),
+                prefixIcon: Icon(LucideIcons.search,
+                    size: 18, color: context.yucai.muted),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
@@ -84,10 +84,10 @@ class _PillState<T> extends State<_Pill<T>> {
   Widget build(BuildContext context) {
     final selected = widget.selected;
     final bg = selected
-        ? AppColors.accent
-        : (_hover ? AppColors.surfaceAlt : AppColors.surface);
-    final fg = selected ? Colors.white : AppColors.muted;
-    final border = selected ? AppColors.accent : AppColors.border;
+        ? context.yucai.accent
+        : (_hover ? context.yucai.surfaceAlt : context.yucai.surface);
+    final fg = selected ? Colors.white : context.yucai.muted;
+    final border = selected ? context.yucai.accent : context.yucai.border;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,

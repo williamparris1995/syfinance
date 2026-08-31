@@ -129,9 +129,9 @@ class _ToastViewState extends State<_ToastView>
   _ToastStyle _style(ToastType t) {
     switch (t) {
       case ToastType.success:
-        return const _ToastStyle(AppColors.positive, LucideIcons.circleCheck);
+        return _ToastStyle(context.yucai.positive, LucideIcons.circleCheck);
       case ToastType.error:
-        return const _ToastStyle(AppColors.negative, LucideIcons.circleAlert);
+        return _ToastStyle(context.yucai.negative, LucideIcons.circleAlert);
       case ToastType.warning:
         return const _ToastStyle(Color(0xFFCF9B3A), LucideIcons.triangleAlert);
     }

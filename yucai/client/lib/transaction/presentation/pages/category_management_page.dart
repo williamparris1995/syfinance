@@ -87,7 +87,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.yucai.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -156,7 +156,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     final bp = Breakpoints.of(context);
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       endDrawer: bp == Breakpoint.tablet ? _EditorDrawer(state: this) : null,
       body: Column(
         children: [
@@ -245,9 +245,9 @@ class _PageTopBar extends StatelessWidget {
         compact ? AppSpacing.md : AppSpacing.lg,
         AppSpacing.sm + 4,
       ),
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: context.yucai.bg,
+        border: Border(bottom: BorderSide(color: context.yucai.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,12 +255,12 @@ class _PageTopBar extends StatelessWidget {
           // crumb:交易 › 分类管理(对齐 app sidebar 分组)。
           Row(children: [
             Text('交易',
-                style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                style: TextStyle(fontSize: 12, color: context.yucai.muted)),
             const SizedBox(width: 6),
-            const Icon(LucideIcons.chevronRight, size: 12, color: AppColors.muted),
+            Icon(LucideIcons.chevronRight, size: 12, color: context.yucai.muted),
             const SizedBox(width: 6),
-            const Text('分类管理',
-                style: TextStyle(fontSize: 12, color: AppColors.fg)),
+            Text('分类管理',
+                style: TextStyle(fontSize: 12, color: context.yucai.fg)),
           ]),
           const SizedBox(height: 6),
           Row(
@@ -274,15 +274,15 @@ class _PageTopBar extends StatelessWidget {
                         style: TextStyle(
                           fontSize: compact ? 20 : 26,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.fg,
+                          color: context.yucai.fg,
                           fontFamily: AppTypography.displayFamily,
                           fontFamilyFallback: AppTypography.displayFallback,
                         )),
                     if (!compact) ...[
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         '管理收支分类账户 · 方案 A 分类即账户，每个分类对应一个累计余额的 Expense / Income 账户',
-                        style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+                        style: TextStyle(fontSize: 12.5, color: context.yucai.muted),
                       ),
                     ],
                   ],
@@ -330,7 +330,7 @@ class _PrimaryButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-            color: AppColors.accent,
+            color: context.yucai.accent,
             borderRadius: AppRadius.smBorder,
             boxShadow: const [
               BoxShadow(
@@ -374,16 +374,16 @@ class _GhostButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.border),
+            color: context.yucai.surface,
+            border: Border.all(color: context.yucai.border),
             borderRadius: AppRadius.smBorder,
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 14, color: AppColors.fg),
+            Icon(icon, size: 14, color: context.yucai.fg),
             const SizedBox(width: 6),
             Text(label,
-                style: const TextStyle(
-                    color: AppColors.fg,
+                style: TextStyle(
+                    color: context.yucai.fg,
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
           ]),
@@ -429,11 +429,11 @@ class _UnderlineTabs extends StatelessWidget {
             onTap: () => onChanged(CategoryType.income),
           ),
           const SizedBox(width: AppSpacing.md),
-          const Expanded(
+          Expanded(
             child: Align(
               alignment: Alignment.centerRight,
               child: Text('本月金额 = 该账户当月余额 · 拖动 ⠿ 可排序',
-                  style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                  style: TextStyle(fontSize: 11.5, color: context.yucai.muted)),
             ),
           ),
         ],
@@ -470,14 +470,14 @@ class _UnderlineTab extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected ? AppColors.fg : AppColors.muted,
+                      color: selected ? context.yucai.fg : context.yucai.muted,
                     )),
                 const SizedBox(width: 6),
                 Text('$count',
                     style: TextStyle(
                       fontSize: 11,
                       fontFamily: AppTypography.displayFamily,
-                      color: selected ? AppColors.accent : AppColors.muted,
+                      color: selected ? context.yucai.accent : context.yucai.muted,
                     )),
               ]),
             ),
@@ -485,7 +485,7 @@ class _UnderlineTab extends StatelessWidget {
               height: 2,
               width: 36,
               decoration: BoxDecoration(
-                color: selected ? AppColors.accent : Colors.transparent,
+                color: selected ? context.yucai.accent : Colors.transparent,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -515,7 +515,7 @@ class _SegmentedTabs extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: context.yucai.surfaceAlt,
         borderRadius: AppRadius.smBorder,
       ),
       child: Row(children: [
@@ -558,7 +558,7 @@ class _SegItem extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: selected ? AppColors.surface : Colors.transparent,
+              color: selected ? context.yucai.surface : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
               boxShadow: selected
                   ? const [BoxShadow(color: Color(0x14000000), blurRadius: 2)]
@@ -569,14 +569,14 @@ class _SegItem extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: selected ? AppColors.fg : AppColors.muted,
+                    color: selected ? context.yucai.fg : context.yucai.muted,
                   )),
               const SizedBox(width: 4),
               Text('$count',
                   style: TextStyle(
                     fontSize: 11,
                     fontFamily: AppTypography.displayFamily,
-                    color: selected ? AppColors.accent : AppColors.muted,
+                    color: selected ? context.yucai.accent : context.yucai.muted,
                   )),
             ]),
           ),
@@ -725,11 +725,11 @@ class _MobileBody extends StatelessWidget {
             ),
             Expanded(
               child: items.isEmpty && bState is! CategoryLoading
-                  ? const Center(
+                  ? Center(
                       child: Padding(
                         padding: EdgeInsets.all(AppSpacing.lg),
                         child: Text('暂无分类，点击右上角「新建」',
-                            style: TextStyle(color: AppColors.muted)),
+                            style: TextStyle(color: context.yucai.muted)),
                       ),
                     )
                   : ListView(
@@ -771,26 +771,26 @@ class _MobileSummaryCard extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
       padding: const EdgeInsets.all(AppSpacing.md - 4),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('本月${isExpense ? '支出' : '收入'}',
-              style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+              style: TextStyle(fontSize: 12, color: context.yucai.muted)),
           const SizedBox(height: 3),
           Text(_fmtMoney(total),
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 fontFamily: AppTypography.displayFamily,
-                color: isExpense ? AppColors.negative : AppColors.positive,
+                color: isExpense ? context.yucai.negative : context.yucai.positive,
               )),
           const SizedBox(height: 4),
           Text('分类即账户 · $count 个账户累计中',
-              style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+              style: TextStyle(fontSize: 11, color: context.yucai.muted)),
         ],
       ),
     );
@@ -820,8 +820,8 @@ class _ListPanel extends StatelessWidget {
     final period = '${now.year}·${now.month.toString().padLeft(2, '0')}';
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
       ),
       child: Column(
@@ -836,56 +836,56 @@ class _ListPanel extends StatelessWidget {
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     fontFamily: AppTypography.displayFamily,
-                    color: AppColors.fg,
+                    color: context.yucai.fg,
                   )),
               const SizedBox(width: 8),
               Text('${items.length} 个分类账户',
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                  style: TextStyle(fontSize: 12, color: context.yucai.muted)),
               const Spacer(),
               Text(period,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 12,
                       fontFamily: AppTypography.displayFamily,
-                      color: AppColors.muted)),
+                      color: context.yucai.muted)),
             ]),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: context.yucai.border),
           // summary band(gold-soft)
           Container(
             padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
-            color: AppColors.accentSoft,
+            color: context.yucai.accentSoft,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text('本月${isExpense ? '支出' : '收入'}合计',
-                    style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                    style: TextStyle(fontSize: 12, color: context.yucai.muted)),
                 const SizedBox(width: AppSpacing.sm),
                 Text(_fmtMoney(total),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       fontFamily: AppTypography.displayFamily,
-                      color: isExpense ? AppColors.negative : AppColors.positive,
+                      color: isExpense ? context.yucai.negative : context.yucai.positive,
                     )),
                 const Spacer(),
-                const Text('分类即账户 · 累计中',
-                    style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                Text('分类即账户 · 累计中',
+                    style: TextStyle(fontSize: 11, color: context.yucai.muted)),
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: context.yucai.border),
           // list
           Expanded(
             child: loading && items.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : items.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Padding(
                           padding: EdgeInsets.all(AppSpacing.lg),
                           child: Text('暂无分类，点击「新建分类」',
-                              style: TextStyle(color: AppColors.muted)),
+                              style: TextStyle(color: context.yucai.muted)),
                         ),
                       )
                     : ReorderableListView.builder(
@@ -907,10 +907,10 @@ class _ListPanel extends StatelessWidget {
                           onDelete: () => _confirmDelete(ctx, items[i]),
                           dragHandleBuilder: (c) => ReorderableDragStartListener(
                             index: i,
-                            child: const Padding(
+                            child: Padding(
                               padding: EdgeInsets.symmetric(horizontal: 2),
                               child: Icon(LucideIcons.gripVertical,
-                                  size: 16, color: AppColors.muted),
+                                  size: 16, color: context.yucai.muted),
                             ),
                           ),
                         ),
@@ -973,16 +973,16 @@ class _CatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isExpense = item.type == CategoryType.expense;
-    final amtColor = isExpense ? AppColors.negative : AppColors.positive;
+    final amtColor = isExpense ? context.yucai.negative : context.yucai.positive;
     return Material(
-      color: selected ? AppColors.accentSoft : Colors.transparent,
+      color: selected ? context.yucai.accentSoft : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
-                color: selected ? AppColors.accent : Colors.transparent,
+                color: selected ? context.yucai.accent : Colors.transparent,
                 width: 3,
               ),
             ),
@@ -1003,9 +1003,9 @@ class _CatRow extends StatelessWidget {
                 if (isSub)
                   Container(
                     padding: const EdgeInsets.only(left: AppSpacing.xs),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(
-                        left: BorderSide(color: AppColors.border),
+                        left: BorderSide(color: context.yucai.border),
                       ),
                     ),
                     child: _EmojiCircle(icon: item.icon, color: item.color, size: 32),
@@ -1025,7 +1025,7 @@ class _CatRow extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: isSub ? 13 : 14,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.fg,
+                                color: context.yucai.fg,
                               ),
                               overflow: TextOverflow.ellipsis),
                         ),
@@ -1035,8 +1035,8 @@ class _CatRow extends StatelessWidget {
                       if (isSub && parentName.isNotEmpty) ...[
                         const SizedBox(height: 1),
                         Text('归属 $parentName · 二级分类',
-                            style: const TextStyle(
-                                fontSize: 11.5, color: AppColors.muted)),
+                            style: TextStyle(
+                                fontSize: 11.5, color: context.yucai.muted)),
                       ],
                     ],
                   ),
@@ -1051,15 +1051,15 @@ class _CatRow extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     fontFamily: AppTypography.displayFamily,
-                    color: item.monthlyAmountReady ? amtColor : AppColors.muted,
+                    color: item.monthlyAmountReady ? amtColor : context.yucai.muted,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 // ⋯ context menu
                 PopupMenuButton<String>(
                   tooltip: '操作',
-                  icon: const Icon(LucideIcons.moreHorizontal,
-                      size: 18, color: AppColors.muted),
+                  icon: Icon(LucideIcons.moreHorizontal,
+                      size: 18, color: context.yucai.muted),
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: 'edit', child: Text('编辑')),
                     PopupMenuItem(
@@ -1069,14 +1069,14 @@ class _CatRow extends StatelessWidget {
                         Icon(LucideIcons.trash2,
                             size: 15,
                             color: item.isSystem
-                                ? AppColors.muted
-                                : AppColors.negative),
+                                ? context.yucai.muted
+                                : context.yucai.negative),
                         const SizedBox(width: 8),
                         Text(item.isSystem ? '删除（系统禁用）' : '删除分类',
                             style: TextStyle(
                                 color: item.isSystem
-                                    ? AppColors.muted
-                                    : AppColors.negative)),
+                                    ? context.yucai.muted
+                                    : context.yucai.negative)),
                       ]),
                     ),
                   ],
@@ -1109,7 +1109,7 @@ class _CatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isExpense = item.type == CategoryType.expense;
-    final amtColor = isExpense ? AppColors.negative : AppColors.positive;
+    final amtColor = isExpense ? context.yucai.negative : context.yucai.positive;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -1118,8 +1118,8 @@ class _CatCard extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 9),
           padding: const EdgeInsets.all(AppSpacing.sm + 2),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.border),
+            color: context.yucai.surface,
+            border: Border.all(color: context.yucai.border),
             borderRadius: AppRadius.lgBorder,
           ),
           child: Row(
@@ -1134,10 +1134,10 @@ class _CatCard extends StatelessWidget {
                     Row(children: [
                       Flexible(
                         child: Text(item.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.fg),
+                                color: context.yucai.fg),
                             overflow: TextOverflow.ellipsis),
                       ),
                       const SizedBox(width: 6),
@@ -1147,8 +1147,8 @@ class _CatCard extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(top: 1),
                         child: Text('归属 $parentName',
-                            style: const TextStyle(
-                                fontSize: 11.5, color: AppColors.muted)),
+                            style: TextStyle(
+                                fontSize: 11.5, color: context.yucai.muted)),
                       ),
                   ],
                 ),
@@ -1165,15 +1165,15 @@ class _CatCard extends StatelessWidget {
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       fontFamily: AppTypography.displayFamily,
-                      color: item.monthlyAmountReady ? amtColor : AppColors.muted,
+                      color: item.monthlyAmountReady ? amtColor : context.yucai.muted,
                     ),
                   ),
                   Text('本月${isExpense ? '支出' : '收入'}',
-                      style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                      style: TextStyle(fontSize: 10, color: context.yucai.muted)),
                 ],
               ),
               const SizedBox(width: 2),
-              const Icon(LucideIcons.chevronRight, size: 18, color: AppColors.muted),
+              Icon(LucideIcons.chevronRight, size: 18, color: context.yucai.muted),
             ],
           ),
         ),
@@ -1220,14 +1220,14 @@ class _SysChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: system ? AppColors.accentSoft : AppColors.surfaceAlt,
+        color: system ? context.yucai.accentSoft : context.yucai.surfaceAlt,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(system ? '系统' : '自建',
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: system ? AppColors.accentHover : AppColors.muted,
+            color: system ? context.yucai.accentDeep : context.yucai.muted,
           )),
     );
   }
@@ -1244,7 +1244,7 @@ class _EditorDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Drawer(
       width: 400,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.yucai.surface,
       child: BlocBuilder<CategoryBloc, CategoryState>(
         buildWhen: (_, c) => c is! CategorySubmitting,
         builder: (ctx, s) {
@@ -1386,7 +1386,7 @@ class _EditorPanelState extends State<_EditorPanel> {
           TextButton(
               onPressed: () => Navigator.pop(d), child: const Text('取消')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.negative),
+            style: FilledButton.styleFrom(backgroundColor: context.yucai.negative),
             onPressed: () {
               Navigator.pop(d);
               widget.onDelete();
@@ -1403,15 +1403,15 @@ class _EditorPanelState extends State<_EditorPanel> {
     final isSystem = widget.item?.isSystem ?? false;
     final isExpense = widget.type == CategoryType.expense;
     return Container(
-      color: AppColors.surface,
+      color: context.yucai.surface,
       child: Column(
         children: [
           // panel-head
           Container(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md, AppSpacing.sm + 2, AppSpacing.sm, AppSpacing.sm + 2),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.border)),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: context.yucai.border)),
             ),
             child: Row(children: [
               Expanded(
@@ -1423,19 +1423,19 @@ class _EditorPanelState extends State<_EditorPanel> {
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           fontFamily: AppTypography.displayFamily,
-                          color: AppColors.fg,
+                          color: context.yucai.fg,
                         )),
                     const SizedBox(height: 1),
                     Text('${widget.type.label}账户',
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.muted)),
+                        style: TextStyle(
+                            fontSize: 12, color: context.yucai.muted)),
                   ],
                 ),
               ),
               if (widget.onClose != null)
                 IconButton(
                   tooltip: '关闭',
-                  icon: const Icon(LucideIcons.x, size: 18, color: AppColors.muted),
+                  icon: Icon(LucideIcons.x, size: 18, color: context.yucai.muted),
                   onPressed: widget.onClose,
                 ),
             ]),
@@ -1538,16 +1538,16 @@ class _EditorPanelState extends State<_EditorPanel> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceAlt,
-                      border: Border.all(color: AppColors.border),
+                      color: context.yucai.surfaceAlt,
+                      border: Border.all(color: context.yucai.border),
                       borderRadius: AppRadius.smBorder,
                     ),
                     child: Text(
                       widget.itemIndex < 0
                           ? '—'
                           : '第 ${widget.itemIndex + 1} 位',
-                      style: const TextStyle(
-                          fontSize: 14, color: AppColors.muted),
+                      style: TextStyle(
+                          fontSize: 14, color: context.yucai.muted),
                     ),
                   ),
                 ),
@@ -1563,9 +1563,9 @@ class _EditorPanelState extends State<_EditorPanel> {
           Container(
             padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceAlt,
-              border: Border(top: BorderSide(color: AppColors.border)),
+            decoration: BoxDecoration(
+              color: context.yucai.surfaceAlt,
+              border: Border(top: BorderSide(color: context.yucai.border)),
             ),
             child: Row(children: [
               _DeleteButton(
@@ -1576,11 +1576,11 @@ class _EditorPanelState extends State<_EditorPanel> {
               ),
               const Spacer(),
               if (_saved)
-                const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(LucideIcons.check, size: 14, color: AppColors.positive),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(LucideIcons.check, size: 14, color: context.yucai.positive),
                   SizedBox(width: 4),
                   Text('已保存',
-                      style: TextStyle(fontSize: 12, color: AppColors.positive)),
+                      style: TextStyle(fontSize: 12, color: context.yucai.positive)),
                 ]),
               const SizedBox(width: AppSpacing.sm),
               _PrimaryButton(
@@ -1619,8 +1619,8 @@ class _Preview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm + 2),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.bg,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.smBorder,
       ),
       child: Row(children: [
@@ -1646,7 +1646,7 @@ class _Preview extends StatelessWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     fontFamily: AppTypography.displayFamily,
-                    color: AppColors.fg,
+                    color: context.yucai.fg,
                   ),
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
@@ -1661,8 +1661,8 @@ class _Preview extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text('$typeLabel · ${isSystem ? '系统预置' : '自建分类'}',
-                    style: const TextStyle(
-                        fontSize: 11.5, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11.5, color: context.yucai.muted)),
               ]),
             ],
           ),
@@ -1685,12 +1685,12 @@ class _Field extends StatelessWidget {
       children: [
         Row(children: [
           Text(label,
-              style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: context.yucai.muted)),
           if (hint != null) ...[
             const SizedBox(width: 6),
             Text(hint!,
-                style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                style: TextStyle(fontSize: 12, color: context.yucai.muted)),
           ],
         ]),
         const SizedBox(height: 6),
@@ -1710,9 +1710,9 @@ class _SegReadonly extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.smBorder,
-        color: AppColors.surfaceAlt,
+        color: context.yucai.surfaceAlt,
       ),
       child: Row(
         children: [
@@ -1722,11 +1722,11 @@ class _SegReadonly extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: i == activeIndex ? AppColors.surface : Colors.transparent,
+                  color: i == activeIndex ? context.yucai.surface : Colors.transparent,
                   border: Border(
                     bottom: BorderSide(
                       color: i == activeIndex
-                          ? AppColors.accent
+                          ? context.yucai.accent
                           : Colors.transparent,
                       width: 2,
                     ),
@@ -1736,7 +1736,7 @@ class _SegReadonly extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: i == activeIndex ? FontWeight.w600 : FontWeight.w400,
-                      color: i == activeIndex ? AppColors.fg : AppColors.muted,
+                      color: i == activeIndex ? context.yucai.fg : context.yucai.muted,
                     )),
               ),
             ),
@@ -1770,9 +1770,9 @@ class _IconGrid extends StatelessWidget {
                 height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: e == value ? AppColors.accentSoft : AppColors.surface,
+                  color: e == value ? context.yucai.accentSoft : context.yucai.surface,
                   border: Border.all(
-                    color: e == value ? AppColors.accent : AppColors.border,
+                    color: e == value ? context.yucai.accent : context.yucai.border,
                     width: e == value ? 2 : 1,
                   ),
                   borderRadius: BorderRadius.circular(9),
@@ -1813,7 +1813,7 @@ class _ColorRow extends StatelessWidget {
                   border: Border.all(
                     color: _isSelected(hex, value)
                         ? _colorOf(hex)
-                        : AppColors.border,
+                        : context.yucai.border,
                     width: _isSelected(hex, value) ? 3 : 1,
                   ),
                   boxShadow: _isSelected(hex, value)
@@ -1848,19 +1848,19 @@ class _SysNote extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
-        border: Border.all(color: AppColors.accentSoft),
+        color: context.yucai.accentSoft,
+        border: Border.all(color: context.yucai.accentSoft),
         borderRadius: AppRadius.smBorder,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(LucideIcons.lock, size: 14, color: AppColors.accent),
+          Icon(LucideIcons.lock, size: 14, color: context.yucai.accent),
           const SizedBox(width: 8),
           Expanded(
             child: RichText(
-              text: const TextSpan(
-                style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+              text: TextSpan(
+                style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
                 children: [
                   TextSpan(
                       text: '系统预置分类',
@@ -1898,22 +1898,22 @@ class _DeleteButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.yucai.surface,
             border: Border.all(
-              color: disabled ? AppColors.border : AppColors.negative.withValues(alpha: 0.25),
+              color: disabled ? context.yucai.border : context.yucai.negative.withValues(alpha: 0.25),
             ),
             borderRadius: AppRadius.smBorder,
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(LucideIcons.trash2,
                 size: 15,
-                color: disabled ? AppColors.muted : AppColors.negative),
+                color: disabled ? context.yucai.muted : context.yucai.negative),
             const SizedBox(width: 7),
             Text(label,
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: disabled ? AppColors.muted : AppColors.negative)),
+                    color: disabled ? context.yucai.muted : context.yucai.negative)),
           ]),
         ),
       ),

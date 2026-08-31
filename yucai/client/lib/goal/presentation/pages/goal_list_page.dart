@@ -74,7 +74,7 @@ class _GoalListPageState extends State<GoalListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocBuilder<GoalBloc, GoalState>(
         builder: (context, state) {
           // topbar 永远显示(标题 + sub + 刷新 + 新建),body 三态切换。
@@ -94,7 +94,7 @@ class _GoalListPageState extends State<GoalListPage> {
   Widget _topbar(GoalState state) {
     final count = state is GoalListLoaded ? state.goals.length : 0;
     return Material(
-      color: AppColors.bg,
+      color: context.yucai.bg,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
@@ -121,8 +121,8 @@ class _GoalListPageState extends State<GoalListPage> {
                       Text(
                         '储蓄 / 债务清偿 / 投资 · 共 $count 个目标',
                         key: const ValueKey('goalListSub'),
-                        style: const TextStyle(
-                            fontSize: 12.5, color: AppColors.muted),
+                        style: TextStyle(
+                            fontSize: 12.5, color: context.yucai.muted),
                       ),
                     ],
                   ),
@@ -133,7 +133,7 @@ class _GoalListPageState extends State<GoalListPage> {
                   key: const ValueKey('goalListRefresh'),
                   tooltip: '刷新',
                   icon: const Icon(LucideIcons.refreshCw, size: 18),
-                  color: AppColors.muted,
+                  color: context.yucai.muted,
                   onPressed: () => context
                       .read<GoalBloc>()
                       .add(const LoadListRequested()),
@@ -219,11 +219,11 @@ class _GoalListPageState extends State<GoalListPage> {
     final completed = goals.where((g) => g.isCompleted).toList();
     if (inProgress.isEmpty && completed.isEmpty) {
       // 类型筛选下无匹配。
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
         child: Center(
           child: Text('该类型下无目标',
-              style: TextStyle(color: AppColors.muted, fontSize: 13)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 13)),
         ),
       );
     }
@@ -279,18 +279,18 @@ class _GoalListPageState extends State<GoalListPage> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.accentSoft,
+              color: context.yucai.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(LucideIcons.target, size: 30, color: AppColors.accent),
+            child: Icon(LucideIcons.target, size: 30, color: context.yucai.accent),
           ),
           const SizedBox(height: AppSpacing.md),
           const Text('还没有目标',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             '点击右上「新建目标」开始攒钱 / 还债 / 投资',
-            style: TextStyle(color: AppColors.muted, fontSize: 14),
+            style: TextStyle(color: context.yucai.muted, fontSize: 14),
           ),
           const SizedBox(height: AppSpacing.md),
           _GoldButton(
@@ -310,14 +310,14 @@ class _GoalListPageState extends State<GoalListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.alertCircle, size: 40, color: AppColors.negative),
+            Icon(LucideIcons.alertCircle, size: 40, color: context.yucai.negative),
             const SizedBox(height: 12),
             const Text('加载失败',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 13)),
             const SizedBox(height: AppSpacing.md),
             _GoldButton(
               icon: LucideIcons.refreshCw,
@@ -363,12 +363,12 @@ class _FilterChipState extends State<_FilterChip> {
   Widget build(BuildContext context) {
     final selected = widget.selected;
     final typeMeta = widget.data.type != null ? _typeMeta(widget.data.type!) : null;
-    final iconColor = typeMeta?.color ?? AppColors.accent;
+    final iconColor = typeMeta?.color ?? context.yucai.accent;
     final bg = selected
-        ? AppColors.accent
-        : (_hover ? AppColors.surfaceAlt : AppColors.surface);
-    final fg = selected ? Colors.white : AppColors.muted;
-    final border = selected ? AppColors.accent : AppColors.border;
+        ? context.yucai.accent
+        : (_hover ? context.yucai.surfaceAlt : context.yucai.surface);
+    final fg = selected ? Colors.white : context.yucai.muted;
+    final border = selected ? context.yucai.accent : context.yucai.border;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -400,7 +400,7 @@ class _FilterChipState extends State<_FilterChip> {
               const SizedBox(width: 5),
               Text('${widget.data.count}',
                   style: TextStyle(
-                      color: selected ? Colors.white : AppColors.muted,
+                      color: selected ? Colors.white : context.yucai.muted,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       fontFeatures: AppTypography.tabularFigures)),
@@ -438,7 +438,7 @@ class _GoldButton extends StatelessWidget {
           key: ValueKey('goldBtnLabel_$label'),
           style: const TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.accent,
+        backgroundColor: context.yucai.accent,
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -461,27 +461,27 @@ class _GroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppColors.muted),
+        Icon(icon, size: 16, color: context.yucai.muted),
         const SizedBox(width: 6),
         Text(title,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontFamily: AppTypography.displayFamily,
                 fontFamilyFallback: AppTypography.displayFallback)),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
           decoration: BoxDecoration(
-            color: AppColors.accentSoft,
+            color: context.yucai.accentSoft,
             borderRadius: BorderRadius.circular(9999),
           ),
           child: Text('$count',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.accent,
+                  color: context.yucai.accent,
                   fontFeatures: AppTypography.tabularFigures)),
         ),
       ],
@@ -511,12 +511,12 @@ class _GoalCard extends StatelessWidget {
         ringValue < 0.7;
 
     final ringColor = goal.isCompleted
-        ? AppColors.positive
-        : (isUrgent ? AppColors.negative : meta.color);
+        ? context.yucai.positive
+        : (isUrgent ? context.yucai.negative : meta.color);
     // 左侧 status 色条(对齐原型 .goal-card border-left)。
     final accentColor = goal.isCompleted
-        ? AppColors.positive
-        : (isUrgent ? AppColors.negative : AppColors.accent);
+        ? context.yucai.positive
+        : (isUrgent ? context.yucai.negative : context.yucai.accent);
 
     return DataCard(
       key: ValueKey('goalCard_${goal.id}'),
@@ -559,9 +559,9 @@ class _GoalCard extends StatelessWidget {
                               Text(goal.notes!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 11.5,
-                                      color: AppColors.muted)),
+                                      color: context.yucai.muted)),
                             ],
                           ],
                         ),
@@ -598,9 +598,9 @@ class _GoalCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               '目标 ${_fmtSymbol(goal.targetAmountCents, goal.currencyCode)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 12.5,
-                                  color: AppColors.muted,
+                                  color: context.yucai.muted,
                                   fontFeatures: AppTypography.tabularFigures),
                             ),
                           ],
@@ -612,15 +612,15 @@ class _GoalCard extends StatelessWidget {
                   // 底部:deadline 倒计时。
                   Row(
                     children: [
-                      const Icon(LucideIcons.calendar,
-                          size: 13, color: AppColors.muted),
+                      Icon(LucideIcons.calendar,
+                          size: 13, color: context.yucai.muted),
                       const SizedBox(width: 4),
                       Text(
                         _deadlineText(goal, daysLeft),
                         style: TextStyle(
                             fontSize: 12,
                             color:
-                                isUrgent ? AppColors.negative : AppColors.muted,
+                                isUrgent ? context.yucai.negative : context.yucai.muted,
                             fontWeight: isUrgent
                                 ? FontWeight.w600
                                 : FontWeight.w400),

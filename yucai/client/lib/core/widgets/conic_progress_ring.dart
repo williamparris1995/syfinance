@@ -6,7 +6,7 @@
 //
 // Flutter 无原生 conic-gradient,用 CustomPainter 画一个 conic 风格的进度环:
 //  - 从 12 点(顶部 -π/2)起,顺时针扫过 pct% 的弧,填 `color`。
-//  - 剩余弧填 `trackColor`(默认 AppColors.border)。
+//  - 剩余弧填 `trackColor`(默认 context.yucai.border)。
 //  - 中心 hollow(留 `holeFraction` 直径的空白),放 pct 文本。
 //  - `ringGradient` 非空时给进度弧加一段 SweepGradient(御财金渐变),
 //    对齐原型 holding donut 风格。
@@ -53,7 +53,7 @@ const List<Color> kRingGoldGradient = [
 /// Conic 进度环 widget。
 ///
 /// [progress] 取值 0..1(自动 clamp);[color] 进度弧主色(完成绿/落后红/类型金);
-/// [trackColor] 剩余弧底色(默认 AppColors.border);
+/// [trackColor] 剩余弧底色(默认 context.yucai.border);
 /// [pctLabel] 中心文本(调用方格式化,如 "40%" / "40.0%");留空则不显示;
 /// [subLabel] 中心 pct 下的小字(如 detail hero 的 "已达成"),可空;
 /// [gradient] 非空时给进度弧覆盖一段 SweepGradient(优先于 color)。
@@ -107,7 +107,7 @@ class ConicProgressRing extends StatelessWidget {
                   style: TextStyle(
                     fontSize: spec.pctFontSize,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.fg,
+                    color: context.yucai.fg,
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
@@ -116,9 +116,9 @@ class ConicProgressRing extends StatelessWidget {
                   Text(
                     subLabel!,
                     key: const ValueKey('conicRingSub'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 9,
-                      color: AppColors.muted,
+                      color: context.yucai.muted,
                     ),
                   ),
                 ],

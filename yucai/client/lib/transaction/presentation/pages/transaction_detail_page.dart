@@ -118,7 +118,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocConsumer<TransactionBloc, TransactionState>(
         listenWhen: (p, c) =>
             c is TransactionDeleted || c is TransactionDetailError,
@@ -181,7 +181,7 @@ class _PageShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.bg,
+      color: context.yucai.bg,
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1320),
@@ -267,7 +267,7 @@ class _DetailContent extends StatelessWidget {
   Widget _pageHead(BuildContext context) {
     final title = txn.description.isEmpty ? '(无描述)' : txn.description;
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -275,13 +275,13 @@ class _DetailContent extends StatelessWidget {
             onTap: () => _back(context),
             borderRadius: BorderRadius.circular(6),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(LucideIcons.chevronLeft, size: 16, color: AppColors.muted),
+                children: [
+                  Icon(LucideIcons.chevronLeft, size: 16, color: context.yucai.muted),
                   SizedBox(width: 2),
-                  Text('返回', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                  Text('返回', style: TextStyle(color: context.yucai.muted, fontSize: 13)),
                 ],
               ),
             ),
@@ -292,12 +292,12 @@ class _DetailContent extends StatelessWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w600,
                 fontFamily: AppTypography.displayFamily,
                 fontFamilyFallback: AppTypography.displayFallback,
-                color: AppColors.fg,
+                color: context.yucai.fg,
               ),
             ),
           ),
@@ -349,7 +349,7 @@ class _DetailContent extends StatelessWidget {
           if (txnIdShort.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text('TX-$txnIdShort',
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.muted,
                     fontSize: 11,
                     letterSpacing: 0.5,
@@ -440,8 +440,8 @@ class _DetailContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: const [
-                Icon(LucideIcons.zap, size: 16, color: AppColors.accent),
+              children: [
+                Icon(LucideIcons.zap, size: 16, color: context.yucai.accent),
                 SizedBox(width: AppSpacing.sm),
                 Text('快捷操作',
                     style: TextStyle(
@@ -502,29 +502,29 @@ class _DetailContent extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         fontFamily: AppTypography.displayFamily,
                         fontFamilyFallback: AppTypography.displayFallback,
-                        color: AppColors.fg,
+                        color: context.yucai.fg,
                       )),
                   const SizedBox(height: 2),
                   Text.rich(
                     TextSpan(children: [
-                      const TextSpan(
+                      TextSpan(
                           text: '近期共 ',
                           style:
-                              TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                              TextStyle(color: context.yucai.muted, fontSize: 12.5)),
                       TextSpan(
                           text: '$count',
-                          style: const TextStyle(
-                              color: AppColors.muted,
+                          style: TextStyle(
+                              color: context.yucai.muted,
                               fontSize: 12.5,
                               fontFeatures: AppTypography.tabularFigures)),
-                      const TextSpan(
+                      TextSpan(
                           text: ' 笔 · 合计 ',
                           style:
-                              TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                              TextStyle(color: context.yucai.muted, fontSize: 12.5)),
                       TextSpan(
                           text: _formatCents(sumCents, '¥'),
-                          style: const TextStyle(
-                              color: AppColors.fg,
+                          style: TextStyle(
+                              color: context.yucai.fg,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
                               fontFeatures: AppTypography.tabularFigures)),
@@ -535,19 +535,19 @@ class _DetailContent extends StatelessWidget {
             ),
             InkWell(
               onTap: () => _viewAll(context),
-              child: const Text('查看全部 ›',
-                  style: TextStyle(color: AppColors.accent, fontSize: 13)),
+              child: Text('查看全部 ›',
+                  style: TextStyle(color: context.yucai.accent, fontSize: 13)),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
         if (recent.isEmpty)
           DataCard(
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text('暂无同类交易',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                    style: TextStyle(color: context.yucai.muted, fontSize: 12)),
               ),
             ),
           )
@@ -564,7 +564,7 @@ class _DetailContent extends StatelessWidget {
                     accountTypeOf: accountTypeOf,
                   ),
                   if (i != recent.length - 1)
-                    const Divider(height: 1, color: AppColors.border, indent: 16, endIndent: 16),
+                    Divider(height: 1, color: context.yucai.border, indent: 16, endIndent: 16),
                 ],
               ],
             ),
@@ -703,8 +703,8 @@ class _DetailContent extends StatelessWidget {
               child: const Text('取消')),
           TextButton(
             onPressed: () => Navigator.pop(dctx, true),
-            child: const Text('删除',
-                style: TextStyle(color: AppColors.negative)),
+            child: Text('删除',
+                style: TextStyle(color: context.yucai.negative)),
           ),
         ],
       ),
@@ -772,12 +772,12 @@ class _MetaList extends StatelessWidget {
     final note = txn.entries.firstWhere(
       (e) => e.note.isNotEmpty,
       orElse: () => txn.entries.isEmpty
-          ? const TransactionEntry(accountId: '', debitCents: 0, creditCents: 0)
+          ? TransactionEntry(accountId: '', debitCents: 0, creditCents: 0)
           : txn.entries.first,
     ).note;
     // 标签行:tags 非空 → chip 行;空 → '—'(对齐 OD meta-list label/value 样式)。
     final Widget tagRow = tags.isEmpty
-        ? const _MetaRow('标签', '—', valueColor: AppColors.muted)
+        ? _MetaRow('标签', '—', valueColor: context.yucai.muted)
         : _MetaRowWidget(
             label: '标签',
             child: Padding(
@@ -791,14 +791,14 @@ class _MetaList extends StatelessWidget {
       _MetaRow('支付方式', paymentAccountName.isEmpty ? '—' : paymentAccountName),
       _MetaRow('备注', note.isEmpty ? '—' : note),
       tagRow,
-      _MetaRow('对账状态', '待对账', valueColor: AppColors.muted),
+      _MetaRow('对账状态', '待对账', valueColor: context.yucai.muted),
     ];
     return Column(
       children: [
         for (int i = 0; i < rows.length; i++) ...[
           rows[i],
           if (i != rows.length - 1)
-            const Divider(height: 1, color: AppColors.border),
+            Divider(height: 1, color: context.yucai.border),
         ],
       ],
     );
@@ -822,14 +822,14 @@ class _MetaRow extends StatelessWidget {
           SizedBox(
             width: 80,
             child: Text(k,
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 13)),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               v,
               style: TextStyle(
-                color: valueColor ?? AppColors.fg,
+                color: valueColor ?? context.yucai.fg,
                 fontSize: 14,
                 fontFeatures: mono ? AppTypography.tabularFigures : null,
               ),
@@ -858,7 +858,7 @@ class _MetaRowWidget extends StatelessWidget {
           SizedBox(
             width: 80,
             child: Text(label,
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 13)),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: child),
@@ -912,7 +912,7 @@ class _GoldButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: enabled ? AppColors.accent : AppColors.accent.withValues(alpha: 0.5),
+          color: enabled ? context.yucai.accent : context.yucai.accent.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
         child: Row(
@@ -946,11 +946,11 @@ class _MoreMenu extends StatelessWidget {
       tooltip: '更多',
       shape: RoundedRectangleBorder(borderRadius: AppRadius.smBorder),
       itemBuilder: (ctx) => [
-        _item('copy', '复制交易', LucideIcons.copy, AppColors.fg),
-        _item('reconcile', '标记已对账', LucideIcons.check, AppColors.fg),
-        _item('export', '导出凭证', LucideIcons.download, AppColors.fg),
+        _item('copy', '复制交易', LucideIcons.copy, context.yucai.fg),
+        _item('reconcile', '标记已对账', LucideIcons.check, context.yucai.fg),
+        _item('export', '导出凭证', LucideIcons.download, context.yucai.fg),
         const PopupMenuDivider(),
-        _item('delete', '删除交易', LucideIcons.trash2, AppColors.negative),
+        _item('delete', '删除交易', LucideIcons.trash2, context.yucai.negative),
       ],
       onSelected: (v) {
         switch (v) {
@@ -973,13 +973,13 @@ class _MoreMenu extends StatelessWidget {
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
+          color: context.yucai.surface,
+          border: Border.all(color: context.yucai.border),
           borderRadius: AppRadius.smBorder,
         ),
         alignment: Alignment.center,
-        child: const Icon(LucideIcons.moreHorizontal,
-            size: 18, color: AppColors.fg),
+        child: Icon(LucideIcons.moreHorizontal,
+            size: 18, color: context.yucai.fg),
       ),
     );
   }
@@ -1011,8 +1011,8 @@ class _MoreMenu extends StatelessWidget {
               child: const Text('取消')),
           TextButton(
             onPressed: () => Navigator.pop(dctx, true),
-            child: const Text('删除',
-                style: TextStyle(color: AppColors.negative)),
+            child: Text('删除',
+                style: TextStyle(color: context.yucai.negative)),
           ),
         ],
       ),
@@ -1052,18 +1052,18 @@ class _QaItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tileColor = danger
-        ? AppColors.negative.withValues(alpha: 0.10)
-        : AppColors.accentSoft;
-    final iconColor = danger ? AppColors.negative : AppColors.accent;
-    final titleColor = danger ? AppColors.negative : AppColors.fg;
-    final borderColor = danger ? AppColors.negative : AppColors.border;
+        ? context.yucai.negative.withValues(alpha: 0.10)
+        : context.yucai.accentSoft;
+    final iconColor = danger ? context.yucai.negative : context.yucai.accent;
+    final titleColor = danger ? context.yucai.negative : context.yucai.fg;
+    final borderColor = danger ? context.yucai.negative : context.yucai.border;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.yucai.surface,
           border: Border.all(color: borderColor),
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
@@ -1091,12 +1091,12 @@ class _QaItem extends StatelessWidget {
                           color: titleColor)),
                   const SizedBox(height: 1),
                   Text(sub,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12)),
+                      style: TextStyle(
+                          color: context.yucai.muted, fontSize: 12)),
                 ],
               ),
             ),
-            const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.muted),
+            Icon(LucideIcons.chevronRight, size: 16, color: context.yucai.muted),
           ],
         ),
       ),
@@ -1137,13 +1137,13 @@ class _RecentRow extends StatelessWidget {
     final Color typeColor;
     if (hasExpense) {
       typeIcon = LucideIcons.arrowDownLeft;
-      typeColor = AppColors.negative;
+      typeColor = context.yucai.negative;
     } else if (hasIncome) {
       typeIcon = LucideIcons.arrowUpLeft;
-      typeColor = AppColors.positive;
+      typeColor = context.yucai.positive;
     } else {
       typeIcon = LucideIcons.arrowLeftRight;
-      typeColor = AppColors.muted;
+      typeColor = context.yucai.muted;
     }
     // 账户显示(用户要求,OD rel-row 无账户):sub 显示支付账户名(主资产腿/贷方),
     // 若有 entry note 追加在后,如「招商银行 · 部门聚餐」。
@@ -1185,8 +1185,8 @@ class _RecentRow extends StatelessWidget {
                   Text(sub,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12)),
+                      style: TextStyle(
+                          color: context.yucai.muted, fontSize: 12)),
                 ],
               ),
             ),
@@ -1195,8 +1195,8 @@ class _RecentRow extends StatelessWidget {
               width: 44,
               child: Text(_formatDateShort(txn.transactionDate),
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
-                      color: AppColors.muted,
+                  style: TextStyle(
+                      color: context.yucai.muted,
                       fontSize: 12,
                       fontFeatures: AppTypography.tabularFigures)),
             ),

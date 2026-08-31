@@ -41,8 +41,8 @@ class AmountInput extends StatelessWidget {
         labelText: label,
         hintText: hintText,
         prefixText: '$currencySymbol ',
-        prefixStyle: const TextStyle(
-          color: AppColors.muted,
+        prefixStyle: TextStyle(
+          color: context.yucai.muted,
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),

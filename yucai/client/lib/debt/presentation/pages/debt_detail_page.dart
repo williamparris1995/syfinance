@@ -81,12 +81,12 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
 
   Widget _scaffold() {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: context.yucai.bg,
         elevation: 0,
         scrolledUnderElevation: 0,
-        foregroundColor: AppColors.muted,
+        foregroundColor: context.yucai.muted,
         toolbarHeight: 64,
         automaticallyImplyLeading: false,
         titleSpacing: 28,
@@ -98,20 +98,20 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
                 onTap: () => context.go(_sem.listRoutePrefix),
                 child: Text(_sem.detailTopCrumb,
                     style:
-                        const TextStyle(fontSize: 13, color: AppColors.muted)),
+                        TextStyle(fontSize: 13, color: context.yucai.muted)),
               ),
               const SizedBox(width: 8),
-              const Icon(LucideIcons.chevronRight,
-                  size: 14, color: AppColors.muted),
+              Icon(LucideIcons.chevronRight,
+                  size: 14, color: context.yucai.muted),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(debt?.counterparty ?? '…',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.fg)),
+                        color: context.yucai.fg)),
               ),
             ]);
           },
@@ -129,11 +129,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
                         : null;
                     return IconButton(
                       tooltip: '编辑',
-                      icon: const Icon(LucideIcons.pencil,
-                          size: 17, color: AppColors.muted),
+                      icon: Icon(LucideIcons.pencil,
+                          size: 17, color: context.yucai.muted),
                       style: IconButton.styleFrom(
-                        backgroundColor: AppColors.surface,
-                        side: const BorderSide(color: AppColors.border),
+                        backgroundColor: context.yucai.surface,
+                        side: BorderSide(color: context.yucai.border),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
                         minimumSize: const Size(38, 38),
@@ -148,11 +148,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
                 const SizedBox(width: 8),
                 IconButton(
                   tooltip: '更多',
-                  icon: const Icon(LucideIcons.moreHorizontal,
-                      size: 17, color: AppColors.muted),
+                  icon: Icon(LucideIcons.moreHorizontal,
+                      size: 17, color: context.yucai.muted),
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.surface,
-                    side: const BorderSide(color: AppColors.border),
+                    backgroundColor: context.yucai.surface,
+                    side: BorderSide(color: context.yucai.border),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                     minimumSize: const Size(38, 38),
@@ -362,23 +362,23 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
   }
 
   Color _avatarColorFor(Debt debt) {
-    if (debt.subtype.isNotEmpty) return AppColors.accentHover;
+    if (debt.subtype.isNotEmpty) return context.yucai.accentDeep;
     final s = debt.counterparty.toLowerCase();
     if (debt.counterparty.contains('房') || s.contains('mortgage')) {
-      return AppColors.accentHover;
+      return context.yucai.accentDeep;
     }
     if (debt.counterparty.contains('车') || s.contains('car')) {
-      return AppColors.muted;
+      return context.yucai.muted;
     }
     if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
-      return AppColors.negative;
+      return context.yucai.negative;
     }
     if (debt.counterparty.contains('亲友') ||
         debt.counterparty.contains('借') ||
         s.contains('friend')) {
-      return AppColors.positive;
+      return context.yucai.positive;
     }
-    return AppColors.muted;
+    return context.yucai.muted;
   }
 }
 
@@ -494,12 +494,12 @@ class _CcStatCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(data.icon, size: 13, color: AppColors.accent),
+              Icon(data.icon, size: 13, color: context.yucai.accent),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(data.label,
-                    style: const TextStyle(
-                        fontSize: 11.5, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11.5, color: context.yucai.muted)),
               ),
             ],
           ),
@@ -511,16 +511,16 @@ class _CcStatCard extends StatelessWidget {
                 fontSize: 19,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.01,
-                color: data.valueColor ?? AppColors.fg,
+                color: data.valueColor ?? context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures,
               )),
           const SizedBox(height: 4),
           Text(data.sub,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.muted,
+                  color: context.yucai.muted,
                   fontFeatures: AppTypography.tabularFigures)),
         ],
       ),

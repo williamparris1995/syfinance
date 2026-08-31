@@ -22,9 +22,9 @@ class FormCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.yucai.surface,
             borderRadius: AppRadius.lgBorder,
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.yucai.border),
             boxShadow: const [
               BoxShadow(
                   color: Color(0x0A000000),
@@ -63,8 +63,8 @@ class FormSection extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: AppColors.muted,
+              style: TextStyle(
+                color: context.yucai.muted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
@@ -75,7 +75,7 @@ class FormSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        const Divider(height: 1, color: AppColors.border),
+        Divider(height: 1, color: context.yucai.border),
         const SizedBox(height: AppSpacing.md),
         for (var i = 0; i < children.length; i++) ...[
           children[i],

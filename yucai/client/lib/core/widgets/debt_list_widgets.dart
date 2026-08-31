@@ -153,12 +153,12 @@ class DebtCardMetaItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: AppColors.muted),
+        Icon(icon, size: 13, color: context.yucai.muted),
         const SizedBox(width: 5),
         Text(text,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 12.5,
-                color: AppColors.muted,
+                color: context.yucai.muted,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );
@@ -177,12 +177,12 @@ class DebtCardMetaKv extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
+            style: TextStyle(fontSize: 10.5, color: context.yucai.muted)),
         Text(value,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );
@@ -210,12 +210,12 @@ class DebtCardProgressRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label,
-                style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
+                style: TextStyle(fontSize: 10.5, color: context.yucai.muted)),
             Text('$pct%',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.accentHover,
+                    color: context.yucai.accentDeep,
                     fontFeatures: AppTypography.tabularFigures)),
           ],
         ),
@@ -225,9 +225,9 @@ class DebtCardProgressRow extends StatelessWidget {
           child: LinearProgressIndicator(
             value: ratio,
             minHeight: thin ? 8 : 9,
-            backgroundColor: const Color(0xFFE9E5DB),
+            backgroundColor: context.yucai.surfaceAlt,
             valueColor:
-                const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                AlwaysStoppedAnimation<Color>(context.yucai.accent),
           ),
         ),
       ],
@@ -259,11 +259,11 @@ class DebtCardActionBtn extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 16, color: AppColors.muted),
+                Icon(icon, size: 16, color: context.yucai.muted),
                 const SizedBox(height: 3),
                 Text(label,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 11)),
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 11)),
               ],
             ),
           ),
@@ -328,8 +328,8 @@ class DebtListFilterSegmented extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFEDE6),
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surfaceAlt,
+        border: Border.all(color: context.yucai.border),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Wrap(
@@ -466,8 +466,8 @@ class _StatCardState extends State<_StatCard> {
         transform: Matrix4.translationValues(0, _hover ? -2 : 0, 0),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
+          color: context.yucai.surface,
+          border: Border.all(color: context.yucai.border),
           borderRadius: BorderRadius.circular(AppRadius.lg),
           boxShadow: [
             BoxShadow(
@@ -489,14 +489,14 @@ class _StatCardState extends State<_StatCard> {
             Row(
               children: [
                 if (d.icon != null) ...[
-                  Icon(d.icon, size: 14, color: AppColors.muted),
+                  Icon(d.icon, size: 14, color: context.yucai.muted),
                   const SizedBox(width: 7),
                 ],
                 Flexible(
                   child: Text(d.label,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.muted,
+                          color: context.yucai.muted,
                           fontWeight: FontWeight.w500)),
                 ),
               ],
@@ -507,7 +507,7 @@ class _StatCardState extends State<_StatCard> {
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: d.color ?? AppColors.fg,
+                color: d.color ?? context.yucai.fg,
                 letterSpacing: -0.1,
                 fontFeatures: AppTypography.tabularFigures,
               ),
@@ -515,8 +515,8 @@ class _StatCardState extends State<_StatCard> {
             if (d.sub != null) ...[
               const SizedBox(height: 3),
               Text(d.sub!,
-                  style: const TextStyle(
-                      fontSize: 11.5, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 11.5, color: context.yucai.muted)),
             ],
           ],
         ),
@@ -593,8 +593,8 @@ class DebtListOverviewCard extends StatelessWidget {
     final now = DateTime.now();
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
         boxShadow: const [
           BoxShadow(
@@ -611,7 +611,7 @@ class DebtListOverviewCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(sem.overviewIcon, size: 16, color: AppColors.accent),
+                Icon(sem.overviewIcon, size: 16, color: context.yucai.accent),
                 const SizedBox(width: 8),
                 Text(sem.overviewTitle,
                     style: TextStyle(
@@ -619,12 +619,12 @@ class DebtListOverviewCard extends StatelessWidget {
                         fontFamily: AppTypography.displayFamily,
                         fontFamilyFallback: AppTypography.displayFallback)),
                 const Spacer(),
-                Icon(LucideIcons.calendarDays, size: 13, color: AppColors.muted),
+                Icon(LucideIcons.calendarDays, size: 13, color: context.yucai.muted),
                 const SizedBox(width: 5),
                 Text(
                   '截至 ${sharedFmtDate(now)} · $count 笔${sem.overviewHeading}',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(
+                      fontSize: 12, color: context.yucai.muted),
                 ),
               ],
             ),
@@ -641,10 +641,10 @@ class DebtListOverviewCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(sem.principalLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 11,
                               letterSpacing: 0.7,
-                              color: AppColors.muted)),
+                              color: context.yucai.muted)),
                       const SizedBox(height: 4),
                       _bigAmt(totalPrincipal),
                       if (trendCents != null && trendCents != 0) ...[
@@ -661,10 +661,10 @@ class DebtListOverviewCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(sem.remainingLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 11,
                               letterSpacing: 0.7,
-                              color: AppColors.muted)),
+                              color: context.yucai.muted)),
                       const SizedBox(height: 4),
                       _bigAmt(totalRemaining),
                       if (pendingInterestCents != null &&
@@ -672,15 +672,15 @@ class DebtListOverviewCard extends StatelessWidget {
                         const SizedBox(height: 6),
                         Text.rich(
                           TextSpan(
-                            style: const TextStyle(
-                                fontSize: 12, color: AppColors.muted),
+                            style: TextStyle(
+                                fontSize: 12, color: context.yucai.muted),
                             children: [
                               TextSpan(text: '${sem.breakdownInterestLabel} '),
                               TextSpan(
                                   text: sharedFmtSymbol(
                                       pendingInterestCents!, preferred),
-                                  style: const TextStyle(
-                                      color: AppColors.fg,
+                                  style: TextStyle(
+                                      color: context.yucai.fg,
                                       fontWeight: FontWeight.w600,
                                       fontFeatures:
                                           AppTypography.tabularFigures)),
@@ -690,8 +690,8 @@ class DebtListOverviewCard extends StatelessWidget {
                                       totalRemaining +
                                           pendingInterestCents!,
                                       preferred),
-                                  style: const TextStyle(
-                                      color: AppColors.fg,
+                                  style: TextStyle(
+                                      color: context.yucai.fg,
                                       fontWeight: FontWeight.w600,
                                       fontFeatures:
                                           AppTypography.tabularFigures)),
@@ -717,14 +717,14 @@ class DebtListOverviewCard extends StatelessWidget {
                             child: Text(sem.progressLabel,
                                 softWrap: false,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 12.5, color: AppColors.muted)),
+                                style: TextStyle(
+                                    fontSize: 12.5, color: context.yucai.muted)),
                           ),
                           Text('$pct%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.accentHover,
+                                  color: context.yucai.accentDeep,
                                   fontFeatures: AppTypography.tabularFigures)),
                         ],
                       ),
@@ -734,9 +734,9 @@ class DebtListOverviewCard extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: overallRatio,
                           minHeight: 12,
-                          backgroundColor: const Color(0xFFECE9E1),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppColors.accent),
+                          backgroundColor: context.yucai.surfaceAlt,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              context.yucai.accent),
                         ),
                       ),
                       const SizedBox(height: 7),
@@ -786,8 +786,8 @@ class DebtListOverviewCard extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
       ),
       child: Column(
@@ -800,16 +800,16 @@ class DebtListOverviewCard extends StatelessWidget {
               spacing: 7,
               runSpacing: 4,
               children: [
-                Icon(sem.overviewIcon, size: 14, color: AppColors.accent),
+                Icon(sem.overviewIcon, size: 14, color: context.yucai.accent),
                 Text(sem.overviewTitle,
                     style: TextStyle(
                         fontSize: 14,
                         fontFamily: AppTypography.displayFamily,
                         fontFamilyFallback: AppTypography.displayFallback)),
                 const SizedBox(width: 8),
-                Icon(LucideIcons.calendarDays, size: 12, color: AppColors.muted),
+                Icon(LucideIcons.calendarDays, size: 12, color: context.yucai.muted),
                 Text('截至 ${sharedFmtDate(now)} · $count 笔',
-                    style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                    style: TextStyle(fontSize: 11, color: context.yucai.muted)),
               ],
             ),
           ),
@@ -819,8 +819,8 @@ class DebtListOverviewCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(sem.principalLabel,
-                    style: const TextStyle(
-                        fontSize: 10.5, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 10.5, color: context.yucai.muted)),
                 const SizedBox(height: 3),
                 _bigAmt(totalPrincipal),
                 if (trendCents != null && trendCents != 0) ...[
@@ -829,7 +829,7 @@ class DebtListOverviewCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 14),
                 Text(sem.remainingLabel,
-                    style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
+                    style: TextStyle(fontSize: 10.5, color: context.yucai.muted)),
                 const SizedBox(height: 3),
                 _bigAmt(totalRemaining),
                 if (pendingInterestCents != null &&
@@ -837,15 +837,15 @@ class DebtListOverviewCard extends StatelessWidget {
                   const SizedBox(height: 5),
                   Text.rich(
                     TextSpan(
-                      style: const TextStyle(
-                          fontSize: 11.5, color: AppColors.muted),
+                      style: TextStyle(
+                          fontSize: 11.5, color: context.yucai.muted),
                       children: [
                         TextSpan(text: '${sem.breakdownInterestLabel} '),
                         TextSpan(
                             text: sharedFmtSymbol(
                                 pendingInterestCents!, preferred),
-                            style: const TextStyle(
-                                color: AppColors.fg,
+                            style: TextStyle(
+                                color: context.yucai.fg,
                                 fontWeight: FontWeight.w600,
                                 fontFeatures: AppTypography.tabularFigures)),
                       ],
@@ -859,13 +859,13 @@ class DebtListOverviewCard extends StatelessWidget {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(sem.progressLabel,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.muted)),
+                        style: TextStyle(
+                            fontSize: 12, color: context.yucai.muted)),
                     Text('$pct%',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.accentHover,
+                            color: context.yucai.accentDeep,
                             fontFeatures: AppTypography.tabularFigures)),
                   ],
                 ),
@@ -875,9 +875,9 @@ class DebtListOverviewCard extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: overallRatio,
                     minHeight: 10,
-                    backgroundColor: const Color(0xFFECE9E1),
+                    backgroundColor: context.yucai.surfaceAlt,
                     valueColor:
-                        const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                        AlwaysStoppedAnimation<Color>(context.yucai.accent),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -926,7 +926,7 @@ class DebtListOverviewCard extends StatelessWidget {
       textBaseline: TextBaseline.alphabetic,
       children: [
         Text(currencySymbol(preferred),
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 20,
                 color: AppColors.accent,
                 fontWeight: FontWeight.w700)),
@@ -938,7 +938,7 @@ class DebtListOverviewCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               sharedFmtAmtNoSymbol(cents),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.w700,
                 color: AppColors.fg,
@@ -963,7 +963,7 @@ class DebtListOverviewCard extends StatelessWidget {
     final abs = cents.abs();
     return Text.rich(
       TextSpan(
-        style: const TextStyle(fontSize: 12, color: AppColors.muted),
+        style: TextStyle(fontSize: 12, color: AppColors.muted),
         children: [
           const TextSpan(text: '较上月 '),
           TextSpan(
@@ -981,12 +981,12 @@ class DebtListOverviewCard extends StatelessWidget {
   Widget _metaPair(String lbl, String amt) {
     return Text.rich(
       TextSpan(
-        style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
+        style: TextStyle(fontSize: 11.5, color: AppColors.muted),
         children: [
           TextSpan(text: '$lbl '),
           TextSpan(
               text: amt,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.fg,
                   fontWeight: FontWeight.w600,
                   fontFeatures: AppTypography.tabularFigures)),
@@ -1023,9 +1023,9 @@ class _OvFoot extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(
           horizontal: compact ? 18 : 24, vertical: compact ? 10 : 13),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFBFAF6),
-        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+      decoration: BoxDecoration(
+        color: context.yucai.surfaceAlt,
+        border: Border(top: BorderSide(color: context.yucai.border, width: 1)),
       ),
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
@@ -1038,18 +1038,18 @@ class _OvFoot extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(LucideIcons.calendarClock,
-                  size: compact ? 14 : 15, color: AppColors.accent),
+                  size: compact ? 14 : 15, color: context.yucai.accent),
               SizedBox(width: compact ? 7 : 9),
               Text.rich(
                 TextSpan(
                   style: TextStyle(
-                      fontSize: compact ? 12 : 13, color: AppColors.muted),
+                      fontSize: compact ? 12 : 13, color: context.yucai.muted),
                   children: [
                     TextSpan(text: '${sem.nextPaymentWord} '),
                     TextSpan(
                         text: sharedFmtDate(date),
-                        style: const TextStyle(
-                            color: AppColors.fg,
+                        style: TextStyle(
+                            color: context.yucai.fg,
                             fontWeight: FontWeight.w600,
                             fontFeatures: AppTypography.tabularFigures)),
                     TextSpan(
@@ -1057,8 +1057,8 @@ class _OvFoot extends StatelessWidget {
                             ' · $counterparty 第$periodNo期 · '),
                     TextSpan(
                         text: sharedFmtSymbol(amountCents, preferred),
-                        style: const TextStyle(
-                            color: AppColors.fg,
+                        style: TextStyle(
+                            color: context.yucai.fg,
                             fontWeight: FontWeight.w600,
                             fontFeatures: AppTypography.tabularFigures)),
                   ],
@@ -1069,14 +1069,14 @@ class _OvFoot extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0EEE8),
+                  color: context.yucai.surfaceAlt,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(sem.pendingPillLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.muted)),
+                        color: context.yucai.muted)),
               ),
             ],
           ),
@@ -1087,8 +1087,8 @@ class _OvFoot extends StatelessWidget {
               }
             },
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.accentHover,
-              backgroundColor: AppColors.accentSoft,
+              foregroundColor: context.yucai.accentDeep,
+              backgroundColor: context.yucai.accentSoft,
               padding: EdgeInsets.symmetric(
                   horizontal: compact ? 10 : 12, vertical: 6),
               minimumSize: const Size(0, 0),
@@ -1131,9 +1131,9 @@ class _OvFootFallback extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(
           horizontal: compact ? 18 : 24, vertical: compact ? 10 : 13),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFBFAF6),
-        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+      decoration: BoxDecoration(
+        color: context.yucai.surfaceAlt,
+        border: Border(top: BorderSide(color: context.yucai.border, width: 1)),
       ),
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
@@ -1145,18 +1145,18 @@ class _OvFootFallback extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(LucideIcons.calendarClock,
-                  size: compact ? 14 : 15, color: AppColors.accent),
+                  size: compact ? 14 : 15, color: context.yucai.accent),
               SizedBox(width: compact ? 7 : 9),
               Text.rich(
                 TextSpan(
                   style: TextStyle(
-                      fontSize: compact ? 12 : 13, color: AppColors.muted),
+                      fontSize: compact ? 12 : 13, color: context.yucai.muted),
                   children: [
                     TextSpan(text: '${sem.nextPaymentWord} '),
                     TextSpan(
                         text: sharedFmtDate(date),
-                        style: const TextStyle(
-                            color: AppColors.fg,
+                        style: TextStyle(
+                            color: context.yucai.fg,
                             fontWeight: FontWeight.w600,
                             fontFeatures: AppTypography.tabularFigures)),
                   ],
@@ -1171,8 +1171,8 @@ class _OvFootFallback extends StatelessWidget {
               }
             },
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.accentHover,
-              backgroundColor: AppColors.accentSoft,
+              foregroundColor: context.yucai.accentDeep,
+              backgroundColor: context.yucai.accentSoft,
               padding: EdgeInsets.symmetric(
                   horizontal: compact ? 10 : 12, vertical: 6),
               minimumSize: const Size(0, 0),
@@ -1222,10 +1222,10 @@ class DebtCardFootCallout extends StatelessWidget {
     final overdueDays = isOverdue ? now.difference(debt.dueDate).inDays : 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFBFAF6),
+      decoration: BoxDecoration(
+        color: context.yucai.surfaceAlt,
         border: Border(
-          top: BorderSide(color: AppColors.border, width: 1),
+          top: BorderSide(color: context.yucai.border, width: 1),
         ),
       ),
       child: Row(
@@ -1235,22 +1235,22 @@ class DebtCardFootCallout extends StatelessWidget {
                 ? LucideIcons.calendarClock
                 : (isOverdue ? LucideIcons.alertTriangle : LucideIcons.clock),
             size: 15,
-            color: isOverdue && !hasNext ? AppColors.negative : AppColors.accent,
+            color: isOverdue && !hasNext ? context.yucai.negative : context.yucai.accent,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text.rich(
               TextSpan(
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12.5,
-                    color: AppColors.fg,
+                    color: context.yucai.fg,
                     fontFeatures: AppTypography.tabularFigures),
                 children: [
                   if (hasNext) ...[
                     TextSpan(
                         text: '${sem.footNextWord} · ',
-                        style: const TextStyle(
-                            color: AppColors.muted,
+                        style: TextStyle(
+                            color: context.yucai.muted,
                             fontWeight: FontWeight.w500)),
                     TextSpan(
                         text:
@@ -1258,27 +1258,27 @@ class DebtCardFootCallout extends StatelessWidget {
                     TextSpan(
                         text:
                             ' · ${sharedFmtSymbol(debt.nextPaymentAmountCents, preferred)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.accentHover)),
+                            color: context.yucai.accentDeep)),
                     if (isOverdue)
                       TextSpan(
                           text: ' · 含逾期 $overdueDays 天',
-                          style: const TextStyle(
-                              fontSize: 11, color: AppColors.negative)),
+                          style: TextStyle(
+                              fontSize: 11, color: context.yucai.negative)),
                   ] else if (isOverdue)
                     TextSpan(
                         text: '逾期 $overdueDays 天',
-                        style: const TextStyle(
-                            color: AppColors.negative,
+                        style: TextStyle(
+                            color: context.yucai.negative,
                             fontWeight: FontWeight.w600))
                   else ...[
-                    const TextSpan(
-                        text: '状态 ', style: TextStyle(color: AppColors.muted)),
+                    TextSpan(
+                        text: '状态 ', style: TextStyle(color: context.yucai.muted)),
                     TextSpan(
                         text: sem.footPendingStateLabel,
-                        style: const TextStyle(
-                            color: AppColors.fg, fontWeight: FontWeight.w600)),
+                        style: TextStyle(
+                            color: context.yucai.fg, fontWeight: FontWeight.w600)),
                   ],
                 ],
               ),
@@ -1292,9 +1292,9 @@ class DebtCardFootCallout extends StatelessWidget {
             label: const Text('详情',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.muted,
-              backgroundColor: AppColors.surface,
-              side: const BorderSide(color: AppColors.border),
+              foregroundColor: context.yucai.muted,
+              backgroundColor: context.yucai.surface,
+              side: BorderSide(color: context.yucai.border),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1308,8 +1308,8 @@ class DebtCardFootCallout extends StatelessWidget {
             label: Text(sem.footCtaLabel,
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.accentHover,
-              backgroundColor: const Color(0xFFF3EBDD),
+              foregroundColor: context.yucai.accentDeep,
+              backgroundColor: context.yucai.accentSoft,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1412,23 +1412,23 @@ class DebtListCard extends StatelessWidget {
                                     fg: badge.fg,
                                     bg: badge.bg),
                                 if (isSettled)
-                                  const DebtTypeBadge(
+                                  DebtTypeBadge(
                                       label: '已结清 ✓',
-                                      fg: AppColors.positive,
+                                      fg: context.yucai.positive,
                                       bg: Color(0x1A2D8A6E))
                                 else if (isOverdue)
-                                  const DebtTypeBadge(
+                                  DebtTypeBadge(
                                       label: '逾期',
-                                      fg: AppColors.negative,
+                                      fg: context.yucai.negative,
                                       bg: Color(0x1AC4544D)),
                               ],
                             ),
                             const SizedBox(height: 4),
                             Text(
                               '${sem.cardMetaLentLabel} ${sharedFmtSymbol(debt.totalPrincipalCents, preferred)} · ${sharedFmtDate(debt.startDate)} · ${sharedAmortLabel(debt.amortization)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 11.5,
-                                  color: AppColors.muted,
+                                  color: context.yucai.muted,
                                   fontFeatures: AppTypography.tabularFigures),
                             ),
                           ],
@@ -1444,10 +1444,10 @@ class DebtListCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(sem.cardRemainingLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 9.5,
                               letterSpacing: 0.5,
-                              color: AppColors.muted)),
+                              color: context.yucai.muted)),
                       const SizedBox(height: 4),
                       GoldAmount(
                         cents: debt.remainingPrincipalCents,
@@ -1547,14 +1547,14 @@ class DebtListCard extends StatelessWidget {
                         DebtTypeBadge(
                             label: badge.label, fg: badge.fg, bg: badge.bg),
                         if (isSettled)
-                          const DebtTypeBadge(
+                          DebtTypeBadge(
                               label: '已结清 ✓',
-                              fg: AppColors.positive,
+                              fg: context.yucai.positive,
                               bg: Color(0x1A2D8A6E))
                         else if (isOverdue)
-                          const DebtTypeBadge(
+                          DebtTypeBadge(
                               label: '逾期',
-                              fg: AppColors.negative,
+                              fg: context.yucai.negative,
                               bg: Color(0x1AC4544D)),
                       ],
                     ),
@@ -1565,8 +1565,8 @@ class DebtListCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(sem.cardRemainingLabel,
-              style: const TextStyle(
-                  fontSize: 10.5, letterSpacing: 0.5, color: AppColors.muted)),
+              style: TextStyle(
+                  fontSize: 10.5, letterSpacing: 0.5, color: context.yucai.muted)),
           const SizedBox(height: 4),
           Text(
             sharedFmtSymbol(debt.remainingPrincipalCents, preferred),
@@ -1651,22 +1651,22 @@ class DebtListCard extends StatelessWidget {
                         DebtTypeBadge(
                             label: badge.label, fg: badge.fg, bg: badge.bg),
                         if (isSettled)
-                          const DebtTypeBadge(
+                          DebtTypeBadge(
                               label: '已结清 ✓',
-                              fg: AppColors.positive,
+                              fg: context.yucai.positive,
                               bg: Color(0x1A2D8A6E))
                         else if (isOverdue)
-                          const DebtTypeBadge(
+                          DebtTypeBadge(
                               label: '逾期',
-                              fg: AppColors.negative,
+                              fg: context.yucai.negative,
                               bg: Color(0x1AC4544D)),
                       ],
                     ),
                     const SizedBox(height: 3),
                     Text(
                       '${sharedAmortLabel(debt.amortization)} · ${debt.interestRate.toStringAsFixed(2)}%',
-                      style: const TextStyle(
-                          fontSize: 11.5, color: AppColors.muted),
+                      style: TextStyle(
+                          fontSize: 11.5, color: context.yucai.muted),
                     ),
                   ],
                 ),
@@ -1677,7 +1677,7 @@ class DebtListCard extends StatelessWidget {
                 children: [
                   Text(sem.cardRemainingLabel,
                       style:
-                          const TextStyle(fontSize: 10, color: AppColors.muted)),
+                          TextStyle(fontSize: 10, color: context.yucai.muted)),
                   const SizedBox(height: 2),
                   Text(
                     sharedFmtSymbol(debt.remainingPrincipalCents, preferred),
@@ -1723,8 +1723,8 @@ class DebtListCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 11),
       padding: const EdgeInsets.only(top: 10),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border, width: 1.0)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: context.yucai.border, width: 1.0)),
       ),
       child: Row(
         children: [
@@ -1752,7 +1752,7 @@ class DebtListCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(LucideIcons.pencil, color: AppColors.muted),
+              leading: Icon(LucideIcons.pencil, color: context.yucai.muted),
               title: Text(sem.editMenuItem),
               onTap: () {
                 Navigator.pop(sctx);
@@ -1761,9 +1761,9 @@ class DebtListCard extends StatelessWidget {
             ),
             ListTile(
               leading:
-                  const Icon(LucideIcons.trash2, color: AppColors.negative),
+                  Icon(LucideIcons.trash2, color: context.yucai.negative),
               title: Text(sem.deleteMenuItem,
-                  style: const TextStyle(color: AppColors.negative)),
+                  style: TextStyle(color: context.yucai.negative)),
               onTap: () {
                 Navigator.pop(sctx);
                 context.read<DebtBloc>().add(DeleteDebtRequested(debt.id));

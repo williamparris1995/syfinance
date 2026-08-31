@@ -53,7 +53,7 @@ class TimePickerInput extends StatelessWidget {
         },
         child: Text(
           _format(context, initialTime),
-          style: const TextStyle(color: AppColors.fg),
+          style: TextStyle(color: context.yucai.fg),
         ),
       ),
     );

@@ -45,9 +45,9 @@ class _DataCardState extends State<DataCard> {
               : Matrix4.identity(),
           padding: widget.padding,
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.yucai.surface,
             borderRadius: AppRadius.lgBorder,
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.yucai.border),
             boxShadow: [
               BoxShadow(
                 color: _hover
@@ -83,13 +83,13 @@ class SectionHeader extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(width: AppSpacing.sm),
-        const Expanded(
-          child: Divider(height: 1, color: AppColors.border),
+        Expanded(
+          child: Divider(height: 1, color: context.yucai.border),
         ),
         if (trailing != null) ...[
           const SizedBox(width: AppSpacing.sm),
           DefaultTextStyle(
-            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            style: TextStyle(color: context.yucai.muted, fontSize: 13),
             child: trailing!,
           ),
         ],

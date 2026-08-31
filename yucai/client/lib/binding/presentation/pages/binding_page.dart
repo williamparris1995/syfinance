@@ -12,9 +12,9 @@ class BindingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.yucai.surface,
         title: const Text('绑定账号并同步'),
       ),
       body: BlocConsumer<BindingBloc, BindingState>(
@@ -56,7 +56,7 @@ class BindingPage extends StatelessWidget {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.block, size: 48, color: AppColors.muted),
+            Icon(Icons.block, size: 48, color: context.yucai.muted),
             const SizedBox(height: AppSpacing.md),
             Text(state.blockedReason ?? '账号非空，已阻止上传',
                 textAlign: TextAlign.center),
@@ -72,7 +72,7 @@ class BindingPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.cloud_upload, size: 48, color: AppColors.accent),
+            Icon(Icons.cloud_upload, size: 48, color: context.yucai.accent),
             const SizedBox(height: AppSpacing.md),
             const Text(
               '将本地数据上传到该账号？\n\n上传为单向覆盖：本地全部数据（账户/交易/资产等）会替换到服务端该账号。此账号当前为空，上传后即完成绑定并切换为在线模式；本地数据保留。',

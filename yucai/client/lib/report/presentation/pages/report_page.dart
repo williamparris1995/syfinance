@@ -116,7 +116,7 @@ class _ReportPageState extends State<ReportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: Column(
         children: [
           _ReportTopBar(
@@ -126,7 +126,7 @@ class _ReportPageState extends State<ReportPage> {
             onPickDate: _pickDate,
             onBack: () => context.go('/home'),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: context.yucai.border),
           Expanded(child: _body()),
         ],
       ),
@@ -138,8 +138,8 @@ class _ReportPageState extends State<ReportPage> {
       future: _future,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppColors.muted),
+          return Center(
+            child: CircularProgressIndicator(color: context.yucai.muted),
           );
         }
         if (!snap.hasData) {
@@ -197,11 +197,11 @@ class _ReportPageState extends State<ReportPage> {
                   future: _monthlyComparison,
                   builder: (context, snap) {
                     if (snap.connectionState != ConnectionState.done) {
-                      return const SizedBox(
+                      return SizedBox(
                         height: 220,
                         child: Center(
                           child: CircularProgressIndicator(
-                              color: AppColors.muted),
+                              color: context.yucai.muted),
                         ),
                       );
                     }
@@ -246,28 +246,28 @@ class _ReportTopBar extends StatelessWidget {
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       // 对齐 shell _TopBar 底色（OD .topbar rgba(247,246,242,.85)）。
-      color: AppColors.bg.withValues(alpha: 0.85),
+      color: context.yucai.bg.withValues(alpha: 0.85),
       child: Row(children: [
         IconButton(
           tooltip: '返回',
-          icon: const Icon(LucideIcons.chevronLeft,
-              size: 20, color: AppColors.fg),
+          icon: Icon(LucideIcons.chevronLeft,
+              size: 20, color: context.yucai.fg),
           style: IconButton.styleFrom(
             backgroundColor: Colors.transparent,
             highlightColor: Colors.transparent,
-            hoverColor: AppColors.accentSoft.withValues(alpha: 0.4),
+            hoverColor: context.yucai.accentSoft.withValues(alpha: 0.4),
             padding: EdgeInsets.zero,
             minimumSize: const Size(36, 36),
           ),
           onPressed: onBack,
         ),
         const SizedBox(width: AppSpacing.sm),
-        const Text(
+        Text(
           '报表分析',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppColors.fg,
+            color: context.yucai.fg,
             fontFamily: AppTypography.displayFamily,
             fontFamilyFallback: AppTypography.displayFallback,
           ),
@@ -306,25 +306,25 @@ class _DateButton extends StatelessWidget {
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.yucai.surface,
               borderRadius: AppRadius.smBorder,
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.yucai.border),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(LucideIcons.calendar,
-                    size: 14, color: AppColors.muted),
+                Icon(LucideIcons.calendar,
+                    size: 14, color: context.yucai.muted),
                 const SizedBox(width: 6),
                 Text(label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.fg,
+                      color: context.yucai.fg,
                     )),
                 const SizedBox(width: 4),
-                const Icon(LucideIcons.chevronDown,
-                    size: 14, color: AppColors.muted),
+                Icon(LucideIcons.chevronDown,
+                    size: 14, color: context.yucai.muted),
               ],
             ),
           ),
@@ -346,9 +346,9 @@ class _PeriodSegmented extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: AppColors.bg,
+        color: context.yucai.bg,
         borderRadius: AppRadius.smBorder,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -403,19 +403,19 @@ class _SummaryStrip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(periodLabel,
-              style: const TextStyle(
-                  color: AppColors.muted,
+              style: TextStyle(
+                  color: context.yucai.muted,
                   fontSize: 12,
                   fontWeight: FontWeight.w500)),
           const SizedBox(height: AppSpacing.sm),
           LayoutBuilder(builder: (context, c) {
             final wide = c.maxWidth > 620;
             final stats = <_Stat>[
-              _Stat('收入', summary.incomeCents, AppColors.positive),
-              _Stat('支出', summary.expenseCents, AppColors.negative),
+              _Stat('收入', summary.incomeCents, context.yucai.positive),
+              _Stat('支出', summary.expenseCents, context.yucai.negative),
               _Stat(
                   '结余', summary.netCents, _netColor(summary.netCents)),
-              _Stat('日均', summary.dailyAvgCents, AppColors.fg),
+              _Stat('日均', summary.dailyAvgCents, context.yucai.fg),
             ];
             if (wide) {
               return Row(
@@ -423,12 +423,12 @@ class _SummaryStrip extends StatelessWidget {
                   for (var i = 0; i < stats.length; i++) ...[
                     Expanded(child: _StatTile(stat: stats[i])),
                     if (i < stats.length - 1)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(horizontal: 4),
                         child: SizedBox(
                             height: 32,
                             child: VerticalDivider(
-                                width: 1, color: AppColors.border)),
+                                width: 1, color: context.yucai.border)),
                       ),
                   ],
                 ],
@@ -468,7 +468,7 @@ class _StatTile extends StatelessWidget {
       children: [
         Text(stat.label,
             style:
-                const TextStyle(color: AppColors.muted, fontSize: 12)),
+                TextStyle(color: context.yucai.muted, fontSize: 12)),
         const SizedBox(height: 4),
         FittedBox(
           fit: BoxFit.scaleDown,
@@ -529,7 +529,7 @@ class _ChartSection extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 17, fontWeight: FontWeight.w600)),
           const SizedBox(height: AppSpacing.sm),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: context.yucai.border),
           const SizedBox(height: AppSpacing.sm),
           child,
         ],
@@ -557,9 +557,9 @@ class _StateView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 32, color: AppColors.muted.withValues(alpha: 0.6)),
+          Icon(icon, size: 32, color: context.yucai.muted.withValues(alpha: 0.6)),
           const SizedBox(height: AppSpacing.sm),
-          Text(message, style: const TextStyle(color: AppColors.muted)),
+          Text(message, style: TextStyle(color: context.yucai.muted)),
           const SizedBox(height: AppSpacing.md),
           TextButton(
             onPressed: onRetry,

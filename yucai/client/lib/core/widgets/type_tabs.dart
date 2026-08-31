@@ -64,10 +64,10 @@ class _TypeChipState<T> extends State<_TypeChip<T>> {
   Widget build(BuildContext context) {
     final selected = widget.selected;
     final bg = selected
-        ? AppColors.accentSoft
-        : (_hover ? AppColors.surfaceAlt : AppColors.surface);
-    final fg = selected ? AppColors.accentHover : AppColors.muted;
-    final border = selected ? AppColors.accent : AppColors.border;
+        ? context.yucai.accentSoft
+        : (_hover ? context.yucai.surfaceAlt : context.yucai.surface);
+    final fg = selected ? context.yucai.accentDeep : context.yucai.muted;
+    final border = selected ? context.yucai.accent : context.yucai.border;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,

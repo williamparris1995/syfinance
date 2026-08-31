@@ -4,7 +4,7 @@ import 'package:yucai_client/currency/domain/currency_convert.dart';
 
 /// 金色货币符号 + 金额数字(对齐 OD `<span class="gold cur">¥</span><span class="num">`)。
 ///
-/// cur 单独着 [AppColors.accent](可 override),num 默认 [AppColors.fg]。
+/// cur 单独着 [context.yucai.accent](可 override),num 默认 [context.yucai.fg]。
 /// `cents` 为分(int),内部转元 + 千分位;`showFen` 控制是否带 `.00` 小数
 /// (列表/详情大金额带 fen;表单 pv-sum 整元用 showFen:false)。
 ///
@@ -63,7 +63,7 @@ class GoldAmount extends StatelessWidget {
           style: TextStyle(
             fontSize: curSize,
             fontWeight: FontWeight.w700,
-            color: curColor ?? AppColors.accent,
+            color: curColor ?? context.yucai.accent,
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),
@@ -72,7 +72,7 @@ class GoldAmount extends StatelessWidget {
           style: TextStyle(
             fontSize: numSize,
             fontWeight: numWeight,
-            color: numColor ?? AppColors.fg,
+            color: numColor ?? context.yucai.fg,
             letterSpacing: numLetterSpacing,
             fontFeatures: AppTypography.tabularFigures,
             fontFamily: numFontFamily,

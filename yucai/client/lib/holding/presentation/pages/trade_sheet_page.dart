@@ -369,7 +369,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         title: const Text('记录交易'),
@@ -500,8 +500,8 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
                   a.name,
                   style: TextStyle(
                     color: a.currencyCode == secCur
-                        ? AppColors.fg
-                        : AppColors.muted,
+                        ? context.yucai.fg
+                        : context.yucai.muted,
                   ),
                 ),
                 if (a.currencyCode != secCur)
@@ -509,7 +509,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
                     padding: const EdgeInsets.only(left: 6),
                     child: Text('${a.currencyCode}(跨币种)',
                         style:
-                            const TextStyle(fontSize: 10, color: AppColors.muted)),
+                            TextStyle(fontSize: 10, color: context.yucai.muted)),
                   ),
               ],
             ),
@@ -623,7 +623,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         },
         child: Text(
           _isoDate(_date),
-          style: const TextStyle(color: AppColors.fg),
+          style: TextStyle(color: context.yucai.fg),
         ),
       ),
     );
@@ -651,13 +651,13 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
           color: _tradeTypeSoft(TradeType.split),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Row(
+        child: Row(
           children: [
             Icon(LucideIcons.info, size: 16, color: _kSplitColor),
             SizedBox(width: 8),
             Expanded(
               child: Text('无现金流 · 仅调整持有量与成本',
-                  style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                  style: TextStyle(fontSize: 12, color: context.yucai.muted)),
             ),
           ],
         ),
@@ -677,8 +677,8 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
       key: const ValueKey('livePreview'),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -689,7 +689,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
             children: [
               Text(amtLabel,
                   style:
-                      const TextStyle(fontSize: 12, color: AppColors.muted)),
+                      TextStyle(fontSize: 12, color: context.yucai.muted)),
               Text(
                 _fmtAmt(amt),
                 style: TextStyle(
@@ -722,8 +722,8 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: fail
-            ? AppColors.negative.withValues(alpha: 0.10)
-            : AppColors.positive.withValues(alpha: 0.08),
+            ? context.yucai.negative.withValues(alpha: 0.10)
+            : context.yucai.positive.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -731,15 +731,15 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         children: [
           Row(
             children: [
-              const Text('资金账户余额',
-                  style: TextStyle(fontSize: 12, color: AppColors.muted)),
+              Text('资金账户余额',
+                  style: TextStyle(fontSize: 12, color: context.yucai.muted)),
               const Spacer(),
               Text(
                 '${_fmtCents(bal)} → ${_fmtCents(after)}',
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
-                  color: fail ? AppColors.negative : AppColors.positive,
+                  color: fail ? context.yucai.negative : context.yucai.positive,
                   fontFeatures: AppTypography.tabularFigures,
                 ),
               ),
@@ -747,14 +747,14 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
           ),
           if (fail) ...[
             const SizedBox(height: 4),
-            const Row(
+            Row(
               children: [
                 Icon(LucideIcons.alertTriangle,
-                    size: 13, color: AppColors.negative),
+                    size: 13, color: context.yucai.negative),
                 SizedBox(width: 4),
                 Text('余额不足 · fail-fast 预览',
                     style:
-                        TextStyle(fontSize: 11, color: AppColors.negative)),
+                        TextStyle(fontSize: 11, color: context.yucai.negative)),
               ],
             ),
           ],
@@ -867,9 +867,9 @@ class _TypeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _tradeTypeColor(type);
-    final bg = selected ? color : AppColors.surface;
-    final fg = selected ? Colors.white : AppColors.muted;
-    final border = selected ? color : AppColors.border;
+    final bg = selected ? color : context.yucai.surface;
+    final fg = selected ? Colors.white : context.yucai.muted;
+    final border = selected ? color : context.yucai.border;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(

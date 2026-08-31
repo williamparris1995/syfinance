@@ -123,7 +123,7 @@ class _PerformancePageState extends State<PerformancePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: Column(
         children: [
           // 模块内 tab(Task 2 HoldingModuleTabs,收益统计 active 金下划线)。
@@ -148,7 +148,7 @@ class _PerformancePageState extends State<PerformancePage> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(state.message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.muted)),
+                    style: TextStyle(color: context.yucai.muted)),
               ),
             );
           }
@@ -206,12 +206,12 @@ class _PerformancePageState extends State<PerformancePage> {
     final totalMkt = state.summary.totalMarketValueCents;
     // 收益率 = unrealized / totalCost(成本为 0 → 0%)。
     final pnlPct = totalCost > 0 ? (unrealized / totalCost) * 100 : 0.0;
-    final pnlColor = up ? AppColors.positive : AppColors.negative;
+    final pnlColor = up ? context.yucai.positive : context.yucai.negative;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // h1 衬线「收益统计」(对齐 OD .page-title h1 font-display serif 26px)。
-        const Text(
+        Text(
           '收益统计',
           key: ValueKey('perfHeaderLabel'),
           style: TextStyle(
@@ -219,7 +219,7 @@ class _PerformancePageState extends State<PerformancePage> {
             fontWeight: FontWeight.w600,
             fontFamily: AppTypography.displayFamily,
             fontFamilyFallback: AppTypography.displayFallback,
-            color: AppColors.fg,
+            color: context.yucai.fg,
             height: 1.15,
             letterSpacing: 0.2,
           ),
@@ -228,8 +228,8 @@ class _PerformancePageState extends State<PerformancePage> {
         // sub:总市值 · 总盈亏 ±¥X (±X%) · 基准 沪深300(对齐 OD .page-title .sub;
         // b 元素加粗 fg,盈亏值/pct 染绿红)。Wrap 兼容窄屏折行。
         DefaultTextStyle(
-          style: const TextStyle(
-              fontSize: 13, color: AppColors.muted, height: 1.6),
+          style: TextStyle(
+              fontSize: 13, color: context.yucai.muted, height: 1.6),
           child: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             runSpacing: 4,
@@ -238,8 +238,8 @@ class _PerformancePageState extends State<PerformancePage> {
               Text(
                 _fmtRaw(totalMkt, currency),
                 key: const ValueKey('perfHeaderMv'),
-                style: const TextStyle(
-                    color: AppColors.fg,
+                style: TextStyle(
+                    color: context.yucai.fg,
                     fontWeight: FontWeight.w600,
                     fontFeatures: AppTypography.tabularFigures),
               ),
@@ -274,7 +274,7 @@ class _PerformancePageState extends State<PerformancePage> {
   Widget _statRow(HoldingLoaded state, String currency, PerformanceState perf) {
     final unrealized = _sumUnrealized(state.holdings);
     final up = unrealized >= 0;
-    final pnlColor = up ? AppColors.positive : AppColors.negative;
+    final pnlColor = up ? context.yucai.positive : context.yucai.negative;
     final totalCost = state.summary.totalCostCents;
     final totalMkt = state.summary.totalMarketValueCents;
     final pnlPct = totalCost > 0 ? (unrealized / totalCost) * 100 : 0.0;
@@ -312,7 +312,7 @@ class _PerformancePageState extends State<PerformancePage> {
                 ? '${loaded.annualizedPct! >= 0 ? '+' : ''}${loaded.annualizedPct!.toStringAsFixed(1)}%'
                 : '⏳',
             // 年化计数中性(brief):不染盈亏色,用 fg(有数据)/ muted(⏳)。
-            valueColor: hasAnnualized ? AppColors.fg : AppColors.muted,
+            valueColor: hasAnnualized ? context.yucai.fg : context.yucai.muted,
             delta: hasAnnualized
                 ? '累计 ${pnlPct >= 0 ? '+' : ''}${pnlPct.toStringAsFixed(1)}%'
                 : '⏳C 待后端',
@@ -367,7 +367,7 @@ class _PerformancePageState extends State<PerformancePage> {
         children: [
           Text(label,
               style:
-                  const TextStyle(fontSize: 12, color: AppColors.muted)),
+                  TextStyle(fontSize: 12, color: context.yucai.muted)),
           const SizedBox(height: 7),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -378,7 +378,7 @@ class _PerformancePageState extends State<PerformancePage> {
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.3,
-                color: valueColor ?? AppColors.fg,
+                color: valueColor ?? context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures,
               ),
             ),
@@ -388,7 +388,7 @@ class _PerformancePageState extends State<PerformancePage> {
             delta,
             style: TextStyle(
               fontSize: 12,
-              color: deltaColor ?? AppColors.muted,
+              color: deltaColor ?? context.yucai.muted,
               fontFeatures: AppTypography.tabularFigures,
             ),
           ),
@@ -459,7 +459,7 @@ class _PerformancePageState extends State<PerformancePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('收益分解',
@@ -471,7 +471,7 @@ class _PerformancePageState extends State<PerformancePage> {
                   SizedBox(height: 2),
                   Text('已实现 + 未实现',
                       style: TextStyle(
-                          fontSize: 11.5, color: AppColors.muted)),
+                          fontSize: 11.5, color: context.yucai.muted)),
                 ],
               ),
               if (!realizedLoaded)
@@ -479,15 +479,15 @@ class _PerformancePageState extends State<PerformancePage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.accentSoft,
+                    color: context.yucai.accentSoft,
                     borderRadius: BorderRadius.circular(9999),
                   ),
-                  child: const Text('⏳ C',
+                  child: Text('⏳ C',
                       key: ValueKey('splitBadge'),
                       style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.accentHover)),
+                          color: context.yucai.accentDeep)),
                 ),
             ],
           ),
@@ -501,21 +501,21 @@ class _PerformancePageState extends State<PerformancePage> {
             // realized 未加载说明(加载中/失败/暂无数据时显示,③ realized 已接 GetPortfolioPerformance.realizedCents)。
             Container(
               padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                   border: Border(
                       top: BorderSide(
-                          color: AppColors.surfaceAlt, style: BorderStyle.solid))),
-              child: const Row(
+                          color: context.yucai.surfaceAlt, style: BorderStyle.solid))),
+              child: Row(
                 children: [
                   Icon(LucideIcons.hourglass,
-                      size: 13, color: AppColors.accent),
+                      size: 13, color: context.yucai.accent),
                   SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       '已实现收益加载中或暂无数据,请稍后重试',
                       key: ValueKey('splitRealizedHint'),
                       style: TextStyle(
-                          fontSize: 11.5, color: AppColors.muted),
+                          fontSize: 11.5, color: context.yucai.muted),
                     ),
                   ),
                 ],
@@ -538,9 +538,9 @@ class _PerformancePageState extends State<PerformancePage> {
     return Container(
       height: 14,
       decoration: BoxDecoration(
-        color: AppColors.bg,
+        color: context.yucai.bg,
         borderRadius: BorderRadius.circular(9999),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(9999),
@@ -551,14 +551,14 @@ class _PerformancePageState extends State<PerformancePage> {
                 flex: realFlex,
                 child: Container(
                   key: const ValueKey('splitBarRealized'),
-                  color: AppColors.accent,
+                  color: context.yucai.accent,
                 ),
               ),
             Expanded(
               flex: 100 - realFlex,
               child: Container(
                 key: const ValueKey('splitBarUnrealized'),
-                color: unreaUp ? AppColors.positive : AppColors.negative,
+                color: unreaUp ? context.yucai.positive : context.yucai.negative,
               ),
             ),
           ],
@@ -583,14 +583,14 @@ class _PerformancePageState extends State<PerformancePage> {
                     height: 10,
                     decoration: BoxDecoration(
                         color: realizedLoaded
-                            ? AppColors.accent
-                            : AppColors.accent.withValues(alpha: 0.35),
+                            ? context.yucai.accent
+                            : context.yucai.accent.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(3)),
                   ),
                   const SizedBox(width: 6),
-                  const Text('已实现',
+                  Text('已实现',
                       style:
-                          TextStyle(fontSize: 11, color: AppColors.muted)),
+                          TextStyle(fontSize: 11, color: context.yucai.muted)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -601,15 +601,15 @@ class _PerformancePageState extends State<PerformancePage> {
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                           color: realUp
-                              ? AppColors.positive
-                              : AppColors.negative,
+                              ? context.yucai.positive
+                              : context.yucai.negative,
                           fontFeatures: AppTypography.tabularFigures))
-                  : const Text('⏳C 待后端',
+                  : Text('⏳C 待后端',
                       key: ValueKey('splitRealizedVal'),
                       style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.accentHover,
+                          color: context.yucai.accentDeep,
                           fontFeatures: AppTypography.tabularFigures)),
             ],
           ),
@@ -626,14 +626,14 @@ class _PerformancePageState extends State<PerformancePage> {
                     height: 10,
                     decoration: BoxDecoration(
                         color: unreaUp
-                            ? AppColors.positive
-                            : AppColors.negative,
+                            ? context.yucai.positive
+                            : context.yucai.negative,
                         borderRadius: BorderRadius.circular(3)),
                   ),
                   const SizedBox(width: 6),
-                  const Text('未实现',
+                  Text('未实现',
                       style:
-                          TextStyle(fontSize: 11, color: AppColors.muted)),
+                          TextStyle(fontSize: 11, color: context.yucai.muted)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -643,7 +643,7 @@ class _PerformancePageState extends State<PerformancePage> {
                 style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: unreaUp ? AppColors.positive : AppColors.negative,
+                    color: unreaUp ? context.yucai.positive : context.yucai.negative,
                     fontFeatures: AppTypography.tabularFigures),
               ),
             ],
@@ -719,8 +719,8 @@ class _PerformancePageState extends State<PerformancePage> {
                   const SizedBox(height: 2),
                   Text(benchLabel,
                       key: const ValueKey('annualBenchLabel'),
-                      style: const TextStyle(
-                          fontSize: 11.5, color: AppColors.muted)),
+                      style: TextStyle(
+                          fontSize: 11.5, color: context.yucai.muted)),
                 ],
               ),
             ],
@@ -733,9 +733,9 @@ class _PerformancePageState extends State<PerformancePage> {
             value: annualValue,
             valueColor: hasAnnualized
                 ? (loaded.annualizedPct! >= 0
-                    ? AppColors.positive
-                    : AppColors.negative)
-                : AppColors.muted,
+                    ? context.yucai.positive
+                    : context.yucai.negative)
+                : context.yucai.muted,
             sub: rangeSub,
             key: const ValueKey('annualValue'),
           ),
@@ -747,9 +747,9 @@ class _PerformancePageState extends State<PerformancePage> {
             value: twrValue,
             valueColor: hasTwr
                 ? (loaded.twrAnnualizedPct! >= 0
-                    ? AppColors.positive
-                    : AppColors.negative)
-                : AppColors.muted,
+                    ? context.yucai.positive
+                    : context.yucai.negative)
+                : context.yucai.muted,
             sub: rangeTwrSub,
             subKey: const ValueKey('annualRangeTwrSub'),
             key: const ValueKey('annualTwrValue'),
@@ -762,9 +762,9 @@ class _PerformancePageState extends State<PerformancePage> {
             value: cagrValue,
             valueColor: hasCagr
                 ? (loaded.cagrAnnualizedPct! >= 0
-                    ? AppColors.positive
-                    : AppColors.negative)
-                : AppColors.muted,
+                    ? context.yucai.positive
+                    : context.yucai.negative)
+                : context.yucai.muted,
             sub: rangeCagrSub,
             subKey: const ValueKey('annualRangeCagrSub'),
             key: const ValueKey('annualCagrValue'),
@@ -775,7 +775,7 @@ class _PerformancePageState extends State<PerformancePage> {
             label: '累计',
             value: '${cumulative >= 0 ? '+' : ''}${cumulative.toStringAsFixed(2)}%',
             valueColor:
-                cumulative >= 0 ? AppColors.positive : AppColors.negative,
+                cumulative >= 0 ? context.yucai.positive : context.yucai.negative,
             key: const ValueKey('annualCumulative'),
           ),
           // ⑤ bench-mini(loaded 有数据时渲染;无 benchmarkPoints 内部降级)。
@@ -805,17 +805,17 @@ class _PerformancePageState extends State<PerformancePage> {
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
           border: Border(
               bottom: BorderSide(
-                  color: AppColors.surfaceAlt, style: BorderStyle.solid))),
+                  color: context.yucai.surfaceAlt, style: BorderStyle.solid))),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 14, color: AppColors.muted),
+          Icon(icon, size: 14, color: context.yucai.muted),
           const SizedBox(width: 7),
           Text(label,
-              style: const TextStyle(fontSize: 13, color: AppColors.fg)),
+              style: TextStyle(fontSize: 13, color: context.yucai.fg)),
           const Spacer(),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -831,9 +831,9 @@ class _PerformancePageState extends State<PerformancePage> {
               if (sub != null)
                 Text(sub,
                     key: subKey ?? const ValueKey('annualRangeSub'),
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.muted,
+                        color: context.yucai.muted,
                         fontFeatures: AppTypography.tabularFigures)),
             ],
           ),
@@ -862,7 +862,7 @@ class _PerformancePageState extends State<PerformancePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
@@ -877,7 +877,7 @@ class _PerformancePageState extends State<PerformancePage> {
                   SizedBox(height: 2),
                   Text('按未实现盈亏 · 正绿负红',
                       style: TextStyle(
-                          fontSize: 11.5, color: AppColors.muted)),
+                          fontSize: 11.5, color: context.yucai.muted)),
                 ],
               ),
             ],
@@ -928,7 +928,7 @@ class _PerformancePageState extends State<PerformancePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
@@ -943,7 +943,7 @@ class _PerformancePageState extends State<PerformancePage> {
                   SizedBox(height: 2),
                   Text('按 type 聚合 · 正绿负红',
                       style: TextStyle(
-                          fontSize: 11.5, color: AppColors.muted)),
+                          fontSize: 11.5, color: context.yucai.muted)),
                 ],
               ),
             ],
@@ -986,7 +986,7 @@ class _PerformancePageState extends State<PerformancePage> {
     Key? key,
   }) {
     final up = value >= 0;
-    final typeColor = kHoldingTypeColors[type] ?? AppColors.accent;
+    final typeColor = kHoldingTypeColors[type] ?? context.yucai.accent;
     final pct = scale > 0 ? (value.abs() / scale) * 50 : 0.0;
     return Padding(
       key: key,
@@ -1021,9 +1021,9 @@ class _PerformancePageState extends State<PerformancePage> {
             child: Container(
               height: 10,
               decoration: BoxDecoration(
-                color: AppColors.bg,
+                color: context.yucai.bg,
                 borderRadius: BorderRadius.circular(9999),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.yucai.border),
               ),
               child: LayoutBuilder(
                 builder: (context, c) {
@@ -1049,8 +1049,8 @@ class _PerformancePageState extends State<PerformancePage> {
                         child: Container(
                           decoration: BoxDecoration(
                             color: up
-                                ? AppColors.positive
-                                : AppColors.negative,
+                                ? context.yucai.positive
+                                : context.yucai.negative,
                             borderRadius: BorderRadius.circular(9999),
                           ),
                         ),
@@ -1070,7 +1070,7 @@ class _PerformancePageState extends State<PerformancePage> {
               style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: up ? AppColors.positive : AppColors.negative,
+                  color: up ? context.yucai.positive : context.yucai.negative,
                   fontFeatures: AppTypography.tabularFigures),
             ),
           ),
@@ -1086,11 +1086,11 @@ class _PerformancePageState extends State<PerformancePage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.pieChart, size: 22, color: AppColors.muted),
+            Icon(LucideIcons.pieChart, size: 22, color: context.yucai.muted),
             const SizedBox(height: 6),
             Text(text,
-                style: const TextStyle(
-                    fontSize: 12.5, color: AppColors.muted)),
+                style: TextStyle(
+                    fontSize: 12.5, color: context.yucai.muted)),
           ],
         ),
       ),
@@ -1104,35 +1104,35 @@ class _PerformancePageState extends State<PerformancePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
+        color: context.yucai.accentSoft,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(LucideIcons.info,
-              size: 15, color: AppColors.accent),
+          Icon(LucideIcons.info,
+              size: 15, color: context.yucai.accent),
           const SizedBox(width: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: AppColors.accent,
+              color: context.yucai.accent,
               borderRadius: BorderRadius.circular(9999),
             ),
-            child: const Text('⏳ C',
+            child: Text('⏳ C',
                 key: ValueKey('apiNoteBadge'),
                 style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.surface)),
+                    color: context.yucai.surface)),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
               '收益 snapshot（日/月/年曲线 + 已实现聚合 + 基准）C 子项目实现；本页 unrealized / 贡献从 holdings 前端聚合。',
               key: ValueKey('apiNoteText'),
               style: TextStyle(
-                  fontSize: 12, color: AppColors.accentHover),
+                  fontSize: 12, color: context.yucai.accentDeep),
             ),
           ),
         ],
@@ -1206,17 +1206,17 @@ class _BenchmarkMiniBar extends StatelessWidget {
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: context.yucai.surfaceAlt,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(children: [
-            const Icon(LucideIcons.barChart3, size: 13, color: AppColors.muted),
+            Icon(LucideIcons.barChart3, size: 13, color: context.yucai.muted),
             const SizedBox(width: 5),
             Text('对比基准 $name · 近似',
-                style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                style: TextStyle(fontSize: 11, color: context.yucai.muted)),
           ]),
           const SizedBox(height: 8),
           _row('我的组合', myAnnualized, isMine: true),
@@ -1249,7 +1249,7 @@ class _BenchmarkMiniBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(left: 60),
       child: Row(children: [
-        const Text('超额', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+        Text('超额', style: TextStyle(fontSize: 11, color: AppColors.muted)),
         const Spacer(),
         Text(
           '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}%',
@@ -1269,7 +1269,7 @@ class _BenchmarkMiniBar extends StatelessWidget {
     final valColor = pos ? AppColors.positive : AppColors.negative;
     return Row(children: [
       SizedBox(width: 56, child: Text(label,
-          style: const TextStyle(fontSize: 11, color: AppColors.muted))),
+          style: TextStyle(fontSize: 11, color: AppColors.muted))),
       const SizedBox(width: 6),
       Expanded(child: _track(pos, pct.abs(), fill)),
       const SizedBox(width: 6),

@@ -53,7 +53,7 @@ class _HoldingsPageState extends State<HoldingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       // 创建入口移至全局 _TopBar(app_shell 路由感知创建按钮 /holdings/new)。
       body: Column(
         children: [
@@ -118,11 +118,11 @@ class _HoldingsPageState extends State<HoldingsPage> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.accentSoft,
+              color: context.yucai.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(LucideIcons.pieChart,
-                size: 30, color: AppColors.accent),
+            child: Icon(LucideIcons.pieChart,
+                size: 30, color: context.yucai.accent),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(pending ? '⏳ 待后端' : '还没有持仓',
@@ -133,7 +133,7 @@ class _HoldingsPageState extends State<HoldingsPage> {
             pending
                 ? '持仓接口尚未接入,稍后再试'
                 : '点击右下角「+」添加第一笔持仓',
-            style: const TextStyle(color: AppColors.muted, fontSize: 14),
+            style: TextStyle(color: context.yucai.muted, fontSize: 14),
           ),
         ],
       ),
@@ -147,14 +147,14 @@ class _HoldingsPageState extends State<HoldingsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.alertCircle, size: 40, color: AppColors.negative),
+            Icon(LucideIcons.alertCircle, size: 40, color: context.yucai.negative),
             const SizedBox(height: 12),
             const Text('加载失败',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 13)),
           ],
         ),
       ),
@@ -331,14 +331,14 @@ class _TopBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // h1 衬线「持仓列表」(对齐 OD .page-title h1 font-display serif)。
-              const Text(
+              Text(
                 '持仓列表',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
                   fontFamily: AppTypography.displayFamily,
                   fontFamilyFallback: AppTypography.displayFallback,
-                  color: AppColors.fg,
+                  color: context.yucai.fg,
                   height: 1.15,
                   letterSpacing: 0.2,
                 ),
@@ -348,8 +348,8 @@ class _TopBar extends StatelessWidget {
               // .sub;总额交由 StatCard / CurrencyBar 展示,这里不重复)。
               Text(
                 '共 $count 只 · 跨 $accountCount 个账户 · $preferred 视图',
-                style: const TextStyle(
-                  color: AppColors.muted,
+                style: TextStyle(
+                  color: context.yucai.muted,
                   fontSize: 13,
                   fontFeatures: AppTypography.tabularFigures,
                 ),
@@ -391,9 +391,9 @@ class _RefreshAction extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 4),
                 child: Text(
                   '上次更新 ${_fmtHm(last)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
-                    color: AppColors.muted,
+                    color: context.yucai.muted,
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
@@ -440,7 +440,7 @@ class _StatGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pnlColor = up ? AppColors.positive : AppColors.negative;
+    final pnlColor = up ? context.yucai.positive : context.yucai.negative;
     final pnlSign = up ? '+' : '-';
     final pnlText = '$pnlSign${_fmtSymbol(totalPnl.abs(), preferred)}';
     final pctText = '${pnlRatio >= 0 ? '+' : ''}${(pnlRatio * 100).toStringAsFixed(2)}%';
@@ -526,17 +526,17 @@ class _StatCard extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: AppColors.accentSoft,
+                  color: context.yucai.accentSoft,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 16, color: AppColors.accentHover),
+                child: Icon(icon, size: 16, color: context.yucai.accentDeep),
               ),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(label,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 12.5, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 12.5, color: context.yucai.muted)),
               ),
             ],
           ),
@@ -552,7 +552,7 @@ class _StatCard extends StatelessWidget {
                 fontSize: 15.5,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.2,
-                color: valueColor ?? AppColors.fg,
+                color: valueColor ?? context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures,
               ),
             ),
@@ -651,7 +651,7 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: active ? AppColors.accent : AppColors.surface,
+      color: active ? context.yucai.accent : context.yucai.surface,
       borderRadius: BorderRadius.circular(9999),
       child: InkWell(
         onTap: onTap,
@@ -661,14 +661,14 @@ class _Chip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(9999),
             border: Border.all(
-                color: active ? AppColors.accent : AppColors.border),
+                color: active ? context.yucai.accent : context.yucai.border),
           ),
           child: Text(
             label,
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? Colors.white : AppColors.fg,
+              color: active ? Colors.white : context.yucai.fg,
               fontFeatures: AppTypography.tabularFigures,
             ),
           ),
@@ -695,13 +695,13 @@ class _SectionHead extends StatelessWidget {
                 fontFamily: AppTypography.displayFamily,
                 fontFamilyFallback: AppTypography.displayFallback)),
         const SizedBox(width: 6),
-        const Expanded(
-          child: Divider(height: 1, color: AppColors.border),
+        Expanded(
+          child: Divider(height: 1, color: context.yucai.border),
         ),
         const SizedBox(width: 8),
         Text('$count 笔 · 按市值',
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.muted)),
+            style: TextStyle(
+                fontSize: 12, color: context.yucai.muted)),
       ],
     );
   }
@@ -764,7 +764,7 @@ class _HoldingCard extends StatelessWidget {
     final costP = toPreferred(costCents, code);
     final pnlP = toPreferred(holding.unrealizedPnlCents, code);
     final up = holding.unrealizedPnlCents >= 0;
-    final pnlColor = up ? AppColors.positive : AppColors.negative;
+    final pnlColor = up ? context.yucai.positive : context.yucai.negative;
     final pnlPct = costP != 0 ? (pnlP / costP) * 100 : (holding.pnlPct ?? 0.0);
     final typeLabel = holding.securityType != null
         ? (kHoldingTypeLabels[holding.securityType!] ?? '')
@@ -800,21 +800,21 @@ class _HoldingCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.accentSoft,
+                              color: context.yucai.accentSoft,
                               borderRadius: BorderRadius.circular(9999),
                             ),
                             child: Text(typeLabel,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 10.5,
-                                    color: AppColors.accentHover,
+                                    color: context.yucai.accentDeep,
                                     fontWeight: FontWeight.w500)),
                           ),
                       ],
                     ),
                     const SizedBox(height: 3),
                     Text(holding.securityName,
-                        style: const TextStyle(
-                            fontSize: 11.5, color: AppColors.muted)),
+                        style: TextStyle(
+                            fontSize: 11.5, color: context.yucai.muted)),
                   ],
                 ),
               ),
@@ -830,8 +830,8 @@ class _HoldingCard extends StatelessWidget {
                   if (holding.currentPriceCents != null)
                     Text(
                       '现价 ${_fmtRaw(holding.currentPriceCents!, code)}',
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.muted),
+                      style: TextStyle(
+                          fontSize: 11, color: context.yucai.muted),
                     ),
                 ],
               ),
@@ -925,13 +925,13 @@ class _MetaKV extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text.rich(
       TextSpan(
-        style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+        style: TextStyle(fontSize: 12.5, color: context.yucai.muted),
         children: [
           TextSpan(text: '$k '),
           TextSpan(
             text: v,
             style: TextStyle(
-                color: vColor ?? AppColors.fg,
+                color: vColor ?? context.yucai.fg,
                 fontWeight: vColor != null ? FontWeight.w600 : FontWeight.w400,
                 fontFeatures: AppTypography.tabularFigures),
           ),
@@ -963,21 +963,21 @@ class _CurrencyBar extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('本币合计',
-                  style: TextStyle(fontSize: 12, color: AppColors.muted)),
+              Text('本币合计',
+                  style: TextStyle(fontSize: 12, color: context.yucai.muted)),
               Text('汇率基准 · $preferred',
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 11, color: context.yucai.muted)),
             ],
           ),
           const SizedBox(height: 6),
           // 合计金色强调(对齐 OD .ccy-col.total .v color:gold-deep)。
           Text(_fmtSymbol(totalCents, preferred),
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
-                  color: AppColors.accentHover,
+                  color: context.yucai.accentDeep,
                   fontFeatures: AppTypography.tabularFigures)),
           const SizedBox(height: 10),
           Wrap(
@@ -1013,9 +1013,9 @@ class _CurrencyItem extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text('$code ',
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11.5,
-                color: AppColors.muted,
+                color: context.yucai.muted,
                 fontFeatures: AppTypography.tabularFigures)),
         Text(_fmtSymbol(cents, preferred),
             style: const TextStyle(

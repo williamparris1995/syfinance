@@ -104,7 +104,7 @@ class _SecurityPageState extends State<SecurityPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       // 创建 Security FAB(对齐原型 .fab;所有断点 + 空状态都可创建)。
       // heroTag: null 禁 Hero —— indexedStack 保活多 branch 时避免与其它 branch
       // FAB 共用默认 Hero tag 冲突(参见 fab-hero-fix)。
@@ -112,7 +112,7 @@ class _SecurityPageState extends State<SecurityPage> {
         heroTag: null,
         key: const ValueKey('createFab'),
         onPressed: () => _openCreateSheet(context),
-        backgroundColor: AppColors.accent,
+        backgroundColor: context.yucai.accent,
         child: const Icon(LucideIcons.plus, color: Colors.white),
       ),
       body: Column(
@@ -182,12 +182,12 @@ class _SecurityPageState extends State<SecurityPage> {
               const SizedBox(height: AppSpacing.sm),
               // 筛选 / 搜索后空结果 → 友好空态(对齐原型 .search-empty)。
               if (filtered.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
                     child: Text(
                       '未找到匹配的证券',
-                      style: TextStyle(color: AppColors.muted, fontSize: 12),
+                      style: TextStyle(color: context.yucai.muted, fontSize: 12),
                     ),
                   ),
                 )
@@ -209,20 +209,20 @@ class _SecurityPageState extends State<SecurityPage> {
       controller: _searchCtrl,
       decoration: InputDecoration(
         hintText: '搜索 symbol / 名称…',
-        prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.muted),
+        prefixIcon: Icon(LucideIcons.search, size: 18, color: context.yucai.muted),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: context.yucai.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.yucai.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.yucai.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: const BorderSide(color: AppColors.accent),
+          borderSide: BorderSide(color: context.yucai.accent),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
@@ -240,7 +240,7 @@ class _SecurityPageState extends State<SecurityPage> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.yucai.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -260,13 +260,13 @@ class _SecurityPageState extends State<SecurityPage> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.accentSoft,
+              color: context.yucai.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(
+            child: Icon(
               LucideIcons.layers,
               size: 30,
-              color: AppColors.accent,
+              color: context.yucai.accent,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -277,7 +277,7 @@ class _SecurityPageState extends State<SecurityPage> {
           const SizedBox(height: 6),
           Text(
             pending ? '⏳ 自动同步未启用 · B 子项目' : '点击右下角「+」创建第一个证券',
-            style: const TextStyle(color: AppColors.muted, fontSize: 14),
+            style: TextStyle(color: context.yucai.muted, fontSize: 14),
           ),
         ],
       ),
@@ -291,10 +291,10 @@ class _SecurityPageState extends State<SecurityPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               LucideIcons.alertCircle,
               size: 36,
-              color: AppColors.negative,
+              color: context.yucai.negative,
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -305,7 +305,7 @@ class _SecurityPageState extends State<SecurityPage> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.muted, fontSize: 13),
+              style: TextStyle(color: context.yucai.muted, fontSize: 13),
             ),
             const SizedBox(height: AppSpacing.md),
             FilledButton(
@@ -338,14 +338,14 @@ class _PageHead extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // h1 衬线「Security 管理」(对齐 OD .page-title h1 font-display serif)。
-              const Text(
+              Text(
                 'Security 管理',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
                   fontFamily: AppTypography.displayFamily,
                   fontFamilyFallback: AppTypography.displayFallback,
-                  color: AppColors.fg,
+                  color: context.yucai.fg,
                   height: 1.15,
                   letterSpacing: 0.2,
                 ),
@@ -355,18 +355,18 @@ class _PageHead extends StatelessWidget {
               // 同步时间交由 _ProviderBar 单独展示避免冗余,provider 名金色强调)。
               Text.rich(
                 TextSpan(
-                  style: const TextStyle(
-                    color: AppColors.muted,
+                  style: TextStyle(
+                    color: context.yucai.muted,
                     fontSize: 13,
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                   children: [
                     TextSpan(text: '共 $count 个证券 · 行情源 '),
-                    const TextSpan(
+                    TextSpan(
                       text: '新浪财经',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.accentHover,
+                        color: context.yucai.accentDeep,
                       ),
                     ),
                   ],
@@ -381,7 +381,7 @@ class _PageHead extends StatelessWidget {
           tooltip: '刷新列表',
           onPressed: () =>
               context.read<HoldingBloc>().add(const LoadSecuritiesRequested()),
-          icon: const Icon(LucideIcons.refreshCw, color: AppColors.muted),
+          icon: Icon(LucideIcons.refreshCw, color: context.yucai.muted),
         ),
       ],
     );
@@ -454,7 +454,7 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: active ? AppColors.accent : AppColors.surface,
+      color: active ? context.yucai.accent : context.yucai.surface,
       borderRadius: BorderRadius.circular(9999),
       child: InkWell(
         onTap: onTap,
@@ -464,7 +464,7 @@ class _Chip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(9999),
             border: Border.all(
-              color: active ? AppColors.accent : AppColors.border,
+              color: active ? context.yucai.accent : context.yucai.border,
             ),
           ),
           child: Text(
@@ -472,7 +472,7 @@ class _Chip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? Colors.white : AppColors.fg,
+              color: active ? Colors.white : context.yucai.fg,
               fontFeatures: AppTypography.tabularFigures,
             ),
           ),
@@ -501,12 +501,12 @@ class _ProviderBar extends StatelessWidget {
       key: const ValueKey('providerBar'),
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
-        border: Border.all(color: AppColors.accentSoft),
+        color: context.yucai.accentSoft,
+        border: Border.all(color: context.yucai.accentSoft),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(children: [
-        const Icon(LucideIcons.globe, size: 16, color: AppColors.accentHover),
+        Icon(LucideIcons.globe, size: 16, color: context.yucai.accentDeep),
         const SizedBox(width: 9),
         Expanded(
           child: Column(
@@ -514,15 +514,15 @@ class _ProviderBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text.rich(TextSpan(children: [
-                const TextSpan(text: '自动同步 · 行情源 ',
-                    style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                TextSpan(text: '自动同步 · 行情源 ',
+                    style: TextStyle(fontSize: 11.5, color: context.yucai.muted)),
                 TextSpan(text: _providerName,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11.5, fontWeight: FontWeight.w600,
-                        color: AppColors.accentHover)),
+                        color: context.yucai.accentDeep)),
               ])),
               Text(synced == null ? '尚未同步' : '上次同步 ${_fmtTime(synced)}',
-                  style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
+                  style: TextStyle(fontSize: 10.5, color: context.yucai.muted)),
             ],
           ),
         ),
@@ -535,7 +535,7 @@ class _ProviderBar extends StatelessWidget {
           icon: syncing
               ? const SizedBox(width: 14, height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(LucideIcons.refreshCw, size: 16, color: AppColors.accentHover),
+              : Icon(LucideIcons.refreshCw, size: 16, color: context.yucai.accentDeep),
         ),
       ]),
     );
@@ -569,9 +569,9 @@ class _SectionHead extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           '共 $count 个',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12.5,
-            color: AppColors.muted,
+            color: context.yucai.muted,
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),
@@ -677,7 +677,7 @@ class _SecurityCard extends StatelessWidget {
           security.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 13.5, color: AppColors.fg),
+          style: TextStyle(fontSize: 13.5, color: context.yucai.fg),
         ),
         const SizedBox(height: 6),
         Wrap(
@@ -702,12 +702,12 @@ class _SecurityCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '现价',
                     style: TextStyle(
                       fontSize: 10.5,
                       letterSpacing: 0.5,
-                      color: AppColors.muted,
+                      color: context.yucai.muted,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -764,17 +764,17 @@ class _SecurityCard extends StatelessWidget {
                     security.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
-                      color: AppColors.muted,
+                      color: context.yucai.muted,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${security.exchange?.isNotEmpty == true ? security.exchange! : '—'} · ${security.currency}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11.5,
-                      color: AppColors.muted,
+                      color: context.yucai.muted,
                     ),
                   ),
                 ],
@@ -784,9 +784,9 @@ class _SecurityCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text(
+                Text(
                   '现价',
-                  style: TextStyle(fontSize: 10, color: AppColors.muted),
+                  style: TextStyle(fontSize: 10, color: context.yucai.muted),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -812,8 +812,8 @@ class _SecurityCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 11),
       padding: const EdgeInsets.only(top: 10),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border, width: 1.0)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: context.yucai.border, width: 1.0)),
       ),
       child: Row(
         children: [
@@ -857,13 +857,13 @@ class _EditPriceBtn extends StatelessWidget {
               Icon(
                 LucideIcons.pencil,
                 size: 15,
-                color: submitting ? AppColors.muted : AppColors.accent,
+                color: submitting ? context.yucai.muted : context.yucai.accent,
               ),
               const SizedBox(width: 4),
               Text(
                 '改价',
                 style: TextStyle(
-                  color: submitting ? AppColors.muted : AppColors.accent,
+                  color: submitting ? context.yucai.muted : context.yucai.accent,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -927,7 +927,7 @@ class _PriceEditDialogState extends State<_PriceEditDialog> {
         children: [
           Text(
             '${widget.security.symbol} · ${widget.security.name}',
-            style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+            style: TextStyle(fontSize: 12.5, color: context.yucai.muted),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -954,7 +954,7 @@ class _PriceEditDialogState extends State<_PriceEditDialog> {
         FilledButton(
           key: const ValueKey('priceEditSave'),
           onPressed: _save,
-          style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+          style: FilledButton.styleFrom(backgroundColor: context.yucai.accent),
           child: const Text('保存'),
         ),
       ],
@@ -1065,7 +1065,7 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.border,
+                    color: context.yucai.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1075,7 +1075,7 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           '新建 Security',
                           style: TextStyle(
@@ -1089,7 +1089,7 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
                           'CreateSecurity · ✅ 已实现',
                           style: TextStyle(
                             fontSize: 11.5,
-                            color: AppColors.muted,
+                            color: context.yucai.muted,
                           ),
                         ),
                       ],
@@ -1099,7 +1099,7 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
                     onPressed: _saving
                         ? null
                         : () => Navigator.of(context).pop(),
-                    icon: const Icon(LucideIcons.x, color: AppColors.muted),
+                    icon: Icon(LucideIcons.x, color: context.yucai.muted),
                   ),
                 ],
               ),
@@ -1186,7 +1186,7 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
                   key: const ValueKey('createSubmitBtn'),
                   onPressed: _submit,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
+                    backgroundColor: context.yucai.accent,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: _saving
@@ -1220,13 +1220,13 @@ class _TypeTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
+        color: context.yucai.accentSoft,
         borderRadius: BorderRadius.circular(9999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: AppColors.accentHover,
+        style: TextStyle(
+          color: context.yucai.accentDeep,
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
@@ -1245,13 +1245,13 @@ class _MetaItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: AppColors.muted),
+        Icon(icon, size: 13, color: context.yucai.muted),
         const SizedBox(width: 5),
         Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12.5,
-            color: AppColors.muted,
+            color: context.yucai.muted,
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),

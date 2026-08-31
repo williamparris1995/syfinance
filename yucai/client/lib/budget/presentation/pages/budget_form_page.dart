@@ -277,7 +277,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocConsumer<BudgetBloc, BudgetState>(
         listenWhen: (prev, curr) =>
             curr is BudgetDetailLoaded || curr is BudgetListLoaded,
@@ -331,7 +331,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
 
   Widget _topbar(bool submitting, bool canSubmit) {
     return Material(
-      color: AppColors.bg,
+      color: context.yucai.bg,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
@@ -346,7 +346,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                   key: const ValueKey('budgetFormBack'),
                   tooltip: '返回',
                   icon: const Icon(LucideIcons.arrowLeft, size: 18),
-                  color: AppColors.muted,
+                  color: context.yucai.muted,
                   onPressed: submitting
                       ? null
                       : () => Navigator.of(context).pop(),
@@ -371,8 +371,8 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                       Text(
                         '设定月度预算 · 选择分类账户 + 计划金额 · 保存后自动计算 actuals',
                         key: const ValueKey('budgetFormSub'),
-                        style: const TextStyle(
-                            fontSize: 12.5, color: AppColors.muted),
+                        style: TextStyle(
+                            fontSize: 12.5, color: context.yucai.muted),
                       ),
                     ],
                   ),
@@ -446,7 +446,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                         _month,
                         style: TextStyle(
                           color:
-                              _month.isEmpty ? AppColors.muted : AppColors.fg,
+                              _month.isEmpty ? context.yucai.muted : context.yucai.fg,
                         ),
                       ),
                     ),
@@ -479,13 +479,13 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
 
   Widget _sectionTitle(String text, IconData icon) => Row(
         children: [
-          Icon(icon, size: 16, color: AppColors.accent),
+          Icon(icon, size: 16, color: context.yucai.accent),
           const SizedBox(width: 6),
           Text(text,
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.fg,
+                  color: context.yucai.fg,
                   fontFamily: AppTypography.displayFamily,
                   fontFamilyFallback: AppTypography.displayFallback)),
         ],
@@ -494,14 +494,14 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   Widget _itemsSectionHeader() {
     return Row(
       children: [
-        Icon(LucideIcons.listChecks, size: 16, color: AppColors.accent),
+        Icon(LucideIcons.listChecks, size: 16, color: context.yucai.accent),
         const SizedBox(width: 6),
-        const Text('预算条目(分类账户 + 计划金额)',
+        Text('预算条目(分类账户 + 计划金额)',
             style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.fg)),
+                fontSize: 14, fontWeight: FontWeight.w600, color: context.yucai.fg)),
         const SizedBox(width: 6),
-        const Text('至少 1 项',
-            style: TextStyle(fontSize: 12, color: AppColors.negative)),
+        Text('至少 1 项',
+            style: TextStyle(fontSize: 12, color: context.yucai.negative)),
       ],
     );
   }
@@ -511,7 +511,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         child: Text('暂无条目,点击下方「添加条目」开始',
-            style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+            style: TextStyle(color: context.yucai.muted, fontSize: 13)),
       );
     }
     return Column(
@@ -532,9 +532,9 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.yucai.surface,
         borderRadius: AppRadius.lgBorder,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,7 +563,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
               IconButton(
                 key: ValueKey('itemRemove-$i'),
                 icon: const Icon(LucideIcons.trash2, size: 18),
-                color: AppColors.negative,
+                color: context.yucai.negative,
                 tooltip: '移除条目',
                 onPressed: submitting ? null : () => _removeItemRow(i),
               ),
@@ -578,17 +578,17 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   /// 选中 = accent 金底;只列 expense 账户(_expenseAccounts 已 filter)。
   Widget _accountChips(int i, _ItemRow row, bool submitting) {
     if (_accountsLoading) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Text('加载分类中…',
-            style: TextStyle(color: AppColors.muted, fontSize: 12)),
+            style: TextStyle(color: context.yucai.muted, fontSize: 12)),
       );
     }
     if (_expenseAccounts.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Text('暂无支出分类账户(需先创建 expense 账户)',
-            style: TextStyle(color: AppColors.muted, fontSize: 12)),
+            style: TextStyle(color: context.yucai.muted, fontSize: 12)),
       );
     }
     return Wrap(
@@ -607,14 +607,14 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
       key: ValueKey('itemAccountChip_${a.id}'),
       label: Text(a.name),
       selected: selected,
-      selectedColor: AppColors.accent.withValues(alpha: 0.15),
-      backgroundColor: AppColors.surface,
+      selectedColor: context.yucai.accent.withValues(alpha: 0.15),
+      backgroundColor: context.yucai.surface,
       side: BorderSide(
-          color: selected ? AppColors.accent : AppColors.border, width: 1),
+          color: selected ? context.yucai.accent : context.yucai.border, width: 1),
       labelStyle: TextStyle(
         fontSize: 12.5,
         fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-        color: selected ? AppColors.accent : AppColors.fg,
+        color: selected ? context.yucai.accent : context.yucai.fg,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9999)),
       onSelected: submitting
@@ -696,9 +696,9 @@ class _GoldButton extends StatelessWidget {
           key: ValueKey('goldBtnLabel_$label'),
           style: const TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.accent,
+        backgroundColor: context.yucai.accent,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.4),
+        disabledBackgroundColor: context.yucai.accent.withValues(alpha: 0.4),
         disabledForegroundColor: Colors.white70,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

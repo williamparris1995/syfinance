@@ -119,10 +119,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 
   Widget _scaffold() {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.fg,
+        backgroundColor: context.yucai.surface,
+        foregroundColor: context.yucai.fg,
         elevation: 0,
         leading: BackButton(onPressed: () => context.pop()),
         title: const Text('账户详情'),
@@ -177,8 +177,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   ],
                   PopupMenuButton<String>(
                     tooltip: '更多操作',
-                    icon: const Icon(LucideIcons.moreHorizontal,
-                        size: 18, color: AppColors.muted),
+                    icon: Icon(LucideIcons.moreHorizontal,
+                        size: 18, color: context.yucai.muted),
                     itemBuilder: (_) => [
                       const PopupMenuItem(
                           value: 'copy', child: Text('复制账户')),
@@ -405,17 +405,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.muted,
+                  color: context.yucai.muted,
                   letterSpacing: 0.07)),
           const SizedBox(height: 5),
           Text(value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.fg,
+                  color: context.yucai.fg,
                   fontWeight: FontWeight.w500,
                   fontFeatures: AppTypography.tabularFigures)),
         ],
@@ -479,7 +479,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppColors.accent.withValues(alpha: 0.18),
+                      context.yucai.accent.withValues(alpha: 0.18),
                       Colors.transparent,
                     ],
                   ),
@@ -568,8 +568,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   style: TextStyle(
                     fontSize: 13,
                     color: netPositive
-                        ? AppColors.positive
-                        : AppColors.negative,
+                        ? context.yucai.positive
+                        : context.yucai.negative,
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
@@ -611,10 +611,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               LucideIcons.shieldCheck,
               size: 15,
-              color: AppColors.accent,
+              color: context.yucai.accent,
             ),
             const SizedBox(width: 8),
             Text(
@@ -652,17 +652,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           border: Border.all(
             color: ghost
                 ? Colors.white.withValues(alpha: 0.12)
-                : AppColors.accent.withValues(alpha: 0.32),
+                : context.yucai.accent.withValues(alpha: 0.32),
           ),
           color: ghost
               ? Colors.white.withValues(alpha: 0.07)
-              : AppColors.accent.withValues(alpha: 0.18),
+              : context.yucai.accent.withValues(alpha: 0.18),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 13, color: AppColors.accent),
+              Icon(icon, size: 13, color: context.yucai.accent),
               const SizedBox(width: 5),
             ],
             Text(
@@ -673,7 +673,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 letterSpacing: 0.02,
                 color: ghost
                     ? Colors.white.withValues(alpha: 0.7)
-                    : AppColors.accent,
+                    : context.yucai.accent,
               ),
             ),
           ],
@@ -827,10 +827,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     // 全 account 类型共用同一 4 卡 icon set（按位置，不按 category）。
     // Lucide 线性 stroke 2px（最接近 OD 原型 inline SVG stroke 1.6px），取代
     // Task 14 的 Material 实心 icon。fileText 在 lucide 0.257 无 notebookText。
-    const iconSpecs = <(Color, Color, IconData)>[
-      (Color(0xFFE1EFE8), AppColors.positive, LucideIcons.trendingUp),
-      (Color(0xFFF6E3E1), AppColors.negative, LucideIcons.trendingDown),
-      (AppColors.accentSoft, AppColors.accent, LucideIcons.wallet),
+    final iconSpecs = <(Color, Color, IconData)>[
+      (Color(0xFFE1EFE8), context.yucai.positive, LucideIcons.trendingUp),
+      (Color(0xFFF6E3E1), context.yucai.negative, LucideIcons.trendingDown),
+      (context.yucai.accentSoft, context.yucai.accent, LucideIcons.wallet),
       (Color(0xFFE3ECF7), Color(0xFF3B6FB0), LucideIcons.fileText),
     ];
     // OD .stat-row：>900 4 列 / ≤900 2 列（gap 14）。
@@ -864,8 +864,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(stats[i].$1,
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 11)),
+                          style: TextStyle(
+                              color: context.yucai.muted, fontSize: 11)),
                     ),
                   ],
                 ),
@@ -878,12 +878,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
-                    color: AppColors.accentSoft,
+                    color: context.yucai.accentSoft,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text('实时',
+                  child: Text('实时',
                       style: TextStyle(
-                        color: AppColors.accent,
+                        color: context.yucai.accent,
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       )),
@@ -1011,8 +1011,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(hint,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 12)),
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 12)),
               ),
             ),
           ],
@@ -1043,16 +1043,16 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('${txns.length} 笔',
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12)),
+                      style: TextStyle(
+                          color: context.yucai.muted, fontSize: 12)),
                   const SizedBox(width: AppSpacing.md),
                   // 查看全部 → 交易列表（/transactions 在独立 branch，context.go
                   // 切换 branch；route 不支持 account 预筛 query，故仅导航）。
                   InkWell(
                     onTap: () => context.go('/transactions'),
-                    child: const Text('查看全部 →',
+                    child: Text('查看全部 →',
                         style: TextStyle(
-                            color: AppColors.accent, fontSize: 12)),
+                            color: context.yucai.accent, fontSize: 12)),
                   ),
                 ],
               ),
@@ -1060,11 +1060,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ),
           const SizedBox(height: AppSpacing.md),
           if (page.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: Center(
                 child: Text('暂无交易',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                    style: TextStyle(color: context.yucai.muted, fontSize: 12)),
               ),
             )
           else
@@ -1085,16 +1085,16 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       children: [
         IconButton(
           tooltip: '上一页',
-          icon: const Icon(LucideIcons.chevronLeft, size: 20, color: AppColors.muted),
+          icon: Icon(LucideIcons.chevronLeft, size: 20, color: context.yucai.muted),
           onPressed: _recentPage > 0
               ? () => setState(() => _recentPage--)
               : null,
         ),
         Text('${_recentPage + 1}/$pageCount',
-            style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+            style: TextStyle(color: context.yucai.muted, fontSize: 12)),
         IconButton(
           tooltip: '下一页',
-          icon: const Icon(LucideIcons.chevronRight, size: 20, color: AppColors.muted),
+          icon: Icon(LucideIcons.chevronRight, size: 20, color: context.yucai.muted),
           onPressed: _recentPage < pageCount - 1
               ? () => setState(() => _recentPage++)
               : null,
@@ -1131,8 +1131,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ? amount.abs()
         : (flavour == TxnFlavour.expense ? -amount.abs() : amount);
     final amountColor = flavour == TxnFlavour.income
-        ? AppColors.positive
-        : (flavour == TxnFlavour.expense ? AppColors.negative : AppColors.fg);
+        ? context.yucai.positive
+        : (flavour == TxnFlavour.expense ? context.yucai.negative : context.yucai.fg);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1153,14 +1153,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 const SizedBox(height: 2),
                 Text(
                   cell.subLine,
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 11),
+                  style: TextStyle(
+                      color: context.yucai.muted, fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(dateLabel,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 11)),
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 11)),
               ],
             ),
           ),
@@ -1262,13 +1262,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   }
 
   /// 周期切换 segmented control（日/月/年），对齐 OD 原型 `.period-tabs`。
-  /// 容器 bg `#f7f6f2`（AppColors.bg）+ 边框 `#e6e3dc`（AppColors.border），
-  /// active 段白底（AppColors.surface）；inactive 段透明、灰字（AppColors.muted）。
+  /// 容器 bg `#f7f6f2`（context.yucai.bg）+ 边框 `#e6e3dc`（context.yucai.border），
+  /// active 段白底（context.yucai.surface）；inactive 段透明、灰字（context.yucai.muted）。
   /// active 段文字用 accent-press 金 `#98773f`（比 accent 更深，对齐 OD press 态）。
   /// 三段等宽，整组圆角 AppRadius.sm。
   Widget _periodSegmentedControl() {
-    /// accent-press 金（OD 原型 active 段文字色，比 AppColors.accent 更深）。
-    const accentPress = AppColors.accentHover;
+    /// accent-press 金（OD 原型 active 段文字色，比 context.yucai.accent 更深）。
+    final accentPress = context.yucai.accentDeep;
     const segments = [
       (SummaryScope.day, '日'),
       (SummaryScope.month, '月'),
@@ -1277,9 +1277,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.bg,
+        color: context.yucai.bg,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1302,7 +1302,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: active ? AppColors.surface : Colors.transparent,
+          color: active ? context.yucai.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
@@ -1310,7 +1310,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            color: active ? activeColor : AppColors.muted,
+            color: active ? activeColor : context.yucai.muted,
           ),
         ),
       ),
@@ -1344,11 +1344,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ),
           const SizedBox(height: AppSpacing.md),
           if (total == 0)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: Center(
                 child: Text('暂无收支',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                    style: TextStyle(color: context.yucai.muted, fontSize: 12)),
               ),
             )
           else ...[
@@ -1373,11 +1373,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   }
 
   /// 双色饼图：CustomPaint(_DonutPainter) + 圆心 overlay 净流入 + scope label。
-  /// 净流入正 → AppColors.positive（绿）；负 → AppColors.negative（红）。
+  /// 净流入正 → context.yucai.positive（绿）；负 → context.yucai.negative（红）。
   Widget _pieChart(
       int incomeCents, int expenseCents, int netCents, String currencyCode) {
     final netColor =
-        netCents >= 0 ? AppColors.positive : AppColors.negative;
+        netCents >= 0 ? context.yucai.positive : context.yucai.negative;
     // 净流入金额带符号：正 + / 负 -（_fmtSigned 已含负号；正号此处补）。
     final netLabel = netCents >= 0
         ? '+${_fmtSigned(netCents, currencyCode)}'
@@ -1400,8 +1400,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                         color: netColor,
                         fontFeatures: AppTypography.tabularFigures)),
                 Text('$_scopeLabel净流入',
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 10)),
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 10)),
               ],
             ),
           ),
@@ -1429,17 +1429,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             height: 9,
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: isIncome ? AppColors.positive : AppColors.negative,
+              color: isIncome ? context.yucai.positive : context.yucai.negative,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
           Text(label,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 12)),
           const Spacer(),
           Text(
               '${_fmtSigned(amountCents, currencyCode)} · ${pct.toStringAsFixed(0)}%',
-              style: const TextStyle(
-                  color: AppColors.muted,
+              style: TextStyle(
+                  color: context.yucai.muted,
                   fontSize: 12,
                   fontFeatures: AppTypography.tabularFigures)),
         ],
@@ -1703,8 +1703,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 /// 收支统计双色饼图 painter（Task 13，对齐 OD .pie-wrap）。
 ///
 /// 仅两段弧（取代 Task 8 的按分类多色）：
-///   - income 弧：[AppColors.positive]（绿 #2D8A6E），占比 = incomeCents/total。
-///   - expense 弧：[AppColors.negative]（红 #C4544D），占比 = expenseCents/total。
+///   - income 弧：[context.yucai.positive]（绿 #2D8A6E），占比 = incomeCents/total。
+///   - expense 弧：[context.yucai.negative]（红 #C4544D），占比 = expenseCents/total。
 ///
 /// 12 点起顺时针先画 income 再画 expense。背景环 #EFECE4。total == 0 时仅画
 /// 背景环（由调用方在 income+expense==0 时改为渲染占位，不走本 painter）。
@@ -1787,10 +1787,10 @@ class _TxnTypeIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = switch (flavour) {
-      TxnFlavour.income => AppColors.positive,
-      TxnFlavour.expense => AppColors.negative,
-      TxnFlavour.transfer => AppColors.muted,
-      TxnFlavour.compound => AppColors.muted,
+      TxnFlavour.income => context.yucai.positive,
+      TxnFlavour.expense => context.yucai.negative,
+      TxnFlavour.transfer => context.yucai.muted,
+      TxnFlavour.compound => context.yucai.muted,
     };
     return Container(
       width: 36,

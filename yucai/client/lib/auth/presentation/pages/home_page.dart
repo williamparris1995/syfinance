@@ -195,7 +195,7 @@ class _HomePageState extends State<HomePage> {
         '${now.year} 年 ${now.month} 月 ${now.day} 日 · ${_weekday(now.weekday)}';
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocBuilder<AccountBloc, AccountState>(
         builder: (context, state) {
           final accounts = _accountsOf(state);
@@ -334,12 +334,12 @@ class _Header extends StatelessWidget {
             fontWeight: FontWeight.w600,
             fontFamily: AppTypography.displayFamily,
             fontFamilyFallback: AppTypography.displayFallback,
-            color: AppColors.fg,
+            color: context.yucai.fg,
             height: 1.2,
           ),
         ),
         const SizedBox(height: 4),
-        Text(date, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        Text(date, style: TextStyle(color: context.yucai.muted, fontSize: 12)),
       ],
     );
   }
@@ -395,7 +395,7 @@ class _NetWorthCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppColors.accent.withValues(alpha: 0.18),
+                      context.yucai.accent.withValues(alpha: 0.18),
                       Colors.transparent,
                     ],
                   ),
@@ -441,18 +441,18 @@ class _NetWorthCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.positive.withValues(alpha: 0.2),
+                    color: context.yucai.positive.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(LucideIcons.wallet,
-                          size: 13, color: AppColors.positive),
+                          size: 13, color: context.yucai.positive),
                       const SizedBox(width: 4),
                       Text('共 $accountCount 个账户',
-                          style: const TextStyle(
-                              color: AppColors.positive, fontSize: 13)),
+                          style: TextStyle(
+                              color: context.yucai.positive, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -468,8 +468,8 @@ class _NetWorthCard extends StatelessWidget {
 
 // ───────────────────────── 摘要卡:本月收支 / 预算 / 目标 ─────────────────
 // 照 OD 原型 yucai-dashboard-home-a2fc styles.css。颜色 token 略异于 AppColors:
-// OD income #4a9d6e / expense #d4726e 比 AppColors.positive/negative 更亮,贴近
-// 暖色系 bg;直接内联(对齐 OD,不污染全局 token)。accent 与 AppColors.accent 同。
+// OD income #4a9d6e / expense #d4726e 比 context.yucai.positive/negative 更亮,贴近
+// 暖色系 bg;直接内联(对齐 OD,不污染全局 token)。accent 与 context.yucai.accent 同。
 
 const Color _kIncomeColor = Color(0xFF4A9D6E);
 const Color _kExpenseColor = Color(0xFFD4726E);
@@ -503,8 +503,8 @@ class _IncomeExpenseCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.smBorder,
         boxShadow: _kCardShadow,
       ),
@@ -525,7 +525,7 @@ class _IncomeExpenseCard extends StatelessWidget {
           // income/expense 间虚线分隔(对齐 OD .ie-row border-bottom:1px dashed
           // var(--border-soft)=#F1EDE5;与 _ProgressBar 背景同色)。复用 core
           // DebtDashedDivider(水平虚线 CustomPaint,Flutter 无原生 dashed border)。
-          const DebtDashedDivider(color: AppColors.surfaceAlt),
+          DebtDashedDivider(color: context.yucai.surfaceAlt),
           _IeRow(
             dotColor: _kExpenseColor,
             name: '支出',
@@ -533,9 +533,9 @@ class _IncomeExpenseCard extends StatelessWidget {
             amountColor: _kExpenseColor,
           ),
           // 底部结余分隔线 + 双栏 label/amt。
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: AppSpacing.sm + 4),
-            child: Divider(height: 1, thickness: 1, color: AppColors.border),
+            child: Divider(height: 1, thickness: 1, color: context.yucai.border),
           ),
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm + 4),
@@ -543,18 +543,18 @@ class _IncomeExpenseCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                const Text('本月结余',
+                Text('本月结余',
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.fg)),
+                        color: context.yucai.fg)),
                 const Spacer(),
                 Text(
                   format(summary.netCents, currency),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.fg,
+                    color: context.yucai.fg,
                     letterSpacing: -0.3,
                     fontFamily: AppTypography.displayFamily,
                     fontFamilyFallback: AppTypography.displayFallback,
@@ -596,7 +596,7 @@ class _IeRow extends StatelessWidget {
           ),
           Expanded(
             child: Text(name,
-                style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                style: TextStyle(fontSize: 13, color: context.yucai.muted)),
           ),
           Text(
             amount,
@@ -632,7 +632,7 @@ class _BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final over = budget.isOverBudget;
-    final barColor = over ? _kExpenseColor : AppColors.accent;
+    final barColor = over ? _kExpenseColor : context.yucai.accent;
     final pct = budget.usagePct.clamp(0.0, 100.0);
     final remaining = budget.totalRemainingCents;
     final footLeft = over
@@ -643,8 +643,8 @@ class _BudgetCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.smBorder,
         boxShadow: _kCardShadow,
       ),
@@ -669,13 +669,13 @@ class _BudgetCard extends StatelessWidget {
           Row(
             children: [
               Text(footLeft,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 11, color: context.yucai.muted)),
               const Spacer(),
               if (footRight != null)
                 Text(footRight,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11, color: context.yucai.muted)),
             ],
           ),
         ],
@@ -729,8 +729,8 @@ class _GoalCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.smBorder,
         boxShadow: _kCardShadow,
       ),
@@ -752,13 +752,13 @@ class _GoalCard extends StatelessWidget {
           Row(
             children: [
               Text(footLeft,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 11, color: context.yucai.muted)),
               const Spacer(),
               if (footRight != null)
                 Text(footRight,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11, color: context.yucai.muted)),
             ],
           ),
         ],
@@ -782,15 +782,15 @@ class _CardHead extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.fg)),
+                color: context.yucai.fg)),
         const Spacer(),
         Text(period,
             style: TextStyle(
                 fontSize: 11,
-                color: periodColor ?? AppColors.muted,
+                color: periodColor ?? context.yucai.muted,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );
@@ -835,28 +835,28 @@ class _ProgAmt extends StatelessWidget {
         children: [
           TextSpan(
             text: neg ? '-$cur ' : '$cur ',
-            style: const TextStyle(
-                fontSize: 13, color: AppColors.muted),
+            style: TextStyle(
+                fontSize: 13, color: context.yucai.muted),
           ),
           TextSpan(
             text: grouped,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: AppColors.fg,
+              color: context.yucai.fg,
               fontFeatures: AppTypography.tabularFigures,
             ),
           ),
           TextSpan(
             text: '.$fen',
-            style: const TextStyle(
-                fontSize: 13, color: AppColors.muted),
+            style: TextStyle(
+                fontSize: 13, color: context.yucai.muted),
           ),
           TextSpan(
             text: suffix,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 13,
-                color: AppColors.muted,
+                color: context.yucai.muted,
                 fontWeight: FontWeight.w400),
           ),
         ],
@@ -879,7 +879,7 @@ class _ProgressBar extends StatelessWidget {
       child: LinearProgressIndicator(
         value: value / 100,
         minHeight: 8,
-        backgroundColor: AppColors.surfaceAlt,
+        backgroundColor: context.yucai.surfaceAlt,
         valueColor: AlwaysStoppedAnimation<Color>(color),
       ),
     );
@@ -907,11 +907,11 @@ class _SummaryRow extends StatelessWidget {
     // 标签对齐原型（流动 / 投资 / 固定 / 负债）。按 AccountCategory 拆分：
     // 流动 = savings+otherAsset,投资 = investment,固定 = fixedDeposit+goldFx+realEstate。
     final cards = <_SummaryData>[
-      _SummaryData('流动资产', format(liquidTotal), '储蓄 / 现金类账户', AppColors.fg),
-      _SummaryData('投资资产', format(investTotal), '证券 / 基金 / 理财', AppColors.fg),
-      _SummaryData('固定资产', format(fixedTotal), '定期 / 黄金 / 房产', AppColors.fg),
+      _SummaryData('流动资产', format(liquidTotal), '储蓄 / 现金类账户', context.yucai.fg),
+      _SummaryData('投资资产', format(investTotal), '证券 / 基金 / 理财', context.yucai.fg),
+      _SummaryData('固定资产', format(fixedTotal), '定期 / 黄金 / 房产', context.yucai.fg),
       _SummaryData('总负债', format(liabTotal), liabTotal > 0 ? '负债类账户合计' : '暂无负债',
-          liabTotal > 0 ? AppColors.negative : AppColors.muted),
+          liabTotal > 0 ? context.yucai.negative : context.yucai.muted),
     ];
     return LayoutBuilder(builder: (context, c) {
       final cols = c.maxWidth > 820 ? 4 : 2;
@@ -945,15 +945,15 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(data.label,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 12)),
           const SizedBox(height: 8),
           Text(
             data.value,
@@ -968,7 +968,7 @@ class _SummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(data.sub,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 12)),
         ],
       ),
     );
@@ -1041,9 +1041,9 @@ class _QuickTileState extends State<_QuickTile> {
               : Matrix4.identity(),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.yucai.surface,
             border: Border.all(
-                color: _hover ? AppColors.accent : AppColors.border),
+                color: _hover ? context.yucai.accent : context.yucai.border),
             borderRadius: AppRadius.lgBorder,
           ),
           child: Column(
@@ -1053,11 +1053,11 @@ class _QuickTileState extends State<_QuickTile> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.accentSoft,
+                  color: context.yucai.accentSoft,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child:
-                    Icon(widget.icon, size: 18, color: AppColors.accent),
+                    Icon(widget.icon, size: 18, color: context.yucai.accent),
               ),
               const SizedBox(height: 8),
               Text(widget.label,
@@ -1127,8 +1127,8 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
       ),
       child: Column(
@@ -1152,8 +1152,8 @@ class _Panel extends StatelessWidget {
                     child: Text(linkText,
                         style: TextStyle(
                           color: onViewAll != null
-                              ? AppColors.accent
-                              : AppColors.muted,
+                              ? context.yucai.accent
+                              : context.yucai.muted,
                           fontSize: 12,
                         )),
                   ),
@@ -1161,7 +1161,7 @@ class _Panel extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: context.yucai.border),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: body,
@@ -1184,12 +1184,12 @@ Widget _panelEmpty(String hint, String sub) => Center(
               style: const TextStyle(
                   fontSize: 14, fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
-          Text(sub, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          Text(sub, style: TextStyle(color: AppColors.muted, fontSize: 12)),
         ],
       ),
     );
 
-Widget _panelLoading() => const Center(
+Widget _panelLoading() => Center(
       child: SizedBox(
           width: 18,
           height: 18,
@@ -1276,8 +1276,8 @@ class _TxnMiniRow extends StatelessWidget {
                           fontSize: 13, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 2),
                   Text(dateStr,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.muted)),
+                      style: TextStyle(
+                          fontSize: 11, color: context.yucai.muted)),
                 ],
               ),
             ),
@@ -1423,8 +1423,8 @@ class _DebtMiniRow extends StatelessWidget {
                         fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 2),
                 Text('到期 $dateStr',
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11, color: context.yucai.muted)),
               ],
             ),
           ),

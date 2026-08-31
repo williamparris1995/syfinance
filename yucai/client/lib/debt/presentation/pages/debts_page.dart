@@ -78,7 +78,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocBuilder<DebtBloc, DebtState>(
         builder: (context, state) {
           final debts = _debtsOf(state);
@@ -100,24 +100,24 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.accentSoft,
+              color: context.yucai.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(_sem.emptyIcon, size: 30, color: AppColors.accent),
+            child: Icon(_sem.emptyIcon, size: 30, color: context.yucai.accent),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(_sem.emptyTitle,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text(_sem.emptySub,
-              style: const TextStyle(color: AppColors.muted, fontSize: 14)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 14)),
           const SizedBox(height: AppSpacing.lg),
           FilledButton.icon(
             onPressed: () => context.push(_sem.newRoute),
             icon: const Icon(LucideIcons.plus),
             label: Text(_sem.emptyBtn),
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.accent,
+              backgroundColor: context.yucai.accent,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             ),
           ),
@@ -182,12 +182,12 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
               _sectionHeadWithFilter(debts.length),
               const SizedBox(height: AppSpacing.sm),
               if (filtered.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
                     child: Text('该筛选下无债务',
                         style:
-                            TextStyle(color: AppColors.muted, fontSize: 12)),
+                            TextStyle(color: context.yucai.muted, fontSize: 12)),
                   ),
                 )
               else
@@ -235,7 +235,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
           label: _sem.statCollectedLabel,
           value: sharedFmtSymbol(totalRepaid, preferred),
           icon: LucideIcons.trendingUp,
-          color: AppColors.positive,
+          color: context.yucai.positive,
           sub: totalPrincipal > 0
               ? '${(totalRepaid * 100 / totalPrincipal).toStringAsFixed(1)}% 已还'
               : _sem.collectedSubEmpty),
@@ -243,7 +243,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
           label: '待还本金',
           value: sharedFmtSymbol(totalRemaining, preferred),
           icon: LucideIcons.clock,
-          color: overdueCount > 0 ? AppColors.negative : null,
+          color: overdueCount > 0 ? context.yucai.negative : null,
           sub: overdueCount > 0 ? '含 $overdueCount 笔逾期' : '${debts.length} 笔待还'),
     ];
   }
@@ -266,9 +266,9 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
               fontFamilyFallback: AppTypography.displayFallback)),
       const SizedBox(width: 6),
       Text('$count 笔',
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 12.5,
-              color: AppColors.muted,
+              color: context.yucai.muted,
               fontFeatures: AppTypography.tabularFigures)),
     ]);
     return LayoutBuilder(builder: (context, c) {
@@ -301,7 +301,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
       final label = DebtSubtypes.labels[debt.subtype];
       if (label != null) {
         return DebtBadgeStyle(
-            label: label, fg: AppColors.accentHover, bg: AppColors.accentSoft);
+            label: label, fg: context.yucai.accentDeep, bg: context.yucai.accentSoft);
       }
     }
     return _inferBadge(debt.counterparty);
@@ -310,45 +310,45 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
   DebtBadgeStyle _inferBadge(String counterparty) {
     final s = counterparty.toLowerCase();
     if (counterparty.contains('房') || s.contains('mortgage')) {
-      return const DebtBadgeStyle(
-          label: '房贷', fg: AppColors.accentHover, bg: AppColors.accentSoft);
+      return DebtBadgeStyle(
+          label: '房贷', fg: context.yucai.accentDeep, bg: context.yucai.accentSoft);
     }
     if (counterparty.contains('车') || s.contains('car')) {
-      return const DebtBadgeStyle(
-          label: '车贷', fg: AppColors.muted, bg: Color(0xFFEEF0F2));
+      return DebtBadgeStyle(
+          label: '车贷', fg: context.yucai.muted, bg: Color(0xFFEEF0F2));
     }
     if (counterparty.contains('信用卡') || s.contains('credit')) {
-      return const DebtBadgeStyle(
-          label: '信用卡', fg: AppColors.negative, bg: Color(0x1AC4544D));
+      return DebtBadgeStyle(
+          label: '信用卡', fg: context.yucai.negative, bg: Color(0x1AC4544D));
     }
     if (counterparty.contains('亲友') ||
         counterparty.contains('借') ||
         s.contains('friend')) {
-      return const DebtBadgeStyle(
-          label: '亲友借款', fg: AppColors.positive, bg: Color(0x1A2D8A6E));
+      return DebtBadgeStyle(
+          label: '亲友借款', fg: context.yucai.positive, bg: Color(0x1A2D8A6E));
     }
-    return const DebtBadgeStyle(
-        label: '借款', fg: AppColors.accentHover, bg: AppColors.accentSoft);
+    return DebtBadgeStyle(
+        label: '借款', fg: context.yucai.accentDeep, bg: context.yucai.accentSoft);
   }
 
   Color _avatarColorFor(Debt debt) {
-    if (debt.subtype.isNotEmpty) return AppColors.accentHover;
+    if (debt.subtype.isNotEmpty) return context.yucai.accentDeep;
     final s = debt.counterparty.toLowerCase();
     if (debt.counterparty.contains('房') || s.contains('mortgage')) {
-      return AppColors.accentHover;
+      return context.yucai.accentDeep;
     }
     if (debt.counterparty.contains('车') || s.contains('car')) {
-      return AppColors.muted;
+      return context.yucai.muted;
     }
     if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
-      return AppColors.negative;
+      return context.yucai.negative;
     }
     if (debt.counterparty.contains('亲友') ||
         debt.counterparty.contains('借') ||
         s.contains('friend')) {
-      return AppColors.positive;
+      return context.yucai.positive;
     }
-    return AppColors.muted;
+    return context.yucai.muted;
   }
 }
 
@@ -370,20 +370,20 @@ class _AvalancheBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
+        color: context.yucai.accentSoft,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.accentHover, width: 1),
+        border: Border.all(color: context.yucai.accentDeep, width: 1),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(LucideIcons.info, size: 16, color: AppColors.accentHover),
+          Icon(LucideIcons.info, size: 16, color: context.yucai.accentDeep),
           const SizedBox(width: 11),
           Expanded(
             child: Text.rich(
               TextSpan(
-                style: const TextStyle(
-                    fontSize: 12.5, color: AppColors.accentHover, height: 1.5),
+                style: TextStyle(
+                    fontSize: 12.5, color: context.yucai.accentDeep, height: 1.5),
                 children: [
                   const TextSpan(
                       text: '建议采用「雪崩法」优先偿还利率最高的 ',

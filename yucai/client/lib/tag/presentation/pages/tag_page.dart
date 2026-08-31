@@ -43,14 +43,14 @@ class _TagPageState extends State<TagPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('名称', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              Text('名称', style: TextStyle(color: context.yucai.muted, fontSize: 12)),
               const SizedBox(height: AppSpacing.xs),
               TextField(
                 controller: nameCtrl,
                 decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: '如:日常'),
               ),
               const SizedBox(height: AppSpacing.md),
-              const Text('颜色', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              Text('颜色', style: TextStyle(color: context.yucai.muted, fontSize: 12)),
               const SizedBox(height: AppSpacing.xs),
               TagColorPicker(selected: color, onChanged: (c) => setSt(() => color = c)),
             ],
@@ -87,7 +87,7 @@ class _TagPageState extends State<TagPage> {
         content: Text('确定删除「${tag.name}」?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('取消')),
-          TextButton(style: TextButton.styleFrom(foregroundColor: AppColors.negative), onPressed: () => Navigator.pop(dctx, true), child: const Text('删除')),
+          TextButton(style: TextButton.styleFrom(foregroundColor: context.yucai.negative), onPressed: () => Navigator.pop(dctx, true), child: const Text('删除')),
         ],
       ),
     );
@@ -104,7 +104,7 @@ class _TagPageState extends State<TagPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocListener<TagBloc, TagState>(
         listenWhen: (p, c) => c is TagActionSuccess,
         listener: (ctx, s) {
@@ -119,13 +119,13 @@ class _TagPageState extends State<TagPage> {
                 padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
                 child: Row(
                   children: [
-                    IconButton(tooltip: '返回', icon: const Icon(LucideIcons.chevronLeft, color: AppColors.fg), onPressed: () => context.pop()),
-                    Expanded(child: Text('标签管理', style: TextStyle(color: AppColors.fg, fontSize: 18, fontWeight: FontWeight.w700, fontFamily: AppTypography.displayFamily, fontFamilyFallback: AppTypography.displayFallback))),
+                    IconButton(tooltip: '返回', icon: Icon(LucideIcons.chevronLeft, color: context.yucai.fg), onPressed: () => context.pop()),
+                    Expanded(child: Text('标签管理', style: TextStyle(color: context.yucai.fg, fontSize: 18, fontWeight: FontWeight.w700, fontFamily: AppTypography.displayFamily, fontFamilyFallback: AppTypography.displayFallback))),
                     FilledButton.icon(onPressed: _showCreateDialog, icon: const Icon(LucideIcons.plus, size: 18), label: const Text('新建标签')),
                   ],
                 ),
               ),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: context.yucai.border),
               Expanded(child: _body()),
             ],
           ),
@@ -140,22 +140,22 @@ class _TagPageState extends State<TagPage> {
         final list = _listOf(state);
         final submitting = state is TagSubmitting;
         if (state is TagLoading && list.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(child: CircularProgressIndicator());
         } else if (state is TagError && list.isEmpty) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(LucideIcons.alertCircle, color: AppColors.negative, size: 36),
-            const SizedBox(height: AppSpacing.md),
-            Text(state.message, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
-            const SizedBox(height: AppSpacing.md),
-            FilledButton(onPressed: () => ctx.read<TagBloc>().add(LoadTagsRequested()), child: const Text('重试')),
+            Icon(LucideIcons.alertCircle, color: context.yucai.negative, size: 36),
+            SizedBox(height: AppSpacing.md),
+            Text(state.message, style: TextStyle(color: context.yucai.muted, fontSize: 13)),
+            SizedBox(height: AppSpacing.md),
+            FilledButton(onPressed: () => ctx.read<TagBloc>().add(LoadTagsRequested()), child: Text('重试')),
           ]));
         } else if (list.isEmpty) {
-          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: const [
-            Icon(LucideIcons.tag, color: AppColors.accent, size: 28),
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(LucideIcons.tag, color: context.yucai.accent, size: 28),
             SizedBox(height: AppSpacing.md),
-            Text('暂无标签', style: TextStyle(color: AppColors.fg, fontSize: 16, fontWeight: FontWeight.w600)),
+            Text('暂无标签', style: TextStyle(color: context.yucai.fg, fontSize: 16, fontWeight: FontWeight.w600)),
             SizedBox(height: AppSpacing.xs),
-            Text('点击「新建标签」创建', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+            Text('点击「新建标签」创建', style: TextStyle(color: context.yucai.muted, fontSize: 13)),
           ]));
         }
         return Stack(children: [
@@ -168,7 +168,7 @@ class _TagPageState extends State<TagPage> {
               return TagCard(tag: t, onEdit: () => _showEditDialog(tag: t), onDelete: () => _showDeleteConfirm(t));
             },
           ),
-          if (submitting) Positioned.fill(child: AbsorbPointer(child: Container(color: AppColors.bg.withValues(alpha: 0.5), alignment: Alignment.center, child: const CircularProgressIndicator()))),
+          if (submitting) Positioned.fill(child: AbsorbPointer(child: Container(color: context.yucai.bg.withValues(alpha: 0.5), alignment: Alignment.center, child: const CircularProgressIndicator()))),
         ]);
       },
     );

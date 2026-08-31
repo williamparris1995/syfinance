@@ -314,15 +314,15 @@ class _AccountFormPageState extends State<AccountFormPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
+        color: context.yucai.accentSoft,
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
         isAsset ? '资产' : '负债',
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: AppColors.accentHover),
+            color: context.yucai.accentDeep),
       ),
     );
   }
@@ -342,7 +342,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         title: Text(_isEdit ? '编辑账户' : '新建账户'),
@@ -373,7 +373,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
                       children: [
                         Text('账户类型',
                             style: TextStyle(
-                                color: AppColors.muted,
+                                color: context.yucai.muted,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8)),
@@ -397,25 +397,25 @@ class _AccountFormPageState extends State<AccountFormPage> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 11),
                           decoration: BoxDecoration(
-                            color: AppColors.accentSoft,
-                            border: Border.all(color: AppColors.accentSoft),
+                            color: context.yucai.accentSoft,
+                            border: Border.all(color: context.yucai.accentSoft),
                             borderRadius: BorderRadius.circular(9),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(LucideIcons.info,
-                                  size: 15, color: AppColors.accent),
+                              Icon(LucideIcons.info,
+                                  size: 15, color: context.yucai.accent),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text.rich(
                                   TextSpan(children: [
                                     TextSpan(text: '${_category.description}  '),
-                                    const TextSpan(
+                                    TextSpan(
                                         text: '示例:',
                                         style: TextStyle(
                                             fontWeight: FontWeight.w600,
-                                            color: AppColors.accentHover)),
+                                            color: context.yucai.accentDeep)),
                                     TextSpan(text: _category.example),
                                   ]),
                                   style: const TextStyle(
@@ -427,7 +427,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
                             ],
                           ),
                         ),
-                        const Divider(height: 1, color: AppColors.border),
+                        Divider(height: 1, color: context.yucai.border),
                         const SizedBox(height: AppSpacing.lg),
                         FormSection(
                           title: '基本信息',

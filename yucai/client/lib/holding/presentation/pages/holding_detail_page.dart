@@ -119,10 +119,10 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.fg,
+        backgroundColor: context.yucai.surface,
+        foregroundColor: context.yucai.fg,
         elevation: 0,
         leading: BackButton(onPressed: () => context.pop()),
         title: const Text('持仓详情'),
@@ -152,7 +152,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(state.message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.muted)),
+                    style: TextStyle(color: context.yucai.muted)),
               ),
             );
           }
@@ -226,8 +226,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(h.securityName,
-                    style: const TextStyle(
-                        fontSize: 13, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 13, color: context.yucai.muted)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 10,
@@ -264,8 +264,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
               const SizedBox(height: 4),
               Text('更新于 ${_nowLabel()}',
                   key: const ValueKey('detailUpdated'),
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 11, color: context.yucai.muted)),
             ],
           ),
         ],
@@ -277,7 +277,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: (kHoldingTypeColors[t] ?? AppColors.accent).withValues(alpha: 0.14),
+        color: (kHoldingTypeColors[t] ?? context.yucai.accent).withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(9999),
       ),
       child: Row(
@@ -287,7 +287,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
             width: 5,
             height: 5,
             decoration: BoxDecoration(
-                color: kHoldingTypeColors[t] ?? AppColors.accent,
+                color: kHoldingTypeColors[t] ?? context.yucai.accent,
                 shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
@@ -295,7 +295,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
               style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: kHoldingTypeColors[t] ?? AppColors.accentHover)),
+                  color: kHoldingTypeColors[t] ?? context.yucai.accentDeep)),
         ],
       ),
     );
@@ -305,10 +305,10 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: AppColors.muted),
+        Icon(icon, size: 12, color: context.yucai.muted),
         const SizedBox(width: 4),
         Text(text,
-            style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+            style: TextStyle(fontSize: 11.5, color: context.yucai.muted)),
       ],
     );
   }
@@ -328,19 +328,19 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
       borderRadius: BorderRadius.circular(9999),
       child: Container(
         padding: const EdgeInsets.all(6),
-        decoration: const BoxDecoration(
-          color: AppColors.accentSoft,
+        decoration: BoxDecoration(
+          color: context.yucai.accentSoft,
           shape: BoxShape.circle,
         ),
         child: _refreshing
-            ? const SizedBox(
+            ? SizedBox(
                 width: 14,
                 height: 14,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.accent),
+                    strokeWidth: 2, color: context.yucai.accent),
               )
-            : const Icon(LucideIcons.refreshCw,
-                size: 14, color: AppColors.accent),
+            : Icon(LucideIcons.refreshCw,
+                size: 14, color: context.yucai.accent),
       ),
     );
   }
@@ -364,9 +364,9 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('当前市值',
+                    Text('当前市值',
                         style: TextStyle(
-                            fontSize: 11.5, color: AppColors.muted)),
+                            fontSize: 11.5, color: context.yucai.muted)),
                     const SizedBox(height: 4),
                     Text(
                       '${_fmtRaw(h.marketValueCents, currency)} $currency',
@@ -386,7 +386,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: (up ? AppColors.positive : AppColors.negative)
+                  color: (up ? context.yucai.positive : context.yucai.negative)
                       .withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(9999),
                 ),
@@ -395,7 +395,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                   children: [
                     Icon(up ? LucideIcons.trendingUp : LucideIcons.trendingDown,
                         size: 13,
-                        color: up ? AppColors.positive : AppColors.negative),
+                        color: up ? context.yucai.positive : context.yucai.negative),
                     const SizedBox(width: 4),
                     Text(_fmtSigned(pnl, currency),
                         key: const ValueKey('detailPnlPill'),
@@ -403,7 +403,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
                             color:
-                                up ? AppColors.positive : AppColors.negative,
+                                up ? context.yucai.positive : context.yucai.negative,
                             fontFeatures: AppTypography.tabularFigures)),
                   ],
                 ),
@@ -413,7 +413,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           const SizedBox(height: 14),
           Container(
             height: 1,
-            color: AppColors.border,
+            color: context.yucai.border,
           ),
           const SizedBox(height: 14),
           Row(
@@ -446,7 +446,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
       key: key,
       children: [
         Text(k,
-            style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+            style: TextStyle(fontSize: 11, color: context.yucai.muted)),
         const SizedBox(height: 3),
         Text(v,
             style: const TextStyle(
@@ -526,9 +526,9 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                       fontFamily: AppTypography.displayFamily,
                       fontFamilyFallback: AppTypography.displayFallback)),
               const SizedBox(height: 2),
-              const Text('资金加权(XIRR)+ 时间加权(TWR)+ 复合年化(CAGR)· 数据不足时显示 —',
+              Text('资金加权(XIRR)+ 时间加权(TWR)+ 复合年化(CAGR)· 数据不足时显示 —',
                   key: ValueKey('detailXirrSub'),
-                  style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                  style: TextStyle(fontSize: 11.5, color: context.yucai.muted)),
             ],
           ),
           const SizedBox(height: 12),
@@ -539,8 +539,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 ? '${full >= 0 ? '+' : ''}${full.toStringAsFixed(1)}%'
                 : '—',
             valueColor: hasFull
-                ? (full >= 0 ? AppColors.positive : AppColors.negative)
-                : AppColors.muted,
+                ? (full >= 0 ? context.yucai.positive : context.yucai.negative)
+                : context.yucai.muted,
             key: const ValueKey('detailXirrFull'),
           ),
           // 资金加权 · 区间(副位,随 range tab;null → 「—」)。
@@ -550,8 +550,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 ? '${range >= 0 ? '+' : ''}${range.toStringAsFixed(1)}%'
                 : '—',
             valueColor: hasRange
-                ? (range >= 0 ? AppColors.positive : AppColors.negative)
-                : AppColors.muted,
+                ? (range >= 0 ? context.yucai.positive : context.yucai.negative)
+                : context.yucai.muted,
             key: const ValueKey('detailXirrRange'),
           ),
           // 时间加权 · 全期(Task 6 TWR;null → 「—」)。
@@ -561,8 +561,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 ? '${twr >= 0 ? '+' : ''}${twr.toStringAsFixed(1)}%'
                 : '—',
             valueColor: hasTwr
-                ? (twr >= 0 ? AppColors.positive : AppColors.negative)
-                : AppColors.muted,
+                ? (twr >= 0 ? context.yucai.positive : context.yucai.negative)
+                : context.yucai.muted,
             key: const ValueKey('detailXirrTwr'),
           ),
           // 复合年化 · 全期(Task 2 C CAGR price-based;null → 「—」)。
@@ -572,8 +572,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 ? '${cagr >= 0 ? '+' : ''}${cagr.toStringAsFixed(1)}%'
                 : '—',
             valueColor: hasCagr
-                ? (cagr >= 0 ? AppColors.positive : AppColors.negative)
-                : AppColors.muted,
+                ? (cagr >= 0 ? context.yucai.positive : context.yucai.negative)
+                : context.yucai.muted,
             key: const ValueKey('detailXirrCagr'),
           ),
         ],
@@ -589,16 +589,16 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
           border: Border(
               bottom: BorderSide(
-                  color: AppColors.surfaceAlt, style: BorderStyle.solid))),
+                  color: context.yucai.surfaceAlt, style: BorderStyle.solid))),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
           Text(label,
-              style: const TextStyle(fontSize: 13, color: AppColors.fg)),
+              style: TextStyle(fontSize: 13, color: context.yucai.fg)),
           const Spacer(),
           Text(value,
               key: key,
@@ -646,8 +646,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                           ? 'ListHoldingTransactions ⏳ 端点未实现'
                           : 'ListHoldingTransactions · ${trades.length} 条 · ⏳',
                       key: const ValueKey('detailTradesSub'),
-                      style: const TextStyle(
-                          fontSize: 11.5, color: AppColors.muted)),
+                      style: TextStyle(
+                          fontSize: 11.5, color: context.yucai.muted)),
                 ],
               ),
             ],
@@ -681,22 +681,22 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.hourglass,
+            Icon(LucideIcons.hourglass,
                 key: ValueKey('pendingBackendTitle'),
                 size: 26,
-                color: AppColors.accent),
+                color: context.yucai.accent),
             const SizedBox(height: 8),
-            const Text('⏳ 交易历史待后端',
+            Text('⏳ 交易历史待后端',
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.fg)),
+                    color: context.yucai.fg)),
             const SizedBox(height: 3),
-            const Text(
+            Text(
               'ListHoldingTransactions ⏳ 端点未实现,流水将在后端就绪后可用',
               textAlign: TextAlign.center,
               key: ValueKey('pendingBackendHint'),
-              style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+              style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
             ),
           ],
         ),
@@ -743,10 +743,10 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.accent.withValues(alpha: 0.12)
-              : AppColors.surface,
+              ? context.yucai.accent.withValues(alpha: 0.12)
+              : context.yucai.surface,
           border: Border.all(
-              color: active ? AppColors.accent : AppColors.border),
+              color: active ? context.yucai.accent : context.yucai.border),
           borderRadius: BorderRadius.circular(9999),
         ),
         child: Row(
@@ -757,13 +757,13 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                     fontSize: 12,
                     fontWeight:
                         active ? FontWeight.w600 : FontWeight.w400,
-                    color: active ? AppColors.accentHover : AppColors.muted)),
+                    color: active ? context.yucai.accentDeep : context.yucai.muted)),
             const SizedBox(width: 4),
             Text('$count',
                 key: ValueKey('tradeFilterCnt-${f.name}'),
                 style: TextStyle(
                     fontSize: 11,
-                    color: active ? AppColors.accentHover : AppColors.muted,
+                    color: active ? context.yucai.accentDeep : context.yucai.muted,
                     fontFeatures: AppTypography.tabularFigures)),
           ],
         ),
@@ -786,7 +786,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   Widget _tradeTable(List<HoldingTransaction> trades, String currency) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: ClipRRect(
@@ -802,9 +802,9 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           },
           children: [
             TableRow(
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceAlt,
-                border: Border(bottom: BorderSide(color: AppColors.border)),
+              decoration: BoxDecoration(
+                color: context.yucai.surfaceAlt,
+                border: Border(bottom: BorderSide(color: context.yucai.border)),
               ),
               children: [
                 _th('日期'),
@@ -828,11 +828,11 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Text(label,
           textAlign: align,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 11,
               letterSpacing: 0.5,
               fontWeight: FontWeight.w600,
-              color: AppColors.muted,
+              color: context.yucai.muted,
               fontFeatures: AppTypography.tabularFigures)),
     );
   }
@@ -842,14 +842,14 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     final (tag, tagColor) = _tradeTag(t.tradeType);
     final amt = t.amountCents;
     final amtColor = amt > 0
-        ? AppColors.positive
+        ? context.yucai.positive
         : amt < 0
-            ? AppColors.negative
-            : AppColors.muted;
-    const border = BorderSide(color: AppColors.surfaceAlt);
+            ? context.yucai.negative
+            : context.yucai.muted;
+    final border = BorderSide(color: context.yucai.surfaceAlt);
     return TableRow(
       decoration:
-          BoxDecoration(border: isLast ? null : const Border(bottom: border)),
+          BoxDecoration(border: isLast ? null : Border(bottom: border)),
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
@@ -888,8 +888,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           child: Text(t.notes ?? '',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 12.5, color: AppColors.muted)),
+              style: TextStyle(
+                  fontSize: 12.5, color: context.yucai.muted)),
         ),
       ],
     );
@@ -903,7 +903,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           style: TextStyle(
               fontSize: 12.5,
               fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
-              color: color ?? AppColors.fg,
+              color: color ?? context.yucai.fg,
               fontFeatures: AppTypography.tabularFigures)),
     );
   }
@@ -925,15 +925,15 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     final (tag, tagColor) = _tradeTag(t.tradeType);
     final amt = t.amountCents;
     final amtColor = amt > 0
-        ? AppColors.positive
+        ? context.yucai.positive
         : amt < 0
-            ? AppColors.negative
-            : AppColors.muted;
+            ? context.yucai.negative
+            : context.yucai.muted;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
@@ -958,15 +958,15 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                             color: tagColor)),
                     const SizedBox(width: 8),
                     Text(t.tradeDate,
-                        style: const TextStyle(
-                            fontSize: 11.5, color: AppColors.muted)),
+                        style: TextStyle(
+                            fontSize: 11.5, color: context.yucai.muted)),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text('${_fmtQty(t.quantity)} 股 · ${t.tradeType == TradeType.split ? "—" : _fmtRaw(t.priceCents, currency)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11.5,
-                        color: AppColors.muted,
+                        color: context.yucai.muted,
                         fontFeatures: AppTypography.tabularFigures)),
               ],
             ),
@@ -986,11 +986,11 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   (String, Color) _tradeTag(TradeType type) {
     switch (type) {
       case TradeType.buy:
-        return ('买入', AppColors.negative);
+        return ('买入', context.yucai.negative);
       case TradeType.sell:
-        return ('卖出', AppColors.positive);
+        return ('卖出', context.yucai.positive);
       case TradeType.dividend:
-        return ('分红', AppColors.accent);
+        return ('分红', context.yucai.accent);
       case TradeType.split:
         return ('拆分', const Color(0xFF6B7A8F));
     }
@@ -1003,11 +1003,11 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.calendar, size: 22, color: AppColors.muted),
+            Icon(LucideIcons.calendar, size: 22, color: context.yucai.muted),
             const SizedBox(height: 6),
             Text(title,
-                style: const TextStyle(
-                    fontSize: 12.5, color: AppColors.muted)),
+                style: TextStyle(
+                    fontSize: 12.5, color: context.yucai.muted)),
           ],
         ),
       ),
@@ -1037,8 +1037,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                       fontFamilyFallback: AppTypography.displayFallback)),
               Text(kHoldingTypeLabels[type] ?? type.name,
                   key: const ValueKey('detailAllocType'),
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 12, color: context.yucai.muted)),
             ],
           ),
           const SizedBox(height: 14),
@@ -1067,16 +1067,16 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.accentSoft,
+              color: context.yucai.accentSoft,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(LucideIcons.gem,
+            child: Icon(LucideIcons.gem,
                 key: ValueKey('detailGoalIcon'),
                 size: 18,
-                color: AppColors.accent),
+                color: context.yucai.accent),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1089,14 +1089,14 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 SizedBox(height: 3),
                 Text('查看本持仓目标进度',
                     key: ValueKey('detailGoalSubtitle'),
-                    style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                    style: TextStyle(fontSize: 12.5, color: context.yucai.muted)),
               ],
             ),
           ),
-          const Icon(LucideIcons.chevronRight,
+          Icon(LucideIcons.chevronRight,
               key: ValueKey('detailGoalChevron'),
               size: 18,
-              color: AppColors.muted),
+              color: context.yucai.muted),
         ],
       ),
     );
@@ -1114,8 +1114,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
       bottom: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: const Border(top: BorderSide(color: AppColors.border)),
+          color: context.yucai.surface,
+          border: Border(top: BorderSide(color: context.yucai.border)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -1130,13 +1130,13 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           child: Row(
             children: [
               Expanded(child: _actBtn('买入', LucideIcons.arrowDownCircle,
-                  AppColors.negative, TradeType.buy)),
+                  context.yucai.negative, TradeType.buy)),
               const SizedBox(width: 8),
               Expanded(child: _actBtn('卖出', LucideIcons.arrowUpCircle,
-                  AppColors.positive, TradeType.sell)),
+                  context.yucai.positive, TradeType.sell)),
               const SizedBox(width: 8),
               Expanded(child: _actBtn('分红', LucideIcons.coins,
-                  AppColors.accent, TradeType.dividend)),
+                  context.yucai.accent, TradeType.dividend)),
               const SizedBox(width: 8),
               Expanded(child: _actBtn('拆分', LucideIcons.gitMerge,
                   const Color(0xFF6B7A8F), TradeType.split)),

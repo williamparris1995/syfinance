@@ -127,9 +127,9 @@ class DebtDetailHero extends StatelessWidget {
                     '${sharedFmtDate(debt.startDate)} · ${sharedAmortLabel(debt.amortization)} · '
                     '$total 期'
                     '${accountName == null ? '' : ' · 关联账户 $accountName'}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
-                      color: Color(0xFFA8A59A),
+                      color: context.yucai.muted,
                       fontFeatures: AppTypography.tabularFigures,
                     ),
                   ),
@@ -141,9 +141,9 @@ class DebtDetailHero extends StatelessWidget {
         const SizedBox(height: 22),
         Text(
           sem.detailHeroRemainingLabel,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
-            color: Color(0xFF9AA0A8),
+            color: context.yucai.muted,
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),
@@ -193,9 +193,9 @@ class DebtDetailHero extends StatelessWidget {
             Flexible(
               child: Text(
                 '${sem.detailHeroPaidProgCollected} ${sharedFmtSymbol(debt.totalPrincipalCents - debt.remainingPrincipalCents, preferred)}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11.5,
-                  color: Color(0xFFA8A59A),
+                  color: context.yucai.muted,
                   fontFeatures: AppTypography.tabularFigures,
                 ),
               ),
@@ -242,8 +242,8 @@ class DebtDetailHero extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppColors.accent.withValues(alpha: 0.34),
-                      AppColors.accent.withValues(alpha: 0.06),
+                      context.yucai.accent.withValues(alpha: 0.34),
+                      context.yucai.accent.withValues(alpha: 0.06),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.5, 0.7],
@@ -261,7 +261,7 @@ class DebtDetailHero extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppColors.accent.withValues(alpha: 0.13),
+                      context.yucai.accent.withValues(alpha: 0.13),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.7],
@@ -304,9 +304,9 @@ class DebtDetailHero extends StatelessWidget {
           trendCents != 0
               ? '较上月${trendCents < 0 ? '减少' : '增加'} · ${sem.detailHeroPaidCountLabel} $paidCount / $total 期'
               : '${sem.detailHeroPaidCountLabel} $paidCount / $total 期',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12.5,
-            color: Color(0xFFBCB9AD),
+            color: AppColors.muted,
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),
@@ -318,7 +318,7 @@ class DebtDetailHero extends StatelessWidget {
   Widget _trendPill(int trendCents) {
     final decreasing = trendCents < 0;
     final abs = trendCents.abs();
-    final fg = decreasing ? const Color(0xFF7FC9A8) : const Color(0xFFE29A93);
+    final fg = decreasing ? AppColors.positive : AppColors.negative;
     final bg = decreasing
         ? const Color(0x332D8A6E)
         : const Color(0x33C4544D);
@@ -385,9 +385,9 @@ class DebtDetailHero extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10.5,
-              color: Color(0xFF8F8D83),
+              color: AppColors.muted,
               letterSpacing: 0.6,
             ),
           ),
@@ -584,12 +584,12 @@ class _StatCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(data.icon, size: 13, color: AppColors.accent),
+              Icon(data.icon, size: 13, color: context.yucai.accent),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(data.label,
-                    style: const TextStyle(
-                        fontSize: 11.5, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11.5, color: context.yucai.muted)),
               ),
             ],
           ),
@@ -601,16 +601,16 @@ class _StatCard extends StatelessWidget {
                 fontSize: 19,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.01,
-                color: data.valueColor ?? AppColors.fg,
+                color: data.valueColor ?? context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures,
               )),
           const SizedBox(height: 4),
           Text(data.sub,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.muted,
+                  color: context.yucai.muted,
                   fontFeatures: AppTypography.tabularFigures)),
         ],
       ),
@@ -710,11 +710,11 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
                 ),
           const SizedBox(height: 14),
           if (_filtered.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: Center(
                 child: Text('该筛选下无期次',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                    style: TextStyle(color: context.yucai.muted, fontSize: 12)),
               ),
             )
           else if (widget.isMobile)
@@ -730,7 +730,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(sem.scheduleTitleIcon, size: 17, color: AppColors.accent),
+        Icon(sem.scheduleTitleIcon, size: 17, color: context.yucai.accent),
         const SizedBox(width: 8),
         Text(sem.scheduleTitle,
             style: TextStyle(
@@ -752,11 +752,11 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
       spacing: 8,
       runSpacing: 4,
       children: [
-        _pill(sem.sumPaidLabel, paid, AppColors.positive, const Color(0xFFE6F1ED)),
-        _pill(sem.sumPendingLabel, pending, const Color(0xFF8A8780),
-            const Color(0xFFF0EEE8)),
-        _pill(sem.statusOverdueLabel, overdue, AppColors.negative,
-            const Color(0xFFF6E7E5)),
+        _pill(sem.sumPaidLabel, paid, context.yucai.positive, context.yucai.positive.withValues(alpha: 0.10)),
+        _pill(sem.sumPendingLabel, pending, context.yucai.muted,
+            context.yucai.surfaceAlt),
+        _pill(sem.statusOverdueLabel, overdue, context.yucai.negative,
+            context.yucai.negative.withValues(alpha: 0.10)),
       ],
     );
   }
@@ -794,8 +794,8 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFECE5),
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surfaceAlt,
+        border: Border.all(color: context.yucai.border),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
@@ -814,7 +814,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
   Widget _filterSeg(
       DebtScheduleFilter f, String label, int count, DebtViewSemantics sem) {
     final active = _filter == f;
-    final fg = active ? AppColors.fg : AppColors.muted;
+    final fg = active ? context.yucai.fg : context.yucai.muted;
     return InkWell(
       key: ValueKey('filterSegment-$label'),
       onTap: () => setState(() => _filter = f),
@@ -854,7 +854,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 decoration: BoxDecoration(
                   color: active
-                      ? AppColors.accentSoft
+                      ? context.yucai.accentSoft
                       : const Color(0x10000000),
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -863,7 +863,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                    color: active ? AppColors.accentHover : AppColors.muted,
+                    color: active ? context.yucai.accentDeep : context.yucai.muted,
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
@@ -880,7 +880,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     final entries = _filtered;
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: ClipRRect(
@@ -897,9 +897,9 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
           },
           children: [
             TableRow(
-              decoration: const BoxDecoration(
-                color: Color(0xFFFBFAF6),
-                border: Border(bottom: BorderSide(color: AppColors.border)),
+              decoration: BoxDecoration(
+                color: context.yucai.surfaceAlt,
+                border: Border(bottom: BorderSide(color: context.yucai.border)),
               ),
               children: [
                 _tableHeader(sem.tableCol1Header, align: TextAlign.left),
@@ -923,11 +923,11 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Text(label,
           textAlign: align,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             letterSpacing: 1,
             fontWeight: FontWeight.w600,
-            color: AppColors.muted,
+            color: context.yucai.muted,
             fontFeatures: AppTypography.tabularFigures,
           )),
     );
@@ -939,9 +939,9 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     final isPaid = e.paid;
     const border = BorderSide(color: Color(0xFFEFECE5));
     final rowBg = isPaid
-        ? const Color(0xFFFAFDFB)
-        : (isOverdue ? const Color(0xFFFDF8F7) : null);
-    final cellFg = isPaid ? AppColors.muted : AppColors.fg;
+        ? context.yucai.surface
+        : (isOverdue ? context.yucai.surface : null);
+    final cellFg = isPaid ? context.yucai.muted : context.yucai.fg;
     final sem = widget.sem;
     return TableRow(
       decoration: BoxDecoration(
@@ -957,13 +957,13 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: isOverdue ? AppColors.negative : cellFg,
+                      color: isOverdue ? context.yucai.negative : cellFg,
                       fontFeatures: AppTypography.tabularFigures)),
               const SizedBox(width: 6),
               Text(sharedFmtDate(e.paymentDate),
                   style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.muted,
+                      color: context.yucai.muted,
                       fontFeatures: AppTypography.tabularFigures)),
             ],
           ),
@@ -973,7 +973,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
         _cellRight(sharedFmtSymbol(e.interestCents, widget.preferred),
             color: cellFg),
         _cellRight(sharedFmtSymbol(e.totalCents, widget.preferred),
-            color: isOverdue ? AppColors.negative : cellFg, bold: true),
+            color: isOverdue ? context.yucai.negative : cellFg, bold: true),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: _statusBadge(e, sem),
@@ -1024,11 +1024,11 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
       decoration: BoxDecoration(
         color: status == PaymentStatus.overdue
             ? const Color(0x08C4544D)
-            : AppColors.surface,
+            : context.yucai.surface,
         border: Border.all(
             color: status == PaymentStatus.overdue
                 ? const Color(0x33C4544D)
-                : AppColors.border),
+                : context.yucai.border),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Column(
@@ -1078,7 +1078,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(k, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+        Text(k, style: TextStyle(fontSize: 11, color: context.yucai.muted)),
         const SizedBox(height: 2),
         Text(v,
             maxLines: 1,
@@ -1086,7 +1086,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
             style: TextStyle(
                 fontSize: 13,
                 fontWeight: total ? FontWeight.w600 : FontWeight.w400,
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );
@@ -1096,19 +1096,19 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     final (label, fg, bg, icon) = switch (e.status) {
       PaymentStatus.paid => (
           sem.statusPaidLabel,
-          AppColors.positive,
+          context.yucai.positive,
           const Color(0x1A2D8A6E),
           LucideIcons.check
         ),
       PaymentStatus.pending => (
           sem.statusPendingLabel,
-          const Color(0xFF54585F),
-          const Color(0xFFF1EFE9),
+          context.yucai.muted,
+          context.yucai.surfaceAlt,
           null
         ),
       PaymentStatus.overdue => (
           sem.statusOverdueLabel,
-          AppColors.negative,
+          context.yucai.negative,
           const Color(0x1AC4544D),
           LucideIcons.alertCircle
         ),
@@ -1141,10 +1141,10 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(sem.isReceivable ? LucideIcons.check : LucideIcons.check,
-              size: 12, color: AppColors.positive),
+              size: 12, color: context.yucai.positive),
           const SizedBox(width: 4),
           Text(sem.schedulePaidLabel,
-              style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+              style: TextStyle(fontSize: 11, color: context.yucai.muted)),
         ],
       );
     }
@@ -1157,18 +1157,18 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     return TextButton.icon(
       onPressed: onPressed,
       icon: Icon(LucideIcons.check,
-          size: 12, color: overdue ? Colors.white : AppColors.accentHover),
+          size: 12, color: overdue ? Colors.white : context.yucai.accentDeep),
       label: Text(sem.scheduleActionLabel),
       style: overdue
           ? TextButton.styleFrom(
-              backgroundColor: AppColors.negative,
+              backgroundColor: context.yucai.negative,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minimumSize: const Size(0, 26),
               textStyle: const TextStyle(fontSize: 11),
             )
           : TextButton.styleFrom(
-              foregroundColor: AppColors.accentHover,
+              foregroundColor: context.yucai.accentDeep,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minimumSize: const Size(0, 26),
               textStyle: const TextStyle(fontSize: 11),
@@ -1249,7 +1249,7 @@ class DebtDetailSidePanel extends StatelessWidget {
       DebtSideRowData(
         k: '合同/借据',
         v: contractDisplay,
-        valueColor: hasContract ? AppColors.accentHover : null,
+        valueColor: hasContract ? context.yucai.accentDeep : null,
         onTap: hasContract ? () => _viewContract(context, contractRef) : null,
       ),
     ];
@@ -1273,9 +1273,9 @@ class DebtDetailSidePanel extends StatelessWidget {
                 icon: const Icon(LucideIcons.plus, size: 14),
                 label: Text(sem.sideRegisterBtnLabel),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.fg,
-                  backgroundColor: AppColors.surface,
-                  side: const BorderSide(color: AppColors.border),
+                  foregroundColor: context.yucai.fg,
+                  backgroundColor: context.yucai.surface,
+                  side: BorderSide(color: context.yucai.border),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
                   minimumSize: const Size.fromHeight(34),
@@ -1310,7 +1310,7 @@ class DebtDetailSidePanel extends StatelessWidget {
         Icon(icon, size: 16, color: AppColors.accent),
         const SizedBox(width: 8),
         Text(title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: AppColors.fg,
@@ -1360,7 +1360,7 @@ class DebtDetailSidePanel extends StatelessWidget {
         children: [
           Flexible(
             child: Text(data.k,
-                style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                style: TextStyle(fontSize: 13, color: AppColors.muted)),
           ),
           const SizedBox(width: 16),
           Flexible(
@@ -1525,22 +1525,22 @@ class _DebtRecordDialogState extends State<DebtRecordDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(sem.dialogAmountLabel,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF54585F))),
+                style: TextStyle(fontSize: 12, color: context.yucai.muted)),
             const SizedBox(height: 7),
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.accentSoft,
-                border: Border.all(color: const Color(0xFFE8DCC2)),
+                color: context.yucai.accentSoft,
+                border: Border.all(color: context.yucai.accentSoft),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Row(
                 children: [
                   Text(
                     sharedFmtSymbol(widget.entry.totalCents, widget.preferred),
-                    style: const TextStyle(
-                        color: AppColors.accent,
+                    style: TextStyle(
+                        color: context.yucai.accent,
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
                         fontFeatures: AppTypography.tabularFigures),
@@ -1548,23 +1548,23 @@ class _DebtRecordDialogState extends State<DebtRecordDialog> {
                   const Spacer(),
                   Text(
                       '期次 · ${sharedFmtDate(widget.entry.paymentDate)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.accentHover,
+                          color: context.yucai.accentDeep,
                           fontFeatures: AppTypography.tabularFigures)),
                 ],
               ),
             ),
             const SizedBox(height: 16),
             Text(sem.dialogAccountLabel,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF54585F))),
+                style: TextStyle(fontSize: 12, color: context.yucai.muted)),
             const SizedBox(height: 7),
             DropdownButtonFormField<String>(
               value: _selectedAccountId.isEmpty ? null : _selectedAccountId,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.sm),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: context.yucai.border),
                 ),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1601,7 +1601,7 @@ class _DebtRecordDialogState extends State<DebtRecordDialog> {
               ? null
               : () => widget.onSubmit(_selectedAccountId),
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.accent,
+            backgroundColor: context.yucai.accent,
             foregroundColor: Colors.white,
           ),
           child: Text(sem.dialogSubmitLabel),

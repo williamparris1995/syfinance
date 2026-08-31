@@ -304,7 +304,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocConsumer<AccountBloc, AccountState>(
         listener: (context, state) {
           if (state is AccountError && _pendingIds.isNotEmpty) {
@@ -345,19 +345,19 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: AppColors.accentSoft,
+                    color: context.yucai.accentSoft,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(LucideIcons.wallet,
-                      size: 30, color: AppColors.accent),
+                  child: Icon(LucideIcons.wallet,
+                      size: 30, color: context.yucai.accent),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 const Text('还没有账户',
                     style:
                         TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
-                const Text('点击右上角「新建账户」开始记录',
-                    style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                Text('点击右上角「新建账户」开始记录',
+                    style: TextStyle(color: context.yucai.muted, fontSize: 14)),
                 const SizedBox(height: AppSpacing.lg),
                 _NewAccountButton(onPressed: _openCreateForm),
               ],
@@ -441,18 +441,18 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                         onChanged: (v) =>
                             setState(() => _showArchived = v ?? false),
                       ),
-                      const Text('含已归档账户',
+                      Text('含已归档账户',
                           style: TextStyle(
-                              color: AppColors.muted, fontSize: 13)),
+                              color: context.yucai.muted, fontSize: 13)),
                     ],
                   ),
                 ),
                 if (groups.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
                     child: Center(
                       child: Text('该筛选下暂无账户',
-                          style: TextStyle(color: AppColors.muted))),
+                          style: TextStyle(color: context.yucai.muted))),
                   )
                 else
                   for (final entry in groups.entries) ...[
@@ -523,17 +523,17 @@ class _AccountsHeader extends StatelessWidget {
           child: Container(
             width: 190,
             height: 190,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.accentSoft,
+              color: context.yucai.accentSoft,
             ),
           ),
         ),
         Container(
           // .sumcard padding:26px 30px（vertical 26 / horizontal 30）
           padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 26),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
+          decoration: BoxDecoration(
+            color: context.yucai.surface,
             borderRadius: AppRadius.lgBorder, // radius-lg 14
             // proto .sumcard 无 box-shadow（仅有 deco 圆 + border-radius + bg）。
           ),
@@ -546,11 +546,11 @@ class _AccountsHeader extends StatelessWidget {
                     const SizedBox(width: 32), // gap:32px
                     _vline(),
                     const SizedBox(width: 32),
-                    _statBlock('总资产', assetCents, AppColors.positive),
+                    _statBlock('总资产', assetCents, context.yucai.positive),
                     const SizedBox(width: 32),
                     _vline(),
                     const SizedBox(width: 32),
-                    _statBlock('总负债', liabCents, AppColors.negative),
+                    _statBlock('总负债', liabCents, context.yucai.negative),
                   ],
                 ),
               ),
@@ -569,8 +569,8 @@ class _AccountsHeader extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 6), // .summary margin-top:6px
       clipBehavior: Clip.hardEdge, // 让 deco 圆被 radius 裁剪
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
+      decoration: BoxDecoration(
+        color: context.yucai.surface,
         borderRadius: AppRadius.lgBorder,
       ),
       child: Stack(
@@ -582,9 +582,9 @@ class _AccountsHeader extends StatelessWidget {
             child: Container(
               width: 124,
               height: 124,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentSoft,
+                color: context.yucai.accentSoft,
               ),
             ),
           ),
@@ -597,9 +597,9 @@ class _AccountsHeader extends StatelessWidget {
               child: Container(
                 width: 34,
                 height: 34,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.accent,
+                  color: context.yucai.accent,
                 ),
                 child: const Icon(LucideIcons.plus, color: Colors.white, size: 20),
               ),
@@ -611,8 +611,8 @@ class _AccountsHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('全部账户余额合计',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                Text('全部账户余额合计',
+                    style: TextStyle(color: context.yucai.muted, fontSize: 12.5)),
                 const SizedBox(height: 5),
                 Text(
                   _fmtSymbol(netCents, preferred),
@@ -620,23 +620,23 @@ class _AccountsHeader extends StatelessWidget {
                     fontSize: 27,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.5,
-                    color: netCents < 0 ? AppColors.negative : AppColors.fg,
+                    color: netCents < 0 ? context.yucai.negative : context.yucai.fg,
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
                 const SizedBox(height: 9),
                 Text.rich(
                   TextSpan(
-                    style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                    style: TextStyle(fontSize: 12, color: context.yucai.muted),
                     children: [
                       const TextSpan(text: '资产 '),
                       TextSpan(
                           text: _fmtSymbol(assetCents, preferred),
-                          style: const TextStyle(color: AppColors.positive)),
+                          style: TextStyle(color: context.yucai.positive)),
                       const TextSpan(text: '   ·   负债 '),
                       TextSpan(
                           text: _fmtSymbol(liabCents, preferred),
-                          style: const TextStyle(color: AppColors.negative)),
+                          style: TextStyle(color: context.yucai.negative)),
                     ],
                   ),
                   style: const TextStyle(
@@ -655,7 +655,7 @@ class _AccountsHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('净资产合计', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+        Text('净资产合计', style: TextStyle(color: AppColors.muted, fontSize: 13)),
         const SizedBox(height: 6),
         Text(
           _fmtSymbol(netCents, preferred),
@@ -677,7 +677,7 @@ class _AccountsHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        Text(label, style: TextStyle(color: AppColors.muted, fontSize: 12)),
         const SizedBox(height: 5),
         Text(
           _fmtSymbol(cents, preferred),
@@ -724,7 +724,7 @@ class _NewAccountButtonState extends State<_NewAccountButton> {
           height: 40, // .newbtn height:40px
           padding: const EdgeInsets.symmetric(horizontal: 20), // 0 20px
           decoration: BoxDecoration(
-            color: _hover ? AppColors.accentHover : AppColors.accent, // :hover accent-press(#98773f)
+            color: _hover ? context.yucai.accentDeep : context.yucai.accent, // :hover accent-press(#98773f)
             borderRadius: BorderRadius.circular(9999), // radius:9999px (pill)
             boxShadow: const [
               // .newbtn box-shadow:0 4px 12px rgba(176,141,87,.32)
@@ -847,16 +847,16 @@ class _ChipState extends State<_Chip> {
 
   @override
   Widget build(BuildContext context) {
-    const activeBg = AppColors.fg; // v2:.chip.active 用前景深底
-    const activeBorder = AppColors.fg;
+    final activeBg = context.yucai.fg; // v2:.chip.active 用前景深底
+    final activeBorder = context.yucai.fg;
     final border = widget.selected
         ? activeBorder
-        : (_hover ? AppColors.accent : AppColors.border); // :not(.active):hover accent
-    final bg = widget.selected ? activeBg : AppColors.surface;
-    final fg = widget.selected ? Colors.white : AppColors.fg;
+        : (_hover ? context.yucai.accent : context.yucai.border); // :not(.active):hover accent
+    final bg = widget.selected ? activeBg : context.yucai.surface;
+    final fg = widget.selected ? Colors.white : context.yucai.fg;
     // .cnt：非 active muted；active rgba(255,255,255,.55)
     final cntColor =
-        widget.selected ? const Color(0x8CFFFFFF) : AppColors.muted;
+        widget.selected ? const Color(0x8CFFFFFF) : context.yucai.muted;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -974,7 +974,7 @@ class _GroupBlock extends StatelessWidget {
               const SizedBox(width: 6),
               // .gcnt N 个账户
               Text('${accounts.length} 个账户',
-                  style: TextStyle(color: AppColors.muted, fontSize: gcntSize)),
+                  style: TextStyle(color: context.yucai.muted, fontSize: gcntSize)),
               const Spacer(),
               // .gsub 小计：换算到 preferred 货币后用 preferred 符号显示。
               if (!isMobile)
@@ -984,14 +984,14 @@ class _GroupBlock extends StatelessWidget {
                       fontSize: gsubSize,
                       fontWeight: FontWeight.w600,
                       fontFeatures: AppTypography.tabularFigures,
-                      color: isLiability ? AppColors.negative : AppColors.fg,
+                      color: isLiability ? context.yucai.negative : context.yucai.fg,
                     ),
                     children: [
-                      const TextSpan(
+                      TextSpan(
                         text: '小计 ',
                         style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.muted,
+                            color: context.yucai.muted,
                             fontWeight: FontWeight.w400),
                       ),
                       TextSpan(text: subText),
@@ -1006,7 +1006,7 @@ class _GroupBlock extends StatelessWidget {
                     fontSize: gsubSize,
                     fontWeight: FontWeight.w600,
                     fontFeatures: AppTypography.tabularFigures,
-                    color: isLiability ? AppColors.negative : AppColors.fg,
+                    color: isLiability ? context.yucai.negative : context.yucai.fg,
                   ),
                 ),
             ],
@@ -1179,9 +1179,9 @@ class _AccountCardState extends State<_AccountCard> {
             value: archived ? 'reactivate' : 'close',
             child: Text(archived ? '重新激活' : '关闭账户')),
         const PopupMenuDivider(),
-        const PopupMenuItem(
+        PopupMenuItem(
             value: 'delete',
-            child: Text('删除账户', style: TextStyle(color: AppColors.negative))),
+            child: Text('删除账户', style: TextStyle(color: context.yucai.negative))),
       ],
     );
     if (!mounted || selected == null) return;
@@ -1255,7 +1255,7 @@ class _AccountCardState extends State<_AccountCard> {
           transform: _transformFor(isMobile),
           padding: padding,
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.yucai.surface,
             borderRadius: BorderRadius.all(Radius.circular(radius)),
             // 无 border（原型 .card/.acc 均无 border，仅有 bg + radius）。
             boxShadow: isMobile
@@ -1325,12 +1325,12 @@ class _AccountCardState extends State<_AccountCard> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: AppColors.muted.withValues(alpha: 0.15),
+                              color: context.yucai.muted.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('已归档',
+                            child: Text('已归档',
                                 style: TextStyle(
-                                    color: AppColors.muted, fontSize: 10)),
+                                    color: context.yucai.muted, fontSize: 10)),
                           ),
                         ],
                       ],
@@ -1340,8 +1340,8 @@ class _AccountCardState extends State<_AccountCard> {
                       _subline(a),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12.5),
+                      style: TextStyle(
+                          color: context.yucai.muted, fontSize: 12.5),
                     ),
                   ],
                 ),
@@ -1358,8 +1358,8 @@ class _AccountCardState extends State<_AccountCard> {
                     Text(label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppColors.muted, fontSize: 11.5)),
+                        style: TextStyle(
+                            color: context.yucai.muted, fontSize: 11.5)),
                     const SizedBox(height: 2), // .cval margin-top:2
                     // .cval 21 mono w600 tabular
                     Text(
@@ -1369,7 +1369,7 @@ class _AccountCardState extends State<_AccountCard> {
                       style: TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w600,
-                        color: negative ? AppColors.negative : AppColors.fg,
+                        color: negative ? context.yucai.negative : context.yucai.fg,
                         fontFeatures: AppTypography.tabularFigures,
                       ),
                     ),
@@ -1384,8 +1384,8 @@ class _AccountCardState extends State<_AccountCard> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(top: 13),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.border)),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: context.yucai.border)),
               ),
               child: _sublineWidget(a),
             ),
@@ -1398,7 +1398,7 @@ class _AccountCardState extends State<_AccountCard> {
               child: LinearProgressIndicator(
                 value: spec.$1,
                 minHeight: 6,
-                backgroundColor: AppColors.accentSoft,
+                backgroundColor: context.yucai.accentSoft,
                 valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
               ),
             ),
@@ -1414,8 +1414,8 @@ class _AccountCardState extends State<_AccountCard> {
                         : '已还 ${formatCents((a.loanOriginalCents ?? 0) - (a.loanRemainingCents ?? 0), a.currencyCode)} / ${formatCents(a.loanOriginalCents ?? 0, a.currencyCode)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.muted,
+                    style: TextStyle(
+                        color: context.yucai.muted,
                         fontSize: 11.5,
                         fontFeatures: AppTypography.tabularFigures),
                   ),
@@ -1452,9 +1452,9 @@ class _AccountCardState extends State<_AccountCard> {
     return Container(
       margin: const EdgeInsets.only(top: 13),
       padding: const EdgeInsets.only(top: 11),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: AppColors.border, width: 1.0),
+          top: BorderSide(color: context.yucai.border, width: 1.0),
         ),
       ),
       child: Row(
@@ -1509,11 +1509,11 @@ class _AccountCardState extends State<_AccountCard> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 16, color: AppColors.muted),
+                Icon(icon, size: 16, color: context.yucai.muted),
                 const SizedBox(height: 3),
                 Text(label,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 11)),
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 11)),
               ],
             ),
           ),
@@ -1570,12 +1570,12 @@ class _AccountCardState extends State<_AccountCard> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: AppColors.muted.withValues(alpha: 0.15),
+                              color: context.yucai.muted.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('已归档',
+                            child: Text('已归档',
                                 style: TextStyle(
-                                    color: AppColors.muted, fontSize: 10)),
+                                    color: context.yucai.muted, fontSize: 10)),
                           ),
                         ],
                       ],
@@ -1585,7 +1585,7 @@ class _AccountCardState extends State<_AccountCard> {
                       _subline(a),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
+                      style: TextStyle(color: context.yucai.muted, fontSize: 11.5),
                     ),
                   ],
                 ),
@@ -1596,8 +1596,8 @@ class _AccountCardState extends State<_AccountCard> {
                 children: [
                   // .avlabel 10.5 muted margin-bottom:2
                   Text(label,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 10.5)),
+                      style: TextStyle(
+                          color: context.yucai.muted, fontSize: 10.5)),
                   const SizedBox(height: 2),
                   // .aval 15 mono w600 tabular
                   Text(
@@ -1605,7 +1605,7 @@ class _AccountCardState extends State<_AccountCard> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: negative ? AppColors.negative : AppColors.fg,
+                      color: negative ? context.yucai.negative : context.yucai.fg,
                       fontFeatures: AppTypography.tabularFigures,
                     ),
                   ),
@@ -1621,7 +1621,7 @@ class _AccountCardState extends State<_AccountCard> {
               child: LinearProgressIndicator(
                 value: spec.$1,
                 minHeight: 5,
-                backgroundColor: AppColors.accentSoft,
+                backgroundColor: context.yucai.accentSoft,
                 valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
               ),
             ),
@@ -1634,8 +1634,8 @@ class _AccountCardState extends State<_AccountCard> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.only(top: 9),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.border)),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: context.yucai.border)),
                 ),
                 child: _sublineWidget(a),
               ),
@@ -1681,8 +1681,8 @@ class _AccountCardState extends State<_AccountCard> {
   }
 
   Widget _sublineWidget(Account a) {
-    const style = TextStyle(color: AppColors.muted, fontSize: 12);
-    Color tone(double v) => v >= 0 ? AppColors.positive : AppColors.negative;
+    final style = TextStyle(color: context.yucai.muted, fontSize: 12);
+    Color tone(double v) => v >= 0 ? context.yucai.positive : context.yucai.negative;
     String sign(double v) => v >= 0 ? '+' : '';
     switch (a.category) {
       case AccountCategory.creditCard:
@@ -1744,7 +1744,7 @@ class _AccountCardState extends State<_AccountCard> {
       case AccountCategory.otherLiability:
         final rate = a.interestRate;
         return rate == null
-            ? const Text('可用余额', style: style)
+            ? Text('可用余额', style: style)
             : Text('利率 ${rate.toStringAsFixed(2)}%', style: style);
     }
   }
@@ -1755,13 +1755,13 @@ class _AccountCardState extends State<_AccountCard> {
         if (a.creditLimitCents <= 0) return null;
         final v = (a.currentBalanceCents.abs() / a.creditLimitCents)
             .clamp(0.0, 1.0);
-        return (v, AppColors.negative);
+        return (v, context.yucai.negative);
       case AccountCategory.loan:
         final orig = a.loanOriginalCents ?? 0;
         final remain = a.loanRemainingCents ?? 0;
         if (orig <= 0) return null;
         final v = ((orig - remain) / orig).clamp(0.0, 1.0);
-        return (v, AppColors.positive);
+        return (v, context.yucai.positive);
       default:
         return null;
     }

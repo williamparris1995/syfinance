@@ -483,7 +483,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocConsumer<TransactionFormBloc, TransactionFormState>(
         listenWhen: (prev, curr) =>
             curr is TransactionFormSuccess || curr is TransactionFormError,
@@ -528,7 +528,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                   onCancel: () => Navigator.of(context).maybePop(),
                   onSubmit: _submit,
                 ),
-                const Divider(height: 1, color: AppColors.border),
+                Divider(height: 1, color: context.yucai.border),
                 Expanded(
                   child: AbsorbPointer(
                     absorbing: submitting,
@@ -689,7 +689,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
             const SizedBox(height: AppSpacing.md),
             Text(inlineError,
                 style:
-                    const TextStyle(color: AppColors.negative, fontSize: 13)),
+                    TextStyle(color: context.yucai.negative, fontSize: 13)),
           ],
         ],
       ),
@@ -772,8 +772,8 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
         Row(
           children: [
             Text(title,
-                style: const TextStyle(
-                    color: AppColors.muted, fontSize: 12.5)),
+                style: TextStyle(
+                    color: context.yucai.muted, fontSize: 12.5)),
             const SizedBox(width: 6),
             _accountFieldTag(options),
           ],
@@ -790,15 +790,15 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             border: OutlineInputBorder(
               borderRadius: AppRadius.smBorder,
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: context.yucai.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: AppRadius.smBorder,
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: context.yucai.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: AppRadius.smBorder,
-              borderSide: const BorderSide(color: AppColors.accent),
+              borderSide: BorderSide(color: context.yucai.accent),
             ),
             hintText: hint,
           ),
@@ -838,12 +838,12 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: isAsset ? AppColors.surfaceAlt : AppColors.accentSoft,
+        color: isAsset ? context.yucai.surfaceAlt : context.yucai.accentSoft,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,
           style: TextStyle(
-              color: isAsset ? AppColors.muted : AppColors.accent,
+              color: isAsset ? context.yucai.muted : context.yucai.accent,
               fontSize: 10,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.5)),
@@ -874,10 +874,10 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
       child: Row(
         children: [
           Text('$label ',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              style: TextStyle(color: context.yucai.muted, fontSize: 12)),
           Text(_fmtCents(cents),
-              style: const TextStyle(
-                  color: AppColors.fg,
+              style: TextStyle(
+                  color: context.yucai.fg,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   fontFeatures: AppTypography.tabularFigures)),
@@ -943,17 +943,17 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   /// [Tag.color](#RRGGBB)；选中 = 实色背景 + ✓，未选 = 透明背景 + 彩色边框。
   /// _allTags 为空(ListTags 失败/无 tag)→ 整行不渲染(降级)。
   Widget _tagsChipRow() {
-    if (_allTags.isEmpty) return const SizedBox.shrink();
+    if (_allTags.isEmpty) return SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: const [
+          children: [
             Text('标签',
-                style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 12.5)),
             SizedBox(width: 6),
             Text('（可多选）',
-                style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 12)),
           ],
         ),
         const SizedBox(height: 8),
@@ -1011,9 +1011,9 @@ class _OdCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.yucai.surface,
         borderRadius: AppRadius.lgBorder,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
         boxShadow: const [
           BoxShadow(
               color: Color(0x09000000),
@@ -1044,7 +1044,7 @@ class _PageHead extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
       child: Row(
         children: [
           InkWell(
@@ -1052,16 +1052,16 @@ class _PageHead extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             child: Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Icon(LucideIcons.chevronLeft,
-                      size: 16, color: AppColors.muted),
+                      size: 16, color: context.yucai.muted),
                   SizedBox(width: 2),
                   Text('返回',
                       style:
-                          TextStyle(color: AppColors.muted, fontSize: 13)),
+                          TextStyle(color: context.yucai.muted, fontSize: 13)),
                 ],
               ),
             ),
@@ -1073,7 +1073,7 @@ class _PageHead extends StatelessWidget {
               fontWeight: FontWeight.w600,
               fontFamily: AppTypography.displayFamily,
               fontFamilyFallback: AppTypography.displayFallback,
-              color: AppColors.fg,
+              color: context.yucai.fg,
             ),
             child: Text(title),
           ),
@@ -1104,13 +1104,13 @@ class _TextBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
+          color: context.yucai.surface,
+          border: Border.all(color: context.yucai.border),
           borderRadius: AppRadius.smBorder,
         ),
         child: Text(label,
-            style: const TextStyle(
-                color: AppColors.fg, fontSize: 13.5, fontWeight: FontWeight.w500)),
+            style: TextStyle(
+                color: context.yucai.fg, fontSize: 13.5, fontWeight: FontWeight.w500)),
       ),
     );
   }
@@ -1131,8 +1131,8 @@ class _GoldSaveBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: enabled ? AppColors.accent : AppColors.accent.withValues(alpha: 0.5),
-          border: Border.all(color: AppColors.accent),
+          color: enabled ? context.yucai.accent : context.yucai.accent.withValues(alpha: 0.5),
+          border: Border.all(color: context.yucai.accent),
           borderRadius: AppRadius.smBorder,
         ),
         child: Row(
@@ -1164,8 +1164,8 @@ class _FormTypeTabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.bg,
+        border: Border.all(color: context.yucai.border),
         borderRadius: BorderRadius.circular(11),
       ),
       child: Row(
@@ -1205,11 +1205,11 @@ class _TypeTabState extends State<_TypeTab> {
   (Color, String) get _styling {
     switch (widget.type) {
       case TxnType.expense:
-        return (AppColors.negative, '花出去的钱');
+        return (context.yucai.negative, '花出去的钱');
       case TxnType.income:
-        return (AppColors.positive, '收进来的钱');
+        return (context.yucai.positive, '收进来的钱');
       case TxnType.transfer:
-        return (AppColors.accent, '账户间划转');
+        return (context.yucai.accent, '账户间划转');
     }
   }
 
@@ -1217,8 +1217,8 @@ class _TypeTabState extends State<_TypeTab> {
   Widget build(BuildContext context) {
     final (dotColor, sub) = _styling;
     final selected = widget.selected;
-    final fg = selected ? AppColors.fg : AppColors.muted;
-    final subColor = selected ? AppColors.muted : AppColors.muted;
+    final fg = selected ? context.yucai.fg : context.yucai.muted;
+    final subColor = selected ? context.yucai.muted : context.yucai.muted;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -1231,8 +1231,8 @@ class _TypeTabState extends State<_TypeTab> {
           padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
             color: selected
-                ? AppColors.surface
-                : (_hover ? AppColors.surfaceAlt : Colors.transparent),
+                ? context.yucai.surface
+                : (_hover ? context.yucai.surfaceAlt : Colors.transparent),
             borderRadius: BorderRadius.circular(8),
             boxShadow: selected
                 ? const [
@@ -1298,27 +1298,27 @@ class _HeroAmount extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.bg,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('交易金额',
+          Text('交易金额',
               style: TextStyle(
-                  color: AppColors.muted, fontSize: 12, letterSpacing: 0.6)),
+                  color: context.yucai.muted, fontSize: 12, letterSpacing: 0.6)),
           const SizedBox(height: 10),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              const Text('¥',
+              Text('¥',
                   style: TextStyle(
                       fontFamily: AppTypography.displayFamily,
                       fontFamilyFallback: AppTypography.displayFallback,
                       fontSize: 30,
-                      color: AppColors.muted)),
+                      color: context.yucai.muted)),
               Expanded(
                 child: TextFormField(
                   key: const ValueKey('hero_amount'),
@@ -1329,20 +1329,20 @@ class _HeroAmount extends StatelessWidget {
                     FilteringTextInputFormatter.allow(
                         RegExp(r'^-?\d*\.?\d*')),
                   ],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 46,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.02,
                     fontFeatures: AppTypography.tabularFigures,
-                    color: AppColors.fg,
+                    color: context.yucai.fg,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     hintText: '0.00',
                     hintStyle: TextStyle(
-                        color: AppColors.muted,
+                        color: context.yucai.muted,
                         fontSize: 46,
                         fontWeight: FontWeight.w500),
                     contentPadding: EdgeInsets.zero,
@@ -1421,21 +1421,21 @@ class _NumberedSection extends StatelessWidget {
               width: 18,
               height: 18,
               decoration: BoxDecoration(
-                color: AppColors.accentSoft,
+                color: context.yucai.accentSoft,
                 borderRadius: BorderRadius.circular(5),
               ),
               alignment: Alignment.center,
               child: Text('$number',
-                  style: const TextStyle(
-                      color: AppColors.accent,
+                  style: TextStyle(
+                      color: context.yucai.accent,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       fontFeatures: AppTypography.tabularFigures)),
             ),
             const SizedBox(width: 8),
             Text(title,
-                style: const TextStyle(
-                    color: AppColors.muted,
+                style: TextStyle(
+                    color: context.yucai.muted,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 1)),
@@ -1542,9 +1542,9 @@ class _FormJournalPreview extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.yucai.surface,
         borderRadius: AppRadius.lgBorder,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
         boxShadow: const [
           BoxShadow(
               color: Color(0x09000000), blurRadius: 20, offset: Offset(0, 6)),
@@ -1555,12 +1555,12 @@ class _FormJournalPreview extends StatelessWidget {
         children: [
           // pv-head
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.border)),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 16),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: context.yucai.border)),
             ),
             child: Row(
-              children: const [
+              children: [
                 Expanded(
                   child: Text('复式分录预览',
                       style: TextStyle(
@@ -1568,12 +1568,12 @@ class _FormJournalPreview extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           fontFamily: AppTypography.displayFamily,
                           fontFamilyFallback: AppTypography.displayFallback,
-                          color: AppColors.fg)),
+                          color: context.yucai.fg)),
                 ),
                 Text('DOUBLE-ENTRY',
                     style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.muted,
+                        color: context.yucai.muted,
                         letterSpacing: 0.5,
                         fontFeatures: AppTypography.tabularFigures)),
               ],
@@ -1581,14 +1581,14 @@ class _FormJournalPreview extends StatelessWidget {
           ),
           // pv-body：借 row + sep + 贷 row
           _PvRow(
-              side: '借', sideColor: AppColors.negative, name: drName, typeLabel: drTypeLabel, amt: amtStr),
+              side: '借', sideColor: context.yucai.negative, name: drName, typeLabel: drTypeLabel, amt: amtStr),
           const _PvSep(),
           _PvRow(
-              side: '贷', sideColor: AppColors.positive, name: crName, typeLabel: crTypeLabel, amt: amtStr),
+              side: '贷', sideColor: context.yucai.positive, name: crName, typeLabel: crTypeLabel, amt: amtStr),
           // pv-bal-strip：借方合计 / 贷方合计 两列
           Container(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.border)),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: context.yucai.border)),
             ),
             child: Row(
               children: [
@@ -1596,18 +1596,18 @@ class _FormJournalPreview extends StatelessWidget {
                   child: _BalCol(
                       label: '借方合计',
                       value: _fmtCents(totalDebit),
-                      valueColor: AppColors.negative),
+                      valueColor: context.yucai.negative),
                 ),
                 Expanded(
                   child: Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(
-                          left: BorderSide(color: AppColors.border)),
+                          left: BorderSide(color: context.yucai.border)),
                     ),
                     child: _BalCol(
                         label: '贷方合计',
                         value: _fmtCents(totalCredit),
-                        valueColor: AppColors.positive),
+                        valueColor: context.yucai.positive),
                   ),
                 ),
               ],
@@ -1616,9 +1616,9 @@ class _FormJournalPreview extends StatelessWidget {
           // pv-foot：sum 文案 + ✓ 借贷平衡
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceAlt,
-              border: Border(top: BorderSide(color: AppColors.border)),
+            decoration: BoxDecoration(
+              color: context.yucai.surfaceAlt,
+              border: Border(top: BorderSide(color: context.yucai.border)),
             ),
             child: Row(
               children: [
@@ -1627,8 +1627,8 @@ class _FormJournalPreview extends StatelessWidget {
                     '$drName +${_fmtBody(totalDebit)}　·　$crName −${_fmtBody(totalCredit)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 12.5),
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 12.5),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1639,7 +1639,7 @@ class _FormJournalPreview extends StatelessWidget {
                       width: 16,
                       height: 16,
                       decoration: BoxDecoration(
-                        color: balanced ? AppColors.positive : AppColors.negative,
+                        color: balanced ? context.yucai.positive : context.yucai.negative,
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
@@ -1653,8 +1653,8 @@ class _FormJournalPreview extends StatelessWidget {
                     Text(balanced ? '借贷平衡' : '不平衡',
                         style: TextStyle(
                             color: balanced
-                                ? AppColors.positive
-                                : AppColors.negative,
+                                ? context.yucai.positive
+                                : context.yucai.negative,
                             fontSize: 13,
                             fontWeight: FontWeight.w500)),
                   ],
@@ -1668,12 +1668,12 @@ class _FormJournalPreview extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text.rich(
+                Text.rich(
                   TextSpan(children: [
                     TextSpan(
                         text: 'account-as-category 方案A：',
                         style: TextStyle(
-                            color: AppColors.fg,
+                            color: context.yucai.fg,
                             fontSize: 12,
                             fontWeight: FontWeight.w600)),
                   ]),
@@ -1681,8 +1681,8 @@ class _FormJournalPreview extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '支出分类「$drName」本质是 Expense 类型账户。每笔交易生成一条借贷平衡的复式分录，确保资产 = 负债 + 权益始终成立。',
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 12, height: 1.6),
+                  style: TextStyle(
+                      color: context.yucai.muted, fontSize: 12, height: 1.6),
                 ),
               ],
             ),
@@ -1739,15 +1739,15 @@ class _PvRow extends StatelessWidget {
                 Text(name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.fg)),
+                        color: context.yucai.fg)),
                 if (typeLabel != null) ...[
                   const SizedBox(height: 2),
                   Text(typeLabel!,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.muted)),
+                      style: TextStyle(
+                          fontSize: 11, color: context.yucai.muted)),
                 ],
               ],
             ),
@@ -1774,7 +1774,7 @@ class _PvSep extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       height: 1,
-      color: AppColors.border,
+      color: context.yucai.border,
     );
   }
 }
@@ -1797,8 +1797,8 @@ class _BalCol extends StatelessWidget {
       child: Column(
         children: [
           Text(label,
-              style: const TextStyle(
-                  color: AppColors.muted,
+              style: TextStyle(
+                  color: context.yucai.muted,
                   fontSize: 11,
                   letterSpacing: 0.6)),
           const SizedBox(height: 3),
@@ -1823,30 +1823,30 @@ class _HintCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border), // OD dashed；Flutter 无原生虚线边框，实线近似
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border), // OD dashed；Flutter 无原生虚线边框，实线近似
         borderRadius: AppRadius.lgBorder,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(LucideIcons.lightbulb,
-              size: 16, color: AppColors.accent),
-          const SizedBox(width: 8),
+          Icon(LucideIcons.lightbulb,
+              size: 16, color: context.yucai.accent),
+          SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text('录入提示',
                     style: TextStyle(
-                        color: AppColors.fg,
+                        color: context.yucai.fg,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600)),
                 SizedBox(height: 4),
                 Text(
                   '金额支持小数与千分位；保存后该分录将自动过账至对应账户，并在月度报表与对账单中体现。',
                   style: TextStyle(
-                      color: AppColors.muted, fontSize: 12.5, height: 1.6),
+                      color: context.yucai.muted, fontSize: 12.5, height: 1.6),
                 ),
               ],
             ),

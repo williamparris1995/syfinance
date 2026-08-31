@@ -34,7 +34,7 @@ import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 
-/// 超支红(brief 指定 #c0392b,比 AppColors.negative 更暗,区分「超预算」)。
+/// 超支红(brief 指定 #c0392b,比 context.yucai.negative 更暗,区分「超预算」)。
 /// 与 budget_list_page 一致(同色)。
 const Color _kOverBudgetRed = Color(0xFFC0392B);
 
@@ -61,10 +61,10 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.fg,
+        backgroundColor: context.yucai.surface,
+        foregroundColor: context.yucai.fg,
         elevation: 0,
         leading: BackButton(onPressed: () => context.pop()),
         title: const Text('预算详情'),
@@ -99,7 +99,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(state.message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.muted)),
+                    style: TextStyle(color: context.yucai.muted)),
               ),
             );
           }
@@ -141,7 +141,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
   /// status pill + TotalActual/TotalAmount + Remaining。
   Widget _headerCard(BudgetView b) {
     final over = b.isOverBudget;
-    final ringColor = over ? _kOverBudgetRed : AppColors.accent;
+    final ringColor = over ? _kOverBudgetRed : context.yucai.accent;
     // 总进度环 value 限定 [0,1];超支满环红色。
     final rawPct = b.totalAmountCents == 0
         ? 0.0
@@ -150,7 +150,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
     final pctLabel = '${b.usagePct.toStringAsFixed(1)}%';
     final remaining = b.totalRemainingCents;
     final currency = b.currencyCode;
-    final accentColor = over ? _kOverBudgetRed : AppColors.accent;
+    final accentColor = over ? _kOverBudgetRed : context.yucai.accent;
 
     return DataCard(
       key: const ValueKey('budgetDetailHero'),
@@ -204,12 +204,12 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                                 icon: over
                                     ? LucideIcons.alertTriangle
                                     : LucideIcons.checkCircle2,
-                                color: over ? _kOverBudgetRed : AppColors.positive,
+                                color: over ? _kOverBudgetRed : context.yucai.positive,
                                 soft: true),
                             _StatusPill(
                                 label: b.month,
                                 icon: LucideIcons.calendar,
-                                color: AppColors.accent,
+                                color: context.yucai.accent,
                                 soft: true),
                           ],
                         ),
@@ -227,25 +227,25 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                                     fontWeight: FontWeight.w700,
                                     color: over
                                         ? _kOverBudgetRed
-                                        : AppColors.fg,
+                                        : context.yucai.fg,
                                     fontFeatures:
                                         AppTypography.tabularFigures),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text('/',
+                            Text('/',
                                 style: TextStyle(
                                     fontSize: 16,
-                                    color: AppColors.border,
+                                    color: context.yucai.border,
                                     fontFeatures:
                                         AppTypography.tabularFigures)),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
                                 _fmtSymbol(b.totalAmountCents, currency),
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 16,
-                                    color: AppColors.muted,
+                                    color: context.yucai.muted,
                                     fontFeatures:
                                         AppTypography.tabularFigures),
                               ),
@@ -263,7 +263,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                               decoration: BoxDecoration(
                                 color: (over
                                         ? _kOverBudgetRed
-                                        : AppColors.accent)
+                                        : context.yucai.accent)
                                     .withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(9999),
                               ),
@@ -277,7 +277,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                                       size: 12,
                                       color: over
                                           ? _kOverBudgetRed
-                                          : AppColors.accent),
+                                          : context.yucai.accent),
                                   const SizedBox(width: 4),
                                   Text(
                                     over
@@ -288,7 +288,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                                         fontWeight: FontWeight.w600,
                                         color: over
                                             ? _kOverBudgetRed
-                                            : AppColors.accent,
+                                            : context.yucai.accent,
                                         fontFeatures:
                                             AppTypography.tabularFigures),
                                   ),
@@ -325,7 +325,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.pieChart, size: 16, color: AppColors.accent),
+              Icon(LucideIcons.pieChart, size: 16, color: context.yucai.accent),
               const SizedBox(width: 8),
               const Text('分类明细',
                   style: TextStyle(
@@ -335,17 +335,17 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                       fontFamilyFallback: AppTypography.displayFallback)),
               const SizedBox(width: 8),
               Text('(${sorted.length} 项)',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 12, color: context.yucai.muted)),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
           if (sorted.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text('暂无明细条目',
-                    style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                    style: TextStyle(fontSize: 12.5, color: context.yucai.muted)),
               ),
             )
           else
@@ -353,7 +353,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
               _itemRow(sorted[i], currency, b.totalActualCents),
               if (i < sorted.length - 1) ...[
                 const SizedBox(height: 10),
-                Container(height: 1, color: AppColors.border),
+                Container(height: 1, color: context.yucai.border),
                 const SizedBox(height: 10),
               ],
             ],
@@ -368,7 +368,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
   /// 真名 lookup defer。
   Widget _itemRow(BudgetItemView item, String currency, int totalActual) {
     final over = item.isOverBudget;
-    final progressColor = over ? _kOverBudgetRed : AppColors.accent;
+    final progressColor = over ? _kOverBudgetRed : context.yucai.accent;
     final rawPct = item.plannedAmountCents == 0
         ? 0.0
         : item.actualAmountCents / item.plannedAmountCents;
@@ -430,7 +430,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                         _MetaKV(
                           k: '实际',
                           v: _fmtSymbol(item.actualAmountCents, currency),
-                          vColor: over ? _kOverBudgetRed : AppColors.fg,
+                          vColor: over ? _kOverBudgetRed : context.yucai.fg,
                         ),
                         _MetaKV(
                           k: '占比',
@@ -440,7 +440,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                           k: remaining >= 0 ? '剩余' : '超支',
                           v: _fmtSymbol(remaining.abs(), currency),
                           vColor:
-                              over ? _kOverBudgetRed : AppColors.positive,
+                              over ? _kOverBudgetRed : context.yucai.positive,
                         ),
                       ],
                     ),
@@ -474,7 +474,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
               key: const ValueKey('budgetDetailItemBar'),
               value: progressValue,
               minHeight: 7,
-              backgroundColor: AppColors.border,
+              backgroundColor: context.yucai.border,
               valueColor: AlwaysStoppedAnimation<Color>(progressColor),
             ),
           ),
@@ -586,13 +586,13 @@ class _MetaKV extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text.rich(
       TextSpan(
-        style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+        style: TextStyle(fontSize: 12.5, color: context.yucai.muted),
         children: [
           TextSpan(text: '$k '),
           TextSpan(
             text: v,
             style: TextStyle(
-                color: vColor ?? AppColors.fg,
+                color: vColor ?? context.yucai.fg,
                 fontWeight: vColor != null ? FontWeight.w600 : FontWeight.w400,
                 fontFeatures: AppTypography.tabularFigures),
           ),

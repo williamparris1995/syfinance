@@ -73,12 +73,12 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
 
   Widget _scaffold() {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: context.yucai.bg,
         elevation: 0,
         scrolledUnderElevation: 0,
-        foregroundColor: AppColors.muted,
+        foregroundColor: context.yucai.muted,
         toolbarHeight: 64,
         automaticallyImplyLeading: false,
         titleSpacing: 28,
@@ -90,20 +90,20 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                 onTap: () => context.go(_sem.listRoutePrefix),
                 child: Text(_sem.detailTopCrumb,
                     style:
-                        const TextStyle(fontSize: 13, color: AppColors.muted)),
+                        TextStyle(fontSize: 13, color: context.yucai.muted)),
               ),
               const SizedBox(width: 8),
-              const Icon(LucideIcons.chevronRight,
-                  size: 14, color: AppColors.muted),
+              Icon(LucideIcons.chevronRight,
+                  size: 14, color: context.yucai.muted),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(debt?.counterparty ?? '…',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.fg)),
+                        color: context.yucai.fg)),
               ),
             ]);
           },
@@ -121,11 +121,11 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                         : null;
                     return IconButton(
                       tooltip: '编辑',
-                      icon: const Icon(LucideIcons.pencil,
-                          size: 17, color: AppColors.muted),
+                      icon: Icon(LucideIcons.pencil,
+                          size: 17, color: context.yucai.muted),
                       style: IconButton.styleFrom(
-                        backgroundColor: AppColors.surface,
-                        side: const BorderSide(color: AppColors.border),
+                        backgroundColor: context.yucai.surface,
+                        side: BorderSide(color: context.yucai.border),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
                         minimumSize: const Size(38, 38),
@@ -140,11 +140,11 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                 const SizedBox(width: 8),
                 IconButton(
                   tooltip: '更多',
-                  icon: const Icon(LucideIcons.moreHorizontal,
-                      size: 17, color: AppColors.muted),
+                  icon: Icon(LucideIcons.moreHorizontal,
+                      size: 17, color: context.yucai.muted),
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.surface,
-                    side: const BorderSide(color: AppColors.border),
+                    backgroundColor: context.yucai.surface,
+                    side: BorderSide(color: context.yucai.border),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                     minimumSize: const Size(38, 38),
@@ -350,7 +350,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
   }
 
   Color _avatarColorFor(Debt debt) {
-    if (debt.subtype.isNotEmpty) return AppColors.accentHover;
+    if (debt.subtype.isNotEmpty) return context.yucai.accentDeep;
     final s = debt.counterparty.toLowerCase();
     if (debt.counterparty.contains('公司') ||
         debt.counterparty.contains('企业') ||
@@ -363,11 +363,11 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         debt.counterparty.contains('家人') ||
         s.contains('family') ||
         s.contains('friend')) {
-      return AppColors.positive;
+      return context.yucai.positive;
     }
     if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
-      return AppColors.negative;
+      return context.yucai.negative;
     }
-    return AppColors.muted;
+    return context.yucai.muted;
   }
 }

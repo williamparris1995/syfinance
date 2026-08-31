@@ -411,13 +411,13 @@ class _DebtFormPageState extends State<DebtFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         title: Breakpoints.of(context) == Breakpoint.mobile
             ? Text(_isEdit ? '编辑债务' : '新建债务')
             : const SizedBox.shrink(),
-        backgroundColor: AppColors.bg,
+        backgroundColor: context.yucai.bg,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
@@ -527,7 +527,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
             _isEdit
                 ? '编辑这笔债务 · 调整债权方 / 利率 / 关联账户'
                 : '记录一笔借款 · 我欠别人的钱 · 自动生成还款计划',
-            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            style: TextStyle(color: context.yucai.muted, fontSize: 13),
           ),
         ],
       ],
@@ -557,9 +557,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
             key: const ValueKey('submitButton'),
             onPressed: submitting ? null : _submit,
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.accent,
+              backgroundColor: context.yucai.accent,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.5),
+              disabledBackgroundColor: context.yucai.accent.withValues(alpha: 0.5),
             ),
             child: submitting
                 ? const SizedBox(
@@ -611,8 +611,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
         boxShadow: const [
           BoxShadow(
@@ -625,9 +625,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
           OutlinedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.fg,
-              backgroundColor: AppColors.surface,
-              side: const BorderSide(color: AppColors.border),
+              foregroundColor: context.yucai.fg,
+              backgroundColor: context.yucai.surface,
+              side: BorderSide(color: context.yucai.border),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
               padding:
@@ -642,7 +642,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
             key: const ValueKey('submitButton'),
             onPressed: _submit,
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.accent,
+              backgroundColor: context.yucai.accent,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -735,12 +735,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
         ),
       ),
       if (_isEdit)
-        const Padding(
+        Padding(
           key: ValueKey('subtypeReadonlyHint'),
           padding: EdgeInsets.only(top: 4),
           child: Text(
             '编辑模式不可更改债务类型',
-            style: TextStyle(color: AppColors.muted, fontSize: 11),
+            style: TextStyle(color: context.yucai.muted, fontSize: 11),
           ),
         ),
       // 信用卡子类型 + 无 credit_card 账户 → 提示去账户管理创建。
@@ -750,10 +750,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
           padding: const EdgeInsets.only(top: AppSpacing.sm),
           child: GestureDetector(
             onTap: _goCreateCreditCardAccount,
-            child: const Text(
+            child: Text(
               '尚未找到信用卡账户，点此去账户管理创建',
               style: TextStyle(
-                  color: AppColors.accent,
+                  color: context.yucai.accent,
                   fontSize: 12,
                   decoration: TextDecoration.underline),
             ),
@@ -770,10 +770,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // ----- 字段：信用卡信息（账单日 / 还款日 / 额度 / 年费） -----
   List<Widget> _creditCardFields() {
     return [
-      const Text('💳 信用卡信息',
+      Text('💳 信用卡信息',
           key: ValueKey('creditCardSection'),
           style: TextStyle(
-              color: AppColors.muted,
+              color: context.yucai.muted,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8)),
@@ -822,9 +822,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
             controller: _principalCtrl,
             decoration:
                 _odDec(prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 14,
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: (v) => _required(v, '借款本金'),
@@ -838,9 +838,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
             key: const ValueKey('rateField'),
             controller: _rateCtrl,
             decoration: _odDec(suffix: '%', hint: '0.0'),
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 14,
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: (v) => _required(v, '年利率'),
@@ -930,19 +930,19 @@ class _StepIndicator extends StatelessWidget {
       key: const ValueKey('stepIndicator'),
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: context.yucai.surface,
+        border: Border(bottom: BorderSide(color: context.yucai.border)),
       ),
       child: Row(
         children: [
           for (var i = 0; i < 3; i++) ...[
             _dot(i == current, i < current, _labels[i]),
             if (i < 2)
-              const Expanded(
+              Expanded(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Divider(color: AppColors.border, thickness: 1),
+                  child: Divider(color: context.yucai.border, thickness: 1),
                 ),
               ),
           ],
@@ -1013,13 +1013,13 @@ class _RadioCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
-    final cardBg = selected ? AppColors.accentSoft : AppColors.surface;
-    final cardBorder = selected ? AppColors.accent : AppColors.border;
-    final tileBg = selected ? AppColors.accent : AppColors.accentSoft;
-    final tileFg = selected ? Colors.white : AppColors.accentHover;
+    final cardBg = selected ? context.yucai.accentSoft : context.yucai.surface;
+    final cardBorder = selected ? context.yucai.accent : context.yucai.border;
+    final tileBg = selected ? context.yucai.accent : context.yucai.accentSoft;
+    final tileFg = selected ? Colors.white : context.yucai.accentDeep;
     final labelColor = disabled
-        ? AppColors.muted.withValues(alpha: 0.7)
-        : (selected ? AppColors.accentHover : AppColors.fg);
+        ? context.yucai.muted.withValues(alpha: 0.7)
+        : (selected ? context.yucai.accentDeep : context.yucai.fg);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(11),
@@ -1033,7 +1033,7 @@ class _RadioCard extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppColors.accent.withValues(alpha: 0.12),
+                    color: context.yucai.accent.withValues(alpha: 0.12),
                     blurRadius: 0,
                     spreadRadius: 3,
                   ),
@@ -1065,8 +1065,8 @@ class _RadioCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(desc!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.muted,
+                  style: TextStyle(
+                    color: context.yucai.muted,
                     fontSize: 10.5,
                     height: 1.3,
                   )),
@@ -1101,16 +1101,16 @@ class _ODField extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 7),
           child: Text.rich(
             TextSpan(
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: AppColors.fg,
+                color: context.yucai.fg,
               ),
               children: [
                 TextSpan(text: label),
                 if (required)
-                  const TextSpan(
-                      text: ' *', style: TextStyle(color: AppColors.negative)),
+                  TextSpan(
+                      text: ' *', style: TextStyle(color: context.yucai.negative)),
               ],
             ),
           ),
@@ -1120,8 +1120,8 @@ class _ODField extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(hint!,
-                style: const TextStyle(
-                    color: AppColors.muted, fontSize: 11.5, height: 1.4)),
+                style: TextStyle(
+                    color: context.yucai.muted, fontSize: 11.5, height: 1.4)),
           ),
       ],
     );
@@ -1136,33 +1136,33 @@ InputDecoration _odDec({
 }) {
   return InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(color: AppColors.muted, fontSize: 14),
+    hintStyle: TextStyle(color: AppColors.muted, fontSize: 14),
     prefixText: prefix,
-    prefixStyle: const TextStyle(
+    prefixStyle: TextStyle(
         color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 14),
     suffixText: suffix,
-    suffixStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
+    suffixStyle: TextStyle(color: AppColors.muted, fontSize: 13),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
     filled: true,
     fillColor: AppColors.surface,
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.border, width: 1),
+      borderSide: BorderSide(color: AppColors.border, width: 1),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.accent, width: 1),
+      borderSide: BorderSide(color: AppColors.accent, width: 1),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.negative, width: 1),
+      borderSide: BorderSide(color: AppColors.negative, width: 1),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.negative, width: 1),
+      borderSide: BorderSide(color: AppColors.negative, width: 1),
     ),
-    errorStyle: const TextStyle(color: AppColors.negative, fontSize: 11.5),
+    errorStyle: TextStyle(color: AppColors.negative, fontSize: 11.5),
   );
 }
 
@@ -1196,8 +1196,8 @@ class _ODDateField extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.border, width: 1),
+            color: context.yucai.surface,
+            border: Border.all(color: context.yucai.border, width: 1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -1206,13 +1206,13 @@ class _ODDateField extends StatelessWidget {
                 child: Text(
                   text,
                   style: TextStyle(
-                    color: has ? AppColors.fg : AppColors.muted,
+                    color: has ? context.yucai.fg : context.yucai.muted,
                     fontSize: 14,
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
               ),
-              const Icon(LucideIcons.calendar, size: 16, color: AppColors.muted),
+              Icon(LucideIcons.calendar, size: 16, color: context.yucai.muted),
             ],
           ),
         ),
@@ -1301,8 +1301,8 @@ class _ODFormSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
         boxShadow: const [
           BoxShadow(
@@ -1314,9 +1314,9 @@ class _ODFormSection extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.only(bottom: 14),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                  bottom: BorderSide(color: AppColors.border, width: 1)),
+                  bottom: BorderSide(color: context.yucai.border, width: 1)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -1325,7 +1325,7 @@ class _ODFormSection extends StatelessWidget {
                   width: 26,
                   height: 26,
                   decoration: BoxDecoration(
-                    color: AppColors.accent,
+                    color: context.yucai.accent,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,
@@ -1349,8 +1349,8 @@ class _ODFormSection extends StatelessWidget {
                 Expanded(
                   child: Text(sub,
                       textAlign: TextAlign.end,
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.muted)),
+                      style: TextStyle(
+                          fontSize: 12, color: context.yucai.muted)),
                 ),
               ],
             ),

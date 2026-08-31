@@ -90,7 +90,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: Column(
         children: [
           // 模块内 tab(Task 2 HoldingModuleTabs,投资目标 active 金下划线)。
@@ -167,7 +167,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
   /// page-head h1(对齐 OD v2 .page-title h1 font-display serif 26px)。
   /// 常驻顶部,sub 与统计放 _goalsFutureRegion(success 分支,需 goals 数据)。
   Widget _pageHeadTitle() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -178,7 +178,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
             fontWeight: FontWeight.w600,
             fontFamily: AppTypography.displayFamily,
             fontFamilyFallback: AppTypography.displayFallback,
-            color: AppColors.fg,
+            color: context.yucai.fg,
             height: 1.15,
             letterSpacing: 0.2,
           ),
@@ -260,7 +260,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
       return Text(
         '持仓市值 vs 目标额 · ${widget.holding.securitySymbol}',
         key: const ValueKey('goalHeaderSub'),
-        style: const TextStyle(fontSize: 13, color: AppColors.muted),
+        style: TextStyle(fontSize: 13, color: context.yucai.muted),
       );
     }
     // 跨账户合计 current(原币混合时按各自 currentCents 求和;多币种严谨换算
@@ -271,7 +271,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
     final code = widget.holding.currency ?? 'CNY';
     return DefaultTextStyle(
       key: const ValueKey('goalHeaderSub'),
-      style: const TextStyle(fontSize: 13, color: AppColors.muted, height: 1.6),
+      style: TextStyle(fontSize: 13, color: context.yucai.muted, height: 1.6),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         runSpacing: 4,
@@ -282,8 +282,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
           const Text('   ·   合计 '),
           Text(
             _fmtRaw(total, code),
-            style: const TextStyle(
-              color: AppColors.fg,
+            style: TextStyle(
+              color: context.yucai.fg,
               fontWeight: FontWeight.w600,
               fontFeatures: AppTypography.tabularFigures),
           ),
@@ -298,19 +298,19 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 22),
-        decoration: const BoxDecoration(
-          color: AppColors.surfaceAlt,
+        decoration: BoxDecoration(
+          color: context.yucai.surfaceAlt,
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
-          border: Border.fromBorderSide(BorderSide(color: AppColors.border)),
+          border: Border.fromBorderSide(BorderSide(color: context.yucai.border)),
         ),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(LucideIcons.alertCircle,
+              Icon(LucideIcons.alertCircle,
                   key: ValueKey('goalErrorIcon'),
                   size: 26,
-                  color: AppColors.negative),
+                  color: context.yucai.negative),
               const SizedBox(height: 8),
               const Text('加载失败',
                   key: ValueKey('goalErrorTitle'),
@@ -320,8 +320,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
               Text(message,
                   key: const ValueKey('goalErrorMessage'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 11.5, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 11.5, color: context.yucai.muted)),
             ],
           ),
         ),
@@ -338,32 +338,32 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 28),
-        decoration: const BoxDecoration(
-          color: AppColors.surfaceAlt,
+        decoration: BoxDecoration(
+          color: context.yucai.surfaceAlt,
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
-          border: Border.fromBorderSide(BorderSide(color: AppColors.border)),
+          border: Border.fromBorderSide(BorderSide(color: context.yucai.border)),
         ),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(LucideIcons.inbox,
+              Icon(LucideIcons.inbox,
                   key: ValueKey('goalEmptyIcon'),
                   size: 28,
-                  color: AppColors.muted),
+                  color: context.yucai.muted),
               const SizedBox(height: 8),
               Text(title,
                   key: const ValueKey('goalEmptyTitle'),
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.fg)),
+                      color: context.yucai.fg)),
               const SizedBox(height: 4),
               Text(hint,
                   key: const ValueKey('goalEmptyHint'),
                   textAlign: TextAlign.center,
                   style:
-                      const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                      TextStyle(fontSize: 11.5, color: context.yucai.muted)),
             ],
           ),
         ),
@@ -389,8 +389,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         value: '$total',
         sub: '跨账户汇总',
         cornerIcon: LucideIcons.plus,
-        cornerBg: AppColors.surfaceAlt,
-        cornerFg: AppColors.fg,
+        cornerBg: context.yucai.surfaceAlt,
+        cornerFg: context.yucai.fg,
       ),
       _statTile(
         key: const ValueKey('goalOverviewOver'),
@@ -398,8 +398,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         value: '$over',
         sub: '已达成 / 超额',
         cornerIcon: LucideIcons.check,
-        cornerBg: AppColors.positive.withValues(alpha: 0.14),
-        cornerFg: AppColors.positive,
+        cornerBg: context.yucai.positive.withValues(alpha: 0.14),
+        cornerFg: context.yucai.positive,
       ),
       _statTile(
         key: const ValueKey('goalOverviewOnTrack'),
@@ -407,8 +407,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         value: '$onTrack',
         sub: '80-100% · 按计划',
         cornerIcon: LucideIcons.activity,
-        cornerBg: AppColors.accentSoft,
-        cornerFg: AppColors.accentHover,
+        cornerBg: context.yucai.accentSoft,
+        cornerFg: context.yucai.accentDeep,
       ),
       _statTile(
         key: const ValueKey('goalOverviewBehind'),
@@ -416,8 +416,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         value: '$behind',
         sub: '需加速投入',
         cornerIcon: LucideIcons.alertTriangle,
-        cornerBg: AppColors.negative.withValues(alpha: 0.14),
-        cornerFg: AppColors.negative,
+        cornerBg: context.yucai.negative.withValues(alpha: 0.14),
+        cornerFg: context.yucai.negative,
       ),
     ];
     return LayoutBuilder(
@@ -476,27 +476,27 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(label,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 12, color: context.yucai.muted)),
                 const SizedBox(height: 7),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
                     value,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.3,
-                      color: AppColors.fg,
+                      color: context.yucai.fg,
                       fontFeatures: AppTypography.tabularFigures,
                     ),
                   ),
                 ),
                 const SizedBox(height: 5),
                 Text(sub,
-                    style: const TextStyle(
-                        fontSize: 11.5, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11.5, color: context.yucai.muted)),
               ],
             ),
           ),
@@ -540,8 +540,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
     final isBehind = g.progressPct < 80;
     // 进度条 / pct 染色:落后红 / 超目标绿 / 进行中金(对齐 OD .g-fill/.g-pct)。
     final progressColor = isOver
-        ? AppColors.positive
-        : (isBehind ? AppColors.negative : AppColors.accent);
+        ? context.yucai.positive
+        : (isBehind ? context.yucai.negative : context.yucai.accent);
 
     return DataCard(
       key: ValueKey('goalRow-${g.id}'),
@@ -559,11 +559,11 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: AppColors.accentSoft,
+                  color: context.yucai.accentSoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(LucideIcons.target,
-                    size: 19, color: AppColors.accentHover),
+                child: Icon(LucideIcons.target,
+                    size: 19, color: context.yucai.accentDeep),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -575,18 +575,18 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         key: ValueKey('goalRowName-${g.id}'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                           fontFamily: AppTypography.displayFamily,
                           fontFamilyFallback: AppTypography.displayFallback,
-                          color: AppColors.fg,
+                          color: context.yucai.fg,
                         )),
                     const SizedBox(height: 2),
                     Text(
                       _goalCardSub(g),
-                      style: const TextStyle(
-                          fontSize: 11.5, color: AppColors.muted),
+                      style: TextStyle(
+                          fontSize: 11.5, color: context.yucai.muted),
                     ),
                   ],
                 ),
@@ -604,14 +604,14 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                 label: '当前市值',
                 value: _fmtRaw(g.currentCents, code),
                 valueKey: ValueKey('goalRowCurrent-${g.id}'),
-                valueColor: AppColors.fg,
+                valueColor: context.yucai.fg,
               ),
               const SizedBox(width: 24),
               _amtCell(
                 label: '目标额',
                 value: _fmtRaw(g.targetCents, code),
                 valueKey: ValueKey('goalRowTarget-${g.id}'),
-                valueColor: AppColors.muted,
+                valueColor: context.yucai.muted,
               ),
               const Spacer(),
               // 大百分比(对齐 OD .g-pct mono 15 w700,落后红/超目标绿/进行中金)。
@@ -632,7 +632,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
               key: ValueKey('goalRowBar-${g.id}'),
               value: (pct / 100).clamp(0.0, 1.0),
               minHeight: 10,
-              backgroundColor: AppColors.surfaceAlt,
+              backgroundColor: context.yucai.surfaceAlt,
               valueColor: AlwaysStoppedAnimation<Color>(progressColor),
             ),
           ),
@@ -643,18 +643,18 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
             Row(
               children: [
                 if (_hasHolding) ...[
-                  const Icon(LucideIcons.pieChart,
-                      size: 11, color: AppColors.muted),
+                  Icon(LucideIcons.pieChart,
+                      size: 11, color: context.yucai.muted),
                   const SizedBox(width: 4),
                   Text('${widget.holding.securitySymbol} 贡献 ',
-                      style: const TextStyle(
-                          fontSize: 10.5, color: AppColors.muted)),
+                      style: TextStyle(
+                          fontSize: 10.5, color: context.yucai.muted)),
                   Text('$contributionPct%',
                       key: ValueKey('goalRowContribution-${g.id}'),
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.accent)),
+                          color: context.yucai.accent)),
                   const SizedBox(width: 6),
                 ],
                 if (g.isCompleted)
@@ -662,14 +662,14 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
-                      color: AppColors.positive.withValues(alpha: 0.12),
+                      color: context.yucai.positive.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text('已完成',
+                    child: Text('已完成',
                         style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.positive)),
+                            color: context.yucai.positive)),
                   ),
               ],
             ),
@@ -696,10 +696,10 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
   /// 超目标≥100% → 绿;落后<80% → 红;进行中 80-100% → 金。
   Widget _statusBadge({required bool isOver, required bool isBehind}) {
     final (label, bg, fg) = isOver
-        ? ('超目标', AppColors.positive.withValues(alpha: 0.14), AppColors.positive)
+        ? ('超目标', context.yucai.positive.withValues(alpha: 0.14), context.yucai.positive)
         : isBehind
-            ? ('落后', AppColors.negative.withValues(alpha: 0.14), AppColors.negative)
-            : ('进行中', AppColors.accentSoft, AppColors.accentHover);
+            ? ('落后', context.yucai.negative.withValues(alpha: 0.14), context.yucai.negative)
+            : ('进行中', context.yucai.accentSoft, context.yucai.accentDeep);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
@@ -724,7 +724,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label,
-            style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+            style: TextStyle(fontSize: 11, color: context.yucai.muted)),
         const SizedBox(height: 3),
         Text(value,
             key: valueKey,
@@ -754,7 +754,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.link, size: 14, color: AppColors.accent),
+              Icon(LucideIcons.link, size: 14, color: context.yucai.accent),
               const SizedBox(width: 6),
               const Text('同账户持仓',
                   style: TextStyle(
@@ -767,14 +767,14 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.positive.withValues(alpha: 0.12),
+                  color: context.yucai.positive.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(9999),
                 ),
-                child: const Text('✅ holdings',
+                child: Text('✅ holdings',
                     style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.positive)),
+                        color: context.yucai.positive)),
               ),
             ],
           ),
@@ -782,7 +782,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
           Text(
             '账户 ${widget.holding.accountId} 下的持仓(account 级 goal 自动归属)',
             key: const ValueKey('pickerHint'),
-            style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
+            style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
           ),
           const SizedBox(height: 12),
           if (sameAccount.isEmpty)
@@ -797,23 +797,23 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
   Widget _pickerEmpty() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 22),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceAlt,
+      decoration: BoxDecoration(
+        color: context.yucai.surfaceAlt,
         borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
-        border: Border.fromBorderSide(BorderSide(color: AppColors.border)),
+        border: Border.fromBorderSide(BorderSide(color: context.yucai.border)),
       ),
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.briefcase,
                 key: ValueKey('pickerEmptyIcon'),
                 size: 22,
-                color: AppColors.muted),
+                color: context.yucai.muted),
             SizedBox(height: 6),
             Text('该账户暂无持仓',
                 key: ValueKey('pickerEmptyTitle'),
-                style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                style: TextStyle(fontSize: 12.5, color: context.yucai.muted)),
           ],
         ),
       ),
@@ -838,8 +838,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
   Widget _holdingRow(Holding h) {
     final code = h.currency ?? 'CNY';
     final typeColor = h.securityType != null
-        ? (kHoldingTypeColors[h.securityType!] ?? AppColors.accent)
-        : AppColors.accent;
+        ? (kHoldingTypeColors[h.securityType!] ?? context.yucai.accent)
+        : context.yucai.accent;
     final typeLabel = h.securityType != null
         ? (kHoldingTypeLabels[h.securityType!] ?? '')
         : '';
@@ -848,9 +848,9 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
       key: ValueKey('holdingRow-${h.id}'),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: context.yucai.surfaceAlt,
         border: Border.all(
-            color: isCurrent ? AppColors.accent : AppColors.border),
+            color: isCurrent ? context.yucai.accent : context.yucai.border),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
@@ -885,14 +885,14 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
-                          color: AppColors.accentSoft,
+                          color: context.yucai.accentSoft,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text('当前',
+                        child: Text('当前',
                             style: TextStyle(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.accentHover)),
+                                color: context.yucai.accentDeep)),
                       ),
                     ],
                   ],
@@ -901,8 +901,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                 Text(h.securityName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 11.5, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11.5, color: context.yucai.muted)),
               ],
             ),
           ),
@@ -916,8 +916,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                       fontWeight: FontWeight.w600,
                       fontFeatures: AppTypography.tabularFigures)),
               Text(code,
-                  style: const TextStyle(
-                      fontSize: 10.5, color: AppColors.muted)),
+                  style: TextStyle(
+                      fontSize: 10.5, color: context.yucai.muted)),
             ],
           ),
         ],
@@ -932,19 +932,19 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
+        color: context.yucai.accentSoft,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         key: const ValueKey('apiNote'),
         children: [
-          const Icon(LucideIcons.info, size: 14, color: AppColors.accent),
+          Icon(LucideIcons.info, size: 14, color: context.yucai.accent),
           const SizedBox(width: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             decoration: BoxDecoration(
-              color: AppColors.accent,
+              color: context.yucai.accent,
               borderRadius: BorderRadius.circular(4),
             ),
             child: const Text('account 级',
@@ -954,10 +954,10 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
                     color: Colors.white)),
           ),
           const SizedBox(width: 6),
-          const Expanded(
+          Expanded(
             child: Text(
               'goal.linked_account_id 关联投资账户,progress 由 server 按 Σ 该账户 holdings mv 计算;贡献占比 = holding.mv / goal.target。',
-              style: TextStyle(fontSize: 11.5, color: AppColors.fg),
+              style: TextStyle(fontSize: 11.5, color: context.yucai.fg),
             ),
           ),
         ],
@@ -974,15 +974,15 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.alertCircle,
-                size: 40, color: AppColors.negative),
+            Icon(LucideIcons.alertCircle,
+                size: 40, color: context.yucai.negative),
             const SizedBox(height: 12),
             const Text('加载失败',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                style: TextStyle(color: context.yucai.muted, fontSize: 13)),
           ],
         ),
       ),
@@ -1013,7 +1013,7 @@ class _GoalLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DataCard(
+    return DataCard(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 28),
       child: Center(
         child: Column(
@@ -1024,7 +1024,7 @@ class _GoalLoading extends StatelessWidget {
             SizedBox(height: 10),
             Text('加载投资目标…',
                 key: ValueKey('goalLoadingText'),
-                style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                style: TextStyle(fontSize: 12, color: context.yucai.muted)),
           ],
         ),
       ),

@@ -112,10 +112,10 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.fg,
+        backgroundColor: context.yucai.surface,
+        foregroundColor: context.yucai.fg,
         elevation: 0,
         leading: BackButton(onPressed: () => context.pop()),
         title: const Text('目标详情'),
@@ -157,7 +157,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(state.message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.muted)),
+                    style: TextStyle(color: context.yucai.muted)),
               ),
             );
           }
@@ -182,7 +182,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                       icon: const Icon(LucideIcons.coins, size: 16),
                       label: const Text('记一笔贡献'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.accent,
+                        backgroundColor: context.yucai.accent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -196,7 +196,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                       icon: const Icon(LucideIcons.checkCircle2, size: 16),
                       label: const Text('标记完成'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.positive,
+                        backgroundColor: context.yucai.positive,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -264,11 +264,11 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
         daysLeft <= 90 &&
         ringValue < 0.7;
     final ringColor = g.isCompleted
-        ? AppColors.positive
-        : (isUrgent ? AppColors.negative : meta.color);
+        ? context.yucai.positive
+        : (isUrgent ? context.yucai.negative : meta.color);
     final accentColor = g.isCompleted
-        ? AppColors.positive
-        : (isUrgent ? AppColors.negative : AppColors.accent);
+        ? context.yucai.positive
+        : (isUrgent ? context.yucai.negative : context.yucai.accent);
 
     final remaining = g.remainingCents > 0 ? g.remainingCents : 0;
 
@@ -338,8 +338,8 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                                   ? _fmtSymbol(g.targetAmountCents, currency)
                                   : _fmtSymbol(remaining, currency),
                               vColor: g.isCompleted
-                                  ? AppColors.positive
-                                  : AppColors.fg,
+                                  ? context.yucai.positive
+                                  : context.yucai.fg,
                             ),
                           ],
                         ),
@@ -350,8 +350,8 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                   // 底部:deadline 倒计时。
                   Row(
                     children: [
-                      const Icon(LucideIcons.calendar,
-                          size: 13, color: AppColors.muted),
+                      Icon(LucideIcons.calendar,
+                          size: 13, color: context.yucai.muted),
                       const SizedBox(width: 4),
                       Text(
                         _deadlineText(g, daysLeft),
@@ -359,7 +359,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                         style: TextStyle(
                             fontSize: 12,
                             color:
-                                isUrgent ? AppColors.negative : AppColors.muted,
+                                isUrgent ? context.yucai.negative : context.yucai.muted,
                             fontWeight: isUrgent
                                 ? FontWeight.w600
                                 : FontWeight.w400),
@@ -397,11 +397,11 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                   fontFamilyFallback: AppTypography.displayFallback)),
           const SizedBox(height: AppSpacing.xs),
           if (empty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text('暂无关联',
-                    style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                    style: TextStyle(fontSize: 12.5, color: context.yucai.muted)),
               ),
             )
           else
@@ -420,7 +420,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                         icon: LucideIcons.wallet,
                         label: '关联账户',
                         name: accountMap[id] ?? '账户 #$id',
-                        iconColor: AppColors.accent,
+                        iconColor: context.yucai.accent,
                       ),
                     for (final id in debts)
                       _LinkedRow(
@@ -428,7 +428,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                         icon: LucideIcons.creditCard,
                         label: '关联债务',
                         name: debtMap[id] ?? '债务 #$id',
-                        iconColor: AppColors.negative,
+                        iconColor: context.yucai.negative,
                       ),
                   ],
                 );
@@ -451,7 +451,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.trendingUp, size: 16, color: AppColors.muted),
+              Icon(LucideIcons.trendingUp, size: 16, color: context.yucai.muted),
               const SizedBox(width: 6),
               const Text('目标进度趋势',
                   style: TextStyle(
@@ -464,15 +464,15 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.accentSoft,
+                  color: context.yucai.accentSoft,
                   borderRadius: BorderRadius.circular(9999),
                 ),
-                child: const Text('近 30 天',
+                child: Text('近 30 天',
                     key: ValueKey('goalDetailTrendBadge'),
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.accent)),
+                        color: context.yucai.accent)),
               ),
             ],
           ),
@@ -640,13 +640,13 @@ class _TrendChart extends StatelessWidget {
                       points[i].currentAmountCents.toDouble()),
               ],
               isCurved: true,
-              color: AppColors.accent, // 御财金
+              color: context.yucai.accent, // 御财金
               barWidth: 1.8,
               isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppColors.accent.withValues(alpha: 0.16),
+                color: context.yucai.accent.withValues(alpha: 0.16),
               ),
             ),
           ],
@@ -701,22 +701,22 @@ class _TrendEmpty extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: context.yucai.surfaceAlt,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border:
-            Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+            Border.all(color: context.yucai.border.withValues(alpha: 0.7)),
       ),
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.trendingUp, size: 22, color: AppColors.muted),
+            Icon(LucideIcons.trendingUp, size: 22, color: context.yucai.muted),
             SizedBox(height: 6),
             Text('暂无趋势数据',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             SizedBox(height: 2),
             Text('(scheduler 每日记录)',
-                style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                style: TextStyle(fontSize: 11.5, color: context.yucai.muted)),
           ],
         ),
       ),
@@ -757,13 +757,13 @@ class _MetaKV extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text.rich(
       TextSpan(
-        style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+        style: TextStyle(fontSize: 12.5, color: context.yucai.muted),
         children: [
           TextSpan(text: '$k '),
           TextSpan(
             text: v,
             style: TextStyle(
-                color: vColor ?? AppColors.fg,
+                color: vColor ?? context.yucai.fg,
                 fontWeight: vColor != null ? FontWeight.w600 : FontWeight.w400,
                 fontFeatures: AppTypography.tabularFigures),
           ),
@@ -811,7 +811,7 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color =
-        isCompleted ? AppColors.positive : (isUrgent ? AppColors.negative : AppColors.accent);
+        isCompleted ? context.yucai.positive : (isUrgent ? context.yucai.negative : context.yucai.accent);
     final icon =
         isCompleted ? LucideIcons.checkCircle2 : (isUrgent ? LucideIcons.alertTriangle : LucideIcons.trendingUp);
     final label = isCompleted ? '已完成' : (isUrgent ? '落后' : '进行中');
@@ -870,8 +870,8 @@ class _LinkedRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.muted)),
+                    style: TextStyle(
+                        fontSize: 11, color: context.yucai.muted)),
                 Text(name,
                     style: const TextStyle(
                         fontSize: 13.5, fontWeight: FontWeight.w600)),

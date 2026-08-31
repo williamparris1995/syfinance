@@ -32,8 +32,8 @@ class PageHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle!,
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 14),
+                  style: TextStyle(
+                      color: context.yucai.muted, fontSize: 14),
                 ),
               ],
             ],
@@ -74,7 +74,7 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton> {
       child: FilledButton.icon(
         onPressed: widget.onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: _hover ? AppColors.accentHover : AppColors.accent,
+          backgroundColor: _hover ? context.yucai.accentDeep : context.yucai.accent,
           padding:
               const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           shape: const RoundedRectangleBorder(

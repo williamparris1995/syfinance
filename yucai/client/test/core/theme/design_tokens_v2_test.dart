@@ -109,4 +109,51 @@ void main() {
       expect(AppRadius.xl, 24.0);
     });
   });
+
+  group('context.yucai follows the ambient theme (F4 dark-awareness)', () {
+    testWidgets('reads dark tokens under AppTheme.dark()', (tester) async {
+      YucaiTheme? captured;
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Builder(
+          builder: (context) {
+            captured = context.yucai;
+            return const SizedBox.shrink();
+          },
+        ),
+      ));
+      expect(captured, isNotNull);
+      expect(captured!.bg, const Color(0xFF0B0E13));
+      expect(captured!.accent, const Color(0xFFE8C07A));
+    });
+
+    testWidgets('reads light tokens under AppTheme.light()', (tester) async {
+      YucaiTheme? captured;
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (context) {
+            captured = context.yucai;
+            return const SizedBox.shrink();
+          },
+        ),
+      ));
+      expect(captured!.bg, const Color(0xFFF8FAFC));
+      expect(captured!.accent, const Color(0xFF059669));
+    });
+
+    testWidgets('falls back to light tokens under a bare MaterialApp '
+        '(test harnesses mounting pages without AppTheme)', (tester) async {
+      YucaiTheme? captured;
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) {
+            captured = context.yucai;
+            return const SizedBox.shrink();
+          },
+        ),
+      ));
+      expect(captured, YucaiTheme.light());
+    });
+  });
 }
