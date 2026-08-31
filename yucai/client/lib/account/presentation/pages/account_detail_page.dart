@@ -830,7 +830,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     const iconSpecs = <(Color, Color, IconData)>[
       (Color(0xFFE1EFE8), AppColors.positive, LucideIcons.trendingUp),
       (Color(0xFFF6E3E1), AppColors.negative, LucideIcons.trendingDown),
-      (Color(0xFFF3ECDD), AppColors.accent, LucideIcons.wallet),
+      (AppColors.accentSoft, AppColors.accent, LucideIcons.wallet),
       (Color(0xFFE3ECF7), Color(0xFF3B6FB0), LucideIcons.fileText),
     ];
     // OD .stat-row：>900 4 列 / ≤900 2 列（gap 14）。
@@ -1787,8 +1787,8 @@ class _TxnTypeIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = switch (flavour) {
-      TxnFlavour.income => const Color(0xFF2D8A6E),
-      TxnFlavour.expense => const Color(0xFFC4544D),
+      TxnFlavour.income => AppColors.positive,
+      TxnFlavour.expense => AppColors.negative,
       TxnFlavour.transfer => const Color(0xFF8A8B8F),
       TxnFlavour.compound => const Color(0xFF8A8B8F),
     };

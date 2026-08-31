@@ -140,10 +140,14 @@ void main() {
         .thenAnswer((_) async => dartz.Right([_account()]));
 
     // Transaction list scoped to this account.
+    // Issue ② 后 4th 卡「交易数」按当前 scope(默认 month)过滤 —— 夹具
+    // 用当月日期保证 count=2 确定性(固定旧日期会随时间腐烂,正是本测试
+    // 此前 drift 的原因)。
+    final now = DateTime.now();
     when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
         ListTransactionsResult(transactions: [
-              _txn('t1', DateTime(2026, 6, 19)),
-              _txn('t2', DateTime(2026, 6, 18)),
+              _txn('t1', DateTime(now.year, now.month, 19)),
+              _txn('t2', DateTime(now.year, now.month, 18)),
             ], nextPageToken: '')));
     // MonthlySummary scoped to this account (Task 5.1 accountId scope).
     when(() => txnRepo.summary(any(), any(),

@@ -151,16 +151,20 @@ void main() {
   const tablet = Size(900, 1200);
   const mobile = Size(390, 844);
 
+  // 相对 now 的未来日期(期次/逾期状态由“日期 vs now”判定)。
+  final _r1Date = DateTime.now().add(const Duration(days: 16));
+  String _ymd(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   final receivables = [
     _debt(
       id: 'r1',
       counterparty: '张三',
       interestRate: 0.00,
       amortization: AmortizationMethod.equalPrincipal,
-      dueDate: DateTime(2026, 8, 15),
+      dueDate: _r1Date,
       totalPrincipalCents: 5000000, // 5 万
       remainingPrincipalCents: 3000000, // 剩 3 万 → 已收 40%
-      nextPaymentDate: DateTime(2026, 8, 15),
+      nextPaymentDate: _r1Date,
       nextPaymentAmountCents: 250000,
       nextPaymentPeriodNo: 5,
     ),
@@ -263,7 +267,7 @@ void main() {
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(receivables));
     await t.pumpAndSettle();
-    // r1 有 nextPayment(第 5 期 · 2026-08-15 · ¥2,500.00)→ foot callout 渲染。
+    // r1 有 nextPayment(第 5 期 · _r1Date · ¥2,500.00)→ foot callout 渲染。
     expect(find.textContaining('下次收款'), findsWidgets);
     expect(find.textContaining('第 5 期'), findsOneWidget);
     expect(find.textContaining('¥2,500.00'), findsOneWidget);
@@ -312,7 +316,7 @@ void main() {
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     final mixed = [
-      ...receivables, // r1 张三(到期 2026-08-15 未来)/ r2 李四(到期 2027 未来)
+      ...receivables, // r1 张三 / r2 李四(到期均为未来,见 _r1Date 注释)
       _debt(
         id: 's1',
         counterparty: '赵六',
@@ -346,13 +350,16 @@ void main() {
     }
     // 默认进行中 → 王五(逾期但未结清)仍显示(进行中 = !settled)。
     expect(find.text('王五'), findsOneWidget);
-    // 切「逾期」→ 只王五,张三/李四/赵六 排除。
+    // 切「逾期」→ 列表只王五,张三/李四/赵六 排除。断言 scoped 到列表
+    // 容器:overview 的「下次收款」callout 由 summary 驱动、按设计不随
+    // 筛选变化(此前的全局 findsNothing 正是 drift 主因)。
     await t.tap(find.byKey(const ValueKey('listFilter-逾期')));
     await t.pumpAndSettle();
-    expect(find.text('王五'), findsOneWidget);
-    expect(find.text('张三'), findsNothing);
-    expect(find.text('李四'), findsNothing);
-    expect(find.text('赵六'), findsNothing);
+    final list = find.byKey(const ValueKey('debtListItems'));
+    expect(find.descendant(of: list, matching: find.text('王五')), findsOneWidget);
+    expect(find.descendant(of: list, matching: find.text('张三')), findsNothing);
+    expect(find.descendant(of: list, matching: find.text('李四')), findsNothing);
+    expect(find.descendant(of: list, matching: find.text('赵六')), findsNothing);
   });
 
   testWidgets('receivable card: 债务人 + 剩余应收 + 利率 + 到期', (t) async {
@@ -367,7 +374,7 @@ void main() {
     expect(find.textContaining('剩余应收'), findsWidgets);
     expect(find.textContaining('0.00%'), findsOneWidget);
     expect(find.textContaining('8.00%'), findsOneWidget);
-    expect(find.textContaining('2026-08-15'), findsWidgets);
+    expect(find.textContaining(_ymd(_r1Date)), findsWidgets);
     expect(find.textContaining('2027-02-15'), findsOneWidget);
   });
 

@@ -83,7 +83,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF7F6F2),
+        backgroundColor: AppColors.bg,
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: AppColors.muted,

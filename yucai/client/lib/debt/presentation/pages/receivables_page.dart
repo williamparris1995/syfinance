@@ -209,6 +209,9 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
                 )
               else
                 Column(
+                  // key 供测试把列表断言与 overview callout(summary 驱动,
+                  // 不随筛选变化)区分开。
+                  key: const ValueKey('debtListItems'),
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (var i = 0; i < filtered.length; i++) ...[

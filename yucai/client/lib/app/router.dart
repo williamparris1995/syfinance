@@ -325,16 +325,12 @@ GoRouter buildRouter(
                 // 对齐 receivables 分支的 borrowedOut 过滤）。
                 builder: (_, __) => MultiBlocProvider(
                   providers: [
-                    BlocProvider<DebtBloc>(
-                      // getIt 单例(user-acceptance 修复):与 /debts/new 表单
-                      // 共享实例——表单创建成功的 LoadDebtsRequested 直接刷新
-                      // 本列表(此前兄弟路由独立 provide,新债不显示)。
-                      create: (_) {
-                        final b = getIt<DebtBloc>();
-                        b.add(const LoadDebtsRequested(
-                            typeFilter: DebtType.borrowedIn));
-                        return b;
-                      },
+                    // 共享单例必须用 .value:create: 会让 provider 拥有并 close
+                    // 单例 → 切页返回时 Bad state:Cannot add new events after
+                    // calling close(列表页 initState/didChangeDependencies 自
+                    // 行 dispatch LoadDebtsRequested,无需路由播种)。
+                    BlocProvider<DebtBloc>.value(
+                      value: getIt<DebtBloc>(),
                     ),
                     // DebtsPage._content 用 CurrencyBloc 做总计换算(toPreferred),
                     // 需 provide(对齐 /accounts MultiBlocProvider)。
@@ -355,9 +351,9 @@ GoRouter buildRouter(
                     // 表单页 context.read<DebtBloc>() 触发 CreateDebtRequested，
                     // 嵌套路由是 /debts 的兄弟子树（非 DebtsPage 子节点），
                     // 不能继承 /debts builder 的 BlocProvider，故这里独立 provide。
-                    builder: (_, __) => BlocProvider<DebtBloc>(
-                      // getIt 单例:与 /debts 列表同实例,创建成功即刷新列表。
-                      create: (_) => getIt<DebtBloc>(),
+                    builder: (_, __) => BlocProvider<DebtBloc>.value(
+                      // 共享单例(.value,不被 provider close):创建成功即刷新列表。
+                      value: getIt<DebtBloc>(),
                       child: const DebtFormPage(),
                     ),
                   ),

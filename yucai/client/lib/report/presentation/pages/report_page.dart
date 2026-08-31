@@ -246,7 +246,7 @@ class _ReportTopBar extends StatelessWidget {
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       // 对齐 shell _TopBar 底色（OD .topbar rgba(247,246,242,.85)）。
-      color: const Color(0xFFF7F6F2).withValues(alpha: 0.85),
+      color: AppColors.bg.withValues(alpha: 0.85),
       child: Row(children: [
         IconButton(
           tooltip: '返回',

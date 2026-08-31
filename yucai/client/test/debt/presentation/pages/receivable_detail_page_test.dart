@@ -93,6 +93,14 @@ PaymentEntry _entry({
       transactionId: paid ? 'tx-$id' : '',
     );
 
+/// 期次状态(待收/逾期)由“日期 vs now”判定:固定日期会随时间腐烂
+/// (e4 2026-07-15 写作“待收”,8 月后已真实逾期 → 此前 drift 主因)。
+/// 未来期次一律用相对 now 的日期,保证确定性。
+final _e4Date = DateTime.now().add(const Duration(days: 30));
+final _e5Date = DateTime.now().add(const Duration(days: 60));
+String _ymd(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
 DebtDetail _detail({
   Debt? debt,
   List<PaymentEntry>? schedule,
@@ -117,16 +125,16 @@ DebtDetail _detail({
         principalCents: 819400,
         interestCents: 50500,
         paid: false),
-    // 待收：日期晚于 now。
+    // 待收：日期晚于 now(相对日期,防时间腐烂)。
     _entry(
         id: 'e4',
-        paymentDate: DateTime(2026, 7, 15),
+        paymentDate: _e4Date,
         principalCents: 824800,
         interestCents: 45000,
         paid: false),
     _entry(
         id: 'e5',
-        paymentDate: DateTime(2026, 8, 15),
+        paymentDate: _e5Date,
         principalCents: 830300,
         interestCents: 39500,
         paid: false),
@@ -262,9 +270,14 @@ void main() {
       // 已收合计 = (803200+66600)+(808500+61300) = 1,739,600 → ¥17,396.00
       expect(find.textContaining('已收合计'), findsOneWidget);
       expect(find.textContaining('¥17,396.00'), findsOneWidget);
-      // 待收合计 = 869900+869800+869800 = 2,609,500 → ¥26,095.00
+      // 待收合计 = e3+e4+e5 本息合计 → 卡值;金额与 schedule 未收合计等
+      // 他处重值,scoped 到 statsRow 断言。
       expect(find.textContaining('待收合计'), findsOneWidget);
-      expect(find.textContaining('¥26,095.00'), findsOneWidget);
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('statsRow')),
+              matching: find.textContaining('¥26,095.00')),
+          findsOneWidget);
       // 累计利息收入 = 66600+61300 = 127,900 → ¥1,279.00
       //   (stat value + 已收合计 sub "利息 ¥1,279.00" → 多处)
       expect(find.textContaining('累计利息收入'), findsOneWidget);
@@ -290,7 +303,13 @@ void main() {
       expect(find.text('利息收入', skipOffstage: false), findsWidgets);
       expect(find.text('合计', skipOffstage: false), findsWidgets);
       // 5 期日期均渲染
-      for (final d in ['2026-03-15', '2026-04-15', '2026-06-15', '2026-07-15']) {
+      for (final d in [
+        '2026-03-15',
+        '2026-04-15',
+        '2026-06-15',
+        _ymd(_e4Date),
+        _ymd(_e5Date),
+      ]) {
         expect(find.textContaining(d, skipOffstage: false), findsWidgets);
       }
       // 状态 badges：已收 / 待收 / 逾期
@@ -328,7 +347,7 @@ void main() {
         scrollable: pageScrollable(),
       );
       expect(find.textContaining('2026-03-15'), findsOneWidget);
-      expect(find.textContaining('2026-07-15'), findsWidgets);
+      expect(find.textContaining(_ymd(_e4Date)), findsWidgets);
     });
   });
 
@@ -366,7 +385,8 @@ void main() {
       expect(find.textContaining('2026-03-15', skipOffstage: false), findsWidgets);
       expect(find.textContaining('2026-04-15', skipOffstage: false), findsWidgets);
       expect(find.textContaining('2026-06-15', skipOffstage: false), findsNothing);
-      expect(find.textContaining('2026-07-15', skipOffstage: false), findsNothing);
+      expect(find.textContaining(_ymd(_e4Date), skipOffstage: false), findsNothing);
+      expect(find.textContaining(_ymd(_e5Date), skipOffstage: false), findsNothing);
     });
 
     testWidgets('tap 逾期 → 仅显示 1 逾期期次', (t) async {
@@ -383,7 +403,8 @@ void main() {
       // 逾期 = e3(2026-06-15)1 期;其他期次日期不出现。
       expect(find.textContaining('2026-06-15', skipOffstage: false), findsWidgets);
       expect(find.textContaining('2026-03-15', skipOffstage: false), findsNothing);
-      expect(find.textContaining('2026-07-15', skipOffstage: false), findsNothing);
+      expect(find.textContaining(_ymd(_e4Date), skipOffstage: false), findsNothing);
+      expect(find.textContaining(_ymd(_e5Date), skipOffstage: false), findsNothing);
     });
   });
 

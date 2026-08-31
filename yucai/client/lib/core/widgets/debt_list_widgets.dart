@@ -958,7 +958,7 @@ class DebtListOverviewCard extends StatelessWidget {
   /// 收减少是好事)。与 detail hero delta 同向(减少=绿)。
   Widget _trendLine(int cents, int newCount) {
     final isDown = cents < 0; // 减少 = 绿
-    final color = isDown ? AppColors.positive : const Color(0xFFC4544D);
+    final color = isDown ? AppColors.positive : AppColors.negative;
     final sign = isDown ? '-' : '+';
     final abs = cents.abs();
     return Text.rich(
