@@ -838,12 +838,12 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: isAsset ? const Color(0xFFEEF0F3) : AppColors.accentSoft,
+        color: isAsset ? AppColors.surfaceAlt : AppColors.accentSoft,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,
           style: TextStyle(
-              color: isAsset ? const Color(0xFF56606B) : AppColors.accent,
+              color: isAsset ? AppColors.muted : AppColors.accent,
               fontSize: 10,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.5)),
@@ -953,7 +953,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                 style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
             SizedBox(width: 6),
             Text('（可多选）',
-                style: TextStyle(color: Color(0xFFA8A298), fontSize: 12)),
+                style: TextStyle(color: AppColors.muted, fontSize: 12)),
           ],
         ),
         const SizedBox(height: 8),
@@ -1218,7 +1218,7 @@ class _TypeTabState extends State<_TypeTab> {
     final (dotColor, sub) = _styling;
     final selected = widget.selected;
     final fg = selected ? AppColors.fg : AppColors.muted;
-    final subColor = selected ? AppColors.muted : const Color(0xFFA8A298);
+    final subColor = selected ? AppColors.muted : AppColors.muted;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -1342,7 +1342,7 @@ class _HeroAmount extends StatelessWidget {
                     focusedBorder: InputBorder.none,
                     hintText: '0.00',
                     hintStyle: TextStyle(
-                        color: Color(0xFFA8A298),
+                        color: AppColors.muted,
                         fontSize: 46,
                         fontWeight: FontWeight.w500),
                     contentPadding: EdgeInsets.zero,

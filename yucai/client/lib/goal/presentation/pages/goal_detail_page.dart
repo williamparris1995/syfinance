@@ -701,7 +701,7 @@ class _TrendEmpty extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFAF6),
+        color: AppColors.surfaceAlt,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border:
             Border.all(color: AppColors.border.withValues(alpha: 0.7)),

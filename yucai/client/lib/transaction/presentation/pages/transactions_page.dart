@@ -997,8 +997,8 @@ class _CategoryChip extends StatelessWidget {
     final isIncomeType = account!.accountType == AccountType.income;
     final isExpenseType = account!.accountType == AccountType.expense;
     final fg = isIncomeType
-        ? const Color(0xFF236B56)
-        : (isExpenseType ? const Color(0xFFA0443E) : AppColors.muted);
+        ? AppColors.positive
+        : (isExpenseType ? AppColors.negative : AppColors.muted);
     final bg = isIncomeType
         ? const Color(0x1A2D8A6E)
         : (isExpenseType ? const Color(0x1AC4544D) : AppColors.surfaceAlt);
@@ -1668,12 +1668,12 @@ class _MobileFilterSheetState extends State<MobileFilterSheet> {
         decoration: BoxDecoration(
           color: on ? AppColors.accentSoft : AppColors.surfaceAlt,
           border:
-              Border.all(color: on ? const Color(0xFFE0D2B6) : AppColors.border),
+              Border.all(color: on ? AppColors.accentHover : AppColors.border),
           borderRadius: BorderRadius.circular(9),
         ),
         child: Text(text,
             style: TextStyle(
-                color: on ? const Color(0xFF7A5F33) : AppColors.fg,
+                color: on ? AppColors.accentHover : AppColors.fg,
                 fontSize: 13.5,
                 fontWeight: on ? FontWeight.w500 : FontWeight.w400)),
       ),

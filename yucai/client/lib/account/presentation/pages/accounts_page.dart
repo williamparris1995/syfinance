@@ -724,7 +724,7 @@ class _NewAccountButtonState extends State<_NewAccountButton> {
           height: 40, // .newbtn height:40px
           padding: const EdgeInsets.symmetric(horizontal: 20), // 0 20px
           decoration: BoxDecoration(
-            color: _hover ? const Color(0xFF98773F) : AppColors.accent, // :hover accent-press(#98773f)
+            color: _hover ? AppColors.accentHover : AppColors.accent, // :hover accent-press(#98773f)
             borderRadius: BorderRadius.circular(9999), // radius:9999px (pill)
             boxShadow: const [
               // .newbtn box-shadow:0 4px 12px rgba(176,141,87,.32)
@@ -847,8 +847,8 @@ class _ChipState extends State<_Chip> {
 
   @override
   Widget build(BuildContext context) {
-    const activeBg = Color(0xFF1A1916); // #1a1916（.chip.active）
-    const activeBorder = Color(0xFF1A1916);
+    const activeBg = AppColors.fg; // v2:.chip.active 用前景深底
+    const activeBorder = AppColors.fg;
     final border = widget.selected
         ? activeBorder
         : (_hover ? AppColors.accent : AppColors.border); // :not(.active):hover accent

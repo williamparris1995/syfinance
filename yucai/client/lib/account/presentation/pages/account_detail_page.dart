@@ -568,8 +568,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   style: TextStyle(
                     fontSize: 13,
                     color: netPositive
-                        ? const Color(0xFF6FCF9A)
-                        : const Color(0xFFE57373),
+                        ? AppColors.positive
+                        : AppColors.negative,
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
@@ -662,7 +662,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 13, color: const Color(0xFFE0BD84)),
+              Icon(icon, size: 13, color: AppColors.accent),
               const SizedBox(width: 5),
             ],
             Text(
@@ -673,7 +673,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 letterSpacing: 0.02,
                 color: ghost
                     ? Colors.white.withValues(alpha: 0.7)
-                    : const Color(0xFFE0BD84),
+                    : AppColors.accent,
               ),
             ),
           ],
@@ -1268,7 +1268,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// 三段等宽，整组圆角 AppRadius.sm。
   Widget _periodSegmentedControl() {
     /// accent-press 金（OD 原型 active 段文字色，比 AppColors.accent 更深）。
-    const accentPress = Color(0xFF98773F);
+    const accentPress = AppColors.accentHover;
     const segments = [
       (SummaryScope.day, '日'),
       (SummaryScope.month, '月'),
@@ -1726,7 +1726,7 @@ class _DonutPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = thickness
-        ..color = const Color(0xFFEFECE4),
+        ..color = AppColors.surfaceAlt,
     );
     final total = incomeCents + expenseCents;
     if (total == 0) return;
@@ -1789,8 +1789,8 @@ class _TxnTypeIcon extends StatelessWidget {
     final bg = switch (flavour) {
       TxnFlavour.income => AppColors.positive,
       TxnFlavour.expense => AppColors.negative,
-      TxnFlavour.transfer => const Color(0xFF8A8B8F),
-      TxnFlavour.compound => const Color(0xFF8A8B8F),
+      TxnFlavour.transfer => AppColors.muted,
+      TxnFlavour.compound => AppColors.muted,
     };
     return Container(
       width: 36,

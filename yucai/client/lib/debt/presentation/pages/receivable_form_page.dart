@@ -1014,7 +1014,7 @@ class _RadioCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = selected ? const Color(0xFFFBF7EF) : AppColors.surface;
+    final cardBg = selected ? AppColors.accentSoft : AppColors.surface;
     final cardBorder = selected ? AppColors.accent : AppColors.border;
     // icon tile:选中金实心(白图标),未选 gold-soft 底 + gold-press 图标。
     final tileBg =

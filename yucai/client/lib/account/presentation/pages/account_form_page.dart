@@ -398,7 +398,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
                               horizontal: 14, vertical: 11),
                           decoration: BoxDecoration(
                             color: AppColors.accentSoft,
-                            border: Border.all(color: const Color(0xFFE8DCC4)),
+                            border: Border.all(color: AppColors.accentSoft),
                             borderRadius: BorderRadius.circular(9),
                           ),
                           child: Row(

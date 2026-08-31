@@ -538,7 +538,7 @@ void main() {
     final net = tester.widgetList<Text>(find.byType(Text)).firstWhere(
       (t) => t.data == '本月收支 +¥445.56',
     );
-    expect(net.style?.color, const Color(0xFF6FCF9A));
+    expect(net.style?.color, AppColors.positive);
   });
 
   testWidgets('hero: hero-bal-sub 本月收支（负数红色）', (tester) async {
@@ -549,7 +549,8 @@ void main() {
     final net = tester.widgetList<Text>(find.byType(Text)).firstWhere(
       (t) => t.data == '本月收支 -¥300.00',
     );
-    expect(net.style?.color, const Color(0xFFE57373));
+    // R8 v2:旧红 E57373 → 语义 negative(E11D48)。
+    expect(net.style?.color, AppColors.negative);
   });
 
   testWidgets('hero: 字段网格（储蓄 → 利率/开户日期/币种）', (tester) async {

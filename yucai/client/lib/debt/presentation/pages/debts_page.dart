@@ -315,7 +315,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
     }
     if (counterparty.contains('车') || s.contains('car')) {
       return const DebtBadgeStyle(
-          label: '车贷', fg: Color(0xFF56606B), bg: Color(0xFFEEF0F2));
+          label: '车贷', fg: AppColors.muted, bg: Color(0xFFEEF0F2));
     }
     if (counterparty.contains('信用卡') || s.contains('credit')) {
       return const DebtBadgeStyle(
@@ -338,7 +338,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
       return AppColors.accentHover;
     }
     if (debt.counterparty.contains('车') || s.contains('car')) {
-      return const Color(0xFF56606B);
+      return AppColors.muted;
     }
     if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
       return AppColors.negative;
@@ -348,7 +348,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
         s.contains('friend')) {
       return AppColors.positive;
     }
-    return const Color(0xFF7A776E);
+    return AppColors.muted;
   }
 }
 
@@ -372,7 +372,7 @@ class _AvalancheBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.accentSoft,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: const Color(0xFFDDCBA6), width: 1),
+        border: Border.all(color: AppColors.accentHover, width: 1),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +383,7 @@ class _AvalancheBanner extends StatelessWidget {
             child: Text.rich(
               TextSpan(
                 style: const TextStyle(
-                    fontSize: 12.5, color: Color(0xFF7C6A47), height: 1.5),
+                    fontSize: 12.5, color: AppColors.accentHover, height: 1.5),
                 children: [
                   const TextSpan(
                       text: '建议采用「雪崩法」优先偿还利率最高的 ',

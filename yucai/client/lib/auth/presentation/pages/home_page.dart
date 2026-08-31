@@ -448,11 +448,11 @@ class _NetWorthCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(LucideIcons.wallet,
-                          size: 13, color: const Color(0xFF6FCF9A)),
+                          size: 13, color: AppColors.positive),
                       const SizedBox(width: 4),
                       Text('共 $accountCount 个账户',
                           style: const TextStyle(
-                              color: Color(0xFF6FCF9A), fontSize: 13)),
+                              color: AppColors.positive, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -525,7 +525,7 @@ class _IncomeExpenseCard extends StatelessWidget {
           // income/expense 间虚线分隔(对齐 OD .ie-row border-bottom:1px dashed
           // var(--border-soft)=#F1EDE5;与 _ProgressBar 背景同色)。复用 core
           // DebtDashedDivider(水平虚线 CustomPaint,Flutter 无原生 dashed border)。
-          const DebtDashedDivider(color: Color(0xFFF1EDE5)),
+          const DebtDashedDivider(color: AppColors.surfaceAlt),
           _IeRow(
             dotColor: _kExpenseColor,
             name: '支出',
@@ -879,7 +879,7 @@ class _ProgressBar extends StatelessWidget {
       child: LinearProgressIndicator(
         value: value / 100,
         minHeight: 8,
-        backgroundColor: const Color(0xFFF1EDE5),
+        backgroundColor: AppColors.surfaceAlt,
         valueColor: AlwaysStoppedAnimation<Color>(color),
       ),
     );

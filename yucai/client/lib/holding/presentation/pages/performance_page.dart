@@ -504,7 +504,7 @@ class _PerformancePageState extends State<PerformancePage> {
               decoration: const BoxDecoration(
                   border: Border(
                       top: BorderSide(
-                          color: Color(0xFFEFECE5), style: BorderStyle.solid))),
+                          color: AppColors.surfaceAlt, style: BorderStyle.solid))),
               child: const Row(
                 children: [
                   Icon(LucideIcons.hourglass,
@@ -808,7 +808,7 @@ class _PerformancePageState extends State<PerformancePage> {
       decoration: const BoxDecoration(
           border: Border(
               bottom: BorderSide(
-                  color: Color(0xFFEFECE5), style: BorderStyle.solid))),
+                  color: AppColors.surfaceAlt, style: BorderStyle.solid))),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [

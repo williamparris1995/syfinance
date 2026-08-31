@@ -1013,7 +1013,7 @@ class _RadioCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
-    final cardBg = selected ? const Color(0xFFFBF7EF) : AppColors.surface;
+    final cardBg = selected ? AppColors.accentSoft : AppColors.surface;
     final cardBorder = selected ? AppColors.accent : AppColors.border;
     final tileBg = selected ? AppColors.accent : AppColors.accentSoft;
     final tileFg = selected ? Colors.white : AppColors.accentHover;

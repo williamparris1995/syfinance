@@ -515,7 +515,7 @@ class _SegmentedTabs extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFEBE4),
+        color: AppColors.surfaceAlt,
         borderRadius: AppRadius.smBorder,
       ),
       child: Row(children: [
@@ -975,7 +975,7 @@ class _CatRow extends StatelessWidget {
     final isExpense = item.type == CategoryType.expense;
     final amtColor = isExpense ? AppColors.negative : AppColors.positive;
     return Material(
-      color: selected ? const Color(0xFFFBF6EC) : Colors.transparent,
+      color: selected ? AppColors.accentSoft : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Container(
@@ -1220,7 +1220,7 @@ class _SysChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: system ? AppColors.accentSoft : const Color(0xFFEEF0EE),
+        color: system ? AppColors.accentSoft : AppColors.surfaceAlt,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(system ? '系统' : '自建',
@@ -1538,7 +1538,7 @@ class _EditorPanelState extends State<_EditorPanel> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFAFAFA),
+                      color: AppColors.surfaceAlt,
                       border: Border.all(color: AppColors.border),
                       borderRadius: AppRadius.smBorder,
                     ),
@@ -1712,7 +1712,7 @@ class _SegReadonly extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border.all(color: AppColors.border),
         borderRadius: AppRadius.smBorder,
-        color: const Color(0xFFFAFAFA),
+        color: AppColors.surfaceAlt,
       ),
       child: Row(
         children: [
@@ -1849,7 +1849,7 @@ class _SysNote extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.accentSoft,
-        border: Border.all(color: const Color(0xFFECE0C9)),
+        border: Border.all(color: AppColors.accentSoft),
         borderRadius: AppRadius.smBorder,
       ),
       child: Row(
@@ -1900,7 +1900,7 @@ class _DeleteButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface,
             border: Border.all(
-              color: disabled ? AppColors.border : const Color(0xFFE7C9C6),
+              color: disabled ? AppColors.border : AppColors.negative.withValues(alpha: 0.25),
             ),
             borderRadius: AppRadius.smBorder,
           ),

@@ -380,6 +380,6 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
     if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
       return AppColors.negative;
     }
-    return const Color(0xFF7A776E);
+    return AppColors.muted;
   }
 }

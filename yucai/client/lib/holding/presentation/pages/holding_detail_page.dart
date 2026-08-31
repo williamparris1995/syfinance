@@ -592,7 +592,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
       decoration: const BoxDecoration(
           border: Border(
               bottom: BorderSide(
-                  color: Color(0xFFEFECE5), style: BorderStyle.solid))),
+                  color: AppColors.surfaceAlt, style: BorderStyle.solid))),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
@@ -803,7 +803,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           children: [
             TableRow(
               decoration: const BoxDecoration(
-                color: Color(0xFFFBFAF6),
+                color: AppColors.surfaceAlt,
                 border: Border(bottom: BorderSide(color: AppColors.border)),
               ),
               children: [
@@ -846,7 +846,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
         : amt < 0
             ? AppColors.negative
             : AppColors.muted;
-    const border = BorderSide(color: Color(0xFFEFECE5));
+    const border = BorderSide(color: AppColors.surfaceAlt);
     return TableRow(
       decoration:
           BoxDecoration(border: isLast ? null : const Border(bottom: border)),

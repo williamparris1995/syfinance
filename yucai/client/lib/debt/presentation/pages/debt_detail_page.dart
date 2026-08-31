@@ -368,7 +368,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
       return AppColors.accentHover;
     }
     if (debt.counterparty.contains('车') || s.contains('car')) {
-      return const Color(0xFF56606B);
+      return AppColors.muted;
     }
     if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
       return AppColors.negative;
@@ -378,7 +378,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
         s.contains('friend')) {
       return AppColors.positive;
     }
-    return const Color(0xFF7A776E);
+    return AppColors.muted;
   }
 }
 
