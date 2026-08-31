@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:yucai_client/app/app.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -8,8 +10,31 @@ import 'package:yucai_client/core/demo/demo_seed.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/notifications_bootstrap.dart';
 
+/// 全局错误落盘(用户验收辅助):release 无控制台,报错写
+/// AppData/com.yucai/yucai_client/error.log(单文件追加,cap 64KB 截断)。
+Future<void> _logError(String line) async {
+  try {
+    final dir = await getApplicationSupportDirectory();
+    final f = File('${dir.path}${Platform.pathSeparator}error.log');
+    var prev = await f.exists() ? await f.readAsString() : '';
+    if (prev.length > 65536) prev = prev.substring(prev.length - 32768);
+    final nl = String.fromCharCode(10); // 避免源码内转义歧义
+    await f.writeAsString(
+        '$prev$nl[${DateTime.now().toIso8601String()}] $line',
+        flush: true);
+  } catch (_) {}
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (details) {
+    _logError('FLUTTER ${details.exceptionAsString()}');
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (e, st) {
+    _logError('UNCAUGHT $e');
+    return true; // 已处理:避免 release 下静默丢失
+  };
 
   // 单实例守卫(FR-4):次实例写信号唤起既有窗口后退出。
   // Windows runner 在 Dart main 前已建窗口,return 不终止引擎 → 必须 exit。

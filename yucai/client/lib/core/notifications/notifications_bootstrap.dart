@@ -29,17 +29,24 @@ Future<void> bootstrapNotifications(AppDatabase db) async {
 }
 
 Future<void> _bootstrap(AppDatabase db) async {
-
   final source = DriftDueSource(db);
   final logStore = DriftReminderLogStore(db);
+
   void focusMainWindow() {
     // fire-and-forget:void 回调内不 await(通知点击的聚焦不阻塞发送)。
     windowManager.show();
     windowManager.focus();
   }
 
+  // 通知 adapter 独立隔离:失败只丢 toast,托盘/调度照常
+  // (user-acceptance 修复:此前整段一个 catch,一步失败全栈消失)。
   final adapter = LocalNotifierAdapter(onNotificationClick: focusMainWindow);
-  await adapter.initialize();
+  try {
+    await adapter.initialize();
+  } catch (e) {
+    // ignore: avoid_print
+    print('notifications: adapter init degraded: $e');
+  }
   final scanner = DueScanner(source: source, notifier: adapter, logStore: logStore);
 
   // autoRecord 调度(R7-C):双模式常跑,经模板双源 repo 写穿透。
