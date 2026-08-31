@@ -34,4 +34,8 @@
   - 设置页「主题模式」(跟随系统/亮/暗)SegmentedButton,实时生效。
   - `app_shell.dart` 全面迁移 context.yucai(侧栏/顶栏/底栏/横幅,0 静态色残留)。
   - 测试:新增 18 个令牌/主题单测;budget/goal v1 hex 断言改语义色;router/settings/archive 测试 harness 补 ThemeSettings fake;全量 flutter test 回到 3 文件 drift 基线,flutter analyze 无新增 error(hook 在 worktree 提交时指向主仓库不生效,gate 人工执行:analyze + 全量 test 均过)。
-- Next(F2+,待 ticket 化):各模块页面暗色感知迁移(context.yucai)与按原型逐页布局重构。
+- 2026-08-30 **F2 ✅ done**(页面缺陷修复,merge `cd887194`):
+  - **Bad state 修复**:/debts 与 /debts/new 的 BlocProvider `create:` 拥有共享 DebtBloc 单例,路由 dispose 时 close → 切页返回 `Bad state: Cannot add new events after calling close`;改 `.value`(页面自加载,对齐 /receivables)。全库排查确认仅此两处单例误用,其余 bloc 均 factory 作用域无此问题。
+  - **v1 残留色清理**:debt/receivable detail 奶油白底、report 顶栏、交易红绿、stat 图标底 → 语义令牌;分类饼图色板为数据可视化序列色按设计保留。
+  - **drift 基线清零(历史首次全量绿,1178 tests)**:3 个长期容忍的 drift 文件根因均为测试腐烂而非页面缺陷 —— receivables L4(断言未圈列表区,overview callout 按设计不随筛选变化)、固定日期时间炸弹(2026-08-15/2026-07-15 写作"未来"已真实逾期 → 夹具改相对日期)、account_detail 统计(Issue-② scope 过滤后夹具旧日期计 0 → 当月日期)。
+- Next(F3+,待 ticket 化):各模块页面暗色感知迁移(context.yucai)与按原型逐页布局重构。
