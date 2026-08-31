@@ -39,4 +39,5 @@
   - **v1 残留色清理**:debt/receivable detail 奶油白底、report 顶栏、交易红绿、stat 图标底 → 语义令牌;分类饼图色板为数据可视化序列色按设计保留。
   - **drift 基线清零(历史首次全量绿,1178 tests)**:3 个长期容忍的 drift 文件根因均为测试腐烂而非页面缺陷 —— receivables L4(断言未圈列表区,overview callout 按设计不随筛选变化)、固定日期时间炸弹(2026-08-15/2026-07-15 写作"未来"已真实逾期 → 夹具改相对日期)、account_detail 统计(Issue-② scope 过滤后夹具旧日期计 0 → 当月日期)。
 - 2026-08-30 **F3 ✅ done**(全页面设计一致性 pass,merge `5b6a8f11`):审计发现 20+ 文件散落 **49 处 v1 一-off 色值**(奶油底变体 FBFAF6/F1EDE5/EFECE5…、v1 金系 E0BD84/98773F、旧红绿 6FCF9A/E57373、暖灰 7A776E/A8A298)—— 即"页面之间色调不一致"的根源;全部映射到语义令牌(surfaceAlt/accentSoft/accent·accentHover/positive·negative/muted),16 个模块页在 v2 净白下色调统一。有意保留:超预算深红 #C0392B(文档化区分色)、净资产深色 hero 渐变(v1 设计特征,F4 重设计)、图表系列色/类型徽章色对(数据可视化编码)。
-- Next(F4+,待 ticket 化):① 各模块页暗色感知迁移(context.yucai 逐页);② 借贷共享组件(debt_detail_widgets/debt_list_widgets,55 处)深迁移;③ 净资产深色 hero 按 v2 原型重设计;④ 遗留占位文案清理(待接入标记 ×10 文件)。
+- 2026-08-30 **F4 ✅ done**(全应用暗色感知迁移,merge `cf5f92ce`):**1532 处 AppColors 静态 → context.yucai**(46 个模块页/共享组件),v2 双主题自此全应用生效 —— 设置页切「暗色」即全应用墨鎏金。配套:debt 共享组件剩余 34 处 v1 hex 归一;分析器驱动迁移引擎(fix_dark:invalid_constant/const 声明/顶层 context 三类错误自动修复,4 轮收敛);initState inherited 访问审计 0 违规;新增 theme-follow 探针测试 ×3;全量 1181 tests 绿。
+- **F4-P2 backlog**(本轮回退点,~306 处仍 light-locked):StatelessWidget 辅助方法的 context 形参穿线(debt_detail_widgets/debt_list_widgets 为主)、顶层调色板常量(kHoldingTypeColors/kCategoryColors 等)、净资产深色 hero 重设计、占位文案清理。
