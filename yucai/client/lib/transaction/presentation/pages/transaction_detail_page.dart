@@ -943,43 +943,32 @@ class _MoreMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // MenuAnchor + 根 Overlay:分支 Navigator 的 Overlay 原点被侧栏/顶栏
-    // 偏移,PopupMenuButton 的菜单会整体飞位(F5b 用户复测)。
-    return MenuAnchor(
-      style: yucaiMenuStyle(context),
-            menuChildren: [
-        MenuItemButton(
-          leadingIcon:
-              Icon(LucideIcons.copy, size: 15, color: context.yucai.fg),
-          child: const Text('复制交易'),
-          onPressed: () => context.push('/transactions/new'),
-        ),
-        MenuItemButton(
-          leadingIcon:
-              Icon(LucideIcons.check, size: 15, color: context.yucai.fg),
-          child: const Text('标记已对账'),
-          onPressed: () =>
-              AppToast.show(context, '对账功能待接入', type: ToastType.warning),
-        ),
-        MenuItemButton(
-          leadingIcon:
-              Icon(LucideIcons.download, size: 15, color: context.yucai.fg),
-          child: const Text('导出凭证'),
-          onPressed: () =>
-              AppToast.show(context, '导出凭证待接入', type: ToastType.warning),
-        ),
-        const Divider(height: 1),
-        MenuItemButton(
-          leadingIcon:
-              Icon(LucideIcons.trash2, size: 15, color: context.yucai.negative),
-          child:
-              Text('删除交易', style: TextStyle(color: context.yucai.negative)),
-          onPressed: () => _confirmDelete(context),
-        ),
+    // F5e:YucaiAnchoredMenu(CompositedTransformFollower)—— 跨分支
+    // Navigator 边界像素级贴合,替代 MenuAnchor。
+    return YucaiAnchoredMenu(
+      items: [
+        YucaiMenuItemData(
+            label: '复制交易',
+            icon: LucideIcons.copy,
+            onTap: () => context.push('/transactions/new')),
+        YucaiMenuItemData(
+            label: '标记已对账',
+            icon: LucideIcons.check,
+            onTap: () =>
+                AppToast.show(context, '对账功能待接入', type: ToastType.warning)),
+        YucaiMenuItemData(
+            label: '导出凭证',
+            icon: LucideIcons.download,
+            onTap: () =>
+                AppToast.show(context, '导出凭证待接入', type: ToastType.warning)),
+        YucaiMenuItemData(
+            label: '删除交易',
+            icon: LucideIcons.trash2,
+            destructive: true,
+            onTap: () => _confirmDelete(context)),
       ],
-      builder: (menuContext, controller, child) => GestureDetector(
-        onTap: () =>
-            controller.isOpen ? controller.close() : controller.open(),
+      builder: (menuContext, open) => GestureDetector(
+        onTap: open,
         child: Container(
           width: 38,
           height: 38,

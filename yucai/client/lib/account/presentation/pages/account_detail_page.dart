@@ -176,43 +176,33 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                       ),
                     ],
                   ],
-                  // MenuAnchor + 根 Overlay:分支 Navigator 的 Overlay 原点
-                  // 被侧栏/顶栏偏移,PopupMenuButton 的菜单会整体飞位(F5b)。
-                  MenuAnchor(
-                    style: yucaiMenuStyle(context),
-                                        menuChildren: [
-                      MenuItemButton(
-                        leadingIcon: Icon(LucideIcons.copy,
-                            size: 15, color: context.yucai.muted),
-                        child: const Text('复制账户'),
-                        onPressed: a == null ? null : () => _copy(a),
-                      ),
-                      MenuItemButton(
-                        leadingIcon: Icon(
-                            archived ? LucideIcons.rotateCcw : LucideIcons.archive,
-                            size: 15,
-                            color: context.yucai.muted),
-                        child: Text(archived ? '重新激活账户' : '关闭账户'),
-                        onPressed: a == null
-                            ? null
-                            : () => archived ? _reactivate(a) : _close(a),
-                      ),
-                      const Divider(height: 1),
-                      MenuItemButton(
-                        leadingIcon: Icon(LucideIcons.trash2,
-                            size: 15, color: context.yucai.negative),
-                        child: Text('删除账户',
-                            style: TextStyle(color: context.yucai.negative)),
-                        onPressed: a == null ? null : () => _delete(a),
-                      ),
+                  // F5e:YucaiAnchoredMenu(CompositedTransformFollower)——
+                  // 跨分支 Navigator 边界像素级贴合,替代 MenuAnchor。
+                  YucaiAnchoredMenu(
+                    items: [
+                      YucaiMenuItemData(
+                          label: '复制账户',
+                          icon: LucideIcons.copy,
+                          onTap: a == null ? null : () => _copy(a)),
+                      YucaiMenuItemData(
+                          label: archived ? '重新激活账户' : '关闭账户',
+                          icon: archived
+                              ? LucideIcons.rotateCcw
+                              : LucideIcons.archive,
+                          onTap: a == null
+                              ? null
+                              : () => archived ? _reactivate(a) : _close(a)),
+                      YucaiMenuItemData(
+                          label: '删除账户',
+                          icon: LucideIcons.trash2,
+                          destructive: true,
+                          onTap: a == null ? null : () => _delete(a)),
                     ],
-                    builder: (menuContext, controller, child) => IconButton(
+                    builder: (menuContext, open) => IconButton(
                       tooltip: '更多操作',
                       icon: Icon(LucideIcons.moreHorizontal,
                           size: 18, color: context.yucai.muted),
-                      onPressed: () => controller.isOpen
-                          ? controller.close()
-                          : controller.open(),
+                      onPressed: open,
                     ),
                   ),
                 ],

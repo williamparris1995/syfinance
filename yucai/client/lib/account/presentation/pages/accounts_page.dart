@@ -1207,49 +1207,7 @@ class _AccountCardState extends State<_AccountCard> {
     }
   }
 
-  /// 「更多」按钮的 MenuAnchor 快捷条目（与长按菜单同项，桌面点击路径）。
-  List<Widget> _quickMenuItems(BuildContext context) {
-    final archived = a.status == AccountStatus.archived;
-    return [
-      MenuItemButton(
-        leadingIcon:
-            Icon(LucideIcons.pencil, size: 15, color: context.yucai.muted),
-        child: const Text('编辑'),
-        onPressed: widget.onEdit,
-      ),
-      MenuItemButton(
-        leadingIcon:
-            Icon(LucideIcons.plus, size: 15, color: context.yucai.muted),
-        child: const Text('记一笔'),
-        onPressed: () => _recordTxn(context),
-      ),
-      MenuItemButton(
-        leadingIcon: Icon(LucideIcons.arrowLeftRight,
-            size: 15, color: context.yucai.muted),
-        child: const Text('转账'),
-        onPressed: () => _recordTxn(context, initialType: TxnType.transfer),
-      ),
-      MenuItemButton(
-        leadingIcon:
-            Icon(LucideIcons.copy, size: 15, color: context.yucai.muted),
-        child: const Text('复制'),
-        onPressed: widget.onDuplicate,
-      ),
-      MenuItemButton(
-        leadingIcon:
-            Icon(LucideIcons.archive, size: 15, color: context.yucai.muted),
-        child: Text(archived ? '重新激活' : '关闭账户'),
-        onPressed: archived ? widget.onReactivate : widget.onClose,
-      ),
-      const Divider(height: 1),
-      MenuItemButton(
-        leadingIcon:
-            Icon(LucideIcons.trash2, size: 15, color: context.yucai.negative),
-        child: Text('删除账户', style: TextStyle(color: context.yucai.negative)),
-        onPressed: widget.onDelete,
-      ),
-    ];
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1493,6 +1451,7 @@ class _AccountCardState extends State<_AccountCard> {
   /// 通过 AnimatedOpacity + Transform.translate 实现 hover 时淡入 + 上滑动画。
   /// 非悬停时 IgnorePointer 屏蔽点击（避免误触透明按钮）。
   Widget _hoverActionBar(BuildContext context) {
+    final archived = a.status == AccountStatus.archived;
     // 始终显示在卡片底部（详情/编辑/记账/转账/更多），对齐 OD 原型 .ac-actions。
     // 此前仅 hover 时淡入，desktop 不悬停看不到操作入口，改为常驻可见。
     return Container(
@@ -1528,15 +1487,39 @@ class _AccountCardState extends State<_AccountCard> {
           // 更多：MenuAnchor 锚定按钮本体（自动翻转/钳制窗口内，
           // 不做任何手算坐标 —— F5 前复用长按陈旧锚点导致菜单飞位）。
           Expanded(
-            child: MenuAnchor(
-              style: yucaiMenuStyle(context),
-                            menuChildren: _quickMenuItems(context),
-              builder: (menuContext, controller, child) => MouseRegion(
+            child: YucaiAnchoredMenu(
+              items: [
+                YucaiMenuItemData(
+                    label: '编辑',
+                    icon: LucideIcons.pencil,
+                    onTap: widget.onEdit),
+                YucaiMenuItemData(
+                    label: '记一笔',
+                    icon: LucideIcons.plus,
+                    onTap: () => _recordTxn(context)),
+                YucaiMenuItemData(
+                    label: '转账',
+                    icon: LucideIcons.arrowLeftRight,
+                    onTap: () =>
+                        _recordTxn(context, initialType: TxnType.transfer)),
+                YucaiMenuItemData(
+                    label: '复制',
+                    icon: LucideIcons.copy,
+                    onTap: widget.onDuplicate),
+                YucaiMenuItemData(
+                    label: archived ? '重新激活' : '关闭账户',
+                    icon: LucideIcons.archive,
+                    onTap: archived ? widget.onReactivate : widget.onClose),
+                YucaiMenuItemData(
+                    label: '删除账户',
+                    icon: LucideIcons.trash2,
+                    destructive: true,
+                    onTap: widget.onDelete),
+              ],
+              builder: (menuContext, open) => MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: GestureDetector(
-                  onTap: () => controller.isOpen
-                      ? controller.close()
-                      : controller.open(),
+                  onTap: open,
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),

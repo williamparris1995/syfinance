@@ -1057,38 +1057,26 @@ class _CatRow extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 // ⋯ context menu
-                // MenuAnchor 锚定按钮本体(拖拽排序行内 PopupMenuButton
-                // 的全局坐标计算会偏,F5 起统一锚定菜单)。
-                MenuAnchor(
-                  style: yucaiMenuStyle(context),
-                                    menuChildren: [
-                    MenuItemButton(
-                      leadingIcon: Icon(LucideIcons.pencil,
-                          size: 15, color: context.yucai.muted),
-                      child: const Text('编辑'),
-                      onPressed: onEdit,
-                    ),
-                    MenuItemButton(
-                      leadingIcon: Icon(LucideIcons.trash2,
-                          size: 15,
-                          color: item.isSystem
-                              ? context.yucai.muted
-                              : context.yucai.negative),
-                      child: Text(item.isSystem ? '删除（系统禁用）' : '删除分类',
-                          style: TextStyle(
-                              color: item.isSystem
-                                  ? context.yucai.muted
-                                  : context.yucai.negative)),
-                      onPressed: item.isSystem ? null : onDelete,
-                    ),
+                // F5e:YucaiAnchoredMenu 锚定按钮本体(拖拽排序行内
+                // PopupMenuButton/MenuAnchor 的坐标计算会偏)。
+                YucaiAnchoredMenu(
+                  items: [
+                    YucaiMenuItemData(
+                        label: '编辑',
+                        icon: LucideIcons.pencil,
+                        onTap: onEdit),
+                    YucaiMenuItemData(
+                        label: item.isSystem ? '删除（系统禁用）' : '删除分类',
+                        icon: LucideIcons.trash2,
+                        destructive: !item.isSystem,
+                        enabled: !item.isSystem,
+                        onTap: onDelete),
                   ],
-                  builder: (menuContext, controller, child) => IconButton(
+                  builder: (menuContext, open) => IconButton(
                     tooltip: '操作',
                     icon: Icon(LucideIcons.moreHorizontal,
                         size: 18, color: context.yucai.muted),
-                    onPressed: () => controller.isOpen
-                        ? controller.close()
-                        : controller.open(),
+                    onPressed: open,
                   ),
                 ),
               ],

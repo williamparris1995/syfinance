@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 
+import 'package:yucai_client/core/theme/app_design.dart';
+
 /// v2 卡片操作菜单统一样式（MenuAnchor）。
 ///
 /// 所有卡片「更多」菜单统一走 MenuAnchor 锚定按钮本体 —— 自动翻转/钳制于
@@ -18,4 +20,140 @@ MenuStyle yucaiMenuStyle(BuildContext context) {
     ),
     minimumSize: const WidgetStatePropertyAll(Size.fromHeight(36)),
   );
+}
+
+
+/// 菜单项数据(供 [YucaiAnchoredMenu])。
+class YucaiMenuItemData {
+  const YucaiMenuItemData({
+    required this.label,
+    required this.icon,
+    this.onTap,
+    this.destructive = false,
+    this.enabled = true,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool destructive;
+  final bool enabled;
+}
+
+/// 锚定弹出菜单 —— CompositedTransformLeader/Follower 实现。
+///
+/// 为什么不用 MenuAnchor:壳层「侧栏+顶栏+分支 Navigator」结构下,
+/// MenuAnchor 经 OverlayPortal 渲染菜单,锚点矩形与目标 Overlay 坐标系
+/// 脱节 → 菜单整体偏移(F5b/F5d 实测 -262px 水平漂移)。
+/// Leader/Follower 是层级别锚定,跨 Navigator/Overlay 边界像素级贴合。
+class YucaiAnchoredMenu extends StatefulWidget {
+  const YucaiAnchoredMenu({
+    super.key,
+    required this.items,
+    required this.builder,
+    this.offset = const Offset(0, 6),
+    this.menuWidth = 180,
+  });
+
+  final List<YucaiMenuItemData> items;
+  /// 触发器 builder;[open] 由组件内部提供(切换开/关)。
+  final Widget Function(BuildContext context, VoidCallback open) builder;
+  final Offset offset;
+  final double menuWidth;
+
+  @override
+  State<YucaiAnchoredMenu> createState() => _YucaiAnchoredMenuState();
+}
+
+class _YucaiAnchoredMenuState extends State<YucaiAnchoredMenu> {
+  final LayerLink _link = LayerLink();
+  OverlayEntry? _entry;
+
+  bool get isOpen => _entry != null;
+
+  void _toggle() => isOpen ? _close() : _open();
+
+  void _open() {
+    _close();
+    _entry = OverlayEntry(
+      builder: (_) => Stack(children: [
+        // 全屏点击屏障:点菜单外任意处关闭(含滚动/拖动)。
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _close,
+            onPanUpdate: (_) => _close(),
+          ),
+        ),
+        CompositedTransformFollower(
+          link: _link,
+          targetAnchor: Alignment.bottomLeft,
+          followerAnchor: Alignment.topLeft,
+          offset: widget.offset,
+          child: Material(
+            color: Theme.of(context).extension<YucaiTheme>()!.surface,
+            elevation: 6,
+            shadowColor: const Color(0x1F000000),
+            borderRadius: BorderRadius.circular(10),
+            child: IntrinsicWidth(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final item in widget.items) ...[
+                      _itemTile(item),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_entry!);
+  }
+
+  void _close() {
+    _entry?.remove();
+    _entry = null;
+  }
+
+  Widget _itemTile(YucaiMenuItemData item) {
+    final color = item.destructive ? context.yucai.negative : context.yucai.fg;
+    return InkWell(
+      onTap: item.enabled
+          ? () {
+              _close();
+              item.onTap?.call();
+            }
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Row(children: [
+          Icon(item.icon, size: 15, color: item.enabled ? color : context.yucai.muted),
+          const SizedBox(width: 10),
+          Text(item.label,
+              style: TextStyle(
+                  fontSize: 13.5,
+                  color: item.enabled ? color : context.yucai.muted)),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _link,
+      child: widget.builder(context, _toggle),
+    );
+  }
 }

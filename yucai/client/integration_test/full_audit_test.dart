@@ -59,13 +59,10 @@ void sweepMarkers(WidgetTester t, String where) {
 }
 
 Future<void> goPage(WidgetTester t, String sidebarLabel) async {
-  var finder = find.text(sidebarLabel);
+  final finder = find.text(sidebarLabel);
   if (finder.evaluate().isEmpty) {
-    // 侧栏 ListView 懒构建:720 高窗口下「工具」组(报表分析/设置)在视口外
-    // 未构建 → 先向上滚动侧栏再点。
-    await t.drag(find.text('仪表盘'), const Offset(0, -180));
-    await t.pumpAndSettle(const Duration(milliseconds: 400));
-    finder = find.text(sidebarLabel);
+    hardFails.add('侧栏项「$sidebarLabel」未构建(视口外)且无页内入口');
+    return;
   }
   await t.tap(finder.first);
   await t.pumpAndSettle(const Duration(seconds: 2));
@@ -273,16 +270,36 @@ Future<void> main() async {
     sweepMarkers(t, '投资组合');
   });
 
-  testWidgets('A10 报表分析:地标', (t) async {
+  testWidgets('A10 报表分析:地标(经仪表盘「生成报表」直达)', (t) async {
     await pumpApp(t);
-    await goPage(t, '报表分析');
+    final entry = find.text('生成报表');
+    if (entry.evaluate().isNotEmpty) {
+      // 快捷操作在首屏折叠区下方:滚动至可见再点。
+      await t.scrollUntilVisible(
+        entry,
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await t.tap(entry.first);
+      await t.pumpAndSettle(const Duration(seconds: 2));
+    } else {
+      await goPage(t, '报表分析');
+    }
+    sweepErrors(t, '报表分析');
     record(find.text('报表分析').evaluate().isNotEmpty, '报表分析:地标');
     sweepMarkers(t, '报表分析');
   });
 
   testWidgets('A11 设置:主题切换(暗色全应用生效)', (t) async {
     await pumpApp(t);
-    await goPage(t, '设置');
+    final gear = find.byTooltip('设置');
+    if (gear.evaluate().isNotEmpty) {
+      await t.tap(gear.first);
+      await t.pumpAndSettle(const Duration(seconds: 2));
+    } else {
+      await goPage(t, '设置');
+    }
+    sweepErrors(t, '设置');
     record(find.text('主题模式').evaluate().isNotEmpty, '设置:主题模式行');
 
     // 切暗色:Material 前景色应翻转为墨鎏金系(断言 Scaffold 附近有暗色容器)。
