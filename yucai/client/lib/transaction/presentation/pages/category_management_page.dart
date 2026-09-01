@@ -1061,6 +1061,8 @@ class _CatRow extends StatelessWidget {
                 // 的全局坐标计算会偏,F5 起统一锚定菜单)。
                 MenuAnchor(
                   style: yucaiMenuStyle(context),
+                  // 根 Overlay:分支 Overlay 原点含侧栏/顶栏偏移(拖拽排序行)。
+                  useRootOverlay: true,
                   menuChildren: [
                     MenuItemButton(
                       leadingIcon: Icon(LucideIcons.pencil,

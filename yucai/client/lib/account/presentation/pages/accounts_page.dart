@@ -1162,6 +1162,9 @@ class _AccountCardState extends State<_AccountCard> {
         Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
+      // 关键:走根导航的 Overlay(全窗口)。默认用分支 Navigator 的 Overlay,
+      // 其原点被侧栏(236px)+顶栏(60px)偏移 → 菜单整体飞位(F5 用户复测)。
+      useRootNavigator: true,
       // 相对 Overlay 的长按全局坐标定位。
       position: RelativeRect.fromLTRB(
         anchor.dx,
@@ -1526,6 +1529,8 @@ class _AccountCardState extends State<_AccountCard> {
           Expanded(
             child: MenuAnchor(
               style: yucaiMenuStyle(context),
+              // 根 Overlay:与按钮的全局坐标同坐标系(见上注释)。
+              useRootOverlay: true,
               menuChildren: _quickMenuItems(context),
               builder: (menuContext, controller, child) => MouseRegion(
                 cursor: SystemMouseCursors.click,
