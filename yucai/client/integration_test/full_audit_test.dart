@@ -128,6 +128,11 @@ Future<void> main() async {
         menuOffsets.add(
             '账户卡更多: item(编辑) topLeft=${itemRect.topLeft} '
             'button topLeft=${btnRect.topLeft} offset=$off');
+        // 合成后像素(含 follower 层变换)= 用户真实所见。
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile('goldens/audit_menu_open.png'),
+        );
         // 菜单不应飞进左侧栏区(完整卡 x≥236)。
         record(itemRect.left >= 235, '账户卡:菜单不在侧栏区(x=${itemRect.left})');
       }
