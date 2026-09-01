@@ -1158,8 +1158,9 @@ class _AccountCardState extends State<_AccountCard> {
   /// 锚点（F5 前用上一次长按的坐标，桌面端点「更多」会飞到旧位置）。
   Future<void> _showQuickMenu(BuildContext context, Offset anchor) async {
     final archived = a.status == AccountStatus.archived;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    // useRootNavigator:true → 菜单在根 Overlay(全窗口),尺寸也取根 Overlay。
+    final overlay = Overlay.of(context, rootOverlay: true)
+        .context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
       // 关键:走根导航的 Overlay(全窗口)。默认用分支 Navigator 的 Overlay,
@@ -1529,9 +1530,7 @@ class _AccountCardState extends State<_AccountCard> {
           Expanded(
             child: MenuAnchor(
               style: yucaiMenuStyle(context),
-              // 根 Overlay:与按钮的全局坐标同坐标系(见上注释)。
-              useRootOverlay: true,
-              menuChildren: _quickMenuItems(context),
+                            menuChildren: _quickMenuItems(context),
               builder: (menuContext, controller, child) => MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: GestureDetector(

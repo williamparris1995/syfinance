@@ -180,8 +180,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   // 被侧栏/顶栏偏移,PopupMenuButton 的菜单会整体飞位(F5b)。
                   MenuAnchor(
                     style: yucaiMenuStyle(context),
-                    useRootOverlay: true,
-                    menuChildren: [
+                                        menuChildren: [
                       MenuItemButton(
                         leadingIcon: Icon(LucideIcons.copy,
                             size: 15, color: context.yucai.muted),

@@ -1733,9 +1733,7 @@ class DebtListCard extends StatelessWidget {
   Widget moreMenuAnchor(BuildContext context, MenuController controller) {
     return MenuAnchor(
       style: yucaiMenuStyle(context),
-      // 根 Overlay:分支 Overlay 原点含侧栏/顶栏偏移,会让菜单飞位。
-      useRootOverlay: true,
-      menuChildren: [
+            menuChildren: [
         MenuItemButton(
           leadingIcon: Icon(LucideIcons.pencil,
               size: 16, color: context.yucai.muted),

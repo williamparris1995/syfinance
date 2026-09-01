@@ -947,8 +947,7 @@ class _MoreMenu extends StatelessWidget {
     // 偏移,PopupMenuButton 的菜单会整体飞位(F5b 用户复测)。
     return MenuAnchor(
       style: yucaiMenuStyle(context),
-      useRootOverlay: true,
-      menuChildren: [
+            menuChildren: [
         MenuItemButton(
           leadingIcon:
               Icon(LucideIcons.copy, size: 15, color: context.yucai.fg),
