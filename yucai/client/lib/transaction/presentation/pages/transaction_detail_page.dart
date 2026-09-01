@@ -8,6 +8,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
@@ -942,44 +943,56 @@ class _MoreMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      tooltip: '更多',
-      shape: RoundedRectangleBorder(borderRadius: AppRadius.smBorder),
-      itemBuilder: (ctx) => [
-        _item('copy', '复制交易', LucideIcons.copy, context.yucai.fg),
-        _item('reconcile', '标记已对账', LucideIcons.check, context.yucai.fg),
-        _item('export', '导出凭证', LucideIcons.download, context.yucai.fg),
-        const PopupMenuDivider(),
-        _item('delete', '删除交易', LucideIcons.trash2, context.yucai.negative),
-      ],
-      onSelected: (v) {
-        switch (v) {
-          case 'copy':
-            context.push('/transactions/new');
-            break;
-          case 'reconcile':
-            AppToast.show(context, '对账功能待接入', type: ToastType.warning);
-            break;
-          case 'export':
-            AppToast.show(context, '导出凭证待接入', type: ToastType.warning);
-            break;
-          case 'delete':
-            _confirmDelete(context);
-            break;
-        }
-      },
-      // 用 child(非 icon)承接自定义触发器:OD .btn.icon-only 样式。
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: context.yucai.surface,
-          border: Border.all(color: context.yucai.border),
-          borderRadius: AppRadius.smBorder,
+    // MenuAnchor + 根 Overlay:分支 Navigator 的 Overlay 原点被侧栏/顶栏
+    // 偏移,PopupMenuButton 的菜单会整体飞位(F5b 用户复测)。
+    return MenuAnchor(
+      style: yucaiMenuStyle(context),
+      useRootOverlay: true,
+      menuChildren: [
+        MenuItemButton(
+          leadingIcon:
+              Icon(LucideIcons.copy, size: 15, color: context.yucai.fg),
+          child: const Text('复制交易'),
+          onPressed: () => context.push('/transactions/new'),
         ),
-        alignment: Alignment.center,
-        child: Icon(LucideIcons.moreHorizontal,
-            size: 18, color: context.yucai.fg),
+        MenuItemButton(
+          leadingIcon:
+              Icon(LucideIcons.check, size: 15, color: context.yucai.fg),
+          child: const Text('标记已对账'),
+          onPressed: () =>
+              AppToast.show(context, '对账功能待接入', type: ToastType.warning),
+        ),
+        MenuItemButton(
+          leadingIcon:
+              Icon(LucideIcons.download, size: 15, color: context.yucai.fg),
+          child: const Text('导出凭证'),
+          onPressed: () =>
+              AppToast.show(context, '导出凭证待接入', type: ToastType.warning),
+        ),
+        const Divider(height: 1),
+        MenuItemButton(
+          leadingIcon:
+              Icon(LucideIcons.trash2, size: 15, color: context.yucai.negative),
+          child:
+              Text('删除交易', style: TextStyle(color: context.yucai.negative)),
+          onPressed: () => _confirmDelete(context),
+        ),
+      ],
+      builder: (menuContext, controller, child) => GestureDetector(
+        onTap: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: context.yucai.surface,
+            border: Border.all(color: context.yucai.border),
+            borderRadius: AppRadius.smBorder,
+          ),
+          alignment: Alignment.center,
+          child: Icon(LucideIcons.moreHorizontal,
+              size: 18, color: context.yucai.fg),
+        ),
       ),
     );
   }

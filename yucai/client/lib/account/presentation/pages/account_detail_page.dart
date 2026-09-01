@@ -14,6 +14,7 @@ import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -175,35 +176,45 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                       ),
                     ],
                   ],
-                  PopupMenuButton<String>(
-                    tooltip: '更多操作',
-                    icon: Icon(LucideIcons.moreHorizontal,
-                        size: 18, color: context.yucai.muted),
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(
-                          value: 'copy', child: Text('复制账户')),
-                      if (archived)
-                        const PopupMenuItem(
-                            value: 'reactivate', child: Text('重新激活账户'))
-                      else
-                        const PopupMenuItem(
-                            value: 'close', child: Text('关闭账户')),
-                      const PopupMenuItem(
-                          value: 'delete', child: Text('删除账户')),
+                  // MenuAnchor + 根 Overlay:分支 Navigator 的 Overlay 原点
+                  // 被侧栏/顶栏偏移,PopupMenuButton 的菜单会整体飞位(F5b)。
+                  MenuAnchor(
+                    style: yucaiMenuStyle(context),
+                    useRootOverlay: true,
+                    menuChildren: [
+                      MenuItemButton(
+                        leadingIcon: Icon(LucideIcons.copy,
+                            size: 15, color: context.yucai.muted),
+                        child: const Text('复制账户'),
+                        onPressed: a == null ? null : () => _copy(a),
+                      ),
+                      MenuItemButton(
+                        leadingIcon: Icon(
+                            archived ? LucideIcons.rotateCcw : LucideIcons.archive,
+                            size: 15,
+                            color: context.yucai.muted),
+                        child: Text(archived ? '重新激活账户' : '关闭账户'),
+                        onPressed: a == null
+                            ? null
+                            : () => archived ? _reactivate(a) : _close(a),
+                      ),
+                      const Divider(height: 1),
+                      MenuItemButton(
+                        leadingIcon: Icon(LucideIcons.trash2,
+                            size: 15, color: context.yucai.negative),
+                        child: Text('删除账户',
+                            style: TextStyle(color: context.yucai.negative)),
+                        onPressed: a == null ? null : () => _delete(a),
+                      ),
                     ],
-                    onSelected: (v) {
-                      if (a == null) return;
-                      switch (v) {
-                        case 'copy':
-                          _copy(a);
-                        case 'close':
-                          _close(a);
-                        case 'reactivate':
-                          _reactivate(a);
-                        case 'delete':
-                          _delete(a);
-                      }
-                    },
+                    builder: (menuContext, controller, child) => IconButton(
+                      tooltip: '更多操作',
+                      icon: Icon(LucideIcons.moreHorizontal,
+                          size: 18, color: context.yucai.muted),
+                      onPressed: () => controller.isOpen
+                          ? controller.close()
+                          : controller.open(),
+                    ),
                   ),
                 ],
               );
