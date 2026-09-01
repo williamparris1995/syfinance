@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/core/widgets/gold_amount.dart';
@@ -241,15 +242,20 @@ class DebtCardActionBtn extends StatelessWidget {
     required this.icon,
     required this.label,
     this.onTap,
+    this.expanded = true,
   });
   final IconData icon;
   final String label;
   final ValueChanged<BuildContext>? onTap;
 
+  /// false 时不包 Expanded(MenuAnchor 的 builder 内不允许 ParentData)。
+
+    /// false 时不包 Expanded(MenuAnchor 的 builder 内不允许 ParentData)。
+    final bool expanded;
+
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: MouseRegion(
+    final body = MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -268,8 +274,8 @@ class DebtCardActionBtn extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
+    return expanded ? Expanded(child: body) : body;
   }
 }
 
@@ -1348,13 +1354,16 @@ class DebtListCard extends StatelessWidget {
     final isMobile =
         MediaQuery.of(context).size.width <= Breakpoints.mobileUpper;
     final isSettled = debt.remainingPrincipalCents <= 0;
+    final moreMenu = MenuController();
     final Widget card;
     if (isMobile) {
-      card = _compactCard(context);
+      card = _compactCard(context, moreMenu);
     } else {
       card = LayoutBuilder(
         builder: (ctx, c) =>
-            c.maxWidth >= 560 ? _fullCard(context) : _narrowFullCard(context),
+            c.maxWidth >= 560
+                ? _fullCard(context, moreMenu)
+                : _narrowFullCard(context, moreMenu),
       );
     }
     return isSettled ? Opacity(opacity: 0.6, child: card) : card;
@@ -1365,14 +1374,14 @@ class DebtListCard extends StatelessWidget {
       debt.remainingPrincipalCents > 0 &&
       debt.nextPaymentAmountCents > 0;
 
-  Widget _fullCard(BuildContext context) {
+  Widget _fullCard(BuildContext context, MenuController moreMenu) {
     final badge = badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     final isSettled = debt.remainingPrincipalCents <= 0;
     final hasNext = _hasNext;
     return DataCard(
       onTap: () => context.push('${sem.listRoutePrefix}/${debt.id}'),
-      onLongPress: () => _showMoreMenu(context),
+      onLongPress: () => moreMenu.open(),
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1508,7 +1517,7 @@ class DebtListCard extends StatelessWidget {
     );
   }
 
-  Widget _narrowFullCard(BuildContext context) {
+  Widget _narrowFullCard(BuildContext context, MenuController moreMenu) {
     final badge = badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     final isSettled = debt.remainingPrincipalCents <= 0;
@@ -1607,13 +1616,13 @@ class DebtListCard extends StatelessWidget {
             ),
           ],
           const Spacer(),
-          _actionBar(context),
+          _actionBar(context, moreMenu),
         ],
       ),
     );
   }
 
-  Widget _compactCard(BuildContext context) {
+  Widget _compactCard(BuildContext context, MenuController moreMenu) {
     final badge = badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     final isSettled = debt.remainingPrincipalCents <= 0;
@@ -1713,13 +1722,43 @@ class DebtListCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
-          _actionBar(context),
+          _actionBar(context, moreMenu),
         ],
       ),
     );
   }
 
-  Widget _actionBar(BuildContext context) {
+  /// 「更多」锚定菜单：MenuAnchor 锚定按钮本体,controller 由 build 创建,
+  /// 卡片长按与按钮点击共用。
+  Widget moreMenuAnchor(BuildContext context, MenuController controller) {
+    return MenuAnchor(
+      style: yucaiMenuStyle(context),
+      menuChildren: [
+        MenuItemButton(
+          leadingIcon: Icon(LucideIcons.pencil,
+              size: 16, color: context.yucai.muted),
+          child: Text(sem.editMenuItem),
+          onPressed: () => context.push('${sem.listRoutePrefix}/${debt.id}'),
+        ),
+        MenuItemButton(
+          leadingIcon:
+              Icon(LucideIcons.trash2, size: 16, color: context.yucai.negative),
+          child: Text(sem.deleteMenuItem,
+              style: TextStyle(color: context.yucai.negative)),
+          onPressed: () =>
+              context.read<DebtBloc>().add(DeleteDebtRequested(debt.id)),
+        ),
+      ],
+      builder: (menuContext, ctrl, child) => DebtCardActionBtn(
+        expanded: false,
+        icon: LucideIcons.moreHorizontal,
+        label: '更多',
+        onTap: (_) => ctrl.isOpen ? ctrl.close() : ctrl.open(),
+      ),
+    );
+  }
+
+  Widget _actionBar(BuildContext context, MenuController moreMenu) {
     return Container(
       margin: const EdgeInsets.only(top: 11),
       padding: const EdgeInsets.only(top: 10),
@@ -1734,45 +1773,15 @@ class DebtListCard extends StatelessWidget {
             onTap: (_) =>
                 context.push('${sem.listRoutePrefix}/${debt.id}'),
           ),
-          DebtCardActionBtn(
-            icon: LucideIcons.moreHorizontal,
-            label: '更多',
-            onTap: (_) => _showMoreMenu(context),
-          ),
+          // 更多：MenuAnchor 锚定按钮本体（桌面端以锚定菜单取代底部抽屉 ——
+          // 抽屉固定窗口底部,与触发按钮脱节,被感知为“菜单坐标不对”）。
+          moreMenuAnchor(context, moreMenu),
         ],
       ),
     );
   }
 
-  void _showMoreMenu(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(LucideIcons.pencil, color: context.yucai.muted),
-              title: Text(sem.editMenuItem),
-              onTap: () {
-                Navigator.pop(sctx);
-                context.push('${sem.listRoutePrefix}/${debt.id}');
-              },
-            ),
-            ListTile(
-              leading:
-                  Icon(LucideIcons.trash2, color: context.yucai.negative),
-              title: Text(sem.deleteMenuItem,
-                  style: TextStyle(color: context.yucai.negative)),
-              onTap: () {
-                Navigator.pop(sctx);
-                context.read<DebtBloc>().add(DeleteDebtRequested(debt.id));
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // （F5）原 showModalBottomSheet 底部抽屉已由 _actionBar 中的 MenuAnchor
+  // 锚定菜单取代：桌面端菜单就近弹出,坐标与触发按钮一致。
 }
 

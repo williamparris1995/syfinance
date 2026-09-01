@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_event.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_state.dart';
@@ -1056,34 +1057,39 @@ class _CatRow extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 // ⋯ context menu
-                PopupMenuButton<String>(
-                  tooltip: '操作',
-                  icon: Icon(LucideIcons.moreHorizontal,
-                      size: 18, color: context.yucai.muted),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'edit', child: Text('编辑')),
-                    PopupMenuItem(
-                      value: 'delete',
-                      enabled: !item.isSystem,
-                      child: Row(children: [
-                        Icon(LucideIcons.trash2,
-                            size: 15,
-                            color: item.isSystem
-                                ? context.yucai.muted
-                                : context.yucai.negative),
-                        const SizedBox(width: 8),
-                        Text(item.isSystem ? '删除（系统禁用）' : '删除分类',
-                            style: TextStyle(
-                                color: item.isSystem
-                                    ? context.yucai.muted
-                                    : context.yucai.negative)),
-                      ]),
+                // MenuAnchor 锚定按钮本体(拖拽排序行内 PopupMenuButton
+                // 的全局坐标计算会偏,F5 起统一锚定菜单)。
+                MenuAnchor(
+                  style: yucaiMenuStyle(context),
+                  menuChildren: [
+                    MenuItemButton(
+                      leadingIcon: Icon(LucideIcons.pencil,
+                          size: 15, color: context.yucai.muted),
+                      child: const Text('编辑'),
+                      onPressed: onEdit,
+                    ),
+                    MenuItemButton(
+                      leadingIcon: Icon(LucideIcons.trash2,
+                          size: 15,
+                          color: item.isSystem
+                              ? context.yucai.muted
+                              : context.yucai.negative),
+                      child: Text(item.isSystem ? '删除（系统禁用）' : '删除分类',
+                          style: TextStyle(
+                              color: item.isSystem
+                                  ? context.yucai.muted
+                                  : context.yucai.negative)),
+                      onPressed: item.isSystem ? null : onDelete,
                     ),
                   ],
-                  onSelected: (v) {
-                    if (v == 'edit') onEdit();
-                    if (v == 'delete') onDelete();
-                  },
+                  builder: (menuContext, controller, child) => IconButton(
+                    tooltip: '操作',
+                    icon: Icon(LucideIcons.moreHorizontal,
+                        size: 18, color: context.yucai.muted),
+                    onPressed: () => controller.isOpen
+                        ? controller.close()
+                        : controller.open(),
+                  ),
                 ),
               ],
             ),

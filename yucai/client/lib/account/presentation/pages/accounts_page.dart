@@ -15,6 +15,7 @@ import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 
@@ -1126,8 +1127,6 @@ class _AccountCardState extends State<_AccountCard> {
   bool _hover = false;
   // mobile :active transform:scale(.985) —— 仅 press 期间。
   bool _pressed = false;
-  // 长按菜单锚点（卡片 RenderBox 中心），showMenu 相对此位置弹出。
-  Offset? _longPressOffset;
 
   /// 透传 widget.formatCents，使 helper 方法内部沿用原 `formatCents(...)` 调用。
   String Function(int, String) get formatCents => widget.formatCents;
@@ -1155,9 +1154,9 @@ class _AccountCardState extends State<_AccountCard> {
   }
 
   /// 长按 → 弹出快捷操作菜单（编辑/记一笔/转账/复制/关闭or激活/删除）。
-  /// 替代旧的 onLongPress=直接删除：删除改为菜单中一个条目。
-  Future<void> _showQuickMenu(BuildContext context) async {
-    if (_longPressOffset == null) return;
+  /// anchor 必须取本次手势的即时 globalPosition —— 禁用任何跨触发的缓存
+  /// 锚点（F5 前用上一次长按的坐标，桌面端点「更多」会飞到旧位置）。
+  Future<void> _showQuickMenu(BuildContext context, Offset anchor) async {
     final archived = a.status == AccountStatus.archived;
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -1165,10 +1164,10 @@ class _AccountCardState extends State<_AccountCard> {
       context: context,
       // 相对 Overlay 的长按全局坐标定位。
       position: RelativeRect.fromLTRB(
-        _longPressOffset!.dx,
-        _longPressOffset!.dy,
-        overlay.size.width - _longPressOffset!.dx,
-        overlay.size.height - _longPressOffset!.dy,
+        anchor.dx,
+        anchor.dy,
+        overlay.size.width - anchor.dx,
+        overlay.size.height - anchor.dy,
       ),
       items: <PopupMenuEntry<String>>[
         const PopupMenuItem(value: 'edit', child: Text('编辑')),
@@ -1181,7 +1180,8 @@ class _AccountCardState extends State<_AccountCard> {
         const PopupMenuDivider(),
         PopupMenuItem(
             value: 'delete',
-            child: Text('删除账户', style: TextStyle(color: context.yucai.negative))),
+            child: Text('删除账户',
+                style: TextStyle(color: context.yucai.negative))),
       ],
     );
     if (!mounted || selected == null) return;
@@ -1201,6 +1201,50 @@ class _AccountCardState extends State<_AccountCard> {
       case 'delete':
         widget.onDelete();
     }
+  }
+
+  /// 「更多」按钮的 MenuAnchor 快捷条目（与长按菜单同项，桌面点击路径）。
+  List<Widget> _quickMenuItems(BuildContext context) {
+    final archived = a.status == AccountStatus.archived;
+    return [
+      MenuItemButton(
+        leadingIcon:
+            Icon(LucideIcons.pencil, size: 15, color: context.yucai.muted),
+        child: const Text('编辑'),
+        onPressed: widget.onEdit,
+      ),
+      MenuItemButton(
+        leadingIcon:
+            Icon(LucideIcons.plus, size: 15, color: context.yucai.muted),
+        child: const Text('记一笔'),
+        onPressed: () => _recordTxn(context),
+      ),
+      MenuItemButton(
+        leadingIcon: Icon(LucideIcons.arrowLeftRight,
+            size: 15, color: context.yucai.muted),
+        child: const Text('转账'),
+        onPressed: () => _recordTxn(context, initialType: TxnType.transfer),
+      ),
+      MenuItemButton(
+        leadingIcon:
+            Icon(LucideIcons.copy, size: 15, color: context.yucai.muted),
+        child: const Text('复制'),
+        onPressed: widget.onDuplicate,
+      ),
+      MenuItemButton(
+        leadingIcon:
+            Icon(LucideIcons.archive, size: 15, color: context.yucai.muted),
+        child: Text(archived ? '重新激活' : '关闭账户'),
+        onPressed: archived ? widget.onReactivate : widget.onClose,
+      ),
+      const Divider(height: 1),
+      MenuItemButton(
+        leadingIcon:
+            Icon(LucideIcons.trash2, size: 15, color: context.yucai.negative),
+        child: Text('删除账户', style: TextStyle(color: context.yucai.negative)),
+        onPressed: widget.onDelete,
+      ),
+    ];
   }
 
   @override
@@ -1242,11 +1286,9 @@ class _AccountCardState extends State<_AccountCard> {
       child: GestureDetector(
         onTap: () => context.go('/accounts/${a.id}'),
         // 长按 → 弹出快捷菜单（含删除）；不再直接删除。
-        onLongPressDown: (details) {
-          // 记录长按屏幕坐标供 showMenu 定位（globalPosition 即屏幕坐标）。
-          _longPressOffset = details.globalPosition;
-        },
-        onLongPress: () => _showQuickMenu(context),
+        onLongPressStart: (details) =>
+            // 即时 globalPosition 定位（跨触发缓存锚点会飞位，见 F5）。
+            _showQuickMenu(context, details.globalPosition),
         onTapDown: (_) => isMobile ? setState(() => _pressed = true) : null,
         onTapUp: (_) => isMobile ? setState(() => _pressed = false) : null,
         onTapCancel: () => isMobile ? setState(() => _pressed = false) : null,
@@ -1479,12 +1521,37 @@ class _AccountCardState extends State<_AccountCard> {
             label: '转账',
             onTap: () => _recordTxn(context, initialType: TxnType.transfer),
           ),
-          // 更多：内嵌 PopupMenuButton，复用长按菜单条目。
-          _actionBtn(
-            icon: LucideIcons.moreHorizontal,
-            label: '更多',
-            onTap: () => _showQuickMenu(context),
-            isLast: true,
+          // 更多：MenuAnchor 锚定按钮本体（自动翻转/钳制窗口内，
+          // 不做任何手算坐标 —— F5 前复用长按陈旧锚点导致菜单飞位）。
+          Expanded(
+            child: MenuAnchor(
+              style: yucaiMenuStyle(context),
+              menuChildren: _quickMenuItems(context),
+              builder: (menuContext, controller, child) => MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => controller.isOpen
+                      ? controller.close()
+                      : controller.open(),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(LucideIcons.moreHorizontal,
+                            size: 16, color: menuContext.yucai.muted),
+                        const SizedBox(height: 3),
+                        Text('更多',
+                            style: TextStyle(
+                                color: menuContext.yucai.muted,
+                                fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
