@@ -4,6 +4,9 @@ import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/account/data/account_local_ds.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/template_dao.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
@@ -22,12 +25,15 @@ import 'package:yucai_client/transaction/domain/repositories/transaction_reposit
 /// omitted (design ADR-4, accepted simplification).
 @LazySingleton()
 class TemplateLocalDataSource {
-  TemplateLocalDataSource(this._database, this._txnLocal, {Uuid? uuid})
-      : _uuid = uuid ?? const Uuid();
+  TemplateLocalDataSource(this._database, this._txnLocal,
+      {Uuid? uuid, AccountLocalDataSource? accounts})
+      : _uuid = uuid ?? const Uuid(),
+        _accounts = accounts ?? AccountLocalDataSource(_database);
 
   final db.AppDatabase _database;
   final TransactionLocalDataSource _txnLocal;
   final Uuid _uuid;
+  final AccountLocalDataSource _accounts;
 
   TemplateDao get _dao => _database.templateDao;
 
@@ -170,6 +176,37 @@ class TemplateLocalDataSource {
     );
   }
 
+  /// 分类账户兜底(user-acceptance 修复):表单「分类(可选)」可空,而复式
+  /// 分录的借/贷方必须有账户 —— 为空(或指向已删账户)时按模板名自动补建
+  /// 对应方向的系统分类账户(expense/income),杜绝 accountId='' →
+  /// 「账户不存在」。
+  Future<String> _ensureCategoryAccount(
+      db.TransactionTemplate row) async {
+    final isExpense = row.direction == 1;
+    final wantType = isExpense ? 5 : 4; // contract: 4 income / 5 expense
+    final id = row.category ?? '';
+    if (id.isNotEmpty) {
+      final acc = await _database.accountDao.getAccountById(id);
+      if (acc != null) return id;
+    }
+    // 按模板名建系统分类账户(幂等:同名+同类型复用)。
+    final name = '订阅·${row.name}';
+    final existing = await _database.select(_database.accounts).get();
+    final match = existing
+        .where((a) => a.name == name && a.accountType == wantType)
+        .firstOrNull;
+    if (match != null) return match.id;
+    final created = await _accounts.create(CreateAccountParams(
+      name: name,
+      accountType: isExpense ? AccountType.expense : AccountType.income,
+      category: AccountCategory.otherAsset,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      ownership: Ownership.personal,
+    ));
+    return created.id;
+  }
+
   /// Direction-paired entries, mirroring the server's recorder adapter:
   /// expense = debit category(expense) / credit source(asset);
   /// income = debit source(asset) / credit category(income);
@@ -177,11 +214,13 @@ class TemplateLocalDataSource {
   Future<String> _createTxnForRow(
       db.TransactionTemplate row, DateTime date) async {
     final entries = <TransactionEntry>[];
+    // 分类账户:空/失效时兜底补建(见 _ensureCategoryAccount)。
+    final categoryAcc = await _ensureCategoryAccount(row);
     switch (row.direction) {
       case 1: // expense: debit category / credit source
         entries
           ..add(TransactionEntry(
-              accountId: row.category,
+              accountId: categoryAcc,
               debitCents: row.amountCents,
               creditCents: 0))
           ..add(TransactionEntry(
@@ -195,7 +234,7 @@ class TemplateLocalDataSource {
               debitCents: row.amountCents,
               creditCents: 0))
           ..add(TransactionEntry(
-              accountId: row.category,
+              accountId: categoryAcc,
               debitCents: 0,
               creditCents: row.amountCents));
       case 3: // transfer: debit destination / credit source
