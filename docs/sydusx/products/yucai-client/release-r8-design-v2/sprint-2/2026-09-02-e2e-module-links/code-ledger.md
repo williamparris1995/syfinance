@@ -6,7 +6,7 @@
 |---|---|---|---|
 | T1 基础设施+收回链 | ✅ done | 1(round 1:NFR-1 裸跑守卫 + 还原 registrant 行尾抖动) | review 全 PASS;实现者三处有据偏差:fixedToday 用 final(DateTime 无 const 构造)/deleteTestDb 先 close 再删(Windows 句柄)/期次额以 entry.totalCents 差值断言;R7 既有测试的删库在 Windows 实际删不掉(close 缺失),新 helper 已修正——backlog:既有三套件的 tearDownAll 可迁到本 helper |
 | T2 记录/聚合三文件 | ✅ done | 1(round 1:isCompleted 照实断言 + 注释文件名笔误 ×5) | review 全 PASS,oracle 全部手工复算一致;三处语义出入有据(调度含当日→夹具改 −3 月;recordContribution 不自动置完成态→照实断言钉死;demo 预算落在真实运行当月→deleteBudget 删固定月演示预算+summary accountId 作用域,任意日历日无时间炸弹,grep 0 处 DateTime.now) |
-| T3 资产/级联/备份三文件 | pending | | |
+| T3 资产/级联/备份三文件 | ✅ done | 1(round 1:3 处注释/下限数字修正——买入 oracle 10 倍笔误/purge 15 张表口径/备链 4 账户) | review 断言零错误;备份走真实 ArchiveCodec 加密往返(scrypt+AES-GCM+gzip),覆盖非追加以标记实体消失证明;importAll=内建全量 wipe(14 deleteAll×15 表),清库测试文件内置末位;照实断言三处契约现状(标签 junction 不保全/契约外本地表原样/孤儿 entries);遗留疑点已注测:buy 现金腿不含 fee 是否产品意图 + 标签关联不入备份 → ticket 化评估 |
 | T4 UI 链十文件 | pending | | |
 | T5 全量回归门 | pending | | |
 
