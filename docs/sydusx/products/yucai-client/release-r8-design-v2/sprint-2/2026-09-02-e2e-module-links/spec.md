@@ -83,7 +83,7 @@
 
 - GIVEN 夹具:目标(无关联账户)+ 资金账户余额已知
 - WHEN `recordContribution` 一笔
-- THEN 目标 currentAmount 按额增加;资金账户余额**不变**(存储列语义);进度 ≥100% 时状态翻转为已完成
+- THEN 目标 currentAmount 按额增加;资金账户余额**不变**(存储列语义);进度 ≥100% 时 progressPct==100 / remainingCents==0(注资**不自动**置 isCompleted——完成置位是显式 `completeGoal` 语义,照实断言钉死)
 
 #### Scenario: 关联目标读时联动
 

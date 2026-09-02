@@ -82,7 +82,7 @@ spec 定案 10 条管道链 + UI 链全覆盖 + 两层入口。design 阶段对�
 
 ### 共享设施
 
-- `integration_test/link_support.dart`(新):`resetTestDb()`(删 yucai_test.db + configureDependencies + seedDemoData)、`fundsAccount(name, initialCents)` 账户工厂、`balanceOf(accountId)` raw drift 读余额、`fixedToday` 常量(冻结日期,相对日期夹具基准)。零生产代码依赖,仅测试 helper。
+- `integration_test/link_support.dart`(新):`resetTestDb()`(删 yucai_test.db + configureDependencies + seedDemoData;**内置 NFR-1 裸跑守卫**——YUCAI_DB_FILE 非 yucai_test.db 直接拒跑)、`fundsAccount(name, initialCents)` 账户工厂、`balanceOf(db, accountId)` raw drift 读余额、`fixedToday` 常量(冻结日期,相对日期夹具基准)、`textContainingRich(needle)` 富文本感知 finder(Text.rich/RichText 明文拼接)、`deleteTestDb()`(先 close 再删,Windows 句柄)。零生产代码依赖,仅测试 helper。
 - Makefile:`E2E_FILES` 3→10;新 `E2E_UI_FILES`;两目标 `F=` 变量透传(`$(F)` 非空则只跑该文件);每文件前杀 `yucai_client` 残留(沿用现有 powershell 行)。
 
 ## LLD — 各链断言口径(design contract 级)
