@@ -202,6 +202,9 @@ const _navGroups = <_NavGroup>[
   _NavGroup('交易', [
     _NavItem('交易记录', LucideIcons.receipt, 2),
     _NavItem('分类管理', LucideIcons.tags, null, route: '/categories'),
+    // 订阅/周期模板(R7-C 调度器已接):页面在 accounts 分支子路由,
+    // 与 /categories 同款 route 自定义导航。
+    _NavItem('订阅管理', LucideIcons.repeat, null, route: '/accounts/templates'),
   ]),
   _NavGroup('规划', [
     _NavItem('预算管理', LucideIcons.piggyBank, 6, route: '/budgets'),

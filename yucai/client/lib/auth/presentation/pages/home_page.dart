@@ -1373,7 +1373,10 @@ class _UpcomingPaymentsPanelState extends State<_UpcomingPaymentsPanel> {
         final Widget body;
         if (!snap.hasData) {
           body = snap.connectionState == ConnectionState.done
-              ? _panelEmpty('暂无待办账单', '即将到期将在此提醒')
+              ? Column(children: [
+                  _panelEmpty('暂无待办账单', '即将到期将在此提醒'),
+                  const _SubscribeLink(),
+                ])
               : _panelLoading();
         } else {
           final debts = snap.data!.fold((_) => <Debt>[], (l) => l);
@@ -1435,6 +1438,27 @@ class _DebtMiniRow extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   fontFeatures: AppTypography.tabularFigures)),
         ],
+      ),
+    );
+  }
+}
+
+
+/// 订阅/周期模板入口(R7 用户找回的功能):面板空态/有数据均展示。
+class _SubscribeLink extends StatelessWidget {
+  const _SubscribeLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: ActionChip(
+          label: const Text('订阅管理', style: TextStyle(fontSize: 12)),
+          avatar: const Icon(LucideIcons.repeat, size: 14),
+          onPressed: () => context.go('/accounts/templates'),
+        ),
       ),
     );
   }
