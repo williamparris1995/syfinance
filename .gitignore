@@ -32,6 +32,9 @@ Thumbs.db
 # === 调试输出 / 截图 ===
 *.png
 !design-output/**/*.png
+# E2E/单测金图是测试基线资产,必须随库(否则全新 checkout/worktree 的金图比对
+# 因文件缺失而红 — F6 全量回归门 2026-09-03 实测踩中:A2 审计金图 + F5d 菜单守卫金图)。
+!yucai/client/**/goldens/**/*.png
 accounts-list
 detail-*
 form-overview
