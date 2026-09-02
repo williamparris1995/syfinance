@@ -1,4 +1,4 @@
-.PHONY: all generate build test test-unit lint proto gen-dart clean docker-up docker-down flutter-get flutter-build-runner flutter-test windows-installer validate
+.PHONY: all generate build test test-unit lint proto gen-dart clean docker-up docker-down flutter-get flutter-build-runner flutter-test windows-installer client-e2e validate
 
 # Go server
 SERVER_DIR := server
@@ -57,3 +57,12 @@ windows-installer: ## Build Windows installer (flutter release + Inno Setup); �
 # Full validation
 validate: lint test flutter-test ## Run all checks
 	@echo "All checks passed!"
+
+# R7 验收工作流(user 要求):种子测试数据 → 全模块 E2E → 测完即删。
+# 独立测试库(yucai_test.db),用户真实库(yucai.db)永不被触碰;
+# 每个文件单独跑(Windows 桌面集成测试设备启动竞争),跑前杀残留实例。
+E2E_FILES := integration_test/app_pages_test.dart integration_test/linked_transactions_test.dart integration_test/full_audit_test.dart
+
+client-e2e: ## 全模块 E2E 回归(种子注入→断言→测试库删除)
+	@for f in $(E2E_FILES); do 		powershell -NoProfile -Command "Get-Process yucai_client -ErrorAction SilentlyContinue | Stop-Process -Force" 2>/dev/null; 		echo "=== $$f ==="; 		cd client && flutter test $$f -d windows --dart-define=YUCAI_DB_FILE=yucai_test.db || exit 1; 		cd ..; 	done
+	@echo "client E2E: all suites passed (test DB auto-deleted)"

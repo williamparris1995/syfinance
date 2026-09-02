@@ -8,6 +8,8 @@ import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/budget/data/budget_local_ds.dart';
+import 'package:yucai_client/template/data/template_local_ds.dart';
+import 'package:yucai_client/template/domain/entities/template_entity.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide TransactionEntry;
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
@@ -15,6 +17,7 @@ import 'package:yucai_client/goal/data/goal_local_ds.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 import 'package:yucai_client/holding/data/holding_local_ds.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/tag/data/tag_repository_impl.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -41,6 +44,8 @@ Future<void> seedDemoData(AppDatabase db) async {
       db, TransactionLocalDataSource(db, BalanceLocalUpdater(db)));
   final goals = GoalLocalDataSource(db, holdings);
   final budgets = BudgetLocalDataSource(db);
+  final templatesDs = TemplateLocalDataSource(db, txns, accounts: accounts);
+  final tags = TagLocalDataSource(db);
 
   final now = DateTime.now();
   String ym(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}';
@@ -75,6 +80,14 @@ Future<void> seedDemoData(AppDatabase db) async {
   final diningCat = await accounts.create(const CreateAccountParams(
     name: '餐饮',
     accountType: AccountType.expense,
+    category: AccountCategory.otherAsset,
+    currencyCode: 'CNY',
+    initialBalanceCents: 0,
+    ownership: Ownership.personal,
+  ));
+  final recv2 = await accounts.create(const CreateAccountParams(
+    name: '应收借款',
+    accountType: AccountType.asset,
     category: AccountCategory.otherAsset,
     currencyCode: 'CNY',
     initialBalanceCents: 0,
@@ -156,4 +169,43 @@ Future<void> seedDemoData(AppDatabase db) async {
     targetAmountCents: 50000000,
     linkedAccountIds: [savings.id],
   );
+
+  // ---- 订阅/周期模板(R7-C;分类留空验证兜底)----
+  await templatesDs.create(
+    name: 'Netflix',
+    amountCents: 6800,
+    direction: TemplateDirection.expense,
+    sourceAccountId: savings.id,
+    cycle: TemplateCycle.monthly,
+    billingDay: 15,
+    startDate: '2026-08-15',
+    autoRecord: false,
+  );
+  await templatesDs.create(
+    name: '工资入账',
+    amountCents: 800000,
+    direction: TemplateDirection.income,
+    sourceAccountId: savings.id,
+    cycle: TemplateCycle.monthly,
+    billingDay: 1,
+    startDate: '2026-08-01',
+    autoRecord: false,
+  );
+
+  // ---- 借出(债权,3 个月 lumpSum)----
+  await debts.create(
+    accountId: recv2.id,
+    counterparty: '朋友借款',
+    interestRate: 0,
+    amortizationIndex: 0,
+    startDate: DateTime(now.year, now.month, 1),
+    dueDate: DateTime(now.year, now.month + 3, 1),
+    totalPrincipalCents: 200000,
+    type: DebtType.borrowedOut,
+    sourceAccountId: savings.id,
+  );
+
+  // ---- 标签 ----
+  await tags.create(name: '必要支出', color: '#2E7D32');
+  await tags.create(name: '投资', color: '#1565C0');
 }

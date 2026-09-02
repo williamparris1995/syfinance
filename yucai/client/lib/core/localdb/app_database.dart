@@ -80,7 +80,11 @@ class AppDatabase extends _$AppDatabase {
   /// synchronous (path_provider needs a live platform binding).
   static QueryExecutor _openConnection() => LazyDatabase(() async {
         final dir = await getApplicationSupportDirectory();
-        final file = File('${dir.path}/yucai.db');
+        // 库名可覆盖(E2E 隔离用):--dart-define=YUCAI_DB_FILE=yucai_test.db
+        // → 集成测试在独立库上跑,用户真实库(yucai.db)永不被测试触碰。
+        const name =
+            String.fromEnvironment('YUCAI_DB_FILE', defaultValue: 'yucai.db');
+        final file = File('${dir.path}/$name');
         return NativeDatabase.createInBackground(file);
       });
 

@@ -48,7 +48,7 @@ void main() {
   setUpAll(() async {
     // 确定性起点:删除本地库(含种子/演示数据),随后按需重建。
     final support = await getApplicationSupportDirectory();
-    final dbFile = File('${support.path}/yucai.db');
+    final dbFile = File('${support.path}/yucai_test.db');
     if (await dbFile.exists()) await dbFile.delete();
     await configureDependencies();
     await seedDemoData(getIt<AppDatabase>()); // 幂等;夹具独立于演示数据
@@ -135,6 +135,15 @@ void main() {
         .getSingle();
     return row.currentBalanceCents;
   }
+
+  tearDownAll(() async {
+    // 测试数据生命周期收尾:删独立测试库(种子+夹具全清,用户真实库不动)。
+    try {
+      final support = await getApplicationSupportDirectory();
+      final f = File('${support.path}/yucai_test.db');
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
+  });
 
   testWidgets('链路①借款还款:储蓄 −1,250 / 期次已还持久化(复式入账)', (t) async {
     final before = await bal(cashId); // 290,000.00(200k+100k−10k)

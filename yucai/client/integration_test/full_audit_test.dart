@@ -13,6 +13,7 @@ library;
 
 import 'dart:io';
 
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -59,7 +60,20 @@ void sweepMarkers(WidgetTester t, String where) {
 }
 
 Future<void> goPage(WidgetTester t, String sidebarLabel) async {
-  final finder = find.text(sidebarLabel);
+  var finder = find.text(sidebarLabel);
+  if (finder.evaluate().isEmpty) {
+    // 侧栏分组多时目标项可能在视口外(如「债权管理」)→ 滚侧栏露出再点。
+    try {
+      await t.scrollUntilVisible(
+        finder,
+        80,
+        scrollable: find.byType(Scrollable).first,
+        duration: const Duration(milliseconds: 150),
+      );
+    } catch (_) {}
+    await t.pumpAndSettle();
+    finder = find.text(sidebarLabel);
+  }
   if (finder.evaluate().isEmpty) {
     hardFails.add('侧栏项「$sidebarLabel」未构建(视口外)且无页内入口');
     return;
@@ -86,7 +100,7 @@ Future<void> main() async {
   setUpAll(() async {
     WidgetsFlutterBinding.ensureInitialized();
     final support = await getApplicationSupportDirectory();
-    final dbFile = File('${support.path}/yucai.db');
+    final dbFile = File('${support.path}/yucai_test.db');
     if (await dbFile.exists()) await dbFile.delete();
     await configureDependencies();
     await seedDemoData(getIt<AppDatabase>());
@@ -100,7 +114,7 @@ Future<void> main() async {
   testWidgets('A1 仪表盘:地标 + 种子 oracle', (t) async {
     await pumpApp(t);
     record(find.text('总净资产').evaluate().isNotEmpty, '仪表盘:总净资产卡');
-    record(find.text('共 5 个账户').evaluate().isNotEmpty, '仪表盘:共 5 个账户');
+    record(find.text('共 6 个账户').evaluate().isNotEmpty, '仪表盘:共 6 个账户');
     record(richText('107,950').evaluate().isNotEmpty, '仪表盘:流动资产 107,950');
     record(richText('8,000').evaluate().isNotEmpty, '仪表盘:本月收入工资 8,000');
     sweepMarkers(t, '仪表盘');

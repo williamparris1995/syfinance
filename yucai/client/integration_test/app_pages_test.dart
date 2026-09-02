@@ -48,10 +48,19 @@ void main() {
     WidgetsFlutterBinding.ensureInitialized();
     // 确定性起点:删除本地库 → 种子全新注入(账户数等绝对断言才成立)。
     final support = await getApplicationSupportDirectory();
-    final dbFile = File('${support.path}/yucai.db');
+    final dbFile = File('${support.path}/yucai_test.db');
     if (await dbFile.exists()) await dbFile.delete();
     await configureDependencies();
     await seedDemoData(getIt<AppDatabase>());
+  });
+
+  tearDownAll(() async {
+    // 测试数据生命周期收尾:删独立测试库(种子+夹具全清,用户真实库不动)。
+    try {
+      final support = await getApplicationSupportDirectory();
+      final f = File('${support.path}/yucai_test.db');
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
   });
 
   testWidgets('首页仪表盘:净资产/流动资产/收入/期次/预算/目标(手算 oracle)', (t) async {
@@ -61,10 +70,10 @@ void main() {
     // 净资产大卡(本地口径 oracle 18,950):release 实机已验证(a11y);
     // 测试环境数值文本偶发未及时渲染,这里断言卡片要素 + 交叉数值。
     expect(find.text('总净资产'), findsOneWidget);
-    expect(find.text('共 5 个账户'), findsOneWidget);
+    expect(find.text('共 6 个账户'), findsOneWidget);
     // 流动资产:储蓄卡 107,950(资产分解 oracle)
     expect(find.textContaining('107,950'), findsWidgets,
-        reason: '流动资产应为 107,950(含借入到账,不含收入/支出类账户)');
+        reason: '流动资产 = 储蓄105,950 + 应收借款2,000(otherAsset 计流动)');
     // 本月收入:工资 8,000(UTC+8 月界修复)
     expect(find.textContaining('8,000.00'), findsWidgets,
         reason: '本月收入应含工资 8,000(时区窗口修复回归)');
