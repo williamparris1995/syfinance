@@ -78,7 +78,7 @@ spec 定案 10 条管道链 + UI 链全覆盖 + 两层入口。design 阶段对�
 
 ### UI 链文件(手动,make client-e2e-ui)
 
-一链一文件(`ui_` 前缀):`ui_boot_subscription_test.dart`(启动接线,ADR-4)、`ui_record_form_test.dart`(手动收支表单)、`ui_transfer_form_test.dart`、`ui_collect_form_test.dart`、`ui_buy_form_test.dart`、`ui_contribution_form_test.dart`、`ui_budget_page_test.dart`(创建+消耗显示)、`ui_tag_page_test.dart`(标签 CRUD)、`ui_backup_entry_test.dart`(入口可达)、`ui_list_filter_test.dart`(筛选器点选)。
+一链一文件(`ui_` 前缀,共 11 个——T4 十文件 + review round-1 补 `ui_template_record`):`ui_boot_subscription_test.dart`(启动接线,ADR-4)、`ui_record_form_test.dart`(手动收支表单)、`ui_transfer_form_test.dart`、`ui_collect_form_test.dart`、`ui_buy_form_test.dart`、`ui_contribution_form_test.dart`、`ui_budget_page_test.dart`(创建+消耗显示)、`ui_tag_page_test.dart`(标签 CRUD)、`ui_backup_entry_test.dart`(入口可达)、`ui_list_filter_test.dart`(筛选器点选)、`ui_template_record_test.dart`(模板一键,FR-12 枚举补齐)。
 
 ### 共享设施
 

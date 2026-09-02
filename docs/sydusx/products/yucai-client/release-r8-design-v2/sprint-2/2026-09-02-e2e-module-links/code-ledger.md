@@ -15,3 +15,4 @@
 - T1 review 非阻断跟进:①NFR-1 守卫 → **已做**(round 1);②design HLD 共享设施清单缺 textContainingRich/deleteTestDb → **已补**(T4 等待期);③基线 linked_transactions_test.dart:218 的 amortizationIndex 注释错误(0=等额本息非 lumpSum)→ backlog 顺手修,不阻塞。
 - T2 review 非阻断:LLD-7"月对比 6 窗口锚月"由标链③ 两个月窗口间接覆盖同一 summary API;6 窗口装配是报表页代码,T4 UI 链可选显式覆盖——记 backlog,不阻塞。
 - spec 勘误待办(T5 顺手):FR-6 场景 1 措辞 → **已改**(T4 等待期:"进度 100%/remaining 0;isCompleted 为显式 completeGoal 语义,照实断言")。
+- holistic review(2026-09-03)**PASS**,非阻断跟进:①Makefile help 注释 10→11 **已改**;②design HLD UI 清单补 ui_template_record **已改**;③backlog:goPage helper 11 文件重复迁 link_support(约 200 行收口)+ 既有三套件(app_pages/linked_transactions/full_audit)tearDownAll 迁 deleteTestDb(Windows close 前删库实删不掉);④merge 时勿裹挟 worktree 内 generated_plugin_registrant 本地改动。
