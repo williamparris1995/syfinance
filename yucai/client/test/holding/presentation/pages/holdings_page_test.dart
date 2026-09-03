@@ -400,4 +400,146 @@ void main() {
     )).toList();
     expect(allocRows.any((r) => listRows.contains(r)), isFalse);
   });
+
+  // ─────────────── F9-T3:搜索 + 分页(FR-3:SearchField + PagerBar) ───────────────
+
+  group('F9-T3 搜索(FR-3:symbol/name contains 忽略大小写)', () {
+    testWidgets('搜索提交 → 持仓明细收窄;清除 → 恢复;未命中 → 空提示', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(holdings));
+      await t.pumpAndSettle();
+      // 默认两只全显(600519 贵州茅台 / 510300 沪深300ETF)。
+      expect(find.text('600519'), findsOneWidget);
+      expect(find.text('510300'), findsOneWidget);
+
+      // 名称命中(中文片段)。
+      await t.enterText(find.byType(TextField), '茅台');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('600519'), findsOneWidget);
+      expect(find.text('510300'), findsNothing);
+
+      // 清除 → 恢复全部。
+      await t.tap(find.byTooltip('清除搜索'));
+      await t.pumpAndSettle();
+      expect(find.text('600519'), findsOneWidget);
+      expect(find.text('510300'), findsOneWidget);
+
+      // symbol 命中(小写查大写 symbol,忽略大小写)。
+      await t.enterText(find.byType(TextField), '510');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('510300'), findsOneWidget);
+      expect(find.text('600519'), findsNothing);
+
+      // 未命中 → 友好空提示(饼图/统计仍全量渲染)。
+      await t.enterText(find.byType(TextField), 'zzz');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('未找到匹配的持仓'), findsOneWidget);
+      expect(find.byKey(const ValueKey('allocCard')), findsOneWidget);
+    });
+  });
+
+  group('F9-T3 分页(FR-3:PagerBar + PageCursorStack,pageSize 20)', () {
+    /// 21 只持仓(mv 递增 SYM01..SYM21):第 1 页 = 高市值前 20(SYM02..SYM21),
+    /// 第 2 页 = 仅 SYM01(市值最低)。
+    List<Holding> many() => [
+          for (var i = 1; i <= 21; i++)
+            _holding(
+              id: 'h$i',
+              symbol: 'SYM${i.toString().padLeft(2, '0')}',
+              name: '证券$i',
+              type: SecurityType.stock,
+              quantity: 1,
+              avgCostCents: 100,
+              marketValueCents: i * 1000, // mv 递增 → 降序 = SYM21..SYM01
+              unrealizedPnlCents: 0,
+            ),
+        ];
+
+    testWidgets('单页(≤20)整条隐藏分页条;多页显示并可翻', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+
+      // 2 只(< 20):分页条整个隐藏(单页,照 PagerBar 调用方语义)。
+      await t.pumpWidget(_harness(holdings));
+      await t.pumpAndSettle();
+      expect(find.text('第 1 页'), findsNothing);
+
+      // 21 只:第 1 页 = 前 20(SYM02..SYM21),SYM01 不在第 1 页。
+      await t.pumpWidget(_harness(many()));
+      await t.pumpAndSettle();
+      expect(find.text('第 1 页'), findsOneWidget);
+      expect(find.text('SYM21'), findsOneWidget);
+      expect(find.text('SYM02'), findsOneWidget);
+      expect(find.text('SYM01'), findsNothing);
+      // 第 1 页:上一页禁用、下一页可用。
+      expect(
+          (t.widget<IconButton>(find.ancestor(
+                  of: find.byTooltip('上一页'),
+                  matching: find.byType(IconButton))))
+              .onPressed,
+          isNull);
+      expect(
+          (t.widget<IconButton>(find.ancestor(
+                  of: find.byTooltip('下一页'),
+                  matching: find.byType(IconButton))))
+              .onPressed,
+          isNotNull);
+
+      // 下一页 → 第 2 页 = 仅 SYM01(分页条在列表底部,先滚动进视口再点)。
+      await t.ensureVisible(find.byTooltip('下一页'));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('下一页'));
+      await t.pumpAndSettle();
+      expect(find.text('第 2 页'), findsOneWidget);
+      expect(find.text('SYM01'), findsOneWidget);
+      expect(find.text('SYM21'), findsNothing);
+      // 末页:下一页禁用。
+      expect(
+          (t.widget<IconButton>(find.ancestor(
+                  of: find.byTooltip('下一页'),
+                  matching: find.byType(IconButton))))
+              .onPressed,
+          isNull);
+
+      // 上一页 → 回第 1 页。
+      await t.ensureVisible(find.byTooltip('上一页'));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('上一页'));
+      await t.pumpAndSettle();
+      expect(find.text('第 1 页'), findsOneWidget);
+      expect(find.text('SYM21'), findsOneWidget);
+    });
+
+    testWidgets('搜索提交重置回第 1 页(游标栈清空)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(many()));
+      await t.pumpAndSettle();
+
+      // 翻到第 2 页(先滚动分页条进视口)。
+      await t.ensureVisible(find.byTooltip('下一页'));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('下一页'));
+      await t.pumpAndSettle();
+      expect(find.text('第 2 页'), findsOneWidget);
+
+      // 提交搜索(命中 11 只:证券1/证券10..证券19 名称含「证券1」)→ 游标栈
+      // 清空、页码归 0:命中 ≤ 20 → 分页条回到隐藏(不再停留在已消失的第 2 页)。
+      await t.enterText(find.byType(TextField), '证券1');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('第 1 页'), findsNothing);
+      expect(find.text('第 2 页'), findsNothing);
+      // 命中集合里最高市值的 SYM19 与最低的 SYM01 都在(单页 11 只)。
+      expect(find.text('SYM19'), findsOneWidget);
+      expect(find.text('SYM01'), findsOneWidget);
+    });
+  });
 }

@@ -551,4 +551,33 @@ void main() {
     expect(calls, isNotEmpty);
     expect(calls.last, DebtType.borrowedOut);
   });
+
+  // ───────────────── F9-T3:搜索 + 排序(共享 DebtSearchSortBar) ─────────────────
+
+  testWidgets('F9-T3 搜索提交 → 债权列表收窄(共享 DebtSearchSortBar)', (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness(receivables));
+    await t.pumpAndSettle();
+    // 共享控件渲染:搜索框 + 排序按钮(与 debts_page 同一 DebtSearchSortBar)。
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byTooltip('排序'), findsOneWidget);
+    expect(find.text('到期日升序'), findsOneWidget); // 默认态(NFR-2)
+    expect(find.text('张三'), findsOneWidget);
+    expect(find.text('李四'), findsOneWidget);
+
+    // 提交「张」→ 仅张三卡。
+    await t.enterText(find.byType(TextField), '张');
+    await t.testTextInput.receiveAction(TextInputAction.search);
+    await t.pumpAndSettle();
+    expect(find.text('张三'), findsOneWidget);
+    expect(find.text('李四'), findsNothing);
+
+    // 清除 → 恢复。
+    await t.tap(find.byTooltip('清除搜索'));
+    await t.pumpAndSettle();
+    expect(find.text('张三'), findsOneWidget);
+    expect(find.text('李四'), findsOneWidget);
+  });
 }

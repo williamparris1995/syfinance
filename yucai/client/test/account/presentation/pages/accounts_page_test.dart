@@ -633,4 +633,63 @@ void main() {
     // USD card 余额：原货币符号 $ + 原金额（不换算）= $10.00。
     expect(find.textContaining(r'$10.00'), findsOneWidget);
   });
+
+  // ─────────────── F9-T3:账户搜索(FR-5:name contains,无排序无分页) ───────────────
+
+  group('F9-T3 搜索(accounts_page,页面层过滤)', () {
+    testWidgets('搜索提交 → 分组列表收窄到名称命中;清除 → 恢复', (t) async {
+      t.view.physicalSize = const Size(1400, 900);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      // 两支储蓄(同组,名称可区分)+ 一支信用卡。
+      await t.pumpWidget(_harness([
+        _account('s1', '招行储蓄'),
+        _account('s2', '建行储蓄'),
+        _credit(),
+      ]));
+      await t.pumpAndSettle();
+      expect(find.text('招行储蓄'), findsOneWidget);
+      expect(find.text('建行储蓄'), findsOneWidget);
+      expect(find.text('招行信用卡'), findsOneWidget);
+
+      // 提交「招行」→ 命中 招行储蓄 + 招行信用卡。
+      await t.enterText(find.byType(TextField), '招行');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('招行储蓄'), findsOneWidget);
+      expect(find.text('招行信用卡'), findsOneWidget);
+      expect(find.text('建行储蓄'), findsNothing);
+
+      // 清除 → 恢复全部。
+      await t.tap(find.byTooltip('清除搜索'));
+      await t.pumpAndSettle();
+      expect(find.text('招行储蓄'), findsOneWidget);
+      expect(find.text('建行储蓄'), findsOneWidget);
+      expect(find.text('招行信用卡'), findsOneWidget);
+    });
+
+    testWidgets('搜索忽略大小写;未命中 → 该筛选下暂无账户', (t) async {
+      t.view.physicalSize = const Size(1400, 900);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness([
+        _account('s1', 'CMB Savings'),
+        _account('s2', '建行储蓄'),
+      ]));
+      await t.pumpAndSettle();
+
+      // 小写查询命中大写名称。
+      await t.enterText(find.byType(TextField), 'cmb');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('CMB Savings'), findsOneWidget);
+      expect(find.text('建行储蓄'), findsNothing);
+
+      // 未命中 → 沿用既有分组空态文案。
+      await t.enterText(find.byType(TextField), 'zzz');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('该筛选下暂无账户'), findsOneWidget);
+    });
+  });
 }

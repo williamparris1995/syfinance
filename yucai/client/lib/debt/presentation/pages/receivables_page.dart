@@ -10,6 +10,7 @@ import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/debt/domain/debt_query.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/entities/receivables_summary.dart';
 import 'package:yucai_client/debt/domain/repositories/receivables_summary_repository.dart';
@@ -40,6 +41,14 @@ class ReceivablesPage extends StatefulWidget {
 class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
   DebtListFilter _filter = DebtListFilter.active;
   ReceivablesSummary? _summary;
+
+  // F9 FR-4 查询态(与 debts_page 镜像:共享 DebtSearchSortBar + domain 纯函数
+  // 管道;页面 Stateful 管理,不动 bloc/repo 契约)。
+  /// 提交制搜索词('' = 无,匹配口径 = debtSearchMatches)。
+  String _search = '';
+  /// 排序四态;默认 (dueDate, asc) = debtCompareList 现状序(NFR-2 逐位一致)。
+  DebtSortKey _sortKey = DebtSortKey.dueDate;
+  DebtSortDir _sortDir = DebtSortDir.asc;
 
   static const _sem = DebtViewSemantics.receivable;
 
@@ -158,7 +167,13 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
         ? null
         : debts.map((d) => d.dueDate).reduce((a, b) => a.isBefore(b) ? a : b);
 
-    final filtered = ([...debts]..sort(debtCompareList))
+    // F9 FR-4 前端查询管道(与 debts_page 镜像;DS list 参数同口径):搜索 →
+    // 四态排序 → segmented 筛选。默认态与改造前逐位一致(NFR-2);总览/统计
+    // 仍按全量 debts + summary 计算,搜索只作用于列表。
+    final searched =
+        debts.where((d) => debtSearchMatches(d, _search)).toList();
+    final filtered = ([...searched]
+          ..sort((a, b) => debtCompareQuery(a, b, _sortKey, _sortDir)))
         .where((d) => debtMatchesListFilter(d, _filter))
         .toList();
 
@@ -196,7 +211,19 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
               const SizedBox(height: AppSpacing.md),
               DebtListStatStrip(cards: _statCards(debts, preferred)),
               const SizedBox(height: AppSpacing.lg),
-              _sectionHeadWithFilter(debts.length),
+              // F9 FR-4 共享查询控件条(搜索 + 排序;无分页条 —— 矩阵定案)。
+              DebtSearchSortBar(
+                searchText: _search,
+                sortKey: _sortKey,
+                sortDir: _sortDir,
+                onSearchCommit: (v) => setState(() => _search = v),
+                onSortChanged: (k, d) => setState(() {
+                  _sortKey = k;
+                  _sortDir = d;
+                }),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _sectionHeadWithFilter(searched.length),
               const SizedBox(height: AppSpacing.sm),
               if (filtered.isEmpty)
                 Padding(
@@ -317,9 +344,11 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
     });
   }
 
-  // 计数 helper(避免重复 MediaQuery;基于全量 debts)。
+  // 计数 helper(避免重复 MediaQuery;基于全量 debts)。F9-T3:segmented 计数
+  // 基于**搜索后**集合(搜索空 = 全量,与现状一致)。
   int countWhere(bool Function(Debt) test) {
-    final debts = _debtsOf(context.read<DebtBloc>().state);
+    final debts = _debtsOf(context.read<DebtBloc>().state)
+        .where((d) => debtSearchMatches(d, _search));
     return debts.where(test).length;
   }
 

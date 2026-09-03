@@ -8,9 +8,14 @@ import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
+import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:yucai_client/core/widgets/gold_amount.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+// F9-T3:列表筛选/排序纯函数收编至 domain(DebtListFilter 等),export 转发。
+import 'package:yucai_client/debt/domain/debt_query.dart';
+export 'package:yucai_client/debt/domain/debt_query.dart'
+    show DebtListFilter, debtMatchesListFilter, debtCompareList;
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
@@ -282,30 +287,9 @@ class DebtCardActionBtn extends StatelessWidget {
 
 // ───────────────────────── 列表筛选 segmented ─────────────────────────
 
-/// 列表筛选:全部 / 进行中 / 已结清 / 逾期(两侧共用,顺序一致 = 镜像)。
-enum DebtListFilter { all, active, settled, overdue }
-
-bool debtMatchesListFilter(Debt d, DebtListFilter f) {
-  final settled = d.remainingPrincipalCents <= 0;
-  switch (f) {
-    case DebtListFilter.all:
-      return true;
-    case DebtListFilter.active:
-      return !settled;
-    case DebtListFilter.settled:
-      return settled;
-    case DebtListFilter.overdue:
-      return !settled && d.dueDate.isBefore(DateTime.now());
-  }
-}
-
-/// 列表排序:未结清在前(按到期升序),已结清沉底。
-int debtCompareList(Debt a, Debt b) {
-  final aSettled = a.remainingPrincipalCents <= 0;
-  final bSettled = b.remainingPrincipalCents <= 0;
-  if (aSettled != bSettled) return aSettled ? 1 : -1;
-  return a.dueDate.compareTo(b.dueDate);
-}
+/// DebtListFilter / debtMatchesListFilter / debtCompareList 已收编至
+/// debt/domain/debt_query.dart(F9-T3:列表查询纯规则归 domain,DS 与两页
+/// 共用;见该文件头注释),此处 export 转发保持既有 import 不变。
 
 /// OD `.seg` 风格列表筛选 segmented(bg #EFEDE6 + border + radius 10 + padding 3)。
 /// 4 段 全部/进行中/已结清/逾期,每段 label + count pill(active 用 gold-soft)。
@@ -405,6 +389,133 @@ class DebtListFilterSegmented extends StatelessWidget {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ───────────────── F9 FR-4:搜索 + 排序控件条(债务/债权两页共用) ─────────────────
+
+/// 排序项文案(F9 FR-4):键(金额/到期日)× 方向(降序/升序)四态。
+String debtSortLabel(DebtSortKey key, DebtSortDir dir) =>
+    '${key == DebtSortKey.dueDate ? '到期日' : '金额'}'
+    '${dir == DebtSortDir.desc ? '降序' : '升序'}';
+
+/// F9 FR-4 债务/债权列表查询控件条(两页结构镜像 → 抽共享,复用第一)。
+///
+/// 组成:通用提交制搜索框([SearchField],core 无 domain 依赖版,来源 F7
+/// TxnSearchField)+ 排序 [DebtSortControl] 四态 PopupMenu。**受控组件**:
+/// 搜索词/排序态由页面 State 持有(与 DebtListFilterSegmented 同模式,
+/// FR-4 无分页条),匹配/排序口径 = domain [debtSearchMatches]/
+/// [debtCompareQuery](DS 与页面同源)。
+class DebtSearchSortBar extends StatelessWidget {
+  const DebtSearchSortBar({
+    super.key,
+    required this.searchText,
+    required this.sortKey,
+    required this.sortDir,
+    required this.onSearchCommit,
+    required this.onSortChanged,
+  });
+
+  /// 当前提交的搜索词('' = 无)。
+  final String searchText;
+  final DebtSortKey sortKey;
+  final DebtSortDir sortDir;
+
+  /// 搜索提交(回车/清除)。
+  final ValueChanged<String> onSearchCommit;
+
+  /// 点选后回传完整四态(键+方向一起提交,避免中间态触发两次重排)。
+  final void Function(DebtSortKey key, DebtSortDir dir) onSortChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: SearchField(
+            value: searchText,
+            onCommit: onSearchCommit,
+            hintText: '搜索对手方…',
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        DebtSortControl(
+          sortKey: sortKey,
+          sortDir: sortDir,
+          onChanged: onSortChanged,
+        ),
+      ],
+    );
+  }
+}
+
+/// F9 FR-4 排序控件:PopupMenu 四态(金额/到期日 × 降序/升序),按钮显示当前态。
+/// 视觉口径照 F7 的 TxnSortControl(transaction filter_bar);默认态
+/// (到期日升序)= 列表现状序,见 [debtCompareQuery] 的 NFR-2 注释。
+class DebtSortControl extends StatelessWidget {
+  const DebtSortControl({
+    super.key,
+    required this.sortKey,
+    required this.sortDir,
+    required this.onChanged,
+  });
+
+  final DebtSortKey sortKey;
+  final DebtSortDir sortDir;
+  final void Function(DebtSortKey key, DebtSortDir dir) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = (sortKey, sortDir);
+    // 四态固定项:金额降/升 · 到期日降/升(默认态列末,与现状序对应)。
+    const options = <(DebtSortKey, DebtSortDir)>[
+      (DebtSortKey.amount, DebtSortDir.desc),
+      (DebtSortKey.amount, DebtSortDir.asc),
+      (DebtSortKey.dueDate, DebtSortDir.desc),
+      (DebtSortKey.dueDate, DebtSortDir.asc),
+    ];
+    return PopupMenuButton<(DebtSortKey, DebtSortDir)>(
+      tooltip: '排序',
+      position: PopupMenuPosition.under,
+      initialValue: current,
+      onSelected: (v) => onChanged(v.$1, v.$2),
+      constraints: const BoxConstraints(minWidth: 128),
+      itemBuilder: (_) => [
+        for (final o in options)
+          PopupMenuItem(
+            value: o,
+            child: Text(debtSortLabel(o.$1, o.$2),
+                style: TextStyle(
+                    color: o == current
+                        ? context.yucai.accent
+                        : context.yucai.fg,
+                    fontSize: 13,
+                    fontWeight:
+                        o == current ? FontWeight.w600 : FontWeight.w400)),
+          ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: AppRadius.smBorder,
+          border: Border.all(color: context.yucai.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.arrowUpDown,
+                size: 14, color: context.yucai.muted),
+            const SizedBox(width: 6),
+            // 当前态文案(金额降序/金额升序/到期日降序/到期日升序)。
+            Text(debtSortLabel(sortKey, sortDir),
+                style:
+                    TextStyle(color: context.yucai.fg, fontSize: 13)),
+            const SizedBox(width: 4),
+            Icon(LucideIcons.chevronDown, size: 13, color: context.yucai.muted),
           ],
         ),
       ),

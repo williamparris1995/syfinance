@@ -388,4 +388,88 @@ void main() {
       expect(find.text('房贷'), findsWidgets);
     });
   });
+
+  // ───────────────── F9-T3:搜索 + 排序(共享 DebtSearchSortBar) ─────────────────
+
+  group('F9-T3 search + sort (DebtSearchSortBar, FR-4 无分页)', () {
+    /// 两卡垂直序:对手方文本的 dy 比较(小 = 靠上)。
+    bool isAbove(WidgetTester t, String above, String below) =>
+        t.getTopLeft(find.text(above)).dy < t.getTopLeft(find.text(below)).dy;
+
+    testWidgets('默认态:排序控件显示「到期日升序」且列表序与现状一致(NFR-2)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(debts));
+      await t.pumpAndSettle();
+      // 默认序 = debtCompareList:未结清按到期升序 → 建设银行(2027)在上,
+      // 招商银行(2051)在下(与 F9 前现状逐位一致)。
+      expect(isAbove(t, '建设银行', '招商银行'), isTrue);
+      // 排序控件受控显示当前态。
+      expect(find.text('到期日升序'), findsOneWidget);
+    });
+
+    testWidgets('搜索提交 → 列表收窄到对手方命中;清除 → 恢复', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(debts));
+      await t.pumpAndSettle();
+      expect(find.text('招商银行'), findsOneWidget);
+      expect(find.text('建设银行'), findsOneWidget);
+
+      // 提交制:输入「招商」回车 → 仅命中卡。
+      await t.enterText(find.byType(TextField), '招商');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('招商银行'), findsOneWidget);
+      expect(find.text('建设银行'), findsNothing);
+
+      // 清除钮 → 提交空串 → 恢复全部。
+      await t.tap(find.byTooltip('清除搜索'));
+      await t.pumpAndSettle();
+      expect(find.text('招商银行'), findsOneWidget);
+      expect(find.text('建设银行'), findsOneWidget);
+    });
+
+    testWidgets('搜索未命中 → 空态提示;总览/统计不受影响', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(debts));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), '不存在的对手方');
+      await t.testTextInput.receiveAction(TextInputAction.search);
+      await t.pumpAndSettle();
+      expect(find.text('该筛选下无债务'), findsOneWidget);
+      // 总览仍按全量渲染(搜索只作用于列表,不改合计口径)。
+      expect(find.textContaining('总借款本金'), findsWidgets);
+    });
+
+    testWidgets('排序切换:金额降序 → 大额本金在前', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(debts));
+      await t.pumpAndSettle();
+      // 默认:建设银行(2027 到期)在前。
+      expect(isAbove(t, '建设银行', '招商银行'), isTrue);
+
+      // 打开排序菜单 → 选「金额降序」:招商银行(280 万)应翻到建设银行(15 万)前。
+      await t.tap(find.byTooltip('排序'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('金额降序'));
+      await t.pumpAndSettle();
+      expect(find.text('金额降序'), findsOneWidget); // 按钮回显当前态
+      expect(isAbove(t, '招商银行', '建设银行'), isTrue);
+
+      // 切回「到期日升序」恢复默认序。
+      await t.tap(find.byTooltip('排序'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('到期日升序'));
+      await t.pumpAndSettle();
+      expect(isAbove(t, '建设银行', '招商银行'), isTrue);
+    });
+  });
 }

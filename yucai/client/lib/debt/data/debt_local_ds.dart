@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/debt_dao.dart';
+import 'package:yucai_client/debt/domain/debt_query.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
@@ -28,12 +29,32 @@ class DebtLocalDataSource {
 
   DebtDao get _dao => _database.debtDao;
 
-  Future<List<Debt>> list({DebtType? typeFilter}) async {
+  /// F9 FR-4/ADR-3:可选查询参数(in-memory,默认零变化)。
+  ///
+  /// - [searchText]:对手方 counterparty contains 忽略大小写(trim 后非空才
+  ///   生效,null/空白 = 不过滤)。
+  /// - [sortKey]/[sortDir]:四态排序(金额/到期日 × 升/降)。**null = 不排序**
+  ///   (保持 DAO 行序,与既有调用逐位一致,NFR-2);传入时复用 domain 纯函数
+  ///   [debtCompareQuery](与债务/债权两页前端管道同口径,复用第一)。
+  ///   sortDir 缺省 asc(与列表页控件默认态对齐)。
+  Future<List<Debt>> list({
+    DebtType? typeFilter,
+    String? searchText,
+    DebtSortKey? sortKey,
+    DebtSortDir? sortDir,
+  }) async {
     final rows = await _dao.watchAllDebts().first;
-    final debts = <Debt>[];
+    var debts = <Debt>[];
     for (final r in rows) {
       if (typeFilter != null && r.debtType != typeFilter.index + 1) continue;
       debts.add(await _toEntity(r));
+    }
+    if (searchText != null && searchText.trim().isNotEmpty) {
+      debts = debts.where((d) => debtSearchMatches(d, searchText)).toList();
+    }
+    if (sortKey != null) {
+      final dir = sortDir ?? DebtSortDir.asc;
+      debts = [...debts]..sort((a, b) => debtCompareQuery(a, b, sortKey, dir));
     }
     return debts;
   }

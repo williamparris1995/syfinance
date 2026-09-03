@@ -17,6 +17,24 @@ import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
+/// F9 FR-3/ADR-3 持仓分页查询结果(照 F7 `ListTransactionsResult` 形态)。
+///
+/// [nextPageToken] = 下一页起始 offset 串(空 = 无下一页);[totalCount] =
+/// 过滤(搜索)后的总条数(非本页条数)。
+class PagedHoldings {
+  const PagedHoldings({
+    required this.holdings,
+    this.nextPageToken = '',
+    this.totalCount = 0,
+  });
+
+  final List<Holding> holdings;
+  final String nextPageToken;
+  final int totalCount;
+
+  bool get hasMore => nextPageToken.isNotEmpty;
+}
+
 /// Guest-mode data source for the holding module (R6, design ADR-1).
 ///
 /// buy/sell run inside ONE drift transaction: holding upsert + lot write /
@@ -49,6 +67,59 @@ class HoldingLocalDataSource {
       out.add(await _toEntity(r));
     }
     return out;
+  }
+
+  /// F9 FR-3/ADR-3 持仓分页查询(in-memory,默认路径零变化)。
+  ///
+  /// **为何新增 `listPaged` 而不改 `listHoldings`**:既有 `listHoldings` 返回
+  /// `List<Holding>`,被 repo/bloc/详情页/net worth 等多条链路消费,改返回
+  /// 形态会波及全部调用方;新方法独立承载「搜索 + offset 分页」查询能力
+  /// (FR-6 DS 级断言的靶点)。默认参数下与 `listHoldings` **同集(条数 ≤
+  /// pageSize=100 时整集,超出截断)**;序为本方法固定的市值降序基准序
+  /// (`listHoldings` 保持 DAO 行序不变,两者不承诺同序)。
+  Future<PagedHoldings> listPaged({
+    String? accountId,
+    String? searchText,
+    int pageSize = 100,
+    String? pageToken,
+  }) async {
+    // 搜索词:trim 后非空才生效(null/空白 = 不过滤),匹配 symbol/name
+    // contains 忽略大小写(F9 LLD 口径;与 _toEntity 合成字段同源)。
+    final query = searchText?.trim() ?? '';
+    final searchLower = query.isEmpty ? null : query.toLowerCase();
+
+    final all = await listHoldings(accountId: accountId);
+    var filtered = searchLower == null
+        ? all
+        : all
+            .where((h) =>
+                h.securitySymbol.toLowerCase().contains(searchLower) ||
+                h.securityName.toLowerCase().contains(searchLower))
+            .toList();
+
+    // DS 基准序:市值降序(原币 marketValueCents —— DS 层无汇率换算,多币种
+    // 混排的精确序由页面 preferred 口径负责;此处只需确定性全序保证 offset
+    // 分页稳定),tie-break symbol/id 升序。
+    filtered = [...filtered]..sort((a, b) {
+        final byMv = b.marketValueCents.compareTo(a.marketValueCents);
+        if (byMv != 0) return byMv;
+        final bySymbol =
+            a.securitySymbol.compareTo(b.securitySymbol);
+        return bySymbol != 0 ? bySymbol : a.id.compareTo(b.id);
+      });
+
+    // offset 分页(照 F7 transaction_local_ds 语义逐位):pageToken = 偏移串,
+    // pageSize<=0 回退 100,越界返回空页不抛。
+    final offset = int.tryParse(pageToken ?? '') ?? 0;
+    final size = pageSize <= 0 ? 100 : pageSize;
+    final end = (offset + size).clamp(0, filtered.length);
+    final page =
+        offset >= filtered.length ? <Holding>[] : filtered.sublist(offset, end);
+    return PagedHoldings(
+      holdings: page,
+      nextPageToken: end < filtered.length ? '$end' : '',
+      totalCount: filtered.length,
+    );
   }
 
   Future<List<HoldingTransaction>> listHoldingTransactions(

@@ -19,6 +19,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/page_cursor_stack.dart';
+import 'package:yucai_client/core/widgets/pager_bar.dart';
+import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
@@ -42,6 +45,34 @@ class HoldingsPage extends StatefulWidget {
 }
 
 class _HoldingsPageState extends State<HoldingsPage> {
+  // ───── F9 FR-3 查询/分页态(页面 Stateful 管理,不必 bloc 化)─────
+  // 理由:页面现有结构 = bloc 一次全量 LoadHoldings(bloc/repo 契约不动,
+  // NFR-1 零回归),chips 筛选本就是前端二次过滤 —— 搜索与分页照同一管道
+  // 落在页面态即可(与 DS listPaged 参数同口径,in-memory 切片,NFR-3);
+  // 待规模需要真分页查询时再把状态下沉 bloc(接 DS listPaged)。
+
+  /// 提交制搜索词('' = 无;匹配 symbol/name contains 忽略大小写)。
+  String _search = '';
+
+  /// 当前页码(0 起)。
+  int _pageIndex = 0;
+
+  /// 每页条数(持仓卡信息密度高,20/页;与 F7 交易 100/页 不同属正常 ——
+  /// 矩阵只要求「分页」能力,大小由实体形态定)。
+  static const _pageSize = 20;
+
+  /// 分页游标栈(F9 共享 PageCursorStack):第 i 页起始 offset token,第 0 页
+  /// 恒空串;仅搜索/typeFilter 变化 clear 重置(换了查询就作废历史页 token;
+  /// 与 PageCursorStack 头注释「Load 事件清栈」表述的偏离是有意的 —— 本页
+  /// token 是 offset 串,对同一查询天然有效,价格刷新等重载不清栈)。
+  final PageCursorStack _cursors = PageCursorStack();
+
+  /// 重置分页(搜索提交 / typeFilter 切换时)。
+  void _resetPaging() {
+    _cursors.clear();
+    _pageIndex = 0;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -194,6 +225,24 @@ class _HoldingsPageState extends State<HoldingsPage> {
         : 0.0;
     final upTotal = sumPnlPreferred >= 0;
 
+    // F9 FR-3 搜索 + 分页管道(与 DS listPaged 同口径,页面 in-memory 应用,
+    // NFR-3):搜索(symbol/name contains 忽略大小写)→ 市值降序(preferred,
+    // 口径照旧,从 _HoldingList 提升到此处 —— 分页切片必须作用于已排序全序)
+    // → offset 切片(token 来自共享 PageCursorStack)。
+    // 饼图/StatCard/多币种汇总仍按全量 holdings 计算,搜索只作用于持仓明细。
+    final searched = _searchedOf(_filtered(loaded));
+    final sorted = [...searched]..sort((a, b) {
+        final av = toPreferred(a.marketValueCents, a.currency ?? 'CNY');
+        final bv = toPreferred(b.marketValueCents, b.currency ?? 'CNY');
+        return bv - av;
+      });
+    final offset = int.tryParse(_cursors.tokenFor(_pageIndex) ?? '') ?? 0;
+    final end = (offset + _pageSize).clamp(0, sorted.length);
+    final page = offset >= sorted.length
+        ? const <Holding>[]
+        : sorted.sublist(offset, end);
+    final hasMore = end < sorted.length;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
@@ -231,22 +280,63 @@ class _HoldingsPageState extends State<HoldingsPage> {
                 final tableGroup = Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // F9 FR-3 列表头部搜索框(提交制,core 通用 SearchField)。
+                    SearchField(
+                      value: _search,
+                      onCommit: (v) => setState(() {
+                        _search = v;
+                        _resetPaging();
+                      }),
+                      hintText: '搜索 symbol / 名称…',
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
                     _ChipsRow(
                       holdings: loaded.holdings,
                       active: loaded.typeFilter,
-                      onSelect: (t) => context
-                          .read<HoldingBloc>()
-                          .add(LoadHoldingsRequested(typeFilter: t)),
+                      onSelect: (t) {
+                        // typeFilter 变化 = 新查询:清游标栈回第 1 页(照 F7
+                        // 「筛选变化清栈重置」不变式)再重拉。
+                        setState(_resetPaging);
+                        context
+                            .read<HoldingBloc>()
+                            .add(LoadHoldingsRequested(typeFilter: t));
+                      },
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    _SectionHead(count: loaded.holdings.length),
+                    _SectionHead(count: searched.length),
                     const SizedBox(height: AppSpacing.sm),
-                    _HoldingList(
-                      key: const ValueKey('holdingList'),
-                      holdings: _filtered(loaded),
-                      preferred: preferred,
-                      toPreferred: toPreferred,
-                    ),
+                    if (searched.isEmpty)
+                      // 搜索/筛选后空结果 → 友好空提示(对齐 security_page 口径;
+                      // 全量空态由 build 上游 _emptyState 承担)。
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Text('未找到匹配的持仓',
+                              style: TextStyle(
+                                  color: context.yucai.muted, fontSize: 12)),
+                        ),
+                      )
+                    else ...[
+                      _HoldingList(
+                        key: const ValueKey('holdingList'),
+                        holdings: page,
+                        preferred: preferred,
+                        toPreferred: toPreferred,
+                      ),
+                      // F9 FR-3 底部分页条(单页整条隐藏;共享 PagerBar,
+                      // loading=false —— in-memory 切片无异步翻页请求)。
+                      if (hasMore || _pageIndex > 0) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Center(
+                          child: PagerBar(
+                            pageIndex: _pageIndex,
+                            hasMore: hasMore,
+                            onPrev: _prevPage,
+                            onNext: () => _nextPage(end),
+                          ),
+                        ),
+                      ],
+                    ],
                   ],
                 );
                 if (!isDesktop) {
@@ -290,6 +380,39 @@ class _HoldingsPageState extends State<HoldingsPage> {
     return loaded.holdings
         .where((h) => h.securityType == f)
         .toList();
+  }
+
+  /// F9 FR-3 搜索过滤:symbol/name contains 忽略大小写(空白 = 全部;与 DS
+  /// listPaged searchText 同口径)。
+  List<Holding> _searchedOf(List<Holding> source) {
+    final q = _search.trim().toLowerCase();
+    if (q.isEmpty) return source;
+    return source
+        .where((h) =>
+            h.securitySymbol.toLowerCase().contains(q) ||
+            h.securityName.toLowerCase().contains(q))
+        .toList();
+  }
+
+  /// F9 FR-3 翻页(下一页):压入下一页起始 offset token(覆写同值幂等,
+  /// 栈语义照 F7 不变式)。
+  void _nextPage(int end) {
+    setState(() {
+      _cursors.push(_pageIndex + 1, '$end');
+      _pageIndex += 1;
+    });
+  }
+
+  /// F9 FR-3 翻页(上一页):复用栈内既有 token;栈深不足兜底整体回第 1 页
+  /// (照 F7 prev 路径)。
+  void _prevPage() {
+    setState(() {
+      if (_cursors.tokenFor(_pageIndex - 1) == null) {
+        _resetPaging();
+      } else {
+        _pageIndex -= 1;
+      }
+    });
   }
 
   /// 按 SecurityType 聚合市值切片(饼图用),市值按 preferred 换算。
@@ -722,22 +845,18 @@ class _HoldingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 按市值(preferred 口径)降序(对齐原型 sort by mktValCNY)。
-    final sorted = [...holdings]..sort((a, b) {
-        final av = toPreferred(a.marketValueCents, a.currency ?? 'CNY');
-        final bv = toPreferred(b.marketValueCents, b.currency ?? 'CNY');
-        return bv - av;
-      });
+    // F9 FR-3:市值(preferred 口径)降序排序已提升至页面管道(_content 内,
+    // 分页切片必须作用于已排序全序),本组件按传入顺序渲染(口径不变)。
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var i = 0; i < sorted.length; i++) ...[
+        for (var i = 0; i < holdings.length; i++) ...[
           _HoldingCard(
-            holding: sorted[i],
+            holding: holdings[i],
             preferred: preferred,
             toPreferred: toPreferred,
           ),
-          if (i < sorted.length - 1) const SizedBox(height: AppSpacing.sm),
+          if (i < holdings.length - 1) const SizedBox(height: AppSpacing.sm),
         ],
       ],
     );

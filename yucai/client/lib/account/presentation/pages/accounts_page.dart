@@ -15,6 +15,7 @@ import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
@@ -89,6 +90,11 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// null = 全部。
   AccountCategory? _filter;
   bool _showArchived = false; // 归档账户默认隐藏，勾选「含已归档」时显示
+  /// F9 FR-5 提交制搜索词('' = 无)。匹配口径:name contains 忽略大小写
+  /// (备注/notes 不搜 —— LLD 保守口径)。**选页面层过滤而非 DS searchText
+  /// 参数**:账户量级小(个位数~几十),本页 _filter/_showArchived 已是前端
+  /// 筛选管道,搜索进同管道实现最简 —— DS/repo/bloc 契约零改动(NFR-1)。
+  String _search = '';
   /// 正在执行写操作的账户 id 集合（删除 / 关闭等），支持多操作并发追踪。
   final _pendingIds = <String>{};
 
@@ -395,16 +401,21 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
             toPreferredCents(a.currentBalanceCents, a.currencyCode, cstate.rates, cstate.preferred));
     final netCents = assetCents + liabCents; // 负债余额为负，相加得净资产
     final scoped = _showArchived ? balanceSheet.toList() : active;
+    // F9 FR-5 搜索（页面层，见 _search 字段注释）：作用域 = 归档开关后的
+    // scoped 集合;分类 chips 与分组列表都基于搜索后的集合（搜索空 = 全量，
+    // 与现状一致）。汇总头（净资产/资产/负债）仍按全量 active 计算 —— 搜索
+    // 只作用于列表，不改合计口径。
+    final searched = _searchedOf(scoped);
     final filtered = _filter == null
-        ? scoped
-        : scoped.where((a) => a.category == _filter).toList();
+        ? searched
+        : searched.where((a) => a.category == _filter).toList();
     final groups = _groupByCategory(filtered);
 
-    // chips 计数：全部 = 当前 scoped 总数；分类 = 该分类 scoped 数。
+    // chips 计数：全部 = 搜索后 scoped 总数；分类 = 该分类搜索后数。
     final chipCounts = <AccountCategory?, int>{
-      null: scoped.length,
+      null: searched.length,
       for (final c in AccountCategory.values)
-        c: scoped.where((a) => a.category == c).length,
+        c: searched.where((a) => a.category == c).length,
     };
 
     return RefreshIndicator(
@@ -426,6 +437,14 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                   preferred: cstate.preferred,
                   onAdd: _openCreateForm,
                 ),
+                // F9 FR-5 头部搜索框（提交制，core 通用 SearchField；无排序
+                // 无分页 —— 矩阵定案，低增长页保持简洁）。
+                SearchField(
+                  value: _search,
+                  onCommit: (v) => setState(() => _search = v),
+                  hintText: '搜索账户名…',
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 // .chips：水平滚动 + gap9 + chip h32 px14，active 黑底白字。
                 // proto tablet padding:18px 0 4px；mobile padding:14px 0 4px。
                 _FilterChips(
@@ -484,6 +503,14 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
       groups.putIfAbsent(a.category, () => []).add(a);
     }
     return groups;
+  }
+
+  /// F9 FR-5 搜索过滤：账户名 contains 忽略大小写（空白 = 不过滤；仅搜
+  /// name，institution/notes 不搜 —— LLD 保守口径）。
+  List<Account> _searchedOf(List<Account> source) {
+    final q = _search.trim().toLowerCase();
+    if (q.isEmpty) return source;
+    return source.where((a) => a.name.toLowerCase().contains(q)).toList();
   }
 }
 
