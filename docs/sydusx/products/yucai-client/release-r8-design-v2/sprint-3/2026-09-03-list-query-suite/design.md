@@ -15,7 +15,7 @@
 改动面(全部 transaction 模块纵向切片):
 - `lib/transaction/domain/value_objects.dart`:`ListTransactionsParams` +4 字段;`TxnSortKey/TxnSortDir` 枚举。
 - `lib/transaction/data/transaction_local_ds.dart`:`list()` 过滤链插入分类/搜索 + 排序切换。
-- `lib/transaction/presentation/bloc/transaction_bloc.dart`:`_params` 映射 category/searchText/sort;状态增分页三件;事件增 GoToPage(下一页/上一页)。
+- `lib/transaction/presentation/bloc/transaction_bloc.dart`:`_params` 映射 category/searchText/sort;状态增分页三件;事件增 GoToTransactionsPageRequested(下一页/上一页)。
 - `lib/transaction/presentation/widgets/filter_bar.dart`:搜索框 + 排序控件(TxnFilterState 增字段)。
 - `lib/transaction/presentation/pages/transactions_page.dart`:分页条。
 - e2e:`link_mutation_cascade_test.dart` 级链⑥ 扩展;`ui_list_filter_test.dart` 扩展。
@@ -26,7 +26,7 @@
 - 搜索:`row.description.toLowerCase().contains(q.toLowerCase())`,null description 视空串。
 - 金额排序:预计算每笔 `entries.fold(Σdebit)`,排序比较;tie-break ADR-2。
 - 分页:沿用 `pageToken`=数字 offset 字符串;`hasMore = end < length`;UI 页码 = pageIndex+1。
-- 重置语义:bloc 收到带新 filter 的 Load 事件 → token 清空 pageIndex=0;GoToPage 事件携带 filter 不变仅换 token。
+- 重置语义:bloc 收到带新 filter 的 Load 事件 → token 清空 pageIndex=0;GoToTransactionsPageRequested 事件携带 filter 不变仅换 token。
 
 ## Risks
 

@@ -4,8 +4,8 @@
 
 ## Tasks
 
-- [ ] **T1 domain+DS 层**:`ListTransactionsParams` +4 字段与枚举;`list()` 分类过滤/描述搜索/四态排序(tie-break 稳定);TDD 单测(组合矩阵+默认序不变断言)。验证:新单测绿 + 全量 flutter test 不回归。
-- [ ] **T2 bloc+UI 层**:TxnFilterState 扩展(search/sort);bloc `_params` 映射 + 分页状态/GoToPage 事件 + 重置语义;filter_bar 搜索框+排序控件;分页条;bloc/widget 单测。验证:单测绿 + analyze 净。
+- [x] **T1 domain+DS 层**:`ListTransactionsParams` +4 字段与枚举;`list()` 分类过滤/描述搜索/四态排序(tie-break 稳定);TDD 单测(组合矩阵+默认序不变断言)。验证:新单测绿 + 全量 flutter test 不回归。
+- [x] **T2 bloc+UI 层**:TxnFilterState 扩展(search/sort);bloc `_params` 映射 + 分页状态/GoToTransactionsPageRequested 事件 + 重置语义;filter_bar 搜索框(onSubmitted 提交)+排序控件;分页条;bloc/widget 单测。验证:单测绿 + analyze 净。(fix round 1:搜索焦点缺陷改提交制+事件命名+prev 兜底+分页条瞬闪)
 - [ ] **T3 e2e 扩展+全量门**:link_mutation_cascade 级链⑥ 扩(category/searchText/四态排序);ui_list_filter 扩(搜索输入/排序切换/翻页);`make client-e2e` 全绿 + `flutter test` 全绿 + 提交。
 
 ## 执行方式

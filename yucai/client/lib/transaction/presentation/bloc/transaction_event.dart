@@ -11,6 +11,8 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 ///     filter. Resets accumulated list + cursor.
 ///   - [LoadMoreTransactionsRequested] — fetch the next page using the prior
 ///     `nextPageToken` and append. No-op when there is no next page.
+///   - [GoToTransactionsPageRequested] — F7 FR-4 翻页(prev/next):filter 不变,
+///     仅换 pageToken 重查当前页切片(替换,不追加)。
 ///   - [RetryTransactionsRequested] — re-run the last requested filter.
 ///   - [LoadSummaryRequested] — fetch the month's [MonthlySummary] for the
 ///     SummaryCard. Scoped by [year]/[month]/[accountId] (Task 5.2).
@@ -21,6 +23,9 @@ abstract class TransactionEvent extends Equatable {
 }
 
 /// (Re)load the first page. [filter] defaults to "all" when omitted.
+///
+/// 语义 = **重置第 1 页**(F7 FR-4):任一筛选/搜索/排序变化触发时 token 清空、
+/// pageIndex 归 0。
 class LoadTransactionsRequested extends TransactionEvent {
   const LoadTransactionsRequested({this.filter = const TxnFilterState()});
 
@@ -28,6 +33,21 @@ class LoadTransactionsRequested extends TransactionEvent {
 
   @override
   List<Object?> get props => [filter];
+}
+
+/// 翻页方向(F7 FR-4):prev=上一页,next=下一页。
+enum TxnPageDirection { prev, next }
+
+/// 翻页(F7 FR-4):携带方向,filter 保持当前不变,内部换 pageToken 重发查询。
+/// 命名随库内 `...Requested` 惯例(对齐 design.md LLD 口径)。
+/// 第 1 页 prev / 末页(nextPageToken 为空)next 均为 no-op。
+class GoToTransactionsPageRequested extends TransactionEvent {
+  const GoToTransactionsPageRequested(this.direction);
+
+  final TxnPageDirection direction;
+
+  @override
+  List<Object?> get props => [direction];
 }
 
 /// Fetch the next page and append to the current list. Ignored when the

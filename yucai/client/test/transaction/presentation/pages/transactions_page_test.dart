@@ -56,6 +56,15 @@ Widget _harness({required Widget child, required Size size}) {
   );
 }
 
+/// F7 FR-4 分页条按钮断言辅助:byTooltip 命中 Tooltip 节点,上溯宿主
+/// IconButton 才能读到 onPressed 禁用态。
+IconButton _pagerButton(WidgetTester tester, String tooltip) {
+  return tester.widget<IconButton>(find.ancestor(
+    of: find.byTooltip(tooltip),
+    matching: find.byType(IconButton),
+  ));
+}
+
 void main() {
   late _FakeTxnRepo txnRepo;
 
@@ -155,7 +164,8 @@ void main() {
     verify(() => txnRepo.list(any())).called(greaterThanOrEqualTo(2));
   });
 
-  testWidgets('"加载更多" appears when the bloc has a next page token',
+  testWidgets(
+      '分页条(F7 FR-4):hasMore 显示第 1 页可下一页,tap 携带 cursor 翻到第 2 页',
       (tester) async {
     when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
         ListTransactionsResult(
@@ -163,16 +173,121 @@ void main() {
             nextPageToken: 'cursor1')));
 
     await pumpPage(tester, const Size(1440, 900));
-    expect(find.text('加载更多'), findsOneWidget);
 
-    // Tapping it triggers a second list call with the cursor.
+    // 多页:分页条可见;第 1 页禁用上一页。
+    expect(find.text('第 1 页'), findsOneWidget);
+    expect(_pagerButton(tester, '上一页').onPressed, isNull,
+        reason: '第 1 页禁用上一页');
+
+    // Tapping 下一页 triggers a second list call with the cursor(切片替换)。
     when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
         ListTransactionsResult(
-            transactions: [_txn('t2', DateTime(2026, 6, 19))],
+            transactions: [_txn('t2', DateTime(2026, 6, 18))],
             nextPageToken: '')));
-    await tester.tap(find.text('加载更多'));
+    await tester.tap(find.byTooltip('下一页'));
     await tester.pumpAndSettle();
-    verify(() => txnRepo.list(any())).called(greaterThanOrEqualTo(2));
+
+    final calls = verify(() => txnRepo.list(captureAny())).captured
+        .cast<ListTransactionsParams>();
+    expect(calls.length, 2);
+    expect(calls[1].pageToken, 'cursor1');
+    // 第 2 页:页码指示更新;末页禁用下一页。
+    expect(find.text('第 2 页'), findsOneWidget);
+    expect(_pagerButton(tester, '下一页').onPressed, isNull,
+        reason: '末页禁用下一页');
+    expect(_pagerButton(tester, '上一页').onPressed, isNotNull,
+        reason: '第 2 页应可回上一页');
+  });
+
+  testWidgets('分页条(F7 FR-4):单页(hasMore=false)整个分页条隐藏',
+      (tester) async {
+    // 默认桩:3 条、nextPageToken 空 → 单页,分页条不渲染。
+    await pumpPage(tester, const Size(1440, 900));
+    expect(find.text('第 1 页'), findsNothing, reason: '单页无需分页控件');
+    expect(find.byTooltip('下一页'), findsNothing);
+    expect(find.byTooltip('上一页'), findsNothing);
+  });
+
+  testWidgets(
+      '分页条(F7 FR-4):翻页请求中保持显示不瞬闪隐藏(LoadingMore 双禁,fix round 1)',
+      (tester) async {
+    when(() => txnRepo.list(any())).thenAnswer((invocation) async {
+      final p =
+          invocation.positionalArguments.single as ListTransactionsParams;
+      return (p.pageToken ?? '').isEmpty
+          ? dartz.Right(ListTransactionsResult(
+              transactions: [_txn('t1', DateTime(2026, 6, 19))],
+              nextPageToken: 'cursor1'))
+          : dartz.Right(ListTransactionsResult(
+              transactions: [_txn('t2', DateTime(2026, 6, 18))],
+              nextPageToken: ''));
+    });
+
+    await pumpPage(tester, const Size(1440, 900));
+    await tester.tap(find.byTooltip('下一页'));
+    await tester.pumpAndSettle();
+    expect(find.text('第 2 页'), findsOneWidget);
+
+    // prev 回第 1 页:挂起请求 → LoadingMore 态(该页 token 为空 → hasMore
+    // 推出 false;修复前 _showPager 会瞬闪隐藏整个分页条)。
+    final prevDone = Completer<dartz.Either<Failure, ListTransactionsResult>>();
+    when(() => txnRepo.list(any())).thenAnswer((_) => prevDone.future);
+    await tester.tap(find.byTooltip('上一页'));
+    await tester.pump(); // 不 settle:处于 TransactionsLoadingMore。
+
+    // 分页条不隐藏:显示目标页「第 1 页」+ loading,双按钮禁用。
+    expect(find.text('第 1 页'), findsOneWidget,
+        reason: '翻页请求中分页条应保持显示,不瞬闪隐藏');
+    expect(_pagerButton(tester, '上一页').onPressed, isNull);
+    expect(_pagerButton(tester, '下一页').onPressed, isNull);
+
+    // 完成回第 1 页(单页)→ 分页条隐藏。
+    prevDone.complete(dartz.Right(ListTransactionsResult(
+        transactions: [_txn('t1', DateTime(2026, 6, 19))],
+        nextPageToken: '')));
+    await tester.pumpAndSettle();
+    expect(find.text('第 1 页'), findsNothing,
+        reason: '回到单页后分页条应隐藏');
+  });
+
+  testWidgets(
+      '搜索(FR-2):逐键输入不触发重载,提交(回车)才携带完整词重查(fix round 1)',
+      (tester) async {
+    // 记录式桩:直接收集每次 list 参数(避免 mocktail 二次 verify 排除已
+    // 校验调用的坑),便于断言「逐键零重查、提交一次」。
+    final calls = <ListTransactionsParams>[];
+    when(() => txnRepo.list(any())).thenAnswer((invocation) async {
+      calls.add(invocation.positionalArguments.single as ListTransactionsParams);
+      return dartz.Right(ListTransactionsResult(
+          transactions: [_txn('t1', DateTime(2026, 6, 19))],
+          nextPageToken: ''));
+    });
+
+    await pumpPage(tester, const Size(1440, 900));
+    final field = find.byType(TextField);
+
+    // 连续两次输入(未提交):列表不重查 —— 修复前逐键提交 → 整页 Loading
+    // 替换卸载 filter_bar,输入焦点被打断。
+    await tester.enterText(field, '午');
+    await tester.pump();
+    await tester.enterText(field, '午餐');
+    await tester.pump();
+    expect(calls.length, 1, reason: '逐键输入不应触发列表重查');
+
+    // 提交动作(回车/完成):携带完整词重查第 1 页。
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(calls.length, 2);
+    expect(calls.last.searchText, '午餐');
+    expect(calls.last.pageToken, isNull, reason: '搜索变化重置第 1 页');
+
+    // 提交重载后仍可继续输入并再次提交(修复:焦点/控制器不被打断)。
+    await tester.enterText(field, '工资');
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(calls.length, 3);
+    expect(calls.last.searchText, '工资');
   });
 
   testWidgets('error state surfaces the message and a retry control',
@@ -533,6 +648,18 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('筛选交易'), findsOneWidget,
         reason: 'tap 筛选 btn 应弹出 MobileFilterSheet (标题「筛选交易」)');
+    // F7:sheet 新增搜索+排序后内容变长,先把「应用筛选」滚进可视区再 tap。
+    final sheetScrollable = find
+        .descendant(
+          of: find.byType(SingleChildScrollView),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await t.scrollUntilVisible(
+      find.text('应用筛选'),
+      200,
+      scrollable: sheetScrollable,
+    );
     // 3. tap「应用筛选」关闭 sheet
     await t.tap(find.text('应用筛选'));
     await t.pumpAndSettle();

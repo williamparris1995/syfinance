@@ -14,6 +14,10 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 ///   already-loaded list so the UI keeps rendering it.
 /// - [TransactionsError] — fetch failed; retains the filter for retry.
 ///
+/// **分页**(F7 FR-4):list-bearing 状态携带 [TransactionsLoaded.pageIndex]
+/// (0 起;UI 页码 = pageIndex+1)与 `nextPageToken`(游标;空 = 末页,
+/// `hasMore` 由此推出)。任一筛选/搜索/排序变化 → Load 事件重置 pageIndex=0。
+///
 /// **Summary** (Task 5.2): the month's [MonthlySummary] rides on
 /// [TransactionsLoaded]/[TransactionsLoadingMore] via the [summary] field.
 /// It is loaded in parallel with the list (separate RPC) and stamped onto
@@ -42,12 +46,19 @@ class TransactionsLoaded extends TransactionState {
     required this.transactions,
     required this.filter,
     this.nextPageToken = '',
+    this.pageIndex = 0,
     this.summary,
   });
 
   final List<Transaction> transactions;
   final TxnFilterState filter;
+
+  /// 游标(F7 FR-4):下一页 pageToken;空 = 末页。首查不带 token(第 1 页)。
   final String nextPageToken;
+
+  /// 当前页码(0 起;UI 显示「第 N 页」= pageIndex+1)。筛选/搜索/排序变化
+  /// 时由 Load 事件重置为 0;翻页([GoToTransactionsPageRequested])时 ±1。
+  final int pageIndex;
 
   /// This month's summary for the SummaryCard. null until the parallel
   /// `TransactionSummary` RPC resolves. The bloc updates this in place via
@@ -58,7 +69,8 @@ class TransactionsLoaded extends TransactionState {
   bool get hasMore => nextPageToken.isNotEmpty;
 
   @override
-  List<Object?> get props => [transactions, filter, nextPageToken, summary];
+  List<Object?> get props =>
+      [transactions, filter, nextPageToken, pageIndex, summary];
 }
 
 /// Next-page fetch in flight. [transactions] is the previously loaded list so
@@ -68,18 +80,26 @@ class TransactionsLoadingMore extends TransactionState {
     required this.transactions,
     required this.filter,
     required this.nextPageToken,
+    this.pageIndex = 0,
     this.summary,
   });
 
   final List<Transaction> transactions;
   final TxnFilterState filter;
+
+  /// 正在请求的页所用 token(翻页)或下一页 token(追加 load-more)。
   final String nextPageToken;
+
+  /// 正在请求的页码(0 起,翻页目标页;追加 load-more 保持当前页)。
+  final int pageIndex;
+
   final MonthlySummary? summary;
 
   bool get hasMore => nextPageToken.isNotEmpty;
 
   @override
-  List<Object?> get props => [transactions, filter, nextPageToken, summary];
+  List<Object?> get props =>
+      [transactions, filter, nextPageToken, pageIndex, summary];
 }
 
 class TransactionsError extends TransactionState {

@@ -24,10 +24,10 @@ import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.
 /// 交易列表页。对齐 OD 原型 `yucai-transaction-trisize-9d3e/transactions.html`：
 ///   - 页头：H1 + 副标题（月份 · 共 N 笔）+ 导出按钮 + 新增交易
 ///   - 汇总四卡（SummaryCard）—— 本月收入/支出/净额/日均
-///   - TxnFilterBar（类型分段 + 账户/分类/月份下拉 + 重置）
+///   - TxnFilterBar（搜索框 + 类型分段 + 账户/分类/月份下拉 + 排序 + 重置，F7）
 ///   - 单张 tx-card 内按日分组：day-row 分隔条 + 表格行
 ///     （日期 / 交易详情（图标+描述）/ 分类 chip / 账户标签 / 金额 / ⋯ 操作）
-///   - 分页页脚：显示第 X–Y 条，共 N 条 + 游标「加载更多」
+///   - 分页页脚（F7 FR-4）：上一页/下一页 + 「第 N 页」；单页整体隐藏
 ///   - Mobile：卡片堆叠 + 汇总四宫格（TxnRow 移动分支）
 ///
 /// 三尺寸响应式（Desktop ≥1200 / Tablet 600–1200 / Mobile ≤600）。
@@ -166,9 +166,11 @@ class _TransactionsViewState extends State<_TransactionsView> {
             onCreate: _openCreateForm,
             onExport: _export,
             onOpenDetail: _openDetail,
-            onLoadMore: () => context
-                .read<TransactionBloc>()
-                .add(LoadMoreTransactionsRequested()),
+            // F7 FR-4:页码分页(prev/next)。翻页不触发 summary 重算。
+            onPrevPage: () => context.read<TransactionBloc>().add(
+                const GoToTransactionsPageRequested(TxnPageDirection.prev)),
+            onNextPage: () => context.read<TransactionBloc>().add(
+                const GoToTransactionsPageRequested(TxnPageDirection.next)),
           );
         },
       ),
@@ -186,7 +188,8 @@ class _Content extends StatelessWidget {
     required this.onCreate,
     required this.onExport,
     required this.onOpenDetail,
-    required this.onLoadMore,
+    required this.onPrevPage,
+    required this.onNextPage,
   });
 
   /// TransactionsLoaded or TransactionsLoadingMore (both carry the list).
@@ -196,7 +199,10 @@ class _Content extends StatelessWidget {
   final VoidCallback onCreate;
   final VoidCallback onExport;
   final ValueChanged<String> onOpenDetail;
-  final VoidCallback onLoadMore;
+
+  /// F7 FR-4:翻页回调(filter 不变,bloc 内部换 token 重查)。
+  final VoidCallback onPrevPage;
+  final VoidCallback onNextPage;
 
   List<Transaction> get _txns => state is TransactionsLoaded
       ? (state as TransactionsLoaded).transactions
@@ -211,6 +217,18 @@ class _Content extends StatelessWidget {
       : (state as TransactionsLoadingMore).nextPageToken;
 
   bool get _hasMore => _nextToken.isNotEmpty;
+
+  /// 当前页码(0 起;两 list-bearing 状态同构)。
+  int get _pageIndex => state is TransactionsLoaded
+      ? (state as TransactionsLoaded).pageIndex
+      : (state as TransactionsLoadingMore).pageIndex;
+
+  /// 单页(hasMore==false 且 pageIndex==0)整个分页条隐藏。
+  ///
+  /// 翻页请求中([loadingMore])保持显示(fix round 1):LoadingMore 态的
+  /// nextPageToken 是"正在取的页"token(prev 回第 1 页时为空 → hasMore
+  /// 推出 false),若不含 loading 态分页条会瞬闪隐藏;loading 双禁已防连点。
+  bool get _showPager => _hasMore || _pageIndex > 0 || loadingMore;
 
   /// This month's summary. null until the parallel `TransactionSummary` RPC
   /// resolves; the card falls back to zeros.
@@ -318,19 +336,38 @@ class _Content extends StatelessWidget {
                           groups: groups,
                           accounts: accounts,
                           onOpenDetail: onOpenDetail,
+                          showPager: _showPager,
+                          pageIndex: _pageIndex,
                           hasMore: _hasMore,
                           loadingMore: loadingMore,
-                          onLoadMore: onLoadMore,
+                          onPrevPage: onPrevPage,
+                          onNextPage: onNextPage,
                           totalCount: _txns.length,
                         ),
                         desktop: _TxCard(
                           groups: groups,
                           accounts: accounts,
                           onOpenDetail: onOpenDetail,
+                          showPager: _showPager,
+                          pageIndex: _pageIndex,
                           hasMore: _hasMore,
                           loadingMore: loadingMore,
-                          onLoadMore: onLoadMore,
+                          onPrevPage: onPrevPage,
+                          onNextPage: onNextPage,
                           totalCount: _txns.length,
+                        ),
+                      ),
+                    // F7 FR-4:mobile 分支无卡片页脚,分页条独立渲染在列表下方;
+                    // 单页(hasMore==false 且 pageIndex==0)整个分页条隐藏。
+                    if (isMobile && _showPager)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.sm),
+                        child: TxnPagerBar(
+                          pageIndex: _pageIndex,
+                          hasMore: _hasMore,
+                          loading: loadingMore,
+                          onPrev: onPrevPage,
+                          onNext: onNextPage,
                         ),
                       ),
                   ],
@@ -567,18 +604,26 @@ class _TxCard extends StatelessWidget {
     required this.groups,
     required this.accounts,
     required this.onOpenDetail,
+    required this.showPager,
+    required this.pageIndex,
     required this.hasMore,
     required this.loadingMore,
-    required this.onLoadMore,
+    required this.onPrevPage,
+    required this.onNextPage,
     required this.totalCount,
   });
 
   final Map<String, List<Transaction>> groups;
   final List<Account> accounts;
   final ValueChanged<String> onOpenDetail;
+
+  /// F7 FR-4:是否渲染分页页脚(单页隐藏整个分页条)。
+  final bool showPager;
+  final int pageIndex;
   final bool hasMore;
   final bool loadingMore;
-  final VoidCallback onLoadMore;
+  final VoidCallback onPrevPage;
+  final VoidCallback onNextPage;
   final int totalCount;
 
   String _nameOf(String id) {
@@ -616,10 +661,14 @@ class _TxCard extends StatelessWidget {
           ],
           _PagerFooter(
             showing: totalCount,
-            total: totalCount,
-            hasMore: hasMore,
-            loadingMore: loadingMore,
-            onLoadMore: onLoadMore,
+            showPager: showPager,
+            pager: TxnPagerBar(
+              pageIndex: pageIndex,
+              hasMore: hasMore,
+              loading: loadingMore,
+              onPrev: onPrevPage,
+              onNext: onNextPage,
+            ),
           ),
         ],
       ),
@@ -1091,20 +1140,21 @@ class _RowOpMenu extends StatelessWidget {
 class _PagerFooter extends StatelessWidget {
   const _PagerFooter({
     required this.showing,
-    required this.total,
-    required this.hasMore,
-    required this.loadingMore,
-    required this.onLoadMore,
+    required this.showPager,
+    required this.pager,
   });
 
   final int showing;
-  final int total;
-  final bool hasMore;
-  final bool loadingMore;
-  final VoidCallback onLoadMore;
+
+  /// 单页(hasMore==false 且 pageIndex==0)整个页脚隐藏。
+  final bool showPager;
+
+  /// 页脚右侧的分页条([TxnPagerBar],由调用方装配回调)。
+  final Widget pager;
 
   @override
   Widget build(BuildContext context) {
+    if (!showPager) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
@@ -1113,20 +1163,75 @@ class _PagerFooter extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text('显示 $showing 条',
+          Text('本页 $showing 条',
               style: TextStyle(color: context.yucai.muted, fontSize: 13)),
           const Spacer(),
-          if (hasMore || loadingMore)
-            _LoadMoreControl(
-              loading: loadingMore,
-              canLoad: hasMore,
-              onTap: onLoadMore,
-            )
-          else
-            Text('已全部加载',
-                style: TextStyle(color: context.yucai.muted, fontSize: 12)),
+          pager,
         ],
       ),
+    );
+  }
+}
+
+// ───────────────────────── F7 FR-4:页码分页条 ─────────────────────────
+
+/// 页码分页条:上一页/下一页 + 「第 N 页」指示。
+///
+/// - 第 1 页(pageIndex==0)禁用上一页;末页(hasMore==false)禁用下一页;
+///   [loading](翻页请求中)双禁防连点。
+/// - 单页(hasMore==false 且 pageIndex==0)由调用方整个隐藏。
+/// - 公开 + `@visibleForTesting`:widget 单测直接 pump 本组件(不依赖
+///   _Content 装配),生产路径由 _TxCard 页脚 / mobile 列表下方构造。
+@visibleForTesting
+class TxnPagerBar extends StatelessWidget {
+  const TxnPagerBar({
+    super.key,
+    required this.pageIndex,
+    required this.hasMore,
+    required this.onPrev,
+    required this.onNext,
+    this.loading = false,
+  });
+
+  /// 当前页码(0 起;显示「第 N 页」= pageIndex+1)。
+  final int pageIndex;
+
+  /// 是否还有下一页(来自 bloc 的 nextPageToken 非空)。
+  final bool hasMore;
+
+  /// 翻页请求进行中(TransactionsLoadingMore):双按钮禁用。
+  final bool loading;
+
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final onFirstPage = pageIndex <= 0;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: '上一页',
+          icon: const Icon(LucideIcons.chevronLeft, size: 18),
+          onPressed: (onFirstPage || loading) ? null : onPrev,
+        ),
+        Text('第 ${pageIndex + 1} 页',
+            style: TextStyle(
+                color: context.yucai.muted,
+                fontSize: 13,
+                fontFeatures: AppTypography.tabularFigures)),
+        IconButton(
+          tooltip: '下一页',
+          icon: const Icon(LucideIcons.chevronRight, size: 18),
+          onPressed: (!hasMore || loading) ? null : onNext,
+        ),
+        if (loading)
+          const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2)),
+      ],
     );
   }
 }
@@ -1455,36 +1560,6 @@ class _DayHeader extends StatelessWidget {
   }
 }
 
-// ───────────────────────── 加载更多 ─────────────────────────
-
-class _LoadMoreControl extends StatelessWidget {
-  const _LoadMoreControl({
-    required this.loading,
-    required this.canLoad,
-    required this.onTap,
-  });
-  final bool loading;
-  final bool canLoad;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: canLoad ? 1.0 : 0.6,
-      child: OutlinedButton.icon(
-        onPressed: (loading || !canLoad) ? null : onTap,
-        icon: loading
-            ? const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(LucideIcons.chevronDown, size: 18),
-        label: Text(loading ? '加载中…' : '加载更多'),
-      ),
-    );
-  }
-}
-
 // ───────────────────────── 空态 / 错误态 ─────────────────────────
 
 /// 列表区空提示(非全屏):切到无记录月份时 _Content 列表区显示,保留 header。
@@ -1728,6 +1803,34 @@ class _MobileFilterSheetState extends State<MobileFilterSheet> {
                       fontWeight: FontWeight.w600,
                       fontFamily: 'Georgia')),
               _typeGroup(),
+              // 搜索 + 排序(F7 FR-2/3):同样进草稿,「应用筛选」一次性回传。
+              Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 9),
+                      child: Text('搜索描述',
+                          style: TextStyle(
+                              color: context.yucai.muted, fontSize: 12.5)),
+                    ),
+                    TxnSearchField(
+                      value: _draft.searchText ?? '',
+                      onChanged: (v) => setState(() =>
+                          _draft = _draft.copyWith(
+                              searchText: v.isEmpty ? null : v)),
+                    ),
+                    const SizedBox(height: 12),
+                    TxnSortControl(
+                      sortKey: _draft.sortKey,
+                      sortDir: _draft.sortDir,
+                      onChanged: (k, d) => setState(() =>
+                          _draft = _draft.copyWith(sortKey: k, sortDir: d)),
+                    ),
+                  ],
+                ),
+              ),
               _chipGroup(
                 label: '账户',
                 options: widget.accountOptions,

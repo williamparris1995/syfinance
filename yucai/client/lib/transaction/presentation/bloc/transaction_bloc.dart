@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:yucai_client/account/domain/value_objects.dart' as acct;
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -26,6 +27,8 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
   TransactionBloc(this._txnRepo) : super(TransactionsInitial()) {
     on<LoadTransactionsRequested>(_onLoad);
     on<LoadMoreTransactionsRequested>(_onLoadMore);
+    // F7 FR-4:页码分页(prev/next,filter 不变换 token 重查)。
+    on<GoToTransactionsPageRequested>(_onGoToPageRequested);
     on<RetryTransactionsRequested>(_onRetry);
     on<LoadTransactionDetail>(_onLoadDetail);
     on<DeleteTransactionRequested>(_onDelete);
@@ -33,6 +36,12 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
   }
 
   final TransactionRepository _txnRepo;
+
+  /// 每页起始 token 栈(F7 FR-4):`_pageTokens[i]` = 取第 i 页(0 起)所用
+  /// pageToken,第 0 页恒为空串(首查不带 token)。next 压入上一页返回的
+  /// nextToken,prev 弹栈复用 —— 不假设 token 语义(DS offset 串 / 服务器
+  /// opaque cursor 均可回退)。任一筛选/搜索/排序变化(Load 事件)清栈重置。
+  final List<String> _pageTokens = [''];
 
   /// The most recently resolved summary that landed while no list-bearing
   /// state existed (e.g. during a concurrent list reload — the
@@ -51,6 +60,10 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
   Future<void> _onLoad(
       LoadTransactionsRequested event, Emitter<TransactionState> emit) async {
     final filter = event.filter;
+    // F7 FR-4:任一筛选/搜索/排序变化 = 重置第 1 页(token 清空、pageIndex=0)。
+    _pageTokens
+      ..clear()
+      ..add('');
     emit(TransactionsLoading(filter: filter));
     final result = await _txnRepo.list(_params(filter: filter));
     result.fold(
@@ -60,6 +73,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         transactions: page.transactions,
         filter: filter,
         nextPageToken: page.nextPageToken,
+        pageIndex: 0, // 重置第 1 页(显式写 0,语义自文档化)。
         // Prefer a summary that resolved DURING this reload (issue ① race): if
         // a LoadSummaryRequested landed while state was Loading, its result was
         // buffered in _pendingSummary. Otherwise carry over the prior Loaded's
@@ -163,6 +177,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
             transactions: s.transactions,
             filter: s.filter,
             nextPageToken: s.nextPageToken,
+            pageIndex: s.pageIndex,
             summary: summary,
           ));
         } else if (s is TransactionsLoadingMore) {
@@ -170,6 +185,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
             transactions: s.transactions,
             filter: s.filter,
             nextPageToken: s.nextPageToken,
+            pageIndex: s.pageIndex,
             summary: summary,
           ));
         } else {
@@ -192,11 +208,15 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     final token = loaded?.nextPageToken ?? loadingMore?.nextPageToken ?? '';
     final prior = loaded?.transactions ?? loadingMore?.transactions ?? const [];
     final filter = loaded?.filter ?? loadingMore?.filter ?? const TxnFilterState();
+    final pageIndex = loaded?.pageIndex ?? loadingMore?.pageIndex ?? 0;
+    final summary = loaded?.summary ?? loadingMore?.summary;
     if (token.isEmpty) return; // nothing more to fetch
     emit(TransactionsLoadingMore(
       transactions: prior,
       filter: filter,
       nextPageToken: token,
+      pageIndex: pageIndex, // 追加 load-more 不换页,页码保持。
+      summary: summary,
     ));
     final result =
         await _txnRepo.list(_params(filter: filter, pageToken: token));
@@ -207,6 +227,78 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         transactions: [...prior, ...page.transactions],
         filter: filter,
         nextPageToken: page.nextPageToken,
+        pageIndex: pageIndex,
+        summary: summary,
+      )),
+    );
+  }
+
+  /// F7 FR-4 翻页([GoToTransactionsPageRequested]):filter 不变,仅换
+  /// pageToken 重查目标页切片(替换,不追加)。
+  ///
+  /// - next:用当前 Loaded 的 nextPageToken;末页(空 token)no-op。
+  /// - prev:从 [_pageTokens] 取上一页起始 token;第 1 页 no-op;栈深不足
+  ///   (异常路径)兜底整体回第 1 页(token 置空 **且 target 一并归 0**,
+  ///   页码指示与列表内容永不不一致)。
+  /// - 翻页只是切片:summary 原样保留(不随翻页重算,重算只随 filter 变化)。
+  /// - 请求期间复用 [TransactionsLoadingMore](携带当前页列表继续渲染),
+  ///   完成后 Loaded 携带目标页列表与 pageIndex。
+  Future<void> _onGoToPageRequested(
+      GoToTransactionsPageRequested event, Emitter<TransactionState> emit) async {
+    final s = state;
+    final loaded = s is TransactionsLoaded ? s : null;
+    final loadingMore = s is TransactionsLoadingMore ? s : null;
+    final pageIndex = loaded?.pageIndex ?? loadingMore?.pageIndex ?? 0;
+    final filter =
+        loaded?.filter ?? loadingMore?.filter ?? const TxnFilterState();
+    final prior =
+        loaded?.transactions ?? loadingMore?.transactions ?? const [];
+    final summary = loaded?.summary ?? loadingMore?.summary;
+    final nextToken = loaded?.nextPageToken ?? loadingMore?.nextPageToken ?? '';
+
+    late final int target;
+    late final String token;
+    switch (event.direction) {
+      case TxnPageDirection.next:
+        if (nextToken.isEmpty) return; // 末页:no-op
+        target = pageIndex + 1;
+        token = nextToken;
+      case TxnPageDirection.prev:
+        if (pageIndex <= 0) return; // 第 1 页:no-op
+        if (pageIndex - 1 < _pageTokens.length) {
+          target = pageIndex - 1;
+          token = _pageTokens[target];
+        } else {
+          // 兜底(fix round 1):token 与页码一起归第 1 页,防页码/内容错位。
+          target = 0;
+          token = '';
+        }
+    }
+    // 维护 token 栈不变式:_pageTokens[i] = 第 i 页起始 token。
+    if (target < _pageTokens.length) {
+      _pageTokens[target] = token;
+    } else {
+      _pageTokens.add(token);
+    }
+    emit(TransactionsLoadingMore(
+      transactions: prior,
+      filter: filter,
+      nextPageToken: token,
+      pageIndex: target,
+      summary: summary,
+    ));
+    final result = await _txnRepo.list(_params(filter: filter,
+        pageToken: token.isEmpty ? null : token));
+    result.fold(
+      (failure) =>
+          emit(TransactionsError(failure.displayMessage, filter: filter)),
+      (page) => emit(TransactionsLoaded(
+        // 切片替换:翻页 = 换页内容,不是追加(与 load-more 的追加语义区分)。
+        transactions: page.transactions,
+        filter: filter,
+        nextPageToken: page.nextPageToken,
+        pageIndex: target,
+        summary: summary, // 翻页不重算 summary,原样携带。
       )),
     );
   }
@@ -231,7 +323,24 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
       dateTo: filter.month != null ? _monthEnd(filter.month!) : null,
       pageToken: pageToken,
       typeFilter: flavour,
+      // F7 FR-1:分类下拉 value 是 AccountCategory.name 串,反查回枚举。
+      category: _categoryOf(filter.category),
+      // F7 FR-2:搜索词原样透传(空/空白由 DS 层容错为不过滤)。
+      searchText: filter.searchText,
+      // F7 FR-3:排序四态透传(默认 date/desc,与既有默认序一致,NFR-1)。
+      sortKey: filter.sortKey,
+      sortDir: filter.sortDir,
     );
+  }
+
+  /// `AccountCategory.name` 串 → 枚举。空串/未知名(枚举演进后的旧状态)
+  /// 返回 null = 不过滤,容错而非抛错。
+  acct.AccountCategory? _categoryOf(String? name) {
+    if (name == null || name.isEmpty) return null;
+    for (final c in acct.AccountCategory.values) {
+      if (c.name == name) return c;
+    }
+    return null;
   }
 
   /// Maps the UI type segment to the domain flavour used for client-side
