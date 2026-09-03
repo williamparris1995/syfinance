@@ -7,7 +7,7 @@
 - **ADR-1 扩展既有参数对象**:`ListTransactionsParams` 增 `category`(AccountCategory?)/`searchText`(String?)/`sortKey`(date|amount,默认 date)/`sortDir`(asc|desc,默认 desc)——加法式扩展,不动既有调用方。备选:独立 Query 对象(过度设计,拒)。
 - **ADR-2 过滤链顺序固定**:`_assembleAll` 全量 → 内存过滤(账户→日期窗→类型→**分类**→**搜索**)→ **排序**(键切换,tie-break 恒 `transactionDate DESC, id DESC` 保稳定序)→ offset 分页。搜索/分类过滤插在类型过滤后、排序前。
 - **ADR-3 金额口径** = Σdebit entries(复式 invariant=Σcredit;转账/复合交易均为总额)。
-- **ADR-4 UI 形态**:filter_bar 增搜索框(TextField,onChange 提交)+ 排序 PopupMenu(键×方向四态);列表底部分页条(上一页/下一页 + 「第 N 页」);bloc 状态增 pageIndex/pageToken/hasMore,**任一筛选/搜索/排序变化 → 重置第 1 页**;末页禁用下一页。
+- **ADR-4 UI 形态**:filter_bar 增搜索框(TextField,onSubmitted 提交制——fix round 1 由 onChange 演进,防逐键焦点丢失)+ 排序 PopupMenu(键×方向四态);列表底部分页条(上一页/下一页 + 「第 N 页」);bloc 状态增 pageIndex/pageToken/hasMore,**任一筛选/搜索/排序变化 → 重置第 1 页**;末页禁用下一页。
 - **ADR-5 测试策略 TDD**:DS 单测(组合矩阵:分类×搜索×排序×分页)→ bloc 单测(映射/重置语义)→ widget 单测(filter_bar/分页条)→ e2e 断言扩展(级链⑥ + ui_list_filter)。
 
 ## HLD
