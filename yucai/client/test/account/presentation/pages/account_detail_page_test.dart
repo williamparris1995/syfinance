@@ -33,6 +33,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -654,11 +655,17 @@ void main() {
     expect(find.text('本月交易'), findsOneWidget);
   });
 
-  // ───── Task 6: 详情近期交易页码分页（5/页）─────
+  // ───── Task 6 → F9: 近期交易标准查询套件(替换 5/页迷你分页)─────
+  //
+  // F9 FR-2/ADR-4:旧「5 条/页客户端切片 + 1/N 页码」迷你分页已删除,近期
+  // 交易区改经 F7 查询管道(pageSize 100 + token 翻页 + 搜索/排序)。此处
+  // 迁移原分页测试为「单页」形态;token 翻页/搜索/排序的完整覆盖见
+  // account_detail_txn_suite_test.dart。
 
-  testWidgets('recent txn pagination: page 2 shows remaining + page indicator',
+  testWidgets('recent txn single page: all rows render, pager hidden (F9)',
       (tester) async {
-    // 造 7 条交易 → ceil(7/5)=2 页。第 1 页显示 0-4，第 2 页显示 5-6。
+    // 7 条交易在同一页(stub 一次返回全部、nextPageToken 空 = 末页)→ 全部
+    // 渲染且分页条整体隐藏(F7 _showPager 语义:hasMore==false 且 pageIndex==0)。
     final txns = List.generate(
         7, (i) => _txn('t$i', DateTime(2026, 6, 19).subtract(Duration(days: i))));
     await pumpPage(tester, transactions: txns);
@@ -670,27 +677,13 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
 
-    // 第 1 页：显示 t0..t4（描述格式「交易 t0」…）。
-    expect(find.text('交易 t0'), findsOneWidget);
-    expect(find.text('交易 t4'), findsOneWidget);
-    // 页码指示：2/2（page+1=1 但总页数 ceil(7/5)=2，当前 page=0 → "1/2"）。
-    expect(find.text('1/2'), findsOneWidget);
-
-    // 点「下一页」→ 第 2 页（page=1），显示 t5/t6。
-    // find.byTooltip 命中的是 RawTooltip，取其 IconButton 祖先再触发 onPressed。
-    final nextIconBtn = tester.widget<IconButton>(find.ancestor(
-      of: find.byTooltip('下一页'),
-      matching: find.byType(IconButton),
-    ));
-    expect(nextIconBtn.onPressed, isNotNull,
-        reason: '下一页 在 page=0 / pageCount=2 时应可点击');
-    nextIconBtn.onPressed!();
-    await tester.pumpAndSettle();
-    expect(find.text('交易 t5'), findsOneWidget);
-    expect(find.text('交易 t6'), findsOneWidget);
-    // 第 1 页的 t0 不应再显示。
-    expect(find.text('交易 t0'), findsNothing);
-    expect(find.text('2/2'), findsOneWidget);
+    // 单页:7 条全部渲染(不再 5 条切片)。
+    for (var i = 0; i < 7; i++) {
+      expect(find.text('交易 t$i'), findsOneWidget);
+    }
+    // 分页条隐藏 + 旧迷你分页页码(1/2)不再渲染。
+    expect(find.byType(PagerBar), findsNothing);
+    expect(find.text('1/2'), findsNothing);
   });
 
   // ───── Task 7: 详情 info-card 独立字段表（对齐 OD .info-card / .info-grid）─────
@@ -1600,6 +1593,13 @@ void main() {
     addTearDown(t.view.resetDevicePixelRatio);
     await pumpPage(t);
     await t.pumpAndSettle();
+    // F9:近期交易 panel 加搜索/排序控件后变高,infoCard(账户信息)被推出
+    // ListView cacheExtent(懒构建不挂载)—— 先滚入视口再取 GridView。
+    await t.scrollUntilVisible(
+      find.textContaining('账户信息'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     final grid = t.widget<GridView>(find.byKey(const ValueKey('infoCard')));
     final delegate =
         grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;

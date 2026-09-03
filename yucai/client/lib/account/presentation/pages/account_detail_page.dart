@@ -18,6 +18,7 @@ import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -52,11 +53,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// 写操作成功后的 toast 文案（关闭/激活共用同一套 pending → BlocListener 流程）。
   String? _pendingSuccessMsg;
 
-  /// 近期交易客户端分页（Task 6）。pageSize=5；当前页 0-based。
-  /// _recentTxnPanel 入口对越界（列表缩短 / 账户切换后页码失效）做 clamp，
-  /// 不引入 account-id 追踪 —— 切账户走 push 新 route，State 重建。
-  static const int _recentPageSize = 5;
-  int _recentPage = 0;
+  /// 近期交易标准查询套件（F9 FR-2/ADR-4，替换 Task 6 的 5 条/页客户端
+  /// 迷你分页 —— 旧 _recentPageSize/_recentPage/_recentPager 已删除）。
+  ///
+  /// 搜索/排序/分页状态不另起炉灶：复用路由层 provide 的 TransactionBloc
+  /// （F7 查询管道，accountId 作用域）——筛选状态挂在 bloc 状态携带的
+  /// TxnFilterState 上，分页游标由 bloc 内的共享 PageCursorStack（F9-T1
+  /// 提取至 core/widgets）维护。本页只做三件事：
+  ///   1. 读回当前 filter 驱动搜索框/排序控件（受控组件，单源真值）；
+  ///   2. 任一筛选变化发 LoadTransactionsRequested（照 F7 语义 = 重置
+  ///      第 1 页：bloc 清 PageCursorStack、pageIndex 归 0、pageSize 100）；
+  ///   3. 翻页发 GoToTransactionsPageRequested（filter 不变，仅换 token）。
 
   /// 收支统计的周期粒度（Task 10）。默认月（与 OD 原型 `.period-tabs` 月段
   /// active 对齐）。切换 → setState + 发 LoadSummaryRequested(scope, day)。
@@ -279,7 +286,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _recentTxnPanel(txns, a.currencyCode),
+              _recentTxnPanel(txnState, a.currencyCode),
               const SizedBox(height: 16),
               _summaryPanel(summary, a.currencyCode),
             ],
@@ -289,7 +296,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             key: const ValueKey('detailBodyRow'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 3, child: _recentTxnPanel(txns, a.currencyCode)),
+              Expanded(
+                  flex: 3, child: _recentTxnPanel(txnState, a.currencyCode)),
               const SizedBox(width: 16),
               Expanded(flex: 2, child: _summaryPanel(summary, a.currencyCode)),
             ],
@@ -1019,17 +1027,34 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ),
       );
 
-  /// 近期交易 panel：接 TransactionBloc 的 account-scoped list。空列表显示
-  /// 占位文案；非空按 _recentPageSize（5/页）切片 + 紧凑行渲染（描述 + 金额，
-  /// 不用 TxnRow 的宽表布局 —— 该 panel 在窄列里，TxnRow 会溢出）。
-  /// 分页 >1 页时底部追加「‹ 1/N ›」pager。越界（列表缩短 / 账户切换）在
-  /// 入口 clamp，避免 stale page index。
-  Widget _recentTxnPanel(List<Transaction> txns, String currencyCode) {
-    final pageCount = (txns.length / _recentPageSize).ceil();
-    if (_recentPage >= pageCount && pageCount > 0) _recentPage = pageCount - 1;
-    if (pageCount == 0) _recentPage = 0;
-    final start = _recentPage * _recentPageSize;
-    final page = txns.skip(start).take(_recentPageSize).toList();
+  /// 近期交易 panel（F9 FR-2 升级为标准查询套件）：接 TransactionBloc 的
+  /// account-scoped 分页列表（pageSize 100，第 N 页切片替换）。头部加
+  /// 搜索框 + 排序控件（复用 F7 的 TxnSearchField/TxnSortControl —— 它们
+  /// 依赖 transaction domain 的 TxnSortKey/TxnSortDir 类型，提升到 core 会
+  /// 造成 core → 模块 domain 的反向依赖，故保持落点、跨模块 presentation
+  /// import，与页内既有的 txn_category_icon/transaction_form_page 同模式）；
+  /// 底部挂共享 PagerBar（单页隐藏，照 F7 _showPager 语义）。
+  /// 空列表显示占位文案；行渲染仍是紧凑行（描述 + 金额，不用 TxnRow 宽表
+  /// —— 该 panel 在窄列里，TxnRow 会溢出）。
+  Widget _recentTxnPanel(TransactionState txnState, String currencyCode) {
+    final txns = txnState is TransactionsLoaded
+        ? txnState.transactions
+        : (txnState is TransactionsLoadingMore
+            ? txnState.transactions
+            : const <Transaction>[]);
+    final filter = _txnFilterOf(txnState);
+    final pageIndex = txnState is TransactionsLoaded
+        ? txnState.pageIndex
+        : (txnState is TransactionsLoadingMore ? txnState.pageIndex : 0);
+    final hasMore = txnState is TransactionsLoaded
+        ? txnState.hasMore
+        : (txnState is TransactionsLoadingMore ? txnState.hasMore : false);
+    final loadingMore = txnState is TransactionsLoadingMore;
+    // 单页（hasMore==false 且 pageIndex==0）整个分页条隐藏；翻页请求中
+    // （loadingMore）保持显示 —— LoadingMore 态的 nextPageToken 是「正在取
+    // 的页」token（prev 回第 1 页时为空 → hasMore 推出 false），不含 loading
+    // 态会瞬闪隐藏，loading 双禁已防连点（照 F7 _showPager 语义逐位）。
+    final showPager = hasMore || pageIndex > 0 || loadingMore;
     return DataCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1042,7 +1067,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('${txns.length} 笔',
+                  Text('本页 ${txns.length} 笔',
                       style: TextStyle(
                           color: context.yucai.muted, fontSize: 12)),
                   const SizedBox(width: AppSpacing.md),
@@ -1059,7 +1084,26 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          if (page.isEmpty)
+          // F9 FR-2 轻量控件行：搜索（提交制 —— 回车/清除才触发重查，防逐键
+          // 重载丢焦点）+ 排序四态。口径与交易列表页一致（复用 F7 widget）。
+          Row(
+            children: [
+              Expanded(
+                child: TxnSearchField(
+                  value: filter.searchText ?? '',
+                  onCommit: _onTxnSearchCommit,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              TxnSortControl(
+                sortKey: filter.sortKey,
+                sortDir: filter.sortDir,
+                onChanged: _onTxnSortChanged,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (txns.isEmpty)
             Padding(
               padding: EdgeInsets.all(24),
               child: Center(
@@ -1068,40 +1112,62 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               ),
             )
           else
-            for (final t in page) _recentTxnRow(t, currencyCode),
-          if (pageCount > 1) ...[
+            for (final t in txns) _recentTxnRow(t, currencyCode),
+          if (showPager) ...[
             const SizedBox(height: AppSpacing.sm),
-            _recentPager(pageCount),
+            Center(
+              // F9 FR-1 共享 PagerBar：翻页 = GoToTransactionsPageRequested
+              //（filter 不变，bloc 内共享 PageCursorStack 换 token 重查切片）。
+              child: PagerBar(
+                pageIndex: pageIndex,
+                hasMore: hasMore,
+                loading: loadingMore,
+                onPrev: _txnPrevPage,
+                onNext: _txnNextPage,
+              ),
+            ),
           ],
         ],
       ),
     );
   }
 
-  /// 近期交易页码行：‹ 上一页 · 1/N · 下一页 ›。首页/末页对应按钮禁用。
-  Widget _recentPager(int pageCount) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          tooltip: '上一页',
-          icon: Icon(LucideIcons.chevronLeft, size: 20, color: context.yucai.muted),
-          onPressed: _recentPage > 0
-              ? () => setState(() => _recentPage--)
-              : null,
-        ),
-        Text('${_recentPage + 1}/$pageCount',
-            style: TextStyle(color: context.yucai.muted, fontSize: 12)),
-        IconButton(
-          tooltip: '下一页',
-          icon: Icon(LucideIcons.chevronRight, size: 20, color: context.yucai.muted),
-          onPressed: _recentPage < pageCount - 1
-              ? () => setState(() => _recentPage++)
-              : null,
-        ),
-      ],
-    );
+  /// 从 TransactionBloc 状态读回当前交易筛选（F9 单源真值；与
+  /// transactions_page._filter 同口径）。非 list-bearing 状态（Initial /
+  /// detail 系）回退本账户默认筛选 —— 日期降序、无搜索（NFR-2 首屏语义）。
+  TxnFilterState _txnFilterOf(TransactionState s) => switch (s) {
+        TransactionsLoaded s => s.filter,
+        TransactionsLoadingMore s => s.filter,
+        TransactionsLoading s => s.filter,
+        TransactionsError s => s.filter,
+        _ => TxnFilterState(accountId: widget.id),
+      };
+
+  /// 当前 bloc 状态的筛选（供控件受控值与筛选变化 handler 读取）。
+  TxnFilterState _currentTxnFilter() =>
+      _txnFilterOf(context.read<TransactionBloc>().state);
+
+  /// F9 FR-2 搜索提交（回车/清除）：换 filter 重查 —— Load 事件即
+  /// 「重置第 1 页」（bloc 清 PageCursorStack、pageIndex 归 0），照 F7 语义。
+  void _onTxnSearchCommit(String v) {
+    context.read<TransactionBloc>().add(LoadTransactionsRequested(
+        filter: _currentTxnFilter()
+            .copyWith(searchText: v.isEmpty ? null : v)));
   }
+
+  /// F9 FR-3 排序四态切换：同样走 Load 事件（重置第 1 页）。
+  void _onTxnSortChanged(TxnSortKey key, TxnSortDir dir) {
+    context.read<TransactionBloc>().add(LoadTransactionsRequested(
+        filter: _currentTxnFilter().copyWith(sortKey: key, sortDir: dir)));
+  }
+
+  /// F9 FR-2 翻页：filter 不变，仅换 pageToken（bloc 内共享 PageCursorStack
+  /// 维护前进/回退游标，回第 1 页用栈内空串 token）。
+  void _txnPrevPage() => context.read<TransactionBloc>()
+      .add(const GoToTransactionsPageRequested(TxnPageDirection.prev));
+
+  void _txnNextPage() => context.read<TransactionBloc>()
+      .add(const GoToTransactionsPageRequested(TxnPageDirection.next));
 
   /// 近期交易行（Task 12 重写，对齐 OD .txn-row）：
   /// 分类 icon 圆角方块（income 绿/expense 红/transfer 灰）+ 名称（描述）+
@@ -1488,11 +1554,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// TransactionBloc 由路由层 provide（见 router.dart `/accounts/:id`）。
   /// Task 10：summary 现按当前 `_scope` / `_day` 发 LoadSummaryRequested，
   /// 切换周期粒度走同一入口。
+  /// F9：list 重载保留当前搜索/排序（从 bloc 状态读回 filter；仍走 Load
+  /// 事件 = 重置第 1 页，与 F7 语义一致）。
   void _refreshTxn() {
     final b = context.read<TransactionBloc>();
     final now = DateTime.now();
-    b.add(LoadTransactionsRequested(
-        filter: TxnFilterState(accountId: widget.id)));
+    b.add(LoadTransactionsRequested(filter: _currentTxnFilter()));
     b.add(LoadSummaryRequested(
       year: now.year,
       month: now.month,
