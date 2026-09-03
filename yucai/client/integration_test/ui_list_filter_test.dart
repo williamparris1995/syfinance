@@ -1,9 +1,12 @@
-/// F6 UI 链:交易页筛选器点选(ui_list_filter)。
+/// F6/F7 UI 链:交易页筛选器点选(ui_list_filter)。
 ///
 /// 链路:DS 预置多笔已知交易(跨类型:支出/收入/转账;跨账户;跨月)→
 /// 交易页筛选器点选:
 ///   ① 类型分段(全部/支出/转账)→ 列表按类型变化;
-///   ② 月份下拉(切上月)→ 按月隔离;账户下拉(筛某账户)→ 按账户过滤;重置恢复。
+///   ② 月份下拉(切上月)→ 按月隔离;账户下拉(筛某账户)→ 按账户过滤;重置恢复;
+///   ③ 搜索框(F7 FR-2,回车提交制)→ 只剩匹配;清除钮 → 恢复;
+///   ④ 排序控件(F7 FR-3)切金额降序 → 金额序≠日期序;切回默认;
+///   ⑤ 翻页(F7 FR-4)单页隐藏 → 批量 101 笔后真实翻页(下一页/页码/末页禁用)。
 /// 断言用夹具独有描述串匹配(「筛UI*」前缀,与演示数据零耦合)。
 ///
 /// ⚠️ 语义出入(以代码为准,记报告不修生产):类型分段经本地 DS 的
@@ -18,7 +21,8 @@
 /// (属 `make client-e2e-ui` 入口 B,手动按需)。
 library;
 
-import 'package:flutter/material.dart' show Scrollable;
+import 'package:flutter/material.dart'
+    show IconButton, Scrollable, Text, TextField, TextInputAction;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/account/data/account_local_ds.dart';
@@ -101,6 +105,27 @@ void main() {
       entries: [
         TransactionEntry(accountId: cat.id, debitCents: 6600, creditCents: 0),
         TransactionEntry(accountId: walletA, debitCents: 0, creditCents: 6600),
+      ],
+    ));
+    // 排序对照夹具(筛④):同月不同日,金额序与日期序刻意相反 ——
+    //   甲 day 20(日期晚)金额小 2,000;乙 day 10(日期早)金额大 9,000。
+    //   日期降序:甲先乙后;金额降序:乙先甲后(方向翻转)。同月不同日使两笔
+    //   各占一个天分组,翻转不受 UI「按天归组」语义吞掉(列表按 MM-DD 归组,
+    //   排序只决定分组首现序与组内序 —— 跨月对比会被归组重排,见筛④ oracle)。
+    await txns.recordTransaction(RecordTransactionParams(
+      transactionDate: DateTime(now.year, now.month, 20),
+      description: '筛UI排序甲',
+      entries: [
+        TransactionEntry(accountId: cat.id, debitCents: 2000, creditCents: 0),
+        TransactionEntry(accountId: walletA, debitCents: 0, creditCents: 2000),
+      ],
+    ));
+    await txns.recordTransaction(RecordTransactionParams(
+      transactionDate: DateTime(now.year, now.month, 10),
+      description: '筛UI排序乙',
+      entries: [
+        TransactionEntry(accountId: cat.id, debitCents: 9000, creditCents: 0),
+        TransactionEntry(accountId: walletA, debitCents: 0, creditCents: 9000),
       ],
     ));
   });
@@ -216,4 +241,192 @@ void main() {
     expect(textContainingRich('筛UI转账'), findsWidgets, reason: '重置:转账回列');
     expect(textContainingRich('筛UI上月'), findsWidgets, reason: '重置:上月支出回列');
   });
+
+  testWidgets('筛③搜索:回车提交过滤 + 清除钮恢复', (t) async {
+    await pumpApp(t);
+    await goPage(t, '交易记录');
+
+    // 基线:六笔夹具在列(rowsInOrder 按渲染顺序收集行描述,排序断言复用)。
+    expect(rowsInOrder(t), hasLength(6), reason: '基线:六笔夹具在列');
+
+    // 提交制(FR-2):输入不触发,回车/搜索动作键才离散提交(修复逐键提交的
+    // 焦点丢失缺陷)。注意顶栏另有全局搜索框(hint「搜索交易、账户…」)→
+    // 用筛选条专属 hint「搜索描述…」经 ancestor 精确定位。
+    final searchField = find.ancestor(
+        of: find.text('搜索描述…'), matching: find.byType(TextField));
+    expect(searchField, findsOneWidget, reason: 'sanity:筛选条搜索框唯一可寻');
+    await t.enterText(searchField, '筛UI支出');
+    await t.testTextInput.receiveAction(TextInputAction.search);
+    await t.pump(const Duration(seconds: 1)); // 重载空窗愈合(照筛② flake 注)
+    await t.pumpAndSettle(const Duration(seconds: 2));
+
+    expect(rowsInOrder(t), ['筛UI支出'], reason: '搜索:只剩描述匹配的行');
+    expect(textContainingRich('筛UI收入'), findsNothing, reason: '搜索:不匹配收入离列');
+    expect(textContainingRich('筛UI上月'), findsNothing, reason: '搜索:不匹配上月离列');
+
+    // 清除钮(suffix,提交空串)→ 全量恢复。
+    final clearBtn = find.byTooltip('清除搜索');
+    expect(clearBtn, findsOneWidget, reason: 'sanity:有词时清除钮出现');
+    await t.ensureVisible(clearBtn);
+    await t.pumpAndSettle();
+    await t.tap(clearBtn);
+    await t.pump(const Duration(seconds: 1));
+    await t.pumpAndSettle(const Duration(seconds: 2));
+    expect(rowsInOrder(t), hasLength(6), reason: '清除:六笔全量恢复');
+  });
+
+  testWidgets('筛④排序:金额降序重排(金额序≠日期序)+ 切回默认', (t) async {
+    await pumpApp(t);
+    await goPage(t, '交易记录');
+
+    // 基线(默认日期降序):甲(20 日)先乙(10 日),上月笔(上月 15 日)最旧居末。
+    // 金额口径 Σdebit oracle:收入 15,000 > 乙 9,000 > 支出 8,800 > 上月 6,600
+    // > 转账 3,000 > 甲 2,000 → 金额降序下乙必翻到甲之前(金额序≠日期序)。
+    // UI 语义注记:列表按天(MM-DD)归组渲染,排序决定分组首现序与组内序 ——
+    // 跨月的转账/上月对比会被归组重排,故对照锚点用同月不同日的甲/乙。
+    final before = rowsInOrder(t);
+    expect(before, hasLength(6));
+    expect(before.first, '筛UI排序甲', reason: '默认日期降序:甲(20 日)居首');
+    expect(before.indexOf('筛UI排序甲') < before.indexOf('筛UI排序乙'), isTrue,
+        reason: '默认:日期晚的甲在日期早的乙之前');
+    expect(before.last, '筛UI上月', reason: '默认日期降序:上月笔(最旧)居末');
+
+    // 点排序控件(显示当前态文案)弹四态菜单 → 选金额降序。
+    await t.ensureVisible(find.text('日期降序'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('日期降序'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('金额降序').last); // .last = 弹层菜单项(按钮态是日期降序)
+    await t.pump(const Duration(seconds: 1));
+    await t.pumpAndSettle(const Duration(seconds: 2));
+
+    // 金额降序渲染序 oracle:平铺金额序 = 收入(09-15)/乙(09-10)/支出(09-15)/
+    // 上月(08-15)/转账(09-15)/甲(09-20),按天归组(组按首现)后渲染:
+    //   09-15 组[收入,支出,转账] → 09-10 组[乙] → 08-15 组[上月] → 09-20 组[甲]。
+    expect(
+        rowsInOrder(t),
+        [
+          '筛UI收入', '筛UI支出', '筛UI转账', '筛UI排序乙', '筛UI上月', '筛UI排序甲'
+        ],
+        reason: '金额降序:乙(9,000)翻到甲(2,000)之前;天分组按首现重排');
+    expect(
+        rowsInOrder(t).indexOf('筛UI排序乙') <
+            rowsInOrder(t).indexOf('筛UI排序甲'),
+        isTrue,
+        reason: '金额降序:与默认日期序方向翻转');
+
+    // 切回默认(日期降序):甲回到首位、上月回到末位。
+    await t.ensureVisible(find.text('金额降序'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('金额降序'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('日期降序').last); // 按钮同名,.last 取菜单项
+    await t.pump(const Duration(seconds: 1));
+    await t.pumpAndSettle(const Duration(seconds: 2));
+    final after = rowsInOrder(t);
+    expect(after.first, '筛UI排序甲', reason: '切回默认:甲回到首位(日期降序)');
+    expect(after.last, '筛UI上月', reason: '切回默认:上月笔回到末位');
+    expect(after.indexOf('筛UI排序甲') < after.indexOf('筛UI排序乙'), isTrue,
+        reason: '切回默认:甲重新在乙之前');
+  });
+
+  testWidgets('筛⑤翻页:单页分页条隐藏 → 101 笔真实翻页(下一页/页码/末页禁用)',
+      (t) async {
+    await pumpApp(t);
+    await goPage(t, '交易记录');
+
+    // ① 单页(既有夹具+demo ≪ DS 默认 pageSize 100)且第 1 页 → 分页条整体
+    // 隐藏(FR-4 单页隐藏语义;bloc/widget 翻页状态机已有单测兜底)。
+    expect(find.text('第 1 页'), findsNothing, reason: '单页:页码指示隐藏');
+    expect(find.byTooltip('上一页'), findsNothing, reason: '单页:上一页按钮隐藏');
+    expect(find.byTooltip('下一页'), findsNothing, reason: '单页:下一页按钮隐藏');
+    expect(find.textContaining('本页'), findsNothing, reason: '单页:页脚整体隐藏');
+
+    // ② 批量建 101 笔(取舍说明:UI 不暴露 pageSize 改小入口,真实翻页需 >100
+    // 条;每笔一次本地 DS recordTransaction(2 分录,轻),101 次秒级可行 →
+    // 选真实点按断言而非仅隐藏断言)。全部 2026-12-15(未来月,日期降序恒居
+    // demo/既有夹具之前 → 第 1 页全为翻页夹具,断言确定)。
+    final txns = TransactionLocalDataSource(db, BalanceLocalUpdater(db));
+    final pagerWallet = await fundsAccount('筛UI翻钱包', 1000000);
+    final pagerSource = await fundsAccount('筛UI翻来源', 0);
+    for (var i = 0; i < 101; i++) {
+      await txns.recordTransaction(RecordTransactionParams(
+        transactionDate: DateTime(2026, 12, 15),
+        description: '筛UI翻${(i + 1).toString().padLeft(3, '0')}',
+        entries: [
+          TransactionEntry(
+              accountId: pagerWallet, debitCents: 10000, creditCents: 0),
+          TransactionEntry(
+              accountId: pagerSource, debitCents: 0, creditCents: 10000),
+        ],
+      ));
+    }
+
+    // 触发重载回第 1 页:点类型分段(筛选变化重置第 1 页,FR-4;翻页夹具均为
+    // 2 笔平衡 → 粗分类 transfer,与筛①口径一致)。
+    await t.tap(find.text('转账'));
+    await t.pump(const Duration(seconds: 1));
+    await t.pumpAndSettle(const Duration(seconds: 3));
+
+    // 第 1 页:恰 100 行翻页夹具 + 分页条出现;上一页禁用、下一页可用。
+    expect(pagerRows(t), 100,
+        reason: '页 1:pageSize 100 全为 2026-12 翻页夹具(日期降序居前)');
+    expect(find.text('第 1 页'), findsWidgets, reason: '多页:页码指示出现');
+    expect(find.text('本页 100 条'), findsWidgets, reason: '页 1:本页计数 100');
+    expect(pagerBtnEnabled(t, '上一页'), isFalse, reason: '第 1 页:上一页禁用');
+    expect(pagerBtnEnabled(t, '下一页'), isTrue, reason: '第 1 页:下一页可用');
+
+    // 下一页 → 第 2 页:仅剩 1 笔翻页夹具(101 = 100+1)+ 旧夹具回列;末页
+    // 下一页禁用、上一页可用。
+    await t.ensureVisible(find.byTooltip('下一页'));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('下一页'));
+    await t.pump(const Duration(seconds: 1));
+    await t.pumpAndSettle(const Duration(seconds: 3));
+    expect(find.text('第 2 页'), findsWidgets, reason: '翻页:页码指示更新');
+    expect(pagerRows(t), 1, reason: '页 2:仅剩第 101 笔翻页夹具');
+    expect(textContainingRich('筛UI支出'), findsWidgets,
+        reason: '页 2:旧夹具回列(翻页换页不丢数据)');
+    expect(pagerBtnEnabled(t, '下一页'), isFalse, reason: '末页:下一页禁用');
+    expect(pagerBtnEnabled(t, '上一页'), isTrue, reason: '第 2 页:上一页可用');
+
+    // 上一页 → 回第 1 页。
+    await t.ensureVisible(find.byTooltip('上一页'));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('上一页'));
+    await t.pump(const Duration(seconds: 1));
+    await t.pumpAndSettle(const Duration(seconds: 3));
+    expect(find.text('第 1 页'), findsWidgets, reason: '回翻:页码回第 1 页');
+    expect(pagerRows(t), 100, reason: '回翻:第 1 页 100 行恢复');
+  });
 }
+
+/// 分页按钮可用性:经 tooltip 定位(本版 IconButton 内嵌 RawTooltip,byTooltip
+/// 命中的是 Tooltip 而非按钮本体)→ 取其祖先 IconButton 的 onPressed
+/// (null = 禁用态:第 1 页禁上一页/末页禁下一页/翻页中双禁)。
+bool pagerBtnEnabled(WidgetTester t, String tooltip) =>
+    t
+        .widget<IconButton>(find.ancestor(
+            of: find.byTooltip(tooltip), matching: find.byType(IconButton)))
+        .onPressed !=
+    null;
+
+/// 翻页夹具行数:描述全匹配 ^筛UI翻\d{3}$ 计数。子串匹配会误计同前缀的
+/// 账户名(筛UI翻钱包/筛UI翻来源 出现在转账行账户列与副标题),故用正则
+/// 只数行描述本体(每行恰 1 个 Text)。
+int pagerRows(WidgetTester t) => [
+      for (final w in t.widgetList<Text>(find.byType(Text)))
+        if (w.data != null && RegExp(r'^筛UI翻\d{3}$').hasMatch(w.data!)) 1
+    ].length;
+
+/// 按渲染顺序收集交易列表行描述(仅「筛UI*」已知夹具行;排除同前缀的
+/// 账户下拉选项/分类 chip 文案 —— 白名单取行描述精确串)。
+/// 排序断言需全序而非集合,故逐 Text 遍历(Element 树序 = 视觉行序)。
+List<String> rowsInOrder(WidgetTester t) => [
+      for (final w in t.widgetList<Text>(find.byType(Text)))
+        if (w.data != null &&
+            {
+              '筛UI支出', '筛UI收入', '筛UI转账', '筛UI上月', '筛UI排序甲', '筛UI排序乙'
+            }.contains(w.data))
+          w.data!,
+    ];

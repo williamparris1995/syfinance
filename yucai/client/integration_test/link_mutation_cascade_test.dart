@@ -6,7 +6,9 @@
 /// 回滚至基线;账户非零余额删除守卫;净零(有历史)可删;archived 置位。
 /// 链路 B(列表):accountId 过滤 / 月份窗 / typeFilter(粗分类:2 笔平衡分录
 /// 即 transfer,income/expense 不可分,照实断言)/ 默认排序 transactionDate
-/// DESC,id DESC / pageSize=2 分页拼接 = 全量。
+/// DESC,id DESC / pageSize=2 分页拼接 = 全量;⑦ 补(F7 FR-5)category 维度 /
+/// 描述搜索(contains 忽略大小写)/ 排序四态补三态(date asc + 金额升降,口径
+/// Σdebit,tie 恒日期+id 降序不随方向翻转)/ category×search×金额降序×分页组合。
 ///
 /// Windows 桌面注意:请单独运行本文件(多集成文件同跑会有设备启动竞争,第二个文件 loading 失败)。
 /// 运行:`flutter test integration_test/link_mutation_cascade_test.dart -d windows --dart-define=YUCAI_DB_FILE=yucai_test.db`
@@ -408,5 +410,162 @@ void main() {
         accountId: fundsId, pageSize: 2, pageToken: '10'));
     expect(beyond.transactions, isEmpty);
     expect(beyond.nextPageToken, '');
+  });
+
+  testWidgets('级链⑦查询扩展:category 维度/描述搜索/排序四态/组合叠加', (t) async {
+    // ---- 夹具补充(自包含 级链查* 前缀;2026-07 固定月,远离 demo 当月) ----
+    // 跨分类账户:级链查卡(creditCard;既有夹具账户只有 savings/otherAsset,
+    // demo 种子亦无信用卡账户 → creditCard 断言可免前缀守卫做全集)。
+    //   q1 2026-07-01 级链查Netflix 4,400(dining/funds)—— ASCII 段供忽略大小写断言
+    //   q2 2026-07-02 级链查卡费   4,400(card/funds)—— 与 q1 同额(金额排序 tie)
+    //   q3 2026-07-03 级链查咖啡     700(card/funds)
+    final card = await accounts.create(const CreateAccountParams(
+      name: '级链查卡',
+      accountType: AccountType.liability,
+      category: AccountCategory.creditCard,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      ownership: Ownership.personal,
+    ));
+    Future<Transaction> q(DateTime d, String desc, String debitAcc, int cents) =>
+        txns.recordTransaction(RecordTransactionParams(
+          transactionDate: d,
+          description: desc,
+          entries: [
+            TransactionEntry(
+                accountId: debitAcc, debitCents: cents, creditCents: 0),
+            TransactionEntry(
+                accountId: fundsId, debitCents: 0, creditCents: cents),
+          ],
+        ));
+    await q(DateTime.utc(2026, 7, 1), '级链查Netflix', diningId, 4400);
+    await q(DateTime.utc(2026, 7, 2), '级链查卡费', card.id, 4400);
+    await q(DateTime.utc(2026, 7, 3), '级链查咖啡', card.id, 700);
+
+    // 查询结果描述序列 helper(排序断言用全序,不能只比对集合)。
+    Future<List<String>> descsOf(ListTransactionsParams p) async =>
+        (await txns.list(p)).transactions.map((x) => x.description).toList();
+
+    // ---- ① category 维度(F7 FR-1):任一 entry 涉及该分类账户即入选 ----
+    // oracle(creditCard,全集免守卫):仅 q2(借卡)/q3(借卡)两笔 entries 涉及
+    // 信用卡账户;m1..m5/清零不涉,q1 借餐饮不涉 → 恰 2 笔。
+    final byCard = await txns.list(
+        const ListTransactionsParams(category: AccountCategory.creditCard));
+    expect(byCard.transactions.map((x) => x.description).toSet(),
+        {'级链查卡费', '级链查咖啡'},
+        reason: 'category=creditCard:只剩涉信用卡账户的交易(demo 无该分类)');
+    expect(byCard.totalCount, 2);
+
+    // oracle(otherAsset,级链前缀守卫防 demo 工资/午餐也涉 otherAsset):
+    // 午餐一/二(dining)、工资(salary)、复合(dining 腿)、Netflix(dining)入选;
+    // 转账(wallet+funds 均 savings)、清零(wallet+guard 均 savings)、
+    // 卡费/咖啡(card creditCard+funds)排除。
+    final byOther = await txns
+        .list(const ListTransactionsParams(category: AccountCategory.otherAsset));
+    expect(
+        byOther.transactions
+            .map((x) => x.description)
+            .where((d) => d.startsWith('级链'))
+            .toSet(),
+        {'级链午餐一', '级链午餐二', '级链工资', '级链复合', '级链查Netflix'},
+        reason: 'category=otherAsset:跨分类交易被剔出(纯储蓄/信用卡腿不选)');
+
+    // oracle(savings,级链前缀守卫):9 笔全集 = m1..m5 + 清零(经 wallet 储蓄腿)
+    // + q1..q3(经 funds 储蓄腿)。
+    final bySavings = await txns
+        .list(const ListTransactionsParams(category: AccountCategory.savings));
+    expect(
+        bySavings.transactions
+            .map((x) => x.description)
+            .where((d) => d.startsWith('级链'))
+            .toSet(),
+        {
+          '级链午餐一', '级链午餐二', '级链工资', '级链转账', '级链复合', '级链清零',
+          '级链查Netflix', '级链查卡费', '级链查咖啡'
+        },
+        reason: 'category=savings:涉资金/钱包储蓄腿的级链交易全集');
+
+    // ---- ② searchText(F7 FR-2):contains + 忽略大小写 ----
+    // oracle:仅 q1 描述含「Netflix」;查询词「NETFLIX」与描述大小写不同,
+    // 双侧 toLowerCase 后 contains 命中(demo 无 netflix 交易,模板不入交易表)。
+    final netflix = await txns
+        .list(const ListTransactionsParams(searchText: 'NETFLIX'));
+    expect(netflix.transactions.map((x) => x.description).toSet(),
+        {'级链查Netflix'},
+        reason: '搜索忽略大小写:NETFLIX 命中 Netflix');
+    expect(netflix.totalCount, 1);
+    // 无命中词 → 空集(demo 描述亦不含该串)。
+    final miss =
+        await txns.list(const ListTransactionsParams(searchText: '级链查无此串'));
+    expect(miss.transactions, isEmpty, reason: '搜索无命中 → 空列表');
+    expect(miss.totalCount, 0);
+
+    // ---- ③ 排序四态(F7 FR-3;默认 date desc 已于 ⑥ 钉死,补三态) ----
+    // 作用域 = 资金账户(8 笔 = m1..m5 + q1..q3;清零只涉 wallet/guard 不入,
+    // demo 不涉级链账户),金额口径 Σdebit。oracle:
+    //   工资 55,000 > 转账 12,000 > 午餐一 8,800 >
+    //   {卡费 4,400(07-02), Netflix 4,400(07-01)} 同额 tie 恒按日期 DESC >
+    //   午餐二 3,300 > 复合 1,500 > 咖啡 700
+    final amountDesc = await descsOf(ListTransactionsParams(
+        accountId: fundsId,
+        sortKey: TxnSortKey.amount,
+        sortDir: TxnSortDir.desc));
+    expect(amountDesc, [
+      '级链工资', '级链转账', '级链午餐一', '级链查卡费', '级链查Netflix',
+      '级链午餐二', '级链复合', '级链查咖啡'
+    ], reason: '金额降序 Σdebit;同额 4,400 tie 按日期降序(卡费 07-02 先于 Netflix 07-01)');
+    // 升序 = 主键镜像,但 tie 段不翻转(tie-break 恒 date DESC,id DESC)。
+    final amountAsc = await descsOf(ListTransactionsParams(
+        accountId: fundsId,
+        sortKey: TxnSortKey.amount,
+        sortDir: TxnSortDir.asc));
+    expect(amountAsc, [
+      '级链查咖啡', '级链复合', '级链午餐二', '级链查卡费', '级链查Netflix',
+      '级链午餐一', '级链转账', '级链工资'
+    ], reason: '金额升序;tie 段与降序同序(恒定 tie-break 不随方向翻转)');
+    // 日期升序:同日 m1/m2 仍按 id 降序(tie-break 不随方向翻转)。
+    final dateAsc = await descsOf(ListTransactionsParams(
+        accountId: fundsId,
+        sortKey: TxnSortKey.date,
+        sortDir: TxnSortDir.asc));
+    final sameDay = [m1Id, m2Id]..sort((a, b) => b.compareTo(a));
+    expect(
+        dateAsc,
+        [
+          for (final id in sameDay) id == m1Id ? '级链午餐一' : '级链午餐二',
+          '级链工资', // 05-20
+          '级链转账', // 05-25
+          '级链复合', // 06-05
+          '级链查Netflix', // 07-01
+          '级链查卡费', // 07-02
+          '级链查咖啡', // 07-03
+        ],
+        reason: '日期升序;同日两笔按 id 降序(与默认降序同 tie 序)');
+
+    // ---- ④ 组合:category × searchText × 金额降序 × 分页 一条 ----
+    // oracle:otherAsset(dining/salary)∩ 描述含「级链午餐」→ 恰 午餐一 8,800 /
+    // 午餐二 3,300(demo「午餐」不含「级链午餐」串,工资描述亦不含);金额降序
+    // → 一先二后;pageSize=1 → 两页各 1 笔,token 数字递进,末页空。
+    final comb1 = await txns.list(const ListTransactionsParams(
+      category: AccountCategory.otherAsset,
+      searchText: '级链午餐',
+      sortKey: TxnSortKey.amount,
+      sortDir: TxnSortDir.desc,
+      pageSize: 1,
+    ));
+    expect(comb1.totalCount, 2);
+    expect(comb1.transactions.map((x) => x.description).toList(), ['级链午餐一'],
+        reason: '组合页 1:过滤后金额最大者');
+    expect(comb1.nextPageToken, '1');
+    final comb2 = await txns.list(ListTransactionsParams(
+      category: AccountCategory.otherAsset,
+      searchText: '级链午餐',
+      sortKey: TxnSortKey.amount,
+      sortDir: TxnSortDir.desc,
+      pageSize: 1,
+      pageToken: comb1.nextPageToken,
+    ));
+    expect(comb2.transactions.map((x) => x.description).toList(), ['级链午餐二']);
+    expect(comb2.nextPageToken, '', reason: '组合末页无 token');
   });
 }
