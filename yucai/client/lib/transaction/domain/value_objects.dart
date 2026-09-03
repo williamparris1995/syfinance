@@ -1,3 +1,4 @@
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 
 /// Transaction-domain value objects and enums. Currently the proto has no
@@ -71,6 +72,15 @@ TxnFlavour inferFlavour(Transaction txn) {
   return TxnFlavour.compound;
 }
 
+/// 列表排序键(F7 FR-3):日期(默认,= transactionDate)或金额(Σdebit 口径,
+/// 见 DS 层 ADR-3 注释)。枚举留在 client domain 层,与 [TxnFlavour]/[EntrySide]
+/// 同一决策:UI/bloc 不依赖生成 proto 代码。
+enum TxnSortKey { date, amount }
+
+/// 列表排序方向(F7 FR-3)。默认 [desc] 与既有默认序(transactionDate DESC,
+/// id DESC)一致 —— NFR-1:不带新参数时行为逐位不变。
+enum TxnSortDir { asc, desc }
+
 /// Parameters for `ListTransactions`. All filters optional.
 ///
 /// **Pagination**: [pageToken] is the opaque cursor returned in the previous
@@ -90,6 +100,10 @@ class ListTransactionsParams {
     this.pageSize = 100,
     this.pageToken,
     this.typeFilter,
+    this.category,
+    this.searchText,
+    this.sortKey = TxnSortKey.date,
+    this.sortDir = TxnSortDir.desc,
   });
 
   /// Restrict to entries touching this account id.
@@ -110,8 +124,23 @@ class ListTransactionsParams {
   /// Optional client-side flavour filter (income/expense/transfer). null = all.
   final TxnFlavour? typeFilter;
 
+  /// 账户分类过滤(F7 FR-1):仅返回任一 entry 涉及该分类账户的交易
+  /// (与 [accountId] 的"任一 entry 涉及"口径对齐)。null = 不过滤。
+  final AccountCategory? category;
+
+  /// 描述模糊搜索(F7 FR-2):contains + 大小写不敏感;DS 层仅在非空非
+  /// 空白时生效(null/空白 = 不过滤)。
+  final String? searchText;
+
+  /// 排序键(F7 FR-3):默认 [TxnSortKey.date]。
+  final TxnSortKey sortKey;
+
+  /// 排序方向(F7 FR-3):默认 [TxnSortDir.desc](与既有默认序一致,NFR-1)。
+  final TxnSortDir sortDir;
+
   /// True when the params carry no narrowing filter (server-side fields only;
-  /// typeFilter is client-side so it is excluded).
+  /// typeFilter/category/searchText and the sort knobs are client-side so
+  /// they are excluded).
   bool get isUnfilteredServerSide =>
       (accountId == null || accountId!.isEmpty) &&
       dateFrom == null &&

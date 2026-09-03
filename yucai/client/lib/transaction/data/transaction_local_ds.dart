@@ -6,6 +6,7 @@ import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 import 'package:yucai_client/core/localdb/daos/transaction_dao.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -140,6 +141,23 @@ class TransactionLocalDataSource {
   // ---- reads ----
 
   Future<ListTransactionsResult> list(ListTransactionsParams p) async {
+    // 分类过滤(F7 FR-1)需要 accountId→category 映射:仅当带分类参数时才查
+    // (默认路径零额外查询,保证 NFR-1 执行路径与现状一致)。
+    // 备份契约:accounts.category int = AccountCategory.index + 1
+    // (account_local_ds 写入口径,见其 create 中的映射)。
+    Map<String, AccountCategory>? categoryByAccount;
+    if (p.category != null) {
+      categoryByAccount = {
+        for (final a in await _accounts.getAllAccounts())
+          if (a.category >= 1 && a.category <= AccountCategory.values.length)
+            a.id: AccountCategory.values[a.category - 1],
+      };
+    }
+    // 搜索词(F7 FR-2):trim 后非空才生效(null/空白 = 不过滤),匹配用同一
+    // trim 后的小写词,与"非空非空白才生效"口径一致。
+    final query = p.searchText?.trim() ?? '';
+    final searchLower = query.isEmpty ? null : query.toLowerCase();
+
     final all = await _assembleAll();
     var filtered = all.where((t) {
       if (p.accountId != null &&
@@ -155,12 +173,47 @@ class TransactionLocalDataSource {
       if (p.typeFilter != null && inferFlavour(t) != p.typeFilter) {
         return false;
       }
+      // 分类过滤(ADR-2:类型过滤之后):任一 entry 的账户 category == 参数,
+      // 与 accountId 过滤的"任一 entry 涉及"口径对齐;未知账户(不在映射内)
+      // 视为不命中。
+      if (p.category != null &&
+          !t.entries.any((e) => categoryByAccount![e.accountId] == p.category)) {
+        return false;
+      }
+      // 描述搜索(ADR-2:分类之后、排序之前):contains + 大小写不敏感;
+      // 实体 description 非空(缺省 ''),null description 视空串的口径天然满足。
+      if (searchLower != null &&
+          !t.description.toLowerCase().contains(searchLower)) {
+        return false;
+      }
       return true;
-    }).toList()
-      ..sort((a, b) {
+    }).toList();
+
+    // 排序(F7 FR-3):键=日期/金额 × 方向=升/降 四态。
+    // tie-break 恒定 transactionDate DESC + id DESC(ADR-2 稳定序),不随
+    // sortDir 翻转;默认(date,desc)与既有比较器逐位一致(NFR-1)。
+    Map<String, int>? totalDebitById;
+    if (p.sortKey == TxnSortKey.amount) {
+      // 金额口径(ADR-3)= Σdebit(复式 invariant 下 Σdebit==Σcredit,
+      // 转账/复合交易均为总额);预计算一次,避免比较器内重复 fold。
+      totalDebitById = {
+        for (final t in filtered) t.id: t.totalDebitCents,
+      };
+    }
+    filtered.sort((a, b) {
+      int primary;
+      if (p.sortKey == TxnSortKey.amount) {
+        final byAmount = totalDebitById![b.id]!.compareTo(totalDebitById[a.id]!);
+        primary = p.sortDir == TxnSortDir.asc ? -byAmount : byAmount;
+      } else {
         final byDate = b.transactionDate.compareTo(a.transactionDate);
-        return byDate != 0 ? byDate : b.id.compareTo(a.id);
-      });
+        primary = p.sortDir == TxnSortDir.asc ? -byDate : byDate;
+      }
+      if (primary != 0) return primary;
+      // 恒定 tie-break:transactionDate DESC → id DESC。
+      final tieByDate = b.transactionDate.compareTo(a.transactionDate);
+      return tieByDate != 0 ? tieByDate : b.id.compareTo(a.id);
+    });
 
     final offset = int.tryParse(p.pageToken ?? '') ?? 0;
     final pageSize = p.pageSize <= 0 ? 100 : p.pageSize;
