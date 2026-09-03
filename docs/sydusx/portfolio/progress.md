@@ -17,7 +17,7 @@
 
 - Current product: **yucai-client**(R8 design-v2)
 - Current release: [release-r8-design-v2](../products/yucai-client/release-r8-design-v2/release.md)(F1-F4 done 双主题全应用生效 + sprint-2 F6 E2E 全模块关联链路 done;next:F4-P2 回退点穿线/hero 重设计待 ticket 化 + sprint-2 defer backlog)
-- Current sprint: R8 sprint-2 ✅ done(2026-09-03,F6 E2E 全模块关联链路补全,merge `160c3f30`:**模块修改后标准回归 = `make client-e2e`[管道 47 测试] / 出问题定位用 `make client-e2e-ui`[UI 17 测试],均支持 `F=` 单文件;种子→断言→测后删库,真实库零接触**);sprint-1(F1-F4)done;F4-P2(~306 处)与 backlog 见 sprint-2 defer(标签反查/category 接线/生产疑点 6 处等)。
+- Current sprint: R8 sprint-3(F7 列表查询四件套 ✅ done 2026-09-03 merge `9eee8de5`;F8 标签维度待认领)。sprint-2 ✅ done(2026-09-03,F6 E2E 全模块关联链路补全,merge `160c3f30`:**模块修改后标准回归 = `make client-e2e`[管道 47 测试] / 出问题定位用 `make client-e2e-ui`[UI 17 测试],均支持 `F=` 单文件;种子→断言→测后删库,真实库零接触**);sprint-1(F1-F4)done;F4-P2(~306 处)与 backlog 见 sprint-2 defer(标签反查/category 接线/生产疑点 6 处等)。
 - **2026-08-29 优先级 pivot(用户拍板方案 A)**:client 可用优先 → R7 四 feature 全落地收官后转入 R6 人工验收(待用户)与 R8 UI 线(已立项)。AI 语音助手=后续 feature 待 ticket 化。
 - **并行线**:yucai-client **[R6 offline-first](../products/yucai-client/release-r6-offline/release.md) 整体 done**(2026-08-23,十二 feature A-J 全 merged;人工清单真机执行待用户归档;defer 清单见 release.md——含 J codec 补 YC2E 解码[R5 D 的 contract drift]与 ticket 16 线)。
 
