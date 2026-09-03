@@ -10,6 +10,7 @@
 
 - [x] **feature F7** 2026-09-03-list-query-suite — 列表查询四件套 ✅ done(2026-09-03,merge `9eee8de5`;category 接线全链路+描述搜索[提交制]+日期/金额四态排序+页码分页;TDD 54 新单测+e2e 级链⑦/UI 筛③④⑤;三门 GREEN[client-e2e 10 文件/client-e2e-ui/1224 单测];review 抓修 desktop 搜索焦点缺陷)
 - [ ] **feature F8** 2026-09-03-tag-dimension — 标签维度:按标签反查交易 + 报表标签口径
+- [ ] **feature F9** 2026-09-03-list-unify — 列表能力统一:分页/搜索/排序按实体增长特性适配推广 F7 模式(账户详情/持仓/债务/债权/账户等)(claimed: zcode-r8-f9 2026-09-03)
 
 > F7 先行(用户点名重点);F8 无依赖可并行认领(注意 worktree 占用互斥)。
 
