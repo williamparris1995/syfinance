@@ -143,6 +143,9 @@ Future<void> main() async {
             '账户卡更多: item(编辑) topLeft=${itemRect.topLeft} '
             'button topLeft=${btnRect.topLeft} offset=$off');
         // 合成后像素(含 follower 层变换)= 用户真实所见。
+        // F9 变更说明(T4):F9-T3 给账户管理页头部加了搜索框(FR-5),首卡
+        // 与其「更多」菜单整体下移 → 金图重生成适配新 UI(断言逻辑不变,
+        // 菜单锚定语义照旧:A2 实测打开 + 不进侧栏区断言全部保持)。
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile('goldens/audit_menu_open.png'),
