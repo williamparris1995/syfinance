@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:yucai_client/account/domain/value_objects.dart' as acct;
+import 'package:yucai_client/core/widgets/page_cursor_stack.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -37,11 +38,12 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
 
   final TransactionRepository _txnRepo;
 
-  /// 每页起始 token 栈(F7 FR-4):`_pageTokens[i]` = 取第 i 页(0 起)所用
-  /// pageToken,第 0 页恒为空串(首查不带 token)。next 压入上一页返回的
-  /// nextToken,prev 弹栈复用 —— 不假设 token 语义(DS offset 串 / 服务器
-  /// opaque cursor 均可回退)。任一筛选/搜索/排序变化(Load 事件)清栈重置。
-  final List<String> _pageTokens = [''];
+  /// 每页起始 token 栈(F7 FR-4 → F9 提取为共享 [PageCursorStack]):
+  /// `_pageTokens[i]` = 取第 i 页(0 起)所用 pageToken,第 0 页恒为空串
+  /// (首查不带 token)。next 压入上一页返回的 nextToken,prev 弹栈复用 ——
+  /// 不假设 token 语义(DS offset 串 / 服务器 opaque cursor 均可回退)。
+  /// 任一筛选/搜索/排序变化(Load 事件)清栈重置。不变式详见类 dartdoc。
+  final PageCursorStack _pageTokens = PageCursorStack();
 
   /// The most recently resolved summary that landed while no list-bearing
   /// state existed (e.g. during a concurrent list reload — the
@@ -61,9 +63,8 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
       LoadTransactionsRequested event, Emitter<TransactionState> emit) async {
     final filter = event.filter;
     // F7 FR-4:任一筛选/搜索/排序变化 = 重置第 1 页(token 清空、pageIndex=0)。
-    _pageTokens
-      ..clear()
-      ..add('');
+    // clear() 内含「第 0 页空串」重置,与原 clear()+add('') 逐位等价。
+    _pageTokens.clear();
     emit(TransactionsLoading(filter: filter));
     final result = await _txnRepo.list(_params(filter: filter));
     result.fold(
@@ -265,21 +266,20 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         token = nextToken;
       case TxnPageDirection.prev:
         if (pageIndex <= 0) return; // 第 1 页:no-op
-        if (pageIndex - 1 < _pageTokens.length) {
+        // tokenFor 越界返回 null = 原「栈深不足」判定,两者条件逐位等价。
+        final prevToken = _pageTokens.tokenFor(pageIndex - 1);
+        if (prevToken != null) {
           target = pageIndex - 1;
-          token = _pageTokens[target];
+          token = prevToken;
         } else {
           // 兜底(fix round 1):token 与页码一起归第 1 页,防页码/内容错位。
           target = 0;
           token = '';
         }
     }
-    // 维护 token 栈不变式:_pageTokens[i] = 第 i 页起始 token。
-    if (target < _pageTokens.length) {
-      _pageTokens[target] = token;
-    } else {
-      _pageTokens.add(token);
-    }
+    // 维护 token 栈不变式:_pageTokens[i] = 第 i 页起始 token
+    // (栈内同槽覆写同值幂等 / 超深追加,逻辑移入 PageCursorStack.push)。
+    _pageTokens.push(target, token);
     emit(TransactionsLoadingMore(
       transactions: prior,
       filter: filter,

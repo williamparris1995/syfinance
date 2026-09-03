@@ -10,6 +10,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -362,7 +363,7 @@ class _Content extends StatelessWidget {
                     if (isMobile && _showPager)
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.sm),
-                        child: TxnPagerBar(
+                        child: PagerBar(
                           pageIndex: _pageIndex,
                           hasMore: _hasMore,
                           loading: loadingMore,
@@ -662,7 +663,7 @@ class _TxCard extends StatelessWidget {
           _PagerFooter(
             showing: totalCount,
             showPager: showPager,
-            pager: TxnPagerBar(
+            pager: PagerBar(
               pageIndex: pageIndex,
               hasMore: hasMore,
               loading: loadingMore,
@@ -1149,7 +1150,7 @@ class _PagerFooter extends StatelessWidget {
   /// 单页(hasMore==false 且 pageIndex==0)整个页脚隐藏。
   final bool showPager;
 
-  /// 页脚右侧的分页条([TxnPagerBar],由调用方装配回调)。
+  /// 页脚右侧的分页条([PagerBar],F9 提升至 core/widgets,由调用方装配回调)。
   final Widget pager;
 
   @override
@@ -1173,68 +1174,10 @@ class _PagerFooter extends StatelessWidget {
   }
 }
 
-// ───────────────────────── F7 FR-4:页码分页条 ─────────────────────────
-
-/// 页码分页条:上一页/下一页 + 「第 N 页」指示。
-///
-/// - 第 1 页(pageIndex==0)禁用上一页;末页(hasMore==false)禁用下一页;
-///   [loading](翻页请求中)双禁防连点。
-/// - 单页(hasMore==false 且 pageIndex==0)由调用方整个隐藏。
-/// - 公开 + `@visibleForTesting`:widget 单测直接 pump 本组件(不依赖
-///   _Content 装配),生产路径由 _TxCard 页脚 / mobile 列表下方构造。
-@visibleForTesting
-class TxnPagerBar extends StatelessWidget {
-  const TxnPagerBar({
-    super.key,
-    required this.pageIndex,
-    required this.hasMore,
-    required this.onPrev,
-    required this.onNext,
-    this.loading = false,
-  });
-
-  /// 当前页码(0 起;显示「第 N 页」= pageIndex+1)。
-  final int pageIndex;
-
-  /// 是否还有下一页(来自 bloc 的 nextPageToken 非空)。
-  final bool hasMore;
-
-  /// 翻页请求进行中(TransactionsLoadingMore):双按钮禁用。
-  final bool loading;
-
-  final VoidCallback onPrev;
-  final VoidCallback onNext;
-
-  @override
-  Widget build(BuildContext context) {
-    final onFirstPage = pageIndex <= 0;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          tooltip: '上一页',
-          icon: const Icon(LucideIcons.chevronLeft, size: 18),
-          onPressed: (onFirstPage || loading) ? null : onPrev,
-        ),
-        Text('第 ${pageIndex + 1} 页',
-            style: TextStyle(
-                color: context.yucai.muted,
-                fontSize: 13,
-                fontFeatures: AppTypography.tabularFigures)),
-        IconButton(
-          tooltip: '下一页',
-          icon: const Icon(LucideIcons.chevronRight, size: 18),
-          onPressed: (!hasMore || loading) ? null : onNext,
-        ),
-        if (loading)
-          const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2)),
-      ],
-    );
-  }
-}
+// ───────────────────────── F7 FR-4 分页条:F9 已提升为共享 PagerBar ─────────────────────────
+// TxnPagerBar(原 _PagerFooter 页脚/mobile 列表下方装配)已泛化迁移至
+// `core/widgets/pager_bar.dart` 的通用 [PagerBar],各列表页复用 —— 本页仅
+// 保留装配,语义/测试断言随迁移保绿(F9 FR-1 / ADR-1,行为逐位不变)。
 
 // ───────────────────────── 移动端：卡片堆叠 ─────────────────────────
 

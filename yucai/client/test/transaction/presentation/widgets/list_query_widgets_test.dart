@@ -7,8 +7,9 @@
 //     未提交缓冲不因无关重建被清空;重置一并回默认并清空输入框。
 //   - TxnFilterBar 排序控件(FR-3):点选四态 → 回调带对应 sortKey/sortDir;
 //     按钮显示当前态。
-//   - TxnPagerBar(FR-4):第 1 页禁上一页 / 末页禁下一页 / loading 双禁;
-//     「第 N 页」文本;按钮回调。
+//   - TxnPagerBar(FR-4)3 测:F9-T1 随组件泛化**迁移**至
+//     `test/core/widgets/pager_bar_test.dart`(共享 PagerBar,断言语义
+//     逐字未改),本文件不再覆盖分页条。
 //   - MobileFilterSheet:搜索 + 排序进草稿(逐键 onChanged 草稿模式,不动),
 //     「应用筛选」一次性回传。
 //
@@ -213,70 +214,6 @@ void main() {
 
       expect(captured?.sortKey, TxnSortKey.date);
       expect(captured?.sortDir, TxnSortDir.asc);
-    });
-  });
-
-  group('TxnPagerBar (FR-4)', () {
-    // byTooltip 命中的是 Tooltip 节点,需上溯到宿主 IconButton 才能断言
-    // onPressed 禁用态。
-    IconButton buttonOf(WidgetTester tester, String tooltip) {
-      return tester.widget<IconButton>(find.ancestor(
-        of: find.byTooltip(tooltip),
-        matching: find.byType(IconButton),
-      ));
-    }
-
-    testWidgets('第 1 页 + hasMore:上一页禁用、下一页可用并回调',
-        (tester) async {
-      var nextCalled = false;
-      await tester.pumpWidget(_harness(TxnPagerBar(
-        pageIndex: 0,
-        hasMore: true,
-        onPrev: () {},
-        onNext: () => nextCalled = true,
-      )));
-
-      expect(buttonOf(tester, '上一页').onPressed, isNull,
-          reason: '第 1 页禁用上一页');
-
-      await tester.tap(find.byTooltip('下一页'));
-      await tester.pump();
-      expect(nextCalled, isTrue);
-    });
-
-    testWidgets('末页(hasMore=false):下一页禁用、上一页可用并回调,显示第 N 页',
-        (tester) async {
-      var prevCalled = false;
-      await tester.pumpWidget(_harness(TxnPagerBar(
-        pageIndex: 2,
-        hasMore: false,
-        onPrev: () => prevCalled = true,
-        onNext: () {},
-      )));
-
-      expect(buttonOf(tester, '下一页').onPressed, isNull,
-          reason: '末页禁用下一页');
-
-      expect(find.text('第 3 页'), findsOneWidget,
-          reason: '页码指示 = pageIndex+1');
-
-      await tester.tap(find.byTooltip('上一页'));
-      await tester.pump();
-      expect(prevCalled, isTrue);
-    });
-
-    testWidgets('loading 中双按钮禁用(防连点重复翻页)', (tester) async {
-      await tester.pumpWidget(_harness(TxnPagerBar(
-        pageIndex: 1,
-        hasMore: true,
-        loading: true,
-        onPrev: () => fail('loading 中上一页不应可点'),
-        onNext: () => fail('loading 中下一页不应可点'),
-      )));
-
-      expect(buttonOf(tester, '上一页').onPressed, isNull);
-      expect(buttonOf(tester, '下一页').onPressed, isNull);
-      expect(find.text('第 2 页'), findsOneWidget);
     });
   });
 
