@@ -26,3 +26,7 @@ T1→T2→T3→T4 串行派发,每任务两轴 review,修复循环 ≤5。
 ## 教训(promote 候选)
 
 - **UI 门必须全量跑**:F9 收官只单跑新增 UI 文件(client-e2e-ui F=),漏掉 DebtSearchSortBar 对既有 ui_collect 的布局冲击。此后任何触碰 UI 的 feature 收官门 = `make client-e2e-ui` 全量(或至少声明受影响文件清单)。候选 PROMOTE 进 ai-harness 提示。
+
+## holistic review(2026-09-03)PASS 记录
+
+两轴 PASS。fix list 非阻塞跟进:①S-1 recordDividend 不实注释**已修**(已知缺口口径)+孤儿台账行收集立 **F11 ticket**(payload 编码收孤儿台账或合成 qty=0 头行);②S-2 idle 态 pending 计数 → **F12** 接线项;③T4 无简报 → code-plan 本身覆盖(此行即注记)。

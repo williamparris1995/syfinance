@@ -419,7 +419,9 @@ class HoldingLocalDataSource {
     await _database.transaction(() async {
       // 台账行无 syncState:离线分红的保留依赖持有头行置 pending(镜像协调
       // 按 (accountId, securityId) 联动保台账)。无持仓行的裸分红属边角
-      // (server 亦允许),该台账行不设保护,随上行批次补齐。
+      // (server 亦允许)——已知缺口(holistic review S-1):该台账行无 pending
+      // 锚,既不进收集批次,也会被下一次 holding 模块镜像刷新抹掉;
+      // F11 payload 编码时收孤儿台账行或合成 qty=0 头行(ticket 在案)。
       if (markPending) {
         final existing = (await _dao.watchAllHoldings().first)
             .where(
