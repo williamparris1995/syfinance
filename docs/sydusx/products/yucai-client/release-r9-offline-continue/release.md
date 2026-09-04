@@ -28,7 +28,7 @@
 
 ## Sprint roster
 
-- [ ] sprint-1:F10 → F11 → F12 → F13(依赖序;F11 形态依赖 F10 查实)
+- [x] sprint-1:F10 ✅(2026-09-03,merge `39063da2`)→ F11 → F12 → F13(依赖序;F11 形态已定:激活休眠 sync proto 增量 RPC+孤儿台账 ticket)
 
 ## done-criteria
 
