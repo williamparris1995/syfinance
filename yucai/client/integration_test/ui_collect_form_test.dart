@@ -116,6 +116,10 @@ void main() {
     // 债权卡点入详情(卡片 tap → push /receivables/:id)。
     final card = find.text('UI收好友');
     expect(card.evaluate(), isNotEmpty, reason: '借出债权在列');
+    // F9 在债权页头部加了搜索/排序控件行,夹具卡被推到首屏之下——
+    // tap 前必须滚入视口(否则 tap 落空、详情不开,后续 finder 全扑空)。
+    await t.ensureVisible(card.first);
+    await t.pumpAndSettle(const Duration(seconds: 1));
     await t.tap(card.first);
     await t.pumpAndSettle(const Duration(seconds: 2));
 
