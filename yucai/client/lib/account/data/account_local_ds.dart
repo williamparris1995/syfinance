@@ -10,6 +10,7 @@ import 'package:yucai_client/core/error/failures.dart';
 // the name in this file; row types are only used via the DAO.
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
+import 'package:yucai_client/core/localdb/sync_state.dart';
 
 
 /// Guest-mode data source for the account module (R6 ADR-1): mirrors the
@@ -30,7 +31,10 @@ class AccountLocalDataSource {
   Future<List<Account>> list() async =>
       (await _dao.getAllAccounts()).map(_toEntity).toList();
 
-  Future<Account> create(CreateAccountParams p) async {
+  /// [markPending] 三态语义(F10 FR-3):guest 路由缺省 false → 行 synced
+  /// (无上行语义);boundOfflineLocal / boundRemote 降级分支传 true →
+  /// 行 pending 待回网上行(repo `_routedWrite` 落点)。
+  Future<Account> create(CreateAccountParams p, {bool markPending = false}) async {
     final now = DateTime.now().toUtc();
     final id = _uuid.v4();
     await _dao.insertAccount(db.AccountsCompanion.insert(
@@ -82,6 +86,7 @@ class AccountLocalDataSource {
       version: 1,
       createdAt: now,
       updatedAt: now,
+      syncState: syncStateValue(markPending),
     ));
     return (await _requireById(id))!;
   }
@@ -89,7 +94,9 @@ class AccountLocalDataSource {
   Future<Account> getById(String id) async =>
       (await _requireById(id)) ?? (throw const ServerFailure(_notFound));
 
-  Future<Account> update(UpdateAccountParams p) async {
+  /// [markPending]:bound 路由对 synced 行的本地 update 置回 pending(整行
+  /// 待上行,FR-3);guest 路由缺省不改动 syncState。
+  Future<Account> update(UpdateAccountParams p, {bool markPending = false}) async {
     final row = await _requireById(p.id);
     if (row == null) throw const ServerFailure(_notFound);
     // Optimistic-concurrency mirror of the remote 409: a stale version is
@@ -146,19 +153,31 @@ class AccountLocalDataSource {
       loanNextPaymentDate: orAbsent(p.loanNextPaymentDate),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending ? const Value(SyncState.pending) : const Value.absent(),
     ));
     return (await _requireById(p.id))!;
   }
 
-  Future<void> delete(String id) async {
+  /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4,防镜像
+  /// delete-all+rebuild 复活);guest 删除不写墓碑(绑定走全量首传)。
+  Future<void> delete(String id, {bool writeTombstone = false}) async {
     final row = await _requireById(id);
     if (row == null) throw const ServerFailure(_notFound);
     // Same guard and wording as the remote non-zero-balance rule — guest
-    // habits must match bound habits (ADR-4).
+    // habits must match bound habits (ADR-4). 守卫通过后的删除才墓碑。
     if (row.currentBalanceCents != 0) {
       throw const ServerFailure('账户余额非零，无法删除，请先清空余额或转账后再试');
     }
-    await _dao.deleteAccountById(id);
+    await _db.transaction(() async {
+      await _dao.deleteAccountById(id);
+      if (writeTombstone) {
+        await _db.syncTombstoneDao.upsertTombstone(
+            db.SyncTombstonesCompanion.insert(
+                module: SyncModule.account,
+                entityId: id,
+                deletedAt: DateTime.now().toUtc()));
+      }
+    });
   }
 
   Future<Account?> _requireById(String id) async =>

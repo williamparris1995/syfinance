@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
+import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 import 'package:yucai_client/core/localdb/daos/transaction_dao.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -34,37 +35,50 @@ class TransactionLocalDataSource {
   AccountDao get _accounts => _database.accountDao;
 
   // ---- writes ----
+  //
+  // 各写方法的 [markPending] 三态语义(F10 FR-3):guest 路由缺省 false →
+  // 头行 synced;boundOfflineLocal / boundRemote 降级分支传 true → 头行
+  // pending 待上行(repo `_routedWrite` 落点)。复合调用方(debt 还款 /
+  // holding 买卖 / template record)透传同一旗标,整笔写统一待上行。
 
-  Future<Transaction> recordExpense(RecordExpenseParams p) =>
+  Future<Transaction> recordExpense(RecordExpenseParams p,
+          {bool markPending = false}) =>
       _insertWithEntries(
         p.transactionDate,
         p.description,
         p.transactionTime,
         _pair(p.expenseAccountId, p.assetAccountId, p.amountCents, p.note),
+        markPending: markPending,
       );
 
-  Future<Transaction> recordIncome(RecordIncomeParams p) =>
+  Future<Transaction> recordIncome(RecordIncomeParams p,
+          {bool markPending = false}) =>
       _insertWithEntries(
         p.transactionDate,
         p.description,
         p.transactionTime,
         _pair(p.assetAccountId, p.incomeAccountId, p.amountCents, p.note),
+        markPending: markPending,
       );
 
-  Future<Transaction> recordTransfer(RecordTransferParams p) =>
+  Future<Transaction> recordTransfer(RecordTransferParams p,
+          {bool markPending = false}) =>
       _insertWithEntries(
         p.transactionDate,
         p.description,
         p.transactionTime,
         _pair(p.toAccountId, p.fromAccountId, p.amountCents, p.note),
+        markPending: markPending,
       );
 
-  Future<Transaction> recordTransaction(RecordTransactionParams p) =>
+  Future<Transaction> recordTransaction(RecordTransactionParams p,
+          {bool markPending = false}) =>
       _insertWithEntries(
         p.transactionDate,
         p.description,
         '',
         p.entries,
+        markPending: markPending,
       );
 
   /// Head + entries written inside ONE drift transaction: a mid-batch
@@ -73,8 +87,9 @@ class TransactionLocalDataSource {
     DateTime date,
     String description,
     String transactionTime,
-    List<TransactionEntry> entries,
-  ) async {
+    List<TransactionEntry> entries, {
+    bool markPending = false,
+  }) async {
     if (entries.isEmpty) {
       throw const ValidationFailure('至少需要一条分录');
     }
@@ -102,6 +117,7 @@ class TransactionLocalDataSource {
         version: 1,
         createdAt: now,
         updatedAt: now,
+        syncState: syncStateValue(markPending),
       ));
       for (final e in entries) {
         await _dao.insertEntry(db.TransactionEntriesCompanion.insert(
@@ -243,7 +259,10 @@ class TransactionLocalDataSource {
 
   // ---- update / delete ----
 
-  Future<Transaction> update(UpdateTransactionParams p) async {
+  /// [markPending]:bound 路由对 synced 行的本地 update 置回 pending(整行
+  /// 待上行,FR-3);guest 路由缺省不改动 syncState。
+  Future<Transaction> update(UpdateTransactionParams p,
+      {bool markPending = false}) async {
     final head = await _dao.getTransactionById(p.id);
     if (head == null) throw const ServerFailure('交易不存在');
     if (head.version != p.version) {
@@ -280,6 +299,9 @@ class TransactionLocalDataSource {
         description: Value(p.description), // full-replace, mirrors remote
         version: Value(head.version + 1),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncState: markPending
+            ? const Value(SyncState.pending)
+            : const Value.absent(),
       ));
       // Whole-entry-set replacement (design ADR-1).
       await _dao.deleteEntriesByTransaction(p.id);
@@ -300,7 +322,9 @@ class TransactionLocalDataSource {
     return (await getById(p.id));
   }
 
-  Future<void> delete(String id) async {
+  /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4);guest 删除不写
+  /// 墓碑(绑定走全量首传)。
+  Future<void> delete(String id, {bool writeTombstone = false}) async {
     if (await _dao.getTransactionById(id) == null) {
       throw const ServerFailure('交易不存在');
     }
@@ -310,6 +334,13 @@ class TransactionLocalDataSource {
       final oldEntries = await _dao.watchEntriesByTransaction(id).first;
       await _balances.applyEntries(oldEntries, -1);
       await _dao.deleteTransactionById(id); // entries cascade via FK
+      if (writeTombstone) {
+        await _database.syncTombstoneDao.upsertTombstone(
+            db.SyncTombstonesCompanion.insert(
+                module: SyncModule.transaction,
+                entityId: id,
+                deletedAt: DateTime.now().toUtc()));
+      }
     });
   }
 

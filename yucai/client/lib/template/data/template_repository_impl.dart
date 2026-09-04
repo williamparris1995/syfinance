@@ -66,7 +66,8 @@ class TemplateRepositoryImpl implements TemplateRepository {
               autoRecord: autoRecord,
               category: category,
             ),
-          () => _local.create(
+          (markPending) => _local.create(
+              markPending: markPending,
               name: name,
               description: description,
               amountCents: amountCents,
@@ -106,7 +107,8 @@ class TemplateRepositoryImpl implements TemplateRepository {
               endDate: endDate,
               autoRecord: autoRecord,
             ),
-          () => _local.update(
+          (markPending) => _local.update(
+              markPending: markPending,
               id: id,
               version: version,
               name: name,
@@ -120,15 +122,18 @@ class TemplateRepositoryImpl implements TemplateRepository {
 
   @override
   Future<Either<Failure, void>> delete(String id) =>
-      _routedWrite(MirrorModule.template, () => _remote.delete(id), () => _local.delete(id));
+      _routedWrite(MirrorModule.template, () => _remote.delete(id),
+          (markPending) => _local.delete(id, writeTombstone: markPending));
 
   @override
   Future<Either<Failure, Template>> pause(String id) =>
-      _routedWrite(MirrorModule.template, () => _remote.pause(id), () => _local.pause(id));
+      _routedWrite(MirrorModule.template, () => _remote.pause(id),
+          (markPending) => _local.pause(id, markPending: markPending));
 
   @override
   Future<Either<Failure, Template>> resume(String id) =>
-      _routedWrite(MirrorModule.template, () => _remote.resume(id), () => _local.resume(id));
+      _routedWrite(MirrorModule.template, () => _remote.resume(id),
+          (markPending) => _local.resume(id, markPending: markPending));
 
   @override
   Future<Either<Failure, Template>> get(String id) =>
@@ -136,7 +141,8 @@ class TemplateRepositoryImpl implements TemplateRepository {
 
   @override
   Future<Either<Failure, RecordResult>> record(String templateId) =>
-      _routedWrite(MirrorModule.template, () => _remote.record(templateId), () => _local.record(templateId));
+      _routedWrite(MirrorModule.template, () => _remote.record(templateId),
+          (markPending) => _local.record(templateId, markPending: markPending));
 
   /// 统一 try/Either 包装(对齐 TagRepositoryImpl._guard / BackupRepositoryImpl._guard)。
   /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
@@ -154,16 +160,24 @@ class TemplateRepositoryImpl implements TemplateRepository {
   /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
   /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
   /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
-  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
   Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
-      Future<T> Function() remote, Future<T> Function() local) async {
-    if (_useLocalDs) {
-      return _mirrored(m, () => _guard(local));
+      Future<T> Function() remote,
+      Future<T> Function(bool markPending) local) async {
+    switch (_tracker.resolveDataRoute()) {
+      case DataRoute.guestLocal:
+        // guest 行 synced(无上行语义,R6 行为不变;缺省不传 = false)。
+        return _mirrored(m, () => _guard(() => local(false)));
+      case DataRoute.boundOfflineLocal:
+        // 离线写本地,行 pending 待回网上行(FR-3,T2 落地)。
+        return _mirrored(m, () => _guard(() => local(true)));
+      case DataRoute.boundRemote:
+        // 在线先远端(Right 触发镜像刷新,与 R6 逐位一致);NetworkFailure
+        // 降级本地落库置 pending(FR-1b 双保险,同为 bound 路由)。
+        return writeWithFallback(
+          () => _mirrored(m, () => _guard(remote)),
+          () => _guard(() => local(true)),
+        );
     }
-    return writeWithFallback(
-      () => _mirrored(m, () => _guard(remote)),
-      () => _guard(local),
-    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {

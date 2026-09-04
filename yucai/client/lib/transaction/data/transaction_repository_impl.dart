@@ -37,26 +37,26 @@ class TransactionRepositoryImpl implements TransactionRepository {
   @override
   Future<Either<Failure, Transaction>> recordExpense(
           RecordExpenseParams params) =>
-      _routedWrite(MirrorModule.transaction,
-          () => _remote.recordExpense(params), () => _local.recordExpense(params));
+      _routedWrite(MirrorModule.transaction, () => _remote.recordExpense(params),
+          (markPending) => _local.recordExpense(params, markPending: markPending));
 
   @override
   Future<Either<Failure, Transaction>> recordIncome(
           RecordIncomeParams params) =>
-      _routedWrite(MirrorModule.transaction,
-          () => _remote.recordIncome(params), () => _local.recordIncome(params));
+      _routedWrite(MirrorModule.transaction, () => _remote.recordIncome(params),
+          (markPending) => _local.recordIncome(params, markPending: markPending));
 
   @override
   Future<Either<Failure, Transaction>> recordTransfer(
           RecordTransferParams params) =>
-      _routedWrite(MirrorModule.transaction,
-          () => _remote.recordTransfer(params), () => _local.recordTransfer(params));
+      _routedWrite(MirrorModule.transaction, () => _remote.recordTransfer(params),
+          (markPending) => _local.recordTransfer(params, markPending: markPending));
 
   @override
   Future<Either<Failure, Transaction>> recordTransaction(
           RecordTransactionParams params) =>
       _routedWrite(MirrorModule.transaction, () => _remote.recordTransaction(params),
-          () => _local.recordTransaction(params));
+          (markPending) => _local.recordTransaction(params, markPending: markPending));
 
   @override
   Future<Either<Failure, ListTransactionsResult>> list(
@@ -70,13 +70,13 @@ class TransactionRepositoryImpl implements TransactionRepository {
   @override
   Future<Either<Failure, Transaction>> update(
           UpdateTransactionParams params) =>
-      _routedWrite(MirrorModule.transaction,
-          () => _remote.update(params), () => _local.update(params));
+      _routedWrite(MirrorModule.transaction, () => _remote.update(params),
+          (markPending) => _local.update(params, markPending: markPending));
 
   @override
   Future<Either<Failure, void>> delete(String id) =>
-      _routedWrite(MirrorModule.transaction,
-          () => _remote.delete(id), () => _local.delete(id));
+      _routedWrite(MirrorModule.transaction, () => _remote.delete(id),
+          (markPending) => _local.delete(id, writeTombstone: markPending));
 
   @override
   Future<Either<Failure, MonthlySummary>> summary(
@@ -119,17 +119,24 @@ class TransactionRepositoryImpl implements TransactionRepository {
   ///   落库(FR-1b 双保险:connectivity 误报在线的兜底),降级成功**不**
   ///   触发镜像刷新 —— delete-all+rebuild 的镜像重建会抹掉未上行的本地行;
   /// - 其他失败(校验 / 权限 / 服务端错误)不降级,原样 Left 上抛。
-  /// TODO-F10T2:降级 / 离线写本地需置 pending + 回网增量上行(本任务不做,
-  /// 此处为锚点);镜像对 pending 行的保护在 T2/T3。
   Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
-      Future<T> Function() remote, Future<T> Function() local) async {
-    if (_useLocalDs) {
-      return _mirrored(m, () => _guard(local));
+      Future<T> Function() remote,
+      Future<T> Function(bool markPending) local) async {
+    switch (_tracker.resolveDataRoute()) {
+      case DataRoute.guestLocal:
+        // guest 行 synced(无上行语义,R6 行为不变;缺省不传 = false)。
+        return _mirrored(m, () => _guard(() => local(false)));
+      case DataRoute.boundOfflineLocal:
+        // 离线写本地,行 pending 待回网上行(FR-3,T2 落地)。
+        return _mirrored(m, () => _guard(() => local(true)));
+      case DataRoute.boundRemote:
+        // 在线先远端(Right 触发镜像刷新,与 R6 逐位一致);NetworkFailure
+        // 降级本地落库置 pending(FR-1b 双保险,同为 bound 路由)。
+        return writeWithFallback(
+          () => _mirrored(m, () => _guard(remote)),
+          () => _guard(() => local(true)),
+        );
     }
-    return writeWithFallback(
-      () => _mirrored(m, () => _guard(remote)),
-      () => _guard(local),
-    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {

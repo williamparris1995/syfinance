@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/holding_dao.dart';
+import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/core/localdb/daos/derived_dao.dart';
 import 'package:yucai_client/core/localdb/daos/reference_dao.dart';
 import 'package:yucai_client/holding/domain/entities/goal_view_entity.dart';
@@ -134,6 +135,13 @@ class HoldingLocalDataSource {
   }
 
   // ---- trades ----
+  //
+  // buy/sell/recordDividend/recordSplit 的 [markPending] 三态语义(F10
+  // FR-3):guest 缺省 false → holding 头行 synced;boundOfflineLocal /
+  // boundRemote 降级传 true → holding 头行 pending(台账/lot 为无
+  // syncState 的子表,镜像协调按 (accountId, securityId) 联动保留)。
+  // createSecurity/updateSecurityPrice 操作证券表(无 syncState,引用数据),
+  // 旗标忽略。
 
   Future<HoldingTransaction> buy({
     required String accountId,
@@ -144,6 +152,7 @@ class HoldingLocalDataSource {
     int feeCents = 0,
     required String tradeDate,
     String? notes,
+    bool markPending = false,
   }) =>
       _trade(
         isBuy: true,
@@ -155,6 +164,7 @@ class HoldingLocalDataSource {
         feeCents: feeCents,
         tradeDate: tradeDate,
         notes: notes,
+        markPending: markPending,
       );
 
   Future<HoldingTransaction> sell({
@@ -166,6 +176,7 @@ class HoldingLocalDataSource {
     int feeCents = 0,
     required String tradeDate,
     String? notes,
+    bool markPending = false,
   }) =>
       _trade(
         isBuy: false,
@@ -177,6 +188,7 @@ class HoldingLocalDataSource {
         feeCents: feeCents,
         tradeDate: tradeDate,
         notes: notes,
+        markPending: markPending,
       );
 
   Future<HoldingTransaction> _trade({
@@ -189,6 +201,7 @@ class HoldingLocalDataSource {
     required int feeCents,
     required String tradeDate,
     String? notes,
+    bool markPending = false,
   }) async {
     if (quantity <= 0) throw const ValidationFailure('数量必须大于零');
     if (priceCents <= 0) throw const ValidationFailure('价格必须大于零');
@@ -240,6 +253,7 @@ class HoldingLocalDataSource {
             version: 1,
             createdAt: now,
             updatedAt: now,
+            syncState: syncStateValue(markPending),
           ));
         } else {
           await _dao.updateHolding(db.HoldingsCompanion(
@@ -248,6 +262,9 @@ class HoldingLocalDataSource {
             avgCostCents: Value(avg),
             version: Value(existing.version + 1),
             updatedAt: Value(now),
+            syncState: markPending
+                ? const Value(SyncState.pending)
+                : const Value.absent(),
           ));
         }
         // 2a) Buy lot: per-share cost capitalizes the fee.
@@ -283,6 +300,9 @@ class HoldingLocalDataSource {
               remainingQty == 0 ? 0 : (remainingCost / remainingQty).round()),
           version: Value(existing.version + 1),
           updatedAt: Value(now),
+          syncState: markPending
+              ? const Value(SyncState.pending)
+              : const Value.absent(),
         ));
         // realized is folded into the ledger row below.
         await _dao.insertHoldingTransaction(
@@ -301,7 +321,8 @@ class HoldingLocalDataSource {
           createdAt: now,
         ));
         // 3) Cash linkage: sell = debit from (cash+) / credit holding account.
-        await _txns.recordTransaction(RecordTransactionParams(
+        await _txns.recordTransaction(
+            RecordTransactionParams(
           transactionDate: date,
           description: '卖出',
           entries: [
@@ -312,7 +333,7 @@ class HoldingLocalDataSource {
             TransactionEntry(
                 accountId: accountId, debitCents: 0, creditCents: amount),
           ],
-        ));
+        ), markPending: markPending);
         return;
       }
 
@@ -332,7 +353,8 @@ class HoldingLocalDataSource {
         notes: notes ?? '',
         createdAt: now,
       ));
-      await _txns.recordTransaction(RecordTransactionParams(
+      await _txns.recordTransaction(
+          RecordTransactionParams(
         transactionDate: date,
         description: '买入',
         entries: [
@@ -340,8 +362,8 @@ class HoldingLocalDataSource {
               accountId: accountId, debitCents: amount, creditCents: 0),
           TransactionEntry(
               accountId: fromAccountId, debitCents: 0, creditCents: amount),
-        ],
-      ));
+          ],
+        ), markPending: markPending);
     });
     return _txnView((await _dao.getHoldingTransactionById(tradeId))!);
   }
@@ -390,24 +412,42 @@ class HoldingLocalDataSource {
     required int totalAmountCents,
     required String tradeDate,
     String? notes,
+    bool markPending = false,
   }) async {
     // Server recordDividend has no cash leg (accepted difference, ADR-1).
     final id = _uuid.v4();
-    await _dao.insertHoldingTransaction(
-        db.HoldingTransactionsCompanion.insert(
-      id: id,
-      accountId: accountId,
-      securityId: securityId,
-      tradeType: TradeType.dividend.index + 1,
-      quantity: quantity,
-      priceCents: cashPerShareCents,
-      amountCents: totalAmountCents,
-      feeCents: 0,
-      realizedPnlCents: 0,
-      tradeDate: _parseDate(tradeDate),
-      notes: notes ?? '',
-      createdAt: DateTime.now().toUtc(),
-    ));
+    await _database.transaction(() async {
+      // 台账行无 syncState:离线分红的保留依赖持有头行置 pending(镜像协调
+      // 按 (accountId, securityId) 联动保台账)。无持仓行的裸分红属边角
+      // (server 亦允许),该台账行不设保护,随上行批次补齐。
+      if (markPending) {
+        final existing = (await _dao.watchAllHoldings().first)
+            .where(
+                (h) => h.accountId == accountId && h.securityId == securityId)
+            .firstOrNull;
+        if (existing != null) {
+          await _dao.updateHolding(db.HoldingsCompanion(
+            id: Value(existing.id),
+            syncState: const Value(SyncState.pending),
+          ));
+        }
+      }
+      await _dao.insertHoldingTransaction(
+          db.HoldingTransactionsCompanion.insert(
+        id: id,
+        accountId: accountId,
+        securityId: securityId,
+        tradeType: TradeType.dividend.index + 1,
+        quantity: quantity,
+        priceCents: cashPerShareCents,
+        amountCents: totalAmountCents,
+        feeCents: 0,
+        realizedPnlCents: 0,
+        tradeDate: _parseDate(tradeDate),
+        notes: notes ?? '',
+        createdAt: DateTime.now().toUtc(),
+      ));
+    });
     return _txnView((await _dao.getHoldingTransactionById(id))!);
   }
 
@@ -417,6 +457,7 @@ class HoldingLocalDataSource {
     required double ratio,
     required String splitDate,
     String? notes,
+    bool markPending = false,
   }) async {
     if (ratio <= 0) throw const ValidationFailure('拆股比例必须大于零');
     final date = _parseDate(splitDate);
@@ -434,6 +475,9 @@ class HoldingLocalDataSource {
             Value((existing.avgCostCents / ratio).round()),
         version: Value(existing.version + 1),
         updatedAt: Value(now),
+        syncState: markPending
+            ? const Value(SyncState.pending)
+            : const Value.absent(),
       ));
       // Split every open lot of THIS holding: quantity and remaining each
       // scaled by ratio, price divided by ratio (server lot.go:13-15).
@@ -462,6 +506,9 @@ class HoldingLocalDataSource {
   }
 
   // ---- securities ----
+  //
+  // 证券表无 syncState(引用数据,非 8 头表):repo 的 markPending 旗标对
+  // 下述方法无意义,闭包层显式忽略(离线建证券/改价的保存语义留给 T3)。
 
   Future<Security> createSecurity({
     required String symbol,

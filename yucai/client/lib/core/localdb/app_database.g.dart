@@ -499,6 +499,18 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(SyncState.synced),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -547,6 +559,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -968,6 +981,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    }
     return context;
   }
 
@@ -1161,6 +1180,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
     );
   }
 
@@ -1217,6 +1240,10 @@ class Account extends DataClass implements Insertable<Account> {
   final int version;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// F10 FR-3/ADR-2:同步状态(synced=镜像行/guest 行;pending=离线或降级
+  /// 写待上行)。旧库迁移加列时以默认回填 synced。
+  final String syncState;
   const Account({
     required this.id,
     required this.name,
@@ -1264,6 +1291,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.version,
     required this.createdAt,
     required this.updatedAt,
+    required this.syncState,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1370,6 +1398,7 @@ class Account extends DataClass implements Insertable<Account> {
     map['version'] = Variable<int>(version);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_state'] = Variable<String>(syncState);
     return map;
   }
 
@@ -1471,6 +1500,7 @@ class Account extends DataClass implements Insertable<Account> {
       version: Value(version),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncState: Value(syncState),
     );
   }
 
@@ -1550,6 +1580,7 @@ class Account extends DataClass implements Insertable<Account> {
       version: serializer.fromJson<int>(json['version']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncState: serializer.fromJson<String>(json['syncState']),
     );
   }
   @override
@@ -1608,6 +1639,7 @@ class Account extends DataClass implements Insertable<Account> {
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncState': serializer.toJson<String>(syncState),
     };
   }
 
@@ -1658,6 +1690,7 @@ class Account extends DataClass implements Insertable<Account> {
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncState,
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -1747,6 +1780,7 @@ class Account extends DataClass implements Insertable<Account> {
     version: version ?? this.version,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncState: syncState ?? this.syncState,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -1858,6 +1892,7 @@ class Account extends DataClass implements Insertable<Account> {
       version: data.version.present ? data.version.value : this.version,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
     );
   }
 
@@ -1909,7 +1944,8 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('status: $status, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState')
           ..write(')'))
         .toString();
   }
@@ -1962,6 +1998,7 @@ class Account extends DataClass implements Insertable<Account> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2012,7 +2049,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.status == this.status &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncState == this.syncState);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -2062,6 +2100,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int> version;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncState;
   final Value<int> rowid;
   const AccountsCompanion({
     this.id = const Value.absent(),
@@ -2110,6 +2149,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsCompanion.insert({
@@ -2159,6 +2199,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -2228,6 +2269,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? version,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncState,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2290,6 +2332,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (version != null) 'version': version,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncState != null) 'sync_state': syncState,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2341,6 +2384,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<int>? version,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? syncState,
     Value<int>? rowid,
   }) {
     return AccountsCompanion(
@@ -2395,6 +2439,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncState: syncState ?? this.syncState,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2556,6 +2601,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2611,6 +2659,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3223,6 +3272,18 @@ class $TransactionsTable extends Transactions
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(SyncState.synced),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3232,6 +3293,7 @@ class $TransactionsTable extends Transactions
     version,
     createdAt,
     updatedAt,
+    syncState,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3305,6 +3367,12 @@ class $TransactionsTable extends Transactions
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    }
     return context;
   }
 
@@ -3342,6 +3410,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
     );
   }
 
@@ -3359,6 +3431,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final int version;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。
+  final String syncState;
   const Transaction({
     required this.id,
     required this.transactionDate,
@@ -3367,6 +3442,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     required this.version,
     required this.createdAt,
     required this.updatedAt,
+    required this.syncState,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3380,6 +3456,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     map['version'] = Variable<int>(version);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_state'] = Variable<String>(syncState);
     return map;
   }
 
@@ -3394,6 +3471,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       version: Value(version),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncState: Value(syncState),
     );
   }
 
@@ -3410,6 +3488,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       version: serializer.fromJson<int>(json['version']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncState: serializer.fromJson<String>(json['syncState']),
     );
   }
   @override
@@ -3423,6 +3502,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncState': serializer.toJson<String>(syncState),
     };
   }
 
@@ -3434,6 +3514,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncState,
   }) => Transaction(
     id: id ?? this.id,
     transactionDate: transactionDate ?? this.transactionDate,
@@ -3444,6 +3525,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     version: version ?? this.version,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncState: syncState ?? this.syncState,
   );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -3460,6 +3542,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       version: data.version.present ? data.version.value : this.version,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
     );
   }
 
@@ -3472,7 +3555,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('description: $description, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState')
           ..write(')'))
         .toString();
   }
@@ -3486,6 +3570,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   );
   @override
   bool operator ==(Object other) =>
@@ -3497,7 +3582,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.description == this.description &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncState == this.syncState);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -3508,6 +3594,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<int> version;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncState;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.id = const Value.absent(),
@@ -3517,6 +3604,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -3527,6 +3615,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        transactionDate = Value(transactionDate),
@@ -3542,6 +3631,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<int>? version,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncState,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3552,6 +3642,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (version != null) 'version': version,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncState != null) 'sync_state': syncState,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3564,6 +3655,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<int>? version,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? syncState,
     Value<int>? rowid,
   }) {
     return TransactionsCompanion(
@@ -3574,6 +3666,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncState: syncState ?? this.syncState,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3602,6 +3695,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3618,6 +3714,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4287,6 +4384,18 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(SyncState.synced),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4305,6 +4414,7 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4459,6 +4569,12 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    }
     return context;
   }
 
@@ -4532,6 +4648,10 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
     );
   }
 
@@ -4558,6 +4678,9 @@ class Debt extends DataClass implements Insertable<Debt> {
   final int version;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。
+  final String syncState;
   const Debt({
     required this.id,
     required this.accountId,
@@ -4575,6 +4698,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     required this.version,
     required this.createdAt,
     required this.updatedAt,
+    required this.syncState,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4597,6 +4721,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['version'] = Variable<int>(version);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_state'] = Variable<String>(syncState);
     return map;
   }
 
@@ -4620,6 +4745,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       version: Value(version),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncState: Value(syncState),
     );
   }
 
@@ -4649,6 +4775,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       version: serializer.fromJson<int>(json['version']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncState: serializer.fromJson<String>(json['syncState']),
     );
   }
   @override
@@ -4671,6 +4798,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncState': serializer.toJson<String>(syncState),
     };
   }
 
@@ -4691,6 +4819,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncState,
   }) => Debt(
     id: id ?? this.id,
     accountId: accountId ?? this.accountId,
@@ -4710,6 +4839,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     version: version ?? this.version,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncState: syncState ?? this.syncState,
   );
   Debt copyWithCompanion(DebtsCompanion data) {
     return Debt(
@@ -4741,6 +4871,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       version: data.version.present ? data.version.value : this.version,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
     );
   }
 
@@ -4762,7 +4893,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('collectionAccountId: $collectionAccountId, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState')
           ..write(')'))
         .toString();
   }
@@ -4785,6 +4917,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   );
   @override
   bool operator ==(Object other) =>
@@ -4805,7 +4938,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.collectionAccountId == this.collectionAccountId &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncState == this.syncState);
 }
 
 class DebtsCompanion extends UpdateCompanion<Debt> {
@@ -4825,6 +4959,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<int> version;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncState;
   final Value<int> rowid;
   const DebtsCompanion({
     this.id = const Value.absent(),
@@ -4843,6 +4978,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DebtsCompanion.insert({
@@ -4862,6 +4998,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        accountId = Value(accountId),
@@ -4895,6 +5032,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<int>? version,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncState,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4916,6 +5054,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (version != null) 'version': version,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncState != null) 'sync_state': syncState,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4937,6 +5076,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<int>? version,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? syncState,
     Value<int>? rowid,
   }) {
     return DebtsCompanion(
@@ -4956,6 +5096,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncState: syncState ?? this.syncState,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5013,6 +5154,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5038,6 +5182,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6036,6 +6181,18 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(SyncState.synced),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6047,6 +6204,7 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6135,6 +6293,12 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    }
     return context;
   }
 
@@ -6180,6 +6344,10 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
     );
   }
 
@@ -6199,6 +6367,9 @@ class Budget extends DataClass implements Insertable<Budget> {
   final int version;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。
+  final String syncState;
   const Budget({
     required this.id,
     required this.name,
@@ -6209,6 +6380,7 @@ class Budget extends DataClass implements Insertable<Budget> {
     required this.version,
     required this.createdAt,
     required this.updatedAt,
+    required this.syncState,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6222,6 +6394,7 @@ class Budget extends DataClass implements Insertable<Budget> {
     map['version'] = Variable<int>(version);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_state'] = Variable<String>(syncState);
     return map;
   }
 
@@ -6236,6 +6409,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       version: Value(version),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncState: Value(syncState),
     );
   }
 
@@ -6254,6 +6428,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       version: serializer.fromJson<int>(json['version']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncState: serializer.fromJson<String>(json['syncState']),
     );
   }
   @override
@@ -6269,6 +6444,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncState': serializer.toJson<String>(syncState),
     };
   }
 
@@ -6282,6 +6458,7 @@ class Budget extends DataClass implements Insertable<Budget> {
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncState,
   }) => Budget(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -6292,6 +6469,7 @@ class Budget extends DataClass implements Insertable<Budget> {
     version: version ?? this.version,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncState: syncState ?? this.syncState,
   );
   Budget copyWithCompanion(BudgetsCompanion data) {
     return Budget(
@@ -6308,6 +6486,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       version: data.version.present ? data.version.value : this.version,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
     );
   }
 
@@ -6322,7 +6501,8 @@ class Budget extends DataClass implements Insertable<Budget> {
           ..write('isActive: $isActive, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState')
           ..write(')'))
         .toString();
   }
@@ -6338,6 +6518,7 @@ class Budget extends DataClass implements Insertable<Budget> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   );
   @override
   bool operator ==(Object other) =>
@@ -6351,7 +6532,8 @@ class Budget extends DataClass implements Insertable<Budget> {
           other.isActive == this.isActive &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncState == this.syncState);
 }
 
 class BudgetsCompanion extends UpdateCompanion<Budget> {
@@ -6364,6 +6546,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   final Value<int> version;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncState;
   final Value<int> rowid;
   const BudgetsCompanion({
     this.id = const Value.absent(),
@@ -6375,6 +6558,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BudgetsCompanion.insert({
@@ -6387,6 +6571,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -6407,6 +6592,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Expression<int>? version,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncState,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -6419,6 +6605,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       if (version != null) 'version': version,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncState != null) 'sync_state': syncState,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -6433,6 +6620,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Value<int>? version,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? syncState,
     Value<int>? rowid,
   }) {
     return BudgetsCompanion(
@@ -6445,6 +6633,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncState: syncState ?? this.syncState,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6479,6 +6668,9 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6497,6 +6689,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7074,6 +7267,18 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(SyncState.synced),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -7089,6 +7294,7 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7214,6 +7420,12 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    }
     return context;
   }
 
@@ -7275,6 +7487,10 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
     );
   }
 
@@ -7298,6 +7514,9 @@ class Goal extends DataClass implements Insertable<Goal> {
   final int version;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。
+  final String syncState;
   const Goal({
     required this.id,
     required this.name,
@@ -7312,6 +7531,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     required this.version,
     required this.createdAt,
     required this.updatedAt,
+    required this.syncState,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7333,6 +7553,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     map['version'] = Variable<int>(version);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_state'] = Variable<String>(syncState);
     return map;
   }
 
@@ -7355,6 +7576,7 @@ class Goal extends DataClass implements Insertable<Goal> {
       version: Value(version),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncState: Value(syncState),
     );
   }
 
@@ -7377,6 +7599,7 @@ class Goal extends DataClass implements Insertable<Goal> {
       version: serializer.fromJson<int>(json['version']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncState: serializer.fromJson<String>(json['syncState']),
     );
   }
   @override
@@ -7396,6 +7619,7 @@ class Goal extends DataClass implements Insertable<Goal> {
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncState': serializer.toJson<String>(syncState),
     };
   }
 
@@ -7413,6 +7637,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncState,
   }) => Goal(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -7427,6 +7652,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     version: version ?? this.version,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncState: syncState ?? this.syncState,
   );
   Goal copyWithCompanion(GoalsCompanion data) {
     return Goal(
@@ -7453,6 +7679,7 @@ class Goal extends DataClass implements Insertable<Goal> {
       version: data.version.present ? data.version.value : this.version,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
     );
   }
 
@@ -7471,7 +7698,8 @@ class Goal extends DataClass implements Insertable<Goal> {
           ..write('completedAt: $completedAt, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState')
           ..write(')'))
         .toString();
   }
@@ -7491,6 +7719,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   );
   @override
   bool operator ==(Object other) =>
@@ -7508,7 +7737,8 @@ class Goal extends DataClass implements Insertable<Goal> {
           other.completedAt == this.completedAt &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncState == this.syncState);
 }
 
 class GoalsCompanion extends UpdateCompanion<Goal> {
@@ -7525,6 +7755,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
   final Value<int> version;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncState;
   final Value<int> rowid;
   const GoalsCompanion({
     this.id = const Value.absent(),
@@ -7540,6 +7771,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   GoalsCompanion.insert({
@@ -7556,6 +7788,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -7582,6 +7815,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     Expression<int>? version,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncState,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -7599,6 +7833,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
       if (version != null) 'version': version,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncState != null) 'sync_state': syncState,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -7617,6 +7852,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     Value<int>? version,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? syncState,
     Value<int>? rowid,
   }) {
     return GoalsCompanion(
@@ -7633,6 +7869,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncState: syncState ?? this.syncState,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7679,6 +7916,9 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -7701,6 +7941,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8209,6 +8450,18 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(SyncState.synced),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -8217,6 +8470,7 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8275,6 +8529,12 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    }
     return context;
   }
 
@@ -8308,6 +8568,10 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
     );
   }
 
@@ -8324,6 +8588,9 @@ class Tag extends DataClass implements Insertable<Tag> {
   final int version;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。
+  final String syncState;
   const Tag({
     required this.id,
     required this.name,
@@ -8331,6 +8598,7 @@ class Tag extends DataClass implements Insertable<Tag> {
     required this.version,
     required this.createdAt,
     required this.updatedAt,
+    required this.syncState,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8341,6 +8609,7 @@ class Tag extends DataClass implements Insertable<Tag> {
     map['version'] = Variable<int>(version);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_state'] = Variable<String>(syncState);
     return map;
   }
 
@@ -8352,6 +8621,7 @@ class Tag extends DataClass implements Insertable<Tag> {
       version: Value(version),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncState: Value(syncState),
     );
   }
 
@@ -8367,6 +8637,7 @@ class Tag extends DataClass implements Insertable<Tag> {
       version: serializer.fromJson<int>(json['version']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncState: serializer.fromJson<String>(json['syncState']),
     );
   }
   @override
@@ -8379,6 +8650,7 @@ class Tag extends DataClass implements Insertable<Tag> {
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncState': serializer.toJson<String>(syncState),
     };
   }
 
@@ -8389,6 +8661,7 @@ class Tag extends DataClass implements Insertable<Tag> {
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncState,
   }) => Tag(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -8396,6 +8669,7 @@ class Tag extends DataClass implements Insertable<Tag> {
     version: version ?? this.version,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncState: syncState ?? this.syncState,
   );
   Tag copyWithCompanion(TagsCompanion data) {
     return Tag(
@@ -8405,6 +8679,7 @@ class Tag extends DataClass implements Insertable<Tag> {
       version: data.version.present ? data.version.value : this.version,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
     );
   }
 
@@ -8416,14 +8691,15 @@ class Tag extends DataClass implements Insertable<Tag> {
           ..write('color: $color, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode =>
-      Object.hash(id, name, color, version, createdAt, updatedAt);
+      Object.hash(id, name, color, version, createdAt, updatedAt, syncState);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -8433,7 +8709,8 @@ class Tag extends DataClass implements Insertable<Tag> {
           other.color == this.color &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncState == this.syncState);
 }
 
 class TagsCompanion extends UpdateCompanion<Tag> {
@@ -8443,6 +8720,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
   final Value<int> version;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncState;
   final Value<int> rowid;
   const TagsCompanion({
     this.id = const Value.absent(),
@@ -8451,6 +8729,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TagsCompanion.insert({
@@ -8460,6 +8739,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -8474,6 +8754,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     Expression<int>? version,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncState,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -8483,6 +8764,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
       if (version != null) 'version': version,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncState != null) 'sync_state': syncState,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -8494,6 +8776,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     Value<int>? version,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? syncState,
     Value<int>? rowid,
   }) {
     return TagsCompanion(
@@ -8503,6 +8786,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncState: syncState ?? this.syncState,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -8528,6 +8812,9 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -8543,6 +8830,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9001,6 +9289,18 @@ class $TransactionTemplatesTable extends TransactionTemplates
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(SyncState.synced),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -9023,6 +9323,7 @@ class $TransactionTemplatesTable extends TransactionTemplates
     version,
     createdAt,
     updatedAt,
+    syncState,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9202,6 +9503,12 @@ class $TransactionTemplatesTable extends TransactionTemplates
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    }
     return context;
   }
 
@@ -9291,6 +9598,10 @@ class $TransactionTemplatesTable extends TransactionTemplates
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
     );
   }
 
@@ -9322,6 +9633,10 @@ class TransactionTemplate extends DataClass
   final int version;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。离线 record
+  /// 推进 nextDate/lastTransactionId 时置 pending 保护本地推进量。
+  final String syncState;
   const TransactionTemplate({
     required this.id,
     required this.name,
@@ -9343,6 +9658,7 @@ class TransactionTemplate extends DataClass
     required this.version,
     required this.createdAt,
     required this.updatedAt,
+    required this.syncState,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9373,6 +9689,7 @@ class TransactionTemplate extends DataClass
     map['version'] = Variable<int>(version);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_state'] = Variable<String>(syncState);
     return map;
   }
 
@@ -9404,6 +9721,7 @@ class TransactionTemplate extends DataClass
       version: Value(version),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncState: Value(syncState),
     );
   }
 
@@ -9437,6 +9755,7 @@ class TransactionTemplate extends DataClass
       version: serializer.fromJson<int>(json['version']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncState: serializer.fromJson<String>(json['syncState']),
     );
   }
   @override
@@ -9463,6 +9782,7 @@ class TransactionTemplate extends DataClass
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncState': serializer.toJson<String>(syncState),
     };
   }
 
@@ -9487,6 +9807,7 @@ class TransactionTemplate extends DataClass
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncState,
   }) => TransactionTemplate(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -9512,6 +9833,7 @@ class TransactionTemplate extends DataClass
     version: version ?? this.version,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncState: syncState ?? this.syncState,
   );
   TransactionTemplate copyWithCompanion(TransactionTemplatesCompanion data) {
     return TransactionTemplate(
@@ -9549,6 +9871,7 @@ class TransactionTemplate extends DataClass
       version: data.version.present ? data.version.value : this.version,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
     );
   }
 
@@ -9574,13 +9897,14 @@ class TransactionTemplate extends DataClass
           ..write('category: $category, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     name,
     description,
@@ -9601,7 +9925,8 @@ class TransactionTemplate extends DataClass
     version,
     createdAt,
     updatedAt,
-  );
+    syncState,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -9625,7 +9950,8 @@ class TransactionTemplate extends DataClass
           other.category == this.category &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncState == this.syncState);
 }
 
 class TransactionTemplatesCompanion
@@ -9650,6 +9976,7 @@ class TransactionTemplatesCompanion
   final Value<int> version;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncState;
   final Value<int> rowid;
   const TransactionTemplatesCompanion({
     this.id = const Value.absent(),
@@ -9672,6 +9999,7 @@ class TransactionTemplatesCompanion
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionTemplatesCompanion.insert({
@@ -9695,6 +10023,7 @@ class TransactionTemplatesCompanion
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -9734,6 +10063,7 @@ class TransactionTemplatesCompanion
     Expression<int>? version,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncState,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -9758,6 +10088,7 @@ class TransactionTemplatesCompanion
       if (version != null) 'version': version,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncState != null) 'sync_state': syncState,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -9783,6 +10114,7 @@ class TransactionTemplatesCompanion
     Value<int>? version,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? syncState,
     Value<int>? rowid,
   }) {
     return TransactionTemplatesCompanion(
@@ -9806,6 +10138,7 @@ class TransactionTemplatesCompanion
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncState: syncState ?? this.syncState,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -9875,6 +10208,9 @@ class TransactionTemplatesCompanion
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -9904,6 +10240,7 @@ class TransactionTemplatesCompanion
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10001,6 +10338,18 @@ class $HoldingsTable extends Holdings with TableInfo<$HoldingsTable, Holding> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _syncStateMeta = const VerificationMeta(
+    'syncState',
+  );
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+    'sync_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(SyncState.synced),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10011,6 +10360,7 @@ class $HoldingsTable extends Holdings with TableInfo<$HoldingsTable, Holding> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10088,6 +10438,12 @@ class $HoldingsTable extends Holdings with TableInfo<$HoldingsTable, Holding> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('sync_state')) {
+      context.handle(
+        _syncStateMeta,
+        syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta),
+      );
+    }
     return context;
   }
 
@@ -10129,6 +10485,10 @@ class $HoldingsTable extends Holdings with TableInfo<$HoldingsTable, Holding> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_state'],
+      )!,
     );
   }
 
@@ -10147,6 +10507,11 @@ class Holding extends DataClass implements Insertable<Holding> {
   final int version;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。离线 buy/sell/
+  /// dividend/split 头行置 pending,其 trade 台账行随镜像协调按
+  /// (accountId, securityId) 联动保留。
+  final String syncState;
   const Holding({
     required this.id,
     required this.accountId,
@@ -10156,6 +10521,7 @@ class Holding extends DataClass implements Insertable<Holding> {
     required this.version,
     required this.createdAt,
     required this.updatedAt,
+    required this.syncState,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -10168,6 +10534,7 @@ class Holding extends DataClass implements Insertable<Holding> {
     map['version'] = Variable<int>(version);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_state'] = Variable<String>(syncState);
     return map;
   }
 
@@ -10181,6 +10548,7 @@ class Holding extends DataClass implements Insertable<Holding> {
       version: Value(version),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncState: Value(syncState),
     );
   }
 
@@ -10198,6 +10566,7 @@ class Holding extends DataClass implements Insertable<Holding> {
       version: serializer.fromJson<int>(json['version']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncState: serializer.fromJson<String>(json['syncState']),
     );
   }
   @override
@@ -10212,6 +10581,7 @@ class Holding extends DataClass implements Insertable<Holding> {
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncState': serializer.toJson<String>(syncState),
     };
   }
 
@@ -10224,6 +10594,7 @@ class Holding extends DataClass implements Insertable<Holding> {
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncState,
   }) => Holding(
     id: id ?? this.id,
     accountId: accountId ?? this.accountId,
@@ -10233,6 +10604,7 @@ class Holding extends DataClass implements Insertable<Holding> {
     version: version ?? this.version,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncState: syncState ?? this.syncState,
   );
   Holding copyWithCompanion(HoldingsCompanion data) {
     return Holding(
@@ -10248,6 +10620,7 @@ class Holding extends DataClass implements Insertable<Holding> {
       version: data.version.present ? data.version.value : this.version,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
     );
   }
 
@@ -10261,7 +10634,8 @@ class Holding extends DataClass implements Insertable<Holding> {
           ..write('avgCostCents: $avgCostCents, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState')
           ..write(')'))
         .toString();
   }
@@ -10276,6 +10650,7 @@ class Holding extends DataClass implements Insertable<Holding> {
     version,
     createdAt,
     updatedAt,
+    syncState,
   );
   @override
   bool operator ==(Object other) =>
@@ -10288,7 +10663,8 @@ class Holding extends DataClass implements Insertable<Holding> {
           other.avgCostCents == this.avgCostCents &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncState == this.syncState);
 }
 
 class HoldingsCompanion extends UpdateCompanion<Holding> {
@@ -10300,6 +10676,7 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
   final Value<int> version;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncState;
   final Value<int> rowid;
   const HoldingsCompanion({
     this.id = const Value.absent(),
@@ -10310,6 +10687,7 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HoldingsCompanion.insert({
@@ -10321,6 +10699,7 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.syncState = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        accountId = Value(accountId),
@@ -10339,6 +10718,7 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
     Expression<int>? version,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncState,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -10350,6 +10730,7 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
       if (version != null) 'version': version,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncState != null) 'sync_state': syncState,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -10363,6 +10744,7 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
     Value<int>? version,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? syncState,
     Value<int>? rowid,
   }) {
     return HoldingsCompanion(
@@ -10374,6 +10756,7 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncState: syncState ?? this.syncState,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -10405,6 +10788,9 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -10422,6 +10808,7 @@ class HoldingsCompanion extends UpdateCompanion<Holding> {
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncState: $syncState, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -14921,6 +15308,279 @@ class HoldingLotsCompanion extends UpdateCompanion<HoldingLot> {
   }
 }
 
+class $SyncTombstonesTable extends SyncTombstones
+    with TableInfo<$SyncTombstonesTable, SyncTombstone> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncTombstonesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _moduleMeta = const VerificationMeta('module');
+  @override
+  late final GeneratedColumn<String> module = GeneratedColumn<String>(
+    'module',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [module, entityId, deletedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_tombstones';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncTombstone> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('module')) {
+      context.handle(
+        _moduleMeta,
+        module.isAcceptableOrUnknown(data['module']!, _moduleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_moduleMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deletedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {module, entityId};
+  @override
+  SyncTombstone map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncTombstone(
+      module: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}module'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncTombstonesTable createAlias(String alias) {
+    return $SyncTombstonesTable(attachedDatabase, alias);
+  }
+}
+
+class SyncTombstone extends DataClass implements Insertable<SyncTombstone> {
+  /// 值域:SyncModule 常量(account/transaction/debt/budget/goal/holding/
+  /// tag/template)。
+  final String module;
+
+  /// 被删实体 id(各模块头表主键)。
+  final String entityId;
+
+  /// 本地删除时刻(上行批次可带上,server 侧最终一致用)。
+  final DateTime deletedAt;
+  const SyncTombstone({
+    required this.module,
+    required this.entityId,
+    required this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['module'] = Variable<String>(module);
+    map['entity_id'] = Variable<String>(entityId);
+    map['deleted_at'] = Variable<DateTime>(deletedAt);
+    return map;
+  }
+
+  SyncTombstonesCompanion toCompanion(bool nullToAbsent) {
+    return SyncTombstonesCompanion(
+      module: Value(module),
+      entityId: Value(entityId),
+      deletedAt: Value(deletedAt),
+    );
+  }
+
+  factory SyncTombstone.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncTombstone(
+      module: serializer.fromJson<String>(json['module']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      deletedAt: serializer.fromJson<DateTime>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'module': serializer.toJson<String>(module),
+      'entityId': serializer.toJson<String>(entityId),
+      'deletedAt': serializer.toJson<DateTime>(deletedAt),
+    };
+  }
+
+  SyncTombstone copyWith({
+    String? module,
+    String? entityId,
+    DateTime? deletedAt,
+  }) => SyncTombstone(
+    module: module ?? this.module,
+    entityId: entityId ?? this.entityId,
+    deletedAt: deletedAt ?? this.deletedAt,
+  );
+  SyncTombstone copyWithCompanion(SyncTombstonesCompanion data) {
+    return SyncTombstone(
+      module: data.module.present ? data.module.value : this.module,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncTombstone(')
+          ..write('module: $module, ')
+          ..write('entityId: $entityId, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(module, entityId, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncTombstone &&
+          other.module == this.module &&
+          other.entityId == this.entityId &&
+          other.deletedAt == this.deletedAt);
+}
+
+class SyncTombstonesCompanion extends UpdateCompanion<SyncTombstone> {
+  final Value<String> module;
+  final Value<String> entityId;
+  final Value<DateTime> deletedAt;
+  final Value<int> rowid;
+  const SyncTombstonesCompanion({
+    this.module = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncTombstonesCompanion.insert({
+    required String module,
+    required String entityId,
+    required DateTime deletedAt,
+    this.rowid = const Value.absent(),
+  }) : module = Value(module),
+       entityId = Value(entityId),
+       deletedAt = Value(deletedAt);
+  static Insertable<SyncTombstone> custom({
+    Expression<String>? module,
+    Expression<String>? entityId,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (module != null) 'module': module,
+      if (entityId != null) 'entity_id': entityId,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncTombstonesCompanion copyWith({
+    Value<String>? module,
+    Value<String>? entityId,
+    Value<DateTime>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return SyncTombstonesCompanion(
+      module: module ?? this.module,
+      entityId: entityId ?? this.entityId,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (module.present) {
+      map['module'] = Variable<String>(module.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncTombstonesCompanion(')
+          ..write('module: $module, ')
+          ..write('entityId: $entityId, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -14964,6 +15624,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $HoldingLotsTable holdingLots = $HoldingLotsTable(this);
+  late final $SyncTombstonesTable syncTombstones = $SyncTombstonesTable(this);
   late final AccountDao accountDao = AccountDao(this as AppDatabase);
   late final TransactionDao transactionDao = TransactionDao(
     this as AppDatabase,
@@ -14976,6 +15637,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final HoldingDao holdingDao = HoldingDao(this as AppDatabase);
   late final ReferenceDao referenceDao = ReferenceDao(this as AppDatabase);
   late final DerivedDao derivedDao = DerivedDao(this as AppDatabase);
+  late final SyncTombstoneDao syncTombstoneDao = SyncTombstoneDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -15006,6 +15670,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     goalProgressSnapshots,
     holdingSnapshots,
     holdingLots,
+    syncTombstones,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -15114,6 +15779,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       required int version,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 typedef $$AccountsTableUpdateCompanionBuilder =
@@ -15164,6 +15830,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 
@@ -15403,6 +16070,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -15645,6 +16317,11 @@ class $$AccountsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -15855,6 +16532,9 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
 }
 
 class $$AccountsTableTableManager
@@ -15931,6 +16611,7 @@ class $$AccountsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
@@ -15979,6 +16660,7 @@ class $$AccountsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16029,6 +16711,7 @@ class $$AccountsTableTableManager
                 required int version,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
@@ -16077,6 +16760,7 @@ class $$AccountsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -16379,6 +17063,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       required int version,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 typedef $$TransactionsTableUpdateCompanionBuilder =
@@ -16390,6 +17075,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 
@@ -16489,6 +17175,11 @@ class $$TransactionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> transactionEntriesRefs(
     Expression<bool> Function($$TransactionEntriesTableFilterComposer f) f,
   ) {
@@ -16583,6 +17274,11 @@ class $$TransactionsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -16620,6 +17316,9 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
 
   Expression<T> transactionEntriesRefs<T extends Object>(
     Expression<T> Function($$TransactionEntriesTableAnnotationComposer a) f,
@@ -16711,6 +17410,7 @@ class $$TransactionsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
@@ -16720,6 +17420,7 @@ class $$TransactionsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16731,6 +17432,7 @@ class $$TransactionsTableTableManager
                 required int version,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
@@ -16740,6 +17442,7 @@ class $$TransactionsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -17228,6 +17931,7 @@ typedef $$DebtsTableCreateCompanionBuilder =
       required int version,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 typedef $$DebtsTableUpdateCompanionBuilder =
@@ -17248,6 +17952,7 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 
@@ -17372,6 +18077,11 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> paymentScheduleEntriesRefs(
     Expression<bool> Function($$PaymentScheduleEntriesTableFilterComposer f) f,
   ) {
@@ -17487,6 +18197,11 @@ class $$DebtsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DebtsTableAnnotationComposer
@@ -17557,6 +18272,9 @@ class $$DebtsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
 
   Expression<T> paymentScheduleEntriesRefs<T extends Object>(
     Expression<T> Function($$PaymentScheduleEntriesTableAnnotationComposer a) f,
@@ -17629,6 +18347,7 @@ class $$DebtsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DebtsCompanion(
                 id: id,
@@ -17647,6 +18366,7 @@ class $$DebtsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -17667,6 +18387,7 @@ class $$DebtsTableTableManager
                 required int version,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DebtsCompanion.insert(
                 id: id,
@@ -17685,6 +18406,7 @@ class $$DebtsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -18354,6 +19076,7 @@ typedef $$BudgetsTableCreateCompanionBuilder =
       required int version,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 typedef $$BudgetsTableUpdateCompanionBuilder =
@@ -18367,6 +19090,7 @@ typedef $$BudgetsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 
@@ -18444,6 +19168,11 @@ class $$BudgetsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -18526,6 +19255,11 @@ class $$BudgetsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BudgetsTableAnnotationComposer
@@ -18567,6 +19301,9 @@ class $$BudgetsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
 
   Expression<T> budgetItemsRefs<T extends Object>(
     Expression<T> Function($$BudgetItemsTableAnnotationComposer a) f,
@@ -18631,6 +19368,7 @@ class $$BudgetsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion(
                 id: id,
@@ -18642,6 +19380,7 @@ class $$BudgetsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -18655,6 +19394,7 @@ class $$BudgetsTableTableManager
                 required int version,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion.insert(
                 id: id,
@@ -18666,6 +19406,7 @@ class $$BudgetsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -19080,6 +19821,7 @@ typedef $$GoalsTableCreateCompanionBuilder =
       required int version,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 typedef $$GoalsTableUpdateCompanionBuilder =
@@ -19097,6 +19839,7 @@ typedef $$GoalsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 
@@ -19213,6 +19956,11 @@ class $$GoalsTableFilterComposer extends Composer<_$AppDatabase, $GoalsTable> {
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19340,6 +20088,11 @@ class $$GoalsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$GoalsTableAnnotationComposer
@@ -19399,6 +20152,9 @@ class $$GoalsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
 
   Expression<T> goalAccountLinksRefs<T extends Object>(
     Expression<T> Function($$GoalAccountLinksTableAnnotationComposer a) f,
@@ -19495,6 +20251,7 @@ class $$GoalsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GoalsCompanion(
                 id: id,
@@ -19510,6 +20267,7 @@ class $$GoalsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -19527,6 +20285,7 @@ class $$GoalsTableTableManager
                 required int version,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GoalsCompanion.insert(
                 id: id,
@@ -19542,6 +20301,7 @@ class $$GoalsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -20171,6 +20931,7 @@ typedef $$TagsTableCreateCompanionBuilder =
       required int version,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 typedef $$TagsTableUpdateCompanionBuilder =
@@ -20181,6 +20942,7 @@ typedef $$TagsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 
@@ -20247,6 +21009,11 @@ class $$TagsTableFilterComposer extends Composer<_$AppDatabase, $TagsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> transactionTagsRefs(
     Expression<bool> Function($$TransactionTagsTableFilterComposer f) f,
   ) {
@@ -20310,6 +21077,11 @@ class $$TagsTableOrderingComposer extends Composer<_$AppDatabase, $TagsTable> {
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TagsTableAnnotationComposer
@@ -20338,6 +21110,9 @@ class $$TagsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
 
   Expression<T> transactionTagsRefs<T extends Object>(
     Expression<T> Function($$TransactionTagsTableAnnotationComposer a) f,
@@ -20399,6 +21174,7 @@ class $$TagsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TagsCompanion(
                 id: id,
@@ -20407,6 +21183,7 @@ class $$TagsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -20417,6 +21194,7 @@ class $$TagsTableTableManager
                 required int version,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TagsCompanion.insert(
                 id: id,
@@ -20425,6 +21203,7 @@ class $$TagsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -20863,6 +21642,7 @@ typedef $$TransactionTemplatesTableCreateCompanionBuilder =
       required int version,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 typedef $$TransactionTemplatesTableUpdateCompanionBuilder =
@@ -20887,6 +21667,7 @@ typedef $$TransactionTemplatesTableUpdateCompanionBuilder =
       Value<int> version,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 
@@ -20996,6 +21777,11 @@ class $$TransactionTemplatesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -21108,6 +21894,11 @@ class $$TransactionTemplatesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TransactionTemplatesTableAnnotationComposer
@@ -21192,6 +21983,9 @@ class $$TransactionTemplatesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
 }
 
 class $$TransactionTemplatesTableTableManager
@@ -21257,6 +22051,7 @@ class $$TransactionTemplatesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionTemplatesCompanion(
                 id: id,
@@ -21279,6 +22074,7 @@ class $$TransactionTemplatesTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -21303,6 +22099,7 @@ class $$TransactionTemplatesTableTableManager
                 required int version,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionTemplatesCompanion.insert(
                 id: id,
@@ -21325,6 +22122,7 @@ class $$TransactionTemplatesTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -21366,6 +22164,7 @@ typedef $$HoldingsTableCreateCompanionBuilder =
       required int version,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 typedef $$HoldingsTableUpdateCompanionBuilder =
@@ -21378,6 +22177,7 @@ typedef $$HoldingsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> syncState,
       Value<int> rowid,
     });
 
@@ -21427,6 +22227,11 @@ class $$HoldingsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncState => $composableBuilder(
+    column: $table.syncState,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -21479,6 +22284,11 @@ class $$HoldingsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+    column: $table.syncState,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$HoldingsTableAnnotationComposer
@@ -21517,6 +22327,9 @@ class $$HoldingsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
 }
 
 class $$HoldingsTableTableManager
@@ -21555,6 +22368,7 @@ class $$HoldingsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HoldingsCompanion(
                 id: id,
@@ -21565,6 +22379,7 @@ class $$HoldingsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -21577,6 +22392,7 @@ class $$HoldingsTableTableManager
                 required int version,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String> syncState = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HoldingsCompanion.insert(
                 id: id,
@@ -21587,6 +22403,7 @@ class $$HoldingsTableTableManager
                 version: version,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncState: syncState,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -23956,6 +24773,170 @@ typedef $$HoldingLotsTableProcessedTableManager =
       HoldingLot,
       PrefetchHooks Function()
     >;
+typedef $$SyncTombstonesTableCreateCompanionBuilder =
+    SyncTombstonesCompanion Function({
+      required String module,
+      required String entityId,
+      required DateTime deletedAt,
+      Value<int> rowid,
+    });
+typedef $$SyncTombstonesTableUpdateCompanionBuilder =
+    SyncTombstonesCompanion Function({
+      Value<String> module,
+      Value<String> entityId,
+      Value<DateTime> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$SyncTombstonesTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncTombstonesTable> {
+  $$SyncTombstonesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get module => $composableBuilder(
+    column: $table.module,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncTombstonesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncTombstonesTable> {
+  $$SyncTombstonesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get module => $composableBuilder(
+    column: $table.module,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncTombstonesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncTombstonesTable> {
+  $$SyncTombstonesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get module =>
+      $composableBuilder(column: $table.module, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$SyncTombstonesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncTombstonesTable,
+          SyncTombstone,
+          $$SyncTombstonesTableFilterComposer,
+          $$SyncTombstonesTableOrderingComposer,
+          $$SyncTombstonesTableAnnotationComposer,
+          $$SyncTombstonesTableCreateCompanionBuilder,
+          $$SyncTombstonesTableUpdateCompanionBuilder,
+          (
+            SyncTombstone,
+            BaseReferences<_$AppDatabase, $SyncTombstonesTable, SyncTombstone>,
+          ),
+          SyncTombstone,
+          PrefetchHooks Function()
+        > {
+  $$SyncTombstonesTableTableManager(
+    _$AppDatabase db,
+    $SyncTombstonesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncTombstonesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncTombstonesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncTombstonesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> module = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncTombstonesCompanion(
+                module: module,
+                entityId: entityId,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String module,
+                required String entityId,
+                required DateTime deletedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncTombstonesCompanion.insert(
+                module: module,
+                entityId: entityId,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncTombstonesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncTombstonesTable,
+      SyncTombstone,
+      $$SyncTombstonesTableFilterComposer,
+      $$SyncTombstonesTableOrderingComposer,
+      $$SyncTombstonesTableAnnotationComposer,
+      $$SyncTombstonesTableCreateCompanionBuilder,
+      $$SyncTombstonesTableUpdateCompanionBuilder,
+      (
+        SyncTombstone,
+        BaseReferences<_$AppDatabase, $SyncTombstonesTable, SyncTombstone>,
+      ),
+      SyncTombstone,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -24015,4 +24996,6 @@ class $AppDatabaseManager {
       $$HoldingSnapshotsTableTableManager(_db, _db.holdingSnapshots);
   $$HoldingLotsTableTableManager get holdingLots =>
       $$HoldingLotsTableTableManager(_db, _db.holdingLots);
+  $$SyncTombstonesTableTableManager get syncTombstones =>
+      $$SyncTombstonesTableTableManager(_db, _db.syncTombstones);
 }

@@ -76,7 +76,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
             tradeDate: tradeDate,
             notes: notes,
           ),
-          () => _local.buy(
+          (markPending) => _local.buy(
+            markPending: markPending,
             accountId: accountId,
             securityId: securityId,
             fromAccountId: fromAccountId,
@@ -109,7 +110,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
             tradeDate: tradeDate,
             notes: notes,
           ),
-          () => _local.sell(
+          (markPending) => _local.sell(
+            markPending: markPending,
             accountId: accountId,
             securityId: securityId,
             fromAccountId: fromAccountId,
@@ -141,7 +143,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
             tradeDate: tradeDate,
             notes: notes,
           ),
-          () => _local.recordDividend(
+          (markPending) => _local.recordDividend(
+            markPending: markPending,
             accountId: accountId,
             securityId: securityId,
             quantity: quantity,
@@ -167,7 +170,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
             splitDate: splitDate,
             notes: notes,
           ),
-          () => _local.recordSplit(
+          (markPending) => _local.recordSplit(
+            markPending: markPending,
             accountId: accountId,
             securityId: securityId,
             ratio: ratio,
@@ -192,7 +196,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
             exchange: exchange,
             currency: currency,
           ),
-          () => _local.createSecurity(
+          // 证券表无 syncState(引用数据):旗标显式忽略(见 DS 注释)。
+          (markPending) => _local.createSecurity(
             symbol: symbol,
             name: name,
             type: type,
@@ -215,7 +220,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
   }) =>
       _routedWrite(MirrorModule.holding,
           () => _remote.updateSecurityPrice(id: id, priceCents: priceCents),
-          () => _local.updateSecurityPrice(id: id, priceCents: priceCents));
+          // 证券表无 syncState:旗标忽略。
+          (markPending) => _local.updateSecurityPrice(id: id, priceCents: priceCents));
 
   // —— 价格批量同步(Task 9 新增)——
   @override
@@ -301,16 +307,24 @@ class HoldingRepositoryImpl implements HoldingRepository {
   /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
   /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
   /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
-  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
   Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
-      Future<T> Function() remote, Future<T> Function() local) async {
-    if (_useLocalDs) {
-      return _mirrored(m, () => _guard(local));
+      Future<T> Function() remote,
+      Future<T> Function(bool markPending) local) async {
+    switch (_tracker.resolveDataRoute()) {
+      case DataRoute.guestLocal:
+        // guest 行 synced(无上行语义,R6 行为不变;缺省不传 = false)。
+        return _mirrored(m, () => _guard(() => local(false)));
+      case DataRoute.boundOfflineLocal:
+        // 离线写本地,行 pending 待回网上行(FR-3,T2 落地)。
+        return _mirrored(m, () => _guard(() => local(true)));
+      case DataRoute.boundRemote:
+        // 在线先远端(Right 触发镜像刷新,与 R6 逐位一致);NetworkFailure
+        // 降级本地落库置 pending(FR-1b 双保险,同为 bound 路由)。
+        return writeWithFallback(
+          () => _mirrored(m, () => _guard(remote)),
+          () => _guard(() => local(true)),
+        );
     }
-    return writeWithFallback(
-      () => _mirrored(m, () => _guard(remote)),
-      () => _guard(local),
-    );
   }
 
   /// GrpcError → Failure 分类(对齐 account/transaction 等兄弟模块;

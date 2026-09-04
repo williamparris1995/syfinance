@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/debt_dao.dart';
+import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
@@ -82,6 +83,7 @@ class DebtLocalDataSource {
     String contact = '',
     String contractRef = '',
     String? collectionAccountId,
+    bool markPending = false,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -103,6 +105,7 @@ class DebtLocalDataSource {
         version: 1,
         createdAt: now,
         updatedAt: now,
+        syncState: syncStateValue(markPending),
       ));
       // Amortization schedule at create (server GenerateSchedule): three
       // methods copied verbatim from debt/domain/service.go.
@@ -123,7 +126,8 @@ class DebtLocalDataSource {
       if (type == DebtType.borrowedIn && (sourceAccountId ?? '').isNotEmpty) {
         final dst = await _database.accountDao.getAccountById(sourceAccountId!);
         if (dst == null) throw ServerFailure('到账账户不存在');
-        await _txns.recordTransaction(RecordTransactionParams(
+        await _txns.recordTransaction(
+            RecordTransactionParams(
           transactionDate:
               DateTime.utc(startDate.year, startDate.month, startDate.day),
           description: '借入 $counterparty 到账',
@@ -137,14 +141,15 @@ class DebtLocalDataSource {
                 debitCents: 0,
                 creditCents: totalPrincipalCents),
           ],
-        ));
+        ), markPending: markPending);
       }
       // borrowedOut create double-writes cash out (server buildCreateEntries):
       // credit source (cash−) + debit receivable account (+).
       if (type == DebtType.borrowedOut && (sourceAccountId ?? '').isNotEmpty) {
         final src = await _database.accountDao.getAccountById(sourceAccountId!);
         if (src == null) throw ServerFailure('资金账户不存在');
-        await _txns.recordTransaction(RecordTransactionParams(
+        await _txns.recordTransaction(
+            RecordTransactionParams(
           transactionDate:
               DateTime.utc(startDate.year, startDate.month, startDate.day),
           description: '借出 $counterparty',
@@ -158,7 +163,7 @@ class DebtLocalDataSource {
                 debitCents: totalPrincipalCents,
                 creditCents: 0),
           ],
-        ));
+        ), markPending: markPending);
       }
     });
     return _toEntity(await _require(id));
@@ -172,6 +177,7 @@ class DebtLocalDataSource {
     String contact = '',
     String contractRef = '',
     String? collectionAccountId,
+    bool markPending = false,
   }) async {
     final row = await _require(id);
     if (row.version != version) {
@@ -186,19 +192,37 @@ class DebtLocalDataSource {
       collectionAccountId: Value(collectionAccountId),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending
+          ? const Value(SyncState.pending)
+          : const Value.absent(),
     ));
     return _toEntity(await _require(id));
   }
 
-  Future<void> delete(String id) async {
+  /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4);guest 删除不写
+  /// 墓碑(绑定走全量首传)。
+  Future<void> delete(String id, {bool writeTombstone = false}) async {
     if (await _dao.getDebtById(id) == null) throw const ServerFailure('债务不存在');
-    await _dao.deleteDebtById(id); // schedule cascades
+    await _database.transaction(() async {
+      await _dao.deleteDebtById(id); // schedule cascades
+      if (writeTombstone) {
+        await _database.syncTombstoneDao.upsertTombstone(
+            db.SyncTombstonesCompanion.insert(
+                module: SyncModule.debt,
+                entityId: id,
+                deletedAt: DateTime.now().toUtc()));
+      }
+    });
   }
 
+  /// [markPending]:复合写(FR-3)—— 还款双分录交易头行与债务头行在同一
+  /// 事务内置 pending(债务头行本身未变字段,但期次已还的本地事实须由
+  /// pending 状态保护,镜像刷新不得抹掉;T3 收集器按头行收集整包)。
   Future<PaymentEntry> recordPayment({
     required String debtId,
     required String scheduleEntryId,
     required String fromAccountId,
+    bool markPending = false,
   }) async {
     final row = await _require(debtId);
     final schedule = await _dao.watchScheduleByDebt(debtId).first;
@@ -212,7 +236,8 @@ class DebtLocalDataSource {
       // borrowedIn = credit from + debit debt (liability−);
       // borrowedOut = debit from + credit debt (receivable−).
       final isBorrowedIn = row.debtType == DebtType.borrowedIn.index + 1;
-      final txn = await _txns.recordTransaction(RecordTransactionParams(
+      final txn = await _txns.recordTransaction(
+          RecordTransactionParams(
         transactionDate: entry.paymentDate,
         description: '还款 $counterpartyOf(row)',
         entries: [
@@ -225,13 +250,20 @@ class DebtLocalDataSource {
               debitCents: 0,
               creditCents: entry.totalCents),
         ],
-      ));
+      ), markPending: markPending);
       await _dao.updateScheduleEntry(db.PaymentScheduleEntriesCompanion(
         id: Value(scheduleEntryId),
         paid: const Value(true),
         paidCents: Value(entry.totalCents),
         transactionId: Value(txn.id),
       ));
+      if (markPending) {
+        // 债务头行置 pending:期次已还的本地事实随头行被镜像协调保护。
+        await _dao.updateDebt(db.DebtsCompanion(
+          id: Value(debtId),
+          syncState: const Value(SyncState.pending),
+        ));
+      }
       paid = _paymentView(
           (await _dao.getScheduleEntryById(scheduleEntryId))!);
     });

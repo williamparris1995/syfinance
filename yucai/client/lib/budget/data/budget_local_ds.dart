@@ -6,6 +6,7 @@ import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/budget_dao.dart';
+import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/core/localdb/daos/transaction_dao.dart';
 
 /// Guest-mode data source for the budget module (R6, C-paradigm).
@@ -44,12 +45,16 @@ class BudgetLocalDataSource {
     return _detail(row);
   }
 
+  /// 各写方法 [markPending] 三态语义(F10 FR-3):guest 缺省 false → 头行
+  /// synced;boundOfflineLocal / boundRemote 降级传 true → 头行 pending。
+  /// 预算项为子表(无 syncState)随头行整包上行。
   Future<BudgetView> createBudget({
     required String name,
     required String month,
     required String currencyCode,
     required List<({String accountId, int plannedAmountCents, String? notes})>
         items,
+    bool markPending = false,
   }) async {
     _validateMonth(month);
     final id = _uuid.v4();
@@ -65,15 +70,26 @@ class BudgetLocalDataSource {
         version: 1,
         createdAt: now,
         updatedAt: now,
+        syncState: syncStateValue(markPending),
       ));
       await _insertItems(id, items);
     });
     return getBudget(id);
   }
 
-  Future<void> deleteBudget(String id) async {
+  /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4);guest 不写。
+  Future<void> deleteBudget(String id, {bool writeTombstone = false}) async {
     if (await _dao.getBudgetById(id) == null) throw const ServerFailure('预算不存在');
-    await _dao.deleteBudgetById(id); // items cascade
+    await _database.transaction(() async {
+      await _dao.deleteBudgetById(id); // items cascade
+      if (writeTombstone) {
+        await _database.syncTombstoneDao.upsertTombstone(
+            db.SyncTombstonesCompanion.insert(
+                module: SyncModule.budget,
+                entityId: id,
+                deletedAt: DateTime.now().toUtc()));
+      }
+    });
   }
 
   Future<BudgetView> addItem({
@@ -81,6 +97,7 @@ class BudgetLocalDataSource {
     required String accountId,
     required int plannedAmountCents,
     String? notes,
+    bool markPending = false,
   }) async {
     final row = await _require(budgetId);
     await _database.transaction(() async {
@@ -92,7 +109,9 @@ class BudgetLocalDataSource {
         actualAmountCents: 0,
         notes: notes ?? '',
       ));
-      await _touch(row, row.totalAmountCents + plannedAmountCents);
+      // addItem/removeItem 动的是子表 + 头行合计 → 头行置 pending(整包上行)。
+      await _touch(row, row.totalAmountCents + plannedAmountCents,
+          markPending: markPending);
     });
     return getBudget(budgetId);
   }
@@ -100,6 +119,7 @@ class BudgetLocalDataSource {
   Future<BudgetView> removeItem({
     required String budgetId,
     required String itemId,
+    bool markPending = false,
   }) async {
     final row = await _require(budgetId);
     final items = await _dao.watchItemsByBudget(budgetId).first;
@@ -107,7 +127,8 @@ class BudgetLocalDataSource {
     if (target == null) throw const ServerFailure('预算项不存在');
     await _database.transaction(() async {
       await _dao.deleteItemById(itemId);
-      await _touch(row, row.totalAmountCents - target.plannedAmountCents);
+      await _touch(row, row.totalAmountCents - target.plannedAmountCents,
+          markPending: markPending);
     });
     return getBudget(budgetId);
   }
@@ -118,6 +139,7 @@ class BudgetLocalDataSource {
     required String currencyCode,
     required List<({String accountId, int plannedAmountCents, String? notes})>
         items,
+    bool markPending = false,
   }) async {
     final row = await _require(id);
     await _database.transaction(() async {
@@ -125,7 +147,7 @@ class BudgetLocalDataSource {
       await _dao.deleteItemsByBudget(id);
       await _insertItems(id, items);
       await _touch(row, items.fold(0, (a, i) => a + i.plannedAmountCents),
-          name: name, currencyCode: currencyCode);
+          name: name, currencyCode: currencyCode, markPending: markPending);
     });
     return getBudget(id);
   }
@@ -198,7 +220,7 @@ class BudgetLocalDataSource {
   }
 
   Future<void> _touch(db.Budget row, int newTotal,
-      {String? name, String? currencyCode}) async {
+      {String? name, String? currencyCode, bool markPending = false}) async {
     await _dao.updateBudget(db.BudgetsCompanion(
       id: Value(row.id),
       name: Value(name ?? row.name),
@@ -206,6 +228,9 @@ class BudgetLocalDataSource {
       totalAmountCents: Value(newTotal),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending
+          ? const Value(SyncState.pending)
+          : const Value.absent(),
     ));
   }
 

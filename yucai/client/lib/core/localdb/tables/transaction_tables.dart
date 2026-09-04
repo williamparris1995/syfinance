@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import '../sync_state.dart' show SyncState;
+
 /// Contract tables for the transaction module (backup payload []Transaction
 /// with nested Entries flattened into a child table, design conversion rule 4).
 class Transactions extends Table {
@@ -10,6 +12,10 @@ class Transactions extends Table {
   IntColumn get version => integer()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。
+  TextColumn get syncState =>
+      text().withDefault(const Constant(SyncState.synced))();
 
   @override
   Set<Column> get primaryKey => {id};

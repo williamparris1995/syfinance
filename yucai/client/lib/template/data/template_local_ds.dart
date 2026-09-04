@@ -9,6 +9,7 @@ import 'package:yucai_client/account/domain/repositories/account_repository.dart
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/template_dao.dart';
+import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -57,6 +58,7 @@ class TemplateLocalDataSource {
     String? endDate,
     bool autoRecord = false,
     String? category,
+    bool markPending = false,
   }) async {
     if (name.trim().isEmpty) throw const ValidationFailure('模板名不能为空');
     if (amountCents <= 0) throw const ValidationFailure('金额必须大于零');
@@ -93,10 +95,13 @@ class TemplateLocalDataSource {
       version: 1,
       createdAt: now,
       updatedAt: now,
+      syncState: syncStateValue(markPending),
     ));
     return _toEntity((await _dao.getTemplateById(id))!);
   }
 
+  /// 各写方法 [markPending] 三态语义(F10 FR-3):guest 缺省 false → 行
+  /// synced;boundOfflineLocal / boundRemote 降级传 true → 行 pending。
   Future<Template> update({
     required String id,
     required int version,
@@ -107,6 +112,7 @@ class TemplateLocalDataSource {
     int? cycleDays,
     String? endDate,
     bool? autoRecord,
+    bool markPending = false,
   }) async {
     final row = await _dao.getTemplateById(id);
     if (row == null) throw const ServerFailure('模板不存在');
@@ -124,19 +130,36 @@ class TemplateLocalDataSource {
       autoRecord: Value(autoRecord ?? row.autoRecord),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending
+          ? const Value(SyncState.pending)
+          : const Value.absent(),
     ));
     return _toEntity((await _dao.getTemplateById(id))!);
   }
 
-  Future<void> delete(String id) async {
+  /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4);guest 不写
+  /// (绑定走全量首传)。
+  Future<void> delete(String id, {bool writeTombstone = false}) async {
     if (await _dao.getTemplateById(id) == null) throw const ServerFailure('模板不存在');
-    await _dao.deleteTemplateById(id);
+    await _database.transaction(() async {
+      await _dao.deleteTemplateById(id);
+      if (writeTombstone) {
+        await _database.syncTombstoneDao.upsertTombstone(
+            db.SyncTombstonesCompanion.insert(
+                module: SyncModule.template,
+                entityId: id,
+                deletedAt: DateTime.now().toUtc()));
+      }
+    });
   }
 
-  Future<Template> pause(String id) => _flipPaused(id, true);
-  Future<Template> resume(String id) => _flipPaused(id, false);
+  Future<Template> pause(String id, {bool markPending = false}) =>
+      _flipPaused(id, true, markPending: markPending);
+  Future<Template> resume(String id, {bool markPending = false}) =>
+      _flipPaused(id, false, markPending: markPending);
 
-  Future<Template> _flipPaused(String id, bool paused) async {
+  Future<Template> _flipPaused(String id, bool paused,
+      {bool markPending = false}) async {
     final row = await _dao.getTemplateById(id);
     if (row == null) throw const ServerFailure('模板不存在');
     await _dao.updateTemplate(db.TransactionTemplatesCompanion(
@@ -144,6 +167,9 @@ class TemplateLocalDataSource {
       paused: Value(paused),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending
+          ? const Value(SyncState.pending)
+          : const Value.absent(),
     ));
     return _toEntity((await _dao.getTemplateById(id))!);
   }
@@ -152,7 +178,11 @@ class TemplateLocalDataSource {
       _toEntityOrNull(await _dao.getTemplateById(id)) ??
       (throw const ServerFailure('模板不存在'));
 
-  Future<RecordResult> record(String templateId) async {
+  /// [markPending]:复合写(FR-3)—— 同一事务内模板头行(推进 nextDate/
+  /// lastTransactionId)、新记交易头行、分类账户兜底补建行统一置 pending,
+  /// 待回网整包上行。
+  Future<RecordResult> record(String templateId,
+      {bool markPending = false}) async {
     final row = await _dao.getTemplateById(templateId);
     if (row == null) throw const ServerFailure('模板不存在');
     if (row.paused) throw const ServerFailure('模板已暂停');
@@ -160,13 +190,16 @@ class TemplateLocalDataSource {
     final next = row.nextDate;
     String? txnId;
     await _database.transaction(() async {
-      txnId = await _createTxnForRow(row, next);
+      txnId = await _createTxnForRow(row, next, markPending: markPending);
       await _dao.updateTemplate(db.TransactionTemplatesCompanion(
         id: Value(templateId),
         nextDate: Value(_advance(next, row.cycle, row.cycleDays, row.billingDay)),
         lastTransactionId: Value(txnId),
         version: Value(row.version + 1),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncState: markPending
+            ? const Value(SyncState.pending)
+            : const Value.absent(),
       ));
     });
     final updated = await _dao.getTemplateById(templateId);
@@ -180,8 +213,8 @@ class TemplateLocalDataSource {
   /// 分录的借/贷方必须有账户 —— 为空(或指向已删账户)时按模板名自动补建
   /// 对应方向的系统分类账户(expense/income),杜绝 accountId='' →
   /// 「账户不存在」。
-  Future<String> _ensureCategoryAccount(
-      db.TransactionTemplate row) async {
+  Future<String> _ensureCategoryAccount(db.TransactionTemplate row,
+      {bool markPending = false}) async {
     final isExpense = row.direction == 1;
     final wantType = isExpense ? 5 : 4; // contract: 4 income / 5 expense
     final id = row.category ?? '';
@@ -196,14 +229,18 @@ class TemplateLocalDataSource {
         .where((a) => a.name == name && a.accountType == wantType)
         .firstOrNull;
     if (match != null) return match.id;
-    final created = await _accounts.create(CreateAccountParams(
-      name: name,
-      accountType: isExpense ? AccountType.expense : AccountType.income,
-      category: AccountCategory.otherAsset,
-      currencyCode: 'CNY',
-      initialBalanceCents: 0,
-      ownership: Ownership.personal,
-    ));
+    final created = await _accounts.create(
+      CreateAccountParams(
+        name: name,
+        accountType: isExpense ? AccountType.expense : AccountType.income,
+        category: AccountCategory.otherAsset,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        ownership: Ownership.personal,
+      ),
+      // 兜底补建的账户与整笔离线记录同包上行(FR-3 复合写语义)。
+      markPending: markPending,
+    );
     return created.id;
   }
 
@@ -211,11 +248,12 @@ class TemplateLocalDataSource {
   /// expense = debit category(expense) / credit source(asset);
   /// income = debit source(asset) / credit category(income);
   /// transfer = debit destination / credit source.
-  Future<String> _createTxnForRow(
-      db.TransactionTemplate row, DateTime date) async {
+  Future<String> _createTxnForRow(db.TransactionTemplate row, DateTime date,
+      {bool markPending = false}) async {
     final entries = <TransactionEntry>[];
     // 分类账户:空/失效时兜底补建(见 _ensureCategoryAccount)。
-    final categoryAcc = await _ensureCategoryAccount(row);
+    final categoryAcc =
+        await _ensureCategoryAccount(row, markPending: markPending);
     switch (row.direction) {
       case 1: // expense: debit category / credit source
         entries
@@ -253,11 +291,12 @@ class TemplateLocalDataSource {
       default:
         throw const ValidationFailure('模板方向未指定');
     }
-    final txn = await _txnLocal.recordTransaction(RecordTransactionParams(
+    final txn = await _txnLocal.recordTransaction(
+        RecordTransactionParams(
       transactionDate: date,
       description: row.name,
       entries: entries,
-    ));
+    ), markPending: markPending);
     return txn.id;
   }
 

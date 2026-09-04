@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import '../sync_state.dart' show SyncState;
+
 /// Contract table for the account module: columns mirror the server backup
 /// payload (domain struct fields, snake_cased). Money is int64 cents, enums
 /// keep their backup-JSON int form, IDs are client-generated UUID strings
@@ -51,6 +53,11 @@ class Accounts extends Table {
   IntColumn get version => integer()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+
+  /// F10 FR-3/ADR-2:同步状态(synced=镜像行/guest 行;pending=离线或降级
+  /// 写待上行)。旧库迁移加列时以默认回填 synced。
+  TextColumn get syncState =>
+      text().withDefault(const Constant(SyncState.synced))();
 
   @override
   Set<Column> get primaryKey => {id};

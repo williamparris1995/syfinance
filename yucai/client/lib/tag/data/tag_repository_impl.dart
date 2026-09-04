@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/tag_dao.dart';
+import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/core/session_mode/bound_write_fallback.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
@@ -31,7 +32,10 @@ class TagLocalDataSource {
   Future<List<Tag>> list() async =>
       (await _dao.watchAllTags().first).map(_toEntity).toList();
 
-  Future<Tag> create({required String name, required String color}) async {
+  /// 各写方法 [markPending] 三态语义(F10 FR-3):guest 缺省 false → 行
+  /// synced;boundOfflineLocal / boundRemote 降级传 true → 行 pending。
+  Future<Tag> create({required String name, required String color,
+      bool markPending = false}) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
     await _dao.insertTag(db.TagsCompanion.insert(
@@ -41,6 +45,7 @@ class TagLocalDataSource {
       version: 1,
       createdAt: now,
       updatedAt: now,
+      syncState: syncStateValue(markPending),
     ));
     return _toEntity((await _dao.getTagById(id))!);
   }
@@ -50,6 +55,7 @@ class TagLocalDataSource {
     required String name,
     required String color,
     required int version,
+    bool markPending = false,
   }) async {
     final row = await _dao.getTagById(id);
     if (row == null) throw const ServerFailure('标签不存在');
@@ -62,13 +68,27 @@ class TagLocalDataSource {
       color: Value(color),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending
+          ? const Value(SyncState.pending)
+          : const Value.absent(),
     ));
     return _toEntity((await _dao.getTagById(id))!);
   }
 
-  Future<void> delete(String id) async {
+  /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4);guest 不写
+  /// (绑定走全量首传)。
+  Future<void> delete(String id, {bool writeTombstone = false}) async {
     if (await _dao.getTagById(id) == null) throw const ServerFailure('标签不存在');
-    await _dao.deleteTagById(id);
+    await _database.transaction(() async {
+      await _dao.deleteTagById(id);
+      if (writeTombstone) {
+        await _database.syncTombstoneDao.upsertTombstone(
+            db.SyncTombstonesCompanion.insert(
+                module: SyncModule.tag,
+                entityId: id,
+                deletedAt: DateTime.now().toUtc()));
+      }
+    });
   }
 
   Future<void> addTagToTransaction({
@@ -137,7 +157,8 @@ class TagRepositoryImpl implements TagRepository {
   Future<Either<Failure, Tag>> create({required String name, required String color}) =>
       _routedWrite(MirrorModule.tag,
           () => _remote.create(name: name, color: color),
-          () => _local.create(name: name, color: color));
+          (markPending) => _local.create(
+              name: name, color: color, markPending: markPending));
 
   @override
   Future<Either<Failure, Tag>> update({
@@ -148,11 +169,14 @@ class TagRepositoryImpl implements TagRepository {
   }) =>
       _routedWrite(MirrorModule.tag,
           () => _remote.update(id: id, name: name, color: color, version: version),
-          () => _local.update(id: id, name: name, color: color, version: version));
+          (markPending) => _local.update(
+              id: id, name: name, color: color, version: version,
+              markPending: markPending));
 
   @override
   Future<Either<Failure, void>> delete(String id) =>
-      _routedWrite(MirrorModule.tag, () => _remote.delete(id), () => _local.delete(id));
+      _routedWrite(MirrorModule.tag, () => _remote.delete(id),
+          (markPending) => _local.delete(id, writeTombstone: markPending));
 
   @override
   Future<Either<Failure, void>> addTagToTransaction({
@@ -161,7 +185,9 @@ class TagRepositoryImpl implements TagRepository {
   }) =>
       _routedWrite(MirrorModule.tag,
           () => _remote.addTagToTransaction(tagId: tagId, transactionId: transactionId),
-          () => _local.addTagToTransaction(tagId: tagId, transactionId: transactionId));
+          // 联表(transaction_tags)不在备份契约,本地私有:旗标忽略。
+          (markPending) => _local.addTagToTransaction(
+              tagId: tagId, transactionId: transactionId));
 
   @override
   Future<Either<Failure, void>> removeTagFromTransaction({
@@ -170,7 +196,9 @@ class TagRepositoryImpl implements TagRepository {
   }) =>
       _routedWrite(MirrorModule.tag,
           () => _remote.removeTagFromTransaction(tagId: tagId, transactionId: transactionId),
-          () => _local.removeTagFromTransaction(tagId: tagId, transactionId: transactionId));
+          // 联表不在备份契约:旗标忽略。
+          (markPending) => _local.removeTagFromTransaction(
+              tagId: tagId, transactionId: transactionId));
 
   @override
   Future<Either<Failure, List<Tag>>> getTransactionTags(String transactionId) =>
@@ -194,16 +222,24 @@ class TagRepositoryImpl implements TagRepository {
   /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
   /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
   /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
-  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
   Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
-      Future<T> Function() remote, Future<T> Function() local) async {
-    if (_useLocalDs) {
-      return _mirrored(m, () => _guard(local));
+      Future<T> Function() remote,
+      Future<T> Function(bool markPending) local) async {
+    switch (_tracker.resolveDataRoute()) {
+      case DataRoute.guestLocal:
+        // guest 行 synced(无上行语义,R6 行为不变;缺省不传 = false)。
+        return _mirrored(m, () => _guard(() => local(false)));
+      case DataRoute.boundOfflineLocal:
+        // 离线写本地,行 pending 待回网上行(FR-3,T2 落地)。
+        return _mirrored(m, () => _guard(() => local(true)));
+      case DataRoute.boundRemote:
+        // 在线先远端(Right 触发镜像刷新,与 R6 逐位一致);NetworkFailure
+        // 降级本地落库置 pending(FR-1b 双保险,同为 bound 路由)。
+        return writeWithFallback(
+          () => _mirrored(m, () => _guard(remote)),
+          () => _guard(() => local(true)),
+        );
     }
-    return writeWithFallback(
-      () => _mirrored(m, () => _guard(remote)),
-      () => _guard(local),
-    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {

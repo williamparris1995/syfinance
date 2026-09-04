@@ -10,8 +10,9 @@ import 'package:yucai_client/core/error/failures.dart';
 ///   数据不丢(离线完整记账宪法);
 /// - 其他失败(校验 / 权限 / 服务端错误)不降级,原样 Left 上抛。
 ///
-/// TODO-F10T2:降级写本地后需置 pending 并在回网后上行(本任务 T1 不做,
-/// 此处为锚点;镜像刷新的 pending 保护在 T2/T3)。
+/// F10 T2:降级落库的 pending 置位由各 repo `_routedWrite` 的本地闭包
+/// `local(true)` 承担(与 boundOfflineLocal 分支同语义);回网收集上行
+/// 与成功回 synced 在 T3。
 Future<Either<Failure, T>> writeWithFallback<T>(
   Future<Either<Failure, T>> Function() remote,
   Future<Either<Failure, T>> Function() local,

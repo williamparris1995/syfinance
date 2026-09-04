@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/goal_dao.dart';
+import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/holding/data/holding_local_ds.dart'
     show HoldingLocalDataSource;
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
@@ -53,6 +54,7 @@ class GoalLocalDataSource {
     List<String> linkedAccountIds = const [],
     List<String> linkedDebtIds = const [],
     String? notes,
+    bool markPending = false,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -70,6 +72,7 @@ class GoalLocalDataSource {
         version: 1,
         createdAt: now,
         updatedAt: now,
+        syncState: syncStateValue(markPending),
       ));
       for (final a in linkedAccountIds) {
         await _dao.insertAccountLink(
@@ -83,6 +86,9 @@ class GoalLocalDataSource {
     return getGoal(id);
   }
 
+  /// 各写方法 [markPending] 三态语义(F10 FR-3):guest 缺省 false → 头行
+  /// synced;boundOfflineLocal / boundRemote 降级传 true → 头行 pending
+  /// (链接子表无 syncState,随头行整包上行)。
   Future<GoalView> updateGoal({
     required String id,
     String? name,
@@ -92,6 +98,7 @@ class GoalLocalDataSource {
     List<String>? linkedDebtIds,
     String? notes,
     int? version,
+    bool markPending = false,
   }) async {
     final row = await _require(id);
     // Server: explicit optimistic lock (goal/application/service.go:97).
@@ -108,6 +115,9 @@ class GoalLocalDataSource {
         notes: Value(notes ?? row.notes),
         version: Value(row.version + 1),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncState: markPending
+            ? const Value(SyncState.pending)
+            : const Value.absent(),
       ));
       // Links: null = untouched, provided list = whole-set replacement.
       if (linkedAccountIds != null) {
@@ -128,12 +138,22 @@ class GoalLocalDataSource {
     return getGoal(id);
   }
 
-  Future<void> deleteGoal(String id) async {
+  /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4);guest 不写。
+  Future<void> deleteGoal(String id, {bool writeTombstone = false}) async {
     if (await _dao.getGoalById(id) == null) throw const ServerFailure('目标不存在');
-    await _dao.deleteGoalById(id); // links cascade
+    await _database.transaction(() async {
+      await _dao.deleteGoalById(id); // links cascade
+      if (writeTombstone) {
+        await _database.syncTombstoneDao.upsertTombstone(
+            db.SyncTombstonesCompanion.insert(
+                module: SyncModule.goal,
+                entityId: id,
+                deletedAt: DateTime.now().toUtc()));
+      }
+    });
   }
 
-  Future<void> completeGoal(String id) async {
+  Future<void> completeGoal(String id, {bool markPending = false}) async {
     final row = await _require(id);
     await _dao.updateGoal(db.GoalsCompanion(
       id: Value(id),
@@ -141,6 +161,9 @@ class GoalLocalDataSource {
       completedAt: Value(DateTime.now().toUtc()),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending
+          ? const Value(SyncState.pending)
+          : const Value.absent(),
     ));
   }
 
@@ -151,6 +174,7 @@ class GoalLocalDataSource {
   Future<GoalView> recordContribution({
     required String id,
     required int amountCents,
+    bool markPending = false,
   }) async {
     final row = await _require(id);
     await _dao.updateGoal(db.GoalsCompanion(
@@ -158,6 +182,9 @@ class GoalLocalDataSource {
       currentAmountCents: Value(row.currentAmountCents + amountCents),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending
+          ? const Value(SyncState.pending)
+          : const Value.absent(),
     ));
     return getGoal(id);
   }
@@ -167,6 +194,7 @@ class GoalLocalDataSource {
     int? targetAmountCents,
     String? deadline,
     String? name,
+    bool markPending = false,
   }) async {
     final src = await _require(sourceId);
     final (accounts, debts) = await _dao.linksFor(sourceId);
@@ -179,6 +207,7 @@ class GoalLocalDataSource {
       linkedAccountIds: accounts,
       linkedDebtIds: debts,
       notes: src.notes.isEmpty ? null : src.notes,
+      markPending: markPending,
     );
   }
 

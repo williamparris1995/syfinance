@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import '../sync_state.dart' show SyncState;
+
 /// Contract tables for the budget module (backup payload []Budget with nested
 /// Items flattened into a child table).
 class Budgets extends Table {
@@ -13,6 +15,10 @@ class Budgets extends Table {
   IntColumn get version => integer()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+
+  /// F10 FR-3/ADR-2:同步状态(值域/语义见 sync_state.dart)。
+  TextColumn get syncState =>
+      text().withDefault(const Constant(SyncState.synced))();
 
   @override
   Set<Column> get primaryKey => {id};

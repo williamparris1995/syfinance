@@ -63,7 +63,8 @@ class GoalRepositoryImpl implements GoalRepository {
             linkedDebtIds: linkedDebtIds,
             notes: notes,
           ),
-          () => _local.createGoal(
+          (markPending) => _local.createGoal(
+            markPending: markPending,
             name: name,
             type: type,
             targetAmountCents: targetAmountCents,
@@ -96,7 +97,8 @@ class GoalRepositoryImpl implements GoalRepository {
             notes: notes,
             version: version,
           ),
-          () => _local.updateGoal(
+          (markPending) => _local.updateGoal(
+            markPending: markPending,
             id: id,
             name: name,
             targetAmountCents: targetAmountCents,
@@ -109,11 +111,13 @@ class GoalRepositoryImpl implements GoalRepository {
 
   @override
   Future<Either<Failure, void>> deleteGoal(String id) =>
-      _routedWrite(MirrorModule.goal, () => _remote.deleteGoal(id), () => _local.deleteGoal(id));
+      _routedWrite(MirrorModule.goal, () => _remote.deleteGoal(id),
+          (markPending) => _local.deleteGoal(id, writeTombstone: markPending));
 
   @override
   Future<Either<Failure, void>> completeGoal(String id) =>
-      _routedWrite(MirrorModule.goal, () => _remote.completeGoal(id), () => _local.completeGoal(id));
+      _routedWrite(MirrorModule.goal, () => _remote.completeGoal(id),
+          (markPending) => _local.completeGoal(id, markPending: markPending));
 
   @override
   Future<Either<Failure, GoalView>> recordContribution({
@@ -122,7 +126,8 @@ class GoalRepositoryImpl implements GoalRepository {
   }) =>
       _routedWrite(MirrorModule.goal,
           () => _remote.recordContribution(id: id, amountCents: amountCents),
-          () => _local.recordContribution(id: id, amountCents: amountCents));
+          (markPending) => _local.recordContribution(
+              id: id, amountCents: amountCents, markPending: markPending));
 
   @override
   Future<Either<Failure, GoalView>> cloneGoal({
@@ -138,7 +143,8 @@ class GoalRepositoryImpl implements GoalRepository {
             deadline: deadline,
             name: name,
           ),
-          () => _local.cloneGoal(
+          (markPending) => _local.cloneGoal(
+            markPending: markPending,
             sourceId: sourceId,
             targetAmountCents: targetAmountCents,
             deadline: deadline,
@@ -169,16 +175,24 @@ class GoalRepositoryImpl implements GoalRepository {
   /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
   /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
   /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
-  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
   Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
-      Future<T> Function() remote, Future<T> Function() local) async {
-    if (_useLocalDs) {
-      return _mirrored(m, () => _guard(local));
+      Future<T> Function() remote,
+      Future<T> Function(bool markPending) local) async {
+    switch (_tracker.resolveDataRoute()) {
+      case DataRoute.guestLocal:
+        // guest 行 synced(无上行语义,R6 行为不变;缺省不传 = false)。
+        return _mirrored(m, () => _guard(() => local(false)));
+      case DataRoute.boundOfflineLocal:
+        // 离线写本地,行 pending 待回网上行(FR-3,T2 落地)。
+        return _mirrored(m, () => _guard(() => local(true)));
+      case DataRoute.boundRemote:
+        // 在线先远端(Right 触发镜像刷新,与 R6 逐位一致);NetworkFailure
+        // 降级本地落库置 pending(FR-1b 双保险,同为 bound 路由)。
+        return writeWithFallback(
+          () => _mirrored(m, () => _guard(remote)),
+          () => _guard(() => local(true)),
+        );
     }
-    return writeWithFallback(
-      () => _mirrored(m, () => _guard(remote)),
-      () => _guard(local),
-    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {

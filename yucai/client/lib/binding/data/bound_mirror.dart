@@ -96,10 +96,22 @@ class BoundMirror {
 
   Future<void> _refreshAccounts() async {
     final result = await _accounts.list();
+    // 已知行为(F10 T2 注释缺口,review fix round 1):离线交易经
+    // BalanceLocalUpdater 联动的账户余额为派生值,不置账户行 pending;
+    // 上行前若账户模块镜像刷新,本地余额暂回 server 值(pending 交易仍
+    // 可见),T3 上行成功后随镜像刷新自愈 —— 非缺陷,语义如此钉死。
     await result.fold((_) async {}, (list) async {
       await _db.transaction(() async {
-        await _db.accountDao.deleteAllAccounts();
+        // F10 ADR-3 镜像协调:delete-all 排除 pending(在线全 synced 场景无
+        // pending 行,与 delete-all 逐位等价);rebuild 遇同 id pending 行
+        // 跳过 —— 单设备语义下 server 行 = pending 前镜像,跳过安全
+        //(本地内容与存在性保住,待 T3 上行后恢复同步)。
+        await _db.accountDao.deleteAllSyncedAccounts();
+        final pendingIds = (await _db.accountDao.getPendingAccounts())
+            .map((a) => a.id)
+            .toSet();
         for (final e in list) {
+          if (pendingIds.contains(e.id)) continue;
           await _db.accountDao
               .insertAccount(mirrorAccountToRow(e, DateTime.now().toUtc()));
         }
@@ -113,9 +125,15 @@ class BoundMirror {
     ));
     await result.fold((_) async {}, (page) async {
       await _db.transaction(() async {
-        await _db.transactionDao.deleteAllEntries();
-        await _db.transactionDao.deleteAllTransactions();
+        // F10 ADR-3:pending 头行及其分录保留(内容与存在性不变),其余
+        // delete-all + rebuild(在线全 synced 与旧行为逐位等价)。
+        await _db.transactionDao.deleteEntriesOfSyncedTransactions();
+        await _db.transactionDao.deleteAllSyncedTransactions();
+        final pendingIds = (await _db.transactionDao.getPendingTransactions())
+            .map((t) => t.id)
+            .toSet();
         for (final t in page.transactions) {
+          if (pendingIds.contains(t.id)) continue;
           await _db.transactionDao
               .insertTransaction(mirrorTransactionToRow(t));
           for (final e in t.entries) {
@@ -137,9 +155,14 @@ class BoundMirror {
         detail.fold((_) {}, details.add);
       }
       await _db.transaction(() async {
-        await _db.debtDao.deleteAllSchedule();
-        await _db.debtDao.deleteAllDebts();
+        // F10 ADR-3:pending 债务及其期次(含离线还款事实)保留。
+        await _db.debtDao.deleteScheduleOfSyncedDebts();
+        await _db.debtDao.deleteAllSyncedDebts();
+        final pendingIds = (await _db.debtDao.getPendingDebts())
+            .map((d) => d.id)
+            .toSet();
         for (final detail in details) {
+          if (pendingIds.contains(detail.debt.id)) continue;
           await _db.debtDao.insertDebt(mirrorDebtToRow(detail.debt));
           for (final s in detail.schedule) {
             await _db.debtDao
@@ -160,9 +183,14 @@ class BoundMirror {
         detail.fold((_) {}, details.add);
       }
       await _db.transaction(() async {
-        await _db.budgetDao.deleteAllItems();
-        await _db.budgetDao.deleteAllBudgets();
+        // F10 ADR-3:pending 预算及其预算项保留。
+        await _db.budgetDao.deleteItemsOfSyncedBudgets();
+        await _db.budgetDao.deleteAllSyncedBudgets();
+        final pendingIds = (await _db.budgetDao.getPendingBudgets())
+            .map((b) => b.id)
+            .toSet();
         for (final d in details) {
+          if (pendingIds.contains(d.id)) continue;
           await _db.budgetDao.insertBudget(mirrorBudgetToRow(d));
           for (final i in d.items) {
             await _db.budgetDao
@@ -177,9 +205,14 @@ class BoundMirror {
     final result = await _goals.listGoals();
     await result.fold((_) async {}, (list) async {
       await _db.transaction(() async {
-        await _db.goalDao.deleteAllLinks();
-        await _db.goalDao.deleteAllGoals();
+        // F10 ADR-3:pending 目标及其链接保留。
+        await _db.goalDao.deleteLinksOfSyncedGoals();
+        await _db.goalDao.deleteAllSyncedGoals();
+        final pendingIds = (await _db.goalDao.getPendingGoals())
+            .map((g) => g.id)
+            .toSet();
         for (final g in list) {
+          if (pendingIds.contains(g.id)) continue;
           await _db.goalDao.insertGoal(mirrorGoalToRow(g));
           for (final a in g.linkedAccountIds) {
             await _db.goalDao.insertAccountLink(
@@ -202,18 +235,38 @@ class BoundMirror {
       await tradesResult.fold((_) async {}, (trades) async {
         await securitiesResult.fold((_) async {}, (securities) async {
           await _db.transaction(() async {
-            await _db.holdingDao.deleteAllHoldingTransactions();
-            await _db.holdingDao.deleteAllHoldings();
-            await _db.referenceDao.deleteAllSecurities();
+            // F10 ADR-3:pending 持仓头行保留,其台账行(离线买/卖/分红)按
+            // (accountId, securityId) 联动保留;pending 持仓引用的证券同样
+            // 保留(否则离线建仓证券刷新后变「未知证券」)。
+            await _db.holdingDao.deleteHoldingTransactionsOfSyncedHoldings();
+            await _db.holdingDao.deleteAllSyncedHoldings();
+            await _db.referenceDao
+                .deleteSecuritiesNotReferencedByPendingHoldings();
+            final pendingPairs = (await _db.holdingDao.getPendingHoldings())
+                .map((h) => '${h.accountId}|${h.securityId}')
+                .toSet();
             for (final s in securities) {
-              await _db.referenceDao.insertSecurity(mirrorSecurityToRow(s));
+              // F10 T2 fix(round 1):pending 持仓引用的 server 证券已在保留
+              // 集内,裸 insert 撞 UNIQUE 会回滚整事务 —— upsert 冲突覆盖
+              //(server 对 server-id 行权威;本地 uuid 行永不冲突)。
+              await _db.referenceDao
+                  .upsertSecurity(mirrorSecurityToRow(s));
             }
             for (final h in holdings) {
+              // 同 (account, security) 的 server 旧行跳过,防重复持仓行
+              //(本地 pending 行即最新事实)。
+              if (pendingPairs.contains('${h.accountId}|${h.securityId}')) {
+                continue;
+              }
               await _db.holdingDao.insertHolding(mirrorHoldingToRow(h));
             }
+            // 台账 append-only。F10 T2 fix(round 1):pending pair 的保留集
+            // 含上一轮镜像写入的 server 台账行(server id),裸 insert 撞
+            // UNIQUE 会回滚整事务 —— upsert 冲突覆盖;离线 uuid 行 server
+            // 不含、永不冲突,合集(保留行 ∪ server 行)即全量。
             for (final t in trades) {
               await _db.holdingDao
-                  .insertHoldingTransaction(mirrorHoldingTxnToRow(t));
+                  .upsertHoldingTransaction(mirrorHoldingTxnToRow(t));
             }
           });
         });
@@ -225,9 +278,15 @@ class BoundMirror {
     final result = await _tags.list();
     await result.fold((_) async {}, (list) async {
       await _db.transaction(() async {
-        await _db.tagDao.deleteAllTags();
-        await _db.tagDao.deleteAllTransactionTags();
+        // F10 ADR-3:pending 标签及其本地联表保留(联表不在备份契约,属
+        // 本地私有数据);其余 delete-all + rebuild。
+        await _db.tagDao.deleteAllSyncedTags();
+        await _db.tagDao.deleteTransactionTagsOfSyncedTags();
+        final pendingIds = (await _db.tagDao.getPendingTags())
+            .map((t) => t.id)
+            .toSet();
         for (final t in list) {
+          if (pendingIds.contains(t.id)) continue;
           await _db.tagDao.insertTag(mirrorTagToRow(t));
         }
       });
@@ -238,8 +297,14 @@ class BoundMirror {
     final result = await _templates.list();
     await result.fold((_) async {}, (list) async {
       await _db.transaction(() async {
-        await _db.templateDao.deleteAllTemplates();
+        // F10 ADR-3:pending 模板保留(离线 record 推进的 nextDate/
+        // lastTransactionId 不被镜像抹掉)。
+        await _db.templateDao.deleteAllSyncedTemplates();
+        final pendingIds = (await _db.templateDao.getPendingTemplates())
+            .map((t) => t.id)
+            .toSet();
         for (final t in list) {
+          if (pendingIds.contains(t.id)) continue;
           await _db.templateDao.insertTemplate(mirrorTemplateToRow(t));
         }
       });

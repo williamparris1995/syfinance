@@ -14,7 +14,7 @@ enum DataRoute {
   boundRemote,
 
   /// 绑定态 + 离线(connectivity 掉线,或 OfflineAuthenticated 离线冷启动
-  /// FR-2):读写走本地镜像;T1 写直接落库,pending 置位在 T2(TODO-F10T2)。
+  /// FR-2):读写走本地镜像;写落库置 pending(T2 落地),回网由 T3 上行。
   boundOfflineLocal,
 }
 

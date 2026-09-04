@@ -11,9 +11,11 @@ import 'daos/derived_dao.dart';
 import 'daos/goal_dao.dart';
 import 'daos/holding_dao.dart';
 import 'daos/reference_dao.dart';
+import 'daos/sync_tombstone_dao.dart';
 import 'daos/tag_dao.dart';
 import 'daos/template_dao.dart';
 import 'daos/transaction_dao.dart';
+import 'sync_state.dart' show SyncState;
 import 'tables/account_tables.dart';
 import 'tables/budget_tables.dart';
 import 'tables/debt_tables.dart';
@@ -22,6 +24,7 @@ import 'tables/derived_tables.dart';
 import 'tables/goal_tables.dart';
 import 'tables/holding_tables.dart';
 import 'tables/reference_tables.dart';
+import 'tables/sync_tables.dart';
 import 'tables/tag_tables.dart';
 import 'tables/template_tables.dart';
 import 'tables/transaction_tables.dart';
@@ -59,6 +62,7 @@ part 'app_database.g.dart';
     GoalProgressSnapshots,
     HoldingSnapshots,
     HoldingLots,
+    SyncTombstones,
   ],
   daos: [
     AccountDao,
@@ -71,6 +75,7 @@ part 'app_database.g.dart';
     HoldingDao,
     ReferenceDao,
     DerivedDao,
+    SyncTombstoneDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -124,7 +129,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -135,6 +140,20 @@ class AppDatabase extends _$AppDatabase {
           // v1→v2(B1 通知):新增 ReminderLogs(当日去重记录)。
           if (from < 2) {
             await m.createTable(reminderLogs);
+          }
+          // v2→v3(F10 FR-3/FR-4,design ADR-2/ADR-4):8 头表加 sync_state
+          // 列(NOT NULL DEFAULT 'synced',ALTER TABLE 回填既有行 = synced)
+          // + 增 SyncTombstones 墓碑表。仅加列/建表,既有数据无损。
+          if (from < 3) {
+            await m.addColumn(accounts, accounts.syncState);
+            await m.addColumn(transactions, transactions.syncState);
+            await m.addColumn(debts, debts.syncState);
+            await m.addColumn(budgets, budgets.syncState);
+            await m.addColumn(goals, goals.syncState);
+            await m.addColumn(holdings, holdings.syncState);
+            await m.addColumn(tags, tags.syncState);
+            await m.addColumn(transactionTemplates, transactionTemplates.syncState);
+            await m.createTable(syncTombstones);
           }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)

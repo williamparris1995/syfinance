@@ -51,11 +51,14 @@ class BudgetRepositoryImpl implements BudgetRepository {
   }) =>
       _routedWrite(MirrorModule.budget,
           () => _remote.createBudget(name: name, month: month, currencyCode: currencyCode, items: items),
-          () => _local.createBudget(name: name, month: month, currencyCode: currencyCode, items: items));
+          (markPending) => _local.createBudget(
+              name: name, month: month, currencyCode: currencyCode, items: items,
+              markPending: markPending));
 
   @override
   Future<Either<Failure, void>> deleteBudget(String id) =>
-      _routedWrite(MirrorModule.budget, () => _remote.deleteBudget(id), () => _local.deleteBudget(id));
+      _routedWrite(MirrorModule.budget, () => _remote.deleteBudget(id),
+          (markPending) => _local.deleteBudget(id, writeTombstone: markPending));
 
   @override
   Future<Either<Failure, BudgetView>> addItem({
@@ -66,7 +69,10 @@ class BudgetRepositoryImpl implements BudgetRepository {
   }) =>
       _routedWrite(MirrorModule.budget,
           () => _remote.addItem(budgetId: budgetId, accountId: accountId, plannedAmountCents: plannedAmountCents, notes: notes),
-          () => _local.addItem(budgetId: budgetId, accountId: accountId, plannedAmountCents: plannedAmountCents, notes: notes));
+          (markPending) => _local.addItem(
+              budgetId: budgetId, accountId: accountId,
+              plannedAmountCents: plannedAmountCents, notes: notes,
+              markPending: markPending));
 
   @override
   Future<Either<Failure, BudgetView>> removeItem({
@@ -75,7 +81,8 @@ class BudgetRepositoryImpl implements BudgetRepository {
   }) =>
       _routedWrite(MirrorModule.budget,
           () => _remote.removeItem(budgetId: budgetId, itemId: itemId),
-          () => _local.removeItem(budgetId: budgetId, itemId: itemId));
+          (markPending) => _local.removeItem(
+              budgetId: budgetId, itemId: itemId, markPending: markPending));
 
   @override
   Future<Either<Failure, BudgetView>> updateBudget({
@@ -86,7 +93,9 @@ class BudgetRepositoryImpl implements BudgetRepository {
   }) =>
       _routedWrite(MirrorModule.budget,
           () => _remote.updateBudget(id: id, name: name, currencyCode: currencyCode, items: items),
-          () => _local.updateBudget(id: id, name: name, currencyCode: currencyCode, items: items));
+          (markPending) => _local.updateBudget(
+              id: id, name: name, currencyCode: currencyCode, items: items,
+              markPending: markPending));
 
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
   /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
@@ -104,16 +113,24 @@ class BudgetRepositoryImpl implements BudgetRepository {
   /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
   /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
   /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
-  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
   Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
-      Future<T> Function() remote, Future<T> Function() local) async {
-    if (_useLocalDs) {
-      return _mirrored(m, () => _guard(local));
+      Future<T> Function() remote,
+      Future<T> Function(bool markPending) local) async {
+    switch (_tracker.resolveDataRoute()) {
+      case DataRoute.guestLocal:
+        // guest 行 synced(无上行语义,R6 行为不变;缺省不传 = false)。
+        return _mirrored(m, () => _guard(() => local(false)));
+      case DataRoute.boundOfflineLocal:
+        // 离线写本地,行 pending 待回网上行(FR-3,T2 落地)。
+        return _mirrored(m, () => _guard(() => local(true)));
+      case DataRoute.boundRemote:
+        // 在线先远端(Right 触发镜像刷新,与 R6 逐位一致);NetworkFailure
+        // 降级本地落库置 pending(FR-1b 双保险,同为 bound 路由)。
+        return writeWithFallback(
+          () => _mirrored(m, () => _guard(remote)),
+          () => _guard(() => local(true)),
+        );
     }
-    return writeWithFallback(
-      () => _mirrored(m, () => _guard(remote)),
-      () => _guard(local),
-    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
