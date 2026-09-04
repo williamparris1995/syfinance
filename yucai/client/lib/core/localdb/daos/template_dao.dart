@@ -51,4 +51,20 @@ class TemplateDao extends DatabaseAccessor<AppDatabase>
       (select(transactionTemplates)
             ..where((t) => t.syncState.equals(SyncState.pending)))
           .watch();
+
+  /// F10 T3(fix round 1):上行成功回写 —— 批内实体 pending → synced,带
+  /// **版本守卫**(仅当行当前 version 仍等于批次快照版本才回写,在途
+  /// FR-1b 降级更新的行保持 pending 留下次上行;core 层不能 import binding
+  /// 域 DTO,以 id→版本 Map 承载;T2 无此方法,T3 补)。
+  Future<int> markTemplatesSynced(Map<String, int> versionsById) {
+    if (versionsById.isEmpty) return Future.value(0);
+    final guard = versionsById.entries
+        .map((e) => transactionTemplates.id.equals(e.key) &
+            transactionTemplates.version.equals(e.value))
+        .reduce((a, b) => a | b);
+    return (update(transactionTemplates)
+          ..where((t) => guard & t.syncState.equals(SyncState.pending)))
+        .write(const TransactionTemplatesCompanion(
+            syncState: Value(SyncState.synced)));
+  }
 }

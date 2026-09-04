@@ -7,6 +7,11 @@ import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/oidc_authenticator.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
+import 'package:yucai_client/binding/data/bound_mirror.dart';
+import 'package:yucai_client/binding/data/noop_offline_sync_port.dart';
+import 'package:yucai_client/binding/data/pending_collector.dart';
+import 'package:yucai_client/binding/domain/offline_sync_port.dart';
+import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
@@ -76,6 +81,25 @@ Future<void> configureDependencies() async {
   //     injectable resolves constructor injection from getIt, and third-party
   //     types without a @module must be registered manually (review C-C1).
   getIt.registerLazySingleton<Uuid>(Uuid.new);
+
+  // 1h. F10 T3 回网同步管线(spec FR-5,design ADR-5):全部手工注册(照
+  //     1c/1d 先例,免 build_runner 重生成)。
+  //     - OfflineSyncPort:生产暂接 Noop(push 恒失败保 pending,F11 落地
+  //       gRPC PushChanges 真实现时仅替换此一处注册);
+  //     - PendingCollector:从 8 头表 DAO + 墓碑表收集增量批次;
+  //     - SyncCoordinatorBloc:lazySingleton —— F12 UI 首次消费时构造并
+  //       订阅回网流(F11 前生产无人 resolve,不产生任何同步副作用)。
+  getIt.registerLazySingleton<OfflineSyncPort>(NoopOfflineSyncPort.new);
+  getIt.registerLazySingleton<PendingCollector>(
+      () => PendingCollector(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<SyncCoordinatorBloc>(() => SyncCoordinatorBloc(
+        getIt<OfflineSyncPort>(),
+        getIt<PendingCollector>(),
+        getIt<SessionModeTracker>(),
+        getIt<AppDatabase>(),
+        getIt<ConnectivityGateway>().online,
+        getIt<BoundMirror>(),
+      ));
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.

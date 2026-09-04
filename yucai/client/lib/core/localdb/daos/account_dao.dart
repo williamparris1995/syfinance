@@ -50,6 +50,23 @@ class AccountDao extends DatabaseAccessor<AppDatabase> with _$AccountDaoMixin {
       (select(accounts)..where((t) => t.syncState.equals(SyncState.pending)))
           .watch();
 
+  /// F10 T3(fix round 1):上行成功回写 —— 批内实体 pending → synced,带
+  /// **版本守卫**:仅当行当前 version 仍等于批次快照版本才回写。push 在途
+  /// 期间行被 FR-1b 再次降级更新(置 pending+版本推进)时,陈旧快照不把它
+  /// 误标 synced(该行保持 pending 留下次上行)。形态说明:core 层不能
+  /// import binding 域的 SyncEntityDto(依赖方向),以 id→版本 Map 承载
+  /// 守卫所需最小信息;条件仍限定 pending,重复回写幂等。
+  Future<int> markAccountsSynced(Map<String, int> versionsById) {
+    if (versionsById.isEmpty) return Future.value(0);
+    final guard = versionsById.entries
+        .map((e) =>
+            accounts.id.equals(e.key) & accounts.version.equals(e.value))
+        .reduce((a, b) => a | b);
+    return (update(accounts)
+          ..where((t) => guard & t.syncState.equals(SyncState.pending)))
+        .write(const AccountsCompanion(syncState: Value(SyncState.synced)));
+  }
+
   // Chart of accounts (local-owned reference).
   Future<void> insertChartOfAccount(ChartOfAccountsCompanion entry) =>
       into(chartOfAccounts).insert(entry);
