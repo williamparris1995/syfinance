@@ -41,12 +41,23 @@ class NetWorthDataSource {
   final SessionModeTracker _tracker;
   late final grpc.NetWorthServiceClient _client;
 
+  /// F10 FR-1/FR-2:三态数据路由判定对齐 8 个双源 repo —— guest 或
+  /// bound-offline(断网 / 离线冷启动)直接本地三源计算;仅绑定在线走
+  /// server。下方 β 兜底(R7)保留:绑定在线但 server 不可达时仍降级
+  /// 本地(离线降级不报错),与本 DS 原语义一致。
+  bool get _useLocalDs {
+    final route = _tracker.resolveDataRoute();
+    return route == DataRoute.guestLocal || route == DataRoute.boundOfflineLocal;
+  }
+
   /// 取本位币折算后的总资产 / 总负债 / 净资产(cents)。
   ///
   /// [baseCurrency] 为 ISO 4217 code(来自 CurrencySettings.getBaseCurrency());
   /// 空串/CNY → server 不折算;USD 等 → server 解析 CNY→base 交叉汇率折算。
   Future<NetWorthView> getNetWorth({required String baseCurrency}) async {
-    if (_tracker.isGuest) return _local.getNetWorth(baseCurrency: baseCurrency);
+    // F10 FR-2:guest / bound-offline 直接本地(离线冷启动净资产卡可用);
+    // 仅判定从 isGuest 换为三态路由,β 兜底逻辑不动。
+    if (_useLocalDs) return _local.getNetWorth(baseCurrency: baseCurrency);
     try {
       return await _retry.call(() async {
         final resp = await _client.getNetWorth(pb.GetNetWorthRequest(

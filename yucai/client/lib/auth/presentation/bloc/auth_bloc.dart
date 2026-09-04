@@ -44,15 +44,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   @override
   void onChange(Change<AuthState> change) {
     super.onChange(change);
-    // 会话旗标状态机(user-acceptance 修复):AuthLoading/AuthInitial 保持
-    // 原值 —— 此前 Loading 一律判非 Guest,首页面板在鉴权解析窗口期全部
-    // 打到远端(离线即全灭,且不重试)。OfflineAuthenticated(绑定+离线)
-    // 切本地读:离线完整功能可用(宪法),回网 Online 后恢复 server 权威。
+    // 会话旗标状态机(user-acceptance 修复 + F10 FR-2 路由修复):
+    // AuthLoading/AuthInitial/AuthError 保持原值 —— 此前 Loading 一律判非
+    // Guest,首页面板在鉴权解析窗口期全部打到远端(离线即全灭,且不重试)。
+    // - Guest → isGuest=true(guestLocal,本地读写);
+    // - Authenticated → isGuest=false + authOffline=false(boundRemote,
+    //   远端权威,与 R6 在线路径行为逐位一致);
+    // - OfflineAuthenticated(绑定+离线冷启动)→ isGuest=false +
+    //   authOffline=true —— 数据路由落 boundOfflineLocal(本地镜像读写,
+    //   离线完整功能可用宪法)。F10 修复:旧版与 Authenticated 同置
+    //   isGuest=false 而无离线旗标,注释宣称「本地读」但实际全远端,
+    //   绑定+离线冷启动读写全红;回网重新解析为 Authenticated 后恢复
+    //   在线语义(authOffline 翻回 false)。
     final next = change.nextState;
     if (next is Guest) {
       _sessionMode.isGuest = true;
-    } else if (next is Authenticated || next is OfflineAuthenticated) {
+      _sessionMode.authOffline = false;
+    } else if (next is Authenticated) {
       _sessionMode.isGuest = false;
+      _sessionMode.authOffline = false;
+    } else if (next is OfflineAuthenticated) {
+      _sessionMode.isGuest = false;
+      _sessionMode.authOffline = true;
     }
     // AuthLoading / AuthInitial / AuthError:保持上次值。
     // Login-refresh (BOUND devices only, review H-W4): an unbound guest

@@ -21,9 +21,17 @@ class ReceivablesSummaryRepositoryImpl
   final db.AppDatabase _db;
   final SessionModeTracker _tracker;
 
+  /// F10 FR-1/FR-2:三态数据路由(与 8 个双源 repo 同款判定)。guest 或
+  /// bound-offline(断网 / 离线冷启动)走本地聚合;仅绑定在线走远端。
+  /// 派生读源:仅路由切换,读不做 NetworkFailure 降级。
+  bool get _useLocalDs {
+    final route = _tracker.resolveDataRoute();
+    return route == DataRoute.guestLocal || route == DataRoute.boundOfflineLocal;
+  }
+
   @override
   Future<Either<Failure, ReceivablesSummary>> fetch() =>
-      _guard(() => _tracker.isGuest ? _localFetch() : _remote.fetch());
+      _guard(() => _useLocalDs ? _localFetch() : _remote.fetch());
 
   /// Guest aggregation over borrowedOut debts + their schedules (review
   /// E-#1): the core money fields mirror the server; trend fields carry the

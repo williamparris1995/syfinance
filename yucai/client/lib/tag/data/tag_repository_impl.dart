@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/tag_dao.dart';
+import 'package:yucai_client/core/session_mode/bound_write_fallback.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/tag/data/tag_remote_ds.dart';
@@ -120,17 +121,23 @@ class TagRepositoryImpl implements TagRepository {
   final SessionModeTracker _tracker;
   final BoundMirror? _mirror;
 
-  bool get _useLocal => _tracker.isGuest;
+  /// F10 FR-1:三态数据路由(guestLocal / boundRemote / boundOfflineLocal)。
+  /// guest 或 bound-offline 走本地;仅绑定在线走远端(在线行为与 R6 的
+  /// `_useLocal => isGuest` 逐位一致)。
+  bool get _useLocalDs {
+    final route = _tracker.resolveDataRoute();
+    return route == DataRoute.guestLocal || route == DataRoute.boundOfflineLocal;
+  }
 
   @override
   Future<Either<Failure, List<Tag>>> list() =>
-      _guard(() => _useLocal ? _local.list() : _remote.list());
+      _guard(() => _useLocalDs ? _local.list() : _remote.list());
 
   @override
   Future<Either<Failure, Tag>> create({required String name, required String color}) =>
-      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal
-          ? _local.create(name: name, color: color)
-          : _remote.create(name: name, color: color)));
+      _routedWrite(MirrorModule.tag,
+          () => _remote.create(name: name, color: color),
+          () => _local.create(name: name, color: color));
 
   @override
   Future<Either<Failure, Tag>> update({
@@ -139,35 +146,35 @@ class TagRepositoryImpl implements TagRepository {
     required String color,
     required int version,
   }) =>
-      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal
-          ? _local.update(id: id, name: name, color: color, version: version)
-          : _remote.update(id: id, name: name, color: color, version: version)));
+      _routedWrite(MirrorModule.tag,
+          () => _remote.update(id: id, name: name, color: color, version: version),
+          () => _local.update(id: id, name: name, color: color, version: version));
 
   @override
   Future<Either<Failure, void>> delete(String id) =>
-      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id)));
+      _routedWrite(MirrorModule.tag, () => _remote.delete(id), () => _local.delete(id));
 
   @override
   Future<Either<Failure, void>> addTagToTransaction({
     required String tagId,
     required String transactionId,
   }) =>
-      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal
-          ? _local.addTagToTransaction(tagId: tagId, transactionId: transactionId)
-          : _remote.addTagToTransaction(tagId: tagId, transactionId: transactionId)));
+      _routedWrite(MirrorModule.tag,
+          () => _remote.addTagToTransaction(tagId: tagId, transactionId: transactionId),
+          () => _local.addTagToTransaction(tagId: tagId, transactionId: transactionId));
 
   @override
   Future<Either<Failure, void>> removeTagFromTransaction({
     required String tagId,
     required String transactionId,
   }) =>
-      _mirrored(MirrorModule.tag, () => _guard(() => _useLocal
-          ? _local.removeTagFromTransaction(tagId: tagId, transactionId: transactionId)
-          : _remote.removeTagFromTransaction(tagId: tagId, transactionId: transactionId)));
+      _routedWrite(MirrorModule.tag,
+          () => _remote.removeTagFromTransaction(tagId: tagId, transactionId: transactionId),
+          () => _local.removeTagFromTransaction(tagId: tagId, transactionId: transactionId));
 
   @override
   Future<Either<Failure, List<Tag>>> getTransactionTags(String transactionId) =>
-      _guard(() => _useLocal
+      _guard(() => _useLocalDs
           ? _local.getTransactionTags(transactionId)
           : _remote.getTransactionTags(transactionId));
 
@@ -177,10 +184,26 @@ class TagRepositoryImpl implements TagRepository {
   Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
       Future<Either<Failure, T>> Function() body) async {
     final r = await body();
-    if (r.isRight() && !_useLocal && _mirror != null) {
+    if (r.isRight() && !_useLocalDs && _mirror != null) {
       unawaited(_mirror.refreshModule(m));
     }
     return r;
+  }
+
+  /// F10 FR-1/FR-1b:三态写路由 + 远端失败降级(照 transaction 范式)。
+  /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
+  /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
+  /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
+  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
+  Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
+      Future<T> Function() remote, Future<T> Function() local) async {
+    if (_useLocalDs) {
+      return _mirrored(m, () => _guard(local));
+    }
+    return writeWithFallback(
+      () => _mirrored(m, () => _guard(remote)),
+      () => _guard(local),
+    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {

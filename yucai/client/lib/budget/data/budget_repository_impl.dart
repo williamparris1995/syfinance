@@ -8,6 +8,7 @@ import 'package:yucai_client/budget/data/budget_remote_ds.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/session_mode/bound_write_fallback.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/budget/data/budget_local_ds.dart';
@@ -21,19 +22,25 @@ class BudgetRepositoryImpl implements BudgetRepository {
   final SessionModeTracker _tracker;
   final BoundMirror? _mirror;
 
-  bool get _useLocal => _tracker.isGuest;
+  /// F10 FR-1:三态数据路由(guestLocal / boundRemote / boundOfflineLocal)。
+  /// guest 或 bound-offline 走本地;仅绑定在线走远端(在线行为与 R6 的
+  /// `_useLocal => isGuest` 逐位一致)。
+  bool get _useLocalDs {
+    final route = _tracker.resolveDataRoute();
+    return route == DataRoute.guestLocal || route == DataRoute.boundOfflineLocal;
+  }
 
   @override
   Future<Either<Failure, List<BudgetView>>> listBudgets({bool activeOnly = false}) =>
-      _guard(() => _useLocal ? _local.listBudgets(activeOnly: activeOnly) : _remote.listBudgets(activeOnly: activeOnly));
+      _guard(() => _useLocalDs ? _local.listBudgets(activeOnly: activeOnly) : _remote.listBudgets(activeOnly: activeOnly));
 
   @override
   Future<Either<Failure, BudgetView>> getBudget(String id) =>
-      _guard(() => _useLocal ? _local.getBudget(id) : _remote.getBudget(id));
+      _guard(() => _useLocalDs ? _local.getBudget(id) : _remote.getBudget(id));
 
   @override
   Future<Either<Failure, BudgetView>> getBudgetByMonth(String month) =>
-      _guard(() => _useLocal ? _local.getBudgetByMonth(month) : _remote.getBudgetByMonth(month));
+      _guard(() => _useLocalDs ? _local.getBudgetByMonth(month) : _remote.getBudgetByMonth(month));
 
   @override
   Future<Either<Failure, BudgetView>> createBudget({
@@ -42,21 +49,13 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required String currencyCode,
     required List<({String accountId, int plannedAmountCents, String? notes})> items,
   }) =>
-      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.createBudget(
-            name: name,
-            month: month,
-            currencyCode: currencyCode,
-            items: items,
-          ) : _remote.createBudget(
-            name: name,
-            month: month,
-            currencyCode: currencyCode,
-            items: items,
-          )));
+      _routedWrite(MirrorModule.budget,
+          () => _remote.createBudget(name: name, month: month, currencyCode: currencyCode, items: items),
+          () => _local.createBudget(name: name, month: month, currencyCode: currencyCode, items: items));
 
   @override
   Future<Either<Failure, void>> deleteBudget(String id) =>
-      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.deleteBudget(id) : _remote.deleteBudget(id)));
+      _routedWrite(MirrorModule.budget, () => _remote.deleteBudget(id), () => _local.deleteBudget(id));
 
   @override
   Future<Either<Failure, BudgetView>> addItem({
@@ -65,30 +64,18 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required int plannedAmountCents,
     String? notes,
   }) =>
-      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.addItem(
-            budgetId: budgetId,
-            accountId: accountId,
-            plannedAmountCents: plannedAmountCents,
-            notes: notes,
-          ) : _remote.addItem(
-            budgetId: budgetId,
-            accountId: accountId,
-            plannedAmountCents: plannedAmountCents,
-            notes: notes,
-          )));
+      _routedWrite(MirrorModule.budget,
+          () => _remote.addItem(budgetId: budgetId, accountId: accountId, plannedAmountCents: plannedAmountCents, notes: notes),
+          () => _local.addItem(budgetId: budgetId, accountId: accountId, plannedAmountCents: plannedAmountCents, notes: notes));
 
   @override
   Future<Either<Failure, BudgetView>> removeItem({
     required String budgetId,
     required String itemId,
   }) =>
-      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.removeItem(
-            budgetId: budgetId,
-            itemId: itemId,
-          ) : _remote.removeItem(
-            budgetId: budgetId,
-            itemId: itemId,
-          )));
+      _routedWrite(MirrorModule.budget,
+          () => _remote.removeItem(budgetId: budgetId, itemId: itemId),
+          () => _local.removeItem(budgetId: budgetId, itemId: itemId));
 
   @override
   Future<Either<Failure, BudgetView>> updateBudget({
@@ -97,17 +84,9 @@ class BudgetRepositoryImpl implements BudgetRepository {
     required String currencyCode,
     required List<({String accountId, int plannedAmountCents, String? notes})> items,
   }) =>
-      _mirrored(MirrorModule.budget, () => _guard(() => _useLocal ? _local.updateBudget(
-            id: id,
-            name: name,
-            currencyCode: currencyCode,
-            items: items,
-          ) : _remote.updateBudget(
-            id: id,
-            name: name,
-            currencyCode: currencyCode,
-            items: items,
-          )));
+      _routedWrite(MirrorModule.budget,
+          () => _remote.updateBudget(id: id, name: name, currencyCode: currencyCode, items: items),
+          () => _local.updateBudget(id: id, name: name, currencyCode: currencyCode, items: items));
 
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
   /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
@@ -115,22 +94,49 @@ class BudgetRepositoryImpl implements BudgetRepository {
   Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
       Future<Either<Failure, T>> Function() body) async {
     final r = await body();
-    if (r.isRight() && !_useLocal && _mirror != null) {
+    if (r.isRight() && !_useLocalDs && _mirror != null) {
       unawaited(_mirror.refreshModule(m));
     }
     return r;
+  }
+
+  /// F10 FR-1/FR-1b:三态写路由 + 远端失败降级(照 transaction 范式)。
+  /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
+  /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
+  /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
+  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
+  Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
+      Future<T> Function() remote, Future<T> Function() local) async {
+    if (_useLocalDs) {
+      return _mirrored(m, () => _guard(local));
+    }
+    return writeWithFallback(
+      () => _mirrored(m, () => _guard(remote)),
+      () => _guard(local),
+    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
       return Right(await op());
     } on GrpcError catch (e) {
-      return Left(ServerFailure(e.message ?? 'gRPC error'));
+      return Left(_mapGrpcError(e));
     } on Failure catch (f) {
       // Local data source failures pass through untouched.
       return Left(f);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
+  }
+
+  /// F10 FR-1b:unavailable → NetworkFailure 是写降级判定的前提(照
+  /// holding 范式);仅取 unavailable 分支以最小化行为变化(holding 另有
+  /// unauthenticated 映射,刻意不抄),其余错误保持既有 ServerFailure
+  /// 分类,行为不变。
+  Failure _mapGrpcError(GrpcError e) {
+    if (e.code == StatusCode.unavailable) {
+      return NetworkFailure(e.message ?? '无法连接服务器');
+    }
+    return ServerFailure(e.message ?? 'gRPC error');
   }
 }

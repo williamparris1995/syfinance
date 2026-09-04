@@ -81,9 +81,18 @@ class CurrencyRepositoryImpl implements CurrencyRepository {
   final CurrencyLocalDataSource _local;
   final SessionModeTracker _tracker;
 
+  /// F10 FR-1/FR-2:三态数据路由(与 8 个双源 repo 同款判定)。guest 或
+  /// bound-offline(断网 / 离线冷启动)走本地 reference 表;仅绑定在线走
+  /// 远端(在线行为与 R6 的 `_tracker.isGuest` 逐位一致)。读源:仅路由
+  /// 切换,读不做 NetworkFailure 降级。
+  bool get _useLocalDs {
+    final route = _tracker.resolveDataRoute();
+    return route == DataRoute.guestLocal || route == DataRoute.boundOfflineLocal;
+  }
+
   @override
   Future<Either<Failure, List<Currency>>> list() =>
-      _guard(() => _tracker.isGuest ? _local.list() : _remote.list());
+      _guard(() => _useLocalDs ? _local.list() : _remote.list());
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {

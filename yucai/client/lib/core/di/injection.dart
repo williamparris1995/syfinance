@@ -61,7 +61,12 @@ Future<void> configureDependencies() async {
 
   // 1e. Session-mode flag (R6 ADR-2): AuthBloc drives it, dual-source
   //     repositories read it — the layering-safe session source in core.
-  getIt.registerLazySingleton<SessionModeTracker>(SessionModeTracker.new);
+  //     F10 T1:构造注入 ConnectivityGateway —— tracker 自订阅 online 流
+  //     维护在线快照(三态路由输入,见 session_mode_tracker.dart 接线注释)。
+  //     二者均 lazySingleton 且 gateway 先注册:首次解析 tracker 时按需
+  //     resolve,无时序问题。
+  getIt.registerLazySingleton<SessionModeTracker>(
+      () => SessionModeTracker(getIt<ConnectivityGateway>()));
 
   // 1g. Startup integrity result holder (R6 F): null = healthy; a message
   //     shows a non-intrusive banner in AppShell.

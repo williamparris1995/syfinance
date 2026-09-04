@@ -35,17 +35,21 @@ void main() {
   late _MockProfile profile;
   late _MockLogout logout;
   late _MockHasCredentials hasCreds;
+  // F10 T1:main 作用域共享 tracker —— verify 断言 AuthBloc.onChange 对
+  // tracker 三态旗标(isGuest / authOffline / resolveDataRoute)的驱动。
+  late SessionModeTracker tracker;
 
   setUp(() {
     oidcLogin = _MockOidcLogin();
     profile = _MockProfile();
     logout = _MockLogout();
     hasCreds = _MockHasCredentials();
+    tracker = SessionModeTracker();
     // Most AppStarted cases assume credentials exist; the guest test overrides.
     when(() => hasCreds.call()).thenAnswer((_) async => true);
   });
 
-  AuthBloc build() => AuthBloc(oidcLogin, profile, logout, hasCreds, SessionModeTracker());
+  AuthBloc build() => AuthBloc(oidcLogin, profile, logout, hasCreds, tracker);
 
   blocTest<AuthBloc, AuthState>(
     'AppStarted without credentials emits Guest (no profile RPC)',
@@ -146,4 +150,81 @@ void main() {
     wait: const Duration(milliseconds: 100),
     expect: () => [Guest()],
   );
+
+  // —— F10 T1:OfflineAuthenticated 路由 bug 修复的回归钉(FR-2)——
+  // 旧版 bug:OfflineAuthenticated 只置 isGuest=false → 数据路由全远端,
+  // 与注释宣称的「本地读」矛盾(绑定+离线冷启动读写全红)。
+  group('session-mode tracker drive (F10 FR-2)', () {
+    blocTest<AuthBloc, AuthState>(
+      'OfflineAuthenticated → tracker 落 boundOfflineLocal(本地镜像)',
+      build: () {
+        when(() => profile.call())
+            .thenAnswer((_) async => const Left(NetworkFailure('offline')));
+        return build();
+      },
+      act: (bloc) => bloc.add(AppStarted()),
+      wait: const Duration(milliseconds: 100),
+      expect: () => [AuthLoading(), OfflineAuthenticated()],
+      verify: (_) {
+        expect(tracker.isGuest, isFalse);
+        expect(tracker.authOffline, isTrue);
+        expect(tracker.resolveDataRoute(), DataRoute.boundOfflineLocal);
+      },
+    );
+
+    blocTest<AuthBloc, AuthState>(
+      'Authenticated → tracker 落 boundRemote(authOffline=false)',
+      build: () {
+        when(() => profile.call()).thenAnswer((_) async => Right(user));
+        return build();
+      },
+      act: (bloc) => bloc.add(AppStarted()),
+      wait: const Duration(milliseconds: 100),
+      expect: () => [AuthLoading(), Authenticated(user)],
+      verify: (_) {
+        expect(tracker.isGuest, isFalse);
+        expect(tracker.authOffline, isFalse);
+        expect(tracker.resolveDataRoute(), DataRoute.boundRemote);
+      },
+    );
+
+    blocTest<AuthBloc, AuthState>(
+      'OfflineAuthenticated 回网恢复 Authenticated → authOffline 翻回 false',
+      build: () {
+        // 首次 AppStarted 断网失败 → OfflineAuthenticated;随后回网重试成功。
+        when(() => profile.call())
+            .thenAnswer((_) async => const Left(NetworkFailure('offline')));
+        return build();
+      },
+      act: (bloc) async {
+        bloc.add(AppStarted());
+        // 等 OfflineAuthenticated 落地后再回网重试(库内 delay 惯例;
+        // act 内 await bloc.stream 会与发射管线死锁,不用)。
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        when(() => profile.call()).thenAnswer((_) async => Right(user));
+        bloc.add(AppStarted());
+      },
+      wait: const Duration(milliseconds: 100),
+      verify: (_) {
+        expect(tracker.isGuest, isFalse);
+        expect(tracker.authOffline, isFalse);
+        expect(tracker.resolveDataRoute(), DataRoute.boundRemote);
+      },
+    );
+
+    blocTest<AuthBloc, AuthState>(
+      'Guest → tracker 落 guestLocal',
+      build: () {
+        when(() => hasCreds.call()).thenAnswer((_) async => false);
+        return build();
+      },
+      act: (bloc) => bloc.add(AppStarted()),
+      wait: const Duration(milliseconds: 100),
+      expect: () => [AuthLoading(), Guest()],
+      verify: (_) {
+        expect(tracker.isGuest, isTrue);
+        expect(tracker.resolveDataRoute(), DataRoute.guestLocal);
+      },
+    );
+  });
 }

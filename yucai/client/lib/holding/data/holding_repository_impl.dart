@@ -5,6 +5,7 @@ import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/session_mode/bound_write_fallback.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/holding/data/holding_local_ds.dart';
@@ -25,20 +26,26 @@ class HoldingRepositoryImpl implements HoldingRepository {
   final SessionModeTracker _tracker;
   final BoundMirror? _mirror;
 
-  bool get _useLocal => _tracker.isGuest;
+  /// F10 FR-1:三态数据路由(guestLocal / boundRemote / boundOfflineLocal)。
+  /// guest 或 bound-offline 走本地;仅绑定在线走远端(在线行为与 R6 的
+  /// `_useLocal => isGuest` 逐位一致)。
+  bool get _useLocalDs {
+    final route = _tracker.resolveDataRoute();
+    return route == DataRoute.guestLocal || route == DataRoute.boundOfflineLocal;
+  }
   final GoalViewDataSource _goalViewDs;
 
   // —— 查询 ——
   @override
   Future<Either<Failure, List<Holding>>> listHoldings({String? accountId}) =>
-      _guard(() => _useLocal ? _local.listHoldings(accountId: accountId) : _remote.listHoldings(accountId: accountId));
+      _guard(() => _useLocalDs ? _local.listHoldings(accountId: accountId) : _remote.listHoldings(accountId: accountId));
 
   @override
   Future<Either<Failure, List<HoldingTransaction>>> listHoldingTransactions({
     String? accountId,
     String? securityId,
   }) =>
-      _guard(() => _useLocal ? _local.listHoldingTransactions(
+      _guard(() => _useLocalDs ? _local.listHoldingTransactions(
             accountId: accountId,
             securityId: securityId,
           ) : _remote.listHoldingTransactions(
@@ -58,7 +65,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String tradeDate,
     String? notes,
   }) =>
-      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.buy(
+      _routedWrite(MirrorModule.holding,
+          () => _remote.buy(
             accountId: accountId,
             securityId: securityId,
             fromAccountId: fromAccountId,
@@ -67,7 +75,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
             feeCents: feeCents,
             tradeDate: tradeDate,
             notes: notes,
-          ) : _remote.buy(
+          ),
+          () => _local.buy(
             accountId: accountId,
             securityId: securityId,
             fromAccountId: fromAccountId,
@@ -76,7 +85,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
             feeCents: feeCents,
             tradeDate: tradeDate,
             notes: notes,
-          )));
+          ));
 
   @override
   Future<Either<Failure, HoldingTransaction>> sell({
@@ -89,7 +98,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String tradeDate,
     String? notes,
   }) =>
-      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.sell(
+      _routedWrite(MirrorModule.holding,
+          () => _remote.sell(
             accountId: accountId,
             securityId: securityId,
             fromAccountId: fromAccountId,
@@ -98,7 +108,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
             feeCents: feeCents,
             tradeDate: tradeDate,
             notes: notes,
-          ) : _remote.sell(
+          ),
+          () => _local.sell(
             accountId: accountId,
             securityId: securityId,
             fromAccountId: fromAccountId,
@@ -107,7 +118,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
             feeCents: feeCents,
             tradeDate: tradeDate,
             notes: notes,
-          )));
+          ));
 
   // —— 公司行动(dividend / split)——
   @override
@@ -120,7 +131,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String tradeDate,
     String? notes,
   }) =>
-      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.recordDividend(
+      _routedWrite(MirrorModule.holding,
+          () => _remote.recordDividend(
             accountId: accountId,
             securityId: securityId,
             quantity: quantity,
@@ -128,7 +140,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
             totalAmountCents: totalAmountCents,
             tradeDate: tradeDate,
             notes: notes,
-          ) : _remote.recordDividend(
+          ),
+          () => _local.recordDividend(
             accountId: accountId,
             securityId: securityId,
             quantity: quantity,
@@ -136,7 +149,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
             totalAmountCents: totalAmountCents,
             tradeDate: tradeDate,
             notes: notes,
-          )));
+          ));
 
   @override
   Future<Either<Failure, HoldingTransaction>> recordSplit({
@@ -146,19 +159,21 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String splitDate,
     String? notes,
   }) =>
-      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.recordSplit(
+      _routedWrite(MirrorModule.holding,
+          () => _remote.recordSplit(
             accountId: accountId,
             securityId: securityId,
             ratio: ratio,
             splitDate: splitDate,
             notes: notes,
-          ) : _remote.recordSplit(
+          ),
+          () => _local.recordSplit(
             accountId: accountId,
             securityId: securityId,
             ratio: ratio,
             splitDate: splitDate,
             notes: notes,
-          )));
+          ));
 
   // —— 证券主数据 ——
   @override
@@ -169,45 +184,43 @@ class HoldingRepositoryImpl implements HoldingRepository {
     String? exchange,
     required String currency,
   }) =>
-      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.createSecurity(
+      _routedWrite(MirrorModule.holding,
+          () => _remote.createSecurity(
             symbol: symbol,
             name: name,
             type: type,
             exchange: exchange,
             currency: currency,
-          ) : _remote.createSecurity(
+          ),
+          () => _local.createSecurity(
             symbol: symbol,
             name: name,
             type: type,
             exchange: exchange,
             currency: currency,
-          )));
+          ));
 
   @override
   Future<Either<Failure, List<Security>>> listSecurities({SecurityType? type}) =>
-      _guard(() => _useLocal ? _local.listSecurities(type: type) : _remote.listSecurities(type: type));
+      _guard(() => _useLocalDs ? _local.listSecurities(type: type) : _remote.listSecurities(type: type));
 
   @override
   Future<Either<Failure, List<Security>>> searchSecurities(String query) =>
-      _guard(() => _useLocal ? _local.searchSecurities(query) : _remote.searchSecurities(query));
+      _guard(() => _useLocalDs ? _local.searchSecurities(query) : _remote.searchSecurities(query));
 
   @override
   Future<Either<Failure, void>> updateSecurityPrice({
     required String id,
     required int priceCents,
   }) =>
-      _mirrored(MirrorModule.holding, () => _guard(() => _useLocal ? _local.updateSecurityPrice(
-            id: id,
-            priceCents: priceCents,
-          ) : _remote.updateSecurityPrice(
-            id: id,
-            priceCents: priceCents,
-          )));
+      _routedWrite(MirrorModule.holding,
+          () => _remote.updateSecurityPrice(id: id, priceCents: priceCents),
+          () => _local.updateSecurityPrice(id: id, priceCents: priceCents));
 
   // —— 价格批量同步(Task 9 新增)——
   @override
   Future<Either<Failure, SyncPricesResult>> syncPrices() =>
-      _guard(() => _useLocal ? _local.syncPrices() : _remote.syncPrices());
+      _guard(() => _useLocalDs ? _local.syncPrices() : _remote.syncPrices());
 
   // —— 收益曲线(Task 12,holding-C 新增;Task 12 D-currency 加 baseCurrency)——
   @override
@@ -217,7 +230,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
     bool includeBenchmark = false,
     String baseCurrency = '',
   }) async {
-    if (_useLocal) {
+    if (_useLocalDs) {
       return _guard(() => _local.getPortfolioPerformance(
             range: range,
             accountId: accountId,
@@ -252,7 +265,7 @@ class HoldingRepositoryImpl implements HoldingRepository {
     required String range,
     String baseCurrency = '',
   }) =>
-      _guard(() => _useLocal ? _local.getHoldingPerformance(
+      _guard(() => _useLocalDs ? _local.getHoldingPerformance(
             holdingId: holdingId,
             range: range,
             baseCurrency: baseCurrency,
@@ -265,9 +278,10 @@ class HoldingRepositoryImpl implements HoldingRepository {
   // —— 投资目标关联(Task 10,holding-D 跨模块 goal gRPC)——
   @override
   Future<Either<Failure, List<GoalView>>> listInvestmentGoals() =>
-      // Guest: read the local goals table (investment-type only) — the
-      // cross-module GoalViewDataSource is gRPC-bound.
-      _guard(() => _useLocal
+      // Guest / bound-offline(F10 FR-1): read the local goals table
+      // (investment-type only) — the cross-module GoalViewDataSource is
+      // gRPC-bound.
+      _guard(() => _useLocalDs
           ? _local.listInvestmentGoalsLocal()
           : _goalViewDs.listInvestmentGoals());
 
@@ -277,10 +291,26 @@ class HoldingRepositoryImpl implements HoldingRepository {
   Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
       Future<Either<Failure, T>> Function() body) async {
     final r = await body();
-    if (r.isRight() && !_useLocal && _mirror != null) {
+    if (r.isRight() && !_useLocalDs && _mirror != null) {
       unawaited(_mirror.refreshModule(m));
     }
     return r;
+  }
+
+  /// F10 FR-1/FR-1b:三态写路由 + 远端失败降级(照 transaction 范式)。
+  /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
+  /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
+  /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
+  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
+  Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
+      Future<T> Function() remote, Future<T> Function() local) async {
+    if (_useLocalDs) {
+      return _mirrored(m, () => _guard(local));
+    }
+    return writeWithFallback(
+      () => _mirrored(m, () => _guard(remote)),
+      () => _guard(local),
+    );
   }
 
   /// GrpcError → Failure 分类(对齐 account/transaction 等兄弟模块;

@@ -8,6 +8,7 @@ import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/session_mode/bound_write_fallback.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
@@ -25,45 +26,57 @@ class TransactionRepositoryImpl implements TransactionRepository {
   final SessionModeTracker _tracker;
   final BoundMirror? _mirror;
 
-  bool get _useLocal => _tracker.isGuest;
+  /// F10 FR-1:三态数据路由(guestLocal / boundRemote / boundOfflineLocal)。
+  /// guest 或 bound-offline(断网 / 离线冷启动)走本地 drift;仅绑定在线走
+  /// 远端 —— 在线场景与 R6 的 `_useLocal => isGuest` 行为逐位一致。
+  bool get _useLocalDs {
+    final route = _tracker.resolveDataRoute();
+    return route == DataRoute.guestLocal || route == DataRoute.boundOfflineLocal;
+  }
 
   @override
   Future<Either<Failure, Transaction>> recordExpense(
           RecordExpenseParams params) =>
-      _mirrored(MirrorModule.transaction, () => _guard(() => _useLocal ? _local.recordExpense(params) : _remote.recordExpense(params)));
+      _routedWrite(MirrorModule.transaction,
+          () => _remote.recordExpense(params), () => _local.recordExpense(params));
 
   @override
   Future<Either<Failure, Transaction>> recordIncome(
           RecordIncomeParams params) =>
-      _mirrored(MirrorModule.transaction, () => _guard(() => _useLocal ? _local.recordIncome(params) : _remote.recordIncome(params)));
+      _routedWrite(MirrorModule.transaction,
+          () => _remote.recordIncome(params), () => _local.recordIncome(params));
 
   @override
   Future<Either<Failure, Transaction>> recordTransfer(
           RecordTransferParams params) =>
-      _mirrored(MirrorModule.transaction, () => _guard(() => _useLocal ? _local.recordTransfer(params) : _remote.recordTransfer(params)));
+      _routedWrite(MirrorModule.transaction,
+          () => _remote.recordTransfer(params), () => _local.recordTransfer(params));
 
   @override
   Future<Either<Failure, Transaction>> recordTransaction(
           RecordTransactionParams params) =>
-      _mirrored(MirrorModule.transaction, () => _guard(() => _useLocal ? _local.recordTransaction(params) : _remote.recordTransaction(params)));
+      _routedWrite(MirrorModule.transaction, () => _remote.recordTransaction(params),
+          () => _local.recordTransaction(params));
 
   @override
   Future<Either<Failure, ListTransactionsResult>> list(
           ListTransactionsParams params) =>
-      _guard(() => _useLocal ? _local.list(params) : _remote.list(params));
+      _guard(() => _useLocalDs ? _local.list(params) : _remote.list(params));
 
   @override
   Future<Either<Failure, Transaction>> getById(String id) =>
-      _guard(() => _useLocal ? _local.getById(id) : _remote.getById(id));
+      _guard(() => _useLocalDs ? _local.getById(id) : _remote.getById(id));
 
   @override
   Future<Either<Failure, Transaction>> update(
           UpdateTransactionParams params) =>
-      _mirrored(MirrorModule.transaction, () => _guard(() => _useLocal ? _local.update(params) : _remote.update(params)));
+      _routedWrite(MirrorModule.transaction,
+          () => _remote.update(params), () => _local.update(params));
 
   @override
   Future<Either<Failure, void>> delete(String id) =>
-      _mirrored(MirrorModule.transaction, () => _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id)));
+      _routedWrite(MirrorModule.transaction,
+          () => _remote.delete(id), () => _local.delete(id));
 
   @override
   Future<Either<Failure, MonthlySummary>> summary(
@@ -73,7 +86,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
     SummaryScope scope = SummaryScope.month,
     int? day,
   }) =>
-      _guard(() => _useLocal
+      _guard(() => _useLocalDs
           ? _local.summary(year, month,
               accountId: accountId, scope: scope, day: day)
           : _remote.summary(year, month,
@@ -92,10 +105,31 @@ class TransactionRepositoryImpl implements TransactionRepository {
   Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
       Future<Either<Failure, T>> Function() body) async {
     final r = await body();
-    if (r.isRight() && !_useLocal && _mirror != null) {
+    if (r.isRight() && !_useLocalDs && _mirror != null) {
       unawaited(_mirror.refreshModule(m));
     }
     return r;
+  }
+
+  /// F10 FR-1/FR-1b:三态写路由 + 远端失败降级(8 repo 统一模式)。
+  /// - guestLocal / boundOfflineLocal:直接本地写(`_mirrored` 的刷新条件
+  ///   `!_useLocalDs` 不成立,不触发镜像,与 R6 guest 语义一致);
+  /// - boundRemote:先远端,Right 直返并触发模块镜像刷新(与 R6 在线路径
+  ///   逐位一致);NetworkFailure(grpc unavailable / 断网)→ 降级本地写
+  ///   落库(FR-1b 双保险:connectivity 误报在线的兜底),降级成功**不**
+  ///   触发镜像刷新 —— delete-all+rebuild 的镜像重建会抹掉未上行的本地行;
+  /// - 其他失败(校验 / 权限 / 服务端错误)不降级,原样 Left 上抛。
+  /// TODO-F10T2:降级 / 离线写本地需置 pending + 回网增量上行(本任务不做,
+  /// 此处为锚点);镜像对 pending 行的保护在 T2/T3。
+  Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
+      Future<T> Function() remote, Future<T> Function() local) async {
+    if (_useLocalDs) {
+      return _mirrored(m, () => _guard(local));
+    }
+    return writeWithFallback(
+      () => _mirrored(m, () => _guard(remote)),
+      () => _guard(local),
+    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {

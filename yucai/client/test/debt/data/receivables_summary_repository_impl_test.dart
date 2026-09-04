@@ -73,4 +73,17 @@ void main() {
       (_) => fail('expected Left'),
     );
   });
+
+  // F10 FR-2:派生读源三态路由 —— bound-offline(离线冷启动)读走本地
+  // 聚合,零远端调用(此前 isGuest 单布尔路由导致绑定离线读全红)。
+  test('bound-offline(authOffline 冷启动)→ 本地聚合,零远端调用', () async {
+    _tracker
+      ..isGuest = false
+      ..authOffline = true;
+    final result = await repo.fetch();
+    expect(result.isRight(), isTrue);
+    verifyNoMoreInteractions(remote);
+    // 空库本地聚合:零应收摘要。
+    result.fold((_) => fail('expected Right'), (s) => expect(s.count, 0));
+  });
 }

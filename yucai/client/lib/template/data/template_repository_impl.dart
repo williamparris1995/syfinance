@@ -5,6 +5,7 @@ import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/session_mode/bound_write_fallback.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/template/data/template_local_ds.dart';
@@ -21,11 +22,17 @@ class TemplateRepositoryImpl implements TemplateRepository {
   final SessionModeTracker _tracker;
   final BoundMirror? _mirror;
 
-  bool get _useLocal => _tracker.isGuest;
+  /// F10 FR-1:三态数据路由(guestLocal / boundRemote / boundOfflineLocal)。
+  /// guest 或 bound-offline 走本地;仅绑定在线走远端(在线行为与 R6 的
+  /// `_useLocal => isGuest` 逐位一致)。
+  bool get _useLocalDs {
+    final route = _tracker.resolveDataRoute();
+    return route == DataRoute.guestLocal || route == DataRoute.boundOfflineLocal;
+  }
 
   @override
   Future<Either<Failure, List<Template>>> list({bool? paused}) =>
-      _guard(() => _useLocal ? _local.list(paused: paused) : _remote.list(paused: paused));
+      _guard(() => _useLocalDs ? _local.list(paused: paused) : _remote.list(paused: paused));
 
   @override
   Future<Either<Failure, Template>> create({
@@ -43,8 +50,8 @@ class TemplateRepositoryImpl implements TemplateRepository {
     bool autoRecord = false,
     String? category,
   }) =>
-      _mirrored(MirrorModule.template, () => _guard(() => _useLocal
-          ? _local.create(
+      _routedWrite(MirrorModule.template,
+          () => _remote.create(
               name: name,
               description: description,
               amountCents: amountCents,
@@ -58,8 +65,8 @@ class TemplateRepositoryImpl implements TemplateRepository {
               endDate: endDate,
               autoRecord: autoRecord,
               category: category,
-            )
-          : _remote.create(
+            ),
+          () => _local.create(
               name: name,
               description: description,
               amountCents: amountCents,
@@ -73,7 +80,7 @@ class TemplateRepositoryImpl implements TemplateRepository {
               endDate: endDate,
               autoRecord: autoRecord,
               category: category,
-            )));
+            ));
 
   @override
   Future<Either<Failure, Template>> update({
@@ -87,8 +94,8 @@ class TemplateRepositoryImpl implements TemplateRepository {
     String? endDate,
     bool? autoRecord,
   }) =>
-      _mirrored(MirrorModule.template, () => _guard(() => _useLocal
-          ? _local.update(
+      _routedWrite(MirrorModule.template,
+          () => _remote.update(
               id: id,
               version: version,
               name: name,
@@ -98,8 +105,8 @@ class TemplateRepositoryImpl implements TemplateRepository {
               cycleDays: cycleDays,
               endDate: endDate,
               autoRecord: autoRecord,
-            )
-          : _remote.update(
+            ),
+          () => _local.update(
               id: id,
               version: version,
               name: name,
@@ -109,23 +116,27 @@ class TemplateRepositoryImpl implements TemplateRepository {
               cycleDays: cycleDays,
               endDate: endDate,
               autoRecord: autoRecord,
-            )));
+            ));
 
   @override
-  Future<Either<Failure, void>> delete(String id) => _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.delete(id) : _remote.delete(id)));
+  Future<Either<Failure, void>> delete(String id) =>
+      _routedWrite(MirrorModule.template, () => _remote.delete(id), () => _local.delete(id));
 
   @override
-  Future<Either<Failure, Template>> pause(String id) => _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.pause(id) : _remote.pause(id)));
+  Future<Either<Failure, Template>> pause(String id) =>
+      _routedWrite(MirrorModule.template, () => _remote.pause(id), () => _local.pause(id));
 
   @override
-  Future<Either<Failure, Template>> resume(String id) => _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.resume(id) : _remote.resume(id)));
+  Future<Either<Failure, Template>> resume(String id) =>
+      _routedWrite(MirrorModule.template, () => _remote.resume(id), () => _local.resume(id));
 
   @override
-  Future<Either<Failure, Template>> get(String id) => _guard(() => _useLocal ? _local.get(id) : _remote.get(id));
+  Future<Either<Failure, Template>> get(String id) =>
+      _guard(() => _useLocalDs ? _local.get(id) : _remote.get(id));
 
   @override
   Future<Either<Failure, RecordResult>> record(String templateId) =>
-      _mirrored(MirrorModule.template, () => _guard(() => _useLocal ? _local.record(templateId) : _remote.record(templateId)));
+      _routedWrite(MirrorModule.template, () => _remote.record(templateId), () => _local.record(templateId));
 
   /// 统一 try/Either 包装(对齐 TagRepositoryImpl._guard / BackupRepositoryImpl._guard)。
   /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
@@ -133,10 +144,26 @@ class TemplateRepositoryImpl implements TemplateRepository {
   Future<Either<Failure, T>> _mirrored<T>(MirrorModule m,
       Future<Either<Failure, T>> Function() body) async {
     final r = await body();
-    if (r.isRight() && !_useLocal && _mirror != null) {
+    if (r.isRight() && !_useLocalDs && _mirror != null) {
       unawaited(_mirror.refreshModule(m));
     }
     return r;
+  }
+
+  /// F10 FR-1/FR-1b:三态写路由 + 远端失败降级(照 transaction 范式)。
+  /// guest/bound-offline 直接本地;boundRemote 先远端(Right 触发镜像刷新,
+  /// 与 R6 逐位一致),NetworkFailure 降级本地落库(FR-1b 双保险)且不触发
+  /// 镜像刷新(防 delete-all+rebuild 抹掉未上行本地行);其他失败原样 Left。
+  /// TODO-F10T2:降级/离线写本地置 pending + 回网上行(本任务不做,锚点)。
+  Future<Either<Failure, T>> _routedWrite<T>(MirrorModule m,
+      Future<T> Function() remote, Future<T> Function() local) async {
+    if (_useLocalDs) {
+      return _mirrored(m, () => _guard(local));
+    }
+    return writeWithFallback(
+      () => _mirrored(m, () => _guard(remote)),
+      () => _guard(local),
+    );
   }
 
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
