@@ -28,6 +28,7 @@ import 'package:yucai_client/app/router.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
+import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
@@ -66,6 +67,10 @@ class _MockDebtRepo extends Mock implements DebtRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 class _MockBudgetRepo extends Mock implements BudgetRepository {}
 class _MockGoalRepo extends Mock implements GoalRepository {}
+
+/// F12 T2:SyncCoordinatorBloc 替身(照 backup_page_test 的 mock bloc 形态,
+/// state/stream 桩)—— AppShell.build 首个生产 resolve 点的挂载验证用。
+class _MockSyncBloc extends Mock implements SyncCoordinatorBloc {}
 
 /// Fake NetWorthDataSource — HomePage _loadNetWorth reads getIt<NetWorthDataSource>
 /// at initState (68508b2); register a fake so /home resolves. Mirrors router_test.
@@ -165,6 +170,137 @@ void main() {
     // OD .topbar = backdrop-filter:blur(10px). AppShell mounts _TopBar for
     // every protected route; it must now render a BackdropFilter.
     expect(find.byType(BackdropFilter), findsWidgets);
+  });
+
+  // F12 T2:SyncStatusBadge 挂载(shell 顶层 BlocProvider.value 接线验证)。
+  // 共用 setUp 的页面依赖桩;badge 额外需要 tracker + SyncCoordinatorBloc
+  // (照 ThemeSettings fake 模式:getIt 注册替身)。
+
+  /// 挂载 AppShell(与既有测试同 harness 形态:seeded AuthBloc + 真路由)。
+  Future<void> pumpShell(WidgetTester tester) async {
+    final authBloc = _SeededAuthedBloc();
+    final router = buildRouter(authBloc);
+    router.go('/home');
+    await tester.pumpWidget(MaterialApp.router(
+      routerConfig: router,
+      builder: (context, child) => BlocProvider<AuthBloc>.value(
+        value: authBloc,
+        child: BlocProvider<TransactionBloc>(
+          create: (_) => TransactionBloc(getIt<TransactionRepository>()),
+          child: child!,
+        ),
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+
+  testWidgets('AppShell mounts SyncStatusBadge for bound sessions',
+      (tester) async {
+    getIt.registerSingleton<SessionModeTracker>(
+        SessionModeTracker()..isGuest = false);
+    final syncBloc = _MockSyncBloc();
+    when(() => syncBloc.state).thenReturn(const SyncCoordinatorState(
+        status: SyncStatus.clean, pendingCount: 2));
+    when(() => syncBloc.stream).thenAnswer((_) => const Stream.empty());
+    getIt.registerSingleton<SyncCoordinatorBloc>(syncBloc);
+
+    final authBloc = _SeededAuthedBloc();
+    final router = buildRouter(authBloc);
+    router.go('/home');
+    await tester.pumpWidget(MaterialApp.router(
+      routerConfig: router,
+      builder: (context, child) => BlocProvider<AuthBloc>.value(
+        value: authBloc,
+        child: BlocProvider<TransactionBloc>(
+          create: (_) => TransactionBloc(getIt<TransactionRepository>()),
+          child: child!,
+        ),
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // 绑定态:badge 经 AppShell 的 provider 读到 mock bloc → 渲染待同步 chip。
+    expect(find.text('待同步 2'), findsOneWidget);
+  });
+
+  testWidgets('AppShell guest: SyncStatusBadge not rendered', (tester) async {
+    getIt.registerSingleton<SessionModeTracker>(
+        SessionModeTracker()..isGuest = true);
+    final syncBloc = _MockSyncBloc();
+    when(() => syncBloc.state).thenReturn(const SyncCoordinatorState(
+        status: SyncStatus.clean, pendingCount: 2));
+    when(() => syncBloc.stream).thenAnswer((_) => const Stream.empty());
+    getIt.registerSingleton<SyncCoordinatorBloc>(syncBloc);
+
+    final authBloc = _SeededAuthedBloc();
+    final router = buildRouter(authBloc);
+    router.go('/home');
+    await tester.pumpWidget(MaterialApp.router(
+      routerConfig: router,
+      builder: (context, child) => BlocProvider<AuthBloc>.value(
+        value: authBloc,
+        child: BlocProvider<TransactionBloc>(
+          create: (_) => TransactionBloc(getIt<TransactionRepository>()),
+          child: child!,
+        ),
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // guest:tracker 守卫在 BlocBuilder 之前 → 无 badge 内容(guest 链路零扰动)。
+    expect(find.text('待同步 2'), findsNothing);
+  });
+
+  // review 观察 B(根治):provider 条件注入 —— guest 会话不 resolve 不构造
+  // bloc,恢复 T1「构造即 bound」前提;登录翻转后 shell 重建 → 注入 → 构造。
+  // 断言用生产行为等价:lazySingleton 工厂体执行 = 首次 resolve(构造)发生。
+  testWidgets('guest shell:不 resolve 不构造 SyncCoordinatorBloc(条件注入)',
+      (tester) async {
+    var resolved = false;
+    final syncBloc = _MockSyncBloc();
+    when(() => syncBloc.state).thenReturn(const SyncCoordinatorState(
+        status: SyncStatus.clean, pendingCount: 2));
+    when(() => syncBloc.stream).thenAnswer((_) => const Stream.empty());
+    getIt.registerLazySingleton<SyncCoordinatorBloc>(() {
+      resolved = true;
+      return syncBloc;
+    });
+    getIt.registerSingleton<SessionModeTracker>(
+        SessionModeTracker()..isGuest = true);
+
+    await pumpShell(tester);
+
+    expect(resolved, isFalse, reason: 'guest 会话不得构造 bloc');
+    expect(find.text('待同步 2'), findsNothing);
+  });
+
+  testWidgets('guest→bound 翻转:shell 重建后注入并构造(补扫前提恢复)',
+      (tester) async {
+    var resolved = false;
+    final syncBloc = _MockSyncBloc();
+    when(() => syncBloc.state).thenReturn(const SyncCoordinatorState(
+        status: SyncStatus.clean, pendingCount: 2));
+    when(() => syncBloc.stream).thenAnswer((_) => const Stream.empty());
+    getIt.registerLazySingleton<SyncCoordinatorBloc>(() {
+      resolved = true;
+      return syncBloc;
+    });
+    final tracker = SessionModeTracker()..isGuest = true;
+    getIt.registerSingleton<SessionModeTracker>(tracker);
+
+    await pumpShell(tester);
+    expect(resolved, isFalse); // guest 期未构造。
+
+    // 登录翻转:AuthBloc 发射驱动 shell 重建(此处直接重挂,等价时序 ——
+    // tracker 旗标先置位,再进 shell.build 条件注入分支)。
+    tracker.isGuest = false;
+    await pumpShell(tester);
+
+    expect(resolved, isTrue, reason: '绑定会话首帧 resolve(构造期补扫前提)');
+    expect(find.text('待同步 2'), findsOneWidget);
   });
 }
 
