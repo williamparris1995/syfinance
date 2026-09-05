@@ -17,6 +17,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/page_cursor_stack.dart';
@@ -44,7 +45,7 @@ class HoldingsPage extends StatefulWidget {
   State<HoldingsPage> createState() => _HoldingsPageState();
 }
 
-class _HoldingsPageState extends State<HoldingsPage> {
+class _HoldingsPageState extends State<HoldingsPage> with RouteAware {
   // ───── F9 FR-3 查询/分页态(页面 Stateful 管理,不必 bloc 化)─────
   // 理由:页面现有结构 = bloc 一次全量 LoadHoldings(bloc/repo 契约不动,
   // NFR-1 零回归),chips 筛选本就是前端二次过滤 —— 搜索与分页照同一管道
@@ -79,6 +80,34 @@ class _HoldingsPageState extends State<HoldingsPage> {
     // 拉取全部持仓(typeFilter=null)。chips 筛选为前端二次过滤(对齐 brief:
     // proto ListHoldings 无 type 参数,bloc 前端过滤)。
     context.read<HoldingBloc>().add(const LoadHoldingsRequested());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 订阅 holdings branch 专用 RouteObserver(F14 疑点 #4,照 accounts_page
+    // 先例):TradeSheet(/holdings/trade、/holdings/new)用路由层独立
+    // HoldingBloc,提交成功 pop 回来时本页(IndexedStack 分支常驻,另一个
+    // bloc 实例)不会自动更新 —— didPopNext 统一重拉。
+    holdingsRouteObserver.subscribe(
+        this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    holdingsRouteObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // F14 疑点 #4:pop 回列表 → 重拉(保留当前 typeFilter,照 F9 查询口径;
+    // 无背景(首次加载失败后)时退全量)。
+    if (!mounted) return;
+    final loaded = _loadedOf(context.read<HoldingBloc>().state);
+    context
+        .read<HoldingBloc>()
+        .add(LoadHoldingsRequested(typeFilter: loaded?.typeFilter));
   }
 
   @override

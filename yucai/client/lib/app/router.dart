@@ -171,6 +171,19 @@ GoRouter buildRouter(
                   child: const AccountsPage(),
                 ),
                 routes: [
+                  // 订阅管理入口(F14 疑点 #1):侧栏「订阅管理」(app_shell)
+                  // 导航 /accounts/templates。静态子路由必须声明在 :id 前
+                  // (GoRouter 匹配优先级,否则 'templates' 被 /accounts/:id
+                  // 捕获渲染成账户详情;对齐 /holdings trade/new 先例)。
+                  // 页面复用 /settings/templates 同款 TemplatePage +
+                  // TemplateBloc(设置页入口的同一页面组件)。
+                  GoRoute(
+                    path: 'templates',
+                    builder: (_, __) => BlocProvider<TemplateBloc>(
+                      create: (_) => getIt<TemplateBloc>(),
+                      child: const TemplatePage(),
+                    ),
+                  ),
                   GoRoute(
                     path: ':id',
                     // 详情页用独立 bloc 实例：列表页 bloc 在跳转时被释放，
@@ -214,6 +227,12 @@ GoRouter buildRouter(
             ],
           ),
           StatefulShellBranch(
+            // F14 疑点 #3:branch 嵌套 Navigator 挂独立观察者(见
+            // route_observer.dart 头注释 —— 顶层 routeObserver 看不到 branch
+            // 内 push/pop,且 Observer 不可复挂多 Navigator)。交易列表页订阅
+            // transactionsRouteObserver:顶栏创建 /transactions/new 或详情/编辑
+            // 页 pop 回来时 didPopNext 触发回拉(保留筛选,照 F7 语义)。
+            observers: [transactionsRouteObserver],
             routes: [
               GoRoute(
                 path: '/transactions',
@@ -557,6 +576,11 @@ GoRouter buildRouter(
           // ⚠️ 静态(trade/new/security/performance/goals)在 :id 前(GoRouter 匹配优先级,
           // 否则 trade/new 等被 :id 捕获渲染成 HoldingDetailPage)。
           StatefulShellBranch(
+            // F14 疑点 #4:branch 嵌套 Navigator 挂独立观察者(同 transactions
+            // branch,见 route_observer.dart 头注释)。持仓列表页订阅
+            // holdingsRouteObserver:TradeSheet(/holdings/trade、/holdings/new)
+            // 提交 pop 回来时 didPopNext 重拉列表(保留 typeFilter)。
+            observers: [holdingsRouteObserver],
             routes: [
               GoRoute(
                 path: '/holdings',

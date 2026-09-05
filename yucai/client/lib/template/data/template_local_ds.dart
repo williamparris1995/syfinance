@@ -88,7 +88,10 @@ class TemplateLocalDataSource {
       billingDay: billingDay,
       nextDate: next,
       startDate: start,
-      endDate: Value(_parseDate(endDate)),
+      // F14 疑点 #2:null/空 endDate = 永续(语义 null 落库),不再兜底今天
+      // —— 否则实体 endDate 非 null,调度 _catchUpOne 按「≤ endDate 才记」
+      // 把永续订阅截断到创建日,次日起停记。
+      endDate: Value(_parseEndDate(endDate)),
       autoRecord: autoRecord,
       paused: false,
       category: category ?? '',
@@ -126,7 +129,12 @@ class TemplateLocalDataSource {
       amountCents: Value(amountCents ?? row.amountCents),
       cycle: Value(cycle == null ? row.cycle : cycle.index),
       cycleDays: Value(cycleDays ?? row.cycleDays),
-      endDate: Value(endDate == null ? row.endDate : _parseDate(endDate)),
+      // F14 疑点 #2:update 的 endDate 统一走永续语义解析:null/空串 → 清空
+      // (Value(null) = 落库 NULL)。对齐 server:update 空串 → handler 跳过
+      // 解析 → service 置 nil → repo ClearEndDate;本地旧实现「null = 保留
+      // 旧值」与远端分歧(guest 编辑表单清空 endDate 静默失效)。真实调用链
+      // (bloc ← 表单)只在用户清空时传 null,故清空语义即用户意图。
+      endDate: Value(_parseEndDate(endDate)),
       autoRecord: Value(autoRecord ?? row.autoRecord),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
@@ -369,6 +377,24 @@ class TemplateLocalDataSource {
 
   DateTime _parseDate(String? s) {
     if (s == null || s.isEmpty) return _nowDate();
+    final d = DateTime.tryParse(s);
+    return d == null ? _nowDate() : DateTime.utc(d.year, d.month, d.day);
+  }
+
+  /// endDate 专用解析(F14 疑点 #2 语义裁决):
+  /// - **null/空串 → 语义 null(永续)**:与 server 契约逐位对齐 —— proto 契约
+  ///   空串即「未设置」,server handler `req.EndDate != ""` 门控,空串落库
+  ///   NULL;调度器(AutoRecordScheduler._catchUpOne)对 null endDate 不截断,
+  ///   永续订阅按期补账。
+  /// - **不可解析串 → fail-closed 兜底今天(不永续)**:脏数据被当成「无期限
+  ///   订阅」会无限生成交易,资金侧风险远大于漏记;与 server 对不可解析串的
+  ///   处理(`d, _ := parseDate(...)` 忽略错误 → 零值 = 公元 1 年,等效「已
+  ///   到期」)同向 fail-closed,仅把停记点从公元 1 年收敛到今天(避免本地
+  ///   库出现奇异的 0001 日期)。
+  /// - **存量数据不迁移**:旧实现已把 null 兜底存成「创建当天」的行保持原样
+  ///   (数据不动);用户在编辑表单清空 endDate 即触发上面的清空语义恢复永续。
+  DateTime? _parseEndDate(String? s) {
+    if (s == null || s.isEmpty) return null;
     final d = DateTime.tryParse(s);
     return d == null ? _nowDate() : DateTime.utc(d.year, d.month, d.day);
   }

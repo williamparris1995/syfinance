@@ -26,6 +26,7 @@ import 'package:yucai_client/account/domain/usecases/get_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/list_accounts_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/update_account_usecase.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
+import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/app/router.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
@@ -54,7 +55,10 @@ import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/goal/presentation/pages/goal_list_page.dart';
 import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
+import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/pages/holding_detail_page.dart';
 import 'package:yucai_client/holding/presentation/pages/trade_sheet_page.dart';
 import 'package:yucai_client/core/error/failures.dart';
@@ -66,10 +70,15 @@ import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/tag/presentation/bloc/tag_bloc.dart';
+import 'package:yucai_client/template/domain/entities/template_entity.dart';
+import 'package:yucai_client/template/domain/repositories/template_repository.dart';
+import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
+import 'package:yucai_client/template/presentation/pages/template_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
@@ -80,6 +89,7 @@ class _MockHoldingRepo extends Mock implements HoldingRepository {}
 class _MockBudgetRepo extends Mock implements BudgetRepository {}
 class _MockGoalRepo extends Mock implements GoalRepository {}
 class _MockTagRepo extends Mock implements TagRepository {}
+class _MockTemplateRepo extends Mock implements TemplateRepository {}
 class _MockOidcLogin extends Mock implements OidcLoginUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
@@ -145,6 +155,20 @@ void main() {
   setUpAll(() {
     registerFallbackValue(ListTransactionsParams());
     registerFallbackValue(SummaryScope.month);
+    registerFallbackValue(RecordExpenseParams(
+      transactionDate: DateTime(2026, 6, 19),
+      expenseAccountId: 'food',
+      assetAccountId: 'cash',
+      amountCents: 100,
+    ));
+    registerFallbackValue(const BuyParams(
+      accountId: 'a1',
+      securityId: 's1',
+      fromAccountId: 'a1',
+      quantity: 1,
+      priceCents: 100,
+      tradeDate: '2026-09-05',
+    ));
   });
 
   setUp(() {
@@ -844,6 +868,316 @@ void main() {
     expect(captured.last.tagId, 'tag-1',
         reason: '路由 builder 应把 extra tagId 转成 TxnFilterState.tagId 首查');
   });
+
+  // ───────── F14 疑点 #1:订阅管理路由 ─────────
+  // 侧栏「订阅管理」(app_shell)导航 /accounts/templates;router 曾无此静态
+  // 子路由 → 'templates' 被 /accounts/:id 捕获渲染成 AccountDetailPage。
+  // 修法:/accounts 下注册静态子路由 templates(必须在 :id 前,GoRouter 匹配
+  // 优先级同 /holdings trade/new 先例),复用 /settings/templates 同款
+  // TemplatePage + TemplateBloc(设置页入口同一页面组件)。
+  testWidgets('/accounts/templates resolves to TemplatePage (订阅管理 target, '
+      'not caught by /accounts/:id)', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    // /accounts/templates 路由 create getIt<TemplateBloc>() → 需注册
+    // TemplateRepository + TemplateBloc 工厂(对齐 /settings/tags 测试先例)。
+    final templateRepo = _MockTemplateRepo();
+    when(() => templateRepo.list(paused: any(named: 'paused')))
+        .thenAnswer((_) async => const dartz.Right(<Template>[]));
+    getIt.registerFactory<TemplateBloc>(() => TemplateBloc(templateRepo));
+
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/accounts/templates');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/accounts/templates');
+    // 关键断言:渲染 TemplatePage(订阅管理目标页),而非账户详情。
+    expect(find.byType(TemplatePage), findsOneWidget);
+    expect(find.byType(AccountDetailPage), findsNothing);
+  });
+
+  testWidgets('sidebar 订阅管理 tap navigates to /accounts/templates and '
+      'renders TemplatePage', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final templateRepo = _MockTemplateRepo();
+    when(() => templateRepo.list(paused: any(named: 'paused')))
+        .thenAnswer((_) async => const dartz.Right(<Template>[]));
+    getIt.registerFactory<TemplateBloc>(() => TemplateBloc(templateRepo));
+
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/home');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('订阅管理'), findsOneWidget);
+    await tester.tap(find.text('订阅管理'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/accounts/templates');
+    expect(find.byType(TemplatePage), findsOneWidget);
+    expect(find.byType(AccountDetailPage), findsNothing);
+  });
+
+  testWidgets('/accounts/:id still resolves to AccountDetailPage '
+      '(templates 静态路由不影响参数路由)', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    // 详情页 AccountBloc 进入即 GetAccountRequested → getById 需 stub
+    // (router_test 全局 setUp 只 stub 了 list)。
+    when(() => getIt<AccountRepository>().getById(any()))
+        .thenAnswer((_) async => dartz.Right(_account()));
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/accounts/acc-42');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/accounts/acc-42');
+    // 非保留字的真实 id 仍命中详情页,未被 templates 静态路由抢占。
+    expect(find.byType(AccountDetailPage), findsOneWidget);
+    expect(find.byType(TemplatePage), findsNothing);
+  });
+
+  // ───────── F14 疑点 #3:交易列表回拉 ─────────
+  // 顶栏创建表单(_TopBarCreate → context.push('/transactions/new'))提交成功
+  // pop 后,列表页(IndexedStack 分支常驻)不重载 —— 页内 _openCreateForm 的
+  // await-push reload 覆盖不到路由 push 路径。修法:branch 观察者 + RouteAware
+  // didPopNext 触发既有 Load 路径(保留筛选,照 F7 语义)。
+  testWidgets('F14 #3:顶栏创建交易提交 pop 后列表回拉(新交易可见)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    // TransactionFormPage 自建 TransactionFormBloc(getIt<TransactionRepository>
+    // + getIt<AccountRepository>);tag chip-row 读 getIt<TagRepository>。
+    final tagRepo = _MockTagRepo();
+    when(() => tagRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+    getIt.registerSingleton<TagRepository>(tagRepo);
+    // 表单下拉需要 asset + expense 两个账户(支出模式:资金账户 + 支出分类)。
+    final food = _account()
+        .copyWith(id: 'food', name: '餐饮', accountType: AccountType.expense);
+    when(() => getIt<AccountRepository>().list())
+        .thenAnswer((_) async => dartz.Right([_account(), food]));
+    when(() => getIt<TransactionRepository>().recordExpense(any())).thenAnswer(
+        (_) async => dartz.Right(_txn(id: 't-new', description: '新咖啡')));
+    // 首查 1 笔;回拉后 2 笔(计数器切换,断言「回拉真的发生」)。
+    var listCalls = 0;
+    when(() => getIt<TransactionRepository>().list(any())).thenAnswer((_) async {
+      listCalls++;
+      return dartz.Right(ListTransactionsResult(
+          transactions: listCalls == 1
+              ? [_txn(id: 't1', description: '交易 t1')]
+              : [
+                  _txn(id: 't1', description: '交易 t1'),
+                  _txn(id: 't-new', description: '新咖啡'),
+                ],
+          nextPageToken: ''));
+    });
+
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/transactions');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('交易 t1'), findsOneWidget);
+    expect(listCalls, 1);
+
+    // 顶栏「新增交易」(_TopBarCreate,desktop 下页面 header 无创建按钮,
+    // 列表非空 → 空态引导按钮也不在 → 唯一命中)。
+    await tester.tap(find.text('新增交易'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TransactionFormPage), findsOneWidget);
+
+    // 填表:+50 快捷金额 + 资金账户(现金)+ 支出分类(餐饮)。
+    await tester.tap(find.text('+50'));
+    await tester.pumpAndSettle();
+    await _openDropdownAndPick(tester, '如招商银行、现金', '现金');
+    await _openDropdownAndPick(tester, '如餐饮、交通', '餐饮');
+    await tester.ensureVisible(find.text('保存'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    // 提交成功 → 表单 pop(true) → 列表页 didPopNext 回拉:第二查数据渲染。
+    expect(find.byType(TransactionFormPage), findsNothing);
+    expect(listCalls, greaterThan(1), reason: 'pop 后未触发回拉重查');
+    expect(find.text('新咖啡'), findsOneWidget, reason: '回拉后列表应含新交易');
+  });
+
+  // ───────── F14 疑点 #4:持仓列表回拉 ─────────
+  // 顶栏「买入持仓」(_TopBarCreate → /holdings/trade)的 TradeSheet 用路由层
+  // 独立 HoldingBloc,提交成功 pop 后列表页(IndexedStack 分支常驻,另一个
+  // bloc 实例)不重拉。修法:同 #3 模式 —— holdings branch 观察者 + 页内
+  // RouteAware didPopNext 重拉(保留 typeFilter)。
+  testWidgets('F14 #4:顶栏买入持仓(TradeSheet)提交 pop 后持仓列表回拉',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    const security = Security(
+      id: 's1',
+      symbol: 'AAPL',
+      name: '苹果',
+      securityType: SecurityType.stock,
+      currency: 'CNY',
+      currentPriceCents: 10000,
+    );
+    const newHolding = Holding(
+      id: 'h1',
+      accountId: 'a1',
+      securityId: 's1',
+      securityName: '苹果',
+      securitySymbol: 'AAPL',
+      quantity: 10,
+      avgCostCents: 10000,
+      marketValueCents: 100000,
+      unrealizedPnlCents: 0,
+      version: 1,
+    );
+    final holdingRepo = getIt<HoldingRepository>();
+    // 首查(路由 builder + 页面 initState 各一次)空;buy 之后的所有
+    // listHoldings(sheet 自己的 bloc buy 成功后拉 + 列表页 didPopNext 回拉)
+    // 返回新持仓 —— 以 buy 为界,避免对初始调用次数敏感。
+    var bought = false;
+    when(() => holdingRepo.listHoldings(accountId: any(named: 'accountId')))
+        .thenAnswer((_) async =>
+            dartz.Right(bought ? [newHolding] : const <Holding>[]));
+    when(() => holdingRepo.listSecurities(type: any(named: 'type')))
+        .thenAnswer((_) async => const dartz.Right([security]));
+    when(() => holdingRepo.buy(
+          accountId: any(named: 'accountId'),
+          securityId: any(named: 'securityId'),
+          fromAccountId: any(named: 'fromAccountId'),
+          quantity: any(named: 'quantity'),
+          priceCents: any(named: 'priceCents'),
+          feeCents: any(named: 'feeCents'),
+          tradeDate: any(named: 'tradeDate'),
+          notes: any(named: 'notes'),
+        )).thenAnswer((_) async {
+      bought = true;
+      return const dartz.Right(HoldingTransaction(
+        id: 'tx1',
+        accountId: 'a1',
+        securityId: 's1',
+        tradeType: TradeType.buy,
+        quantity: 10,
+        priceCents: 10000,
+        amountCents: 100000,
+        feeCents: 0,
+        tradeDate: '2026-09-05',
+      ));
+    });
+
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    // TradeSheet 资金账户余额 fail-fast:预置充足余额(现金账户默认 0 会被
+    // 提交校验拦截)。
+    when(() => getIt<AccountRepository>().list()).thenAnswer((_) async =>
+        dartz.Right([_account().copyWith(currentBalanceCents: 10000000)]));
+    router.go('/holdings');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    // 空态(首查空)。
+    expect(find.text('还没有持仓'), findsOneWidget);
+
+    // 顶栏「买入持仓」(空态无按钮 → 唯一命中)。
+    await tester.tap(find.text('买入持仓'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TradeSheetPage), findsOneWidget);
+
+    // 填单:证券 + 持仓账户 + 资金账户 + 数量 + 价格,提交。
+    await _openDropdownAndPick(tester, '选择证券', 'AAPL · 苹果');
+    await _openDropdownAndPick(tester, '选择持仓账户', '现金');
+    await _openDropdownAndPick(tester, '选择资金账户', '现金');
+    await tester.enterText(find.byKey(const ValueKey('qtyField')), '10');
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('priceField')), '100');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('submitButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('submitButton')));
+    await tester.pumpAndSettle();
+
+    // 提交成功 → sheet pop(true) → 列表页 didPopNext 回拉:新持仓可见。
+    expect(find.byType(TradeSheetPage), findsNothing);
+    expect(find.text('还没有持仓'), findsNothing,
+        reason: 'TradeSheet pop 后列表未回拉');
+    expect(find.text('苹果'), findsWidgets,
+        reason: '回拉后列表应含新持仓');
+  });
+
+  // F14 #3 补充:页内空态引导按钮(_EmptyListHint → _openCreateForm 的
+  // MaterialPageRoute push)提交 pop 后同样回拉 —— 该路径原本由
+  // _openCreateForm 直接 reload,改造后统一走 didPopNext(同 branch 嵌套
+  // Navigator),本测试钉住不回归。
+  testWidgets('F14 #3b:空态引导创建交易提交 pop 后列表回拉', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final tagRepo = _MockTagRepo();
+    when(() => tagRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+    getIt.registerSingleton<TagRepository>(tagRepo);
+    final food = _account()
+        .copyWith(id: 'food', name: '餐饮', accountType: AccountType.expense);
+    when(() => getIt<AccountRepository>().list())
+        .thenAnswer((_) async => dartz.Right([_account(), food]));
+    when(() => getIt<TransactionRepository>().recordExpense(any())).thenAnswer(
+        (_) async =>
+            dartz.Right(_txn(id: 't-new2', description: '新咖啡2')));
+    var listCalls = 0;
+    when(() => getIt<TransactionRepository>().list(any())).thenAnswer((_) async {
+      listCalls++;
+      return dartz.Right(ListTransactionsResult(
+          transactions: listCalls == 1
+              ? <Transaction>[]
+              : [_txn(id: 't-new2', description: '新咖啡2')],
+          nextPageToken: ''));
+    });
+
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/transactions');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    // 空列表 → 空态引导按钮(顶栏创建按钮也在,取 .last = 空态引导)。
+    expect(find.text('本月暂无交易'), findsOneWidget);
+
+    await tester.tap(find.text('新增交易').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(TransactionFormPage), findsOneWidget);
+
+    await tester.tap(find.text('+50'));
+    await tester.pumpAndSettle();
+    await _openDropdownAndPick(tester, '如招商银行、现金', '现金');
+    await _openDropdownAndPick(tester, '如餐饮、交通', '餐饮');
+    await tester.ensureVisible(find.text('保存'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TransactionFormPage), findsNothing);
+    expect(find.text('新咖啡2'), findsOneWidget, reason: '空态路径 pop 后未回拉');
+    // _openCreateForm 成功 toast(AppToast 3s 自动消失 timer)排空,避免
+    // 测试收尾「Timer is still pending」断言。
+    await tester.pump(const Duration(seconds: 4));
+  });
 }
 
 /// Build an AuthBloc seeded Authenticated without driving any use case.
@@ -934,15 +1268,26 @@ DebtDetail _debtDetail() => DebtDetail(
       schedule: const [],
     );
 
-Transaction _txn() => Transaction(
-      id: 't1',
+Transaction _txn({String id = 't1', String description = 'stub'}) =>
+    Transaction(
+      id: id,
       transactionDate: DateTime(2026, 6, 19),
-      description: 'stub',
+      description: description,
       entries: const [
         TransactionEntry(accountId: 'a1', debitCents: 100, creditCents: 0),
         TransactionEntry(accountId: 'a2', debitCents: 0, creditCents: 100),
       ],
     );
+
+/// Opens a DropdownButtonFormField by tapping its [hint] text, then taps the
+/// [option] menu item(照 transaction_form_page_test 同款 idiom)。
+Future<void> _openDropdownAndPick(
+    WidgetTester tester, String hint, String option) async {
+  await tester.tap(find.text(hint).first, warnIfMissed: false);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(option).last, warnIfMissed: false);
+  await tester.pumpAndSettle();
+}
 
 BudgetView _budget() => const BudgetView(
       id: 'b1',

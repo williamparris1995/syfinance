@@ -17,6 +17,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
@@ -435,5 +436,66 @@ void main() {
         t.widget<Container>(find.byKey(const ValueKey('splitPreview')));
     final decor = preview.decoration as BoxDecoration;
     expect(decor.color, const Color(0xFFE7EAEF)); // _kSplitSoft
+  });
+
+  // ───────── F14 review fix-round-1:提交失败复位 _submitted(fail-closed)─────────
+  // 场景:buy 失败(HoldingError)后用户未重提,sheet 仍挂着;此时若 bloc 因
+  // 任何后续路径(价格刷新/回拉等)再发出 HoldingLoaded,不得被「见 Loaded
+  // 即 pop」误判成提交成功 → sheet 意外关闭丢表单。修复:listenWhen 侧对
+  // HoldingError 即复位 _submitted(fail-closed 补齐,见页面注释)。
+  testWidgets(
+      'F14 fix1:提交失败(HoldingError)后到来的 HoldingLoaded 不误 pop',
+      (t) async {
+    await setViewport(t);
+    final holdingRepo = _MockHoldingRepo();
+    _stubHoldingRepo(holdingRepo, securities: securities);
+    // buy 失败 → HoldingSubmitting → HoldingError(_submitted 保持 true,
+    // 复位逻辑由被测修复提供)。
+    when(() => holdingRepo.buy(
+          accountId: any(named: 'accountId'),
+          securityId: any(named: 'securityId'),
+          fromAccountId: any(named: 'fromAccountId'),
+          quantity: any(named: 'quantity'),
+          priceCents: any(named: 'priceCents'),
+          feeCents: any(named: 'feeCents'),
+          tradeDate: any(named: 'tradeDate'),
+          notes: any(named: 'notes'),
+        )).thenAnswer(
+        (_) async => const dartz.Left(ServerFailure('买入失败')));
+
+    final accountRepo = _MockAccountRepo();
+    when(() => accountRepo.list())
+        .thenAnswer((_) async => dartz.Right(accounts));
+    GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+
+    await t.pumpWidget(MaterialApp(
+      home: BlocProvider<HoldingBloc>(
+        create: (_) => HoldingBloc(holdingRepo),
+        child: const TradeSheetPage(
+          initialType: TradeType.buy,
+          initialSecurityId: 's1',
+          initialAccountId: 'a1',
+          initialFromAccountId: 'a1',
+        ),
+      ),
+    ));
+    await t.pumpAndSettle();
+    await t.enterText(find.byKey(const ValueKey('qtyField')), '10');
+    await t.enterText(find.byKey(const ValueKey('priceField')), '100');
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.byKey(const ValueKey('submitButton')));
+    await t.tap(find.byKey(const ValueKey('submitButton')));
+    await t.pumpAndSettle();
+    // 提交失败:sheet 仍在(用户可改后重提)。
+    expect(find.byType(TradeSheetPage), findsOneWidget);
+
+    // 模拟后续任意路径的列表加载(非用户重提)→ HoldingLoaded。
+    final bloc = t.element(find.byType(TradeSheetPage)).read<HoldingBloc>();
+    bloc.add(const LoadHoldingsRequested());
+    await t.pumpAndSettle();
+
+    // fail-closed 断言:失败后未重提,遇 HoldingLoaded 不得误 pop。
+    expect(find.byType(TradeSheetPage), findsOneWidget,
+        reason: '提交失败后 _submitted 未复位 → HoldingLoaded 误 pop');
   });
 }

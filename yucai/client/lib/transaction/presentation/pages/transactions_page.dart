@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -71,7 +72,7 @@ class _TransactionsView extends StatefulWidget {
   State<_TransactionsView> createState() => _TransactionsViewState();
 }
 
-class _TransactionsViewState extends State<_TransactionsView> {
+class _TransactionsViewState extends State<_TransactionsView> with RouteAware {
   @override
   void initState() {
     super.initState();
@@ -82,6 +83,33 @@ class _TransactionsViewState extends State<_TransactionsView> {
       // 对齐;tagId 不参与列表页 summary 口径,FR-4 只覆盖报表页)。
       _requestSummary(widget.initialFilter ?? const TxnFilterState());
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 订阅 transactions branch 专用 RouteObserver(F14 疑点 #3,照
+    // accounts_page 先例):本页位于 StatefulShellRoute 的 IndexedStack 分支
+    // 内常驻,顶栏创建(/transactions/new)或详情/编辑页提交 pop 回来时不会
+    // 自动重建 —— didPopNext 统一触发回拉。前提:transactions branch 已挂
+    // observers:[transactionsRouteObserver](router.dart),push/pop 都发生在
+    // 该 branch 的嵌套 Navigator 上。
+    transactionsRouteObserver.subscribe(
+        this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    transactionsRouteObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // F14 疑点 #3:pop 回列表 → 既有 Load 路径回拉(保留筛选,照 F7 语义,
+    // _reloadAfterMutation 读当前 state.filter)。
+    if (!mounted) return;
+    _reloadAfterMutation();
   }
 
   /// Emits a [LoadSummaryRequested] matching [filter]'s month (or the current
@@ -111,8 +139,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
         ) ??
         false;
     if (ok && mounted) {
+      // 回拉统一由 didPopNext 承担(F14 #3):本 push 也落在 branch 的嵌套
+      // Navigator 上,pop 必触发 RouteAware;此处只负责成功 toast,避免
+      // 双重 Load 造成两次 loading 闪烁。
       AppToast.show(context, '交易已记录');
-      _reloadAfterMutation();
     }
   }
 

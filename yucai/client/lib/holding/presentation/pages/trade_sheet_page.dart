@@ -375,9 +375,21 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         title: const Text('记录交易'),
       ),
       body: BlocListener<HoldingBloc, HoldingState>(
-        // 业务事件成功后 bloc 自刷新 → HoldingLoaded(submitting → loaded)。
-        listenWhen: (prev, curr) =>
-            _submitted && curr is HoldingLoaded && prev is HoldingSubmitting,
+        // 业务事件成功后 bloc 自刷新 → HoldingLoaded。F14 #4 修正:成功链实际
+        // 是 Submitting → Loading(自刷新 _onLoadHoldings 先发 Loading)→
+        // Loaded,旧的 `prev is HoldingSubmitting` 条件永远不成立 → 提交成功
+        // 从不自动 pop(用户只能手动返回)。放宽为「提交后见 Loaded 即 pop」。
+        listenWhen: (prev, curr) {
+          // fail-closed 补齐(F14 review fix-round-1):提交失败(HoldingError)
+          // 即复位 _submitted —— 否则失败后用户未重提,后续任何路径(价格刷新/
+          // 列表回拉等)发出的 HoldingLoaded 会被「见 Loaded 即 pop」误判成
+          // 提交成功,sheet 意外关闭丢表单。
+          if (curr is HoldingError) {
+            _submitted = false;
+            return false;
+          }
+          return _submitted && curr is HoldingLoaded;
+        },
         listener: (context, state) {
           _submitted = false;
           Navigator.of(context).pop(true);
