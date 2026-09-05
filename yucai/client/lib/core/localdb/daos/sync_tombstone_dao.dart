@@ -20,6 +20,13 @@ class SyncTombstoneDao extends DatabaseAccessor<AppDatabase>
   Future<List<SyncTombstone>> getAllTombstones() =>
       select(syncTombstones).get();
 
+  /// F12 T1 补齐(design ADR-2「若缺则加」):墓碑表 watch 流 —— 待同步
+  /// 计数聚合(PendingCountWatcher)的第九路源。墓碑计入计数的理由:删除
+  /// 也是待同步变更(用户视角「有 N 条变更待同步」,与 pending 头行同批
+  /// 上行,口径同 PendingCollector/批次 changeCount)。
+  Stream<List<SyncTombstone>> watchAllTombstones() =>
+      select(syncTombstones).watch();
+
   /// T3 收集器:按模块取墓碑集合(随增量批次上行)。
   Future<List<SyncTombstone>> getTombstonesByModule(String module) =>
       (select(syncTombstones)..where((t) => t.module.equals(module))).get();
