@@ -12,7 +12,7 @@
 library;
 
 import 'package:flutter/material.dart'
-    show DropdownButtonFormField, Scrollable;
+    show DropdownButtonFormField;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/account/data/account_local_ds.dart';
@@ -78,26 +78,6 @@ void main() {
   Future<void> pumpApp(WidgetTester t) async {
     await t.pumpWidget(const YuCaiApp());
     await t.pumpAndSettle(const Duration(seconds: 3));
-  }
-
-  // 侧栏导航 helper(照 full_audit_test.goPage)。
-  Future<void> goPage(WidgetTester t, String sidebarLabel) async {
-    var finder = find.text(sidebarLabel);
-    if (finder.evaluate().isEmpty) {
-      try {
-        await t.scrollUntilVisible(
-          finder,
-          80,
-          scrollable: find.byType(Scrollable).first,
-          duration: const Duration(milliseconds: 150),
-        );
-      } catch (_) {}
-      await t.pumpAndSettle();
-      finder = find.text(sidebarLabel);
-    }
-    expect(finder.evaluate(), isNotEmpty, reason: '侧栏项「$sidebarLabel」可达');
-    await t.tap(finder.first);
-    await t.pumpAndSettle(const Duration(seconds: 2));
   }
 
   testWidgets('收①收回第一期:详情 → 确认收款 dialog → 期次已收 + 余额联动', (t) async {

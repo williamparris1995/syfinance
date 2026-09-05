@@ -6,6 +6,7 @@
 /// - [balanceOf]:raw drift 直读余额(独立于被测 DS,避免自证,ADR-3);
 /// - [fixedToday]:冻结"今天",全部相对日期夹具与调度器入参的基准(ADR-4);
 /// - [textContainingRich]:富文本感知 finder(自 app_pages_test 提取);
+/// - [goPage]:侧栏导航 helper(自 12 个 ui_*_test 逐字重复副本收口);
 /// - [deleteTestDb]:tearDownAll 删库收尾。
 ///
 /// 约定:测试库固定 yucai_test.db(与 --dart-define=YUCAI_DB_FILE=yucai_test.db 配套),
@@ -51,6 +52,14 @@ Future<void> resetTestDb() async {
 /// Windows 下 sqlite 文件被占用时删除会失败 —— 先关掉 getIt 持有的
 /// AppDatabase 连接再删;两步各自失败静默(库可能已被删 / DI 未初始化)。
 Future<void> deleteTestDb() async {
+  // NFR-1 硬守卫(与 resetTestDb 同款):裸跑时 YUCAI_DB_FILE 缺省为用户
+  // 真实库 yucai.db —— 虽然本函数删的是固定 yucai_test.db 路径,仍统一
+  // 拒绝执行,真实库永不被测试触碰。
+  const dbFile = String.fromEnvironment('YUCAI_DB_FILE');
+  if (dbFile != 'yucai_test.db') {
+    throw StateError('refusing: run with --dart-define=YUCAI_DB_FILE='
+        'yucai_test.db (real db must never be touched)');
+  }
   try {
     await getIt<AppDatabase>().close();
   } catch (_) {}
@@ -98,3 +107,28 @@ Finder textContainingRich(String needle) =>
       }
       return false;
     });
+
+/// 侧栏导航 helper:目标项在视口外时先滚侧栏露出再点,点后 settle。
+/// 来源:自 12 个 ui_*_test.dart 的逐字重复副本收口(F14-T2)——祖源
+/// full_audit_test.goPage 的严格断言变体,F6 UI 链 11 文件首次复制,
+/// F9 code-ledger 首次记为测试债(~200 行),F10/F8 新增文件同款沿用;
+/// 全部副本 diff 逐位相同,无漂移,故单一共享版、签名与行为逐位不变
+/// (scrollUntilVisible 80px/步、150ms/步长、tap 后 pumpAndSettle 2s)。
+Future<void> goPage(WidgetTester t, String sidebarLabel) async {
+  var finder = find.text(sidebarLabel);
+  if (finder.evaluate().isEmpty) {
+    try {
+      await t.scrollUntilVisible(
+        finder,
+        80,
+        scrollable: find.byType(Scrollable).first,
+        duration: const Duration(milliseconds: 150),
+      );
+    } catch (_) {}
+    await t.pumpAndSettle();
+    finder = find.text(sidebarLabel);
+  }
+  expect(finder.evaluate(), isNotEmpty, reason: '侧栏项「$sidebarLabel」可达');
+  await t.tap(finder.first);
+  await t.pumpAndSettle(const Duration(seconds: 2));
+}

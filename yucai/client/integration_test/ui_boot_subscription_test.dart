@@ -28,7 +28,6 @@
 /// (属 `make client-e2e-ui` 入口 B,手动按需)。
 library;
 
-import 'package:flutter/widgets.dart' show Scrollable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
@@ -99,26 +98,6 @@ void main() {
     } catch (_) {}
     await deleteTestDb();
   });
-
-  // 侧栏导航 helper(照 full_audit_test.goPage:视口外项滚动侧栏露出再点)。
-  Future<void> goPage(WidgetTester t, String sidebarLabel) async {
-    var finder = find.text(sidebarLabel);
-    if (finder.evaluate().isEmpty) {
-      try {
-        await t.scrollUntilVisible(
-          finder,
-          80,
-          scrollable: find.byType(Scrollable).first,
-          duration: const Duration(milliseconds: 150),
-        );
-      } catch (_) {}
-      await t.pumpAndSettle();
-      finder = find.text(sidebarLabel);
-    }
-    expect(finder.evaluate(), isNotEmpty, reason: '侧栏项「$sidebarLabel」可达');
-    await t.tap(finder.first);
-    await t.pumpAndSettle(const Duration(seconds: 2));
-  }
 
   testWidgets('启动接线:bootstrap 首扫自动补账 + nextDate 前移 + 模板页状态', (t) async {
     // ---- 复刻 main.dart 启动序列(ADR-4;main.dart 变更需同步) ----

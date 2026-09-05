@@ -239,26 +239,6 @@ void main() {
     await t.pumpAndSettle(const Duration(seconds: 3));
   }
 
-  // 侧栏导航 helper(照 full_audit_test.goPage)。
-  Future<void> goPage(WidgetTester t, String sidebarLabel) async {
-    var finder = find.text(sidebarLabel);
-    if (finder.evaluate().isEmpty) {
-      try {
-        await t.scrollUntilVisible(
-          finder,
-          80,
-          scrollable: find.byType(Scrollable).first,
-          duration: const Duration(milliseconds: 150),
-        );
-      } catch (_) {}
-      await t.pumpAndSettle();
-      finder = find.text(sidebarLabel);
-    }
-    expect(finder.evaluate(), isNotEmpty, reason: '侧栏项「$sidebarLabel」可达');
-    await t.tap(finder.first);
-    await t.pumpAndSettle(const Duration(seconds: 2));
-  }
-
   // 提交制搜索 helper(照 ui_list_filter 筛③的输入+回车提交;先 tap 回输入框
   // 再输入 —— 见文件头坑 2:点过其他控件后 enterText 不重挂输入 client)。
   Future<void> commitSearch(WidgetTester t, Finder field, String text) async {

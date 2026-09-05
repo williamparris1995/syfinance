@@ -21,7 +21,6 @@
 /// (属 `make client-e2e-ui` 入口 B,手动按需)。
 library;
 
-import 'package:flutter/material.dart' show Scrollable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/account/data/account_local_ds.dart';
@@ -101,26 +100,6 @@ void main() {
   Future<void> pumpApp(WidgetTester t) async {
     await t.pumpWidget(const YuCaiApp());
     await t.pumpAndSettle(const Duration(seconds: 3));
-  }
-
-  // 侧栏导航 helper(照 ui_boot_subscription.goPage:视口外项滚动侧栏露出再点)。
-  Future<void> goPage(WidgetTester t, String sidebarLabel) async {
-    var finder = find.text(sidebarLabel);
-    if (finder.evaluate().isEmpty) {
-      try {
-        await t.scrollUntilVisible(
-          finder,
-          80,
-          scrollable: find.byType(Scrollable).first,
-          duration: const Duration(milliseconds: 150),
-        );
-      } catch (_) {}
-      await t.pumpAndSettle();
-      finder = find.text(sidebarLabel);
-    }
-    expect(finder.evaluate(), isNotEmpty, reason: '侧栏项「$sidebarLabel」可达');
-    await t.tap(finder.first);
-    await t.pumpAndSettle(const Duration(seconds: 2));
   }
 
   testWidgets('模①一键记账:模板卡「立即记账」→ 落账 + nextDate 推进 + 页面反馈', (t) async {

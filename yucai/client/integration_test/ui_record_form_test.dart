@@ -15,7 +15,7 @@
 library;
 
 import 'package:flutter/material.dart'
-    show Scrollable, TextFormField, ValueKey;
+    show TextFormField, ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/account/data/account_local_ds.dart';
@@ -63,26 +63,6 @@ void main() {
   Future<void> pumpApp(WidgetTester t) async {
     await t.pumpWidget(const YuCaiApp());
     await t.pumpAndSettle(const Duration(seconds: 3));
-  }
-
-  // 侧栏导航 helper(照 full_audit_test.goPage:视口外项滚动侧栏露出再点)。
-  Future<void> goPage(WidgetTester t, String sidebarLabel) async {
-    var finder = find.text(sidebarLabel);
-    if (finder.evaluate().isEmpty) {
-      try {
-        await t.scrollUntilVisible(
-          finder,
-          80,
-          scrollable: find.byType(Scrollable).first,
-          duration: const Duration(milliseconds: 150),
-        );
-      } catch (_) {}
-      await t.pumpAndSettle();
-      finder = find.text(sidebarLabel);
-    }
-    expect(finder.evaluate(), isNotEmpty, reason: '侧栏项「$sidebarLabel」可达');
-    await t.tap(finder.first);
-    await t.pumpAndSettle(const Duration(seconds: 2));
   }
 
   /// raw drift 数 description 命中的交易数(独立于 UI 读写管道)。

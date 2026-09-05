@@ -29,6 +29,8 @@ import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
+import 'link_support.dart' show deleteTestDb;
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -136,14 +138,9 @@ void main() {
     return row.currentBalanceCents;
   }
 
-  tearDownAll(() async {
-    // 测试数据生命周期收尾:删独立测试库(种子+夹具全清,用户真实库不动)。
-    try {
-      final support = await getApplicationSupportDirectory();
-      final f = File('${support.path}/yucai_test.db');
-      if (await f.exists()) await f.delete();
-    } catch (_) {}
-  });
+  // 测试数据生命周期收尾:close 后删独立测试库(Windows 句柄修复版,
+  // 种子+夹具全清,用户真实库不动)。
+  tearDownAll(deleteTestDb);
 
   testWidgets('链路①借款还款:储蓄 −1,250 / 期次已还持久化(复式入账)', (t) async {
     final before = await bal(cashId); // 290,000.00(200k+100k−10k)

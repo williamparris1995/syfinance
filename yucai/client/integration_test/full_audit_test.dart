@@ -23,6 +23,8 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 
+import 'link_support.dart' show deleteTestDb;
+
 /// 审计发现(C 类):占位/未实现/可疑提示。
 final findings = <String>[];
 /// 硬失败明细(A/B 类)。
@@ -105,6 +107,10 @@ Future<void> main() async {
     await configureDependencies();
     await seedDemoData(getIt<AppDatabase>());
   });
+
+  // 测试数据生命周期收尾(F14-T2 补):close 后删独立测试库
+  // (Windows 句柄修复版,种子全清,用户真实库不动)。
+  tearDownAll(deleteTestDb);
 
   Future<void> pumpApp(WidgetTester t) async {
     await t.pumpWidget(const YuCaiApp());

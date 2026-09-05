@@ -19,6 +19,8 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 
+import 'link_support.dart' show deleteTestDb;
+
 Future<void> _pumpPage(WidgetTester t, String label) async {
   await t.tap(find.text(label));
   await t.pumpAndSettle(const Duration(seconds: 2));
@@ -54,14 +56,9 @@ void main() {
     await seedDemoData(getIt<AppDatabase>());
   });
 
-  tearDownAll(() async {
-    // 测试数据生命周期收尾:删独立测试库(种子+夹具全清,用户真实库不动)。
-    try {
-      final support = await getApplicationSupportDirectory();
-      final f = File('${support.path}/yucai_test.db');
-      if (await f.exists()) await f.delete();
-    } catch (_) {}
-  });
+  // 测试数据生命周期收尾:close 后删独立测试库(Windows 句柄修复版,
+  // 种子+夹具全清,用户真实库不动)。
+  tearDownAll(deleteTestDb);
 
   testWidgets('首页仪表盘:净资产/流动资产/收入/期次/预算/目标(手算 oracle)', (t) async {
     await t.pumpWidget(const YuCaiApp());
