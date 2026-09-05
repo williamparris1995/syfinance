@@ -221,6 +221,94 @@ func (r *DebtRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) err
 	return nil
 }
 
+// UpsertForSync applies one offline-sync push for a single debt (header +
+// nested payment schedule): find by id+tenant, then a full-field update with
+// the schedule fully replaced (delete old, insert new — the client is the
+// single-device source of truth and its version is trusted per F11 v1) or a
+// create via Save with the client-supplied id. Tx-aware via clientFor.
+func (r *DebtRepository) UpsertForSync(ctx context.Context, d *domain.DebtDetails) error {
+	// Schedule rows are scoped by debt_id; force the header id so a malformed
+	// payload cannot orphan schedule rows onto another debt.
+	for i := range d.Schedule {
+		d.Schedule[i].DebtID = d.ID
+	}
+
+	c := r.clientFor(ctx)
+	_, err := c.DebtDetails.Query().
+		Where(debtdetails.ID(d.ID), debtdetails.TenantID(d.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		if _, err := c.PaymentSchedule.Delete().
+			Where(paymentschedule.DebtID(d.ID)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("sync replace schedule for debt %s: %w", d.ID, err)
+		}
+		for _, entry := range d.Schedule {
+			create := c.PaymentSchedule.Create().
+				SetID(entry.ID).
+				SetDebtID(entry.DebtID).
+				SetPaymentDate(entry.PaymentDate).
+				SetPrincipalCents(entry.PrincipalCents).
+				SetInterestCents(entry.InterestCents).
+				SetTotalCents(entry.TotalCents).
+				SetPaid(entry.Paid).
+				SetPaidCents(entry.PaidCents)
+			if entry.TransactionID != nil {
+				create.SetTransactionID(*entry.TransactionID)
+			}
+			if _, err := create.Save(ctx); err != nil {
+				return fmt.Errorf("sync insert schedule: %w", err)
+			}
+		}
+		// AccountID is immutable (ent schema) — the debt's parent account is
+		// set at create and cannot move on the sync update path.
+		if _, err := c.DebtDetails.UpdateOneID(d.ID).
+			SetCounterparty(d.Counterparty).
+			SetInterestRate(d.InterestRate).
+			SetAmortizationMethod(d.AmortizationMethod.String()).
+			SetStartDate(d.StartDate).
+			SetDueDate(d.DueDate).
+			SetTotalPrincipalCents(d.TotalPrincipalCents).
+			SetDebtType(d.DebtType.String()).
+			SetSubtype(d.Subtype).
+			SetContact(d.Contact).
+			SetContractRef(d.ContractRef).
+			SetNillableCollectionAccountID(d.CollectionAccountID).
+			SetVersion(d.Version).
+			SetUpdatedAt(d.UpdatedAt).
+			Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert debt %s: %w", d.ID, err)
+		}
+		return nil
+	case debtent.IsNotFound(err):
+		return r.Save(ctx, d) // create with the client-supplied id
+	default:
+		return fmt.Errorf("sync find debt %s: %w", d.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one debt and its payment schedule on
+// the offline-sync DELETE path (single-device hard-delete semantics; debts
+// have no soft-delete column). Schedule first, then the header — mirroring
+// DeleteByTenant's FK ordering, but with the schedule-delete error checked.
+// Idempotent by design: a tombstone for an already-absent debt is a no-op so
+// re-delivery never fails the batch (FR-3).
+func (r *DebtRepository) HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error {
+	c := r.clientFor(ctx)
+	if _, err := c.PaymentSchedule.Delete().
+		Where(paymentschedule.DebtID(id)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync delete schedule for debt %s: %w", id, err)
+	}
+	if _, err := c.DebtDetails.Delete().
+		Where(debtdetails.ID(id), debtdetails.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete debt %s: %w", id, err)
+	}
+	return nil
+}
+
 // FindAllForBackup returns every debt for a tenant with its payment schedule
 // eager-loaded in a single batched query (loadSchedulesByDebt, avoiding the N+1
 // read that the per-debt FindAll loop would incur). Backup export is the only

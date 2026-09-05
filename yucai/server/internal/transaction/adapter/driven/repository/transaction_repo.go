@@ -512,6 +512,96 @@ func (r *TransactionRepository) DeleteByTenant(ctx context.Context, tenantID uui
 	return nil
 }
 
+// UpsertForSync applies one offline-sync push for a single transaction
+// (header + nested entries): find by id+tenant (soft-deleted rows included —
+// an upsert from the client, the single-device source of truth, resurrects
+// them), then a full-field update with the entry set fully replaced (delete
+// old, insert new — same replace semantics as Update, minus the optimistic
+// lock: sync trusts the client version per F11 v1) or a create via Save with
+// the client-supplied id. Tx-aware via clientFor.
+func (r *TransactionRepository) UpsertForSync(ctx context.Context, tx *domain.Transaction) error {
+	// Entry rows are scoped by transaction_id only; force the header id so a
+	// malformed payload cannot orphan entries onto another transaction.
+	for i := range tx.Entries {
+		tx.Entries[i].TransactionID = tx.ID
+	}
+
+	c := r.clientFor(ctx)
+	_, err := c.Transaction.Query().
+		Where(transaction.ID(tx.ID), transaction.TenantID(tx.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		if _, err := c.TransactionEntry.Delete().
+			Where(txnentryent.TransactionID(tx.ID)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("sync replace entries for %s: %w", tx.ID, err)
+		}
+		if err := r.insertEntries(ctx, c, tx.Entries); err != nil {
+			return err
+		}
+		update := c.Transaction.UpdateOneID(tx.ID).
+			SetTransactionDate(tx.TransactionDate).
+			SetDescription(tx.Description).
+			SetVersion(tx.Version).
+			SetUpdatedAt(tx.UpdatedAt).
+			ClearDeletedAt() // client truth says the row is alive
+		if tx.TransactionTime != nil {
+			update = update.SetTransactionTime(*tx.TransactionTime)
+		} else {
+			update = update.ClearTransactionTime()
+		}
+		if _, err := update.Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert transaction %s: %w", tx.ID, err)
+		}
+		return nil
+	case txnent.IsNotFound(err):
+		return r.Save(ctx, tx) // create with the client-supplied id
+	default:
+		return fmt.Errorf("sync find transaction %s: %w", tx.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one transaction and its entries on the
+// offline-sync DELETE path (single-device hard-delete semantics; the
+// soft-delete column is a server-only concept, never used here). Entries go
+// first to satisfy the in-module FK, mirroring DeleteByTenant's ordering.
+// Idempotent by design: a tombstone for an already-absent row is a no-op so
+// re-delivery never fails the batch (FR-3).
+func (r *TransactionRepository) HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error {
+	c := r.clientFor(ctx)
+	if _, err := c.TransactionEntry.Delete().
+		Where(txnentryent.TransactionID(id)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync delete entries for transaction %s: %w", id, err)
+	}
+	if _, err := c.Transaction.Delete().
+		Where(transaction.ID(id), transaction.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete transaction %s: %w", id, err)
+	}
+	return nil
+}
+
+// insertEntries bulk-creates entry rows on the given (tx-bound) client. Shared
+// by UpsertForSync's replace path.
+func (r *TransactionRepository) insertEntries(ctx context.Context, c *txnent.Client, entries []domain.TransactionEntry) error {
+	for _, e := range entries {
+		if _, err := c.TransactionEntry.Create().
+			SetID(e.ID).
+			SetTransactionID(e.TransactionID).
+			SetAccountID(e.AccountID).
+			SetChartOfAccountCode(e.ChartOfAccountCode).
+			SetDebitCents(e.DebitCents).
+			SetCreditCents(e.CreditCents).
+			SetNote(e.Note).
+			Save(ctx); err != nil {
+			return fmt.Errorf("insert entry: %w", err)
+		}
+	}
+	return nil
+}
+
 // TransactionSummary aggregates a tenant's income/expense flows for a period
 // selected by scope.Scope, broken down by bucket (day/month/single) and by
 // Income/Expense account (the account-as-category breakdown). It runs a single

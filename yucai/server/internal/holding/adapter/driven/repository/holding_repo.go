@@ -184,6 +184,68 @@ func (r *HoldingRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UU
 	return nil
 }
 
+// UpsertForSync applies one offline-sync push for a single holding position:
+// find by id+tenant, then a full-field update trusting the client version per
+// F11 v1 — no optimistic lock on this path — or a create with the
+// client-supplied id. Deliberately keyed by entity id (NOT the
+// account+security pair SaveOrUpdate uses): the client row id is the sync
+// identity, and the (account, security) pair may not exist server-side yet.
+// Tx-aware via clientFor.
+func (r *HoldingRepository) UpsertForSync(ctx context.Context, h *domain.Holding) error {
+	c := r.clientFor(ctx)
+	_, err := c.Holding.Query().
+		Where(holding.ID(h.ID), holding.TenantID(h.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		// AccountID/SecurityID are immutable (ent schema) — position identity
+		// set at create; an update only refreshes quantity/cost/version.
+		if _, err := c.Holding.UpdateOneID(h.ID).
+			SetQuantity(h.Quantity).
+			SetAvgCostCents(h.AvgCostCents).
+			SetVersion(h.Version).
+			SetUpdatedAt(h.UpdatedAt).
+			Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert holding %s: %w", h.ID, err)
+		}
+		return nil
+	case holdingent.IsNotFound(err):
+		create := c.Holding.Create().
+			SetID(h.ID).SetTenantID(h.TenantID).
+			SetAccountID(h.AccountID).SetSecurityID(h.SecurityID).
+			SetQuantity(h.Quantity).SetAvgCostCents(h.AvgCostCents).
+			SetVersion(h.Version).SetUpdatedAt(h.UpdatedAt)
+		// Explicit CreatedAt passthrough (mirror SaveOrUpdate): a zero value
+		// falls back to ent's Default(time.Now).
+		if !h.CreatedAt.IsZero() {
+			create = create.SetCreatedAt(h.CreatedAt)
+		}
+		if _, err := create.Save(ctx); err != nil {
+			return fmt.Errorf("sync create holding %s: %w", h.ID, err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("sync find holding %s: %w", h.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one holding position on the
+// offline-sync DELETE path (single-device hard-delete semantics; holdings have
+// no soft-delete column). Idempotent by design: a tombstone for an
+// already-absent position is a no-op so re-delivery never fails the batch
+// (FR-3). The append-only trade ledger rows are NOT deleted: they are linked
+// by tenant+account+security (no FK) and represent trade history — the same
+// rows survive a position drop everywhere else in the module. The future
+// holding_ledger sync writer owns their lifecycle.
+func (r *HoldingRepository) HardDeleteForSync(ctx context.Context, tenantID, holdingID uuid.UUID) error {
+	if _, err := r.clientFor(ctx).Holding.Delete().
+		Where(holding.ID(holdingID), holding.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete holding %s: %w", holdingID, err)
+	}
+	return nil
+}
+
 var _ domain.HoldingRepository = (*HoldingRepository)(nil)
 
 // AccountReferenceSourceName implements the account module's

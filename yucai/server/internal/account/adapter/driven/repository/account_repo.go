@@ -292,6 +292,94 @@ func (r *AccountRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UU
 	return nil
 }
 
+// UpsertForSync applies one offline-sync push for a single account: find by
+// id+tenant (soft-deleted rows included — an upsert from the client, which is
+// the single-device source of truth, resurrects them), then either a
+// full-field update trusting the client-supplied version (no optimistic lock:
+// sync owns the row, v1 semantics per F11 spec) or a create with the
+// client-supplied id (the Save path). Tx-aware via clientFor so the whole sync
+// batch joins one sqltx transaction.
+func (r *AccountRepository) UpsertForSync(ctx context.Context, a *domain.Account) error {
+	c := r.clientFor(ctx)
+	_, err := c.Account.Query().
+		Where(accountent.ID(a.ID), accountent.TenantID(a.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		update := c.Account.UpdateOneID(a.ID).
+			SetName(a.Name).
+			SetAccountType(accountent.AccountType(a.AccountType.String())).
+			SetCategory(accountent.Category(a.Category.String())).
+			SetCurrencyCode(a.CurrencyCode).
+			SetInitialBalanceCents(a.InitialBalanceCents).
+			SetCurrentBalanceCents(a.CurrentBalanceCents).
+			SetOwnership(accountent.Ownership(a.Ownership.String())).
+			SetIcon(a.Icon).
+			SetColor(a.Color).
+			SetIsSystem(a.IsSystem).
+			SetSortOrder(a.SortOrder).
+			SetChartCode(a.ChartCode).
+			SetInstitution(a.Institution).
+			SetCreditLimitCents(a.CreditLimitCents).
+			SetCardNumberTail(a.CardNumberTail).
+			SetNotes(a.Notes).
+			SetNillableOpeningDate(a.OpeningDate).
+			SetNillableInterestRate(a.InterestRate).
+			SetNillableCreditBillingDay(a.CreditBillingDay).
+			SetNillableCreditRepaymentDay(a.CreditRepaymentDay).
+			SetNillableCreditAnnualFeeCents(a.CreditAnnualFeeCents).
+			SetNillableInvestCostCents(a.InvestCostCents).
+			SetNillableInvestMarketValueCents(a.InvestMarketValueCents).
+			SetNillableInvestReturnYtd(a.InvestReturnYtd).
+			SetNillableFixedPrincipalCents(a.FixedPrincipalCents).
+			SetNillableFixedStartDate(a.FixedStartDate).
+			SetNillableFixedMaturityDate(a.FixedMaturityDate).
+			SetNillableFixedTermMonths(a.FixedTermMonths).
+			SetGoldProductType(a.GoldProductType).
+			SetNillableGoldQuantity(a.GoldQuantity).
+			SetNillableGoldBuyPriceCents(a.GoldBuyPriceCents).
+			SetNillableGoldCurrentPriceCents(a.GoldCurrentPriceCents).
+			SetNillableEstatePurchasePriceCents(a.EstatePurchasePriceCents).
+			SetNillableEstateCurrentValueCents(a.EstateCurrentValueCents).
+			SetNillableEstatePurchaseDate(a.EstatePurchaseDate).
+			SetNillableEstateDepreciationRate(a.EstateDepreciationRate).
+			SetNillableLoanOriginalCents(a.LoanOriginalCents).
+			SetNillableLoanRemainingCents(a.LoanRemainingCents).
+			SetNillableLoanMonthlyCents(a.LoanMonthlyCents).
+			SetNillableLoanNextPaymentDate(a.LoanNextPaymentDate).
+			SetStatus(accountent.Status(a.Status.String())).
+			SetNillableParentID(a.ParentID).
+			SetVersion(a.Version).
+			SetUpdatedAt(a.UpdatedAt).
+			ClearDeletedAt() // client truth says the row is alive
+		if _, err := update.Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert account %s: %w", a.ID, err)
+		}
+		return nil
+	case ent.IsNotFound(err):
+		return r.Save(ctx, a) // create with the client-supplied id
+	default:
+		return fmt.Errorf("sync find account %s: %w", a.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one account on the offline-sync DELETE
+// path (single-device hard-delete semantics; the soft-delete column is a
+// server-only concept and is deliberately not used here). Idempotent by
+// design: deleting an already-absent row is a no-op so a re-delivered
+// tombstone never fails the batch (FR-3). Accounts have no in-module child
+// rows (categories are peer account rows), so no cascade is needed.
+// Cross-module referencers are cleaned by their own writers following the
+// dependents-first delete order in the sync service.
+func (r *AccountRepository) HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error {
+	if _, err := r.clientFor(ctx).Account.Delete().
+		Where(accountent.ID(id), accountent.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete account %s: %w", id, err)
+	}
+	return nil
+}
+
 func toDomainAccount(a *ent.Account) *domain.Account {
 	result := &domain.Account{
 		ID:                       a.ID,

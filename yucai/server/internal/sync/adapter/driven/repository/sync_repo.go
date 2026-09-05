@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/sqltx"
 	"github.com/yucai/server/internal/sync/domain"
 	syncent "github.com/yucai/server/internal/sync/ent"
 	"github.com/yucai/server/internal/sync/ent/syncconflict"
@@ -22,9 +23,20 @@ func NewSyncLogRepository(client *syncent.Client) *SyncLogRepository {
 	return &SyncLogRepository{client: client}
 }
 
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx — PushChanges wraps the whole batch in
+// one) it returns a tx-bound client whose writes join the outer transaction;
+// otherwise it returns the default r.client.
+func (r *SyncLogRepository) clientFor(ctx context.Context) *syncent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return syncent.NewClient(syncent.Driver(d))
+	}
+	return r.client
+}
+
 // Append adds a new entry to the sync log.
 func (r *SyncLogRepository) Append(ctx context.Context, entry *domain.SyncLogEntry) error {
-	_, err := r.client.SyncLog.Create().
+	_, err := r.clientFor(ctx).SyncLog.Create().
 		SetID(entry.ID).SetTenantID(entry.TenantID).
 		SetEntityType(entry.EntityType).SetEntityID(entry.EntityID).
 		SetOperation(entry.Operation.String()).SetPayload(entry.Payload).
@@ -39,7 +51,7 @@ func (r *SyncLogRepository) Append(ctx context.Context, entry *domain.SyncLogEnt
 
 // FindSince returns sync log entries after the given version.
 func (r *SyncLogRepository) FindSince(ctx context.Context, tenantID uuid.UUID, sinceVersion int64, entityTypes []string) ([]domain.SyncLogEntry, error) {
-	query := r.client.SyncLog.Query().
+	query := r.clientFor(ctx).SyncLog.Query().
 		Where(synclog.TenantID(tenantID), synclog.VersionGT(sinceVersion))
 
 	if len(entityTypes) > 0 {
@@ -64,9 +76,11 @@ func (r *SyncLogRepository) FindSince(ctx context.Context, tenantID uuid.UUID, s
 	return entries, nil
 }
 
-// LatestVersion returns the highest version number for a tenant.
+// LatestVersion returns the highest version number for a tenant. Called from
+// inside the PushChanges transaction (tx-aware via clientFor) so the batch's
+// base version is read under the same lock scope as the appends.
 func (r *SyncLogRepository) LatestVersion(ctx context.Context, tenantID uuid.UUID) (int64, error) {
-	last, err := r.client.SyncLog.Query().
+	last, err := r.clientFor(ctx).SyncLog.Query().
 		Where(synclog.TenantID(tenantID)).
 		Order(syncent.Desc(synclog.FieldVersion)).
 		First(ctx)
@@ -85,6 +99,15 @@ type SyncDeviceRepository struct {
 // NewSyncDeviceRepository creates a new SyncDeviceRepository.
 func NewSyncDeviceRepository(client *syncent.Client) *SyncDeviceRepository {
 	return &SyncDeviceRepository{client: client}
+}
+
+// clientFor returns the ent client appropriate for ctx (joins the PushChanges
+// sqltx transaction when one is open; otherwise the default client).
+func (r *SyncDeviceRepository) clientFor(ctx context.Context) *syncent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return syncent.NewClient(syncent.Driver(d))
+	}
+	return r.client
 }
 
 // Register creates a new sync device.
@@ -114,9 +137,13 @@ func (r *SyncDeviceRepository) FindByID(ctx context.Context, tenantID, deviceID 
 	}, nil
 }
 
-// UpdateSyncVersion updates the device's last sync version.
+// UpdateSyncVersion updates the device's last sync version. Tx-aware via
+// clientFor so it commits or rolls back with the PushChanges batch. Scoped by
+// tenant AND device: a device id from another tenant matches zero rows and is
+// a silent no-op (cross-tenant hygiene for the v1 deviceId fallback).
 func (r *SyncDeviceRepository) UpdateSyncVersion(ctx context.Context, tenantID, deviceID uuid.UUID, version int64) error {
-	_, err := r.client.SyncDevice.UpdateOneID(deviceID).
+	_, err := r.clientFor(ctx).SyncDevice.Update().
+		Where(syncdevice.ID(deviceID), syncdevice.TenantID(tenantID)).
 		SetLastSyncVersion(version).
 		Save(ctx)
 	if err != nil {

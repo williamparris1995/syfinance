@@ -263,6 +263,58 @@ func (r *TagRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) 
 	return nil
 }
 
+// UpsertForSync applies one offline-sync push for a single tag: find by
+// id+tenant (soft-deleted rows included — an upsert from the client, the
+// single-device source of truth, resurrects them), then a full-field update
+// trusting the client version per F11 v1 — no optimistic lock on this path —
+// or a create via Save with the client-supplied id. Tx-aware via clientFor.
+// Tag-transaction junction rows are NOT synced (same scope decision as the
+// backup exporter: they are derivative of transaction existence).
+func (r *TagRepository) UpsertForSync(ctx context.Context, tg *domain.Tag) error {
+	c := r.clientFor(ctx)
+	_, err := c.Tag.Query().
+		Where(tag.ID(tg.ID), tag.TenantID(tg.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		if _, err := c.Tag.UpdateOneID(tg.ID).
+			SetName(tg.Name).
+			SetColor(tg.Color).
+			SetVersion(tg.Version).
+			SetUpdatedAt(tg.UpdatedAt).
+			ClearDeletedAt(). // client truth says the row is alive
+			Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert tag %s: %w", tg.ID, err)
+		}
+		return nil
+	case tagent.IsNotFound(err):
+		return r.Save(ctx, tg) // create with the client-supplied id
+	default:
+		return fmt.Errorf("sync find tag %s: %w", tg.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one tag on the offline-sync DELETE path
+// (single-device hard-delete semantics; the soft-delete used by SoftDelete is
+// a server-only concept, never used here). Junction rows first so no dangling
+// transaction_tag reference survives — mirroring DeleteByTenant's cleanup.
+// Idempotent by design: a tombstone for an already-absent tag is a no-op so
+// re-delivery never fails the batch (FR-3).
+func (r *TagRepository) HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error {
+	c := r.clientFor(ctx)
+	if _, err := c.TransactionTag.Delete().
+		Where(transactiontag.TagIDEQ(id)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync delete transaction_tag junction for tag %s: %w", id, err)
+	}
+	if _, err := c.Tag.Delete().
+		Where(tag.ID(id), tag.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete tag %s: %w", id, err)
+	}
+	return nil
+}
+
 // Compile-time check.
 var _ domain.TagRepository = (*TagRepository)(nil)
 

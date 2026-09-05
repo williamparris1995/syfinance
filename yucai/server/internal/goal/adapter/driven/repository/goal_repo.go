@@ -243,6 +243,94 @@ func (r *GoalRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) err
 	return nil
 }
 
+// UpsertForSync applies one offline-sync push for a single goal: find by
+// id+tenant, then a full-field update (multi-account + multi-debt links fully
+// replaced via the same replaceAccountLinks/replaceDebtLinks helpers Save
+// uses, legacy single-column kept in sync) trusting the client version per
+// F11 v1 — no optimistic lock on this path — or a create via Save with the
+// client-supplied id. Tx-aware via clientFor. Progress snapshots are derived
+// data (recomputed daily) and are never touched by sync.
+func (r *GoalRepository) UpsertForSync(ctx context.Context, g *domain.Goal) error {
+	c := r.clientFor(ctx)
+	_, err := c.Goal.Query().
+		Where(goal.ID(g.ID), goal.TenantID(g.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		update := c.Goal.UpdateOneID(g.ID).
+			SetName(g.Name).
+			SetGoalType(g.GoalType.String()).
+			SetTargetAmountCents(g.TargetAmountCents).
+			SetCurrentAmountCents(g.CurrentAmountCents).
+			SetCurrencyCode(g.CurrencyCode).
+			SetNotes(g.Notes).
+			SetIsCompleted(g.IsCompleted).
+			SetVersion(g.Version).
+			SetUpdatedAt(g.UpdatedAt)
+		if g.Deadline != nil {
+			update.SetDeadline(*g.Deadline)
+		} else {
+			update.ClearDeadline()
+		}
+		if g.CompletedAt != nil {
+			update.SetCompletedAt(*g.CompletedAt)
+		} else {
+			update.ClearCompletedAt()
+		}
+		// Legacy single-column (backwards compat): first linked account if any.
+		if len(g.LinkedAccountIDs) > 0 {
+			update.SetLinkedAccountID(g.LinkedAccountIDs[0])
+		} else {
+			update.ClearLinkedAccountID()
+		}
+		if _, err := update.Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert goal %s: %w", g.ID, err)
+		}
+		if err := r.replaceAccountLinks(ctx, g); err != nil {
+			return err
+		}
+		if err := r.replaceDebtLinks(ctx, g); err != nil {
+			return err
+		}
+		return nil
+	case goalent.IsNotFound(err):
+		return r.Save(ctx, g) // create with the client-supplied id
+	default:
+		return fmt.Errorf("sync find goal %s: %w", g.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one goal and its account/debt link rows
+// on the offline-sync DELETE path (single-device hard-delete semantics; goals
+// have no soft-delete column). Mirrors Delete's ordering but on clientFor so
+// it joins the caller's sqltx transaction. Idempotent by design: a tombstone
+// for an already-absent goal is a no-op so re-delivery never fails the batch
+// (FR-3). Progress snapshots are left in place — same as Delete/DeleteByTenant
+// (derived data; trend history for a re-created id stays meaningful).
+func (r *GoalRepository) HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error {
+	c := r.clientFor(ctx)
+	if _, err := c.GoalAccountLinks.Delete().
+		Where(
+			goalaccountlinks.TenantID(tenantID),
+			goalaccountlinks.GoalIDEQ(id),
+		).Exec(ctx); err != nil {
+		return fmt.Errorf("sync delete goal account links: %w", err)
+	}
+	if _, err := c.GoalDebtLinks.Delete().
+		Where(
+			goaldebtlinks.TenantID(tenantID),
+			goaldebtlinks.GoalIDEQ(id),
+		).Exec(ctx); err != nil {
+		return fmt.Errorf("sync delete goal debt links: %w", err)
+	}
+	if _, err := c.Goal.Delete().
+		Where(goal.ID(id), goal.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete goal %s: %w", id, err)
+	}
+	return nil
+}
+
 // WriteSnapshot upserts a daily progress snapshot for the goal keyed by
 // (tenant_id, goal_id, snapshot_date). Same-day re-runs overwrite
 // current_amount_cents. Snapshot date is normalized to UTC midnight so two
