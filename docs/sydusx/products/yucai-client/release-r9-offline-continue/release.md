@@ -28,10 +28,10 @@
 
 ## Sprint roster
 
-- [x] sprint-1:F10 ✅(`39063da2`)→ F11 ✅(2026-09-03,merge `745a4aa1`,server 线窄幅复线落地增量同步)→ F12 ✅(`a1f015f7`,同步状态徽标)→ F13(依赖序)
+- [x] sprint-1:F10 ✅(`39063da2`)→ F11 ✅(2026-09-03,merge `745a4aa1`,server 线窄幅复线落地增量同步)→ F12 ✅(`a1f015f7`)→ F13 ✅(`7f2345c2`,契约 e2e)
 
 ## done-criteria
 
 四 feature 全 done + 断网续写 e2e 链路绿 + 契约 CURRENT 版本化 + server go test 全绿。
 
-## status: pending
+## status: 功能 done(2026-09-03;done-criteria 全达成:四 feature done+断网续写契约 e2e 绿+契约登记+server go test 全绿)。**待人工验收**:真机绑定→断网记账→回网补同步 对真实 server 的全栈走查(R6 式清单,待用户);多设备/ticket16 线另行立项。
