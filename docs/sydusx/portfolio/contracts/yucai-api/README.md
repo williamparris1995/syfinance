@@ -23,4 +23,5 @@ server 的 `sydusx-design` 在 proto 破坏性改动时:写新 `vN` + 移动 CUR
 
 ## 变更记录
 
+- **2026-09-03(R9 F11,向后兼容)**:`sync/v1 PushChanges` 首次实装——payload bytes=各模块 domain JSON(backup envelope 行同构:PascalCase 键/int 枚举/RFC3339 时间戳),`entity_type`∈8 模块名(account/transaction/debt/budget/goal/holding/tag/template),CREATE/UPDATE=upsert 单设备语义(信任 client version),DELETE=硬删;批次原子(业务表+sync_log 同一事务,任一失败整体回滚);零 proto 改动。消费方 yucai-client F10 OfflineSyncPort 对接(T3)。
 - **2026-08-29(R5 feature H,向后兼容)**:`PortfolioPerformanceResponse` 新增 `ReturnMetric`/`CagrScope` enum + optional 字段 `primary_return_metric=15` / `cagr_scope=16`(server 恒填 XIRR / CURRENT_HOLDINGS_COST_TO_MV)。纯新增 optional,旧 client 无感;**消费方 defer**:client 线收益本地化时随行 `gen-dart` regen 并消费(重命名/tooltip/头部指标切换)。
