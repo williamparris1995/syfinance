@@ -3,7 +3,9 @@
 ///
 /// 链路 A(标签):建 2 标签挂同一交易(其一重复挂)→ getTransactionTags 恰 2
 /// (幂等)→ 移除 1 → 恰 1。全库只有「交易→标签」方向,无按标签反查
-/// (ADR-7 改形,不写反查断言)。
+/// (ADR-7 改形,不写反查断言)。R8 F8 落地反查后,链路 C(标链④⑤)补
+/// 标签维度管道断言(F8 FR-5):list(tagId:) 只剩关联交易(空集/未传严格
+/// 区分)+ summary(tagId:) 口径(含标签计入/不含剔出,空集全零)。
 /// 链路 B(报表):跨 2026-08/09 两月、两个 expense 分类 + 一个 income 分类
 /// 的已知收支夹具 → summary 收入/支出/净额/日均/byDay 手算 oracle;
 /// aggregateCategorySlices(纯函数)聚合占比 oracle;两月窗口互相隔离。
@@ -28,6 +30,7 @@ import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:yucai_client/transaction/domain/value_objects.dart';
 
 import 'link_support.dart';
 
@@ -55,7 +58,16 @@ void main() {
   // 9 月 oracle:income 350,000 / expense 24,300 / net 325,700 / 2 个活跃日。
   // 8 月 oracle:income 280,000 / expense  9,900 / net 270,100 / 2 个活跃日。
   // 资金余额终值 oracle:1,000,000 +630,000 −34,200 = 1,595,800 分。
+  // 标链④⑤(F8 FR-5 标签维度)夹具锚点:反查命中的三笔 ——
+  //   t1(09-10 expense 8,800)/ t3(09-20 expense 12,200)/ t7(08-25 income 280,000)
+  // 跨月 + 跨收支类型,t2/t4/t5/t6 为无(该)标签对照。
   late String t1Id;
+  late String t2Id;
+  late String t3Id;
+  late String t4Id;
+  late String t5Id;
+  late String t6Id;
+  late String t7Id;
 
   // 夹具前基线(demo 种子写在真实运行当月,可能落在 2026-08/09):
   // 全月口径断言用「前後差值」(design 风险表:demo_seed 与夹具耦合 → 差值不断绝对);
@@ -133,12 +145,12 @@ void main() {
         ));
 
     t1Id = (await expense(DateTime.utc(2026, 9, 10), diningId, 8800)).id;
-    await expense(DateTime.utc(2026, 9, 10), transitId, 3300);
-    await expense(DateTime.utc(2026, 9, 20), diningId, 12200);
-    await income(DateTime.utc(2026, 9, 20), 350000);
-    await expense(DateTime.utc(2026, 8, 12), transitId, 5500);
-    await expense(DateTime.utc(2026, 8, 25), diningId, 4400);
-    await income(DateTime.utc(2026, 8, 25), 280000);
+    t2Id = (await expense(DateTime.utc(2026, 9, 10), transitId, 3300)).id;
+    t3Id = (await expense(DateTime.utc(2026, 9, 20), diningId, 12200)).id;
+    t4Id = (await income(DateTime.utc(2026, 9, 20), 350000)).id;
+    t5Id = (await expense(DateTime.utc(2026, 8, 12), transitId, 5500)).id;
+    t6Id = (await expense(DateTime.utc(2026, 8, 25), diningId, 4400)).id;
+    t7Id = (await income(DateTime.utc(2026, 8, 25), 280000)).id;
   });
 
   tearDownAll(deleteTestDb);
@@ -239,5 +251,94 @@ void main() {
         reason: '活跃日集合 = 基线 ∪ 夹具');
     expect(sep.dailyAvgCents, sep.netCents ~/ activeDays.length,
         reason: '日均 = net ~/ 活跃日数(month scope)');
+  });
+
+  // ---- F8 FR-5 链路 C:标签维度管道(list/summary tagId 反查) ----
+
+  testWidgets('标链④list(tagId:)反查:恰关联集(日期降序)+ 空集与未传严格区分',
+      (t) async {
+    // 自包含标签(标链* 前缀):标链筛选 = 反查命中标签;标链空集 = 存在但
+    // 无任何关联(空集对照)。① 遗留在 t1 上的「标链必要」是第三方标签,
+    // 不影响本查询(junction 按 tagId 隔离)。
+    final tagS = await tags.create(name: '标链筛选', color: '#6A1B9A');
+    final tagEmpty = await tags.create(name: '标链空集', color: '#00695C');
+
+    // 命中集:t1(09-10)/ t3(09-20)/ t7(08-25)—— 跨月、expense+income 混合;
+    // t2(09-10 交通)/ t4(09-20 工资)/ t5(08-12)/ t6(08-25)不挂该标签。
+    await tags.addTagToTransaction(tagId: tagS.id, transactionId: t1Id);
+    await tags.addTagToTransaction(tagId: tagS.id, transactionId: t3Id);
+    await tags.addTagToTransaction(tagId: tagS.id, transactionId: t7Id);
+
+    // 命中:恰 3 笔,默认序日期降序(09-20 → 09-10 → 08-25;三日互异,
+    // 同日 tie 的 id 序不参与)。
+    final byTag = await txns.list(ListTransactionsParams(tagId: tagS.id));
+    expect(byTag.transactions.map((x) => x.id).toList(),
+        [t3Id, t1Id, t7Id], reason: 'tagId 反查:恰关联集,日期降序');
+    expect(byTag.totalCount, 3);
+    // 命中集含 income(t7)—— 反查不挑交易类型,只看 junction 关联。
+    expect(byTag.transactions.map((x) => x.description).toSet(),
+        {'标链支出', '标链收入'});
+
+    // 空集标签(存在、junction 无行)→ 空结果;绝不能当「不过滤」处理。
+    final empty = await txns.list(ListTransactionsParams(tagId: tagEmpty.id));
+    expect(empty.transactions, isEmpty, reason: '空集标签 → 空结果(非全量)');
+    expect(empty.totalCount, 0);
+
+    // 未传 tagId = 不过滤:全量含未挂标签的 t2 等(与命中集互补),也含
+    // demo 种子交易 → 断言包含关系而非绝对计数(demo 与夹具耦合,差值口径)。
+    final all = await txns.list(const ListTransactionsParams());
+    expect(
+        all.transactions.map((x) => x.id),
+        containsAll(
+            [t1Id, t2Id, t3Id, t4Id, t5Id, t6Id, t7Id]),
+        reason: '未传 tagId = 不过滤:七笔夹具全量在列');
+    expect(all.totalCount, greaterThan(3),
+        reason: '未传 ≠ 空集:全量条数远超命中集');
+  });
+
+  testWidgets('标链⑤summary(tagId:)口径:含标签计入/不含剔出 + 空集全零 + 默认不变',
+      (t) async {
+    // 自包含标签(不复用④的挂载,本用例独立成立):标链口径挂 t1/t3/t7。
+    final tagC = await tags.create(name: '标链口径', color: '#4A148C');
+    final tagZ = await tags.create(name: '标链零集', color: '#B71C1C');
+    await tags.addTagToTransaction(tagId: tagC.id, transactionId: t1Id);
+    await tags.addTagToTransaction(tagId: tagC.id, transactionId: t3Id);
+    await tags.addTagToTransaction(tagId: tagC.id, transactionId: t7Id);
+
+    // 9 月标签口径:命中集内只有 t1(8,800)+ t3(12,200)两笔支出;
+    // t4 工资(350,000)未挂标签 → 剔出(含标签计入/不含剔出的正反两面)。
+    final sep = await txns.summary(2026, 9,
+        accountId: fundsId, tagId: tagC.id);
+    expect(sep.incomeCents, 0, reason: '9 月标签集无收入:t4 被剔出');
+    expect(sep.expenseCents, 21000, reason: '支出 = 8,800 + 12,200(仅挂标签两笔)');
+    expect(sep.netCents, -21000);
+    // 活跃日 = 标签集内 09-10/09-20 两日 → -21,000 ~/ 2 = -10,500。
+    expect(sep.dailyAvgCents, -21000 ~/ 2);
+    expect(sep.byDay.map((d) => d.date).toList(),
+        ['2026-09-10', '2026-09-20'],
+        reason: 'byDay 同口径:剔出日的行不出现(08 月交易日天然不在 9 月窗)');
+
+    // 8 月标签口径:命中集内仅 t7(280,000 收入)→ 单活跃日,日均 = 净额。
+    final aug = await txns.summary(2026, 8,
+        accountId: fundsId, tagId: tagC.id);
+    expect(aug.incomeCents, 280000, reason: '8 月标签集:t7 计入');
+    expect(aug.expenseCents, 0, reason: '8 月支出(t5/t6)未挂标签 → 剔出');
+    expect(aug.netCents, 280000);
+    expect(aug.dailyAvgCents, 280000, reason: '单活跃日(08-25)→ 日均 = 净额');
+    expect(aug.byDay.map((d) => d.date).toList(), ['2026-08-25']);
+
+    // 空集标签 → 全零聚合(与未传的「全量」严格区分;T1 ADR 口径)。
+    final zero = await txns.summary(2026, 9,
+        accountId: fundsId, tagId: tagZ.id);
+    expect(zero.incomeCents, 0);
+    expect(zero.expenseCents, 0);
+    expect(zero.netCents, 0);
+    expect(zero.dailyAvgCents, 0);
+    expect(zero.byDay, isEmpty, reason: '空集聚合:byDay 亦空(非全量)');
+
+    // 默认口径(无 tagId)逐位不变:同标链② 的全量 oracle 收口对照。
+    final full = await txns.summary(2026, 9, accountId: fundsId);
+    expect(full.incomeCents, 350000, reason: '默认口径:t4 收入照常计入');
+    expect(full.expenseCents, 24300, reason: '默认口径:四笔支出照常计入');
   });
 }

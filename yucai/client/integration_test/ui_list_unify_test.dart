@@ -7,6 +7,15 @@
 ///       隐藏(夹具+demo 共 4 只 < 20/页,取舍见用例注释);
 ///   统UI③ 债务页(FR-4)—— 默认序(到期升序)→ 切金额降序(顺序翻转)+ 搜索收窄;
 ///   统UI④ 账户管理页(FR-5)—— 搜索收窄(账户名)+ 清除恢复。
+/// R8 F8 FR-5 尾追加标签维度三链(标维* 前缀夹具,guest 模式 —— 测试无绑定,
+/// tagFilterAvailable 恒可用,标签控件全量挂载):
+///   统UI⑤ 标签页跳转(FR-3):设置›标签管理 → 点「标维重点」标签卡 → push
+///       /transactions(extra tagId)→ 列表只剩挂该标签的 3 笔(跳转+筛选端到端);
+///   统UI⑥ 交易列表标签下拉(FR-2):全部→标维重点(3 笔)→标维次要(1 笔)
+///       →全部标签恢复(下拉切换列表变化);
+///   统UI⑦ 报表页标签口径(FR-4):锚月(运行当月)汇总条四数字 oracle ——
+///       未选(全部)含 demo 口径 / 选「标维重点」只剩挂标签 3 笔 / 选「标维次要」
+///       只剩 1 笔 / 切回全部恢复。
 ///
 /// 断言用夹具独有串匹配;排序断言用「统UI 前缀守卫」(demo 数据混排不污染
 /// 相对序 oracle,照 link_mutation_cascade 的前缀守卫模式)。
@@ -37,6 +46,7 @@ import 'package:yucai_client/debt/data/debt_local_ds.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/holding/data/holding_local_ds.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/tag/data/tag_repository_impl.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -153,6 +163,73 @@ void main() {
     await createDebt('统UI债乙', 900000, DateTime.utc(2026, 12, 1));
     await createDebt('统UI债丙', 300000, DateTime.utc(2027, 6, 1));
     await createDebt('统UI债丁', 700000, DateTime.utc(2026, 10, 1));
+
+    // ---- 统UI⑤⑥⑦(F8 FR-5 标签维度)夹具:标维* 前缀 + 当月 4 笔 + 2 标签 ----
+    // 当月月中(10/12/20 日)避开月界;标签挂载经 TagLocalDataSource 真管道。
+    //   u1 标维支出甲  expense  12,000(当月 10 日)挂「标维重点」
+    //   u2 标维支出乙  expense  34,500(当月 20 日)挂「标维重点」
+    //   u3 标维收入丙  income  500,000(当月 20 日)挂「标维重点」
+    //   u4 标维支出丁  expense   7,700(当月 12 日)挂「标维次要」
+    // 报表页(锚月=运行当月,scope month)汇总条 oracle(统UI⑦,demo 口径在内):
+    //   未选(全部):income = demo 工资 800,000 + 丙 500,000 = 1,300,000;
+    //                expense = demo 午餐 5,000 + 甲 12,000 + 乙 34,500 + 丁 7,700 = 59,200
+    //                (净额/日均依赖运行日与月初/今日的活跃日并集 → 只断收入/支出)。
+    //   选「标维重点」:income 500,000 / expense 46,500 / net 453,500;
+    //                活跃日 {10, 20} → 日均 453,500 ~/ 2 = 226,750。
+    //   选「标维次要」:income 0 / expense 7,700 / net −7,700;
+    //                单活跃日 {12} → 日均 = 净额 −7,700。
+    final dimTags = TagLocalDataSource(db);
+    final tagFocus = await dimTags.create(name: '标维重点', color: '#6A1B9A');
+    final tagSide = await dimTags.create(name: '标维次要', color: '#00695C');
+    final dimFunds = await fundsAccount('标维钱包', 200000);
+    final dimDining = await accounts.create(const CreateAccountParams(
+      name: '标维餐饮',
+      accountType: AccountType.expense,
+      category: AccountCategory.otherAsset,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      ownership: Ownership.personal,
+    ));
+    final dimIncomeCat = await accounts.create(const CreateAccountParams(
+      name: '标维进账',
+      accountType: AccountType.income,
+      category: AccountCategory.otherAsset,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      ownership: Ownership.personal,
+    ));
+    final dimNow = DateTime.now();
+    // 借记分类/贷记资金(配对复式,照 demo_seed);返回交易 id 供挂标签。
+    Future<String> dimExpense(int day, String desc, int cents) async =>
+        (await txns.recordTransaction(RecordTransactionParams(
+          transactionDate: DateTime(dimNow.year, dimNow.month, day),
+          description: desc,
+          entries: [
+            TransactionEntry(
+                accountId: dimDining.id, debitCents: cents, creditCents: 0),
+            TransactionEntry(
+                accountId: dimFunds, debitCents: 0, creditCents: cents),
+          ],
+        )))
+            .id;
+    final u1Id = await dimExpense(10, '标维支出甲', 12000);
+    final u2Id = await dimExpense(20, '标维支出乙', 34500);
+    final u4Id = await dimExpense(12, '标维支出丁', 7700);
+    final u3Id = (await txns.recordTransaction(RecordTransactionParams(
+      transactionDate: DateTime(dimNow.year, dimNow.month, 20),
+      description: '标维收入丙',
+      entries: [
+        TransactionEntry(
+            accountId: dimFunds, debitCents: 500000, creditCents: 0),
+        TransactionEntry(
+            accountId: dimIncomeCat.id, debitCents: 0, creditCents: 500000),
+      ],
+    )))
+        .id;
+    for (final id in [u1Id, u2Id, u3Id]) {
+      await dimTags.addTagToTransaction(tagId: tagFocus.id, transactionId: id);
+    }
+    await dimTags.addTagToTransaction(tagId: tagSide.id, transactionId: u4Id);
   });
 
   tearDownAll(deleteTestDb);
@@ -392,6 +469,114 @@ void main() {
     expect(find.text('储蓄卡'), findsWidgets, reason: '清除:demo 储蓄卡回列');
     expect(find.text('统UI钱包'), findsWidgets, reason: '清除:统UI钱包回列');
   });
+
+  // ---- F8 FR-5 标签维度三链(标维* 夹具,guest 模式标签控件恒挂载) ----
+
+  testWidgets('统UI⑤标签页跳转:点「标维重点」卡 → 交易列表只剩挂标签 3 笔(端到端)',
+      (t) async {
+    await pumpApp(t);
+    // 标签页路径照 ui_tag_page:设置 → 标签管理。
+    await goPage(t, '设置');
+    final navRow = find.text('标签管理');
+    await t.ensureVisible(navRow.first);
+    await t.pumpAndSettle();
+    await t.tap(navRow.first);
+    await t.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.text('新建标签'), findsWidgets, reason: 'sanity:标签管理页可达');
+
+    // 点「标维重点」标签卡整卡(FR-3:TagCard onOpen → push /transactions 携
+    // tagId extra;guest 模式 tagFilterAvailable 恒 true,入口可点)。
+    expect(find.text('标维重点'), findsWidgets, reason: 'sanity:标维重点卡在列');
+    await t.tap(find.text('标维重点').first);
+    await t.pumpAndSettle(const Duration(seconds: 3));
+
+    // 跳转落地:交易列表页 H1 地标 + 初始筛选已生效(路由 extra → 首查带 tagId)。
+    expect(find.text('交易管理'), findsWidgets, reason: '跳转:交易列表页地标');
+    expect(textContainingRich('标维支出甲'), findsWidgets, reason: '筛选:挂标签甲在列');
+    expect(textContainingRich('标维支出乙'), findsWidgets, reason: '筛选:挂标签乙在列');
+    expect(textContainingRich('标维收入丙'), findsWidgets, reason: '筛选:挂标签丙在列');
+    expect(textContainingRich('标维支出丁'), findsNothing,
+        reason: '筛选:挂「标维次要」的丁离列');
+    expect(textContainingRich('统UI翻101'), findsNothing,
+        reason: '筛选:无标签的统UI翻夹具离列(跨夹具守卫)');
+    expect(find.text('工资'), findsNothing, reason: '筛选:无标签的 demo 工资离列');
+    // 筛选条标签下拉关闭态回显已选标签名(受控状态随初始筛选注入)。
+    expect(find.text('标维重点'), findsWidgets, reason: '筛选条:标签下拉回显已选');
+  });
+
+  testWidgets('统UI⑥交易列表标签下拉:全部→重点(3 笔)→次要(1 笔)→全部恢复', (t) async {
+    await pumpApp(t);
+    await goPage(t, '交易记录');
+
+    // 基线(全部):标维四笔 + 无标签夹具/demo 全量在列(当月+统UI翻 均在第 1 页)。
+    expect(textContainingRich('标维支出甲'), findsWidgets, reason: '基线:甲在列');
+    expect(textContainingRich('标维支出丁'), findsWidgets, reason: '基线:丁在列');
+    expect(textContainingRich('统UI翻101'), findsWidgets, reason: '基线:统UI翻101在列');
+    expect(find.text('工资'), findsWidgets, reason: '基线:demo 工资在列');
+
+    // 选「标维重点」:只剩挂标签甲/乙/丙 3 笔(FR-2 标签反查)。
+    await pickTag(t, closedLabel: '全部标签', itemLabel: '标维重点');
+    expect(textContainingRich('标维支出甲'), findsWidgets, reason: '重点:甲在列');
+    expect(textContainingRich('标维支出乙'), findsWidgets, reason: '重点:乙在列');
+    expect(textContainingRich('标维收入丙'), findsWidgets, reason: '重点:丙在列');
+    expect(textContainingRich('标维支出丁'), findsNothing, reason: '重点:丁离列');
+    expect(textContainingRich('统UI翻101'), findsNothing, reason: '重点:统UI翻101离列');
+    expect(find.text('工资'), findsNothing, reason: '重点:demo 工资离列');
+    expect(find.text('标维重点'), findsWidgets, reason: '重点:下拉关闭态回显');
+
+    // 切「标维次要」:列表翻转成只剩丁 1 笔(下拉切换列表变化)。
+    await pickTag(t, closedLabel: '标维重点', itemLabel: '标维次要');
+    expect(textContainingRich('标维支出丁'), findsWidgets, reason: '次要:丁在列');
+    expect(textContainingRich('标维支出甲'), findsNothing, reason: '次要:甲离列');
+    expect(textContainingRich('标维收入丙'), findsNothing, reason: '次要:丙离列');
+
+    // 切回「全部标签」:全量恢复(甲乙丙丁 + 无标签夹具/demo)。
+    await pickTag(t, closedLabel: '标维次要', itemLabel: '全部标签');
+    expect(textContainingRich('标维支出甲'), findsWidgets, reason: '恢复:甲回列');
+    expect(textContainingRich('标维支出丁'), findsWidgets, reason: '恢复:丁回列');
+    expect(textContainingRich('统UI翻101'), findsWidgets, reason: '恢复:统UI翻101回列');
+    expect(find.text('工资'), findsWidgets, reason: '恢复:demo 工资回列');
+  });
+
+  testWidgets('统UI⑦报表页标签口径:选标签汇总条四数字变化(oracle 夹具)', (t) async {
+    await pumpApp(t);
+    await goPage(t, '报表分析');
+    expect(find.text('报表分析'), findsWidgets, reason: 'sanity:报表页可达');
+
+    // 基线(全部标签,锚月=运行当月,scope month;含 demo 种子口径,见
+    // setUpAll 注释 oracle):income 800,000(demo 工资)+500,000(丙)
+    // = ¥13,000.00;expense 5,000(午餐)+12,000+34,500+7,700 = ¥592.00。
+    // 净额/日均依赖运行日并集活跃日数 → 基线只断收入/支出两口径。
+    expect(find.text('¥ 13,000.00'), findsWidgets,
+        reason: '基线:当月收入 = demo 工资 + 丙(未选标签全量口径)');
+    expect(find.text('¥ 592.00'), findsWidgets,
+        reason: '基线:当月支出 = demo 午餐 + 甲乙丁四笔');
+
+    // 选「标维重点」(FR-4:summary 聚合前按 junction 关联集过滤):
+    // income 500,000 / expense 46,500 / net 453,500 / 日均 453,500~/2=226,750。
+    await pickTag(t, closedLabel: '全部标签', itemLabel: '标维重点');
+    expect(find.text('¥ 5,000.00'), findsWidgets, reason: '重点:收入只剩丙 5,000');
+    expect(find.text('¥ 465.00'), findsWidgets,
+        reason: '重点:支出只剩甲+乙 465(demo 午餐/丁被剔出)');
+    expect(find.text('¥ 4,535.00'), findsWidgets, reason: '重点:结余 = 5,000−465');
+    expect(find.text('¥ 2,267.50'), findsWidgets,
+        reason: '重点:日均 = 453,500 ~/ 2 活跃日(10/20)');
+    expect(find.text('¥ 13,000.00'), findsNothing,
+        reason: '重点:全量口径收入离屏(数字确已变化)');
+
+    // 切「标维次要」:只剩丁 1 笔 —— income 0 / expense 77 / 单活跃日
+    // → 结余=日均=−77(负号口径一并钉死)。
+    await pickTag(t, closedLabel: '标维重点', itemLabel: '标维次要');
+    expect(find.text('¥ 0.00'), findsWidgets, reason: '次要:收入 0(无挂标签收入)');
+    expect(find.text('¥ 77.00'), findsWidgets, reason: '次要:支出只剩丁 77');
+    expect(find.text('-¥ 77.00'), findsWidgets,
+        reason: '次要:结余与日均均 −77(单活跃日,日均=净额)');
+
+    // 切回「全部标签」:全量口径恢复(变化可逆,锚月不动)。
+    await pickTag(t, closedLabel: '标维次要', itemLabel: '全部标签');
+    expect(find.text('¥ 13,000.00'), findsWidgets, reason: '恢复:全量收入回屏');
+    expect(find.text('¥ 592.00'), findsWidgets, reason: '恢复:全量支出回屏');
+  });
 }
 
 /// 分页按钮可用性(照 ui_list_filter.pagerBtnEnabled):经 tooltip 定位祖先
@@ -420,4 +605,22 @@ List<String> debtRowsInOrder(WidgetTester t, {bool includeDemo = false}) {
     for (final w in t.widgetList<Text>(find.byType(Text)))
       if (w.data != null && all.contains(w.data)) w.data!,
   ];
+}
+
+/// 标签下拉切换 helper(F8 FR-2 交易筛选条 / FR-4 报表顶栏共用 TxnTagPicker):
+/// 点关闭态(closedLabel = 当前回显:「全部标签」或已选标签名)展开菜单 →
+/// 点目标菜单项(.last:弹层菜单项在树序靠后,与关闭态同名时取后者)→
+/// 给足真实时间让重载空窗愈合(照 ui_list_filter 筛② flake 注:切换后页面经
+/// Loading→Loaded 重挂,标签选项经 initState 异步预取,Dropdown 的 value 需
+/// 等选项就位后才回显)。
+Future<void> pickTag(WidgetTester t,
+    {required String closedLabel, required String itemLabel}) async {
+  final closed = find.text(closedLabel).first;
+  await t.ensureVisible(closed);
+  await t.pumpAndSettle();
+  await t.tap(closed);
+  await t.pumpAndSettle();
+  await t.tap(find.text(itemLabel).last);
+  await t.pump(const Duration(seconds: 1));
+  await t.pumpAndSettle(const Duration(seconds: 2));
 }
