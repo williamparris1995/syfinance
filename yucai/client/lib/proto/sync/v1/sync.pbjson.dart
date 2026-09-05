@@ -291,3 +291,71 @@ final $typed_data.Uint8List listConflictsResponseDescriptor = $convert.base64Dec
     'ChVMaXN0Q29uZmxpY3RzUmVzcG9uc2USOAoJY29uZmxpY3RzGAEgAygLMhoueXVjYWkuc3luYy'
     '52MS5Db25mbGljdERUT1IJY29uZmxpY3RzEjEKBHBhZ2UYAiABKAsyHS55dWNhaS5jb21tb24u'
     'djEuUGFnZVJlc3BvbnNlUgRwYWdl');
+
+// ---------------------------------------------------------------------------
+// F13(2026-09-05)手工补齐 —— 工具链坏,照 AGENTS.md「wire_gen.go 手改」
+// 惯例处理:protoc 生成物漏掉了 service 描述符,.pbserver.dart 尾部引用的
+// SyncServiceBase$json / SyncServiceBase$messageJson 不在生成输出里(该
+// 休眠桩此前从未被 import,编译期从未暴露)。兄弟模块 20 个 analyzer
+// error 经 flutter analyze 一直可见(仅编译期不可见),本文件同病非孤
+// 例。F13 消费方契约测试需要
+// `extends SyncServiceBase` 在进程内挂假 server,按官方 protoc_plugin 的
+// pbjson 形态补齐这两个常量:纯常量、零行为影响;方法表与 proto/sync/v1/
+// sync.proto 的 `service SyncService` 逐方法对齐(ResolveConflict 的返回
+// 类型为 well-known Empty,descriptor 由 protobuf 包预置,messageJson 不
+// 重复登记 —— 与官方生成器对 well-known 类型的处理一致)。不手搓
+// ServiceDescriptorProto 的 base64(不可校验,且本仓消费路径不用)。
+// ---------------------------------------------------------------------------
+const SyncServiceBase$json = {
+  '1': 'SyncService',
+  '2': [
+    {
+      '1': 'RegisterDevice',
+      '2': '.yucai.sync.v1.RegisterDeviceRequest',
+      '3': '.yucai.sync.v1.RegisterDeviceResponse'
+    },
+    {
+      '1': 'GetSyncStatus',
+      '2': '.yucai.sync.v1.GetSyncStatusRequest',
+      '3': '.yucai.sync.v1.SyncStatusResponse'
+    },
+    {
+      '1': 'PushChanges',
+      '2': '.yucai.sync.v1.PushChangesRequest',
+      '3': '.yucai.sync.v1.PushResponse'
+    },
+    {
+      '1': 'PullChanges',
+      '2': '.yucai.sync.v1.PullChangesRequest',
+      '3': '.yucai.sync.v1.PullChangesResponse'
+    },
+    {
+      '1': 'ResolveConflict',
+      '2': '.yucai.sync.v1.ResolveConflictRequest',
+      '3': '.google.protobuf.Empty'
+    },
+    {
+      '1': 'ListConflicts',
+      '2': '.yucai.sync.v1.ListConflictsRequest',
+      '3': '.yucai.sync.v1.ListConflictsResponse'
+    },
+  ],
+};
+
+final $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
+    SyncServiceBase$messageJson = {
+  '.yucai.sync.v1.SyncPayload': SyncPayload$json,
+  '.yucai.sync.v1.RegisterDeviceRequest': RegisterDeviceRequest$json,
+  '.yucai.sync.v1.RegisterDeviceResponse': RegisterDeviceResponse$json,
+  '.yucai.sync.v1.GetSyncStatusRequest': GetSyncStatusRequest$json,
+  '.yucai.sync.v1.SyncStatusResponse': SyncStatusResponse$json,
+  '.yucai.sync.v1.PushChangesRequest': PushChangesRequest$json,
+  '.yucai.sync.v1.PushResponse': PushResponse$json,
+  '.yucai.sync.v1.PullChangesRequest': PullChangesRequest$json,
+  '.yucai.sync.v1.PullChangesResponse': PullChangesResponse$json,
+  '.yucai.sync.v1.ConflictDTO': ConflictDTO$json,
+  '.yucai.sync.v1.ResolveConflictRequest': ResolveConflictRequest$json,
+  '.yucai.sync.v1.ListConflictsRequest': ListConflictsRequest$json,
+  '.yucai.sync.v1.ListConflictsResponse': ListConflictsResponse$json,
+};
+
