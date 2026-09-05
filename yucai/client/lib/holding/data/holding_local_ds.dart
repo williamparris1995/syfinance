@@ -416,24 +416,43 @@ class HoldingLocalDataSource {
   }) async {
     // Server recordDividend has no cash leg (accepted difference, ADR-1).
     final id = _uuid.v4();
+    final now = DateTime.now().toUtc();
     await _database.transaction(() async {
-      // 台账行无 syncState:离线分红的保留依赖持有头行置 pending(镜像协调
-      // 按 (accountId, securityId) 联动保台账)。无持仓行的裸分红属边角
-      // (server 亦允许)——已知缺口(holistic review S-1):该台账行无 pending
-      // 锚,既不进收集批次,也会被下一次 holding 模块镜像刷新抹掉;
-      // F11 payload 编码时收孤儿台账行或合成 qty=0 头行(ticket 在案)。
       if (markPending) {
         final existing = (await _dao.watchAllHoldings().first)
             .where(
                 (h) => h.accountId == accountId && h.securityId == securityId)
             .firstOrNull;
         if (existing != null) {
+          // 台账行无 syncState:离线分红的保留依赖持有头行置 pending(镜像
+          // 协调按 (accountId, securityId) 联动保台账)。
           await _dao.updateHolding(db.HoldingsCompanion(
             id: Value(existing.id),
             syncState: const Value(SyncState.pending),
           ));
+        } else {
+          // F11 ADR-6(闭环 F10 holistic review S-1「已知缺口」):无头行的
+          // 裸分红在同事务合成 qty=0/avgCost=0 的 pending 头行 —— 纯分红
+          // 持仓占位,server upsert 后与台账并存。它替代了旧注释描述的
+          // 缺口:此前该台账行无 pending 锚,既不进收集批次,也会被下一次
+          // holding 模块镜像刷新抹掉。台账数据本身的上行走未来的
+          // holding_ledger entityType(server HoldingWriter 注释/server 对
+          // 未注册 entityType fail-closed —— T2 钉死),ticket 16;本头行
+          // 即刻承担「收集可见 + 镜像保留」的锚定职责。
+          await _dao.insertHolding(db.HoldingsCompanion.insert(
+            id: _uuid.v4(),
+            accountId: accountId,
+            securityId: securityId,
+            quantity: 0,
+            avgCostCents: 0,
+            version: 1,
+            createdAt: now,
+            updatedAt: now,
+            syncState: const Value(SyncState.pending),
+          ));
         }
       }
+      // guest(markPending=false)裸分红:无上行语义,仅记台账(行为同前)。
       await _dao.insertHoldingTransaction(
           db.HoldingTransactionsCompanion.insert(
         id: id,
@@ -447,7 +466,7 @@ class HoldingLocalDataSource {
         realizedPnlCents: 0,
         tradeDate: _parseDate(tradeDate),
         notes: notes ?? '',
-        createdAt: DateTime.now().toUtc(),
+        createdAt: now,
       ));
     });
     return _txnView((await _dao.getHoldingTransactionById(id))!);

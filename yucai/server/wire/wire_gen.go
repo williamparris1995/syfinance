@@ -258,7 +258,21 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	syncDeviceRepo := provideSyncDeviceRepo(syncClient)
 	syncConflictRepo := provideSyncConflictRepo(syncClient)
 	conflictResolver := provideConflictResolver()
-	syncService := provideSyncService(syncLogRepo, syncDeviceRepo, syncConflictRepo, conflictResolver)
+	// SyncEntityWriter adapters (F11 ADR-1): each writer consumes its module's
+	// repo (all declared above in their own module blocks). provideSyncEntity-
+	// Writers aggregates them into the map the sync Service dispatches on,
+	// keyed by entity_type (= client SyncModule name). db was declared in the
+	// DB module above and backs the PushChanges batch transaction.
+	accountWriter := provideAccountWriter(accountRepo)
+	transactionWriter := provideTransactionWriter(txnRepo)
+	debtWriter := provideDebtWriter(debtRepo)
+	budgetWriter := provideBudgetWriter(budgetRepo)
+	goalWriter := provideGoalWriter(goalRepo)
+	holdingWriter := provideHoldingWriter(holdingRepo)
+	tagWriter := provideTagWriter(tagRepo)
+	templateWriter := provideTemplateWriter(templateRepo)
+	syncEntityWriters := provideSyncEntityWriters(accountWriter, transactionWriter, debtWriter, budgetWriter, goalWriter, holdingWriter, tagWriter, templateWriter)
+	syncService := provideSyncService(syncLogRepo, syncDeviceRepo, syncConflictRepo, conflictResolver, syncEntityWriters, db)
 	syncHandler := provideSyncHandler(syncService)
 
 	// Currency module

@@ -262,6 +262,74 @@ func (r *TemplateRepository) DeleteByTenant(ctx context.Context, tenantID uuid.U
 	return nil
 }
 
+// UpsertForSync applies one offline-sync push for a single template: find by
+// id+tenant, then a full-field update trusting the client version per F11 v1 —
+// no optimistic lock on this path — or a create via Save with the
+// client-supplied id. Tx-aware via clientFor.
+func (r *TemplateRepository) UpsertForSync(ctx context.Context, t *domain.TransactionTemplate) error {
+	c := r.clientFor(ctx)
+	_, err := c.TransactionTemplate.Query().
+		Where(transactiontemplate.ID(t.ID), transactiontemplate.TenantID(t.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		update := c.TransactionTemplate.UpdateOneID(t.ID).
+			SetName(t.Name).
+			SetDescription(t.Description).
+			SetAmountCents(t.AmountCents).
+			SetDirection(t.Direction.String()).
+			SetCycle(t.Cycle.String()).
+			SetCycleDays(t.CycleDays).
+			SetBillingDay(t.BillingDay).
+			SetNextDate(t.NextDate).
+			SetStartDate(t.StartDate).
+			SetAutoRecord(t.AutoRecord).
+			SetPaused(t.Paused).
+			SetCategory(t.Category).
+			SetVersion(t.Version).
+			SetUpdatedAt(t.UpdatedAt)
+		if t.DestinationAccountID != nil {
+			update.SetDestinationAccountID(*t.DestinationAccountID)
+		} else {
+			update.ClearDestinationAccountID()
+		}
+		if t.EndDate != nil {
+			update.SetEndDate(*t.EndDate)
+		} else {
+			update.ClearEndDate()
+		}
+		if t.LastTransactionID != nil {
+			update.SetLastTransactionID(*t.LastTransactionID)
+		} else {
+			update.ClearLastTransactionID()
+		}
+		if _, err := update.Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert template %s: %w", t.ID, err)
+		}
+		return nil
+	case tmplent.IsNotFound(err):
+		return r.Save(ctx, t) // create with the client-supplied id
+	default:
+		return fmt.Errorf("sync find template %s: %w", t.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one template on the offline-sync DELETE
+// path (single-device hard-delete semantics; templates have no soft-delete
+// column — the regular Delete is already hard, this mirrors it on clientFor so
+// it joins the caller's sqltx transaction). Idempotent by design: a tombstone
+// for an already-absent template is a no-op so re-delivery never fails the
+// batch (FR-3). Record-log rows are keyed by template and stay, same as
+// DeleteByTenant (audit history).
+func (r *TemplateRepository) HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error {
+	if _, err := r.clientFor(ctx).TransactionTemplate.Delete().
+		Where(transactiontemplate.ID(id), transactiontemplate.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete template %s: %w", id, err)
+	}
+	return nil
+}
+
 var _ domain.TemplateRepository = (*TemplateRepository)(nil)
 var _ = time.Time{}
 

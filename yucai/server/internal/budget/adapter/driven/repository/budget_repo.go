@@ -315,6 +315,85 @@ func (r *BudgetRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUI
 	return nil
 }
 
+// UpsertForSync applies one offline-sync push for a single budget (header +
+// nested items): find by id+tenant (soft-deleted rows included — an upsert
+// from the client, the single-device source of truth, resurrects them), then a
+// full-field update with the item set fully replaced, or a create via Save
+// with the client-supplied id. The item replace runs inline on clientFor so it
+// joins the caller's sqltx transaction (budget.Update's own r.client.Tx would
+// fight the outer tx). Client version is trusted per F11 v1 — no optimistic
+// lock on this path.
+func (r *BudgetRepository) UpsertForSync(ctx context.Context, b *domain.Budget) error {
+	// Item rows are scoped by budget_id; force the header id so a malformed
+	// payload cannot orphan items onto another budget.
+	for i := range b.Items {
+		b.Items[i].BudgetID = b.ID
+	}
+
+	c := r.clientFor(ctx)
+	_, err := c.Budget.Query().
+		Where(budget.ID(b.ID), budget.TenantID(b.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		if _, err := c.BudgetItem.Delete().
+			Where(budgetitem.BudgetID(b.ID)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("sync replace items for budget %s: %w", b.ID, err)
+		}
+		for _, item := range b.Items {
+			if _, err := c.BudgetItem.Create().
+				SetID(item.ID).
+				SetBudgetID(item.BudgetID).
+				SetAccountID(item.AccountID).
+				SetPlannedAmountCents(item.PlannedAmountCents).
+				SetActualAmountCents(item.ActualAmountCents).
+				SetNotes(item.Notes).
+				Save(ctx); err != nil {
+				return fmt.Errorf("sync insert budget item: %w", err)
+			}
+		}
+		if _, err := c.Budget.UpdateOneID(b.ID).
+			SetName(b.Name).
+			SetMonth(b.Month).
+			SetTotalAmountCents(b.TotalAmountCents).
+			SetCurrencyCode(b.CurrencyCode).
+			SetIsActive(b.IsActive).
+			SetVersion(b.Version).
+			SetUpdatedAt(b.UpdatedAt).
+			ClearDeletedAt(). // client truth says the row is alive
+			Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert budget %s: %w", b.ID, err)
+		}
+		return nil
+	case budgetent.IsNotFound(err):
+		return r.Save(ctx, b) // create with the client-supplied id
+	default:
+		return fmt.Errorf("sync find budget %s: %w", b.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one budget and its items on the
+// offline-sync DELETE path (single-device hard-delete semantics; the
+// soft-delete used by Delete is a server-only concept, never used here).
+// Items first, then the header — mirroring DeleteByTenant's FK ordering.
+// Idempotent by design: a tombstone for an already-absent budget is a no-op
+// so re-delivery never fails the batch (FR-3).
+func (r *BudgetRepository) HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error {
+	c := r.clientFor(ctx)
+	if _, err := c.BudgetItem.Delete().
+		Where(budgetitem.BudgetID(id)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync delete items for budget %s: %w", id, err)
+	}
+	if _, err := c.Budget.Delete().
+		Where(budget.ID(id), budget.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete budget %s: %w", id, err)
+	}
+	return nil
+}
+
 func toDomainBudget(b *budgetent.Budget, items []*budgetent.BudgetItem) *domain.Budget {
 	domainItems := make([]domain.BudgetItem, len(items))
 	for i, item := range items {

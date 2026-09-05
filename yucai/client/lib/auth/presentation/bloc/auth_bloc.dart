@@ -151,5 +151,8 @@ class _NoopBoundMarker implements BoundMarker {
   Future<bool> isBound() async => false;
 
   @override
+  Future<String?> readTenantId() async => null;
+
+  @override
   Future<void> clear() async {}
 }

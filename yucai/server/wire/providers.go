@@ -65,8 +65,10 @@ import (
 	holdingent "github.com/yucai/server/internal/holding/ent"
 	holdingscheduler "github.com/yucai/server/internal/holding/scheduler"
 	syncrepo "github.com/yucai/server/internal/sync/adapter/driven/repository"
+	"github.com/yucai/server/internal/sync/adapter/driven/entitywriter"
 	syncgrpc "github.com/yucai/server/internal/sync/adapter/driving/grpc"
 	syncapp "github.com/yucai/server/internal/sync/application"
+	syncdomain "github.com/yucai/server/internal/sync/domain"
 	syncent "github.com/yucai/server/internal/sync/ent"
 	tagrepo "github.com/yucai/server/internal/tag/adapter/driven/repository"
 	taggrpc "github.com/yucai/server/internal/tag/adapter/driving/grpc"
@@ -727,13 +729,69 @@ func provideSyncConflictRepo(client *syncent.Client) *syncrepo.SyncConflictRepos
 func provideConflictResolver() *syncapp.ConflictResolver {
 	return syncapp.NewConflictResolver()
 }
+
+// provideSyncEntityWriters aggregates the per-module SyncEntityWriter
+// implementations into the map the sync Service dispatches on. Keys are the
+// writer Name() values (= client SyncModule names / proto entity_type values:
+// account/transaction/debt/budget/goal/holding/tag/template — must match the
+// MirrorModule enumeration verbatim). Mirrors provideBackupExporters.
+func provideSyncEntityWriters(
+	account *entitywriter.AccountWriter,
+	transaction *entitywriter.TransactionWriter,
+	debt *entitywriter.DebtWriter,
+	budget *entitywriter.BudgetWriter,
+	goal *entitywriter.GoalWriter,
+	holding *entitywriter.HoldingWriter,
+	tag *entitywriter.TagWriter,
+	template *entitywriter.TemplateWriter,
+) map[string]syncdomain.SyncEntityWriter {
+	return map[string]syncdomain.SyncEntityWriter{
+		account.Name():     account,
+		transaction.Name(): transaction,
+		debt.Name():        debt,
+		budget.Name():      budget,
+		goal.Name():        goal,
+		holding.Name():     holding,
+		tag.Name():         tag,
+		template.Name():    template,
+	}
+}
+
+func provideAccountWriter(repo *accountrepo.AccountRepository) *entitywriter.AccountWriter {
+	return entitywriter.NewAccountWriter(repo)
+}
+func provideTransactionWriter(repo *txnrepo.TransactionRepository) *entitywriter.TransactionWriter {
+	return entitywriter.NewTransactionWriter(repo)
+}
+func provideDebtWriter(repo *debtrepo.DebtRepository) *entitywriter.DebtWriter {
+	return entitywriter.NewDebtWriter(repo)
+}
+func provideBudgetWriter(repo *budgetrepo.BudgetRepository) *entitywriter.BudgetWriter {
+	return entitywriter.NewBudgetWriter(repo)
+}
+func provideGoalWriter(repo *goalrepo.GoalRepository) *entitywriter.GoalWriter {
+	return entitywriter.NewGoalWriter(repo)
+}
+func provideHoldingWriter(repo *holdingsec.HoldingRepository) *entitywriter.HoldingWriter {
+	return entitywriter.NewHoldingWriter(repo)
+}
+func provideTagWriter(repo *tagrepo.TagRepository) *entitywriter.TagWriter {
+	return entitywriter.NewTagWriter(repo)
+}
+func provideTemplateWriter(repo *tmplrepo.TemplateRepository) *entitywriter.TemplateWriter {
+	return entitywriter.NewTemplateWriter(repo)
+}
 func provideSyncService(
 	logRepo *syncrepo.SyncLogRepository,
 	deviceRepo *syncrepo.SyncDeviceRepository,
 	conflictRepo *syncrepo.SyncConflictRepository,
 	resolver *syncapp.ConflictResolver,
+	writers map[string]syncdomain.SyncEntityWriter,
+	db *sql.DB,
 ) *syncapp.Service {
-	return syncapp.NewService(logRepo, deviceRepo, conflictRepo, resolver)
+	// dialect = ent postgres string so sqltx emits "$1" placeholders (same
+	// contract as provideBackupService).
+	return syncapp.NewService(logRepo, deviceRepo, conflictRepo, resolver, writers, db, string(dialect.Postgres))
 }
 func provideSyncHandler(svc *syncapp.Service) *syncgrpc.SyncHandler {
 	return syncgrpc.NewSyncHandler(svc)
