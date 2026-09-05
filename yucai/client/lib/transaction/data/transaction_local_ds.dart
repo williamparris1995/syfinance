@@ -6,6 +6,7 @@ import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
+import 'package:yucai_client/core/localdb/daos/tag_dao.dart';
 import 'package:yucai_client/core/localdb/daos/transaction_dao.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
@@ -33,6 +34,10 @@ class TransactionLocalDataSource {
 
   TransactionDao get _dao => _database.transactionDao;
   AccountDao get _accounts => _database.accountDao;
+
+  // F8 FR-1:标签反查走 AppDatabase 现有 DAO 挂载形态(与 _accounts 同),
+  // junction 查询单点在 TagDao.transactionIdsForTag(ADR-1 单一事实源)。
+  TagDao get _tags => _database.tagDao;
 
   // ---- writes ----
   //
@@ -173,6 +178,12 @@ class TransactionLocalDataSource {
     // trim 后的小写词,与"非空非空白才生效"口径一致。
     final query = p.searchText?.trim() ?? '';
     final searchLower = query.isEmpty ? null : query.toLowerCase();
+    // 标签反查集(F8 FR-1):仅当带 tagId 时查 junction(默认路径零额外查询,
+    // NFR 默认逐位不变);复用 TagDao.transactionIdsForTag 单点方法。
+    Set<String>? txnIdsForTag;
+    if (p.tagId != null) {
+      txnIdsForTag = await _tags.transactionIdsForTag(p.tagId!);
+    }
 
     final all = await _assembleAll();
     var filtered = all.where((t) {
@@ -200,6 +211,13 @@ class TransactionLocalDataSource {
       // 实体 description 非空(缺省 ''),null description 视空串的口径天然满足。
       if (searchLower != null &&
           !t.description.toLowerCase().contains(searchLower)) {
+        return false;
+      }
+      // 标签反查(F8 FR-1/ADR-2:F7 分类/搜索之后插入):交易 id ∈ 标签关联
+      // 集(集合成员判定)。**空集 = 该标签无任何关联交易 → 全部不命中(空
+      // 结果)**,与"未传 tagId(不过滤)"严格区分 —— txnIdsForTag 为 null
+      // 才表示不过滤,绝不能把空集当 null 处理。
+      if (txnIdsForTag != null && !txnIdsForTag.contains(t.id)) {
         return false;
       }
       return true;
@@ -352,12 +370,21 @@ class TransactionLocalDataSource {
     String? accountId,
     SummaryScope scope = SummaryScope.month,
     int? day,
+    String? tagId,
   }) async {
     final window = _windowFor(year, month, scope, day);
     final accounts = {
       for (final a in await _accounts.getAllAccounts())
         a.id: a.accountType, // contract int: 1 asset .. 4 income 5 expense
     };
+    // 标签口径(F8 FR-4):聚合前按 junction 关联集过滤,复用 list() 同一
+    // TagDao.transactionIdsForTag 单点方法(ADR-1 单一事实源);仅当带
+    // tagId 时才查(默认路径零额外查询)。**空集 = 无关联交易 → 空聚合**,
+    // 与"未传 tagId(不过滤)"严格区分(见下方过滤链注释)。
+    Set<String>? txnIdsForTag;
+    if (tagId != null) {
+      txnIdsForTag = await _tags.transactionIdsForTag(tagId);
+    }
     final all = await _assembleAll();
     final scoped = all.where((t) {
       if (t.transactionDate.isBefore(window.$1) ||
@@ -366,6 +393,11 @@ class TransactionLocalDataSource {
       }
       if (accountId != null &&
           !t.entries.any((e) => e.accountId == accountId)) {
+        return false;
+      }
+      // 标签反查(F8 FR-4):交易 id ∈ 标签关联集才计入聚合;空集 → 全部
+      // 剔出(income/expense/byDay 全零);null = 不过滤(默认口径不变)。
+      if (txnIdsForTag != null && !txnIdsForTag.contains(t.id)) {
         return false;
       }
       return true;

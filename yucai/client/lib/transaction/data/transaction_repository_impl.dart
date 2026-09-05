@@ -85,10 +85,14 @@ class TransactionRepositoryImpl implements TransactionRepository {
     String? accountId,
     SummaryScope scope = SummaryScope.month,
     int? day,
+    String? tagId,
   }) =>
+      // tagId 仅透传本地聚合分支(F8 FR-4):junction 联表本地私有且
+      // TransactionSummary proto 尚无标签维度,远端分支不传 —— 与 F7
+      // category/searchText 客户端侧过滤同口径。
       _guard(() => _useLocalDs
           ? _local.summary(year, month,
-              accountId: accountId, scope: scope, day: day)
+              accountId: accountId, scope: scope, day: day, tagId: tagId)
           : _remote.summary(year, month,
               accountId: accountId, scope: scope, day: day));
 

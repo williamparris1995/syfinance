@@ -55,6 +55,8 @@ abstract class TransactionRepository {
   /// account (account-detail view). `scope` (Task 9) selects the aggregation
   /// granularity — [SummaryScope.month] is the default (legacy callers keep
   /// their behaviour); `day` pins the day-of-month for [SummaryScope.day].
+  /// `tagId`(F8 FR-4)可选:仅统计带该标签的交易(聚合前按 junction
+  /// 关联集过滤,本地口径);null = 全量(既有调用零改)。
   /// Backed by the server's `TransactionSummary` RPC.
   Future<Either<Failure, MonthlySummary>> summary(
     int year,
@@ -62,6 +64,7 @@ abstract class TransactionRepository {
     String? accountId,
     SummaryScope scope = SummaryScope.month,
     int? day,
+    String? tagId,
   });
 }
 

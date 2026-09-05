@@ -102,6 +102,7 @@ class ListTransactionsParams {
     this.typeFilter,
     this.category,
     this.searchText,
+    this.tagId,
     this.sortKey = TxnSortKey.date,
     this.sortDir = TxnSortDir.desc,
   });
@@ -131,6 +132,11 @@ class ListTransactionsParams {
   /// 描述模糊搜索(F7 FR-2):contains + 大小写不敏感;DS 层仅在非空非
   /// 空白时生效(null/空白 = 不过滤)。
   final String? searchText;
+
+  /// 标签反查过滤(F8 FR-1):仅返回关联了该标签的交易(id ∈ junction
+  /// 关联集,DS 层内存集合判定)。null = 不过滤;注意**空集**(该标签无
+  /// 任何关联交易)= 空结果,与 null 语义严格区分。
+  final String? tagId;
 
   /// 排序键(F7 FR-3):默认 [TxnSortKey.date]。
   final TxnSortKey sortKey;

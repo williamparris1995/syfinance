@@ -48,6 +48,17 @@ class TagDao extends DatabaseAccessor<AppDatabase> with _$TagDaoMixin {
           .map((row) => row.tagId)
           .watch();
 
+  /// F8 FR-1/design ADR-1 反查单点:标签 → 关联交易 id 集合(junction 一次性
+  /// 查询,免 watch 形态)。transaction DS 的 list/summary 过滤共用此方法
+  /// (单一事实源,NFR)。标签无任何关联交易时返回**空集** —— 调用方口径:
+  /// 空集 = 无关联交易 → 空结果,与"未传 tagId 不过滤"严格区分。
+  Future<Set<String>> transactionIdsForTag(String tagId) async {
+    final rows = await (select(transactionTags)
+          ..where((t) => t.tagId.equals(tagId)))
+        .get();
+    return rows.map((row) => row.transactionId).toSet();
+  }
+
   // ---- F10 T2:syncState 支持(spec FR-3,design ADR-2/ADR-3) ----
 
   /// 镜像协调:delete-all 改为排除 pending(在线全 synced 等价 delete-all)。
