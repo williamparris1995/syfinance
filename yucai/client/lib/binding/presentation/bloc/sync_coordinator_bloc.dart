@@ -352,8 +352,8 @@ class SyncCoordinatorState extends Equatable {
 
   final SyncStatus status;
 
-  /// 实时待同步计数:idle/clean 由计数聚合流维护(构造补扫亦发初值);
-  /// syncing/failed 为本批变更数(collect 权威值)。
+  /// 实时待同步计数(watcher 流权威;syncing 中亦随实时覆盖)—— idle/clean
+  /// 由计数聚合流维护(构造补扫亦发初值)。
   final int pendingCount;
 
   /// failed 态原因。

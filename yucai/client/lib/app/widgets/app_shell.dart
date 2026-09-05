@@ -8,8 +8,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
+import 'package:yucai_client/binding/presentation/widgets/sync_status_badge.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
 /// Branch 元数据:面包屑(section › page)+ list 页创建按钮(label + route)。
@@ -95,7 +98,7 @@ class AppShell extends StatelessWidget {
     // v2 主题语义令牌(R8 F1):亮=晨白 / 暗=墨鎏金。
     final t = context.yucai;
 
-    return LayoutBuilder(
+    final shell = LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 1100) {
           return Scaffold(
@@ -165,6 +168,38 @@ class AppShell extends StatelessWidget {
         );
       },
     );
+
+    // F12 T2:为顶栏 SyncStatusBadge 提供 SyncCoordinatorBloc —— 这是 F10 注册
+    // lazySingleton 以来的**首个生产 resolve 点**,且为条件注入(仅绑定会话,
+    // review 观察 B 根治):guest 会话不 resolve 不构造,恢复 T1「构造即
+    // bound」前提;登录后 shell 随 AuthBloc 发射重建(顶部 context.watch
+    // 驱动,tracker 旗标已由 AuthBloc 处理器同步先置位)→ 此时注入 → 构造期
+    // 补扫(F12 T1,spec FR-3)随首个绑定帧生效。边界:lazySingleton 全程
+    // 同例 —— 登出回 guest 再登录,注入的是已构造实例,不再补扫;该路径由
+    // T1 惰性重订(_onTriggered 顶部 _ensurePendingWatch)覆盖,回网边沿/
+    // 手动重试自然收敛。guest 期万一被构造(测试直构等)亦不订阅计数流、
+    // 不补扫 —— onlineStream 订阅无条件建立,guest 下事件到达即被
+    // _onTriggered 顶部的 guest 检查丢弃(review 观察 A 消歧)。
+    // Provider 形态照 app.dart AuthBloc 先例(非路由 bloc:上层
+    // BlocProvider.value + 消费侧 context 定位);两守卫各护一轴(review
+    // 观察 C 的准确表述):
+    // - 此处守 bloc 轴 —— isRegistered 只探注册不构造,未注册(测试挂
+    //   AppShell 无 DI 图)不 resolve 不包 provider;
+    // - badge 守 tracker 轴 —— tracker 未注册/guest 在 BlocBuilder 之前
+    //   shrink,不进 bloc 查找。
+    // 生产 DI 两注册恒成对(injection.dart 1e/1h 于 UI 前完成),本仓全部
+    // 挂载形态下「tracker 绑定 ⇒ provider 存在」不变式成立。
+    final syncTracker = getIt.isRegistered<SessionModeTracker>()
+        ? getIt<SessionModeTracker>()
+        : null;
+    return (syncTracker != null &&
+            !syncTracker.isGuest &&
+            getIt.isRegistered<SyncCoordinatorBloc>())
+        ? BlocProvider<SyncCoordinatorBloc>.value(
+            value: getIt<SyncCoordinatorBloc>(),
+            child: shell,
+          )
+        : shell;
   }
 
   // branch 元数据(面包屑 section › page + list 页创建按钮)见顶层 _branchMetaOf。
@@ -492,6 +527,9 @@ class _TopBar extends StatelessWidget {
             _BreadCrumb(section: meta.section, page: meta.page),
             // 离线指示(R6 F):connectivity 网关驱动,在线零感知。
             const OfflineBadge(),
+            // 同步状态指示(F12,spec FR-1):仅绑定态渲染(guest 静默);
+            // bloc 由 AppShell 顶层 BlocProvider.value 提供(见 AppShell.build)。
+            const SyncStatusBadge(),
             const Spacer(),
             if (!compact)
               SizedBox(
