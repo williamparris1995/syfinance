@@ -145,8 +145,9 @@ class ListTransactionsParams {
   final TxnSortDir sortDir;
 
   /// True when the params carry no narrowing filter (server-side fields only;
-  /// typeFilter/category/searchText and the sort knobs are client-side so
-  /// they are excluded).
+  /// typeFilter/category/searchText/tagId and the sort knobs are client-side
+  /// so they are excluded — tagId filters via the local junction set, so a
+  /// tagId-only query still counts as unfiltered server-side).
   bool get isUnfilteredServerSide =>
       (accountId == null || accountId!.isEmpty) &&
       dateFrom == null &&

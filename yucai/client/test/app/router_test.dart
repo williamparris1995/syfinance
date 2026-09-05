@@ -63,10 +63,14 @@ import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
+import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
+import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
+import 'package:yucai_client/tag/presentation/bloc/tag_bloc.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
@@ -75,6 +79,7 @@ class _MockSummaryRepo extends Mock implements ReceivablesSummaryRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 class _MockBudgetRepo extends Mock implements BudgetRepository {}
 class _MockGoalRepo extends Mock implements GoalRepository {}
+class _MockTagRepo extends Mock implements TagRepository {}
 class _MockOidcLogin extends Mock implements OidcLoginUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
@@ -801,6 +806,43 @@ void main() {
     // 非保留字的真实 id 仍命中详情页(ShellRoute 内 :id),未被 trade/new 抢占。
     expect(find.byType(HoldingDetailPage), findsOneWidget);
     expect(find.byType(TradeSheetPage), findsNothing);
+  });
+  // F8 FR-3/ADR-4:标签页卡 onTap → push /transactions(extra 携 tagId)→
+  // 路由 builder 构造初始 filter 注入 TransactionsPage(首查 list 带 tagId)。
+  testWidgets('标签页 tap 标签卡 → /transactions 以 tagId 初始筛选首查',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    // /settings/tags 路由 create getIt<TagBloc>() → 需注册 TagRepository +
+    // TagBloc 工厂(router_test 的 getIt.reset() 不含 tag 模块注册)。
+    final tagRepo = _MockTagRepo();
+    when(() => tagRepo.list()).thenAnswer((_) async => const dartz.Right(
+        [Tag(id: 'tag-1', name: '日常', color: '#b08d57', version: 1)]));
+    getIt.registerSingleton<TagRepository>(tagRepo);
+    getIt.registerFactory<TagBloc>(() => TagBloc(tagRepo));
+
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/settings/tags');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('日常'), findsOneWidget);
+
+    await tester.tap(find.text('日常'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // push 是指令式压栈(currentConfiguration 仍指向基座 location),以
+    // TransactionsPage 渲染在栈顶为准。
+    expect(find.byType(TransactionsPage), findsOneWidget);
+    // 初始 filter 注入:首查 list 的 params.tagId = extra 携带的标签 id。
+    final captured = verify(() => getIt<TransactionRepository>().list(captureAny()))
+        .captured
+        .cast<ListTransactionsParams>();
+    expect(captured.last.tagId, 'tag-1',
+        reason: '路由 builder 应把 extra tagId 转成 TxnFilterState.tagId 首查');
   });
 }
 

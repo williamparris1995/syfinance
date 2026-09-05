@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
+import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 /// 交易筛选状态（snapshot）。由列表页持有，变化时通过 [onChanged] 回调。
@@ -11,6 +16,7 @@ class TxnFilterState {
     this.accountId,
     this.category,
     this.month,
+    this.tagId,
     this.searchText,
     this.sortKey = TxnSortKey.date,
     this.sortDir = TxnSortDir.desc,
@@ -30,6 +36,10 @@ class TxnFilterState {
   /// 限定月份（YYYY-MM）；null = 全部月份。
   final String? month;
 
+  /// 限定标签 id（F8 FR-2,标签反查）;null = 全部标签。v1 单选(多标签组合
+  /// 筛选 AND/OR 见 spec Scope boundary backlog)。
+  final String? tagId;
+
   /// 描述模糊搜索词（F7 FR-2）；null = 不搜索。空串/空白由 DS 层容错为不过滤。
   final String? searchText;
 
@@ -44,6 +54,7 @@ class TxnFilterState {
       accountId == null &&
       category == null &&
       month == null &&
+      tagId == null &&
       (searchText == null || searchText!.isEmpty) &&
       sortKey == TxnSortKey.date &&
       sortDir == TxnSortDir.desc;
@@ -53,6 +64,7 @@ class TxnFilterState {
     Object? accountId = _sentinel,
     Object? category = _sentinel,
     Object? month = _sentinel,
+    Object? tagId = _sentinel,
     Object? searchText = _sentinel,
     TxnSortKey? sortKey,
     TxnSortDir? sortDir,
@@ -62,6 +74,7 @@ class TxnFilterState {
       accountId: identical(accountId, _sentinel) ? this.accountId : accountId as String?,
       category: identical(category, _sentinel) ? this.category : category as String?,
       month: identical(month, _sentinel) ? this.month : month as String?,
+      tagId: identical(tagId, _sentinel) ? this.tagId : tagId as String?,
       searchText: identical(searchText, _sentinel)
           ? this.searchText
           : searchText as String?,
@@ -272,10 +285,113 @@ class TxnSortControl extends StatelessWidget {
   }
 }
 
+/// F8 交付物 4(T1 review 观察 1):标签筛选控件可用性判定。
+///
+/// **boundRemote(在线绑定)态隐藏**:标签↔交易 junction(transaction_tags
+/// 联表)是本地私有数据,不在备份/同步契约内;远端 ListTransactions /
+/// TransactionSummary proto 亦无标签维度 —— 绑定在线态管道走远端,tagId 会被
+/// **静默忽略**,UI 上「选了没反应」是必然结果。与其展示一个无效控件,不如
+/// 隐藏(对用户诚实)。guest / boundOffline 走本地 drift 管道,标签过滤
+/// 完整生效,正常展示。
+///
+/// tracker 未注册(无 DI 图的测试挂载)视同可用:tracker 的乐观默认即
+/// guest(本地),与无 DI 环境语义一致(照 sync_status_badge 的 guarded getIt
+/// 惯例,测试挂载静默降级而非崩)。
+bool tagFilterAvailable() {
+  final it = GetIt.instance;
+  if (!it.isRegistered<SessionModeTracker>()) return true;
+  return it<SessionModeTracker>().resolveDataRoute() != DataRoute.boundRemote;
+}
+
+/// 标签选项拉取(F8 FR-2/ADR-3):[TxnTagPicker] 使用。
+///
+/// RepositoryProvider 优先(测试注入),getIt 回退(生产);未注册/失败一律
+/// 空选项(下拉退化为仅「全部标签」,不阻塞页面)。与 transactions_page
+/// `_loadAccounts` 同模式。
+Future<List<Tag>> _loadTagOptions(BuildContext context) async {
+  TagRepository? repo;
+  try {
+    repo = RepositoryProvider.of<TagRepository>(context);
+  } catch (_) {
+    repo = null;
+  }
+  try {
+    repo ??= GetIt.instance<TagRepository>();
+  } catch (_) {}
+  if (repo == null) return const [];
+  try {
+    final result = await repo.list();
+    return result.fold((_) => const [], (list) => list);
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// 标签筛选下拉(F8 FR-2/ADR-3):选项 = TagRepository.list 实时,「全部标签」
+/// 为清空态(value '' → onChanged(null),与账户/分类 [_Picker] 口径一致)。
+///
+/// 取数时机选 **initState 预取**(简于「下拉打开时取」:Dropdown 的 itemBuilder
+/// 是同步回调,打开时取需另做异步弹出层;标签量级几十条(design Risks
+/// 「TagRepository.list 轻量」),预取开销可忽略)。
+///
+/// boundRemote 态自隐藏(交付物 4,论证见 [tagFilterAvailable]);本控件也被
+/// 报表页头部复用(F8 FR-4/ADR-5「同 ADR-3 控件复用」)。
+class TxnTagPicker extends StatefulWidget {
+  const TxnTagPicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  /// 当前选中标签 id;null = 全部标签。
+  final String? value;
+
+  /// 选择回调;null = 选了「全部标签」(清空)。
+  final ValueChanged<String?> onChanged;
+
+  @override
+  State<TxnTagPicker> createState() => _TxnTagPickerState();
+}
+
+class _TxnTagPickerState extends State<TxnTagPicker> {
+  List<FilterOption> _options = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOptions();
+  }
+
+  Future<void> _fetchOptions() async {
+    final tags = await _loadTagOptions(context);
+    if (!mounted) return;
+    setState(() {
+      _options = [for (final t in tags) FilterOption(t.id, t.name)];
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // boundRemote 隐藏(F8 交付物 4):论证见 tagFilterAvailable()。
+    if (!tagFilterAvailable()) return const SizedBox.shrink();
+    // value 暂不在选项中(异步预取未完成/标签已被删)时先显示清空态 ——
+    // DropdownButton 断言「value 必须在 items 中」,直接透传会崩。
+    final v = widget.value;
+    final resolvable = v == null || _options.any((o) => o.value == v);
+    return _Picker(
+      label: '标签',
+      value: resolvable ? v : null,
+      options: _options,
+      onChanged: widget.onChanged,
+    );
+  }
+}
+
 /// 交易列表筛选栏。
 ///
 /// 组成：搜索框 + 类型分段（全部/收入/支出/转账，分段本体在 transactions_page
-/// 渲染）+ 账户下拉 + 分类下拉 + 月份选择 + 排序控件 + 重置。
+/// 渲染）+ 账户下拉 + 分类下拉 + 月份选择 + 标签下拉（F8 FR-2，boundRemote
+/// 态隐藏）+ 排序控件 + 重置。
 /// 回调形式：任何字段变化都通过 [onChanged] 整体回传新的 [TxnFilterState]。
 /// 调用方负责把当前状态传回 [state]（受控组件）。
 ///
@@ -301,6 +417,8 @@ class TxnFilterBar extends StatelessWidget {
   void _setAccount(String? id) => onChanged(state.copyWith(accountId: id));
   void _setCategory(String? c) => onChanged(state.copyWith(category: c));
   void _setMonth(String? m) => onChanged(state.copyWith(month: m));
+  // F8 FR-2:标签反查(null = 全部标签,清空态)。
+  void _setTag(String? id) => onChanged(state.copyWith(tagId: id));
   // 空串归 null:空输入不视为过滤(isDefault/copyWith 口径统一)。
   void _setSearch(String v) =>
       onChanged(state.copyWith(searchText: v.isEmpty ? null : v));
@@ -311,9 +429,12 @@ class TxnFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 类型分段抽到独立 TxnTypeSeg(transactions_page 渲染),TxnFilterBar 只保留
-    // 搜索/账户/分类/月份 下拉 + 排序 + 重置。
+    // 搜索/账户/分类/月份/标签 下拉 + 排序 + 重置。
     // 提交制(回车/清除才提交):逐键提交会触发整页 Loading 替换卸载本条,
     // 输入焦点丢失(fix round 1)。
+    // 标签段(F8 FR-2)条件渲染:boundRemote 隐藏时连同间距一起省去,避免
+    // 残留空白占位(可用性判定见 tagFilterAvailable,控件自身也兜底自隐藏)。
+    final showTag = tagFilterAvailable();
     final searchField = TxnSearchField(
       value: state.searchText ?? '',
       onCommit: _setSearch,
@@ -336,6 +457,10 @@ class TxnFilterBar extends StatelessWidget {
       options: monthOptions,
       onChanged: _setMonth,
     );
+    final tagPicker = TxnTagPicker(
+      value: state.tagId,
+      onChanged: _setTag,
+    );
     final sortControl = TxnSortControl(
       sortKey: state.sortKey,
       sortDir: state.sortDir,
@@ -357,6 +482,10 @@ class TxnFilterBar extends StatelessWidget {
             categoryPicker,
             const SizedBox(height: AppSpacing.xs),
             monthPicker,
+            if (showTag) ...[
+              const SizedBox(height: AppSpacing.xs),
+              tagPicker,
+            ],
             const SizedBox(height: AppSpacing.xs),
             sortControl,
             const SizedBox(height: AppSpacing.sm),
@@ -377,6 +506,7 @@ class TxnFilterBar extends StatelessWidget {
             accountPicker,
             categoryPicker,
             monthPicker,
+            if (showTag) tagPicker,
             sortControl,
             resetBtn,
           ],
@@ -396,6 +526,10 @@ class TxnFilterBar extends StatelessWidget {
             Expanded(flex: 2, child: categoryPicker),
             const SizedBox(width: AppSpacing.sm),
             Expanded(flex: 2, child: monthPicker),
+            if (showTag) ...[
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(flex: 2, child: tagPicker),
+            ],
             const SizedBox(width: AppSpacing.sm),
             sortControl,
             const SizedBox(width: AppSpacing.sm),

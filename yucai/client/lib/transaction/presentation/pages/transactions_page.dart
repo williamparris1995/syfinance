@@ -37,10 +37,15 @@ import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.
 ///   1. [bloc] 构造参数 —— 测试注入预构造 bloc。
 ///   2. 路由层 BlocProvider —— 生产路径（见 router.dart `/transactions` 分支）。
 class TransactionsPage extends StatelessWidget {
-  const TransactionsPage({super.key, this.bloc});
+  const TransactionsPage({super.key, this.bloc, this.initialFilter});
 
   /// 测试可注入预构造 bloc；生产路径留空，bloc 由路由层 BlocProvider 提供。
   final TransactionBloc? bloc;
+
+  /// 初始筛选(F8 FR-3:标签页跳转携 tagId 经路由 extra 注入);null = 默认。
+  /// 列表首查由路由层 bloc.create 派发(同一 filter),这里只用于 initState
+  /// 的 summary 请求对齐口径。
+  final TxnFilterState? initialFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -48,16 +53,19 @@ class TransactionsPage extends StatelessWidget {
     if (injected != null) {
       return BlocProvider<TransactionBloc>.value(
         value: injected,
-        child: const _TransactionsView(),
+        child: _TransactionsView(initialFilter: initialFilter),
       );
     }
     // 生产路径：bloc 由路由层 `/transactions` 分支的 BlocProvider 提供。
-    return const _TransactionsView();
+    return _TransactionsView(initialFilter: initialFilter);
   }
 }
 
 class _TransactionsView extends StatefulWidget {
-  const _TransactionsView();
+  const _TransactionsView({this.initialFilter});
+
+  /// 见 [TransactionsPage.initialFilter]。
+  final TxnFilterState? initialFilter;
 
   @override
   State<_TransactionsView> createState() => _TransactionsViewState();
@@ -70,7 +78,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
     // Kick off the initial summary fetch alongside the list load.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _requestSummary(const TxnFilterState());
+      // F8 FR-3:初始筛选(标签跳转)存在时按其口径请求 summary(month 维度
+      // 对齐;tagId 不参与列表页 summary 口径,FR-4 只覆盖报表页)。
+      _requestSummary(widget.initialFilter ?? const TxnFilterState());
     });
   }
 

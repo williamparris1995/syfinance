@@ -327,6 +327,9 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
       category: _categoryOf(filter.category),
       // F7 FR-2:搜索词原样透传(空/空白由 DS 层容错为不过滤)。
       searchText: filter.searchText,
+      // F8 FR-2:标签反查 id 透传 —— DS 层经 junction 关联集内存过滤(仅本地
+      // 管道生效;boundRemote 态 UI 已隐藏标签控件,见 filter_bar 交付物 4)。
+      tagId: filter.tagId,
       // F7 FR-3:排序四态透传(默认 date/desc,与既有默认序一致,NFR-1)。
       sortKey: filter.sortKey,
       sortDir: filter.sortDir,

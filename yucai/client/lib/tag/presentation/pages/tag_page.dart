@@ -10,6 +10,8 @@ import 'package:yucai_client/tag/presentation/bloc/tag_event.dart';
 import 'package:yucai_client/tag/presentation/bloc/tag_state.dart';
 import 'package:yucai_client/tag/presentation/widgets/tag_card.dart';
 import 'package:yucai_client/tag/presentation/widgets/tag_color_picker.dart';
+import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart'
+    show tagFilterAvailable;
 
 /// 标签管理页(settings 子页 /settings/tags)。对齐 backup BackupPage:
 /// topbar(返回 + 标题 + 新建)+ 三态 body(loading/空/错误/列表)+ BlocListener→SnackBar。
@@ -165,7 +167,23 @@ class _TagPageState extends State<TagPage> {
             separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
             itemBuilder: (_, i) {
               final t = list[i];
-              return TagCard(tag: t, onEdit: () => _showEditDialog(tag: t), onDelete: () => _showDeleteConfirm(t));
+              return TagCard(
+                tag: t,
+                // F8 FR-3/ADR-4:点标签卡 → 交易列表带 tagId 初始筛选。用 push
+                // + extra 携参(照 /holdings/trade Map extra 先例):push 保证
+                // /transactions 路由 builder 重新执行(extra 生效;go 复用
+                // IndexedStack 已建分支会忽略 extra),返回键回到标签页。
+                //
+                // boundRemote(在线绑定)态置 null = 入口隐藏 —— 与 filter_bar
+                // tagFilterAvailable 同一论证:junction 本地私有 → 远端 proto
+                // 无标签维度 → tagId 被远端静默忽略,点入即「筛了个寂寞」;
+                // guest/boundOffline 本地管道完整生效,正常可点。
+                onOpen: tagFilterAvailable()
+                    ? () => context.push('/transactions', extra: {'tagId': t.id})
+                    : null,
+                onEdit: () => _showEditDialog(tag: t),
+                onDelete: () => _showDeleteConfirm(t),
+              );
             },
           ),
           if (submitting) Positioned.fill(child: AbsorbPointer(child: Container(color: context.yucai.bg.withValues(alpha: 0.5), alignment: Alignment.center, child: const CircularProgressIndicator()))),

@@ -223,15 +223,28 @@ GoRouter buildRouter(
                 // AssertionError（非 ProviderNotFoundException），try/catch 漏接
                 // → 运行时崩。把 provide 提到路由层后，页面 build 直接返回
                 // _TransactionsView，State.context 一定在 Provider 下。
-                builder: (_, __) => BlocProvider<TransactionBloc>(
-                  create: (_) {
-                    final b = TransactionBloc(
-                        getIt<TransactionRepository>());
-                    b.add(const LoadTransactionsRequested());
-                    return b;
-                  },
-                  child: const TransactionsPage(),
-                ),
+                //
+                // F8 FR-3/ADR-4:extra 携 tagId(标签页卡 tap push 而来,照
+                // /holdings/trade Map extra 先例)→ 初始 filter 注入
+                // TransactionsPage(首查 list + summary 请求同口径);无 extra
+                // = 默认 TxnFilterState(),行为逐位不变(NFR)。
+                builder: (context, state) {
+                  final extraTagId = state.extra is Map
+                      ? (state.extra as Map)['tagId'] as String?
+                      : null;
+                  final initialFilter = extraTagId == null || extraTagId.isEmpty
+                      ? const TxnFilterState()
+                      : TxnFilterState(tagId: extraTagId);
+                  return BlocProvider<TransactionBloc>(
+                    create: (_) {
+                      final b =
+                          TransactionBloc(getIt<TransactionRepository>());
+                      b.add(LoadTransactionsRequested(filter: initialFilter));
+                      return b;
+                    },
+                    child: TransactionsPage(initialFilter: initialFilter),
+                  );
+                },
                 routes: [
                   GoRoute(
                     path: 'new',

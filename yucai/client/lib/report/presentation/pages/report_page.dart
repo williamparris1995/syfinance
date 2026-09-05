@@ -12,6 +12,7 @@ import 'package:yucai_client/report/presentation/widgets/income_expense_trend_ch
 import 'package:yucai_client/report/presentation/widgets/monthly_comparison_bar.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
+import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 /// 报表分析页（sidebar「工具 › 报表分析」）。
 ///
@@ -41,11 +42,14 @@ class ReportPage extends StatefulWidget {
 
 class _ReportPageState extends State<ReportPage> {
   SummaryScope _scope = SummaryScope.month;
-  /// 当前选中的「锚点」日期。月 scope 只用年月；年 scope 只用年。
-  /// 默认 `DateTime.now()`（当月/当年），用户可通过顶栏 picker 切到历史。
+  /// 当前选中的「锚点」日期。月 scope 只用年月;年 scope 只用年。
+  /// 默认 `DateTime.now()`(当月/当年),用户可通过顶栏 picker 切到历史。
   DateTime _selectedDate = DateTime.now();
+  /// 标签口径筛选(F8 FR-4/ADR-5):null = 全部(现状);非 null → summary
+  /// 聚合仅含带该标签的交易(T1 管道聚合前按 junction 关联集过滤)。
+  String? _selectedTagId;
   late Future<Either<Failure, MonthlySummary>> _future;
-  /// 近 6 月月度对比数据（锚点月份 `_selectedDate` 往前 6 个月）。
+  /// 近 6 月月度对比数据(锚点月份 `_selectedDate` 往前 6 个月)。
   late Future<List<MonthlySummary>> _monthlyComparison;
 
   @override
@@ -56,20 +60,21 @@ class _ReportPageState extends State<ReportPage> {
   }
 
   Future<Either<Failure, MonthlySummary>> _load() {
-    return getIt<TransactionRepository>()
-        .summary(_selectedDate.year, _selectedDate.month, scope: _scope);
+    return getIt<TransactionRepository>().summary(_selectedDate.year,
+        _selectedDate.month,
+        scope: _scope, tagId: _selectedTagId);
   }
 
-  /// 并发拉取以 [_selectedDate] 为终点的近 6 个月 summary（month scope）。
-  /// 各月独立 Either；任一失败折叠为跳过（drop），全失败 → 空列表 →
-  /// 月度对比 chart 自身空态。
+  /// 并发拉取以 [_selectedDate] 为终点的近 6 个月 summary(month scope)。
+  /// 各月独立 Either;任一失败折叠为跳过(drop),全失败 → 空列表 →
+  /// 月度对比 chart 自身空态。tagId(F8 FR-4)随锚月同口径透传,两图不脱节。
   Future<List<MonthlySummary>> _loadMonthlyComparison() async {
     final futures = <Future<Either<Failure, MonthlySummary>>>[];
     for (var i = 5; i >= 0; i--) {
       // DateTime(y, m-i) 自动处理跨年（month<=0 → 前一年 12 月等）。
       final d = DateTime(_selectedDate.year, _selectedDate.month - i);
-      futures.add(getIt<TransactionRepository>()
-          .summary(d.year, d.month, scope: SummaryScope.month));
+      futures.add(getIt<TransactionRepository>().summary(d.year, d.month,
+          scope: SummaryScope.month, tagId: _selectedTagId));
     }
     final results = await Future.wait(futures);
     return [
@@ -83,6 +88,17 @@ class _ReportPageState extends State<ReportPage> {
     setState(() {
       _scope = s;
       _future = _load();
+    });
+  }
+
+  /// F8 FR-4/ADR-5:标签筛选变化 → summary 与近 6 月对比一起重查(锚点日期
+  /// 不动,只换口径)。同值不重查(避免空刷新)。「全部」(null)= 现状零变化。
+  void _setTag(String? tagId) {
+    if (tagId == _selectedTagId) return;
+    setState(() {
+      _selectedTagId = tagId;
+      _future = _load();
+      _monthlyComparison = _loadMonthlyComparison();
     });
   }
 
@@ -122,6 +138,16 @@ class _ReportPageState extends State<ReportPage> {
           _ReportTopBar(
             scope: _scope,
             selectedDate: _selectedDate,
+            // F8 FR-4/ADR-5:头部标签下拉(复用 ADR-3 TxnTagPicker)。boundRemote
+            // 态整体不挂载(交付物 4:外层定宽 SizedBox 一并条件化,控件自身
+            // 也兜底自隐藏,避免空白占位)。
+            tagPicker: tagFilterAvailable()
+                ? SizedBox(
+                    width: 170,
+                    child: TxnTagPicker(
+                        value: _selectedTagId, onChanged: _setTag),
+                  )
+                : null,
             onScopeChanged: _switchScope,
             onPickDate: _pickDate,
             onBack: () => context.go('/home'),
@@ -227,6 +253,7 @@ class _ReportTopBar extends StatelessWidget {
     required this.onScopeChanged,
     required this.onPickDate,
     required this.onBack,
+    this.tagPicker,
   });
 
   final SummaryScope scope;
@@ -234,6 +261,9 @@ class _ReportTopBar extends StatelessWidget {
   final ValueChanged<SummaryScope> onScopeChanged;
   final VoidCallback onPickDate;
   final VoidCallback onBack;
+
+  /// 标签筛选下拉槽位(F8 FR-4;null = boundRemote 态隐藏,不占位)。
+  final Widget? tagPicker;
 
   /// 日期按钮文案。month scope → `'YYYY 年 M 月'`;year scope → `'YYYY 年'`。
   String get _dateLabel => scope == SummaryScope.year
@@ -273,6 +303,12 @@ class _ReportTopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        // 标签口径筛选(F8 FR-4):置于日期按钮左侧,与日期/period 同属
+        // 「口径」控件组。null(boundRemote 隐藏)时整体不渲染。
+        if (tagPicker != null) ...[
+          tagPicker!,
+          const SizedBox(width: AppSpacing.sm),
+        ],
         _DateButton(
           key: const ValueKey('reportDateButton'),
           label: _dateLabel,
