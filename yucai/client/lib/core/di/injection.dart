@@ -8,7 +8,7 @@ import 'package:yucai_client/auth/data/oidc_authenticator.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
-import 'package:yucai_client/binding/data/noop_offline_sync_port.dart';
+import 'package:yucai_client/binding/data/grpc_offline_sync_port.dart';
 import 'package:yucai_client/binding/data/pending_collector.dart';
 import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
@@ -19,6 +19,7 @@ import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
@@ -84,12 +85,17 @@ Future<void> configureDependencies() async {
 
   // 1h. F10 T3 回网同步管线(spec FR-5,design ADR-5):全部手工注册(照
   //     1c/1d 先例,免 build_runner 重生成)。
-  //     - OfflineSyncPort:生产暂接 Noop(push 恒失败保 pending,F11 落地
-  //       gRPC PushChanges 真实现时仅替换此一处注册);
+  //     - OfflineSyncPort:F11 T3 起接 gRPC PushChanges 真实现
+  //       GrpcOfflineSyncPort(此前为保 pending 的 Noop 占位——文件保留作
+  //       参考/测试替身,NoopOfflineSyncPort);
   //     - PendingCollector:从 8 头表 DAO + 墓碑表收集增量批次;
   //     - SyncCoordinatorBloc:lazySingleton —— F12 UI 首次消费时构造并
-  //       订阅回网流(F11 前生产无人 resolve,不产生任何同步副作用)。
-  getIt.registerLazySingleton<OfflineSyncPort>(NoopOfflineSyncPort.new);
+  //       订阅回网流。
+  getIt.registerLazySingleton<OfflineSyncPort>(() => GrpcOfflineSyncPort(
+        getIt<GrpcClient>(),
+        getIt<AuthRetryCaller>(),
+        getIt<BoundMarker>(),
+      ));
   getIt.registerLazySingleton<PendingCollector>(
       () => PendingCollector(getIt<AppDatabase>()));
   getIt.registerLazySingleton<SyncCoordinatorBloc>(() => SyncCoordinatorBloc(

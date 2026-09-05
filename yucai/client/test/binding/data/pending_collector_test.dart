@@ -3,6 +3,9 @@
 // - synced 行不进批次,pending 行进(实体 id/版本/字段快照);
 // - 跨模块 pending → 按 SyncModule 常量分桶;
 // - 仅墓碑(无 pending 实体)→ 仍是非空批次。
+// F11 T3(2026-09-05)适配:fields 由 drift 行 toJson 改为 envelope_codec
+// 产出的 server 兼容行形态(PascalCase/剔 syncState/子表嵌套 —— port 编码
+// payload bytes 的直接输入,单一事实源与备份导出共享)。
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -63,6 +66,29 @@ void main() {
     ));
   }
 
+  Future<void> seedPendingTransactionWithEntries(String id) async {
+    await database.transactionDao.insertTransaction(
+        db.TransactionsCompanion.insert(
+      id: id,
+      transactionDate: DateTime.utc(2026, 9, 4),
+      description: '离线记账',
+      version: 2,
+      createdAt: DateTime.utc(2026, 9, 4),
+      updatedAt: DateTime.utc(2026, 9, 4),
+      syncState: const Value(SyncState.pending),
+    ));
+    await database.transactionDao.insertEntry(
+        db.TransactionEntriesCompanion.insert(
+      id: 'e-$id',
+      transactionId: id,
+      accountId: 'acc-any',
+      chartOfAccountCode: '1001',
+      debitCents: 500,
+      creditCents: 0,
+      note: '',
+    ));
+  }
+
   Future<void> seedTombstone(String module, String entityId) async {
     await database.syncTombstoneDao.upsertTombstone(
         db.SyncTombstonesCompanion.insert(
@@ -83,13 +109,32 @@ void main() {
     expect(batch!.entitiesByModule.keys, [SyncModule.tag]);
     final dtos = batch.entitiesByModule[SyncModule.tag]!;
     expect(dtos.map((e) => e.entityId), ['t-pending']);
-    // 版本随行携带(对齐 sync proto SyncPayload.version 语义走向)。
+    // 版本随行携带(对齐 sync proto SyncPayload.version)。
     expect(dtos.single.version, 7);
-    // 字段快照 = drift 行 toJson(上行 DTO 形态,F11 编码进 payload bytes)。
-    expect(dtos.single.fields['name'], '离线标签');
-    expect(dtos.single.fields['color'], '#112233');
+    // 字段快照 = envelope 行形态(F11:port 编码 payload bytes 的直接输入;
+    // PascalCase、剔 syncState、ID 与 entityId 同源)。
+    expect(dtos.single.fields['ID'], 't-pending');
+    expect(dtos.single.fields['Name'], '离线标签');
+    expect(dtos.single.fields['Color'], '#112233');
+    expect(dtos.single.fields['Version'], 7);
+    expect(dtos.single.fields.containsKey('syncState'), isFalse);
     expect(batch.tombstones, isEmpty);
     expect(batch.changeCount, 1);
+  });
+
+  test('pending 交易头行 → 分录子表随行嵌套(Entries)', () async {
+    await seedPendingTransactionWithEntries('txn-pending');
+
+    final batch = await collector.collect();
+
+    final dto = batch!.entitiesByModule[SyncModule.transaction]!.single;
+    expect(dto.entityId, 'txn-pending');
+    expect(dto.version, 2);
+    final entries = dto.fields['Entries'] as List;
+    expect(entries, hasLength(1));
+    expect(entries.single['ID'], 'e-txn-pending');
+    expect(entries.single['DebitCents'], 500);
+    expect(dto.fields['TransactionDate'], '2026-09-04T00:00:00.000Z');
   });
 
   test('跨模块 pending → 按 SyncModule 常量分桶', () async {

@@ -1,19 +1,24 @@
 /// F10 T3(spec FR-5,design ADR-5):回网同步 port 与批次 DTO —— binding 域
 /// 的跨模块上行抽象。
 ///
-/// 语义走向对齐休眠的 sync proto(`lib/proto/sync/v1/sync.pb.dart`):
+/// 语义对齐休眠的 sync proto(`lib/proto/sync/v1/sync.pb.dart`):
 /// - `PushChangesRequest{ repeated SyncPayload changes }`,每条 payload 为
 ///   `{entityType, operation(CREATE/UPDATE/DELETE), payload bytes, version,
 ///   deviceId, entityId}`;
 /// - 本文件的 `SyncEntityDto` 即 upsert(实体 CREATE/UPDATE 合并:单设备
 ///   语义下同为「本地最新全量行」),`SyncTombstoneDto` 即 DELETE;
-/// - F11 的 gRPC 实现把 `fields` 编码进 payload bytes、module 写入
-///   entityType;本任务以 Map 承载字段,避免提前绑死 proto 编码。
+/// - F11 已落地 gRPC 实现(GrpcOfflineSyncPort):`fields` 编码进 payload
+///   bytes(jsonEncode)、module 写入 entityType、CREATE 表 upsert 语义。
 library;
 
-/// 单条上行实体 DTO:drift 头表行的快照(module+entityId 定位,version 为
-/// 乐观锁版本,fields 为行裸值 —— 对齐 SyncPayload 的 entityType/entityId/
-/// version/payload 语义走向;含 syncState 列,F11 编码时剔除)。
+/// 单条上行实体 DTO:待上行头表的 server 兼容行快照(module+entityId 定位,
+/// version 为乐观锁版本 —— 对齐 SyncPayload 的 entityType/entityId/version/
+/// payload 语义)。
+///
+/// **F11 T3 起的 `fields` 语义**:PendingCollector 经 core/localdb 的
+/// envelope_codec(与备份导出共享的行序列化单一事实源,ADR-2)产出的
+/// PascalCase 行形态 —— 子表随头行嵌套、时间戳 RFC3339 Z、无 tenant 键、
+/// 无 syncState 本地私有列;`fields['ID']` 与 [entityId] 同源 drift 主键。
 class SyncEntityDto {
   const SyncEntityDto({
     required this.module,
@@ -32,7 +37,7 @@ class SyncEntityDto {
   /// 行乐观锁版本(SyncPayload.version 走向)。
   final int version;
 
-  /// drift 行 toJson 快照(列名 → 值)。
+  /// server 兼容行快照(envelope_codec 产出;形态见类 doc)。
   final Map<String, dynamic> fields;
 }
 
@@ -99,8 +104,8 @@ class SyncResult {
 /// 回网上行 port(binding 域抽象,design ADR-5):SyncCoordinator 经此把
 /// 增量批次推向 server。
 ///
-/// **F11 替换点**:当前生产注册 NoopOfflineSyncPort(binding/data,保 pending
-/// 的安全占位);F11 落 gRPC PushChanges 实现(fake 换真实现,协调器零改动)。
+/// **F11 已接线**:生产注册 GrpcOfflineSyncPort(binding/data,gRPC
+/// PushChanges 实现);NoopOfflineSyncPort 保留作测试替身/参考。
 abstract class OfflineSyncPort {
   Future<SyncResult> push(SyncBatch batch);
 }
