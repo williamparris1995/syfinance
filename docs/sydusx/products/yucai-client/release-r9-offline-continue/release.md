@@ -28,7 +28,7 @@
 
 ## Sprint roster
 
-- [x] sprint-1:F10 ✅(`39063da2`)→ F11 ✅(2026-09-03,merge `745a4aa1`,server 线窄幅复线落地增量同步)→ F12 → F13(依赖序)
+- [x] sprint-1:F10 ✅(`39063da2`)→ F11 ✅(2026-09-03,merge `745a4aa1`,server 线窄幅复线落地增量同步)→ F12 ✅(`a1f015f7`,同步状态徽标)→ F13(依赖序)
 
 ## done-criteria
 
