@@ -315,7 +315,8 @@ GoRouter buildRouter(
                               }
                               if (st is TransactionDetailError) {
                                 return Scaffold(
-                                  backgroundColor: AppColors.bg,
+                                  // F4-P2:错误页底色走语义令牌(暗色跟随主题)。
+                                  backgroundColor: ctx.yucai.bg,
                                   body: Center(
                                       child: Text('加载失败：${st.message}')),
                                 );
@@ -962,8 +963,9 @@ GoRouter buildRouter(
 /// Income/Transfer）只能表达 2-entry 形态，对复合分录强行 update 会丢分录。
 /// 在 form-page 支持任意分录编辑前，路由层拦截并提示用户。
 Scaffold _compoundTxnEditNotice(BuildContext context) {
+  // F4-P2:提示页配色走语义令牌(原 AppColors 静态量 = 亮色锁定)。
   return Scaffold(
-    backgroundColor: AppColors.bg,
+    backgroundColor: context.yucai.bg,
     body: Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
@@ -972,18 +974,18 @@ Scaffold _compoundTxnEditNotice(BuildContext context) {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(LucideIcons.info, size: 32, color: AppColors.accent),
+              Icon(LucideIcons.info, size: 32, color: context.yucai.accent),
               const SizedBox(height: AppSpacing.sm),
-              const Text('该交易为复合分录',
+              Text('该交易为复合分录',
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.fg)),
+                      color: context.yucai.fg)),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 '多分录交易暂不支持在表单中编辑，以免修改时丢失分录行。可在详情页删除后重新记一笔。',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.muted, fontSize: 13),
+                style: TextStyle(color: context.yucai.muted, fontSize: 13),
               ),
               const SizedBox(height: AppSpacing.md),
               TextButton(

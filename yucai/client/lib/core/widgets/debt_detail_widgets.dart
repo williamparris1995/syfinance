@@ -24,6 +24,13 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 ///
 /// 同一组件实例 + 不同 [DebtViewSemantics] = debt 与 receivable 详情页结构样式
 /// 真正一致(镜像),仅文案/颜色语义不同。
+///
+/// **F4-P2 色彩豁免清单(hero / preview 固定深色面)**:[DebtDetailHero] 是 OD
+/// 原型刻意的固定深色金渐变卡(两主题一致),卡内固定内景色(卡面渐变
+/// #1F2126/#24201A/#1C1E21、白系文本、金饰 #D9B97E/#D9B878/#E7DFCA/#F3EFEA、
+/// 进度金渐变 #C9A86B/#E0C489)**不随主题迁**——固定深底上亮暗两态均可辨识
+/// 且不刺眼;辅助文字走 context.yucai.muted、辉光走 context.yucai.accent
+/// (暗色下自动切鎏金)。语义色(pill/badge 半透明底)改由令牌 withValues 派生。
 
 // ───────────────────────── Hero ─────────────────────────
 
@@ -117,8 +124,8 @@ class DebtDetailHero extends StatelessWidget {
                           fontFamilyFallback: AppTypography.displayFallback,
                         ),
                       ),
-                      _heroBadge(badgeLabel),
-                      if (isSettled) _heroBadge('已结清 ✓'),
+                      _heroBadge(context, badgeLabel),
+                      if (isSettled) _heroBadge(context, '已结清 ✓'),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -162,7 +169,7 @@ class DebtDetailHero extends StatelessWidget {
           numFontFamilyFallback: AppTypography.displayFallback,
         ),
         const SizedBox(height: 11),
-        _deltaArea(debt.remainingTrendCents),
+        _deltaArea(context, debt.remainingTrendCents),
         const SizedBox(height: 14),
         ClipRRect(
           key: const ValueKey('heroProgress'),
@@ -217,7 +224,7 @@ class DebtDetailHero extends StatelessWidget {
       ],
     );
 
-    final heroSide = _heroSide();
+    final heroSide = _heroSide(context);
 
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
@@ -293,20 +300,20 @@ class DebtDetailHero extends StatelessWidget {
   }
 
   /// delta 区:总显「已收回/已还 N/M 期」;trendCents != 0 时附 trend pill(减少=绿)。
-  Widget _deltaArea(int trendCents) {
+  Widget _deltaArea(BuildContext context, int trendCents) {
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 8,
       runSpacing: 4,
       children: [
-        if (trendCents != 0) _trendPill(trendCents),
+        if (trendCents != 0) _trendPill(context, trendCents),
         Text(
           trendCents != 0
               ? '较上月${trendCents < 0 ? '减少' : '增加'} · ${sem.detailHeroPaidCountLabel} $paidCount / $total 期'
               : '${sem.detailHeroPaidCountLabel} $paidCount / $total 期',
           style: TextStyle(
             fontSize: 12.5,
-            color: AppColors.muted,
+            color: context.yucai.muted,
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),
@@ -315,13 +322,15 @@ class DebtDetailHero extends StatelessWidget {
   }
 
   /// trend pill:负=减少=绿 pill ↓;正=增加=红 pill ↑。两侧「剩余减少 = 好 = 绿」同向。
-  Widget _trendPill(int trendCents) {
+  Widget _trendPill(BuildContext context, int trendCents) {
     final decreasing = trendCents < 0;
     final abs = trendCents.abs();
-    final fg = decreasing ? AppColors.positive : AppColors.negative;
+    // pill 底色由 positive/negative 令牌 20% 派生(原 v1 绿/红 20% 透底),
+    // 暗色下跟随主题(暗色 positive/negative 为提亮档)。
+    final fg = decreasing ? context.yucai.positive : context.yucai.negative;
     final bg = decreasing
-        ? const Color(0x332D8A6E)
-        : const Color(0x33C4544D);
+        ? context.yucai.positive.withValues(alpha: 0.20)
+        : context.yucai.negative.withValues(alpha: 0.20);
     final icon = decreasing ? LucideIcons.arrowDown : LucideIcons.arrowUp;
     return Container(
       key: const ValueKey('heroDelta'),
@@ -350,7 +359,7 @@ class DebtDetailHero extends StatelessWidget {
   }
 
   /// hero 右侧 4-tile:年利率 / 月供 / 到期日 / 已收·已还期数。
-  Widget _heroSide() {
+  Widget _heroSide(BuildContext context) {
     return GridView.count(
       key: const ValueKey('heroSide'),
       shrinkWrap: true,
@@ -361,16 +370,16 @@ class DebtDetailHero extends StatelessWidget {
       mainAxisExtent: 72,
       childAspectRatio: 1.55,
       children: [
-        _heroTile('年利率', '${debt.interestRate.toStringAsFixed(2)}%'),
-        _heroTile('月供', sharedFmtSymbol(_approxMonthly(debt), preferred)),
-        _heroTile('到期日', sharedFmtDate(debt.dueDate)),
-        _heroTile(sem.isReceivable ? '已收期数' : '已还期数',
+        _heroTile(context, '年利率', '${debt.interestRate.toStringAsFixed(2)}%'),
+        _heroTile(context, '月供', sharedFmtSymbol(_approxMonthly(debt), preferred)),
+        _heroTile(context, '到期日', sharedFmtDate(debt.dueDate)),
+        _heroTile(context, sem.isReceivable ? '已收期数' : '已还期数',
             '$paidCount / $total'),
       ],
     );
   }
 
-  Widget _heroTile(String label, String value) {
+  Widget _heroTile(BuildContext context, String label, String value) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
@@ -387,7 +396,7 @@ class DebtDetailHero extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 10.5,
-              color: AppColors.muted,
+              color: context.yucai.muted,
               letterSpacing: 0.6,
             ),
           ),
@@ -408,10 +417,11 @@ class DebtDetailHero extends StatelessWidget {
     );
   }
 
-  Widget _heroBadge(String label) => Container(
+  Widget _heroBadge(BuildContext context, String label) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
-          color: AppColors.accent.withValues(alpha: 0.22),
+          // badge 底走主题 accent 22%(亮=翡翠、暗=鎏金,与同卡辉光同源)。
+          color: context.yucai.accent.withValues(alpha: 0.22),
           borderRadius: BorderRadius.circular(9999),
         ),
         child: Row(
@@ -462,8 +472,11 @@ class DebtDetailHero extends StatelessWidget {
 /// 从 [DebtDetail] 的 schedule 聚合 5 张金额维度 stat 卡(两侧共用 = 镜像):
 ///  本金 / 已收·已还合计 / 待收·待还合计 / 累计利息收入·还息 / 逾期应收·应付。
 /// 颜色语义由 [DebtViewSemantics.interestIncomeColor] / [pendingPrincipalColor] 决定。
+///
+/// F4-P2:语义色经 context.yucai 解析(顶层函数无 context → 补形参穿线;
+/// 调用点:debt/receivable detail 页,签名变化一次性改调用点)。
 List<DebtStatCardData> buildDebtDetailStats(
-    DebtDetail detail, String preferred, DebtViewSemantics sem) {
+    BuildContext context, DebtDetail detail, String preferred, DebtViewSemantics sem) {
   final debt = detail.debt;
   final schedule = detail.schedule;
   final paidPrincipal =
@@ -505,30 +518,32 @@ List<DebtStatCardData> buildDebtDetailStats(
       icon: LucideIcons.check,
       value: sharedFmtSymbol(paidTotal, preferred),
       sub: paidBreakdown,
-      valueColor: AppColors.positive,
+      valueColor: context.yucai.positive,
     ),
     DebtStatCardData(
       label: sem.statPendingTotalLabel,
       icon: LucideIcons.clock,
       value: sharedFmtSymbol(pendingTotal, preferred),
       sub: pendingBreakdown,
-      valueColor: sem.pendingPrincipalColor == AppColors.fg
-          ? null
-          : sem.pendingPrincipalColor,
+      // 语义描述符解析:neutral(receivable)→ null 回落默认 fg;
+      // negative(debt 负债压力)→ context.yucai.negative。
+      valueColor: sem.pendingPrincipalColor.resolve(context),
     ),
     DebtStatCardData(
       label: sem.statInterestLabel,
       icon: LucideIcons.trendingUp,
       value: sharedFmtSymbol(paidInterest, preferred),
       sub: '年化 ${debt.interestRate.toStringAsFixed(2)}%',
-      valueColor: paidInterest > 0 ? sem.interestIncomeColor : null,
+      valueColor: paidInterest > 0
+          ? sem.interestIncomeColor.resolve(context)
+          : null,
     ),
     DebtStatCardData(
       label: sem.statOverdueTotalLabel,
       icon: LucideIcons.alertCircle,
       value: sharedFmtSymbol(overdueTotal, preferred),
       sub: overdueSub,
-      valueColor: overdueCount > 0 ? AppColors.negative : null,
+      valueColor: overdueCount > 0 ? context.yucai.negative : null,
     ),
   ];
 }
@@ -825,7 +840,9 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
             horizontal: widget.isMobile ? 10 : 13, vertical: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.transparent,
+          // 激活 chip 底 = 抬升 surface(亮=白 / 暗=卡面浅一档;原硬白在暗色
+          // 下过亮)。黑阴影豁免(暗底不可见 = v2 暗色无阴影),见文件头豁免清单。
+          color: active ? context.yucai.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.sm - 2),
           boxShadow: active
               ? [
@@ -853,9 +870,11 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 decoration: BoxDecoration(
+                  // 未激活 count pill 底:原 #10000000(黑 6%)→ fg 6% 派生,
+                  // 暗色下呈微亮底(黑透底在墨黑面上不可辨识)。
                   color: active
                       ? context.yucai.accentSoft
-                      : const Color(0x10000000),
+                      : context.yucai.fg.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -937,7 +956,8 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     final isLast = idx == total;
     final isOverdue = e.status == PaymentStatus.overdue && !e.paid;
     final isPaid = e.paid;
-    const border = BorderSide(color: Color(0xFFEFECE5));
+    // 行分隔线 = 语义 border(原 v1 米白 #EFECE5 硬编码,暗色下会刺眼)。
+    final border = BorderSide(color: context.yucai.border);
     final rowBg = isPaid
         ? context.yucai.surface
         : (isOverdue ? context.yucai.surface : null);
@@ -946,7 +966,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     return TableRow(
       decoration: BoxDecoration(
         color: rowBg,
-        border: isLast ? null : const Border(bottom: border),
+        border: isLast ? null : Border(bottom: border),
       ),
       children: [
         Padding(
@@ -1022,12 +1042,14 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       decoration: BoxDecoration(
+        // 逾期卡底/描边 = negative 令牌 3%/20% 派生(原 v1 红 3%/20% 透底),
+        // 暗色下跟随主题(暗色 negative 为提亮档,可辨识且不刺眼)。
         color: status == PaymentStatus.overdue
-            ? const Color(0x08C4544D)
+            ? context.yucai.negative.withValues(alpha: 0.03)
             : context.yucai.surface,
         border: Border.all(
             color: status == PaymentStatus.overdue
-                ? const Color(0x33C4544D)
+                ? context.yucai.negative.withValues(alpha: 0.20)
                 : context.yucai.border),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
@@ -1093,11 +1115,12 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
   }
 
   Widget _statusBadge(PaymentEntry e, DebtViewSemantics sem) {
+    // badge 底 = positive/negative 令牌 10% 派生(原 v1 绿/红 10% 透底)。
     final (label, fg, bg, icon) = switch (e.status) {
       PaymentStatus.paid => (
           sem.statusPaidLabel,
           context.yucai.positive,
-          const Color(0x1A2D8A6E),
+          context.yucai.positive.withValues(alpha: 0.10),
           LucideIcons.check
         ),
       PaymentStatus.pending => (
@@ -1109,7 +1132,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
       PaymentStatus.overdue => (
           sem.statusOverdueLabel,
           context.yucai.negative,
-          const Color(0x1AC4544D),
+          context.yucai.negative.withValues(alpha: 0.10),
           LucideIcons.alertCircle
         ),
     };
@@ -1263,9 +1286,10 @@ class DebtDetailSidePanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sideHeader(sem.sideCollectionIcon, sem.sideCollectionCardTitle),
+              _sideHeader(context, sem.sideCollectionIcon,
+                  sem.sideCollectionCardTitle),
               const SizedBox(height: 14),
-              _sideRows(collectionRows),
+              _sideRows(context, collectionRows),
               const SizedBox(height: 14),
               OutlinedButton.icon(
                 onPressed: () => AppToast.show(context, sem.sideRegisterToast,
@@ -1293,9 +1317,9 @@ class DebtDetailSidePanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sideHeader(LucideIcons.info, '借款信息'),
+              _sideHeader(context, LucideIcons.info, '借款信息'),
               const SizedBox(height: 14),
-              _sideRows(loanRows),
+              _sideRows(context, loanRows),
             ],
           ),
         ),
@@ -1303,17 +1327,17 @@ class DebtDetailSidePanel extends StatelessWidget {
     );
   }
 
-  Widget _sideHeader(IconData icon, String title) {
+  Widget _sideHeader(BuildContext context, IconData icon, String title) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: AppColors.accent),
+        Icon(icon, size: 16, color: context.yucai.accent),
         const SizedBox(width: 8),
         Text(title,
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: AppColors.fg,
+              color: context.yucai.fg,
               fontFamily: AppTypography.displayFamily,
               fontFamilyFallback: AppTypography.displayFallback,
             )),
@@ -1321,12 +1345,12 @@ class DebtDetailSidePanel extends StatelessWidget {
     );
   }
 
-  Widget _sideRows(List<DebtSideRowData> rows) {
+  Widget _sideRows(BuildContext context, List<DebtSideRowData> rows) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < rows.length; i++) ...[
-          _sideRow(rows[i]),
+          _sideRow(context, rows[i]),
           if (i < rows.length - 1)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 0),
@@ -1337,16 +1361,17 @@ class DebtDetailSidePanel extends StatelessWidget {
     );
   }
 
-  Widget _sideRow(DebtSideRowData data) {
+  Widget _sideRow(BuildContext context, DebtSideRowData data) {
     final valueText = Text(
       data.v,
       textAlign: TextAlign.right,
       style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w600,
-        color: data.valueColor ?? AppColors.fg,
+        color: data.valueColor ?? context.yucai.fg,
         decoration: data.onTap != null ? TextDecoration.underline : null,
-        decorationColor: data.valueColor ?? AppColors.accentHover,
+        // 下划线色 = accentDeep(原 AppColors.accentHover,亮值同 #047857)。
+        decorationColor: data.valueColor ?? context.yucai.accentDeep,
         fontFamily: data.mono ? AppTypography.displayFamily : null,
         fontFamilyFallback: data.mono ? AppTypography.displayFallback : null,
         fontFeatures: AppTypography.tabularFigures,
@@ -1360,7 +1385,7 @@ class DebtDetailSidePanel extends StatelessWidget {
         children: [
           Flexible(
             child: Text(data.k,
-                style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                style: TextStyle(fontSize: 13, color: context.yucai.muted)),
           ),
           const SizedBox(width: 16),
           Flexible(
@@ -1424,11 +1449,14 @@ class DebtDetailSidePanel extends StatelessWidget {
 class DebtDashedDivider extends StatelessWidget {
   const DebtDashedDivider({
     super.key,
-    this.color = AppColors.border,
+    this.color,
     this.dashWidth = 4,
     this.gapWidth = 3,
   });
-  final Color color;
+
+  /// 虚线色;null → build 内解析 context.yucai.border(F4-P2:const 构造默认值
+  /// 取不到 context,改可空 + 语义令牌回落;显式传色调用点不受影响)。
+  final Color? color;
   final double dashWidth;
   final double gapWidth;
 
@@ -1437,7 +1465,7 @@ class DebtDashedDivider extends StatelessWidget {
     return CustomPaint(
       size: const Size(double.infinity, 1),
       painter: _DashedLinePainter(
-        color: color,
+        color: color ?? context.yucai.border,
         dashWidth: dashWidth,
         gapWidth: gapWidth,
       ),

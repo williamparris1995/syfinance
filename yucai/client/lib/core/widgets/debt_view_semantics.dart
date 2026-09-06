@@ -20,9 +20,32 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 ///  - **delta / trend**:两侧「剩余减少 = 好 = 绿」同向(还清/收回都在减少剩余),
 ///    故 trend 配色一致,仅文案「减少/增加」同词。
 ///  - **累计利息**:receivable = 利息收入 = 绿(收益);debt = 累计还息 = 红(成本)。
-///    由 [interestIncomeColor] 区分。
+///    由 [DebtViewSemantics.interestIncomeColor] 区分。
 ///  - **待收/待还本金**:receivable 中性;debt 待还本金 = 红(负债压力)。
-///    由 [pendingPrincipalColor] 区分。
+///    由 [DebtViewSemantics.pendingPrincipalColor] 区分。
+///
+/// 颜色经 [DebtAmountSemantic] 语义描述符表达(F4-P2:const 语义配置不再持有
+/// 静态 Color,消费点 resolve(context) 解析,暗色跟随主题)。
+
+/// debt / receivable 金额强调色语义(F4-P2 context 化载体)。
+enum DebtAmountSemantic {
+  /// 正向(收益)= context.yucai.positive。
+  positive,
+
+  /// 负向(成本 / 负债压力)= context.yucai.negative。
+  negative,
+
+  /// 中性(不强调)= null,消费方回落默认 fg。
+  neutral;
+
+  /// 解析为具体颜色;neutral → null(调用方回落 context.yucai.fg)。
+  Color? resolve(BuildContext context) => switch (this) {
+        DebtAmountSemantic.positive => context.yucai.positive,
+        DebtAmountSemantic.negative => context.yucai.negative,
+        DebtAmountSemantic.neutral => null,
+      };
+}
+
 class DebtViewSemantics {
   const DebtViewSemantics({
     required this.isReceivable,
@@ -195,10 +218,10 @@ class DebtViewSemantics {
   /// 「本金 X + 利息 Y」拆分 sub 模板(占位 {principal}/{interest} 替换)。
   final String statPaidBreakdownPattern;
   final String statPendingBreakdownPattern;
-  /// 累计利息 value 色:receivable 绿(收入)/ debt 红(成本)。
-  final Color interestIncomeColor;
-  /// 待收/待还合计 value 色:receivable 中性 / debt 红(负债压力)。
-  final Color pendingPrincipalColor;
+  /// 累计利息 value 色:receivable 正向绿(收入)/ debt 负向红(成本)。
+  final DebtAmountSemantic interestIncomeColor;
+  /// 待收/待还合计 value 色:receivable 中性 / debt 负向红(负债压力)。
+  final DebtAmountSemantic pendingPrincipalColor;
 
   // ── schedule ──
   final String scheduleTitle;        // 收款计划 / 还款计划
@@ -285,8 +308,8 @@ class DebtViewSemantics {
     statOverdueTotalLabel: '逾期应收',
     statPaidBreakdownPattern: '本金 {p} + 利息 {i}',
     statPendingBreakdownPattern: '本金 {p} + 利息 {i}',
-    interestIncomeColor: AppColors.positive,
-    pendingPrincipalColor: AppColors.fg,
+    interestIncomeColor: DebtAmountSemantic.positive,
+    pendingPrincipalColor: DebtAmountSemantic.neutral,
     scheduleTitle: '收款计划',
     scheduleTitleIcon: LucideIcons.calendarCheck,
     tableCol1Header: '期次 / 收款日',
@@ -366,8 +389,8 @@ class DebtViewSemantics {
     statPaidBreakdownPattern: '本金 {p} + 利息 {i}',
     statPendingBreakdownPattern: '本金 {p} + 利息 {i}',
     // debt:累计还息 = 成本 = 红;待还合计 = 负债压力 = 红。
-    interestIncomeColor: AppColors.negative,
-    pendingPrincipalColor: AppColors.negative,
+    interestIncomeColor: DebtAmountSemantic.negative,
+    pendingPrincipalColor: DebtAmountSemantic.negative,
     scheduleTitle: '还款计划',
     scheduleTitleIcon: LucideIcons.calendarCheck,
     tableCol1Header: '期次 / 还款日',

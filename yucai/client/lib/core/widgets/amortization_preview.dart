@@ -79,6 +79,12 @@ class AmortizationPreviewRow {
 /// - [emptyHint] / [footNote]:空态文案 / footer 文案(两端可定制)。
 ///
 /// preview == null → 空态。
+///
+/// **F4-P2 色彩豁免清单**:本卡是 OD 原型刻意的固定深色渐变面(两主题一致),
+/// 卡内自带的固定内景色(卡面渐变 #1F2228/#262A31、白系文本、表头 #6F747C、
+/// tag 底 #12FFFFFF、行分隔 #0DFFFFFF、金额金 #E8C894 等)**不随主题迁**——
+/// 固定深底上亮暗两态均可辨识且不刺眼;辅助说明文字走 context.yucai.muted
+/// (暗色下自动提亮一档)。
 class AmortizationPreview extends StatelessWidget {
   const AmortizationPreview({
     super.key,
@@ -124,15 +130,15 @@ class AmortizationPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _header(),
-          if (preview == null) _empty() else _table(preview!),
-          _foot(),
+          _header(context),
+          if (preview == null) _empty() else _table(context, preview!),
+          _foot(context),
         ],
       ),
     );
   }
 
-  Widget _header() {
+  Widget _header(BuildContext context) {
     final p = preview;
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -145,7 +151,7 @@ class AmortizationPreview extends StatelessWidget {
         children: [
           Text(sectionLabel,
               style: TextStyle(
-                  color: AppColors.muted,
+                  color: context.yucai.muted,
                   fontSize: 10.5,
                   letterSpacing: 2,
                   fontFamily: AppTypography.displayFamily)),
@@ -164,7 +170,7 @@ class AmortizationPreview extends StatelessWidget {
             children: [
               Text(p == null ? '' : p.label,
                   style: TextStyle(
-                      color: AppColors.muted, fontSize: 11.5)),
+                      color: context.yucai.muted, fontSize: 11.5)),
               const SizedBox(width: 8),
               Text(
                 p == null ? '—' : _fmtSymbol(p.headlineAmount, currencyCode),
@@ -207,7 +213,7 @@ class AmortizationPreview extends StatelessWidget {
                 fontFeatures: AppTypography.tabularFigures)),
       );
 
-  Widget _table(AmortizationPreviewData p) {
+  Widget _table(BuildContext context, AmortizationPreviewData p) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -244,13 +250,13 @@ class AmortizationPreview extends StatelessWidget {
               ],
             ),
           ),
-          for (final row in p.rows) _row(row),
+          for (final row in p.rows) _row(context, row),
         ],
       ),
     );
   }
 
-  Widget _row(AmortizationPreviewRow r) {
+  Widget _row(BuildContext context, AmortizationPreviewRow r) {
     final idx = r.isDue ? '到期' : r.index.toString().padLeft(2, '0');
     final total = r.principal + r.interest;
     final date =
@@ -276,7 +282,7 @@ class AmortizationPreview extends StatelessWidget {
                         fontFeatures: AppTypography.tabularFigures)),
                 Text(date,
                     style: TextStyle(
-                        color: AppColors.muted, fontSize: 10)),
+                        color: context.yucai.muted, fontSize: 10)),
               ],
             ),
           ),
@@ -293,7 +299,7 @@ class AmortizationPreview extends StatelessWidget {
                         fontFeatures: AppTypography.tabularFigures)),
                 Text('$interestRowLabel ${_fmtSymbol(r.interest, currencyCode)}',
                     style: TextStyle(
-                        color: AppColors.muted, fontSize: 10.5)),
+                        color: context.yucai.muted, fontSize: 10.5)),
               ],
             ),
           ),
@@ -327,7 +333,7 @@ class AmortizationPreview extends StatelessWidget {
     );
   }
 
-  Widget _foot() {
+  Widget _foot(BuildContext context) {
     final p = preview;
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -340,7 +346,7 @@ class AmortizationPreview extends StatelessWidget {
           Expanded(
             child: Text(footNote,
                 style: TextStyle(
-                    color: AppColors.muted, fontSize: 11.5)),
+                    color: context.yucai.muted, fontSize: 11.5)),
           ),
           Text('年化 ${p == null ? '—' : '${p.annualRate.toStringAsFixed(1)}%'}',
               style: const TextStyle(

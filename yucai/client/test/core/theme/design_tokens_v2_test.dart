@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/theme/app_theme.dart';
+// F15-T1 探针挂载 debt 共享件(debt_list_widgets re-export DebtListFilter)。
+import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 
 void main() {
   group('YucaiTheme v2 tokens (A+B dual theme)', () {
@@ -154,6 +156,35 @@ void main() {
         ),
       ));
       expect(captured, YucaiTheme.light());
+    });
+
+    // F15-T1:debt 共享件迁移(core/widgets 清 AppColors)的最小暗色守卫 ——
+    // 筛选条文本/激活 chip 配色必须读暗色令牌(旧 AppColors 静态量 = 亮色锁定,
+    // 会把 0xFF64748B 等 v1 亮色值漏进暗色)。
+    testWidgets('debt shared widget (DebtListFilterSegmented) renders dark '
+        'tokens under AppTheme.dark() (F15-T1 guard)', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: Center(
+            child: DebtListFilterSegmented(
+              filter: DebtListFilter.active,
+              activeCount: 2,
+              settledCount: 1,
+              overdueCount: 0,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ));
+      // 未激活段 label = dark muted(#8B93A3);激活段 label = dark fg(#F2F4F8)。
+      final inactive = tester.widget<Text>(find.text('全部'));
+      expect(inactive.style!.color, const Color(0xFF8B93A3));
+      final active = tester.widget<Text>(find.text('进行中'));
+      expect(active.style!.color, const Color(0xFFF2F4F8));
+      // 激活段 count pill 数字 = dark accentDeep(原 AppColors.accentHover 映射)。
+      final activeCount = tester.widget<Text>(find.text('2'));
+      expect(activeCount.style!.color, const Color(0xFFC9964A));
     });
   });
 }

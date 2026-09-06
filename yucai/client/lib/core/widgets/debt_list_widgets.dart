@@ -35,6 +35,11 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 ///
 /// 辅助:badge 与 avatar 的「类型色推断」因两侧 subtype 集合不同(ReceivableSubtypes
 /// / DebtSubtypes),由调用方通过 [BadgeFor] / [AvatarColorFor] 闭包注入。
+///
+/// **F4-P2 色彩豁免清单**:卡面投影 `Color(0x0A/0x0D/0x1A 1C1E21)` 系黑阴影
+/// 保留原值——暗色墨黑底上天然不可见,恰好等效 v2 暗色「无阴影」设计;若改
+/// fg 透导会引入白辉光,故注释豁免不迁。语义色(positive/negative 半透明
+/// badge 底等)已改由令牌 withValues 派生,暗色跟随主题。
 
 /// 千分位 + 两位小数 + 货币符号前缀(两侧同语义,集中一处)。
 String sharedFmtSymbol(int cents, String currencyCode) {
@@ -328,13 +333,13 @@ class DebtListFilterSegmented extends StatelessWidget {
         spacing: 2,
         runSpacing: 0,
         children: [
-          for (final (f, label) in segments) _segment(f, label),
+          for (final (f, label) in segments) _segment(context, f, label),
         ],
       ),
     );
   }
 
-  Widget _segment(DebtListFilter f, String label) {
+  Widget _segment(BuildContext context, DebtListFilter f, String label) {
     final active = f == filter;
     final count = switch (f) {
       DebtListFilter.active => activeCount,
@@ -350,8 +355,9 @@ class DebtListFilterSegmented extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? AppColors.surface : Colors.transparent,
+          color: active ? context.yucai.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
+          // 黑阴影豁免(暗底不可见 = v2 暗色无阴影),见文件头豁免清单。
           boxShadow: active
               ? const [
                   BoxShadow(
@@ -368,15 +374,17 @@ class DebtListFilterSegmented extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                  color: active ? AppColors.fg : AppColors.muted,
+                  color: active ? context.yucai.fg : context.yucai.muted,
                 )),
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: BoxDecoration(
+                // 未激活 count pill 底:原 #0F000000(黑 6%)→ fg 6% 派生,
+                // 暗色下呈微亮底(黑透底在墨黑面上不可辨识)。
                 color: active
-                    ? AppColors.accentSoft
-                    : const Color(0x0F000000),
+                    ? context.yucai.accentSoft
+                    : context.yucai.fg.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -384,7 +392,8 @@ class DebtListFilterSegmented extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: active ? AppColors.accentHover : AppColors.muted,
+                  // accentHover(亮 #047857)= 语义 accentDeep,暗色随主题加深。
+                  color: active ? context.yucai.accentDeep : context.yucai.muted,
                   fontFeatures: AppTypography.tabularFigures,
                 ),
               ),
@@ -764,10 +773,10 @@ class DebtListOverviewCard extends StatelessWidget {
                               letterSpacing: 0.7,
                               color: context.yucai.muted)),
                       const SizedBox(height: 4),
-                      _bigAmt(totalPrincipal),
+                      _bigAmt(context, totalPrincipal),
                       if (trendCents != null && trendCents != 0) ...[
                         const SizedBox(height: 6),
-                        _trendLine(trendCents!, newCountThisMonth),
+                        _trendLine(context, trendCents!, newCountThisMonth),
                       ],
                     ],
                   ),
@@ -784,7 +793,7 @@ class DebtListOverviewCard extends StatelessWidget {
                               letterSpacing: 0.7,
                               color: context.yucai.muted)),
                       const SizedBox(height: 4),
-                      _bigAmt(totalRemaining),
+                      _bigAmt(context, totalRemaining),
                       if (pendingInterestCents != null &&
                           pendingInterestCents! > 0) ...[
                         const SizedBox(height: 6),
@@ -862,11 +871,11 @@ class DebtListOverviewCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Flexible(
-                            child: _metaPair(sem.collectedMetaLabel,
+                            child: _metaPair(context, sem.collectedMetaLabel,
                                 sharedFmtSymbol(totalCollected, preferred)),
                           ),
                           Flexible(
-                            child: _metaPair(sem.pendingMetaLabel,
+                            child: _metaPair(context, sem.pendingMetaLabel,
                                 sharedFmtSymbol(totalRemaining, preferred)),
                           ),
                         ],
@@ -940,16 +949,16 @@ class DebtListOverviewCard extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 10.5, color: context.yucai.muted)),
                 const SizedBox(height: 3),
-                _bigAmt(totalPrincipal),
+                _bigAmt(context, totalPrincipal),
                 if (trendCents != null && trendCents != 0) ...[
                   const SizedBox(height: 5),
-                  _trendLine(trendCents!, newCountThisMonth),
+                  _trendLine(context, trendCents!, newCountThisMonth),
                 ],
                 const SizedBox(height: 14),
                 Text(sem.remainingLabel,
                     style: TextStyle(fontSize: 10.5, color: context.yucai.muted)),
                 const SizedBox(height: 3),
-                _bigAmt(totalRemaining),
+                _bigAmt(context, totalRemaining),
                 if (pendingInterestCents != null &&
                     pendingInterestCents! > 0) ...[
                   const SizedBox(height: 5),
@@ -1003,11 +1012,11 @@ class DebtListOverviewCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Flexible(
-                      child: _metaPair(sem.collectedMetaLabel,
+                      child: _metaPair(context, sem.collectedMetaLabel,
                           sharedFmtSymbol(totalCollected, preferred)),
                     ),
                     Flexible(
-                      child: _metaPair(sem.pendingMetaLabel,
+                      child: _metaPair(context, sem.pendingMetaLabel,
                           sharedFmtSymbol(totalRemaining, preferred)),
                     ),
                   ],
@@ -1038,7 +1047,7 @@ class DebtListOverviewCard extends StatelessWidget {
     );
   }
 
-  Widget _bigAmt(int cents) {
+  Widget _bigAmt(BuildContext context, int cents) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
@@ -1046,7 +1055,7 @@ class DebtListOverviewCard extends StatelessWidget {
         Text(currencySymbol(preferred),
             style: TextStyle(
                 fontSize: 20,
-                color: AppColors.accent,
+                color: context.yucai.accent,
                 fontWeight: FontWeight.w700)),
         const SizedBox(width: 2),
         Flexible(
@@ -1059,7 +1068,7 @@ class DebtListOverviewCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.w700,
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 letterSpacing: -0.2,
                 fontFeatures: AppTypography.tabularFigures,
               ),
@@ -1074,14 +1083,14 @@ class DebtListOverviewCard extends StatelessWidget {
   /// 「减少 = 绿」语义不同,但 trendCents 这里是「本金较上月变化」:receivable
   /// 增加=借出变多=中性偏红;debt 增加=负债变多=红。统一:正=红、负=绿(欠/应
   /// 收减少是好事)。与 detail hero delta 同向(减少=绿)。
-  Widget _trendLine(int cents, int newCount) {
+  Widget _trendLine(BuildContext context, int cents, int newCount) {
     final isDown = cents < 0; // 减少 = 绿
-    final color = isDown ? AppColors.positive : AppColors.negative;
+    final color = isDown ? context.yucai.positive : context.yucai.negative;
     final sign = isDown ? '-' : '+';
     final abs = cents.abs();
     return Text.rich(
       TextSpan(
-        style: TextStyle(fontSize: 12, color: AppColors.muted),
+        style: TextStyle(fontSize: 12, color: context.yucai.muted),
         children: [
           const TextSpan(text: '较上月 '),
           TextSpan(
@@ -1096,16 +1105,16 @@ class DebtListOverviewCard extends StatelessWidget {
     );
   }
 
-  Widget _metaPair(String lbl, String amt) {
+  Widget _metaPair(BuildContext context, String lbl, String amt) {
     return Text.rich(
       TextSpan(
-        style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+        style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
         children: [
           TextSpan(text: '$lbl '),
           TextSpan(
               text: amt,
               style: TextStyle(
-                  color: AppColors.fg,
+                  color: context.yucai.fg,
                   fontWeight: FontWeight.w600,
                   fontFeatures: AppTypography.tabularFigures)),
         ],
@@ -1534,12 +1543,12 @@ class DebtListCard extends StatelessWidget {
                                   DebtTypeBadge(
                                       label: '已结清 ✓',
                                       fg: context.yucai.positive,
-                                      bg: Color(0x1A2D8A6E))
+                                      bg: context.yucai.positive.withValues(alpha: 0.10))
                                 else if (isOverdue)
                                   DebtTypeBadge(
                                       label: '逾期',
                                       fg: context.yucai.negative,
-                                      bg: Color(0x1AC4544D)),
+                                      bg: context.yucai.negative.withValues(alpha: 0.10)),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -1669,12 +1678,12 @@ class DebtListCard extends StatelessWidget {
                           DebtTypeBadge(
                               label: '已结清 ✓',
                               fg: context.yucai.positive,
-                              bg: Color(0x1A2D8A6E))
+                              bg: context.yucai.positive.withValues(alpha: 0.10))
                         else if (isOverdue)
                           DebtTypeBadge(
                               label: '逾期',
                               fg: context.yucai.negative,
-                              bg: Color(0x1AC4544D)),
+                              bg: context.yucai.negative.withValues(alpha: 0.10)),
                       ],
                     ),
                   ],
@@ -1773,12 +1782,12 @@ class DebtListCard extends StatelessWidget {
                           DebtTypeBadge(
                               label: '已结清 ✓',
                               fg: context.yucai.positive,
-                              bg: Color(0x1A2D8A6E))
+                              bg: context.yucai.positive.withValues(alpha: 0.10))
                         else if (isOverdue)
                           DebtTypeBadge(
                               label: '逾期',
                               fg: context.yucai.negative,
-                              bg: Color(0x1AC4544D)),
+                              bg: context.yucai.negative.withValues(alpha: 0.10)),
                       ],
                     ),
                     const SizedBox(height: 3),

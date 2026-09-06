@@ -217,8 +217,9 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
       avatarColor: _avatarColorFor(debt),
       accountName: _lookupAccountName(debt.accountId),
     );
+    // F4-P2:buildDebtDetailStats 语义色经 context.yucai 解析,补 context 形参。
     final stats = DebtDetailStatsRow(
-        stats: buildDebtDetailStats(detail, preferred, _sem));
+        stats: buildDebtDetailStats(context, detail, preferred, _sem));
     final schedule = DebtDetailSchedule(
       sem: _sem,
       schedule: detail.schedule,

@@ -36,9 +36,11 @@ class DatePickerInput extends FormField<DateTime> {
                       ? '请选择日期'
                       : '${state.value!.year}-${state.value!.month.toString().padLeft(2, '0')}-${state.value!.day.toString().padLeft(2, '0')}',
                   style: TextStyle(
+                    // F4-P2:占位/正文色走语义令牌(FormField builder 无直接
+                    // context 形参,经 state.context 取,暗色跟随主题)。
                     color: state.value == null
-                        ? AppColors.muted
-                        : AppColors.fg,
+                        ? state.context.yucai.muted
+                        : state.context.yucai.fg,
                   ),
                 ),
               ),

@@ -43,12 +43,30 @@ class ConicRingSpec {
   static ConicRingSpec of(ConicRingSize s) => _table[s]!;
 }
 
-/// 御财金渐变(进度弧 SweepGradient,对齐原型 ringGradient 金色调)。
+/// 御财金渐变(进度弧 SweepGradient,对齐原型 ringGradient 金色调)——亮色板。
+///
+/// F4-P2 数据可视化序列色裁决:金色调是御财「类型金」序列语义,亮色保留原型
+/// v1 原值;同一组 mid-gold 在 v2 墨黑底上偏暗,暗色改用 v2 鎏金序列(亮端提
+/// 一档)——**暗色下可辨识且不刺眼**。取用一律走 [ringGoldGradientOf](主题
+/// 感知);const 仅供亮色板引用。
 const List<Color> kRingGoldGradient = [
   Color(0xFFCBB387), // --gold-soft
   Color(0xFFB08D57), // --gold
   Color(0xFF94703C), // --gold-deep
 ];
+
+/// 金渐变暗色板(v2 鎏金:亮端提亮 → dark accent → dark accentDeep)。
+const List<Color> _kRingGoldGradientDark = [
+  Color(0xFFF3D9A4), // 鎏金亮端(暗底提亮,避免整环发闷)
+  Color(0xFFE8C07A), // v2 dark accent
+  Color(0xFFC9964A), // v2 dark accentDeep
+];
+
+/// 主题感知的金渐变:亮 = 原型 v1 御财金;暗 = v2 鎏金(暗底可辨识且不刺眼)。
+List<Color> ringGoldGradientOf(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? _kRingGoldGradientDark
+        : kRingGoldGradient;
 
 /// Conic 进度环 widget。
 ///
@@ -65,7 +83,7 @@ class ConicProgressRing extends StatelessWidget {
     this.pctLabel,
     this.subLabel,
     this.size = ConicRingSize.md,
-    this.trackColor = AppColors.border,
+    this.trackColor,
     this.gradient,
   });
 
@@ -74,7 +92,10 @@ class ConicProgressRing extends StatelessWidget {
   final String? pctLabel;
   final String? subLabel;
   final ConicRingSize size;
-  final Color trackColor;
+
+  /// 剩余弧底色;null → build 内解析 context.yucai.border(F4-P2:const 构造
+  /// 默认值取不到 context,故改为可空 + build 内回落语义令牌)。
+  final Color? trackColor;
   final List<Color>? gradient;
 
   @override
@@ -92,7 +113,7 @@ class ConicProgressRing extends StatelessWidget {
             painter: _ConicRingPainter(
               progress: progress.clamp(0.0, 1.0),
               color: color,
-              trackColor: trackColor,
+              trackColor: trackColor ?? context.yucai.border,
               strokeWidth: spec.strokeWidth,
               gradient: gradient,
             ),
