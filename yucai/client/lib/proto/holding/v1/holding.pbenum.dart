@@ -104,5 +104,47 @@ class CurveRange extends $pb.ProtobufEnum {
   const CurveRange._(super.value, super.name);
 }
 
+/// ReturnMetric 组合收益头部主指标(语义归 server,展示归 client)。
+class ReturnMetric extends $pb.ProtobufEnum {
+  static const ReturnMetric RETURN_METRIC_UNSPECIFIED =
+      ReturnMetric._(0, _omitEnumNames ? '' : 'RETURN_METRIC_UNSPECIFIED');
+  static const ReturnMetric RETURN_METRIC_XIRR =
+      ReturnMetric._(1, _omitEnumNames ? '' : 'RETURN_METRIC_XIRR');
+
+  static const $core.List<ReturnMetric> values = <ReturnMetric>[
+    RETURN_METRIC_UNSPECIFIED,
+    RETURN_METRIC_XIRR,
+  ];
+
+  static final $core.List<ReturnMetric?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 1);
+  static ReturnMetric? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const ReturnMetric._(super.value, super.name);
+}
+
+/// CagrScope CAGR(辅助指标)统计口径,机器可读。
+class CagrScope extends $pb.ProtobufEnum {
+  static const CagrScope CAGR_SCOPE_UNSPECIFIED =
+      CagrScope._(0, _omitEnumNames ? '' : 'CAGR_SCOPE_UNSPECIFIED');
+
+  /// 仅当前持仓 costBasis→市值,忽略已实现盈亏。
+  static const CagrScope CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV = CagrScope._(
+      1, _omitEnumNames ? '' : 'CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV');
+
+  static const $core.List<CagrScope> values = <CagrScope>[
+    CAGR_SCOPE_UNSPECIFIED,
+    CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV,
+  ];
+
+  static final $core.List<CagrScope?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 1);
+  static CagrScope? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const CagrScope._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

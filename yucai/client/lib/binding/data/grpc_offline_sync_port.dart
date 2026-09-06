@@ -6,7 +6,6 @@ import 'package:grpc/grpc.dart';
 import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
-import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/proto/sync/v1/sync.pb.dart' as pb;
 import 'package:yucai_client/proto/sync/v1/sync.pbgrpc.dart' as grpc;
 
@@ -29,20 +28,28 @@ import 'package:yucai_client/proto/sync/v1/sync.pbgrpc.dart' as grpc;
 ///   保证);server 侧 T1 已对不一致 fail-closed,此处注释钉死该不变量。
 /// - 墓碑 → `operation: DELETE, entityId, payload 空`(server 硬删 + 归一化
 ///   空 payload;version 不载,server 对 DELETE 不消费版本)。
-/// - deviceId = BoundMarker 的绑定标记串(当前生产值为 'bound' 字面量而非
-///   tenant uuid;server parseUUID 得 Nil 仅影响 sync_log 日志列与 device
-///   版本 bump no-op,无害;ticket 16 RegisterDevice 真实化时一并处理;
-///   标记未写入时传空串,server 回退鉴权 tenant)。
 ///
-/// 结果映射:grpc OK → ok(即使 conflicts 非空也视为成功 —— 单设备语义下
-/// server 恒空,F10 定义的「部分冲突收敛为整体失败」留给 ticket 16 多设备);
-/// unavailable 等网络类 → 失败(pending 保留,协调器语义);其他 grpc 错误 →
-/// 失败(reason 带 code);编码等非 grpc 异常同样收敛为失败。
+/// deviceId = clientId(F17-T1,FR-2/ADR-1):
+/// - 来源 [ClientIdProvider](TokenStorage.readClientId 的函数缝,DI 组合根
+///   接线)—— uuid v4 安装级标识,启动即生成持久化(injection.dart 3a),
+///   与 x-client-id header 同源;server parseUUID 合法,设备行 id=clientId
+///   (RegisterDevice 幂等键),push 的版本 bump 落到本设备行。
+/// - F10-F16 的过渡形态(deviceId=BoundMarker 'bound' 字面量,server 容忍为
+///   uuid.Nil)已闭环退役:'bound' 回归纯绑定标记值(BoundMarker 职责单一
+///   化,tenant 标记与设备身份分离)。
+/// - clientId 理论缺失(null)→ 空串防御(server F16 起对空 deviceId
+///   fail-closed InvalidArgument,loud 不静默)。
+///
+/// 结果映射(FR-5/ADR-5):grpc OK → ok + conflicts 映射(**ok 语义不变**,
+/// conflicts 非空仍成功 —— 单设备 server 恒空;多设备下信息携带给协调器
+/// 状态,解决流留给 F18);unavailable 等网络类 → 失败(pending 保留,
+/// 协调器语义);其他 grpc 错误 → 失败(reason 带 code);编码等非 grpc
+/// 异常同样收敛为失败。
 class GrpcOfflineSyncPort implements OfflineSyncPort {
   GrpcOfflineSyncPort(
     GrpcClient grpcClient,
     this._retry,
-    this._boundMarker, {
+    this._clientIdProvider, {
     grpc.SyncServiceClient? syncClient,
   }) : _client = syncClient ??
             grpc.SyncServiceClient(
@@ -51,7 +58,10 @@ class GrpcOfflineSyncPort implements OfflineSyncPort {
             );
 
   final AuthRetryCaller _retry;
-  final BoundMarker _boundMarker;
+
+  /// 设备身份缝:DI 接 `getIt<TokenStorage>().readClientId`(选择理由见
+  /// domain/offline_sync_port.dart 的 ClientIdProvider doc)。
+  final ClientIdProvider _clientIdProvider;
   final grpc.SyncServiceClient _client;
 
   @override
@@ -60,8 +70,17 @@ class GrpcOfflineSyncPort implements OfflineSyncPort {
       final request = await encodeRequest(batch);
       // 闭包内先 await 再交 retry 包装(与各 remote DS 的 `_retry.call(() async
       // => ...)` 同构):T 推断为 PushResponse,而不是 ResponseFuture 桩类型。
-      await _retry.call(() async => await _client.pushChanges(request));
-      return const SyncResult.success();
+      final response =
+          await _retry.call(() async => await _client.pushChanges(request));
+      // FR-5/ADR-5 最小面:conflicts 透传映射(ok 不变;F18 做解决流)。
+      return SyncResult.success(conflicts: [
+        for (final c in response.conflicts)
+          SyncConflictInfo(
+            module: c.entityType,
+            entityId: c.entityId,
+            conflictType: c.conflictType,
+          ),
+      ]);
     } on GrpcError catch (e) {
       if (e.code == StatusCode.unavailable ||
           e.code == StatusCode.deadlineExceeded) {
@@ -73,6 +92,20 @@ class GrpcOfflineSyncPort implements OfflineSyncPort {
       // 编码/未知异常:同样收敛为失败(pending 保留),不让异常炸穿协调器。
       return SyncResult.failure('同步失败($e)');
     }
+  }
+
+  @override
+  Future<void> registerDevice(String deviceName) async {
+    // 闭包内先构造(读 clientId)再交 retry:401 刷新路径同样覆盖注册 RPC。
+    final request = grpc.RegisterDeviceRequest(
+      deviceId: await _deviceId(),
+      deviceName: deviceName,
+    );
+    await _retry.call(
+        () async => await _client.registerDevice(request));
+    // 失败(含 grpc 错误)直接抛出:调用方 BindingBloc fire-and-forget 容错
+    // (log warn 不阻断绑定);server 按非空 device_id 幂等,下次绑定或
+    // F17-T2 拉取前重试无害。
   }
 
   /// 批次 → PushChangesRequest(编码独立可见,测试钉 wire 形态)。
@@ -102,10 +135,6 @@ class GrpcOfflineSyncPort implements OfflineSyncPort {
     return grpc.PushChangesRequest(changes: changes);
   }
 
-  /// deviceId = 绑定标记串(当前生产值为 'bound' 字面量而非 tenant uuid;
-  /// server parseUUID 得 Nil 仅影响 sync_log 日志列与 device 版本 bump
-  /// no-op,无害;ticket 16 RegisterDevice 真实化时一并处理)。未绑定 →
-  /// 空串(server 端对空 DeviceId 回退鉴权 tenant)。
-  Future<String> _deviceId() async =>
-      await _boundMarker.readTenantId() ?? '';
+  /// deviceId = clientId(uuid 串;来源与缺失防御见类 doc F17-T1 段)。
+  Future<String> _deviceId() async => await _clientIdProvider() ?? '';
 }

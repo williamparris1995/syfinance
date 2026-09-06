@@ -29,6 +29,10 @@ class _FakePort implements OfflineSyncPort {
   Completer<void>? gate;
   bool inFlight = false;
 
+  // F17-T1:接口新增成员的替身实现(协调器链路不触注册,绑定流程才调)。
+  @override
+  Future<void> registerDevice(String deviceName) async {}
+
   @override
   Future<SyncResult> push(SyncBatch batch) async {
     batches.add(batch);
@@ -207,6 +211,29 @@ void main() {
     expect(port.batches, hasLength(2));
     expect(await database.accountDao.getPendingAccounts(), isEmpty);
     expect(await database.syncTombstoneDao.getAllTombstones(), isEmpty);
+  });
+
+  test('F17-T1 冲突透传:push 成功携带 conflicts → clean 态 conflictCount 携带',
+      () async {
+    await seedPending();
+    port.nextResult = const SyncResult.success(conflicts: [
+      SyncConflictInfo(
+          module: SyncModule.tag,
+          entityId: 'tag-1',
+          conflictType: 'version_conflict'),
+      SyncConflictInfo(
+          module: SyncModule.account,
+          entityId: 'acc-9',
+          conflictType: 'version_conflict'),
+    ]);
+
+    bloc.add(SyncRetryRequested());
+    await until(() => bloc.state.status == SyncStatus.clean);
+
+    // ok 语义不变(clean,回写照常);冲突计数仅状态携带 —— F12 badge 组件
+    // 不改(F18 面板消费),协调器只透传。
+    expect(bloc.state.conflictCount, 2);
+    expect(await database.accountDao.getPendingAccounts(), isEmpty);
   });
 
   test('进行中幂等:flight 期间重入触发被丢弃(push 恰一次)', () async {

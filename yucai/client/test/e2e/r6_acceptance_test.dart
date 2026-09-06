@@ -17,6 +17,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/backup/data/backup_remote_ds.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
+import 'package:yucai_client/binding/data/noop_offline_sync_port.dart';
 import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db
     hide Holding, Transaction, TransactionEntry;
@@ -205,8 +206,11 @@ void main() {
       // Upload succeeds; post-upload verification sees the data remotely.
       when(() => backupRemote.uploadBackup(any())).thenAnswer((_) async {});
 
+      // F17-T1:BindingBloc 新增 OfflineSyncPort 参 —— 绑定后注册设备走
+      // noop 替身(本验收链路无同步服务,注册静默无副作用即可)。
       final bloc = BindingBloc(accounts, txnRepo, holdingRepo,
-          LocalSnapshotExporter(database), backupRemote, database, marker);
+          LocalSnapshotExporter(database), backupRemote, database, marker,
+          NoopOfflineSyncPort());
 
       bloc.add(BindingStarted());
       await Future<void>.delayed(const Duration(milliseconds: 100));

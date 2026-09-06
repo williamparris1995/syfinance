@@ -151,12 +151,10 @@ func TestSyncDevice_ExplicitUUIDDeviceID_Accepted(t *testing.T) {
 	}
 }
 
-// TestSyncDevice_RegisterDevice_ServerGeneratedFreshIDs: the wire request
-// carries no device identity yet (device_name only), so each registration
-// returns a fresh server-generated uuid starting at last_sync_version 0. The
-// idempotent re-registration path (caller-supplied stable id) is exercised at
-// the service layer in internal/sync/application tests; F17 adds the wire
-// field.
+// TestSyncDevice_RegisterDevice_ServerGeneratedFreshIDs: an EMPTY device_id
+// keeps the legacy path — the server generates a fresh uuid per call starting
+// at last_sync_version 0 (F17 added the wire field; the handler passes
+// caller-supplied ids through, see TestSyncDevice_RegisterDevice_ClientIdempotent).
 func TestSyncDevice_RegisterDevice_ServerGeneratedFreshIDs(t *testing.T) {
 	it := newSyncPushIT(t)
 	ctx := context.Background()
@@ -181,6 +179,56 @@ func TestSyncDevice_RegisterDevice_ServerGeneratedFreshIDs(t *testing.T) {
 	// handler).
 	if _, err := it.handler.RegisterDevice(deviceCtx(ctx, tenantID), &syncpb.RegisterDeviceRequest{DeviceName: ""}); err == nil {
 		t.Fatal("empty device_name must be rejected")
+	}
+}
+
+// TestSyncDevice_RegisterDevice_ClientIdempotent (F17 ADR-1): a caller-
+// supplied device_id (the client's per-install clientId) takes the service's
+// idempotent path — re-registration returns the SAME id (the existing row,
+// with its current last_sync_version) instead of tripping the PK or minting
+// a fresh row; a malformed non-empty device_id is InvalidArgument fail-closed.
+// This is the exact wire shape the F17 client's binding flow sends.
+func TestSyncDevice_RegisterDevice_ClientIdempotent(t *testing.T) {
+	it := newSyncPushIT(t)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	clientID := uuid.New().String()
+	a, err := it.handler.RegisterDevice(deviceCtx(ctx, tenantID), &syncpb.RegisterDeviceRequest{DeviceName: "phone", DeviceId: clientID})
+	if err != nil {
+		t.Fatalf("register a: %v", err)
+	}
+	if a.DeviceId != clientID {
+		t.Fatalf("registered device_id = %s, want caller-supplied %s", a.DeviceId, clientID)
+	}
+
+	// A push attributed to that device bumps its last_sync_version (row exists).
+	accID := uuid.New()
+	change := syncChange(tenantID, "account", accID.String(), syncpb.SyncOperation_SYNC_OPERATION_CREATE,
+		marshalSyncRow(t, syncAccountRow(accID.String(), "client device", 1)))
+	change.DeviceId = clientID
+	if _, err := it.handler.PushChanges(deviceCtx(ctx, tenantID), &syncpb.PushChangesRequest{Changes: []*syncpb.SyncPayload{change}}); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+
+	// Re-registration (idempotent retry from the binding flow): same row,
+	// last_sync_version preserved (1), not reset to 0.
+	b, err := it.handler.RegisterDevice(deviceCtx(ctx, tenantID), &syncpb.RegisterDeviceRequest{DeviceName: "phone retry", DeviceId: clientID})
+	if err != nil {
+		t.Fatalf("re-register: %v", err)
+	}
+	if b.DeviceId != clientID {
+		t.Fatalf("re-registered device_id = %s, want stable %s", b.DeviceId, clientID)
+	}
+	if b.LastSyncVersion != 1 {
+		t.Fatalf("re-registered last_sync_version = %d, want preserved 1", b.LastSyncVersion)
+	}
+
+	// Malformed device_id: InvalidArgument (parseUUIDStrict, not a silent Nil).
+	if _, err := it.handler.RegisterDevice(deviceCtx(ctx, tenantID), &syncpb.RegisterDeviceRequest{DeviceName: "bad", DeviceId: "not-a-uuid"}); err == nil {
+		t.Fatal("malformed device_id must be rejected")
+	} else {
+		assertCode(t, err, codes.InvalidArgument)
 	}
 }
 

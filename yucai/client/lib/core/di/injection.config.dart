@@ -46,6 +46,11 @@ import '../../backup/domain/repositories/backup_repository.dart' as _i335;
 import '../../backup/presentation/bloc/backup_bloc.dart' as _i852;
 import '../../backup/presentation/bloc/backup_settings_bloc.dart' as _i86;
 import '../../binding/data/bound_mirror.dart' as _i507;
+// F17-T1 手工补(照 wire_gen.go 手改惯例,免 build_runner 全量重生成):
+// BindingBloc 构造新增 OfflineSyncPort(绑定成功后 fire-and-forget 注册
+// 设备;懒注册见 injection.dart 1h,工厂解析时已就绪)。别名 _i995 取
+// 未用号(当前最大 _i994)。
+import '../../binding/domain/offline_sync_port.dart' as _i995;
 import '../../binding/presentation/bloc/binding_bloc.dart' as _i740;
 import '../../budget/data/budget_local_ds.dart' as _i15;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
@@ -459,6 +464,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i877.BackupRemoteDataSource>(),
         gh<_i581.AppDatabase>(),
         gh<_i98.BoundMarker>(),
+        gh<_i995.OfflineSyncPort>(),
       ),
     );
     gh.factory<_i852.BackupBloc>(

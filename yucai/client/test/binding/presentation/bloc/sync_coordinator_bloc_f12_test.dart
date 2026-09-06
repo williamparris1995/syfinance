@@ -28,6 +28,10 @@ class _FakePort implements OfflineSyncPort {
   final batches = <SyncBatch>[];
   SyncResult nextResult = const SyncResult.success();
 
+  // F17-T1:接口新增成员的替身实现(协调器链路不触注册,绑定流程才调)。
+  @override
+  Future<void> registerDevice(String deviceName) async {}
+
   @override
   Future<SyncResult> push(SyncBatch batch) async {
     batches.add(batch);

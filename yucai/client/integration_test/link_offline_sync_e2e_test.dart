@@ -37,6 +37,7 @@ import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as wkt;
 
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
@@ -46,7 +47,6 @@ import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
-import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/proto/sync/v1/sync.pb.dart' as pb;
 import 'package:yucai_client/proto/sync/v1/sync.pbserver.dart' as pbsvc;
@@ -146,11 +146,14 @@ class _FakeConnectivityGateway extends ConnectivityGateway {
   final StreamController<bool> controller;
 }
 
-/// F13 ADR-2:BoundMarker fake —— deviceId 来源串固定 'e2e-device'(wire
-/// 断言钉该值;super 构造仅落一个永不被触碰的 secure-storage 引用)。
-class _FakeBoundMarker extends BoundMarker {
+/// F17-T1:TokenStorage fake —— deviceId 来源 = clientId(FR-2/ADR-1,
+/// GrpcOfflineSyncPort 经 ClientIdProvider 缝读 readClientId),固定
+/// 'e2e-device'(wire 断言钉该值;super 构造仅落一个永不被触碰的
+/// secure-storage 引用)。F13 时代注入的是 BoundMarker fake(readTenantId),
+/// 设备身份真实化后注入点随来源迁移。
+class _FakeTokenStorage extends TokenStorage {
   @override
-  Future<String?> readTenantId() async => 'e2e-device';
+  Future<String?> readClientId() async => 'e2e-device';
 }
 
 /// server T2(yucai/server/tests/sync_push_integration_test.go)钉死的
@@ -249,14 +252,17 @@ void main() {
     }
     expect(gateway.current, isFalse, reason: 'fake gateway 冷启动应离线');
 
-    // 覆写=同类型重注册:configureDependencies 已注册过这三类,开
-    // allowReassignment 替换(design ADR-2 授权的库内覆写惯例)。三者均
+    // 覆写=同类型重注册:configureDependencies 已注册过这些类型,开
+    // allowReassignment 替换(design ADR-2 授权的库内覆写惯例)。均
     // lazy/待解析,替换后首个消费者(GrpcOfflineSyncPort / tracker /
     // SyncCoordinatorBloc / 各 remote DS)拿到的就是 fake。
+    // F17-T1:deviceId 来源迁移 clientId —— 覆写对象由 BoundMarker 换成
+    // TokenStorage(fake readClientId → 'e2e-device';configureDependencies
+    // 的真实 TokenStorage 是 secure-storage 底,本环境不可读)。
     getIt.allowReassignment = true;
     getIt.registerSingleton<GrpcClient>(client);
     getIt.registerLazySingleton<ConnectivityGateway>(() => gateway);
-    getIt.registerLazySingleton<BoundMarker>(() => _FakeBoundMarker());
+    getIt.registerSingleton<TokenStorage>(_FakeTokenStorage());
 
     // tracker 置 bound + offline(照 F10 管线测试先例直接驱动字段 ——
     // 消除 initialCheck 微任务竞态;构造本身已接 fake gateway 的流订阅,
@@ -403,7 +409,7 @@ void main() {
 
     for (final c in entities) {
       final row = rowOf(c);
-      // deviceId = BoundMarker 绑定串(fake 注入)。
+      // deviceId = clientId(fake TokenStorage 注入,F17-T1)。
       expect(c.deviceId, 'e2e-device');
       // 每实体 payload.ID == entityId(同源 drift 主键不变量;server T1
       // 对不一致 fail-closed,此处消费方钉同一不变量)。

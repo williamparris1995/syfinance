@@ -135,6 +135,10 @@ class SyncCoordinatorBloc
         emit(SyncCoordinatorState(
           status: SyncStatus.clean,
           pendingCount: _liveCount,
+          // F17-T1(FR-5/ADR-5):冲突计数透传(clean 态携带;失败态无冲突
+          // ——失败结果不含 conflicts)。F12 badge 组件**不改**(仅状态
+          // 携带,冲突面板/解决流是 F18 的面)。
+          conflictCount: result.conflictCount,
         ));
       } else {
         // 失败:pending 保留(不动库),下次回网/手动触发重试。
@@ -165,6 +169,8 @@ class SyncCoordinatorBloc
     emit(SyncCoordinatorState(
       status: state.status,
       pendingCount: event.count,
+      // F17-T1:计数纯更新不冲掉冲突计数(同 failureReason 的保留语义)。
+      conflictCount: state.conflictCount,
       failureReason: state.failureReason,
     ));
   }
@@ -343,11 +349,16 @@ enum SyncStatus {
 /// F12 T1(spec FR-2):pendingCount **全态携带实时待同步计数**(实体 +
 /// 墓碑)—— idle/clean 亦有值(badge「待同步 N」即读它);Equatable 让
 /// bloc 在 emit 层去重等值状态(纯计数更新的噪声发射被吞)。
+///
+/// F17-T1(FR-5/ADR-5 最小面):[conflictCount] 携带最近一次成功 push 的
+/// 冲突条数(clean 态写入,计数更新不冲掉;0=无冲突)。仅状态携带 ——
+/// F12 badge 组件不改,「冲突 N 待处理」展示与解决流是 F18 的面。
 class SyncCoordinatorState extends Equatable {
   const SyncCoordinatorState({
     this.status = SyncStatus.idle,
     this.pendingCount = 0,
     this.failureReason,
+    this.conflictCount = 0,
   });
 
   final SyncStatus status;
@@ -359,6 +370,9 @@ class SyncCoordinatorState extends Equatable {
   /// failed 态原因。
   final String? failureReason;
 
+  /// F17-T1:最近一次成功 push 的冲突条数(默认 0;F18 冲突面板消费)。
+  final int conflictCount;
+
   @override
-  List<Object?> get props => [status, pendingCount, failureReason];
+  List<Object?> get props => [status, pendingCount, failureReason, conflictCount];
 }

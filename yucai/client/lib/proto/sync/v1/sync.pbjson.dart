@@ -64,13 +64,14 @@ const RegisterDeviceRequest$json = {
   '1': 'RegisterDeviceRequest',
   '2': [
     {'1': 'device_name', '3': 1, '4': 1, '5': 9, '10': 'deviceName'},
+    {'1': 'device_id', '3': 2, '4': 1, '5': 9, '10': 'deviceId'},
   ],
 };
 
 /// Descriptor for `RegisterDeviceRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List registerDeviceRequestDescriptor = $convert.base64Decode(
     'ChVSZWdpc3RlckRldmljZVJlcXVlc3QSHwoLZGV2aWNlX25hbWUYASABKAlSCmRldmljZU5hbW'
-    'U=');
+    'USGwoJZGV2aWNlX2lkGAIgASgJUghkZXZpY2VJZA==');
 
 @$core.Deprecated('Use registerDeviceResponseDescriptor instead')
 const RegisterDeviceResponse$json = {
@@ -90,11 +91,15 @@ final $typed_data.Uint8List registerDeviceResponseDescriptor =
 @$core.Deprecated('Use getSyncStatusRequestDescriptor instead')
 const GetSyncStatusRequest$json = {
   '1': 'GetSyncStatusRequest',
+  '2': [
+    {'1': 'device_id', '3': 1, '4': 1, '5': 9, '10': 'deviceId'},
+  ],
 };
 
 /// Descriptor for `GetSyncStatusRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getSyncStatusRequestDescriptor =
-    $convert.base64Decode('ChRHZXRTeW5jU3RhdHVzUmVxdWVzdA==');
+    $convert.base64Decode(
+        'ChRHZXRTeW5jU3RhdHVzUmVxdWVzdBIbCglkZXZpY2VfaWQYASABKAlSCGRldmljZUlk');
 
 @$core.Deprecated('Use syncStatusResponseDescriptor instead')
 const SyncStatusResponse$json = {
@@ -217,6 +222,7 @@ const ConflictDTO$json = {
     {'1': 'server_payload', '3': 4, '4': 1, '5': 12, '10': 'serverPayload'},
     {'1': 'client_payload', '3': 5, '4': 1, '5': 12, '10': 'clientPayload'},
     {'1': 'resolution', '3': 6, '4': 1, '5': 9, '10': 'resolution'},
+    {'1': 'conflict_type', '3': 7, '4': 1, '5': 9, '10': 'conflictType'},
   ],
 };
 
@@ -225,7 +231,8 @@ final $typed_data.Uint8List conflictDTODescriptor = $convert.base64Decode(
     'CgtDb25mbGljdERUTxIOCgJpZBgBIAEoCVICaWQSHwoLZW50aXR5X3R5cGUYAiABKAlSCmVudG'
     'l0eVR5cGUSGwoJZW50aXR5X2lkGAMgASgJUghlbnRpdHlJZBIlCg5zZXJ2ZXJfcGF5bG9hZBgE'
     'IAEoDFINc2VydmVyUGF5bG9hZBIlCg5jbGllbnRfcGF5bG9hZBgFIAEoDFINY2xpZW50UGF5bG'
-    '9hZBIeCgpyZXNvbHV0aW9uGAYgASgJUgpyZXNvbHV0aW9u');
+    '9hZBIeCgpyZXNvbHV0aW9uGAYgASgJUgpyZXNvbHV0aW9uEiMKDWNvbmZsaWN0X3R5cGUYByAB'
+    'KAlSDGNvbmZsaWN0VHlwZQ==');
 
 @$core.Deprecated('Use resolveConflictRequestDescriptor instead')
 const ResolveConflictRequest$json = {
@@ -293,18 +300,17 @@ final $typed_data.Uint8List listConflictsResponseDescriptor = $convert.base64Dec
     'djEuUGFnZVJlc3BvbnNlUgRwYWdl');
 
 // ---------------------------------------------------------------------------
-// F13(2026-09-05)手工补齐 —— 工具链坏,照 AGENTS.md「wire_gen.go 手改」
-// 惯例处理:protoc 生成物漏掉了 service 描述符,.pbserver.dart 尾部引用的
-// SyncServiceBase$json / SyncServiceBase$messageJson 不在生成输出里(该
-// 休眠桩此前从未被 import,编译期从未暴露)。兄弟模块 20 个 analyzer
-// error 经 flutter analyze 一直可见(仅编译期不可见),本文件同病非孤
-// 例。F13 消费方契约测试需要
-// `extends SyncServiceBase` 在进程内挂假 server,按官方 protoc_plugin 的
-// pbjson 形态补齐这两个常量:纯常量、零行为影响;方法表与 proto/sync/v1/
-// sync.proto 的 `service SyncService` 逐方法对齐(ResolveConflict 的返回
-// 类型为 well-known Empty,descriptor 由 protobuf 包预置,messageJson 不
-// 重复登记 —— 与官方生成器对 well-known 类型的处理一致)。不手搓
-// ServiceDescriptorProto 的 base64(不可校验,且本仓消费路径不用)。
+// F13(2026-09-05)手工补齐;F17-T1(2026-09-06)在 gen-dart 工具链修复后
+// **重新套用**并更新事实:protoc_plugin 25.0.0(pub 上最新版,实测)不
+// 生成 .pbserver.dart,pbjson 也不含 service 描述符 —— 即本文件每次
+// `make gen-dart` 都会丢掉本块,**regen 后须重新套用**(照 AGENTS.md
+// 「wire_gen.go 手改」惯例的 Dart 对应物)。.pbserver.dart 尾部引用的
+// SyncServiceBase$json / SyncServiceBase$messageJson 仅在此补齐:纯常量、
+// 零行为影响;方法表与 proto/sync/v1/sync.proto 的 `service SyncService`
+// 逐方法对齐(ResolveConflict 返回 well-known Empty,descriptor 由
+// protobuf 包预置,messageJson 不重复登记 —— 与官方生成器对 well-known
+// 类型的处理一致)。不手搓 ServiceDescriptorProto 的 base64(不可校验,
+// 且本仓消费路径不用)。
 // ---------------------------------------------------------------------------
 const SyncServiceBase$json = {
   '1': 'SyncService',
@@ -358,4 +364,3 @@ final $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
   '.yucai.sync.v1.ListConflictsRequest': ListConflictsRequest$json,
   '.yucai.sync.v1.ListConflictsResponse': ListConflictsResponse$json,
 };
-

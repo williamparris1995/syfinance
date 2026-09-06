@@ -40,6 +40,13 @@ message SyncPayload {
 
 message RegisterDeviceRequest {
   string device_name = 1;
+  // F17(ADR-1)stable device identity on the wire. Verified before adding:
+  // the handler previously read device_name only and hardcoded uuid.Nil
+  // (fresh server-generated id per call), and it does NOT read the
+  // x-client-id metadata the client already sends on every RPC — so a
+  // request field is the only way to make registration idempotent by
+  // client identity. Empty keeps the legacy server-generated path.
+  string device_id = 2;
 }
 
 message RegisterDeviceResponse {

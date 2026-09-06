@@ -20,4 +20,10 @@ class NoopOfflineSyncPort implements OfflineSyncPort {
         '(${batch.changeCount} changes kept pending)');
     return const SyncResult.failure('同步服务未接入（F11）');
   }
+
+  /// F17-T1:占位实现同语义 —— 注册无副作用(未接真实现前不建设备行);
+  /// 静默成功即可(调用方 BindingBloc 对注册失败本就 fire-and-forget 容错,
+  /// 此处不产生额外噪音)。
+  @override
+  Future<void> registerDevice(String deviceName) async {}
 }

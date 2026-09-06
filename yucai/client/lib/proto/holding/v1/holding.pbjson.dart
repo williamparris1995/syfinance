@@ -71,6 +71,34 @@ final $typed_data.Uint8List curveRangeDescriptor = $convert.base64Decode(
     'CgpDdXJ2ZVJhbmdlEhsKF0NVUlZFX1JBTkdFX1VOU1BFQ0lGSUVEEAASEwoPQ1VSVkVfUkFOR0'
     'VfREFZEAESFQoRQ1VSVkVfUkFOR0VfTU9OVEgQAhIUChBDVVJWRV9SQU5HRV9ZRUFSEAM=');
 
+@$core.Deprecated('Use returnMetricDescriptor instead')
+const ReturnMetric$json = {
+  '1': 'ReturnMetric',
+  '2': [
+    {'1': 'RETURN_METRIC_UNSPECIFIED', '2': 0},
+    {'1': 'RETURN_METRIC_XIRR', '2': 1},
+  ],
+};
+
+/// Descriptor for `ReturnMetric`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List returnMetricDescriptor = $convert.base64Decode(
+    'CgxSZXR1cm5NZXRyaWMSHQoZUkVUVVJOX01FVFJJQ19VTlNQRUNJRklFRBAAEhYKElJFVFVSTl'
+    '9NRVRSSUNfWElSUhAB');
+
+@$core.Deprecated('Use cagrScopeDescriptor instead')
+const CagrScope$json = {
+  '1': 'CagrScope',
+  '2': [
+    {'1': 'CAGR_SCOPE_UNSPECIFIED', '2': 0},
+    {'1': 'CAGR_SCOPE_CURRENT_HOLDINGS_COST_TO_MV', '2': 1},
+  ],
+};
+
+/// Descriptor for `CagrScope`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List cagrScopeDescriptor = $convert.base64Decode(
+    'CglDYWdyU2NvcGUSGgoWQ0FHUl9TQ09QRV9VTlNQRUNJRklFRBAAEioKJkNBR1JfU0NPUEVfQ1'
+    'VSUkVOVF9IT0xESU5HU19DT1NUX1RPX01WEAE=');
+
 @$core.Deprecated('Use securityDTODescriptor instead')
 const SecurityDTO$json = {
   '1': 'SecurityDTO',
@@ -713,6 +741,26 @@ const PortfolioPerformanceResponse$json = {
       '10': 'rangeCagrAnnualizedPct',
       '17': true
     },
+    {
+      '1': 'primary_return_metric',
+      '3': 15,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.holding.v1.ReturnMetric',
+      '9': 6,
+      '10': 'primaryReturnMetric',
+      '17': true
+    },
+    {
+      '1': 'cagr_scope',
+      '3': 16,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.holding.v1.CagrScope',
+      '9': 7,
+      '10': 'cagrScope',
+      '17': true
+    },
   ],
   '8': [
     {'1': '_annualized_pct'},
@@ -721,6 +769,8 @@ const PortfolioPerformanceResponse$json = {
     {'1': '_range_twr_annualized_pct'},
     {'1': '_cagr_annualized_pct'},
     {'1': '_range_cagr_annualized_pct'},
+    {'1': '_primary_return_metric'},
+    {'1': '_cagr_scope'},
   ],
 };
 
@@ -738,10 +788,14 @@ final $typed_data.Uint8List portfolioPerformanceResponseDescriptor = $convert.ba
     'xpemVkX3BjdBgLIAEoAUgCUhB0d3JBbm51YWxpemVkUGN0iAEBEjwKGHJhbmdlX3R3cl9hbm51'
     'YWxpemVkX3BjdBgMIAEoAUgDUhVyYW5nZVR3ckFubnVhbGl6ZWRQY3SIAQESMwoTY2Fncl9hbm'
     '51YWxpemVkX3BjdBgNIAEoAUgEUhFjYWdyQW5udWFsaXplZFBjdIgBARI+ChlyYW5nZV9jYWdy'
-    'X2FubnVhbGl6ZWRfcGN0GA4gASgBSAVSFnJhbmdlQ2FnckFubnVhbGl6ZWRQY3SIAQFCEQoPX2'
-    'FubnVhbGl6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdEIVChNfdHdyX2FubnVhbGl6'
-    'ZWRfcGN0QhsKGV9yYW5nZV90d3JfYW5udWFsaXplZF9wY3RCFgoUX2NhZ3JfYW5udWFsaXplZF'
-    '9wY3RCHAoaX3JhbmdlX2NhZ3JfYW5udWFsaXplZF9wY3Q=');
+    'X2FubnVhbGl6ZWRfcGN0GA4gASgBSAVSFnJhbmdlQ2FnckFubnVhbGl6ZWRQY3SIAQESVwoVcH'
+    'JpbWFyeV9yZXR1cm5fbWV0cmljGA8gASgOMh4ueXVjYWkuaG9sZGluZy52MS5SZXR1cm5NZXRy'
+    'aWNIBlITcHJpbWFyeVJldHVybk1ldHJpY4gBARI/CgpjYWdyX3Njb3BlGBAgASgOMhsueXVjYW'
+    'kuaG9sZGluZy52MS5DYWdyU2NvcGVIB1IJY2FnclNjb3BliAEBQhEKD19hbm51YWxpemVkX3Bj'
+    'dEIXChVfcmFuZ2VfYW5udWFsaXplZF9wY3RCFQoTX3R3cl9hbm51YWxpemVkX3BjdEIbChlfcm'
+    'FuZ2VfdHdyX2FubnVhbGl6ZWRfcGN0QhYKFF9jYWdyX2FubnVhbGl6ZWRfcGN0QhwKGl9yYW5n'
+    'ZV9jYWdyX2FubnVhbGl6ZWRfcGN0QhgKFl9wcmltYXJ5X3JldHVybl9tZXRyaWNCDQoLX2NhZ3'
+    'Jfc2NvcGU=');
 
 @$core.Deprecated('Use getHoldingPerformanceRequestDescriptor instead')
 const GetHoldingPerformanceRequest$json = {

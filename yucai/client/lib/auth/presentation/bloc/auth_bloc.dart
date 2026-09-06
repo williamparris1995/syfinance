@@ -141,6 +141,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
 
 /// Const default for tests that construct AuthBloc without a marker.
+/// F17-T1:readTenantId 随 BoundMarker 职责单一化一并退役('bound' 仅余
+/// 绑定标记语义,deviceId 独立取 clientId)。
 class _NoopBoundMarker implements BoundMarker {
   const _NoopBoundMarker();
 
@@ -149,9 +151,6 @@ class _NoopBoundMarker implements BoundMarker {
 
   @override
   Future<bool> isBound() async => false;
-
-  @override
-  Future<String?> readTenantId() async => null;
 
   @override
   Future<void> clear() async {}

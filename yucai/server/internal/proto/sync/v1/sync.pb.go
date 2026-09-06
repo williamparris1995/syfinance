@@ -161,8 +161,15 @@ func (x *SyncPayload) GetEntityId() string {
 }
 
 type RegisterDeviceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeviceName    string                 `protobuf:"bytes,1,opt,name=device_name,json=deviceName,proto3" json:"device_name,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	DeviceName string                 `protobuf:"bytes,1,opt,name=device_name,json=deviceName,proto3" json:"device_name,omitempty"`
+	// F17(ADR-1)stable device identity on the wire. Verified before adding:
+	// the handler previously read device_name only and hardcoded uuid.Nil
+	// (fresh server-generated id per call), and it does NOT read the
+	// x-client-id metadata the client already sends on every RPC — so a
+	// request field is the only way to make registration idempotent by
+	// client identity. Empty keeps the legacy server-generated path.
+	DeviceId      string `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -200,6 +207,13 @@ func (*RegisterDeviceRequest) Descriptor() ([]byte, []int) {
 func (x *RegisterDeviceRequest) GetDeviceName() string {
 	if x != nil {
 		return x.DeviceName
+	}
+	return ""
+}
+
+func (x *RegisterDeviceRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
 	}
 	return ""
 }
@@ -850,10 +864,11 @@ const file_sync_v1_sync_proto_rawDesc = "" +
 	"\apayload\x18\x03 \x01(\fR\apayload\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\x03R\aversion\x12\x1b\n" +
 	"\tdevice_id\x18\x05 \x01(\tR\bdeviceId\x12\x1b\n" +
-	"\tentity_id\x18\x06 \x01(\tR\bentityId\"8\n" +
+	"\tentity_id\x18\x06 \x01(\tR\bentityId\"U\n" +
 	"\x15RegisterDeviceRequest\x12\x1f\n" +
 	"\vdevice_name\x18\x01 \x01(\tR\n" +
-	"deviceName\"a\n" +
+	"deviceName\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\"a\n" +
 	"\x16RegisterDeviceResponse\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12*\n" +
 	"\x11last_sync_version\x18\x02 \x01(\x03R\x0flastSyncVersion\"3\n" +

@@ -143,9 +143,11 @@ class SyncPayload extends $pb.GeneratedMessage {
 class RegisterDeviceRequest extends $pb.GeneratedMessage {
   factory RegisterDeviceRequest({
     $core.String? deviceName,
+    $core.String? deviceId,
   }) {
     final result = create();
     if (deviceName != null) result.deviceName = deviceName;
+    if (deviceId != null) result.deviceId = deviceId;
     return result;
   }
 
@@ -163,6 +165,7 @@ class RegisterDeviceRequest extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.sync.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'deviceName')
+    ..aOS(2, _omitFieldNames ? '' : 'deviceId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -193,6 +196,21 @@ class RegisterDeviceRequest extends $pb.GeneratedMessage {
   $core.bool hasDeviceName() => $_has(0);
   @$pb.TagNumber(1)
   void clearDeviceName() => $_clearField(1);
+
+  /// F17(ADR-1)stable device identity on the wire. Verified before adding:
+  /// the handler previously read device_name only and hardcoded uuid.Nil
+  /// (fresh server-generated id per call), and it does NOT read the
+  /// x-client-id metadata the client already sends on every RPC — so a
+  /// request field is the only way to make registration idempotent by
+  /// client identity. Empty keeps the legacy server-generated path.
+  @$pb.TagNumber(2)
+  $core.String get deviceId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set deviceId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasDeviceId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearDeviceId() => $_clearField(2);
 }
 
 class RegisterDeviceResponse extends $pb.GeneratedMessage {
@@ -262,8 +280,17 @@ class RegisterDeviceResponse extends $pb.GeneratedMessage {
   void clearLastSyncVersion() => $_clearField(2);
 }
 
+/// device_id is optional (proto3 empty string = default): empty requests the
+/// tenant-aggregate view (log frontier + pending conflicts, no device row);
+/// a non-empty device_id scopes the status to that registered device (F16).
 class GetSyncStatusRequest extends $pb.GeneratedMessage {
-  factory GetSyncStatusRequest() => create();
+  factory GetSyncStatusRequest({
+    $core.String? deviceId,
+  }) {
+    final result = create();
+    if (deviceId != null) result.deviceId = deviceId;
+    return result;
+  }
 
   GetSyncStatusRequest._();
 
@@ -278,6 +305,7 @@ class GetSyncStatusRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'GetSyncStatusRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.sync.v1'),
       createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'deviceId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -298,6 +326,15 @@ class GetSyncStatusRequest extends $pb.GeneratedMessage {
   static GetSyncStatusRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetSyncStatusRequest>(create);
   static GetSyncStatusRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get deviceId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set deviceId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceId() => $_clearField(1);
 }
 
 class SyncStatusResponse extends $pb.GeneratedMessage {
@@ -656,6 +693,7 @@ class ConflictDTO extends $pb.GeneratedMessage {
     $core.List<$core.int>? serverPayload,
     $core.List<$core.int>? clientPayload,
     $core.String? resolution,
+    $core.String? conflictType,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -664,6 +702,7 @@ class ConflictDTO extends $pb.GeneratedMessage {
     if (serverPayload != null) result.serverPayload = serverPayload;
     if (clientPayload != null) result.clientPayload = clientPayload;
     if (resolution != null) result.resolution = resolution;
+    if (conflictType != null) result.conflictType = conflictType;
     return result;
   }
 
@@ -688,6 +727,7 @@ class ConflictDTO extends $pb.GeneratedMessage {
     ..a<$core.List<$core.int>>(
         5, _omitFieldNames ? '' : 'clientPayload', $pb.PbFieldType.OY)
     ..aOS(6, _omitFieldNames ? '' : 'resolution')
+    ..aOS(7, _omitFieldNames ? '' : 'conflictType')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -762,6 +802,18 @@ class ConflictDTO extends $pb.GeneratedMessage {
   $core.bool hasResolution() => $_has(5);
   @$pb.TagNumber(6)
   void clearResolution() => $_clearField(6);
+
+  /// F16: conflict classification. Value domain today: "version_conflict"
+  /// (an UPDATE whose payload version was not ahead of the server row);
+  /// finer-grained classes arrive with F18. Non-breaking string field.
+  @$pb.TagNumber(7)
+  $core.String get conflictType => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set conflictType($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasConflictType() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearConflictType() => $_clearField(7);
 }
 
 class ResolveConflictRequest extends $pb.GeneratedMessage {

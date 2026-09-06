@@ -29,17 +29,29 @@ func NewSyncHandler(service *application.Service) *SyncHandler {
 	return &SyncHandler{service: service}
 }
 
-// RegisterDevice registers a new sync device. The request carries no device
-// identity yet (device_name only), so the handler passes uuid.Nil and the
-// service server-generates a fresh id; the idempotent caller-supplied-id path
-// (F17 stable device identity) is exercised at the service layer.
+// RegisterDevice registers a new sync device. device_id (F17 ADR-1, added to
+// the wire after verification): the handler does NOT read the x-client-id
+// metadata (which the client already sends on every RPC), and before the
+// field existed it hardcoded uuid.Nil — a fresh server-generated id per call,
+// never idempotent by client identity. A non-empty well-formed device_id now
+// takes the service's caller-supplied idempotent path (re-registration
+// returns the existing row); empty keeps the legacy server-generated path; a
+// malformed value is InvalidArgument fail-closed (parseUUIDStrict).
 func (h *SyncHandler) RegisterDevice(ctx context.Context, req *pb.RegisterDeviceRequest) (*pb.RegisterDeviceResponse, error) {
 	tenantID, err := getTenantID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	device, err := h.service.RegisterDevice(ctx, tenantID, uuid.Nil, req.DeviceName)
+	var deviceID uuid.UUID
+	if req.DeviceId != "" {
+		var perr error
+		deviceID, perr = parseUUIDStrict("device_id", req.DeviceId)
+		if perr != nil {
+			return nil, perr
+		}
+	}
+	device, err := h.service.RegisterDevice(ctx, tenantID, deviceID, req.DeviceName)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -305,9 +317,9 @@ func getTenantID(ctx context.Context) (uuid.UUID, error) {
 // client sends on every change (client binding/data/grpc_offline_sync_port.dart
 // — BoundMarker stores the string 'bound', not a uuid). It is NOT a valid
 // uuid; the old parseUUID coerced the parse failure to uuid.Nil silently.
-// F16 ADR-2 keeps tolerating it as an EXPLICIT alias of uuid.Nil so the
-// shipped client keeps syncing; F17 (real RegisterDevice wiring) retires it
-// together with the Nil tolerance.
+// F16 ADR-2 keeps tolerating it as an EXPLICIT alias of uuid.Nil; the F17
+// client no longer sends it (deviceId = the per-install clientId now), but
+// the tolerance stays until pre-F17 clients age out.
 const legacyBoundDeviceMarker = "bound"
 
 // resolveDeviceID parses a wire device_id fail-closed (F16 ADR-2):
