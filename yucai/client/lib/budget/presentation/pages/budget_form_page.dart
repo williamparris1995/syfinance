@@ -17,7 +17,7 @@
 //   (整体原地更新 name+currency+items,budget ID 不变;month 锁,budget 身份)。
 //   成功后 bloc 重拉 detail → BudgetDetailLoaded → form pop 返回详情页。
 //
-// 御财设计语言(复用 AppColors/AppTypography/lucide + 本地 _GoldButton,与
+// 御财设计语言(已语义令牌化(F15)/AppTypography/lucide + 本地 _GoldButton,与
 //  budget_list_page 一致):御财金 #b08d57 btn-gold。
 //
 // 无 i18n(中文硬编码,御财惯例;与 budget/holding/goal 表单页一致)。

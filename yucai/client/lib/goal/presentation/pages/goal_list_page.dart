@@ -8,7 +8,7 @@
 //   - ConicProgressRing 卡片(原型 progress-ring conic-gradient)+ 类型徽章 +
 //     current/target + deadline 倒计时 + 左侧 status 色条(原型 goal-card 左 border)。
 //
-// 御财设计语言(复用 AppColors/AppTypography/lucide):
+// 御财设计语言(已语义令牌化(F15)/AppTypography/lucide):
 //  - 御财金 #b08d57(savings + btn-gold)/ 盈绿 #2d8a6e(investment + completed)/
 //    亏红 #c4544d(debtPayoff + 落后/紧急)。
 //  - 类型徽章(GOAL_TYPES 对齐 mock-data.js):

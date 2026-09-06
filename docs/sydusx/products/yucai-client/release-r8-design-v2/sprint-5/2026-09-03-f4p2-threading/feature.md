@@ -110,3 +110,11 @@ F15 F4-P2 穿线收尾(light-locked 清零)
 ## keywords
 
 f4p2, theme-threading, context-yucai, light-locked, dark-mode, palette-constants, F15
+
+
+## holistic review(2026-09-03)PASS 记录
+
+两轴 PASS,fix list 空。follow-up 记账:
+- **onAccent sweep backlog 票(P2)**:Colors.white(Material 常量,不在 AppColors/裸色对账口径)落在 accent/positive/negative 跟随底上,暗色对比 ≈2:1——~20+ 处/14 文件(v1 存量;含 filter_bar 选中 pill/全部表单主 CTA/debt 逾期 chip;首刀切 category_management_page:350 同行 icon 已 onAccent 而 Text 未迁的不一致);binding_page Colors.green/red 令牌化同票。
+- sprint/release 目标表述口径修正:「light-locked(AppColors/裸色)清零」而非「无残留亮色点」——Colors.* 口径遗留由上票承接。
+- 陈旧头注释 3 处(budget_form/budget_list/goal_list「复用 AppColors」)**已修**。

@@ -8,7 +8,7 @@
 //   - 分组(超支 / 正常):ConicProgressRing 卡片(超支红 / 正常金)+ Name + Month +
 //     UsagePct% pill + TotalActual/TotalAmount + 剩余/超支 + 左侧 status 色条。
 //
-// 御财设计语言(复用 AppColors/AppTypography/lucide):
+// 御财设计语言(已语义令牌化(F15)/AppTypography/lucide):
 //  - 御财金 #b08d57(btn-gold + 正常金);超支用 brief 指定 #c0392b(比
 //    context.yucai.negative 更暗,区分「超预算」,单独取 overBudget 红常量)。
 //  - 进度环:ConicProgressRing(progress=clamp[0,1],复用 core/widgets);超支色 overBudget
