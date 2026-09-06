@@ -37,6 +37,13 @@ func (SyncDevice) Fields() []ent.Field {
 
 func (SyncDevice) Edges() []ent.Edge { return nil }
 
+// Indexes: deliberately no unique index. F16 ADR-2 considered
+// UNIQUE(tenant_id, device_id), but the table's PRIMARY KEY id IS the device
+// id (the device uuid clients register), so (tenant_id, id) uniqueness is
+// already enforced by the PK itself — an extra index would be redundant.
+// Idempotent re-registration (same id, same tenant -> return the existing
+// row) is implemented in the repository's Register, not via a constraint.
+// device_name is NOT a user key (two devices may share a display name).
 func (SyncDevice) Indexes() []ent.Index {
 	return nil
 }

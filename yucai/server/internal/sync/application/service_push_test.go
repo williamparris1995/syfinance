@@ -24,13 +24,13 @@ import (
 	accountdomain "github.com/yucai/server/internal/account/domain"
 	accountent "github.com/yucai/server/internal/account/ent"
 	accpredicate "github.com/yucai/server/internal/account/ent/account"
-	tagrepo "github.com/yucai/server/internal/tag/adapter/driven/repository"
-	tagdomain "github.com/yucai/server/internal/tag/domain"
-	tagent "github.com/yucai/server/internal/tag/ent"
 	"github.com/yucai/server/internal/sync/adapter/driven/entitywriter"
 	syncrepo "github.com/yucai/server/internal/sync/adapter/driven/repository"
 	syncdomain "github.com/yucai/server/internal/sync/domain"
 	syncent "github.com/yucai/server/internal/sync/ent"
+	tagrepo "github.com/yucai/server/internal/tag/adapter/driven/repository"
+	tagdomain "github.com/yucai/server/internal/tag/domain"
+	tagent "github.com/yucai/server/internal/tag/ent"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txndomain "github.com/yucai/server/internal/transaction/domain"
 	txnent "github.com/yucai/server/internal/transaction/ent"
@@ -41,15 +41,19 @@ import (
 const sqliteDialect = "sqlite3"
 
 type pushHarness struct {
-	svc        *Service
-	logRepo    *syncrepo.SyncLogRepository
-	deviceRepo *syncrepo.SyncDeviceRepository
-	accountCl  *accountent.Client
-	txnCl      *txnent.Client
-	tagCl      *tagent.Client
-	tenantID   uuid.UUID
-	deviceID   uuid.UUID // deliberately NEVER registered (fallback-deviceID path)
-	accountWri *entitywriter.AccountWriter
+	svc          *Service
+	logRepo      *syncrepo.SyncLogRepository
+	deviceRepo   *syncrepo.SyncDeviceRepository
+	conflictRepo *syncrepo.SyncConflictRepository
+	resolver     *ConflictResolver
+	writers      map[string]syncdomain.SyncEntityWriter
+	db           *sql.DB
+	accountCl    *accountent.Client
+	txnCl        *txnent.Client
+	tagCl        *tagent.Client
+	tenantID     uuid.UUID
+	deviceID     uuid.UUID // deliberately NEVER registered (fallback-deviceID path)
+	accountWri   *entitywriter.AccountWriter
 }
 
 func newPushHarness(t *testing.T) *pushHarness {
@@ -102,6 +106,8 @@ func newPushHarness(t *testing.T) *pushHarness {
 	svc := NewService(logRepo, deviceRepo, conflictRepo, NewConflictResolver(), writers, db, sqliteDialect)
 	return &pushHarness{
 		svc: svc, logRepo: logRepo, deviceRepo: deviceRepo,
+		conflictRepo: conflictRepo, resolver: NewConflictResolver(),
+		writers: writers, db: db,
 		accountCl: accountCl, txnCl: txnCl, tagCl: tagCl,
 		tenantID: uuid.New(), deviceID: uuid.New(),
 		accountWri: entitywriter.NewAccountWriter(accountRepo),

@@ -4,9 +4,11 @@ inputs:
   - directory: .
     paths:
       - holding/v1/holding.proto
+      - sync/v1/sync.proto # F16: targeted regen (same convention as holding — paths listed manually)
 plugins:
   - local: protoc-gen-go
     out: ../server/internal/proto
     opt:
       - paths=source_relative
       - "Mholding/v1/holding.proto=github.com/yucai/server/internal/proto/holding/v1;holdingv1"
+      - "Msync/v1/sync.proto=github.com/yucai/server/internal/proto/sync/v1;syncv1"

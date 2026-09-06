@@ -42,7 +42,22 @@ func (SyncLog) Edges() []ent.Edge { return nil }
 
 func (SyncLog) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("tenant_id", "version"),
+		// UNIQUE (F16 ADR-1): per-tenant version numbers are strictly
+		// serialized. The non-unique index let two concurrent PushChanges
+		// batches both read LatestVersion=N and both append N+1.., duplicating
+		// versions (multi-device hazard #2). The unique index turns the race
+		// into a constraint failure the service catches and retries with a
+		// fresh LatestVersion (application.Service.PushChanges).
+		//
+		// Migration note: there is no production migration tool — the wire
+		// provider (wire/providers.go provideSyncEntClient) runs ent's
+		// Schema.Create auto-migration at startup, which creates missing
+		// indexes (CREATE UNIQUE INDEX IF NOT EXISTS). On a DEPLOYED database
+		// whose sync_log already carries duplicate (tenant_id, version) rows
+		// (possible only from the pre-fix race window), index creation fails
+		// at startup — operators must deduplicate before upgrading. Fresh and
+		// test databases (all schemas created anew) are unaffected.
+		index.Fields("tenant_id", "version").Unique(),
 		index.Fields("tenant_id", "entity_type", "entity_id"),
 	}
 }

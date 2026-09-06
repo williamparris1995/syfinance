@@ -4,15 +4,53 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/sqltx"
 	"github.com/yucai/server/internal/sync/domain"
 )
+
+// ErrVersionConflict reports that a PushChanges batch lost the per-tenant
+// version-serialization race on every attempt (each retry re-collided on the
+// (tenant_id, version) unique index). The handler maps it to gRPC Aborted:
+// the batch itself is valid, it just kept losing the race — the client may
+// retry later (spec FR-1 / ADR-1).
+var ErrVersionConflict = errors.New("sync push aborted: version conflict retries exhausted")
+
+// versionConflictRetryLimit bounds how many times PushChanges reopens the
+// whole batch transaction after a (tenant_id, version) unique-index collision
+// (initial attempt + up to this many retries; ADR-1: bounded so a pathological
+// contender cannot starve the push).
+const versionConflictRetryLimit = 3
+
+// isSyncLogVersionConflict reports whether err is a unique-constraint
+// violation on the (tenant_id, version) index of sync_logs — the serialization
+// race ADR-1 retries on. Detection is string-based for dual-DB compatibility
+// (ent's own sqlgraph.IsUniqueConstraintError matches the same substrings):
+//   - SQLite (modernc): "constraint failed: UNIQUE constraint failed:
+//     sync_logs.tenant_id, sync_logs.version (2067)" — codes 1555/2067 are
+//     SQLITE_CONSTRAINT_PRIMARYKEY/UNIQUE, surfaced only inside the message.
+//   - PostgreSQL (pgx): "duplicate key value violates unique constraint
+//     \"synclog_tenant_id_version\" (SQLSTATE 23505)" — pgcode 23505.
+//
+// The match is pinned to THIS index specifically (not any unique violation):
+// a business-table unique failure (e.g. the cross-tenant same-id upsert
+// fail-closed path) is a deterministic batch error and must surface
+// immediately, not burn retries.
+func isSyncLogVersionConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, `unique constraint "synclog_tenant_id_version"`) ||
+		strings.Contains(msg, "UNIQUE constraint failed: sync_logs.tenant_id, sync_logs.version")
+}
 
 // deleteOrder is the canonical DELETE application order for a sync batch:
 // dependents first, account last — the same module sequence backup's
@@ -70,11 +108,19 @@ func NewService(
 	}
 }
 
-// RegisterDevice registers a new sync device for a tenant.
-func (s *Service) RegisterDevice(ctx context.Context, tenantID uuid.UUID, deviceName string) (*domain.SyncDevice, error) {
+// RegisterDevice registers a sync device (F16 ADR-2). deviceID is the stable
+// device identity: a non-Nil id (the F17 client registration) makes
+// re-registration idempotent — the repo returns the existing row (with its
+// current last_sync_version) instead of tripping the PK; uuid.Nil keeps the
+// server-generated fresh id, matching the current RegisterDeviceRequest wire
+// shape (device_name only, no device identity yet).
+func (s *Service) RegisterDevice(ctx context.Context, tenantID, deviceID uuid.UUID, deviceName string) (*domain.SyncDevice, error) {
 	device, err := domain.NewSyncDevice(tenantID, deviceName)
 	if err != nil {
 		return nil, fmt.Errorf("create device: %w", err)
+	}
+	if deviceID != uuid.Nil {
+		device.ID = deviceID
 	}
 	if err := s.deviceRepo.Register(ctx, device); err != nil {
 		return nil, fmt.Errorf("register device: %w", err)
@@ -82,7 +128,8 @@ func (s *Service) RegisterDevice(ctx context.Context, tenantID uuid.UUID, device
 	return device, nil
 }
 
-// GetSyncStatus returns the current sync state for a device.
+// GetSyncStatus returns the current sync state for a device (device-scoped:
+// the device row's own last_sync_version).
 func (s *Service) GetSyncStatus(ctx context.Context, tenantID, deviceID uuid.UUID) (*SyncStatusDTO, error) {
 	device, err := s.deviceRepo.FindByID(ctx, tenantID, deviceID)
 	if err != nil {
@@ -98,6 +145,30 @@ func (s *Service) GetSyncStatus(ctx context.Context, tenantID, deviceID uuid.UUI
 		DeviceID:         device.ID,
 		LastSyncVersion:  device.LastSyncVersion,
 		LastSyncAt:       device.LastSyncAt,
+		PendingConflicts: pendingConflicts.TotalCount,
+	}, nil
+}
+
+// GetTenantSyncStatus returns the tenant-aggregate sync view — the GetSyncStatus
+// request shape with an empty device_id (F16 ADR-2: backward compatible, the
+// field is new on the wire; empty = no device filter). last_sync_version is
+// the tenant log frontier (LatestVersion), NOT any single device's position;
+// DeviceID stays Nil (no device attribution — the handler emits an empty
+// device_id for it).
+func (s *Service) GetTenantSyncStatus(ctx context.Context, tenantID uuid.UUID) (*SyncStatusDTO, error) {
+	latest, err := s.logRepo.LatestVersion(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("latest version: %w", err)
+	}
+
+	pendingConflicts, err := s.conflictRepo.FindPending(ctx, tenantID, domain.PageRequest{PageSize: 1})
+	if err != nil {
+		return nil, fmt.Errorf("count conflicts: %w", err)
+	}
+
+	return &SyncStatusDTO{
+		DeviceID:         uuid.Nil,
+		LastSyncVersion:  latest,
 		PendingConflicts: pendingConflicts.TotalCount,
 	}, nil
 }
@@ -122,6 +193,18 @@ func (s *Service) GetSyncStatus(ctx context.Context, tenantID, deviceID uuid.UUI
 //     single-device client only re-pushes a batch whose response it never
 //     received, and business-side idempotency is guaranteed by the per-entity
 //     upsert keying.
+//   - Serialization (F16 ADR-1): two concurrent batches can both read the same
+//     LatestVersion; the (tenant_id, version) unique index turns the loser's
+//     first append into a constraint failure. The WHOLE sqltx is then reopened
+//     (fresh LatestVersion, full replay of writes + logs) up to
+//     versionConflictRetryLimit times; still colliding -> ErrVersionConflict
+//     (wire: Aborted). Replay is safe: business writes are idempotent upserts
+//     keyed by entity id (F11 FR-1) and every aborted attempt rolled back, so
+//     the retry re-applies the batch to pre-attempt state. Reopening the
+//     transaction — not retrying a single append — is required because under
+//     Postgres READ COMMITTED the losing transaction is aborted by the
+//     constraint failure and cannot continue; and the stale base version
+//     poisoned every version it derived.
 //   - Conflicts are deliberately always empty in v1 single-device sync
 //     (detection/resolution is ticket 16).
 //   - Device row: with the v1 deviceId fallback (= tenantID, RegisterDevice
@@ -142,90 +225,109 @@ func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID,
 	}
 
 	var lastVersion int64
-	txErr := sqltx.WithTx(ctx, s.db, s.dialect, &sql.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-	}, func(ctxT context.Context) error {
-		base, err := s.logRepo.LatestVersion(ctxT, tenantID)
-		if err != nil {
-			return fmt.Errorf("read latest version: %w", err)
+	for attempt := 0; ; attempt++ {
+		txErr := sqltx.WithTx(ctx, s.db, s.dialect, &sql.TxOptions{
+			Isolation: sql.LevelReadCommitted,
+		}, func(ctxT context.Context) error {
+			base, err := s.logRepo.LatestVersion(ctxT, tenantID)
+			if err != nil {
+				return fmt.Errorf("read latest version: %w", err)
+			}
+			lastVersion = base
+
+			for _, p := range ordered {
+				writer, ok := s.writers[p.EntityType]
+				if !ok {
+					// Fail closed: an unknown entity_type rejects the whole batch
+					// (forward-compat gate — e.g. holding_ledger until its writer
+					// registers).
+					return fmt.Errorf("unknown entity type %q", p.EntityType)
+				}
+				var applyErr error
+				if p.Operation == domain.SyncOperationDelete {
+					applyErr = writer.Delete(ctxT, tenantID, p.EntityID.String())
+				} else {
+					// CREATE and UPDATE are the same server-side op: an upsert
+					// keyed by entity id (idempotent on re-push). First fail
+					// closed on a change whose EntityID disagrees with the id
+					// inside its payload — otherwise the log would record one id
+					// while the writer persisted another (silent substitution).
+					// Every module entity serializes its id as the top-level "ID"
+					// uuid field (default Go JSON naming, backup envelope shape).
+					var probe struct {
+						ID uuid.UUID
+					}
+					if err := json.Unmarshal(p.Payload, &probe); err != nil {
+						return fmt.Errorf("decode %s %s payload id: %w", p.EntityType, p.EntityID, err)
+					}
+					if probe.ID != p.EntityID {
+						return fmt.Errorf("entity id mismatch: change id %s but payload id %s (%s)", p.EntityID, probe.ID, p.EntityType)
+					}
+					applyErr = writer.Upsert(ctxT, tenantID, p.Payload)
+				}
+				if applyErr != nil {
+					return fmt.Errorf("apply %s %s %s: %w", p.EntityType, p.EntityID, p.Operation, applyErr)
+				}
+
+				lastVersion++
+				// sync_logs.payload is NOT NULL; tombstones (DELETE ops) may carry
+				// a nil proto bytes field — normalize to an empty non-nil slice.
+				payload := p.Payload
+				if payload == nil {
+					payload = []byte{}
+				}
+				entry := &domain.SyncLogEntry{
+					ID:         uuid.New(),
+					TenantID:   tenantID,
+					EntityType: p.EntityType,
+					EntityID:   p.EntityID,
+					Operation:  p.Operation,
+					Payload:    payload,
+					Version:    lastVersion,
+					DeviceID:   deviceID,
+					CreatedAt:  time.Now(),
+				}
+				if err := s.logRepo.Append(ctxT, entry); err != nil {
+					return fmt.Errorf("append sync log: %w", err)
+				}
+			}
+
+			// Device version bump: tolerated as a no-op when the device row is
+			// absent (v1 fallback deviceId semantics — see method doc).
+			if err := s.deviceRepo.UpdateSyncVersion(ctxT, tenantID, deviceID, lastVersion); err != nil {
+				slog.Warn("sync push: device row absent, version not tracked",
+					"operation", "sync_push",
+					"tenant_id", tenantID.String(),
+					"device_id", deviceID.String(),
+					"error", err.Error())
+			}
+			return nil
+		})
+		if txErr == nil {
+			break
 		}
-		lastVersion = base
-
-		for _, p := range ordered {
-			writer, ok := s.writers[p.EntityType]
-			if !ok {
-				// Fail closed: an unknown entity_type rejects the whole batch
-				// (forward-compat gate — e.g. holding_ledger until its writer
-				// registers).
-				return fmt.Errorf("unknown entity type %q", p.EntityType)
-			}
-			var applyErr error
-			if p.Operation == domain.SyncOperationDelete {
-				applyErr = writer.Delete(ctxT, tenantID, p.EntityID.String())
-			} else {
-				// CREATE and UPDATE are the same server-side op: an upsert
-				// keyed by entity id (idempotent on re-push). First fail
-				// closed on a change whose EntityID disagrees with the id
-				// inside its payload — otherwise the log would record one id
-				// while the writer persisted another (silent substitution).
-				// Every module entity serializes its id as the top-level "ID"
-				// uuid field (default Go JSON naming, backup envelope shape).
-				var probe struct {
-					ID uuid.UUID
-				}
-				if err := json.Unmarshal(p.Payload, &probe); err != nil {
-					return fmt.Errorf("decode %s %s payload id: %w", p.EntityType, p.EntityID, err)
-				}
-				if probe.ID != p.EntityID {
-					return fmt.Errorf("entity id mismatch: change id %s but payload id %s (%s)", p.EntityID, probe.ID, p.EntityType)
-				}
-				applyErr = writer.Upsert(ctxT, tenantID, p.Payload)
-			}
-			if applyErr != nil {
-				return fmt.Errorf("apply %s %s %s: %w", p.EntityType, p.EntityID, p.Operation, applyErr)
-			}
-
-			lastVersion++
-			// sync_logs.payload is NOT NULL; tombstones (DELETE ops) may carry
-			// a nil proto bytes field — normalize to an empty non-nil slice.
-			payload := p.Payload
-			if payload == nil {
-				payload = []byte{}
-			}
-			entry := &domain.SyncLogEntry{
-				ID:         uuid.New(),
-				TenantID:   tenantID,
-				EntityType: p.EntityType,
-				EntityID:   p.EntityID,
-				Operation:  p.Operation,
-				Payload:    payload,
-				Version:    lastVersion,
-				DeviceID:   deviceID,
-				CreatedAt:  time.Now(),
-			}
-			if err := s.logRepo.Append(ctxT, entry); err != nil {
-				return fmt.Errorf("append sync log: %w", err)
-			}
-		}
-
-		// Device version bump: tolerated as a no-op when the device row is
-		// absent (v1 fallback deviceId semantics — see method doc).
-		if err := s.deviceRepo.UpdateSyncVersion(ctxT, tenantID, deviceID, lastVersion); err != nil {
-			slog.Warn("sync push: device row absent, version not tracked",
+		if !isSyncLogVersionConflict(txErr) {
+			slog.Error("sync push failed",
 				"operation", "sync_push",
 				"tenant_id", tenantID.String(),
-				"device_id", deviceID.String(),
-				"error", err.Error())
+				"count", len(payloads),
+				"error", txErr.Error())
+			return 0, nil, txErr
 		}
-		return nil
-	})
-	if txErr != nil {
-		slog.Error("sync push failed",
+		if attempt >= versionConflictRetryLimit {
+			slog.Error("sync push aborted: version conflict retries exhausted",
+				"operation", "sync_push",
+				"tenant_id", tenantID.String(),
+				"count", len(payloads),
+				"retries", versionConflictRetryLimit,
+				"error", txErr.Error())
+			return 0, nil, fmt.Errorf("%w: %v", ErrVersionConflict, txErr)
+		}
+		slog.Warn("sync push version collision, reopening batch transaction",
 			"operation", "sync_push",
 			"tenant_id", tenantID.String(),
 			"count", len(payloads),
-			"error", txErr.Error())
-		return 0, nil, txErr
+			"attempt", attempt+1)
 	}
 
 	slog.Info("sync push committed",

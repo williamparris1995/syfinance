@@ -47,7 +47,12 @@ message RegisterDeviceResponse {
   int64 last_sync_version = 2;
 }
 
-message GetSyncStatusRequest {}
+// device_id is optional (proto3 empty string = default): empty requests the
+// tenant-aggregate view (log frontier + pending conflicts, no device row);
+// a non-empty device_id scopes the status to that registered device (F16).
+message GetSyncStatusRequest {
+  string device_id = 1;
+}
 
 message SyncStatusResponse {
   string device_id = 1;

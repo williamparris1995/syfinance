@@ -256,8 +256,12 @@ func (x *RegisterDeviceResponse) GetLastSyncVersion() int64 {
 	return 0
 }
 
+// device_id is optional (proto3 empty string = default): empty requests the
+// tenant-aggregate view (log frontier + pending conflicts, no device row);
+// a non-empty device_id scopes the status to that registered device (F16).
 type GetSyncStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -290,6 +294,13 @@ func (x *GetSyncStatusRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetSyncStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetSyncStatusRequest) Descriptor() ([]byte, []int) {
 	return file_sync_v1_sync_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetSyncStatusRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
 }
 
 type SyncStatusResponse struct {
@@ -834,8 +845,9 @@ const file_sync_v1_sync_proto_rawDesc = "" +
 	"deviceName\"a\n" +
 	"\x16RegisterDeviceResponse\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12*\n" +
-	"\x11last_sync_version\x18\x02 \x01(\x03R\x0flastSyncVersion\"\x16\n" +
-	"\x14GetSyncStatusRequest\"\xc8\x01\n" +
+	"\x11last_sync_version\x18\x02 \x01(\x03R\x0flastSyncVersion\"3\n" +
+	"\x14GetSyncStatusRequest\x12\x1b\n" +
+	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\"\xc8\x01\n" +
 	"\x12SyncStatusResponse\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12*\n" +
 	"\x11last_sync_version\x18\x02 \x01(\x03R\x0flastSyncVersion\x12<\n" +
@@ -888,8 +900,7 @@ const file_sync_v1_sync_proto_rawDesc = "" +
 	"\vPushChanges\x12!.yucai.sync.v1.PushChangesRequest\x1a\x1b.yucai.sync.v1.PushResponse\x12T\n" +
 	"\vPullChanges\x12!.yucai.sync.v1.PullChangesRequest\x1a\".yucai.sync.v1.PullChangesResponse\x12P\n" +
 	"\x0fResolveConflict\x12%.yucai.sync.v1.ResolveConflictRequest\x1a\x16.google.protobuf.Empty\x12Z\n" +
-	"\rListConflicts\x12#.yucai.sync.v1.ListConflictsRequest\x1a$.yucai.sync.v1.ListConflictsResponseB\xab\x01\n" +
-	"\x11com.yucai.sync.v1B\tSyncProtoP\x01Z5github.com/yucai/server/internal/proto/sync/v1;syncv1\xa2\x02\x03YSX\xaa\x02\rYucai.Sync.V1\xca\x02\rYucai\\Sync\\V1\xe2\x02\x19Yucai\\Sync\\V1\\GPBMetadata\xea\x02\x0fYucai::Sync::V1b\x06proto3"
+	"\rListConflicts\x12#.yucai.sync.v1.ListConflictsRequest\x1a$.yucai.sync.v1.ListConflictsResponseB0Z.github.com/yucai/server/internal/proto/sync/v1b\x06proto3"
 
 var (
 	file_sync_v1_sync_proto_rawDescOnce sync.Once

@@ -79,14 +79,24 @@ func (r *SyncLogRepository) FindSince(ctx context.Context, tenantID uuid.UUID, s
 // LatestVersion returns the highest version number for a tenant. Called from
 // inside the PushChanges transaction (tx-aware via clientFor) so the batch's
 // base version is read under the same lock scope as the appends.
+//
+// Error contract (F16 FR-1 precondition fix): ONLY the ent NotFound case (no
+// log rows for the tenant yet) maps to (0, nil); every other error propagates
+// verbatim. The previous shape returned (0, nil) for ANY failure, making a
+// real fault indistinguishable from an empty log — PushChanges would then
+// re-allocate versions from 1 and collide with the (tenant_id, version)
+// unique index.
 func (r *SyncLogRepository) LatestVersion(ctx context.Context, tenantID uuid.UUID) (int64, error) {
 	last, err := r.clientFor(ctx).SyncLog.Query().
 		Where(synclog.TenantID(tenantID)).
 		Order(syncent.Desc(synclog.FieldVersion)).
 		First(ctx)
 	if err != nil {
-		// No entries yet
-		return 0, nil
+		if syncent.IsNotFound(err) {
+			// No entries yet — version 0 is the truth, not a fault.
+			return 0, nil
+		}
+		return 0, fmt.Errorf("latest version: %w", err)
 	}
 	return last.Version, nil
 }
@@ -110,9 +120,35 @@ func (r *SyncDeviceRepository) clientFor(ctx context.Context) *syncent.Client {
 	return r.client
 }
 
-// Register creates a new sync device.
+// Register creates a new sync device — idempotently per device id (F16
+// ADR-2). The table's PRIMARY KEY id IS the device id, so (tenant, id)
+// uniqueness is already enforced by the PK; no extra unique index exists (see
+// the schema comment). Re-registering an id that already exists in the SAME
+// tenant is a retry, not a conflict: the passed device is refreshed from the
+// stored row (current device_name, last_sync_version, timestamps) so callers
+// get the original registration back instead of a PK error. A same-id row in
+// ANOTHER tenant fails closed (uuid v4 ids make this a practical non-scenario;
+// the boundary stays closed regardless).
 func (r *SyncDeviceRepository) Register(ctx context.Context, device *domain.SyncDevice) error {
-	_, err := r.client.SyncDevice.Create().
+	existing, err := r.client.SyncDevice.Query().
+		Where(syncdevice.ID(device.ID)).
+		Only(ctx)
+	if err == nil {
+		if existing.TenantID != device.TenantID {
+			return fmt.Errorf("register device: device %s already belongs to another tenant", device.ID)
+		}
+		// Idempotent hit: adopt the persisted state verbatim.
+		device.DeviceName = existing.DeviceName
+		device.LastSyncVersion = existing.LastSyncVersion
+		device.LastSyncAt = existing.LastSyncAt
+		device.CreatedAt = existing.CreatedAt
+		device.UpdatedAt = existing.UpdatedAt
+		return nil
+	}
+	if !syncent.IsNotFound(err) {
+		return fmt.Errorf("register device: %w", err)
+	}
+	_, err = r.client.SyncDevice.Create().
 		SetID(device.ID).SetTenantID(device.TenantID).
 		SetDeviceName(device.DeviceName).
 		Save(ctx)

@@ -93,7 +93,7 @@ var (
 			},
 			{
 				Name:    "synclog_tenant_id_version",
-				Unique:  false,
+				Unique:  true,
 				Columns: []*schema.Column{SyncLogsColumns[1], SyncLogsColumns[6]},
 			},
 			{
