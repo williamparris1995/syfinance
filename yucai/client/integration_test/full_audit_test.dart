@@ -152,6 +152,8 @@ Future<void> main() async {
         // F9 变更说明(T4):F9-T3 给账户管理页头部加了搜索框(FR-5),首卡
         // 与其「更多」菜单整体下移 → 金图重生成适配新 UI(断言逻辑不变,
         // 菜单锚定语义照旧:A2 实测打开 + 不进侧栏区断言全部保持)。
+        // F15 变更说明:chip 激活底/新建按钮亮色语义化(反色派生),0.75%
+        // 像素位移 → 金图再次重生成(断言逻辑不变)。
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile('goldens/audit_menu_open.png'),
