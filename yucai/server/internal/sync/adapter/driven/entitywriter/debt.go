@@ -15,6 +15,7 @@ import (
 type DebtRepository = interface {
 	UpsertForSync(ctx context.Context, d *debtdomain.DebtDetails) error
 	HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error
+	FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*debtdomain.DebtDetails, bool, error)
 }
 
 // DebtWriter persists pushed debt changes (entity_type "debt"). Payload shape:
@@ -55,6 +56,25 @@ func (w *DebtWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID st
 		return fmt.Errorf("delete debt %s: %w", id, err)
 	}
 	return nil
+}
+
+// CurrentState returns the server's current debt row (header + nested
+// schedule in the payload) for the push conflict check (F16 ADR-4). See the
+// port doc in sync/domain/entity_writer.go for the full contract.
+func (w *DebtWriter) CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (int64, []byte, bool, error) {
+	id, err := uuid.Parse(entityID)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("parse debt id %q: %w", entityID, err)
+	}
+	d, found, err := w.repo.FindForSync(ctx, tenantID, id)
+	if err != nil || !found {
+		return 0, nil, false, err
+	}
+	payload, err := json.Marshal(d)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("marshal debt %s: %w", id, err)
+	}
+	return d.Version, payload, true, nil
 }
 
 var _ syncdomain.SyncEntityWriter = (*DebtWriter)(nil)

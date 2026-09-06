@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/sqltx"
@@ -49,8 +50,22 @@ func (r *SyncLogRepository) Append(ctx context.Context, entry *domain.SyncLogEnt
 	return nil
 }
 
-// FindSince returns sync log entries after the given version.
-func (r *SyncLogRepository) FindSince(ctx context.Context, tenantID uuid.UUID, sinceVersion int64, entityTypes []string) ([]domain.SyncLogEntry, error) {
+// defaultFindSinceLimit mirrors application.DefaultPullPageSize (500): a
+// defensive floor for direct repo callers that pass a non-positive limit, so
+// the query can never degrade to "LIMIT 1".
+const defaultFindSinceLimit = 500
+
+// FindSince returns up to limit+1 sync log entries after the given version,
+// ORDERED BY version ASC (F16 ADR-3): the client replays a pull page in
+// version order — upserts and deletes are idempotent replays keyed by entity
+// id, so ascending order is the application contract, never insertion order.
+// Fetching limit+1 rows lets the service layer compute has_more from the
+// extra sentinel row and trim it before mapping DTOs. entityTypes (when
+// non-empty) filters the stream BEFORE the limit applies.
+func (r *SyncLogRepository) FindSince(ctx context.Context, tenantID uuid.UUID, sinceVersion int64, entityTypes []string, limit int) ([]domain.SyncLogEntry, error) {
+	if limit <= 0 {
+		limit = defaultFindSinceLimit
+	}
 	query := r.clientFor(ctx).SyncLog.Query().
 		Where(synclog.TenantID(tenantID), synclog.VersionGT(sinceVersion))
 
@@ -58,7 +73,10 @@ func (r *SyncLogRepository) FindSince(ctx context.Context, tenantID uuid.UUID, s
 		query.Where(synclog.EntityTypeIn(entityTypes...))
 	}
 
-	results, err := query.All(ctx)
+	results, err := query.
+		Order(syncent.Asc(synclog.FieldVersion)).
+		Limit(limit + 1).
+		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("find since: %w", err)
 	}
@@ -198,9 +216,23 @@ func NewSyncConflictRepository(client *syncent.Client) *SyncConflictRepository {
 	return &SyncConflictRepository{client: client}
 }
 
-// Save creates a new conflict record.
+// clientFor returns the ent client appropriate for ctx (joins a sqltx
+// transaction when one is open — conflict rows written by the PushChanges
+// detection step must commit/rollback with their batch; otherwise the default
+// client).
+func (r *SyncConflictRepository) clientFor(ctx context.Context) *syncent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return syncent.NewClient(syncent.Driver(d))
+	}
+	return r.client
+}
+
+// Save creates a new conflict record. Tx-aware via clientFor: the ADR-4
+// detection step runs inside the push batch transaction, so a rolled-back
+// batch takes its conflict rows with it (no phantom conflicts for an aborted
+// attempt).
 func (r *SyncConflictRepository) Save(ctx context.Context, conflict *domain.SyncConflict) error {
-	_, err := r.client.SyncConflict.Create().
+	_, err := r.clientFor(ctx).SyncConflict.Create().
 		SetID(conflict.ID).SetTenantID(conflict.TenantID).
 		SetEntityType(conflict.EntityType).SetEntityID(conflict.EntityID).
 		SetConflictType(conflict.ConflictType).
@@ -262,13 +294,39 @@ func (r *SyncConflictRepository) FindPending(ctx context.Context, tenantID uuid.
 	}, nil
 }
 
-// Resolve marks a conflict as resolved.
+// Resolve marks a conflict as resolved (F16 ADR-4 repair of three stored
+// defects):
+//   - Tenant predicate: the existence check AND the update are scoped by
+//     (tenant_id, conflict_id) — the old UpdateOneID by bare id let one
+//     tenant resolve another tenant's conflict.
+//   - resolved_at: stamped (with updated_at via the schema's UpdateDefault)
+//     — the old shape never wrote it, so a resolved row was indistinguishable
+//     from a pending one by column inspection.
+//   - Resolution value validation lives at the service boundary
+//     (application.ErrInvalidResolution, whitelist {server, client, merged});
+//     the repo persists whatever the port passes.
+//
+// A conflict id the tenant does not own (unknown or another tenant's)
+// surfaces as the ent NotFound shape so the handler maps codes.NotFound.
 func (r *SyncConflictRepository) Resolve(ctx context.Context, tenantID, conflictID uuid.UUID, resolution string) error {
-	_, err := r.client.SyncConflict.UpdateOneID(conflictID).
+	if _, err := r.client.SyncConflict.Query().
+		Where(syncconflict.ID(conflictID), syncconflict.TenantID(tenantID)).
+		Only(ctx); err != nil {
+		return fmt.Errorf("resolve conflict: %w", err)
+	}
+	n, err := r.client.SyncConflict.Update().
+		Where(syncconflict.ID(conflictID), syncconflict.TenantID(tenantID)).
 		SetResolution(resolution).
+		SetResolvedAt(time.Now()).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("resolve conflict: %w", err)
+	}
+	if n == 0 {
+		// Defensive only: the tenant-scoped existence check above just passed,
+		// and conflicts are never deleted — surfacing loudly rather than
+		// reporting a silent success.
+		return fmt.Errorf("resolve conflict %s: row vanished under tenant after existence check", conflictID)
 	}
 	return nil
 }

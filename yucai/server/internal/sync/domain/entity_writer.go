@@ -28,4 +28,14 @@ type SyncEntityWriter interface {
 	Upsert(ctx context.Context, tenantID uuid.UUID, payload []byte) error
 	// Delete hard-deletes one entity by id under tenantID.
 	Delete(ctx context.Context, tenantID uuid.UUID, entityID string) error
+	// CurrentState returns the server's current row for the conflict check
+	// (F16 ADR-4): version is the stored row's version, payload the domain
+	// entity marshaled to JSON in the SAME envelope shape the Upsert path
+	// consumes (the dual of the push decode — find -> domain entity ->
+	// json.Marshal), exists=false when the tenant holds no row for the id.
+	// Soft-deleted rows count as existing: they own their version until a
+	// push resurrects or hard-deletes them, so a stale-base UPDATE against one
+	// is still a version conflict. A malformed entityID is an error (fail the
+	// batch), never a silent miss.
+	CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (version int64, payload []byte, exists bool, err error)
 }

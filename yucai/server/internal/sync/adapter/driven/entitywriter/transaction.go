@@ -15,6 +15,7 @@ import (
 type TransactionRepository = interface {
 	UpsertForSync(ctx context.Context, tx *txndomain.Transaction) error
 	HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error
+	FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*txndomain.Transaction, bool, error)
 }
 
 // TransactionWriter persists pushed transaction changes (entity_type
@@ -56,6 +57,25 @@ func (w *TransactionWriter) Delete(ctx context.Context, tenantID uuid.UUID, enti
 		return fmt.Errorf("delete transaction %s: %w", id, err)
 	}
 	return nil
+}
+
+// CurrentState returns the server's current transaction row (header + nested
+// entries in the payload) for the push conflict check (F16 ADR-4). See the
+// port doc in sync/domain/entity_writer.go for the full contract.
+func (w *TransactionWriter) CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (int64, []byte, bool, error) {
+	id, err := uuid.Parse(entityID)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("parse transaction id %q: %w", entityID, err)
+	}
+	tx, found, err := w.repo.FindForSync(ctx, tenantID, id)
+	if err != nil || !found {
+		return 0, nil, false, err
+	}
+	payload, err := json.Marshal(tx)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("marshal transaction %s: %w", id, err)
+	}
+	return tx.Version, payload, true, nil
 }
 
 var _ syncdomain.SyncEntityWriter = (*TransactionWriter)(nil)

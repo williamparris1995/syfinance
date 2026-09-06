@@ -394,6 +394,31 @@ func (r *BudgetRepository) HardDeleteForSync(ctx context.Context, tenantID, id u
 	return nil
 }
 
+// FindForSync returns the tenant's current budget (header + items) for the
+// offline-sync conflict check (F16 ADR-4) — the read dual of UpsertForSync:
+// soft-deleted rows are INCLUDED (they own their version until a push
+// resurrects or hard-deletes them). found=false means the tenant holds no row
+// for the id. Tx-aware via clientFor so the check reads inside the push batch
+// transaction.
+func (r *BudgetRepository) FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*domain.Budget, bool, error) {
+	b, err := r.clientFor(ctx).Budget.Query().
+		Where(budget.ID(id), budget.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if budgetent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find budget %s: %w", id, err)
+	}
+	items, err := r.clientFor(ctx).BudgetItem.Query().
+		Where(budgetitem.BudgetID(b.ID)).
+		All(ctx)
+	if err != nil {
+		return nil, false, fmt.Errorf("sync find items for budget %s: %w", id, err)
+	}
+	return toDomainBudget(b, items), true, nil
+}
+
 func toDomainBudget(b *budgetent.Budget, items []*budgetent.BudgetItem) *domain.Budget {
 	domainItems := make([]domain.BudgetItem, len(items))
 	for i, item := range items {

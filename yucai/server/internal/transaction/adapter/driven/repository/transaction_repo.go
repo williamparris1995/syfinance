@@ -583,6 +583,31 @@ func (r *TransactionRepository) HardDeleteForSync(ctx context.Context, tenantID,
 	return nil
 }
 
+// FindForSync returns the tenant's current transaction (header + entries)
+// for the offline-sync conflict check (F16 ADR-4) — the read dual of
+// UpsertForSync: soft-deleted rows are INCLUDED (they own their version until
+// a push resurrects or hard-deletes them). found=false means the tenant holds
+// no row for the id. Tx-aware via clientFor so the check reads inside the
+// push batch transaction.
+func (r *TransactionRepository) FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*domain.Transaction, bool, error) {
+	txn, err := r.clientFor(ctx).Transaction.Query().
+		Where(transaction.ID(id), transaction.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if txnent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find transaction %s: %w", id, err)
+	}
+	entries, err := r.clientFor(ctx).TransactionEntry.Query().
+		Where(txnentryent.TransactionID(txn.ID)).
+		All(ctx)
+	if err != nil {
+		return nil, false, fmt.Errorf("sync find entries for transaction %s: %w", id, err)
+	}
+	return toDomainTransaction(txn, entries), true, nil
+}
+
 // insertEntries bulk-creates entry rows on the given (tx-bound) client. Shared
 // by UpsertForSync's replace path.
 func (r *TransactionRepository) insertEntries(ctx context.Context, c *txnent.Client, entries []domain.TransactionEntry) error {

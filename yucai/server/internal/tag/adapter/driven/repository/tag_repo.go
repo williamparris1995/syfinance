@@ -315,6 +315,24 @@ func (r *TagRepository) HardDeleteForSync(ctx context.Context, tenantID, id uuid
 	return nil
 }
 
+// FindForSync returns the tenant's current tag row for the offline-sync
+// conflict check (F16 ADR-4) — the read dual of UpsertForSync: soft-deleted
+// rows are INCLUDED (they own their version until a push resurrects or
+// hard-deletes them). found=false means the tenant holds no row for the id.
+// Tx-aware via clientFor so the check reads inside the push batch transaction.
+func (r *TagRepository) FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*domain.Tag, bool, error) {
+	t, err := r.clientFor(ctx).Tag.Query().
+		Where(tag.ID(id), tag.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if tagent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find tag %s: %w", id, err)
+	}
+	return toDomainTag(t), true, nil
+}
+
 // Compile-time check.
 var _ domain.TagRepository = (*TagRepository)(nil)
 

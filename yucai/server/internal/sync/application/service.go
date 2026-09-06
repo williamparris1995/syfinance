@@ -23,11 +23,40 @@ import (
 // retry later (spec FR-1 / ADR-1).
 var ErrVersionConflict = errors.New("sync push aborted: version conflict retries exhausted")
 
+// ErrInvalidResolution reports a ResolveConflict strategy outside the FINAL
+// value domain {server, client, merged} (F16 ADR-4). Those three strings are
+// exactly what domain.ParseConflictResolution persists ("pending" is the
+// pre-resolution state, not a resolvable strategy); the handler maps this to
+// gRPC InvalidArgument.
+var ErrInvalidResolution = errors.New("invalid resolution: must be one of server, client, merged")
+
+// validResolutions is the ResolveConflict whitelist — the value domain is
+// FINAL (ADR-4): server, client, merged.
+var validResolutions = map[string]bool{
+	"server": true, "client": true, "merged": true,
+}
+
+// conflictTypeVersionConflict is the one conflict class F16 detects (ADR-4):
+// an UPDATE whose payload version is not strictly ahead of the server's
+// stored row. Finer-grained classes (delete/update races etc.) are F18.
+const conflictTypeVersionConflict = "version_conflict"
+
 // versionConflictRetryLimit bounds how many times PushChanges reopens the
 // whole batch transaction after a (tenant_id, version) unique-index collision
 // (initial attempt + up to this many retries; ADR-1: bounded so a pathological
 // contender cannot starve the push).
 const versionConflictRetryLimit = 3
+
+// Pull paging contract (F16 ADR-3): page_size semantics are shared by the
+// handler (which clamps the wire value) and the service (which defaults for
+// direct callers). Default 500 / max 1000.
+const (
+	// DefaultPullPageSize is the page size applied when the request omits one.
+	DefaultPullPageSize = 500
+	// MaxPullPageSize caps an oversized request so one pull cannot pin the
+	// connection streaming the whole log.
+	MaxPullPageSize = 1000
+)
 
 // isSyncLogVersionConflict reports whether err is a unique-constraint
 // violation on the (tenant_id, version) index of sync_logs — the serialization
@@ -205,18 +234,35 @@ func (s *Service) GetTenantSyncStatus(ctx context.Context, tenantID uuid.UUID) (
 //     Postgres READ COMMITTED the losing transaction is aborted by the
 //     constraint failure and cannot continue; and the stale base version
 //     poisoned every version it derived.
-//   - Conflicts are deliberately always empty in v1 single-device sync
-//     (detection/resolution is ticket 16).
+//   - Conflict detection skip semantics (F16 ADR-4, multi-device): each
+//     UPDATE-typed change is compared against the server's current row via
+//     the writer's CurrentState. When the row exists and the payload's own
+//     version is not strictly ahead (payload.version <= server.version) the
+//     change is SKIPPED — no business write, no sync_log append (it consumes
+//     no log version) — and a sync_conflicts row records both states plus the
+//     response's conflicts slice. The rest of the batch lands normally: one
+//     device's conflict must not fail its own clean changes. Atomicity
+//     boundary: "what is applied is all-or-nothing" — a conflict is an
+//     explicit skip, not a failure, so the committed subset is exactly the
+//     non-conflicting changes. CREATE and DELETE are never checked (spec
+//     FR-4: a new entity cannot conflict; a tombstone is the client's final
+//     word).
+//   - Single-device zero-regression (F10-F13): the shipped client stamps
+//     every upsert CREATE (client binding/data/grpc_offline_sync_port.dart),
+//     which is never checked; and even a genuine UPDATE from the owning
+//     device carries a strictly newer payload version (the client increments
+//     it per local edit), so payload.version <= server.version cannot hold.
+//     Detection therefore only fires for a stale-base push from ANOTHER
+//     device (or an equal-version UPDATE re-delivery — flagged per ADR-4's
+//     "<=" deliberately; identical-payload short-circuiting is F18 space).
 //   - Device row: with the v1 deviceId fallback (= tenantID, RegisterDevice
 //     not yet wired client-side) the device row often does not exist; a
 //     not-found on the version bump is tolerated (logged) rather than failing
 //     the batch. RegisterDevice integration is ticket 16.
 func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID, payloads []SyncPayloadDTO) (int64, []ConflictDTO, error) {
-	// Conflicts stay empty by design in v1 (ticket 16).
-	var conflicts []ConflictDTO
-
 	if len(payloads) == 0 {
-		return 0, conflicts, nil
+		// Conflicts stay empty by definition: nothing was pushed.
+		return 0, nil, nil
 	}
 
 	ordered, err := s.orderBatch(payloads)
@@ -225,7 +271,11 @@ func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID,
 	}
 
 	var lastVersion int64
+	var conflicts []ConflictDTO
 	for attempt := 0; ; attempt++ {
+		// Fresh per attempt: a retried (rolled-back) attempt must not leave
+		// phantom conflict DTOs behind if the replay classifies differently.
+		batchConflicts := make([]ConflictDTO, 0)
 		txErr := sqltx.WithTx(ctx, s.db, s.dialect, &sql.TxOptions{
 			Isolation: sql.LevelReadCommitted,
 		}, func(ctxT context.Context) error {
@@ -254,8 +304,12 @@ func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID,
 					// while the writer persisted another (silent substitution).
 					// Every module entity serializes its id as the top-level "ID"
 					// uuid field (default Go JSON naming, backup envelope shape).
+					// The probe also lifts the payload's own "Version" — the
+					// entity version the conflict check compares against the
+					// stored row.
 					var probe struct {
-						ID uuid.UUID
+						ID      uuid.UUID
+						Version int64
 					}
 					if err := json.Unmarshal(p.Payload, &probe); err != nil {
 						return fmt.Errorf("decode %s %s payload id: %w", p.EntityType, p.EntityID, err)
@@ -263,6 +317,35 @@ func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID,
 					if probe.ID != p.EntityID {
 						return fmt.Errorf("entity id mismatch: change id %s but payload id %s (%s)", p.EntityID, probe.ID, p.EntityType)
 					}
+
+					// Conflict detection (UPDATE only, ADR-4): a stale-base
+					// update is skipped and recorded instead of applied.
+					if p.Operation == domain.SyncOperationUpdate {
+						serverVersion, serverPayload, exists, cerr := writer.CurrentState(ctxT, tenantID, p.EntityID.String())
+						if cerr != nil {
+							return fmt.Errorf("read current state %s %s: %w", p.EntityType, p.EntityID, cerr)
+						}
+						if exists && probe.Version <= serverVersion {
+							conflict := domain.NewSyncConflict(
+								tenantID, p.EntityType, p.EntityID,
+								conflictTypeVersionConflict,
+								serverPayload, p.Payload,
+							)
+							if serr := s.conflictRepo.Save(ctxT, conflict); serr != nil {
+								return fmt.Errorf("save conflict %s %s: %w", p.EntityType, p.EntityID, serr)
+							}
+							batchConflicts = append(batchConflicts, ConflictToDTO(conflict))
+							slog.Warn("sync push change skipped: version conflict",
+								"operation", "sync_push",
+								"tenant_id", tenantID.String(),
+								"entity_type", p.EntityType,
+								"entity_id", p.EntityID.String(),
+								"client_version", probe.Version,
+								"server_version", serverVersion)
+							continue
+						}
+					}
+
 					applyErr = writer.Upsert(ctxT, tenantID, p.Payload)
 				}
 				if applyErr != nil {
@@ -304,6 +387,7 @@ func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID,
 			return nil
 		})
 		if txErr == nil {
+			conflicts = batchConflicts
 			break
 		}
 		if !isSyncLogVersionConflict(txErr) {
@@ -334,6 +418,7 @@ func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID,
 		"operation", "sync_push",
 		"tenant_id", tenantID.String(),
 		"count", len(payloads),
+		"conflicts", len(conflicts),
 		"synced_version", lastVersion)
 	return lastVersion, conflicts, nil
 }
@@ -374,11 +459,39 @@ func (s *Service) orderBatch(payloads []SyncPayloadDTO) ([]SyncPayloadDTO, error
 	return ordered, nil
 }
 
-// PullChanges returns changes since a given version for a tenant.
-func (s *Service) PullChanges(ctx context.Context, tenantID uuid.UUID, sinceVersion int64, entityTypes []string) ([]SyncPayloadDTO, int64, error) {
-	entries, err := s.logRepo.FindSince(ctx, tenantID, sinceVersion, entityTypes)
+// PullChanges returns one ordered page of changes since a given version for a
+// tenant (F16 ADR-3: sync_log replay pagination).
+//
+// Response contract:
+//   - Changes are ordered by sync_log version ASCENDING. The client MUST apply
+//     them in that order; every replay is idempotent (upserts key by entity
+//     id, deletes are tombstone no-ops on re-delivery), so a crashed pull can
+//     simply re-pull the same since_version.
+//   - has_more reports whether older-than-frontier entries remain: the repo
+//     fetches pageSize+1 rows and the sentinel row is trimmed here. On
+//     has_more the client continues with since_version = the version of the
+//     LAST change in this page (not latest_version, which is the frontier and
+//     may skip entries still in flight on later pages).
+//   - latest_version keeps its pre-F16 meaning: the tenant log frontier.
+//   - Tombstone rows (empty payload, DELETE op) are returned verbatim — GC /
+//     retention is deliberately out of scope (YAGNI, spec scope table).
+//
+// pageSize <= 0 (a direct service caller; the handler sanitizes the wire
+// value) falls back to DefaultPullPageSize.
+func (s *Service) PullChanges(ctx context.Context, tenantID uuid.UUID, sinceVersion int64, entityTypes []string, pageSize int) ([]SyncPayloadDTO, int64, bool, error) {
+	if pageSize <= 0 {
+		pageSize = DefaultPullPageSize
+	}
+
+	entries, err := s.logRepo.FindSince(ctx, tenantID, sinceVersion, entityTypes, pageSize)
 	if err != nil {
-		return nil, 0, fmt.Errorf("find since: %w", err)
+		return nil, 0, false, fmt.Errorf("find since: %w", err)
+	}
+
+	// The +1 sentinel row only proves more entries exist past this page.
+	hasMore := len(entries) > pageSize
+	if hasMore {
+		entries = entries[:pageSize]
 	}
 
 	payloads := make([]SyncPayloadDTO, len(entries))
@@ -388,10 +501,10 @@ func (s *Service) PullChanges(ctx context.Context, tenantID uuid.UUID, sinceVers
 
 	latestVersion, err := s.logRepo.LatestVersion(ctx, tenantID)
 	if err != nil {
-		return nil, 0, fmt.Errorf("latest version: %w", err)
+		return nil, 0, false, fmt.Errorf("latest version: %w", err)
 	}
 
-	return payloads, latestVersion, nil
+	return payloads, latestVersion, hasMore, nil
 }
 
 // ListConflicts returns pending conflicts for a tenant.
@@ -409,8 +522,14 @@ func (s *Service) ListConflicts(ctx context.Context, tenantID uuid.UUID, page do
 	return dtos, result.NextPageToken, result.TotalCount, nil
 }
 
-// ResolveConflict resolves a conflict with the given strategy.
+// ResolveConflict resolves a conflict with the given strategy (F16 ADR-4).
+// The resolution value domain is FINAL: {server, client, merged} — validated
+// here BEFORE the repo round-trip so a bad strategy is a client error
+// (InvalidArgument on the wire), not a DB write.
 func (s *Service) ResolveConflict(ctx context.Context, tenantID, conflictID uuid.UUID, resolution string) error {
+	if !validResolutions[resolution] {
+		return fmt.Errorf("%w: got %q", ErrInvalidResolution, resolution)
+	}
 	if err := s.conflictRepo.Resolve(ctx, tenantID, conflictID, resolution); err != nil {
 		return fmt.Errorf("resolve conflict: %w", err)
 	}

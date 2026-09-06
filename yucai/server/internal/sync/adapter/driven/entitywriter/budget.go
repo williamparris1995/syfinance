@@ -15,6 +15,7 @@ import (
 type BudgetRepository = interface {
 	UpsertForSync(ctx context.Context, b *budgetdomain.Budget) error
 	HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error
+	FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*budgetdomain.Budget, bool, error)
 }
 
 // BudgetWriter persists pushed budget changes (entity_type "budget"). Payload
@@ -55,6 +56,25 @@ func (w *BudgetWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID 
 		return fmt.Errorf("delete budget %s: %w", id, err)
 	}
 	return nil
+}
+
+// CurrentState returns the server's current budget row (header + nested
+// items in the payload) for the push conflict check (F16 ADR-4). See the
+// port doc in sync/domain/entity_writer.go for the full contract.
+func (w *BudgetWriter) CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (int64, []byte, bool, error) {
+	id, err := uuid.Parse(entityID)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("parse budget id %q: %w", entityID, err)
+	}
+	b, found, err := w.repo.FindForSync(ctx, tenantID, id)
+	if err != nil || !found {
+		return 0, nil, false, err
+	}
+	payload, err := json.Marshal(b)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("marshal budget %s: %w", id, err)
+	}
+	return b.Version, payload, true, nil
 }
 
 var _ syncdomain.SyncEntityWriter = (*BudgetWriter)(nil)

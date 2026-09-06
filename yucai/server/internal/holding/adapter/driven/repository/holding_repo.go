@@ -246,6 +246,24 @@ func (r *HoldingRepository) HardDeleteForSync(ctx context.Context, tenantID, hol
 	return nil
 }
 
+// FindForSync returns the tenant's current holding position row for the
+// offline-sync conflict check (F16 ADR-4) — the read dual of UpsertForSync
+// (holdings carry no soft-delete column, so every row counts). found=false
+// means the tenant holds no row for the id. Tx-aware via clientFor so the
+// check reads inside the push batch transaction.
+func (r *HoldingRepository) FindForSync(ctx context.Context, tenantID, holdingID uuid.UUID) (*domain.Holding, bool, error) {
+	h, err := r.clientFor(ctx).Holding.Query().
+		Where(holding.ID(holdingID), holding.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if holdingent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find holding %s: %w", holdingID, err)
+	}
+	return toDomainHolding(h), true, nil
+}
+
 var _ domain.HoldingRepository = (*HoldingRepository)(nil)
 
 // AccountReferenceSourceName implements the account module's

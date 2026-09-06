@@ -595,6 +595,10 @@ type ConflictDTO struct {
 	ServerPayload []byte                 `protobuf:"bytes,4,opt,name=server_payload,json=serverPayload,proto3" json:"server_payload,omitempty"`
 	ClientPayload []byte                 `protobuf:"bytes,5,opt,name=client_payload,json=clientPayload,proto3" json:"client_payload,omitempty"`
 	Resolution    string                 `protobuf:"bytes,6,opt,name=resolution,proto3" json:"resolution,omitempty"`
+	// F16: conflict classification. Value domain today: "version_conflict"
+	// (an UPDATE whose payload version was not ahead of the server row);
+	// finer-grained classes arrive with F18. Non-breaking string field.
+	ConflictType  string `protobuf:"bytes,7,opt,name=conflict_type,json=conflictType,proto3" json:"conflict_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -667,6 +671,13 @@ func (x *ConflictDTO) GetClientPayload() []byte {
 func (x *ConflictDTO) GetResolution() string {
 	if x != nil {
 		return x.Resolution
+	}
+	return ""
+}
+
+func (x *ConflictDTO) GetConflictType() string {
+	if x != nil {
+		return x.ConflictType
 	}
 	return ""
 }
@@ -866,7 +877,7 @@ const file_sync_v1_sync_proto_rawDesc = "" +
 	"\x13PullChangesResponse\x124\n" +
 	"\achanges\x18\x01 \x03(\v2\x1a.yucai.sync.v1.SyncPayloadR\achanges\x12%\n" +
 	"\x0elatest_version\x18\x02 \x01(\x03R\rlatestVersion\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\xc9\x01\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\xee\x01\n" +
 	"\vConflictDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\ventity_type\x18\x02 \x01(\tR\n" +
@@ -876,7 +887,8 @@ const file_sync_v1_sync_proto_rawDesc = "" +
 	"\x0eclient_payload\x18\x05 \x01(\fR\rclientPayload\x12\x1e\n" +
 	"\n" +
 	"resolution\x18\x06 \x01(\tR\n" +
-	"resolution\"\x80\x01\n" +
+	"resolution\x12#\n" +
+	"\rconflict_type\x18\a \x01(\tR\fconflictType\"\x80\x01\n" +
 	"\x16ResolveConflictRequest\x12\x1f\n" +
 	"\vconflict_id\x18\x01 \x01(\tR\n" +
 	"conflictId\x12\x1e\n" +

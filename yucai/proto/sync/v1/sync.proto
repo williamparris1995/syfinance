@@ -89,6 +89,10 @@ message ConflictDTO {
   bytes server_payload = 4;
   bytes client_payload = 5;
   string resolution = 6;
+  // F16: conflict classification. Value domain today: "version_conflict"
+  // (an UPDATE whose payload version was not ahead of the server row);
+  // finer-grained classes arrive with F18. Non-breaking string field.
+  string conflict_type = 7;
 }
 
 message ResolveConflictRequest {

@@ -15,6 +15,7 @@ import (
 type GoalRepository = interface {
 	UpsertForSync(ctx context.Context, g *goaldomain.Goal) error
 	HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error
+	FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*goaldomain.Goal, bool, error)
 }
 
 // GoalWriter persists pushed goal changes (entity_type "goal"). Payload shape:
@@ -55,6 +56,25 @@ func (w *GoalWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID st
 		return fmt.Errorf("delete goal %s: %w", id, err)
 	}
 	return nil
+}
+
+// CurrentState returns the server's current goal row for the push conflict
+// check (F16 ADR-4). See the port doc in sync/domain/entity_writer.go for
+// the full contract.
+func (w *GoalWriter) CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (int64, []byte, bool, error) {
+	id, err := uuid.Parse(entityID)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("parse goal id %q: %w", entityID, err)
+	}
+	g, found, err := w.repo.FindForSync(ctx, tenantID, id)
+	if err != nil || !found {
+		return 0, nil, false, err
+	}
+	payload, err := json.Marshal(g)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("marshal goal %s: %w", id, err)
+	}
+	return g.Version, payload, true, nil
 }
 
 var _ syncdomain.SyncEntityWriter = (*GoalWriter)(nil)

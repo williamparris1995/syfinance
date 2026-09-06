@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"strings"
 	"testing"
+	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -151,5 +152,168 @@ func TestRegister_SameIDOtherTenant_FailsClosed(t *testing.T) {
 	hijack.ID = owned.ID
 	if err := deviceRepo.Register(ctx, hijack); err == nil {
 		t.Fatal("registering another tenant's device id must fail closed")
+	}
+}
+
+// --- F16 T2 S3: FindSince ordered replay pagination (ADR-3) ---
+
+// appendLogRow appends one sync_log row directly (repo-level seeding with
+// EXPLICIT versions, so ordering tests are independent of the push path's
+// sequential version assignment).
+func appendLogRow(t *testing.T, logRepo *SyncLogRepository, ctx context.Context, tenantID uuid.UUID, entityType string, version int64) {
+	t.Helper()
+	entry := &syncdomain.SyncLogEntry{
+		ID: uuid.New(), TenantID: tenantID,
+		EntityType: entityType, EntityID: uuid.New(),
+		Operation: syncdomain.SyncOperationCreate,
+		Payload:   []byte(`{}`),
+		Version:   version, DeviceID: uuid.New(),
+		CreatedAt: time.Now(),
+	}
+	if err := logRepo.Append(ctx, entry); err != nil {
+		t.Fatalf("append log row v%d: %v", version, err)
+	}
+}
+
+// TestFindSince_OrdersByVersionAscending (ADR-3 ordering contract): rows
+// appended with SHUFFLED version values must come back strictly ascending —
+// the client replays the page in version order (upsert/delete idempotent
+// application depends on it), so insertion order must never leak through.
+func TestFindSince_OrdersByVersionAscending(t *testing.T) {
+	_, logRepo, _ := newRepoHarness(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+
+	// Deliberately shuffled append order: v5, v1, v4, v2, v3.
+	for _, v := range []int64{5, 1, 4, 2, 3} {
+		appendLogRow(t, logRepo, ctx, tenant, "account", v)
+	}
+
+	entries, err := logRepo.FindSince(ctx, tenant, 0, nil, 100)
+	if err != nil {
+		t.Fatalf("FindSince: %v", err)
+	}
+	if len(entries) != 5 {
+		t.Fatalf("entries = %d, want 5", len(entries))
+	}
+	for i, want := range []int64{1, 2, 3, 4, 5} {
+		if entries[i].Version != want {
+			t.Fatalf("entries[%d].version = %d, want %d (ascending, not insertion order)", i, entries[i].Version, want)
+		}
+	}
+}
+
+// TestFindSince_FetchesLimitPlusOne (ADR-3 has_more mechanics): the repo fetches
+// n+1 rows for a page of n so the caller can compute has_more from the extra
+// row. Exactly n rows in range -> exactly n back; n+2 in range -> n+1 back.
+func TestFindSince_FetchesLimitPlusOne(t *testing.T) {
+	_, logRepo, _ := newRepoHarness(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+
+	for v := int64(1); v <= 4; v++ {
+		appendLogRow(t, logRepo, ctx, tenant, "account", v)
+	}
+
+	// Exact fit: 4 rows in range, limit 4 -> 4 rows (no extra row available).
+	entries, err := logRepo.FindSince(ctx, tenant, 0, nil, 4)
+	if err != nil {
+		t.Fatalf("FindSince exact fit: %v", err)
+	}
+	if len(entries) != 4 {
+		t.Fatalf("exact-fit entries = %d, want 4", len(entries))
+	}
+
+	// Overflow: 4 rows in range, limit 2 -> 3 rows (2 + the has_more sentinel).
+	entries, err = logRepo.FindSince(ctx, tenant, 0, nil, 2)
+	if err != nil {
+		t.Fatalf("FindSince overflow: %v", err)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("overflow entries = %d, want 3 (limit 2 + sentinel row)", len(entries))
+	}
+
+	// since_version still bounds the range BEFORE the limit applies.
+	entries, err = logRepo.FindSince(ctx, tenant, 3, nil, 2)
+	if err != nil {
+		t.Fatalf("FindSince since=3: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Version != 4 {
+		t.Fatalf("since=3 entries = %+v, want only v4", entries)
+	}
+}
+
+// TestFindSince_EntityTypeFilterWithPagination: the entity_types filter composes
+// with ORDER + LIMIT — a page over a filtered stream still returns n+1 rows of
+// ONLY the requested types, ascending.
+func TestFindSince_EntityTypeFilterWithPagination(t *testing.T) {
+	_, logRepo, _ := newRepoHarness(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+
+	// Interleaved types: account v1, tag v2, account v3, tag v4, account v5.
+	for v := int64(1); v <= 5; v++ {
+		et := "tag"
+		if v%2 == 1 {
+			et = "account"
+		}
+		appendLogRow(t, logRepo, ctx, tenant, et, v)
+	}
+
+	entries, err := logRepo.FindSince(ctx, tenant, 0, []string{"account"}, 2)
+	if err != nil {
+		t.Fatalf("FindSince filtered: %v", err)
+	}
+	if len(entries) != 3 { // 2-page + sentinel (accounts v1, v3, v5 exist)
+		t.Fatalf("filtered entries = %d, want 3 (limit 2 + sentinel)", len(entries))
+	}
+	for i, want := range []int64{1, 3, 5} {
+		if entries[i].Version != want || entries[i].EntityType != "account" {
+			t.Fatalf("filtered entries[%d] = %s v%d, want account v%d", i, entries[i].EntityType, entries[i].Version, want)
+		}
+	}
+}
+
+// TestFindSince_EmptyLog_NoRows: an empty log (or a since_version past the
+// frontier) yields zero rows, not an error — the client's steady-state poll.
+func TestFindSince_EmptyLog_NoRows(t *testing.T) {
+	_, logRepo, _ := newRepoHarness(t)
+	ctx := context.Background()
+
+	entries, err := logRepo.FindSince(ctx, uuid.New(), 0, nil, 500)
+	if err != nil {
+		t.Fatalf("FindSince empty log: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("empty-log entries = %d, want 0", len(entries))
+	}
+
+	tenant := uuid.New()
+	appendLogRow(t, logRepo, ctx, tenant, "account", 1)
+	entries, err = logRepo.FindSince(ctx, tenant, 1, nil, 500)
+	if err != nil {
+		t.Fatalf("FindSince since=frontier: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("since=frontier entries = %d, want 0", len(entries))
+	}
+}
+
+// TestFindSince_TenantScoped: another tenant's rows never leak into a page.
+func TestFindSince_TenantScoped(t *testing.T) {
+	_, logRepo, _ := newRepoHarness(t)
+	ctx := context.Background()
+	tenantA, tenantB := uuid.New(), uuid.New()
+
+	appendLogRow(t, logRepo, ctx, tenantA, "account", 1)
+	appendLogRow(t, logRepo, ctx, tenantB, "account", 1)
+	appendLogRow(t, logRepo, ctx, tenantB, "tag", 2)
+
+	entries, err := logRepo.FindSince(ctx, tenantB, 0, nil, 500)
+	if err != nil {
+		t.Fatalf("FindSince: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("tenant B entries = %d, want 2 (tenant A's row excluded)", len(entries))
 	}
 }

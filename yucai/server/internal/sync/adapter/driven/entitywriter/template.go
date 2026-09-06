@@ -15,6 +15,7 @@ import (
 type TemplateRepository = interface {
 	UpsertForSync(ctx context.Context, t *templatedomain.TransactionTemplate) error
 	HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error
+	FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*templatedomain.TransactionTemplate, bool, error)
 }
 
 // TemplateWriter persists pushed template changes (entity_type "template").
@@ -54,6 +55,25 @@ func (w *TemplateWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityI
 		return fmt.Errorf("delete template %s: %w", id, err)
 	}
 	return nil
+}
+
+// CurrentState returns the server's current template row for the push
+// conflict check (F16 ADR-4). See the port doc in
+// sync/domain/entity_writer.go for the full contract.
+func (w *TemplateWriter) CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (int64, []byte, bool, error) {
+	id, err := uuid.Parse(entityID)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("parse template id %q: %w", entityID, err)
+	}
+	t, found, err := w.repo.FindForSync(ctx, tenantID, id)
+	if err != nil || !found {
+		return 0, nil, false, err
+	}
+	payload, err := json.Marshal(t)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("marshal template %s: %w", id, err)
+	}
+	return t.Version, payload, true, nil
 }
 
 var _ syncdomain.SyncEntityWriter = (*TemplateWriter)(nil)

@@ -15,6 +15,7 @@ import (
 type HoldingRepository = interface {
 	UpsertForSync(ctx context.Context, h *holdingdomain.Holding) error
 	HardDeleteForSync(ctx context.Context, tenantID, holdingID uuid.UUID) error
+	FindForSync(ctx context.Context, tenantID, holdingID uuid.UUID) (*holdingdomain.Holding, bool, error)
 }
 
 // HoldingWriter persists pushed holding changes (entity_type "holding").
@@ -60,6 +61,25 @@ func (w *HoldingWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID
 		return fmt.Errorf("delete holding %s: %w", id, err)
 	}
 	return nil
+}
+
+// CurrentState returns the server's current holding position row for the
+// push conflict check (F16 ADR-4). See the port doc in
+// sync/domain/entity_writer.go for the full contract.
+func (w *HoldingWriter) CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (int64, []byte, bool, error) {
+	id, err := uuid.Parse(entityID)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("parse holding id %q: %w", entityID, err)
+	}
+	h, found, err := w.repo.FindForSync(ctx, tenantID, id)
+	if err != nil || !found {
+		return 0, nil, false, err
+	}
+	payload, err := json.Marshal(h)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("marshal holding %s: %w", id, err)
+	}
+	return h.Version, payload, true, nil
 }
 
 var _ syncdomain.SyncEntityWriter = (*HoldingWriter)(nil)

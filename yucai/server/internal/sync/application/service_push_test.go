@@ -51,6 +51,7 @@ type pushHarness struct {
 	accountCl    *accountent.Client
 	txnCl        *txnent.Client
 	tagCl        *tagent.Client
+	syncCl       *syncent.Client
 	tenantID     uuid.UUID
 	deviceID     uuid.UUID // deliberately NEVER registered (fallback-deviceID path)
 	accountWri   *entitywriter.AccountWriter
@@ -108,7 +109,7 @@ func newPushHarness(t *testing.T) *pushHarness {
 		svc: svc, logRepo: logRepo, deviceRepo: deviceRepo,
 		conflictRepo: conflictRepo, resolver: NewConflictResolver(),
 		writers: writers, db: db,
-		accountCl: accountCl, txnCl: txnCl, tagCl: tagCl,
+		accountCl: accountCl, txnCl: txnCl, tagCl: tagCl, syncCl: syncCl,
 		tenantID: uuid.New(), deviceID: uuid.New(),
 		accountWri: entitywriter.NewAccountWriter(accountRepo),
 	}
@@ -209,7 +210,7 @@ func TestPushChanges_MixedBatch_PersistsAndAppendsVersionedLog(t *testing.T) {
 	}
 
 	// sync_log: 3 entries, versions 1..3, account-first upsert order.
-	entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil)
+	entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil, 500)
 	if err != nil {
 		t.Fatalf("FindSince: %v", err)
 	}
@@ -267,7 +268,7 @@ func TestPushChanges_MidBatchFailure_RollsBackWholeBatch(t *testing.T) {
 		t.Fatalf("account rows after rollback = %d err=%v, want 0", n, err)
 	}
 	// sync_log must be empty too.
-	if entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil); err != nil || len(entries) != 0 {
+	if entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil, 500); err != nil || len(entries) != 0 {
 		t.Fatalf("log entries after rollback = %d err=%v, want 0", len(entries), err)
 	}
 }
@@ -312,7 +313,7 @@ func TestPushChanges_DeleteDependencyOrder(t *testing.T) {
 
 	// Log order proves the reordering: the transaction delete was appended
 	// BEFORE the account delete (versions 3 and 4 after the 2-seed push).
-	entries, err := h.logRepo.FindSince(ctx, h.tenantID, 2, nil)
+	entries, err := h.logRepo.FindSince(ctx, h.tenantID, 2, nil, 500)
 	if err != nil {
 		t.Fatalf("FindSince: %v", err)
 	}
@@ -403,7 +404,7 @@ func TestPushChanges_PayloadIdMismatch_FailsClosed(t *testing.T) {
 	if n, err := h.accountCl.Account.Query().Where(accpredicate.TenantID(h.tenantID)).Count(ctx); err != nil || n != 0 {
 		t.Fatalf("no rows may persist on mismatch, n=%d err=%v", n, err)
 	}
-	if entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil); err != nil || len(entries) != 0 {
+	if entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil, 500); err != nil || len(entries) != 0 {
 		t.Fatalf("no log entries may persist on mismatch, got %d err=%v", len(entries), err)
 	}
 }

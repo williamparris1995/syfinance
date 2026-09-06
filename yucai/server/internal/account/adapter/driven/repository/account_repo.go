@@ -380,6 +380,25 @@ func (r *AccountRepository) HardDeleteForSync(ctx context.Context, tenantID, id 
 	return nil
 }
 
+// FindForSync returns the tenant's current row for the offline-sync conflict
+// check (F16 ADR-4) — the read dual of UpsertForSync: soft-deleted rows are
+// INCLUDED (they own their version until a push resurrects or hard-deletes
+// them). found=false means the tenant holds no row for the id; every other
+// failure is an error. Tx-aware via clientFor so the check reads inside the
+// push batch transaction.
+func (r *AccountRepository) FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*domain.Account, bool, error) {
+	a, err := r.clientFor(ctx).Account.Query().
+		Where(accountent.ID(id), accountent.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find account %s: %w", id, err)
+	}
+	return toDomainAccount(a), true, nil
+}
+
 func toDomainAccount(a *ent.Account) *domain.Account {
 	result := &domain.Account{
 		ID:                       a.ID,

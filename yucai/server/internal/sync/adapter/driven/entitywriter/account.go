@@ -23,6 +23,7 @@ import (
 type AccountRepository = interface {
 	UpsertForSync(ctx context.Context, a *accountdomain.Account) error
 	HardDeleteForSync(ctx context.Context, tenantID, id uuid.UUID) error
+	FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*accountdomain.Account, bool, error)
 }
 
 // AccountWriter persists pushed account changes (entity_type "account").
@@ -63,6 +64,27 @@ func (w *AccountWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID
 		return fmt.Errorf("delete account %s: %w", id, err)
 	}
 	return nil
+}
+
+// CurrentState returns the server's current account row for the push conflict
+// check (F16 ADR-4). The payload is the domain entity marshaled with default
+// Go naming — the same PascalCase envelope shape Upsert decodes — so the
+// recorded server_payload is diffable against the client payload. See the
+// port doc in sync/domain/entity_writer.go for the full contract.
+func (w *AccountWriter) CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (int64, []byte, bool, error) {
+	id, err := uuid.Parse(entityID)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("parse account id %q: %w", entityID, err)
+	}
+	a, found, err := w.repo.FindForSync(ctx, tenantID, id)
+	if err != nil || !found {
+		return 0, nil, false, err
+	}
+	payload, err := json.Marshal(a)
+	if err != nil {
+		return 0, nil, false, fmt.Errorf("marshal account %s: %w", id, err)
+	}
+	return a.Version, payload, true, nil
 }
 
 // Compile-time assertion: AccountWriter satisfies the sync port.

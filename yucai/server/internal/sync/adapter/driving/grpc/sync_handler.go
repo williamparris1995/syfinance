@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
@@ -116,9 +117,16 @@ func (h *SyncHandler) PushChanges(ctx context.Context, req *pb.PushChangesReques
 
 	payloads := make([]application.SyncPayloadDTO, len(req.Changes))
 	for i, c := range req.Changes {
+		// Fail-closed entity id parse (F16 T2): a malformed entity_id is an
+		// InvalidArgument BEFORE any write runs — the old parseUUID coerced it
+		// to uuid.Nil and the batch failed later as an opaque Internal.
+		entityID, perr := parseUUIDStrict("entity_id", c.EntityId)
+		if perr != nil {
+			return nil, perr
+		}
 		payloads[i] = application.SyncPayloadDTO{
 			EntityType: c.EntityType,
-			EntityID:   parseUUID(c.EntityId),
+			EntityID:   entityID,
 			Operation:  protoToOperation(c.Operation),
 			Payload:    c.Payload,
 			Version:    c.Version,
@@ -145,14 +153,24 @@ func (h *SyncHandler) PushChanges(ctx context.Context, req *pb.PushChangesReques
 	}, nil
 }
 
-// PullChanges returns changes since a given version.
+// PullChanges returns changes since a given version (F16 ADR-3: ordered
+// sync_log replay pagination).
+//
+// page_size clamping: <=0 (field absent on the wire or an explicit 0) becomes
+// the default 500; >1000 is capped at 1000. The response contract the client
+// codes against: apply changes in the returned version order (ascending) —
+// every upsert/delete replay is idempotent; on has_more=true continue pulling
+// with since_version = the last change's version in this page; latest_version
+// is the tenant log frontier, not the page cursor.
 func (h *SyncHandler) PullChanges(ctx context.Context, req *pb.PullChangesRequest) (*pb.PullChangesResponse, error) {
 	tenantID, err := getTenantID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	payloads, latestVersion, err := h.service.PullChanges(ctx, tenantID, req.SinceVersion, req.EntityTypes)
+	pageSize := clampPullPageSize(req.PageSize)
+
+	payloads, latestVersion, hasMore, err := h.service.PullChanges(ctx, tenantID, req.SinceVersion, req.EntityTypes, pageSize)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -172,8 +190,20 @@ func (h *SyncHandler) PullChanges(ctx context.Context, req *pb.PullChangesReques
 	return &pb.PullChangesResponse{
 		Changes:       changes,
 		LatestVersion: latestVersion,
-		HasMore:       false,
+		HasMore:       hasMore,
 	}, nil
+}
+
+// clampPullPageSize sanitizes the wire page_size: 0/absent -> default 500,
+// >1000 -> 1000 (values in between pass through).
+func clampPullPageSize(n int32) int {
+	if n <= 0 {
+		return application.DefaultPullPageSize
+	}
+	if n > application.MaxPullPageSize {
+		return application.MaxPullPageSize
+	}
+	return int(n)
 }
 
 // ResolveConflict resolves a sync conflict.
@@ -182,9 +212,11 @@ func (h *SyncHandler) ResolveConflict(ctx context.Context, req *pb.ResolveConfli
 	if err != nil {
 		return nil, err
 	}
-	conflictID := parseUUID(req.ConflictId)
-	if conflictID == uuid.Nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid conflict_id")
+	// Fail-closed parse (F16 T2): a malformed conflict_id is InvalidArgument,
+	// not a silently coerced uuid.Nil matching zero rows as an Internal.
+	conflictID, perr := parseUUIDStrict("conflict_id", req.ConflictId)
+	if perr != nil {
+		return nil, perr
 	}
 
 	if err := h.service.ResolveConflict(ctx, tenantID, conflictID, req.Resolution); err != nil {
@@ -232,6 +264,9 @@ func conflictToProto(c application.ConflictDTO) *pb.ConflictDTO {
 		ServerPayload: c.ServerPayload,
 		ClientPayload: c.ClientPayload,
 		Resolution:    c.Resolution,
+		// F16: the conflict classification must survive the mapping (the old
+		// mapper silently dropped it).
+		ConflictType: c.ConflictType,
 	}
 }
 
@@ -299,19 +334,42 @@ func resolveDeviceID(s string) (uuid.UUID, error) {
 	return id, nil
 }
 
-func parseUUID(s string) uuid.UUID {
-	id, _ := uuid.Parse(s)
-	return id
+// parseUUIDStrict parses a REQUIRED wire uuid fail-closed: a malformed (or
+// empty) value is an InvalidArgument status error, never a silently coerced
+// uuid.Nil (F16 T2 hardening — the old parseUUID helper swallowed the parse
+// error). The handler's wire-level validations return their status errors
+// directly (NOT via mapError), which is where the validation->InvalidArgument
+// mapping for this module lives.
+func parseUUIDStrict(field, s string) (uuid.UUID, error) {
+	id, err := uuid.Parse(s)
+	if err != nil {
+		return uuid.Nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid %s: %v", field, err))
+	}
+	return id, nil
 }
 
-// mapError maps service errors to gRPC codes. Currently Internal-by-default;
-// the single special case below is the F16 serialization abort signal (ADR-1:
-// a push that kept losing the version race is Aborted — a retryable outcome,
-// not an internal fault). Full per-error fidelity (NotFound / validation /
-// conflict families) is the F16 T2 mapError pass (FR-6/ADR-6).
+// mapError maps service errors to gRPC codes with per-family fidelity (F16
+// FR-6 / ADR-6; the debt-handler message-matching convention, plus the sync
+// module's own sentinels):
+//   - ErrVersionConflict (serialization retries exhausted) -> Aborted: the
+//     batch is valid, it kept losing the version race — retryable.
+//   - ErrInvalidResolution (ResolveConflict whitelist) -> InvalidArgument.
+//   - "... not found" (the ent NotFound message shape flowing through the
+//     repos' fmt.Errorf %w wraps — device/conflict lookups) -> NotFound.
+//   - everything else -> Internal: fail-closed. Note mid-batch payload-decode
+//     faults deliberately land here too — the wire shape was structurally
+//     accepted, the content is garbage; the whole batch rolled back and the
+//     generic fault surface is the honest classification (matching the F11
+//     integration contract).
 func mapError(err error) error {
-	if errors.Is(err, application.ErrVersionConflict) {
+	switch {
+	case errors.Is(err, application.ErrVersionConflict):
 		return status.Errorf(codes.Aborted, "sync version conflict: %v", err)
+	case errors.Is(err, application.ErrInvalidResolution):
+		return status.Errorf(codes.InvalidArgument, "%v", err)
+	case strings.Contains(err.Error(), "not found"):
+		return status.Errorf(codes.NotFound, "%v", err)
+	default:
+		return status.Errorf(codes.Internal, "sync service error: %v", err)
 	}
-	return status.Errorf(codes.Internal, "sync service error: %v", err)
 }

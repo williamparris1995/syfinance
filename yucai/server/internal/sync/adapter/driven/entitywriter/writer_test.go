@@ -723,3 +723,219 @@ func TestAccountWriter_Upsert_ResurrectsSoftDeletedRow(t *testing.T) {
 		t.Fatalf("deleted_at must be cleared on resurrection, got %v", row.DeletedAt)
 	}
 }
+
+// --- F16 T2 S4: CurrentState (conflict-detection read port, ADR-4) ---
+
+// TestAccountWriter_CurrentState_MissingRow: an id with no row under the
+// tenant reports exists=false (a CREATE, or an UPDATE for an entity this
+// tenant never held) — no version, no payload, no error.
+func TestAccountWriter_CurrentState_MissingRow(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := accountent.NewClient(accountent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate account schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	w := entitywriter.NewAccountWriter(accountrepo.NewAccountRepository(client))
+	version, payload, exists, err := w.CurrentState(ctx, uuid.New(), uuid.New().String())
+	if err != nil {
+		t.Fatalf("CurrentState on missing row must not error: %v", err)
+	}
+	if exists || version != 0 || payload != nil {
+		t.Fatalf("missing row = (version %d, %d bytes, exists %v), want (0, 0, false)", version, len(payload), exists)
+	}
+}
+
+// TestAccountWriter_CurrentState_ExistingRow_PayloadShape: the server row's
+// version and JSON payload come back for conflict detection. The payload is
+// the domain entity marshaled with default Go naming — the SAME PascalCase
+// envelope shape push payloads use (dual of the writer's Upsert decode), so a
+// future resolver can diff server vs client state field-for-field.
+func TestAccountWriter_CurrentState_ExistingRow_PayloadShape(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := accountent.NewClient(accountent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate account schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := accountrepo.NewAccountRepository(client)
+	w := entitywriter.NewAccountWriter(repo)
+	tenantID := uuid.New()
+
+	// Land the row at v7 via two pushes (create v1, update v7).
+	a := newAccountFixture(tenantID, "Current", 1)
+	if err := w.Upsert(ctx, tenantID, mustMarshal(t, a)); err != nil {
+		t.Fatalf("seed upsert: %v", err)
+	}
+	a.Name = "Current v7"
+	a.CurrentBalanceCents = 777
+	a.Version = 7
+	if err := w.Upsert(ctx, tenantID, mustMarshal(t, a)); err != nil {
+		t.Fatalf("bump upsert: %v", err)
+	}
+
+	version, payload, exists, err := w.CurrentState(ctx, tenantID, a.ID.String())
+	if err != nil {
+		t.Fatalf("CurrentState: %v", err)
+	}
+	if !exists {
+		t.Fatal("row exists, CurrentState must report it")
+	}
+	if version != 7 {
+		t.Fatalf("version = %d, want the stored row's 7", version)
+	}
+
+	var decoded accountdomain.Account
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("server payload must decode as the domain entity (envelope shape): %v", err)
+	}
+	if decoded.ID != a.ID || decoded.Name != "Current v7" || decoded.Version != 7 || decoded.CurrentBalanceCents != 777 {
+		t.Fatalf("decoded server state = %+v, want the current row contents", decoded)
+	}
+}
+
+// TestAccountWriter_CurrentState_SoftDeletedRowCountsAsExisting: a
+// server-side soft-deleted row still EXISTS for conflict detection — it owns
+// its version until a push resurrects or hard-deletes it, so a stale-base
+// UPDATE against it is a version conflict, not a silent overwrite.
+func TestAccountWriter_CurrentState_SoftDeletedRowCountsAsExisting(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := accountent.NewClient(accountent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate account schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := accountrepo.NewAccountRepository(client)
+	w := entitywriter.NewAccountWriter(repo)
+	tenantID := uuid.New()
+
+	a := newAccountFixture(tenantID, "Softly Gone", 4)
+	if err := repo.Save(ctx, &a); err != nil {
+		t.Fatalf("seed account: %v", err)
+	}
+	if err := repo.SoftDelete(ctx, tenantID, a.ID); err != nil {
+		t.Fatalf("soft delete account: %v", err)
+	}
+
+	version, _, exists, err := w.CurrentState(ctx, tenantID, a.ID.String())
+	if err != nil {
+		t.Fatalf("CurrentState over soft-deleted row: %v", err)
+	}
+	if !exists || version != 4 {
+		t.Fatalf("soft-deleted row = (version %d, exists %v), want (4, true)", version, exists)
+	}
+}
+
+// TestAccountWriter_CurrentState_TenantScoped: another tenant's row with the
+// same id is invisible — exists=false, no cross-tenant leak (the read mirrors
+// the tenant-scoped upsert/delete paths).
+func TestAccountWriter_CurrentState_TenantScoped(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := accountent.NewClient(accountent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate account schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := accountrepo.NewAccountRepository(client)
+	w := entitywriter.NewAccountWriter(repo)
+	tenantA, tenantB := uuid.New(), uuid.New()
+
+	a := newAccountFixture(tenantA, "A's row", 3)
+	if err := w.Upsert(ctx, tenantA, mustMarshal(t, a)); err != nil {
+		t.Fatalf("seed upsert: %v", err)
+	}
+
+	version, payload, exists, err := w.CurrentState(ctx, tenantB, a.ID.String())
+	if err != nil {
+		t.Fatalf("CurrentState cross-tenant: %v", err)
+	}
+	if exists || version != 0 || payload != nil {
+		t.Fatalf("cross-tenant CurrentState = (version %d, %d bytes, exists %v), want (0, 0, false)", version, len(payload), exists)
+	}
+}
+
+// TestTransactionWriter_CurrentState_NestedEntriesRoundTrip: for a module with
+// nested child rows, CurrentState re-marshals the FULL entity (header +
+// entries) — the same per-row envelope the client pushed.
+func TestTransactionWriter_CurrentState_NestedEntriesRoundTrip(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := txnent.NewClient(txnent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate transaction schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := txnrepo.NewTransactionRepository(client, nil)
+	w := entitywriter.NewTransactionWriter(repo)
+	tenantID := uuid.New()
+
+	tx := newTransactionFixture(tenantID, uuid.New(), "current state", 2)
+	if err := w.Upsert(ctx, tenantID, mustMarshal(t, tx)); err != nil {
+		t.Fatalf("seed upsert: %v", err)
+	}
+
+	version, payload, exists, err := w.CurrentState(ctx, tenantID, tx.ID.String())
+	if err != nil {
+		t.Fatalf("CurrentState: %v", err)
+	}
+	if !exists || version != 2 {
+		t.Fatalf("CurrentState = (version %d, exists %v), want (2, true)", version, exists)
+	}
+	var decoded txndomain.Transaction
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("server payload decode: %v", err)
+	}
+	if decoded.ID != tx.ID || len(decoded.Entries) != 2 || decoded.Version != 2 {
+		t.Fatalf("decoded server txn = id %s entries %d v%d, want full entity round-trip", decoded.ID, len(decoded.Entries), decoded.Version)
+	}
+}
+
+// TestTagWriter_CurrentState_MissingAndPresent: light pin for a second module
+// (create -> exists with version; other id -> missing).
+func TestTagWriter_CurrentState_MissingAndPresent(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := tagent.NewClient(tagent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate tag schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := tagrepo.NewTagRepository(client)
+	w := entitywriter.NewTagWriter(repo)
+	tenantID := uuid.New()
+	now := time.Now()
+
+	tg := tagdomain.Tag{ID: uuid.New(), TenantID: tenantID, Name: "cs", Color: "#010101", Version: 5, CreatedAt: now, UpdatedAt: now}
+	if err := w.Upsert(ctx, tenantID, mustMarshal(t, tg)); err != nil {
+		t.Fatalf("seed upsert: %v", err)
+	}
+
+	version, payload, exists, err := w.CurrentState(ctx, tenantID, tg.ID.String())
+	if err != nil || !exists || version != 5 {
+		t.Fatalf("CurrentState present = (v%d exists %v err %v), want (5, true, nil)", version, exists, err)
+	}
+	var decoded tagdomain.Tag
+	if err := json.Unmarshal(payload, &decoded); err != nil || decoded.Name != "cs" || decoded.Version != 5 {
+		t.Fatalf("decoded server tag = %+v err %v", decoded, err)
+	}
+
+	if _, _, exists, err := w.CurrentState(ctx, tenantID, uuid.New().String()); err != nil || exists {
+		t.Fatalf("CurrentState other id = (exists %v err %v), want (false, nil)", exists, err)
+	}
+}

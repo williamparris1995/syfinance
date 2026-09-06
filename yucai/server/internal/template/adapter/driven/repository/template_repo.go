@@ -330,6 +330,24 @@ func (r *TemplateRepository) HardDeleteForSync(ctx context.Context, tenantID, id
 	return nil
 }
 
+// FindForSync returns the tenant's current template row for the offline-sync
+// conflict check (F16 ADR-4) — the read dual of UpsertForSync (templates
+// carry no soft-delete column, so every row counts). found=false means the
+// tenant holds no row for the id. Tx-aware via clientFor so the check reads
+// inside the push batch transaction.
+func (r *TemplateRepository) FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*domain.TransactionTemplate, bool, error) {
+	t, err := r.clientFor(ctx).TransactionTemplate.Query().
+		Where(transactiontemplate.ID(id), transactiontemplate.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if tmplent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find template %s: %w", id, err)
+	}
+	return toDomainTemplate(t), true, nil
+}
+
 var _ domain.TemplateRepository = (*TemplateRepository)(nil)
 var _ = time.Time{}
 

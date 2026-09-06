@@ -117,7 +117,7 @@ func TestPushChanges_VersionCollision_RetriesWholeBatch(t *testing.T) {
 
 	// The log holds exactly versions 1..4 — no duplicates (unique index) and
 	// no gaps from the aborted attempt (whole-tx rollback).
-	entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil)
+	entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil, 500)
 	if err != nil {
 		t.Fatalf("FindSince: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestPushChanges_VersionCollisionExhausted_Aborts(t *testing.T) {
 	}
 
 	// The log (and business tables) are untouched by the aborted attempts.
-	entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil)
+	entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil, 500)
 	if err != nil {
 		t.Fatalf("FindSince: %v", err)
 	}

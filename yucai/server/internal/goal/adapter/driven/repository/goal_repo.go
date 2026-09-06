@@ -331,6 +331,28 @@ func (r *GoalRepository) HardDeleteForSync(ctx context.Context, tenantID, id uui
 	return nil
 }
 
+// FindForSync returns the tenant's current goal for the offline-sync conflict
+// check (F16 ADR-4) — the read dual of UpsertForSync (goals carry no
+// soft-delete column, so every row counts). found=false means the tenant
+// holds no row for the id. Tx-aware via clientFor so the check reads inside
+// the push batch transaction.
+func (r *GoalRepository) FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*domain.Goal, bool, error) {
+	g, err := r.clientFor(ctx).Goal.Query().
+		Where(goal.ID(id), goal.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if goalent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find goal %s: %w", id, err)
+	}
+	dg, err := r.toDomainGoal(ctx, g)
+	if err != nil {
+		return nil, false, fmt.Errorf("sync map goal %s: %w", id, err)
+	}
+	return dg, true, nil
+}
+
 // WriteSnapshot upserts a daily progress snapshot for the goal keyed by
 // (tenant_id, goal_id, snapshot_date). Same-day re-runs overwrite
 // current_amount_cents. Snapshot date is normalized to UTC midnight so two

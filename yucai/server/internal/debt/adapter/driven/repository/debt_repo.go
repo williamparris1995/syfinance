@@ -309,6 +309,30 @@ func (r *DebtRepository) HardDeleteForSync(ctx context.Context, tenantID, id uui
 	return nil
 }
 
+// FindForSync returns the tenant's current debt (header + payment schedule)
+// for the offline-sync conflict check (F16 ADR-4) — the read dual of
+// UpsertForSync (debts carry no soft-delete column, so every row counts).
+// found=false means the tenant holds no row for the id. Tx-aware via
+// clientFor so the check reads inside the push batch transaction.
+func (r *DebtRepository) FindForSync(ctx context.Context, tenantID, id uuid.UUID) (*domain.DebtDetails, bool, error) {
+	dd, err := r.clientFor(ctx).DebtDetails.Query().
+		Where(debtdetails.ID(id), debtdetails.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if debtent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find debt %s: %w", id, err)
+	}
+	entries, err := r.clientFor(ctx).PaymentSchedule.Query().
+		Where(paymentschedule.DebtID(dd.ID)).
+		All(ctx)
+	if err != nil {
+		return nil, false, fmt.Errorf("sync find schedule for debt %s: %w", id, err)
+	}
+	return toDomainDebt(dd, entries), true, nil
+}
+
 // FindAllForBackup returns every debt for a tenant with its payment schedule
 // eager-loaded in a single batched query (loadSchedulesByDebt, avoiding the N+1
 // read that the per-debt FindAll loop would incur). Backup export is the only
