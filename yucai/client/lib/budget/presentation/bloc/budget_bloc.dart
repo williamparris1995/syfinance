@@ -5,7 +5,9 @@ import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_state.dart';
 
-@injectable
+// @lazySingleton(非 @injectable):预算列表与表单 sibling 路由 .value 共享
+// (68f30495 router .value sharing fix);注解须与契约一致防 regen 回滚。
+@LazySingleton()
 class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
   BudgetBloc(this._repo) : super(BudgetInitial()) {
     on<LoadListRequested>(_onLoadList);
