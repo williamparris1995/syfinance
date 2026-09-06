@@ -33,6 +33,10 @@ class _MockClientCall extends Mock
 class _MockRegisterCall extends Mock
     implements ClientCall<dynamic, pb.RegisterDeviceResponse> {}
 
+/// ResponseFuture(PullChanges 路径,pb.PullChangesResponse)。
+class _MockPullCall extends Mock
+    implements ClientCall<dynamic, pb.PullChangesResponse> {}
+
 void main() {
   late _MockGrpcClient grpcClient;
   late _MockSyncClient syncClient;
@@ -247,6 +251,75 @@ void main() {
 
       expect(result.ok, isFalse);
       expect(result.reason, isNotNull);
+    });
+  });
+
+  group('pull(F17-T2 FR-3/ADR-3:PullChanges 消费)', () {
+    test('wire:sinceVersion/entityTypes/pageSize 透传;响应逐字段映射 DTO',
+        () async {
+      final captured = <grpc.PullChangesRequest>[];
+      final resp = pb.PullChangesResponse(
+        changes: [
+          pb.SyncPayload(
+            entityType: SyncModule.account,
+            entityId: 'acc-9',
+            operation: pb.SyncOperation.SYNC_OPERATION_CREATE,
+            payload: utf8.encode('{"ID":"acc-9"}'),
+            version: Int64(11), // 拉取面 = sync_log 版本(分页游标)
+            deviceId: 'device-A',
+          ),
+          pb.SyncPayload(
+            entityType: SyncModule.holdingLedger,
+            entityId: 'tr-1',
+            operation: pb.SyncOperation.SYNC_OPERATION_DELETE,
+            version: Int64(12),
+            deviceId: 'device-B',
+          ),
+        ],
+        latestVersion: Int64(12),
+        hasMore: true,
+      );
+      final call = _MockPullCall();
+      when(() => call.response).thenAnswer((_) => Stream.value(resp));
+      registerFallbackValue(grpc.PullChangesRequest());
+      when<dynamic>(() => syncClient.pullChanges(any())).thenAnswer((inv) {
+        captured.add(inv.positionalArguments[0] as grpc.PullChangesRequest);
+        return ResponseFuture(call);
+      });
+
+      final batch = await buildPort()
+          .pull(7, entityTypes: [SyncModule.account], pageSize: 50);
+
+      // 请求参数映射。
+      expect(captured, hasLength(1));
+      expect(captured.single.sinceVersion, Int64(7));
+      expect(captured.single.entityTypes, [SyncModule.account]);
+      expect(captured.single.pageSize, 50);
+
+      // 响应 DTO 映射:原始 payload 流 + frontier + hasMore。
+      expect(batch.latestVersion, 12);
+      expect(batch.hasMore, isTrue);
+      expect(batch.changes, hasLength(2));
+      final upsert = batch.changes[0];
+      expect(upsert.module, SyncModule.account);
+      expect(upsert.entityId, 'acc-9');
+      expect(upsert.isDelete, isFalse);
+      expect(utf8.decode(upsert.payload), '{"ID":"acc-9"}');
+      expect(upsert.logVersion, 11);
+      expect(upsert.deviceId, 'device-A');
+      final tomb = batch.changes[1];
+      expect(tomb.isDelete, isTrue);
+      expect(tomb.module, SyncModule.holdingLedger);
+      expect(tomb.logVersion, 12);
+    });
+
+    test('失败:异常透抛(调用方[协调器]容忍,拉失败不阻断 push 流)', () async {
+      registerFallbackValue(grpc.PullChangesRequest());
+      when<dynamic>(() => syncClient.pullChanges(any()))
+          .thenThrow(const GrpcError.unavailable('network down'));
+
+      await expectLater(
+          buildPort().pull(0), throwsA(isA<GrpcError>()));
     });
   });
 }

@@ -21,3 +21,19 @@ class SyncTombstones extends Table {
   @override
   Set<Column> get primaryKey => {module, entityId};
 }
+
+/// F17-T2(spec FR-3,design ADR-3)拉取游标表:单行记录本地已拉尽的
+/// sync_log 版本(页尾版本;`since` 入参)。游标选本地存储而非 server 设备
+/// 行:读 server 行需 GetSyncStatus 往返,本地读写零成本且 since 错小 =
+/// 幂等重拉无害(design ADR-3 论证)。清库/重装 → 默认 0 → 全量重拉,
+/// 应用路径幂等(upsert 按 id / DELETE 幂等),无一致性风险。
+class SyncCursors extends Table {
+  /// 单行主键,恒 'sync'(DAO 封装,业务不触其他值)。
+  TextColumn get id => text()();
+
+  /// 已拉尽的最末 sync_log 版本(= PullChanges 请求的 since_version)。
+  IntColumn get lastPulledVersion => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}

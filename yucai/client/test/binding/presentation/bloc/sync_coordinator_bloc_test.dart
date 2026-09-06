@@ -33,6 +33,15 @@ class _FakePort implements OfflineSyncPort {
   @override
   Future<void> registerDevice(String deviceName) async {}
 
+  // F17-T2:pull 替身 —— 本组测试不注入 applier(拉取编排不生效),
+  // 恒空页即可(接口完备性)。
+  @override
+  Future<PullBatch> pull(int sinceVersion,
+      {List<String>? entityTypes, int? pageSize}) async {
+    return PullBatch(
+        changes: const [], latestVersion: sinceVersion, hasMore: false);
+  }
+
   @override
   Future<SyncResult> push(SyncBatch batch) async {
     batches.add(batch);

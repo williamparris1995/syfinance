@@ -192,7 +192,8 @@ Map<String, dynamic> goalRowToEnvelope(
     };
 
 /// 持仓头行 → envelope 行(**单行形态**,server HoldingWriter 契约;台账行
-/// 不随行上行 —— append-only 台账走未来的 holding_ledger entityType,ticket 16)。
+/// 不嵌套随行 —— append-only 台账走独立 holding_ledger entityType,见下方
+/// holdingTxnRowToEnvelope)。
 Map<String, dynamic> holdingRowToEnvelope(db.Holding h) => {
       'ID': h.id,
       'AccountID': h.accountId,
@@ -204,8 +205,9 @@ Map<String, dynamic> holdingRowToEnvelope(db.Holding h) => {
       'UpdatedAt': envelopeTimestamp(h.updatedAt),
     };
 
-/// 持仓台账行 → envelope 行(备份 envelope 的 holding.transactions 子数组内
-/// 的行形态;F11 同步不消费,留作单一事实源的完整覆盖)。
+/// 持仓台账行 → envelope 行(备份 envelope 的 holding.transactions 子数组
+/// 内的行形态;F17-T2 起同步上行消费 —— holding_ledger entityType 的行
+/// 形态,server HoldingLedgerWriter + PullApplier 同一份契约)。
 Map<String, dynamic> holdingTxnRowToEnvelope(db.HoldingTransaction t) => {
       'ID': t.id,
       'AccountID': t.accountId,

@@ -87,15 +87,20 @@ func isSyncLogVersionConflict(err error) bool {
 // [account, transaction, debt, budget, goal, holding, template, tag]. A
 // client batch listing "delete account" before "delete transaction" is
 // reordered so referencing rows are removed before their referents (FR-2).
+// F17-T2: holding_ledger rides before holding (a ledger row is the finer
+// grain of the pair; batch order between the two is immaterial today since
+// the holding DELETE keeps ledger rows — explicit rank keeps it deterministic).
 var deleteOrder = []string{
-	"transaction", "debt", "budget", "goal", "holding", "template", "tag", "account",
+	"transaction", "debt", "budget", "goal", "holding_ledger", "holding", "template", "tag", "account",
 }
 
 // upsertOrder is the canonical CREATE/UPDATE application order: account first,
 // then the rest — mirroring backup's orderedPortsForImport. A transaction
 // pushed before the account it references still lands (FR-1).
+// F17-T2: holding_ledger after holding — the ledger row references account
+// (no ent FK, by-convention only) and pairs with its holding head row.
 var upsertOrder = []string{
-	"account", "transaction", "debt", "budget", "goal", "holding", "template", "tag",
+	"account", "transaction", "debt", "budget", "goal", "holding", "holding_ledger", "template", "tag",
 }
 
 // Service orchestrates sync operations.
@@ -289,8 +294,8 @@ func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID,
 				writer, ok := s.writers[p.EntityType]
 				if !ok {
 					// Fail closed: an unknown entity_type rejects the whole batch
-					// (forward-compat gate — e.g. holding_ledger until its writer
-					// registers).
+					// (forward-compat gate — any future module until its writer
+					// registers; holding_ledger closed this gate in F17-T2).
 					return fmt.Errorf("unknown entity type %q", p.EntityType)
 				}
 				var applyErr error

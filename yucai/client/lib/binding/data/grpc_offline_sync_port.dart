@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:fixnum/fixnum.dart';
 import 'package:grpc/grpc.dart';
@@ -137,4 +138,40 @@ class GrpcOfflineSyncPort implements OfflineSyncPort {
 
   /// deviceId = clientId(uuid 串;来源与缺失防御见类 doc F17-T1 段)。
   Future<String> _deviceId() async => await _clientIdProvider() ?? '';
+
+  /// F17-T2(FR-3/ADR-3):PullChanges 消费 —— sinceVersion 起的 sync_log
+  /// 重放页。请求参数逐项透传(server 缺省:entityTypes 空=全模块,
+  /// pageSize<=0 → 500);响应按 [PulledChange]/[PullBatch] 映射,**payload
+  /// 不解码**(原始 bytes 流交 PullApplier,单一职责)。
+  ///
+  /// **失败透抛**(契约见 port doc):grpc 网络/服务端错误原样抛给协调器
+  /// 的容忍编排(拉失败不阻断 push 流;游标不动,幂等重拉无害)。
+  @override
+  Future<PullBatch> pull(int sinceVersion,
+      {List<String>? entityTypes, int? pageSize}) async {
+    final request = grpc.PullChangesRequest(
+      sinceVersion: Int64(sinceVersion),
+      entityTypes: entityTypes ?? const [],
+      pageSize: pageSize ?? 0,
+    );
+    final response =
+        await _retry.call(() async => await _client.pullChanges(request));
+    return PullBatch(
+      changes: [
+        for (final c in response.changes)
+          PulledChange(
+            module: c.entityType,
+            entityId: c.entityId,
+            isDelete: c.operation == pb.SyncOperation.SYNC_OPERATION_DELETE,
+            // proto bytes 字段读面是 List<int> —— 拷贝收窄为 Uint8List
+            // (行级小对象,拷贝可忽略;下游 applier jsonDecode 直接消费)。
+            payload: Uint8List.fromList(c.payload),
+            logVersion: c.version.toInt(),
+            deviceId: c.deviceId,
+          ),
+      ],
+      latestVersion: response.latestVersion.toInt(),
+      hasMore: response.hasMore,
+    );
+  }
 }

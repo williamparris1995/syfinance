@@ -435,10 +435,11 @@ class HoldingLocalDataSource {
           // 裸分红在同事务合成 qty=0/avgCost=0 的 pending 头行 —— 纯分红
           // 持仓占位,server upsert 后与台账并存。它替代了旧注释描述的
           // 缺口:此前该台账行无 pending 锚,既不进收集批次,也会被下一次
-          // holding 模块镜像刷新抹掉。台账数据本身的上行走未来的
-          // holding_ledger entityType(server HoldingWriter 注释/server 对
-          // 未注册 entityType fail-closed —— T2 钉死),ticket 16;本头行
-          // 即刻承担「收集可见 + 镜像保留」的锚定职责。
+          // holding 模块镜像刷新抹掉。F17-T2 起台账数据本体亦随头行联动
+          // 上行(collector 按 pending 头行的 (account,security) pair 收
+          // holding_ledger entityType;server HoldingLedgerWriter 已注册,
+          // 台账查证裁决=实施)——「孤儿台账」缺口闭环;本头行继续承担
+          // 「收集可见 + 镜像保留」的锚定职责。
           await _dao.insertHolding(db.HoldingsCompanion.insert(
             id: _uuid.v4(),
             accountId: accountId,

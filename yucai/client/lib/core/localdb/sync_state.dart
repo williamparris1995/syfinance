@@ -19,6 +19,13 @@ class SyncState {
 /// 墓碑表 `module` 取值(ADR-4):与 [MirrorModule](binding/data) 枚举名
 /// 逐字一致 —— core 层不 import binding(依赖方向),以常量对齐,T3 收集
 /// 器按此过滤。
+///
+/// F17-T2 增 [holdingLedger]:第 9 个 entityType(append-only 持仓台账行,
+/// ADR-4 台账查证裁决=实施)。**它不是 MirrorModule 成员**(前 8 常量的
+/// 逐字一致契约只覆盖 8 头表模块):台账行的镜像刷新随 holding 模块整体
+/// 走(mirror `_refreshHoldings` 含 holdings+transactions+securities),
+/// 协调器按模块刷新时把它映射回 holding;墓碑面不适用(台账无本地删除
+/// 路径,见 collector 注释)。
 class SyncModule {
   SyncModule._();
 
@@ -30,6 +37,9 @@ class SyncModule {
   static const holding = 'holding';
   static const tag = 'tag';
   static const template = 'template';
+
+  /// 持仓台账行(F17-T2):非 MirrorModule 成员(见类 doc)。
+  static const holdingLedger = 'holding_ledger';
 }
 
 /// local DS 写路径的 syncState 取值:markPending=true(boundOfflineLocal /

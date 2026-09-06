@@ -15,9 +15,21 @@ import 'package:yucai_client/core/localdb/sync_state.dart';
 /// exporter 的行序列化**事实源本来就是 drift 行**(其模块 mapper 从 DAO 行
 /// 直达 PascalCase map,domain 实体从不参与备份链);改产 domain 实体要么
 /// 另写一套 domain→envelope 序列化(违背单一事实源),要么把 exporter 整链
-/// 重走 domain(改造面远大于本路径)。holding 台账行不随头行上行
-/// (append-only 台账走未来 holding_ledger entityType,server fail-closed,
-/// ticket 16;孤儿分红由 ADR-6 合成头行锚定)。
+/// 重走 domain(改造面远大于本路径)。
+///
+/// F17-T2(ADR-4 台账查证裁决=实施):holding 台账行随批上行 ——
+/// entityType=holding_ledger(server 第 9 个 writer 已注册,entitywriter/
+/// holding_ledger.go),行形态=envelope_codec 的 holdingTxnRowToEnvelope。
+/// **关联口径(ADR-4 留给 T2 的决策)**:台账行无 syncState,以 pending
+/// 持仓头行为**收集锚** —— 头行 pending ⇒ 同 (account,security) pair 的
+/// 台账**全量**随批(含历史已上行行)。代价是重复上行旧行;无害论证:
+/// server UpsertForSync 按 id 幂等(重推=同内容覆盖),pull 面他设备按
+/// logVersion 顺序应用同样幂等 —— 相比为台账行加 syncState 列(表结构
+/// 迁移 + 8 头表语义外扩)或跟踪「头行 pending 期间新增」的窄窗口(需
+/// 额外时间戳协议),全量重收是最小而正确的口径。孤儿分红由此闭环:
+/// 第二设备 pull 到 holding_ledger 行后由 PullApplier 补齐分红记录(spec
+/// FR-4),F11 时代「台账行不出 origin 设备」的缺口消除;台账无本地删除
+/// 路径,墓碑面不适用。
 ///
 /// DTO 的 entityId 与 fields 内 `ID` 同源于 drift 行主键(构造即一致 ——
 /// server T1 对不一致 fail-closed,该不变量由 port 测试钉死)。
@@ -72,11 +84,26 @@ class PendingCollector {
           entityId: row.id, version: row.version,
           fields: goalRowToEnvelope(row, accounts, debts));
     }
-    for (final row in await _db.holdingDao.getPendingHoldings()) {
-      // 单持仓行形态(server HoldingWriter 契约;台账行不嵌套,ticket 16)。
+    final pendingHoldings = await _db.holdingDao.getPendingHoldings();
+    for (final row in pendingHoldings) {
+      // 单持仓行形态(server HoldingWriter 契约;台账行不嵌套,走下方
+      // holding_ledger 独立 entityType)。
       _put(buckets, SyncModule.holding,
           entityId: row.id, version: row.version,
           fields: holdingRowToEnvelope(row));
+    }
+    // F17-T2 台账联动:pending 头行为锚,同 (account,security) pair 的台账
+    // 全量随批(关联口径论证见类 doc)。version 恒 1:台账 append-only 无
+    // 乐观锁版本,客户端恒 CREATE(server 对 CREATE 不做冲突检查)。
+    if (pendingHoldings.isNotEmpty) {
+      final pendingPairs = <String>{
+        for (final h in pendingHoldings) '${h.accountId}|${h.securityId}',
+      };
+      for (final t in await _db.holdingDao.getAllHoldingTransactions()) {
+        if (!pendingPairs.contains('${t.accountId}|${t.securityId}')) continue;
+        _put(buckets, SyncModule.holdingLedger,
+            entityId: t.id, version: 1, fields: holdingTxnRowToEnvelope(t));
+      }
     }
     for (final row in await _db.tagDao.getPendingTags()) {
       _put(buckets, SyncModule.tag,

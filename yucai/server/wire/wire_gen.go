@@ -269,9 +269,12 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	budgetWriter := provideBudgetWriter(budgetRepo)
 	goalWriter := provideGoalWriter(goalRepo)
 	holdingWriter := provideHoldingWriter(holdingRepo)
+	// F17-T2(ADR-4 台账查证裁决=实施):第 9 个 writer —— holding_ledger
+	// (append-only 台账行,tradeRepo 即台账存储,见 entitywriter/holding_ledger.go)。
+	holdingLedgerWriter := provideHoldingLedgerWriter(tradeRepo)
 	tagWriter := provideTagWriter(tagRepo)
 	templateWriter := provideTemplateWriter(templateRepo)
-	syncEntityWriters := provideSyncEntityWriters(accountWriter, transactionWriter, debtWriter, budgetWriter, goalWriter, holdingWriter, tagWriter, templateWriter)
+	syncEntityWriters := provideSyncEntityWriters(accountWriter, transactionWriter, debtWriter, budgetWriter, goalWriter, holdingWriter, holdingLedgerWriter, tagWriter, templateWriter)
 	syncService := provideSyncService(syncLogRepo, syncDeviceRepo, syncConflictRepo, conflictResolver, syncEntityWriters, db)
 	syncHandler := provideSyncHandler(syncService)
 

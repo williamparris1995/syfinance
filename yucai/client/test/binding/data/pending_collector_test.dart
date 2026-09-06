@@ -174,4 +174,88 @@ void main() {
     expect(batch.isEmpty, isTrue);
     expect(batch.changeCount, 0);
   });
+
+  // ---- F17-T2(ADR-4 台账查证裁决=实施):holding_ledger 台账联动上行 ----
+
+  Future<void> seedHolding(String id, String accountId, String securityId,
+      {String syncState = SyncState.pending}) async {
+    await database.holdingDao.insertHolding(db.HoldingsCompanion.insert(
+      id: id,
+      accountId: accountId,
+      securityId: securityId,
+      quantity: 100,
+      avgCostCents: 12,
+      version: 1,
+      createdAt: DateTime.utc(2026, 9, 4),
+      updatedAt: DateTime.utc(2026, 9, 4),
+      syncState: Value(syncState),
+    ));
+  }
+
+  Future<void> seedLedgerTxn(String id, String accountId, String securityId,
+      {int tradeType = 3}) async {
+    await database.holdingDao.insertHoldingTransaction(
+        db.HoldingTransactionsCompanion.insert(
+      id: id,
+      accountId: accountId,
+      securityId: securityId,
+      tradeType: tradeType,
+      quantity: 100,
+      priceCents: 12,
+      amountCents: 1200,
+      feeCents: 0,
+      realizedPnlCents: 0,
+      tradeDate: DateTime.utc(2026, 9, 1),
+      notes: '离线分红',
+      createdAt: DateTime.utc(2026, 9, 1),
+    ));
+  }
+
+  test('F17-T2:pending 持仓头行 → 同 (account,security) pair 的台账行随批上行'
+      '(entityType=holding_ledger,行形态=envelope 台账行)', () async {
+    await seedHolding('h-pending', 'acc-inv', 'sec-1');
+    await seedLedgerTxn('tr-1', 'acc-inv', 'sec-1'); // 分红(同 pair)
+    await seedLedgerTxn('tr-2', 'acc-inv', 'sec-2'); // 异 pair:不收
+
+    final batch = await collector.collect();
+
+    // 头行照常进 holding 桶;台账行进第 9 桶 holding_ledger。
+    expect(batch!.entitiesByModule[SyncModule.holding]!.single.entityId,
+        'h-pending');
+    final ledger = batch.entitiesByModule[SyncModule.holdingLedger]!;
+    expect(ledger.map((e) => e.entityId), ['tr-1']);
+    // 行形态 = envelope_codec 的台账行(PascalCase/int TradeType/RFC3339)。
+    final fields = ledger.single.fields;
+    expect(fields['ID'], 'tr-1');
+    expect(fields['AccountID'], 'acc-inv');
+    expect(fields['SecurityID'], 'sec-1');
+    expect(fields['TradeType'], 3);
+    expect(fields['Notes'], '离线分红');
+    expect(fields['TradeDate'], '2026-09-01T00:00:00.000Z');
+    expect(fields.containsKey('syncState'), isFalse);
+    // 台账 append-only 无乐观锁版本 → DTO version 恒 1(客户端恒 CREATE,
+    // server 对 CREATE 不做冲突检查;墓碑面不适用)。
+    expect(ledger.single.version, 1);
+    expect(batch.modules, {SyncModule.holding, SyncModule.holdingLedger});
+  });
+
+  test('F17-T2:无 pending 持仓头行 → 台账行不收(头行是收集锚);'
+      '重收集幂等(server 按 id upsert,重复行无害)', () async {
+    await seedHolding('h-synced', 'acc-inv', 'sec-1',
+        syncState: SyncState.synced);
+    await seedLedgerTxn('tr-1', 'acc-inv', 'sec-1');
+
+    expect(await collector.collect(), isNull); // 头行 synced:无锚不收台账
+
+    // 头行转 pending(如再买/卖)→ 台账全量重收(含已上行过的旧行):
+    // server upsert 按 id 幂等,重复上行无害(ADR-4 关联口径论证)。
+    await database.holdingDao.updateHolding(const db.HoldingsCompanion(
+      id: Value('h-synced'),
+      syncState: Value(SyncState.pending),
+    ));
+    final batch = await collector.collect();
+    expect(
+        batch!.entitiesByModule[SyncModule.holdingLedger]!.map((e) => e.entityId),
+        ['tr-1']);
+  });
 }

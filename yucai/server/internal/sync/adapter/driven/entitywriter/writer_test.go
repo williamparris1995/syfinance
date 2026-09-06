@@ -39,6 +39,7 @@ import (
 	holdingrepo "github.com/yucai/server/internal/holding/adapter/driven/repository"
 	holdingent "github.com/yucai/server/internal/holding/ent"
 	holdpred "github.com/yucai/server/internal/holding/ent/holding"
+	holdingtransaction "github.com/yucai/server/internal/holding/ent/holdingtransaction"
 	tagdomain "github.com/yucai/server/internal/tag/domain"
 	tagrepo "github.com/yucai/server/internal/tag/adapter/driven/repository"
 	tagent "github.com/yucai/server/internal/tag/ent"
@@ -937,5 +938,157 @@ func TestTagWriter_CurrentState_MissingAndPresent(t *testing.T) {
 
 	if _, _, exists, err := w.CurrentState(ctx, tenantID, uuid.New().String()); err != nil || exists {
 		t.Fatalf("CurrentState other id = (exists %v err %v), want (false, nil)", exists, err)
+	}
+}
+
+// --- holding_ledger (F17-T2, ADR-4 台账查证裁决=实施) ---
+//
+// 台账查证结论(2026-09-06,task-brief-f17-2 第 5 节):server 侧台账存储
+// 现成 —— ent HoldingTransaction 表(holding/ent/schema/holding_transaction.go,
+// append-only trade ledger)+ TradeRepository.Save 写入路径(holding Service
+// 的 BuyHolding/SellHolding/RecordDividend/RecordSplit 直接 RPC 在线写)+
+// ListHoldingTransactions 读回(client mirror _refreshHoldings 消费)。
+// 台账并非「仅 client 概念」→ 按简报裁决口径实施第 9 个 writer:
+// entityType "holding_ledger",payload = client envelope_codec
+// holdingTxnRowToEnvelope 的 PascalCase 行形态(int TradeType,值域与
+// domain.TradeType 逐位一致:buy=1/sell=2/dividend=3/split=4)。
+
+// ledgerEnvelope builds ONE ledger payload in the exact client envelope shape
+// (PascalCase keys, int TradeType, RFC3339 Z timestamps, no TenantID/Version
+// keys — the client codec never emits them).
+func ledgerEnvelope(id, accountID, securityID uuid.UUID, tradeType int, amount int64, forgedTenant *uuid.UUID) []byte {
+	m := map[string]any{
+		"ID":               id,
+		"AccountID":        accountID,
+		"SecurityID":       securityID,
+		"TradeType":        tradeType,
+		"Quantity":         100.0,
+		"PriceCents":       120,
+		"AmountCents":      amount,
+		"FeeCents":         5,
+		"RealizedPnLCents": 0,
+		"TradeDate":        "2026-09-01T00:00:00Z",
+		"TransactionID":    nil,
+		"Notes":            "offline dividend",
+		"CreatedAt":        "2026-09-01T00:00:00Z",
+	}
+	if forgedTenant != nil {
+		m["TenantID"] = *forgedTenant // 恶意注入面:writer 必须覆盖为鉴权 tenant
+	}
+	out, err := json.Marshal(m)
+	if err != nil {
+		panic("marshal ledger envelope fixture: " + err.Error())
+	}
+	return out
+}
+
+func TestHoldingLedgerWriter_UpsertCreateThenIdempotentRepush(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := holdingent.NewClient(holdingent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate holding schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := holdingrepo.NewTradeRepository(client)
+	w := entitywriter.NewHoldingLedgerWriter(repo)
+	tenantID := uuid.New()
+	tradeID := uuid.New()
+
+	payload := ledgerEnvelope(tradeID, uuid.New(), uuid.New(), 3, 12000, nil)
+	if err := w.Upsert(ctx, tenantID, payload); err != nil {
+		t.Fatalf("upsert create: %v", err)
+	}
+	got, found, err := repo.FindForSync(ctx, tenantID, tradeID)
+	if err != nil || !found {
+		t.Fatalf("find after create = (found %v, err %v)", found, err)
+	}
+	if got.TradeType != holdingdomain.TradeTypeDividend || got.AmountCents != 12000 || got.Notes != "offline dividend" {
+		t.Fatalf("created ledger row = %+v", got)
+	}
+
+	// 重推幂等(同 id 全量行再 upsert):仍恰 1 行,金额更新。
+	payload2 := ledgerEnvelope(tradeID, got.AccountID, got.SecurityID, 3, 999, nil)
+	if err := w.Upsert(ctx, tenantID, payload2); err != nil {
+		t.Fatalf("upsert re-push: %v", err)
+	}
+	if n, err := client.HoldingTransaction.Query().Where(holdingtransaction.TenantID(tenantID)).Count(ctx); err != nil || n != 1 {
+		t.Fatalf("expected exactly 1 ledger row after re-push, n=%d err=%v", n, err)
+	}
+	got2, _, _ := repo.FindForSync(ctx, tenantID, tradeID)
+	if got2.AmountCents != 999 {
+		t.Fatalf("re-pushed row amount = %d, want 999 (update branch)", got2.AmountCents)
+	}
+}
+
+func TestHoldingLedgerWriter_TenantInjectionOverridden(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := holdingent.NewClient(holdingent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate holding schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := holdingrepo.NewTradeRepository(client)
+	w := entitywriter.NewHoldingLedgerWriter(repo)
+	tenantID := uuid.New()
+	evil := uuid.New()
+
+	payload := ledgerEnvelope(uuid.New(), uuid.New(), uuid.New(), 1, 500, &evil)
+	if err := w.Upsert(ctx, tenantID, payload); err != nil {
+		t.Fatalf("upsert forged tenant: %v", err)
+	}
+	if n, err := client.HoldingTransaction.Query().Where(holdingtransaction.TenantID(tenantID)).Count(ctx); err != nil || n != 1 {
+		t.Fatalf("forged-tenant row must land under the authenticated tenant, n=%d err=%v", n, err)
+	}
+	if n, err := client.HoldingTransaction.Query().Where(holdingtransaction.TenantID(evil)).Count(ctx); err != nil || n != 0 {
+		t.Fatalf("no rows may land under the forged tenant, n=%d err=%v", n, err)
+	}
+}
+
+func TestHoldingLedgerWriter_DeleteIdempotentAndCurrentState(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := holdingent.NewClient(holdingent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate holding schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := holdingrepo.NewTradeRepository(client)
+	w := entitywriter.NewHoldingLedgerWriter(repo)
+	tenantID := uuid.New()
+	tradeID := uuid.New()
+
+	if _, _, exists, err := w.CurrentState(ctx, tenantID, tradeID.String()); err != nil || exists {
+		t.Fatalf("CurrentState before create = (exists %v err %v), want (false, nil)", exists, err)
+	}
+
+	payload := ledgerEnvelope(tradeID, uuid.New(), uuid.New(), 2, 700, nil)
+	if err := w.Upsert(ctx, tenantID, payload); err != nil {
+		t.Fatalf("seed upsert: %v", err)
+	}
+
+	// CurrentState:append-only 台账无乐观版本 → 恒 1(客户端台账恒 CREATE,
+	// 从不进 UPDATE 冲突检查;1 仅保接口完备,见 writer doc)。
+	version, _, exists, err := w.CurrentState(ctx, tenantID, tradeID.String())
+	if err != nil || !exists || version != 1 {
+		t.Fatalf("CurrentState = (v%d exists %v err %v), want (1, true, nil)", version, exists, err)
+	}
+
+	if err := w.Delete(ctx, tenantID, tradeID.String()); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	// 幂等重删(墓碑重投递):已不存在的行不报错。
+	if err := w.Delete(ctx, tenantID, tradeID.String()); err != nil {
+		t.Fatalf("idempotent re-delete: %v", err)
+	}
+	if n, err := client.HoldingTransaction.Query().Where(holdingtransaction.ID(tradeID)).Count(ctx); err != nil || n != 0 {
+		t.Fatalf("ledger row must be gone, n=%d err=%v", n, err)
 	}
 }
