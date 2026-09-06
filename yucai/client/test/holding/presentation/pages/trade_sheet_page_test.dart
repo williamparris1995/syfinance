@@ -435,7 +435,10 @@ void main() {
     final preview =
         t.widget<Container>(find.byKey(const ValueKey('splitPreview')));
     final decor = preview.decoration as BoxDecoration;
-    expect(decor.color, const Color(0xFFE7EAEF)); // _kSplitSoft
+    // F4-P2:split soft 由 holding 债券灰蓝序列色 10% 派生(原 #E7EAEF
+    // 近白软底为亮板专用);裸 MaterialApp 回落亮板 → kHoldingTypeColors.bond。
+    expect(decor.color,
+        const Color(0xFF6B7A8F).withValues(alpha: 0.10));
   });
 
   // ───────── F14 review fix-round-1:提交失败复位 _submitted(fail-closed)─────────

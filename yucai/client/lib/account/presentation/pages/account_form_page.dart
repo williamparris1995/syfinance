@@ -418,8 +418,10 @@ class _AccountFormPageState extends State<AccountFormPage> {
                                             color: context.yucai.accentDeep)),
                                     TextSpan(text: _category.example),
                                   ]),
-                                  style: const TextStyle(
-                                      color: Color(0xFF7A6433),
+                                  // F4-P2 fix:示例正文原 v1 暗金 #7A6433
+                                  // (accentSoft 面上的说明文字)→ muted 令牌。
+                                  style: TextStyle(
+                                      color: context.yucai.muted,
                                       fontSize: 13,
                                       height: 1.55),
                                 ),

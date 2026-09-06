@@ -30,7 +30,8 @@ enum CategoryFilter {
   String get wire => this == CategoryFilter.expense ? 'expense' : 'income';
 }
 
-/// 御财金色分类板（固定顺序，回避语义绿/红）。CVD 由图例 secondary encoding 弥补。
+/// 御财金色分类板(固定顺序,回避语义绿/红)——亮色板(保原值)。
+/// CVD 由图例 secondary encoding 弥补。
 const List<Color> kCategoryColors = [
   Color(0xFFB08D57), // 御财金
   Color(0xFF8A6D3B), // 深金
@@ -41,6 +42,30 @@ const List<Color> kCategoryColors = [
   Color(0xFF9A8C7A), // 中性
   Color(0xFFB9B2A6), // 暖灰（兜底）
 ];
+
+/// 分类序列色 —— 暗色板(v2 墨黑底整组提亮一档,与亮板顺序一一对应)。
+///
+/// F4-P2 数据可视化序列色裁决(照 kRingGoldGradient/ringGoldGradientOf 双板
+/// 模式):深金 #8A6D3B / 棕 #9A7B4F 等中间调在墨黑底上对比不足(≈3.5:1),
+/// 暗板整组提亮一档(亮端锚定 v2 暗色 accent 量级)——暗色下可辨识且不刺眼;
+/// 亮板保原型 v1 原值。落点选常量旁 context 感知 accessor 而非 YucaiTheme
+/// 扩展:序列色组随 report 模块走,与 holding 的 holdingTypeColorOf 同款。
+const List<Color> _kCategoryColorsDark = [
+  Color(0xFFD9B478), // 御财金(提亮)
+  Color(0xFFBE9A5F), // 深金(提亮)
+  Color(0xFF96A5BC), // 灰蓝(提亮)
+  Color(0xFFE0B45E), // 金黄(提亮)
+  Color(0xFFC4A276), // 棕(提亮)
+  Color(0xFF7FB1C7), // 蓝(提亮)
+  Color(0xFFBBAE9C), // 中性(提亮)
+  Color(0xFFD4CEC3), // 暖灰(提亮,兜底)
+];
+
+/// 主题感知的分类序列色:亮 = 原型 v1 金色板;暗 = 提亮暗板。
+List<Color> categoryColorsOf(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? _kCategoryColorsDark
+        : kCategoryColors;
 
 /// 单个分类切片（聚合后）。name 用于图例，amountCents 已按 filter 求和。
 class CategorySlice {
@@ -117,8 +142,9 @@ class CategoryBreakdownPie extends StatelessWidget {
                 PieChartData(
                   sectionsSpace: 2,
                   centerSpaceRadius: size * 0.34,
-                  centerSpaceColor: AppColors.surface,
-                  sections: _sections(top, topTotal),
+                  // 中心空心底 = 卡面 surface(放中心文本 stack;暗色随卡面)。
+                  centerSpaceColor: context.yucai.surface,
+                  sections: _sections(context, top, topTotal),
                 ),
               ),
               Column(
@@ -137,8 +163,8 @@ class CategoryBreakdownPie extends StatelessWidget {
                     total > 0 ? (first!.name) : emptyLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.muted),
+                    style: TextStyle(
+                        fontSize: 11, color: context.yucai.muted),
                   ),
                 ],
               ),
@@ -146,7 +172,7 @@ class CategoryBreakdownPie extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.lg - 10),
-        Expanded(child: _legend(top, total)),
+        Expanded(child: _legend(context, top, total)),
       ],
     );
   }
@@ -160,36 +186,41 @@ class CategoryBreakdownPie extends StatelessWidget {
     return [...head, CategorySlice(id: '__other', name: '其他', amountCents: otherCents)];
   }
 
-  List<PieChartSectionData> _sections(List<CategorySlice> src, int total) {
+  List<PieChartSectionData> _sections(
+      BuildContext context, List<CategorySlice> src, int total) {
     if (total <= 0) {
+      // 空数据占位:单一灰满环(底走 surfaceAlt,暗色随卡面浅一档,
+      // 原硬米白 #E6E3DC 在墨黑底上会刺眼)。
       return [
         PieChartSectionData(
           value: 1,
-          color: const Color(0xFFE6E3DC),
+          color: context.yucai.surfaceAlt,
           radius: 22,
           showTitle: false,
         ),
       ];
     }
+    final palette = categoryColorsOf(context);
     return [
       for (var i = 0; i < src.length; i++)
         PieChartSectionData(
           value: src[i].amountCents.toDouble(),
-          color: kCategoryColors[i % kCategoryColors.length],
+          color: palette[i % palette.length],
           radius: 22,
           showTitle: false,
         ),
     ];
   }
 
-  Widget _legend(List<CategorySlice> src, int total) {
+  Widget _legend(BuildContext context, List<CategorySlice> src, int total) {
     if (src.isEmpty || total <= 0) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         child: Text('暂无分类数据',
-            style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+            style: TextStyle(fontSize: 12.5, color: context.yucai.muted)),
       );
     }
+    final palette = categoryColorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -198,7 +229,7 @@ class CategoryBreakdownPie extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 3),
             child: _LegendRow(
-              color: kCategoryColors[i % kCategoryColors.length],
+              color: palette[i % palette.length],
               label: src[i].name,
               amountCents: src[i].amountCents,
               pct: (src[i].amountCents / total) * 100,
@@ -235,13 +266,13 @@ class _LegendRow extends StatelessWidget {
           child: Text(label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12.5, color: AppColors.fg)),
+              style: TextStyle(fontSize: 12.5, color: context.yucai.fg)),
         ),
         Text('${_fmtCents(amountCents)}  ·  ${pct.toStringAsFixed(1)}%',
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );

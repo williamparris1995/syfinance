@@ -372,19 +372,27 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
         counterparty.contains('商') ||
         s.contains('biz') ||
         s.contains('business')) {
-      return const DebtBadgeStyle(
-          label: '商业借款', fg: Color(0xFF3A6695), bg: Color(0xFFEAF0F6));
+      // F4-P2 fix:商业借款蓝 #3A6695 + 亮底 #EAF0F6(暗色下亮底刺眼/蓝偏闷)
+      // → info 语义令牌(同 account_detail 蓝裁决)+ 10% 派生透底。
+      return DebtBadgeStyle(
+          label: '商业借款',
+          fg: context.yucai.info,
+          bg: context.yucai.info.withValues(alpha: 0.10));
     }
     if (counterparty.contains('亲友') ||
         counterparty.contains('家人') ||
         s.contains('family') ||
         s.contains('friend')) {
       return DebtBadgeStyle(
-          label: '亲友借款', fg: context.yucai.positive, bg: Color(0x1A2D8A6E));
+          label: '亲友借款',
+          fg: context.yucai.positive,
+          bg: context.yucai.positive.withValues(alpha: 0.10));
     }
     if (counterparty.contains('信用卡') || s.contains('credit')) {
       return DebtBadgeStyle(
-          label: '信用卡', fg: context.yucai.negative, bg: Color(0x1AC4544D));
+          label: '信用卡',
+          fg: context.yucai.negative,
+          bg: context.yucai.negative.withValues(alpha: 0.10));
     }
     return DebtBadgeStyle(
         label: '私人借款', fg: context.yucai.accentDeep, bg: context.yucai.accentSoft);
@@ -398,7 +406,8 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
         debt.counterparty.contains('商') ||
         s.contains('biz') ||
         s.contains('business')) {
-      return const Color(0xFF3A6695);
+      // 商业借款 avatar 蓝 → info 令牌(与 _inferBadge 同裁决)。
+      return context.yucai.info;
     }
     if (debt.counterparty.contains('亲友') ||
         debt.counterparty.contains('家人') ||

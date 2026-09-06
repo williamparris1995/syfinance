@@ -1,7 +1,7 @@
 // 收支趋势（fl_chart 1.x LineChart）。报表分析页 §1。
 //
 // 数据：[MonthlySummary.byDay] → 逐日收入/支出双折线。
-//   - 收入(绿 AppColors.positive) + 支出(红 AppColors.negative)，
+//   - 收入(绿 context.yucai.positive) + 支出(红 context.yucai.negative)，
 //     颜色沿用 app 既有语义（与 _SummaryStrip / 交易列表一致），非任意配色。
 //   - 逐日金额由 byDay[].byCategory 按 accountType("income"/"expense") 拆分；
 //     income 缺失时回退 DailySummary.totalIncomeCents（服务端 denormalized）。
@@ -47,11 +47,11 @@ class IncomeExpenseTrendChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _legend(),
+        _legend(context),
         const SizedBox(height: AppSpacing.sm),
         SizedBox(
           height: height,
-          child: hasData ? _chart(points) : _empty(),
+          child: hasData ? _chart(context, points) : _empty(context),
         ),
       ],
     );
@@ -100,19 +100,19 @@ class IncomeExpenseTrendChart extends StatelessWidget {
 
   // ───────────────────────── 图例 ─────────────────────────
 
-  Widget _legend() {
-    return const Row(
+  Widget _legend(BuildContext context) {
+    return Row(
       children: [
-        LegendDot(color: AppColors.positive, label: '收入'),
-        SizedBox(width: AppSpacing.md),
-        LegendDot(color: AppColors.negative, label: '支出'),
+        LegendDot(color: context.yucai.positive, label: '收入'),
+        const SizedBox(width: AppSpacing.md),
+        LegendDot(color: context.yucai.negative, label: '支出'),
       ],
     );
   }
 
   // ───────────────────────── chart ─────────────────────────
 
-  Widget _chart(List<_DayPoint> points) {
+  Widget _chart(BuildContext context, List<_DayPoint> points) {
     final maxY = niceMax([
       for (final p in points) p.income.toDouble() / 100,
       for (final p in points) p.expense.toDouble() / 100,
@@ -139,7 +139,7 @@ class IncomeExpenseTrendChart extends StatelessWidget {
           drawVerticalLine: false,
           horizontalInterval: yInterval,
           getDrawingHorizontalLine: (v) => FlLine(
-            color: AppColors.border.withValues(alpha: 0.7),
+            color: context.yucai.border.withValues(alpha: 0.7),
             strokeWidth: 1,
           ),
         ),
@@ -152,7 +152,7 @@ class IncomeExpenseTrendChart extends StatelessWidget {
               reservedSize: 24,
               interval: xStep.toDouble(),
               getTitlesWidget: (value, meta) =>
-                  _bottomTitle(value, points),
+                  _bottomTitle(context, value, points),
             ),
           ),
           leftTitles: AxisTitles(
@@ -160,22 +160,25 @@ class IncomeExpenseTrendChart extends StatelessWidget {
               showTitles: true,
               reservedSize: 44,
               interval: yInterval,
-              getTitlesWidget: (value, meta) => _leftTitle(value),
+              getTitlesWidget: (value, meta) => _leftTitle(context, value),
             ),
           ),
         ),
         borderData: FlBorderData(show: false),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => AppColors.sidebar,
-            getTooltipItems: (touched) => _tooltipItems(touched, points),
+            // F4-P2 豁免:tooltip 为固定深色面(两主题一致,原 v1 sidebar
+            // 墨色),配固定浅灰字在亮暗两态均可辨识且不刺眼,不随主题迁。
+            getTooltipColor: (_) => const Color(0xFF0E1219),
+            getTooltipItems: (touched) =>
+                _tooltipItems(context, touched, points),
             fitInsideHorizontally: true,
             fitInsideVertically: true,
           ),
         ),
         lineBarsData: [
-          _line(incomeSpots, AppColors.positive),
-          _line(expenseSpots, AppColors.negative),
+          _line(incomeSpots, context.yucai.positive),
+          _line(expenseSpots, context.yucai.negative),
         ],
       ),
     );
@@ -198,7 +201,8 @@ class IncomeExpenseTrendChart extends StatelessWidget {
 
   // ───────────────────────── 轴标题 ─────────────────────────
 
-  Widget _bottomTitle(double value, List<_DayPoint> points) {
+  Widget _bottomTitle(
+      BuildContext context, double value, List<_DayPoint> points) {
     final idx = value.round();
     if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
     // 稀疏化：仅首点、末点及 step 倍数处显示，避免拥挤。
@@ -216,22 +220,22 @@ class IncomeExpenseTrendChart extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Text(label,
-          style: const TextStyle(
-              fontSize: 10.5, color: AppColors.muted)),
+          style: TextStyle(
+              fontSize: 10.5, color: context.yucai.muted)),
     );
   }
 
-  Widget _leftTitle(double value) {
+  Widget _leftTitle(BuildContext context, double value) {
     if (value <= 0) return const SizedBox.shrink();
     return Text(compactYuan(value),
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 10.5,
-            color: AppColors.muted,
+            color: context.yucai.muted,
             fontFeatures: AppTypography.tabularFigures));
   }
 
   List<LineTooltipItem> _tooltipItems(
-      List<LineBarSpot> touched, List<_DayPoint> points) {
+      BuildContext context, List<LineBarSpot> touched, List<_DayPoint> points) {
     if (touched.isEmpty) return const [];
     final idx = touched.first.spotIndex;
     String head;
@@ -244,15 +248,16 @@ class IncomeExpenseTrendChart extends StatelessWidget {
     return [
       LineTooltipItem(
         '$head\n',
-        const TextStyle(color: AppColors.sidebarFg, fontSize: 11),
+        // tooltip 固定深色面上的固定浅灰字(见 _chart 豁免注释)。
+        const TextStyle(color: Color(0xFFB8B5AD), fontSize: 11),
         children: [
           for (final spot in touched) ...[
             TextSpan(
               text: spot.barIndex == 0 ? '收入 ' : '支出 ',
               style: TextStyle(
                 color: spot.barIndex == 0
-                    ? AppColors.positive
-                    : AppColors.negative,
+                    ? context.yucai.positive
+                    : context.yucai.negative,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -260,7 +265,7 @@ class IncomeExpenseTrendChart extends StatelessWidget {
             TextSpan(
               text: '¥${fmtYuan(spot.y)}\n',
               style: const TextStyle(
-                  color: AppColors.sidebarFg,
+                  color: Color(0xFFB8B5AD),
                   fontSize: 11,
                   fontFeatures: AppTypography.tabularFigures),
             ),
@@ -278,21 +283,24 @@ class IncomeExpenseTrendChart extends StatelessWidget {
 
   // ───────────────────────── 空态 ─────────────────────────
 
-  Widget _empty() {
+  Widget _empty(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: context.yucai.surfaceAlt,
         borderRadius: AppRadius.smBorder,
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        border:
+            Border.all(color: context.yucai.border.withValues(alpha: 0.7)),
       ),
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.trendingUp, size: 22, color: AppColors.muted),
-            SizedBox(height: 6),
+            Icon(LucideIcons.trendingUp,
+                size: 22, color: context.yucai.muted),
+            const SizedBox(height: 6),
             Text('所选区间暂无收支记录',
-                style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                style: TextStyle(
+                    fontSize: 12.5, color: context.yucai.muted)),
           ],
         ),
       ),

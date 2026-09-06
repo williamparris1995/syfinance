@@ -371,6 +371,10 @@ class _NetWorthCard extends StatelessWidget {
             ? '--'
             : _groupThousands(netWorth ~/ 100);
     final symbol = currencySymbol(currency);
+    // F4-P2 豁免:hero 是 OD 原型刻意的固定深色渐变面(#1C1E21→#2A2D33,
+    // 两主题一致,与账户详情 hero 同款),卡内白系文本(white/white54)为
+    // 固定深底内景色,亮暗两态均可辨识且不刺眼,不随主题迁;金晕与语义
+    // pill 已走 context.yucai(accent/positive,暗色自动切换)。
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
@@ -467,15 +471,15 @@ class _NetWorthCard extends StatelessWidget {
 }
 
 // ───────────────────────── 摘要卡:本月收支 / 预算 / 目标 ─────────────────
-// 照 OD 原型 yucai-dashboard-home-a2fc styles.css。颜色 token 略异于 AppColors:
-// OD income #4a9d6e / expense #d4726e 比 context.yucai.positive/negative 更亮,贴近
-// 暖色系 bg;直接内联(对齐 OD,不污染全局 token)。accent 与 context.yucai.accent 同。
-
-const Color _kIncomeColor = Color(0xFF4A9D6E);
-const Color _kExpenseColor = Color(0xFFD4726E);
+// 照 OD 原型 yucai-dashboard-home-a2fc styles.css。F4-P2 裁决:原 OD 内联
+// income #4A9D6E / expense #D4726E 为亮板专用暖色,直接语义令牌化 →
+// context.yucai.positive / negative(v2 亮=翡翠/玫红,暗=提亮档自动跟随;
+// 常量删除,亮色观感即刻对齐 v2,与全应用语义色统一)。accent 走 context.yucai.accent。
 
 /// 摘要卡阴影(对齐 OD `--shadow-card` 双层:0 1px 2px rgba(31,32,36,.05) +
 /// 0 1px 1px rgba(31,32,36,.02))。3 摘要卡共用(M2 提取消重复)。
+/// F4-P2 豁免:深灰黑阴影(#1F2024 5%/2%)——暗色墨黑底上天然不可见,恰好
+/// 等效 v2 暗色「无阴影」设计,保原值不迁(同 debt_list_widgets 口径)。
 const List<BoxShadow> _kCardShadow = [
   BoxShadow(color: Color(0x0D1F2024), blurRadius: 2, offset: Offset(0, 1)),
   BoxShadow(color: Color(0x051F2024), blurRadius: 1, offset: Offset(0, 1)),
@@ -517,20 +521,20 @@ class _IncomeExpenseCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm + 4),
           _IeRow(
-            dotColor: _kIncomeColor,
+            dotColor: context.yucai.positive,
             name: '收入',
             amount: '+${format(summary.incomeCents, currency)}',
-            amountColor: _kIncomeColor,
+            amountColor: context.yucai.positive,
           ),
           // income/expense 间虚线分隔(对齐 OD .ie-row border-bottom:1px dashed
           // var(--border-soft)=#F1EDE5;与 _ProgressBar 背景同色)。复用 core
           // DebtDashedDivider(水平虚线 CustomPaint,Flutter 无原生 dashed border)。
           DebtDashedDivider(color: context.yucai.surfaceAlt),
           _IeRow(
-            dotColor: _kExpenseColor,
+            dotColor: context.yucai.negative,
             name: '支出',
             amount: '-${format(summary.expenseCents, currency)}',
-            amountColor: _kExpenseColor,
+            amountColor: context.yucai.negative,
           ),
           // 底部结余分隔线 + 双栏 label/amt。
           Padding(
@@ -632,7 +636,7 @@ class _BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final over = budget.isOverBudget;
-    final barColor = over ? _kExpenseColor : context.yucai.accent;
+    final barColor = over ? context.yucai.negative : context.yucai.accent;
     final pct = budget.usagePct.clamp(0.0, 100.0);
     final remaining = budget.totalRemainingCents;
     final footLeft = over
@@ -654,7 +658,7 @@ class _BudgetCard extends StatelessWidget {
           _CardHead(
             label: '本月预算',
             period: '已用 ${budget.usagePct.round()}%',
-            periodColor: over ? _kExpenseColor : null, // 超支标红(M4)
+            periodColor: over ? context.yucai.negative : null, // 超支标红(M4)
           ),
           const SizedBox(height: AppSpacing.sm),
           _ProgAmt(
@@ -747,7 +751,7 @@ class _GoalCard extends StatelessWidget {
             trailingPct: goal.progressPct,
           ),
           const SizedBox(height: AppSpacing.sm),
-          _ProgressBar(value: pct, color: _kIncomeColor),
+          _ProgressBar(value: pct, color: context.yucai.positive),
           const SizedBox(height: AppSpacing.sm - 4),
           Row(
             children: [
@@ -1172,29 +1176,29 @@ class _Panel extends StatelessWidget {
   }
 }
 
-/// 面板空态(inbox 图标 + 提示)。
-Widget _panelEmpty(String hint, String sub) => Center(
+/// 面板空态(inbox 图标 + 提示)。F4-P2:顶层函数无 context → 补形参穿线。
+Widget _panelEmpty(BuildContext context, String hint, String sub) => Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(LucideIcons.inbox,
-              size: 28, color: AppColors.muted.withValues(alpha: 0.5)),
+              size: 28, color: context.yucai.muted.withValues(alpha: 0.5)),
           const SizedBox(height: 8),
           Text(hint,
               style: const TextStyle(
                   fontSize: 14, fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
-          Text(sub, style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          Text(sub, style: TextStyle(color: context.yucai.muted, fontSize: 12)),
         ],
       ),
     );
 
-Widget _panelLoading() => Center(
+Widget _panelLoading(BuildContext context) => Center(
       child: SizedBox(
           width: 18,
           height: 18,
           child: CircularProgressIndicator(
-              strokeWidth: 2, color: AppColors.muted)),
+              strokeWidth: 2, color: context.yucai.muted)),
     );
 
 // ───────────────────────── A3: 近期交易面板 ─────────────────────────
@@ -1222,13 +1226,13 @@ class _RecentTxnPanelState extends State<_RecentTxnPanel> {
         final Widget body;
         if (!snap.hasData) {
           body = snap.connectionState == ConnectionState.done
-              ? _panelEmpty('暂无交易记录', '记一笔后将在此展示近期收支')
-              : _panelLoading();
+              ? _panelEmpty(context, '暂无交易记录', '记一笔后将在此展示近期收支')
+              : _panelLoading(context);
         } else {
           final txns =
               snap.data!.fold((_) => <Transaction>[], (r) => r.transactions);
           body = txns.isEmpty
-              ? _panelEmpty('暂无交易记录', '记一笔后将在此展示近期收支')
+              ? _panelEmpty(context, '暂无交易记录', '记一笔后将在此展示近期收支')
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1316,12 +1320,12 @@ class _AssetAllocationPanel extends StatelessWidget {
           if (state is HoldingLoaded) {
             final slices = _aggregateSlices(state.holdings);
             body = slices.isEmpty
-                ? _panelEmpty('暂无持仓数据', '买入后将展示资产分布')
+                ? _panelEmpty(context, '暂无持仓数据', '买入后将展示资产分布')
                 : HoldingPieChart(slices: slices);
           } else if (state is HoldingError) {
-            body = _panelEmpty('加载失败', '稍后重试');
+            body = _panelEmpty(context, '加载失败', '稍后重试');
           } else {
-            body = _panelLoading();
+            body = _panelLoading(context);
           }
           return _Panel(
             title: '资产配置',
@@ -1374,14 +1378,14 @@ class _UpcomingPaymentsPanelState extends State<_UpcomingPaymentsPanel> {
         if (!snap.hasData) {
           body = snap.connectionState == ConnectionState.done
               ? Column(children: [
-                  _panelEmpty('暂无待办账单', '即将到期将在此提醒'),
+                  _panelEmpty(context, '暂无待办账单', '即将到期将在此提醒'),
                   const _SubscribeLink(),
                 ])
-              : _panelLoading();
+              : _panelLoading(context);
         } else {
           final debts = snap.data!.fold((_) => <Debt>[], (l) => l);
           body = debts.isEmpty
-              ? _panelEmpty('暂无待办账单', '即将到期将在此提醒')
+              ? _panelEmpty(context, '暂无待办账单', '即将到期将在此提醒')
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

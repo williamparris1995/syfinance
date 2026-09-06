@@ -138,7 +138,8 @@ void main() {
         .toList();
     expect(rings.length, 2);
     // 分组排序:超支(b2)在前,正常(b1)在后。
-    expect(rings[0].color, const Color(0xFFC0392B), reason: '超支卡 conic 环色 #c0392b');
+    // F4-P2:超支红 #C0392B 令牌化 → negative(裸 MaterialApp 回落 v2 亮板)。
+    expect(rings[0].color, AppColors.negative, reason: '超支卡 conic 环色 = negative 令牌');
     // R8 v2:主色 御财金→翡翠绿,断言改语义色不再钉 hex。
     expect(rings[1].color, AppColors.accent, reason: '正常卡 conic 环色 = AppColors.accent');
     // 超支卡的"超支"文案存在。

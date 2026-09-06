@@ -252,7 +252,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
   /// Name + 类型徽章 + 状态 pill + 大 ConicProgressRing + current/target + 还差 +
   /// deadline 倒计时。对齐 OD 原型 .detail-hero:大进度环(lg)+ 左 status 色条。
   Widget _headerCard(GoalView g) {
-    final meta = _typeMeta(g.type);
+    final meta = _typeMeta(context, g.type);
     final pct = g.progressPct;
     final ringValue = (pct / 100).clamp(0.0, 1.0);
     final pctLabel = '${pct.toStringAsFixed(1)}%';
@@ -631,7 +631,7 @@ class _TrendChart extends StatelessWidget {
           maxX: (points.length - 1).toDouble(),
           minY: _minY(),
           maxY: _maxY(),
-          extraLinesData: _targetLine(),
+          extraLinesData: _targetLine(context),
           lineBarsData: [
             LineChartBarData(
               spots: [
@@ -677,14 +677,15 @@ class _TrendChart extends StatelessWidget {
 
   /// target 虚线基线(对齐 OD 原型 .target-line dashed)。
   /// 仅 targetCents > 0 时绘制,横跨 [0, maxX]。
-  ExtraLinesData? _targetLine() {
+  /// F4-P2:方法补 context 穿线(调用点同步)。
+  ExtraLinesData? _targetLine(BuildContext context) {
     if (targetCents == null || targetCents! <= 0) return null;
     return ExtraLinesData(
       extraLinesOnTop: true,
       horizontalLines: [
         HorizontalLine(
           y: targetCents!.toDouble(),
-          color: AppColors.muted.withValues(alpha: 0.6),
+          color: context.yucai.muted.withValues(alpha: 0.6),
           strokeWidth: 1,
           dashArray: [5, 4],
         ),
@@ -899,17 +900,20 @@ class _TypeMeta {
 
 /// 类型 → 徽章元数据。对齐 goal_list_page _typeMeta:
 /// savings(金 piggyBank)/ debtPayoff(红 creditCard)/ investment(绿 trendingUp)。
-_TypeMeta _typeMeta(GoalType type) {
+///
+/// F4-P2:三色均为语义位 → context.yucai 解析(顶层函数补 context 形参;
+/// const 因令牌化失效去 const)。
+_TypeMeta _typeMeta(BuildContext context, GoalType type) {
   switch (type) {
     case GoalType.savings:
-      return const _TypeMeta(
-          label: '储蓄目标', icon: LucideIcons.piggyBank, color: AppColors.accent);
+      return _TypeMeta(
+          label: '储蓄目标', icon: LucideIcons.piggyBank, color: context.yucai.accent);
     case GoalType.debtPayoff:
-      return const _TypeMeta(
-          label: '债务清偿', icon: LucideIcons.creditCard, color: AppColors.negative);
+      return _TypeMeta(
+          label: '债务清偿', icon: LucideIcons.creditCard, color: context.yucai.negative);
     case GoalType.investment:
-      return const _TypeMeta(
-          label: '投资目标', icon: LucideIcons.trendingUp, color: AppColors.positive);
+      return _TypeMeta(
+          label: '投资目标', icon: LucideIcons.trendingUp, color: context.yucai.positive);
   }
 }
 

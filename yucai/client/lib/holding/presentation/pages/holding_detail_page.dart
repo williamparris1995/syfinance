@@ -277,7 +277,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: (kHoldingTypeColors[t] ?? context.yucai.accent).withValues(alpha: 0.14),
+        // 类型序列色走主题感知 accessor(暗板自动提亮)。
+        color: holdingTypeColorOf(context, t).withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(9999),
       ),
       child: Row(
@@ -287,7 +288,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
             width: 5,
             height: 5,
             decoration: BoxDecoration(
-                color: kHoldingTypeColors[t] ?? context.yucai.accent,
+                color: holdingTypeColorOf(context, t),
                 shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
@@ -295,7 +296,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
               style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: kHoldingTypeColors[t] ?? context.yucai.accentDeep)),
+                  color: holdingTypeColorOf(context, t))),
         ],
       ),
     );
@@ -992,7 +993,9 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
       case TradeType.dividend:
         return ('分红', context.yucai.accent);
       case TradeType.split:
-        return ('拆分', const Color(0xFF6B7A8F));
+        // split 灰蓝 = holding 债券(bond)序列色同值,走主题感知 accessor
+        // (暗板自动提亮;同 trade_sheet_page 口径,消清单外残留)。
+        return ('拆分', holdingTypeColorOf(context, SecurityType.bond));
     }
   }
 
@@ -1139,7 +1142,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                   context.yucai.accent, TradeType.dividend)),
               const SizedBox(width: 8),
               Expanded(child: _actBtn('拆分', LucideIcons.gitMerge,
-                  const Color(0xFF6B7A8F), TradeType.split)),
+                  holdingTypeColorOf(context, SecurityType.bond),
+                  TradeType.split)),
             ],
           ),
         ),

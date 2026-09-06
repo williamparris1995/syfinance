@@ -127,19 +127,19 @@ class PerfCurveChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _head(),
+        _head(context),
         if (_hasBenchmark) ...[
           const SizedBox(height: 8),
-          _legend(),
+          _legend(context),
         ],
         const SizedBox(height: 12),
         SizedBox(
           height: height,
-          child: points.length < 2 ? _empty() : _chart(),
+          child: points.length < 2 ? _empty(context) : _chart(context),
         ),
         if (foot != null) ...[
           const SizedBox(height: 12),
-          _foot(),
+          _foot(context),
         ],
       ],
     );
@@ -150,7 +150,7 @@ class PerfCurveChart extends StatelessWidget {
 
   // ───────────────────────── head ─────────────────────────
 
-  Widget _head() {
+  Widget _head(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -170,33 +170,34 @@ class PerfCurveChart extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(range.rangeSub,
-                style: const TextStyle(
-                    fontSize: 11.5, color: AppColors.muted)),
+                style: TextStyle(
+                    fontSize: 11.5, color: context.yucai.muted)),
           ],
         ),
-        _rangeTabs(),
+        _rangeTabs(context),
       ],
     );
   }
 
   /// 日/月/年 segmented(对齐 A-od range-tabs)。
-  Widget _rangeTabs() {
+  Widget _rangeTabs(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFECE5),
+        // 原 v1 米白 #EFECE5 轨道底 → surfaceAlt(暗色随卡面浅一档)。
+        color: context.yucai.surfaceAlt,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final r in PerfRange.values) _rangeTab(r),
+          for (final r in PerfRange.values) _rangeTab(context, r),
         ],
       ),
     );
   }
 
-  Widget _rangeTab(PerfRange r) {
+  Widget _rangeTab(BuildContext context, PerfRange r) {
     final active = r == range;
     final onTap = onRangeChange;
     return InkWell(
@@ -207,8 +208,9 @@ class PerfCurveChart extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: active ? AppColors.surface : Colors.transparent,
+          color: active ? context.yucai.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
+          // 深灰黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
           boxShadow: active
               ? const [
                   BoxShadow(
@@ -223,7 +225,9 @@ class PerfCurveChart extends StatelessWidget {
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            color: active ? AppColors.accentHover : const Color(0xFF54585F),
+            // accentHover(亮 #047857)= accentDeep;未激活原 #54585F 深灰
+            // → muted(暗色提亮档)。
+            color: active ? context.yucai.accentDeep : context.yucai.muted,
           ),
         ),
       ),
@@ -232,7 +236,7 @@ class PerfCurveChart extends StatelessWidget {
 
   // ───────────────────────── chart ─────────────────────────
 
-  Widget _chart() {
+  Widget _chart(BuildContext context) {
     final portSpots = _rebase100(points);
     final benchSpots = _hasBenchmark ? _rebase100(benchmarkPoints) : const <FlSpot>[];
     // Y range:两 series 合并 min/max(100 附近,而非固定 0-1)。
@@ -263,13 +267,13 @@ class PerfCurveChart extends StatelessWidget {
           LineChartBarData(
             spots: portSpots,
             isCurved: true,
-            color: AppColors.accent,
+            color: context.yucai.accent,
             barWidth: 1.8,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: AppColors.accent.withValues(alpha: 0.16),
+              color: context.yucai.accent.withValues(alpha: 0.16),
             ),
           ),
           // 基准灰虚线(rebase 100,与组合同起点对比相对增长)。
@@ -277,7 +281,8 @@ class PerfCurveChart extends StatelessWidget {
             LineChartBarData(
               spots: benchSpots,
               isCurved: true,
-              color: const Color(0xFF8A8A8A),
+              // 基准灰 → muted(暗色提亮档;原 #8A8A8A 中灰在墨黑底偏闷)。
+              color: context.yucai.muted,
               barWidth: 1.4,
               isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
@@ -309,7 +314,7 @@ class PerfCurveChart extends StatelessWidget {
 
   /// 图例:━ 组合(金)/ ┄ {benchmarkName}(灰虚线)。
   /// 仅 _hasBenchmark 时渲染(head 下方,chart 上方)。
-  Widget _legend() {
+  Widget _legend(BuildContext context) {
     return Padding(
       key: const ValueKey('perfCurveLegend'),
       padding: const EdgeInsets.only(top: 0),
@@ -317,13 +322,15 @@ class PerfCurveChart extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           _legendItem(
-            color: AppColors.accent,
+            context,
+            color: context.yucai.accent,
             label: '组合',
             dashed: false,
           ),
           const SizedBox(width: 14),
           _legendItem(
-            color: const Color(0xFF8A8A8A),
+            context,
+            color: context.yucai.muted,
             label: benchmarkName,
             dashed: true,
           ),
@@ -332,7 +339,8 @@ class PerfCurveChart extends StatelessWidget {
     );
   }
 
-  Widget _legendItem({
+  Widget _legendItem(
+    BuildContext context, {
     required Color color,
     required String label,
     required bool dashed,
@@ -349,8 +357,8 @@ class PerfCurveChart extends StatelessWidget {
         ),
         const SizedBox(width: 5),
         Text(label,
-            style: const TextStyle(
-                fontSize: 11, color: AppColors.muted)),
+            style: TextStyle(
+                fontSize: 11, color: context.yucai.muted)),
       ],
     );
   }
@@ -358,26 +366,29 @@ class PerfCurveChart extends StatelessWidget {
   // ───────────────────────── empty ─────────────────────────
 
   /// 空态:⏳ 行情快照待后端(对齐 A-od trades-empty + brief 降级)。
-  Widget _empty() {
+  Widget _empty(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFAF6),
+        // 原 v1 米白 #FBFAF6 空态底 → surfaceAlt(暗色随卡面浅一档)。
+        color: context.yucai.surfaceAlt,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
-            color: AppColors.border.withValues(alpha: 0.7)),
+            color: context.yucai.border.withValues(alpha: 0.7)),
       ),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.trendingUp, size: 22, color: AppColors.muted),
+            Icon(LucideIcons.trendingUp,
+                size: 22, color: context.yucai.muted),
             const SizedBox(height: 6),
             Text(emptyHint,
-                style: const TextStyle(
-                    fontSize: 12.5, color: AppColors.muted)),
+                style: TextStyle(
+                    fontSize: 12.5, color: context.yucai.muted)),
             const SizedBox(height: 2),
-            const Text('该证券尚未接入行情源',
-                style: TextStyle(fontSize: 11, color: AppColors.muted)),
+            Text('该证券尚未接入行情源',
+                style: TextStyle(
+                    fontSize: 11, color: context.yucai.muted)),
           ],
         ),
       ),
@@ -387,45 +398,49 @@ class PerfCurveChart extends StatelessWidget {
   // ───────────────────────── foot ─────────────────────────
 
   /// foot:浮动(绿/红) / 已实现(金) / 总收益(绿/红)(对齐 A-od curve-foot)。
-  Widget _foot() {
+  Widget _foot(BuildContext context) {
     final f = foot!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFAF6),
+        // 原 v1 米白 #FBFAF6 foot 底 → surfaceAlt(暗色随卡面浅一档)。
+        color: context.yucai.surfaceAlt,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
       ),
       child: Row(
         children: [
           if (f.unrealizedCents != null)
             Expanded(
               child: _footCell(
+                context,
                 label: '浮动',
-                swatch: AppColors.positive,
+                swatch: context.yucai.positive,
                 value: _fmtSigned(f.unrealizedCents!, f.currency),
                 valueColor: f.unrealizedCents! >= 0
-                    ? AppColors.positive
-                    : AppColors.negative,
+                    ? context.yucai.positive
+                    : context.yucai.negative,
               ),
             ),
           if (f.realizedCents != null)
             Expanded(
               child: _footCell(
+                context,
                 label: '已实现',
-                swatch: AppColors.accent,
+                swatch: context.yucai.accent,
                 value: _fmtRaw(f.realizedCents!, f.currency),
               ),
             ),
           if (f.totalCents != null)
             Expanded(
               child: _footCell(
+                context,
                 label: '总收益',
-                swatch: AppColors.fg,
+                swatch: context.yucai.fg,
                 value: _fmtSigned(f.totalCents!, f.currency),
                 valueColor: f.totalCents! >= 0
-                    ? AppColors.positive
-                    : AppColors.negative,
+                    ? context.yucai.positive
+                    : context.yucai.negative,
               ),
             ),
         ],
@@ -433,7 +448,8 @@ class PerfCurveChart extends StatelessWidget {
     );
   }
 
-  Widget _footCell({
+  Widget _footCell(
+    BuildContext context, {
     required String label,
     required Color swatch,
     required String value,
@@ -453,8 +469,8 @@ class PerfCurveChart extends StatelessWidget {
             ),
             const SizedBox(width: 5),
             Text(label,
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.muted)),
+                style: TextStyle(
+                    fontSize: 11, color: context.yucai.muted)),
           ],
         ),
         const SizedBox(height: 3),
@@ -462,7 +478,7 @@ class PerfCurveChart extends StatelessWidget {
             style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: valueColor ?? AppColors.fg,
+                color: valueColor ?? context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );

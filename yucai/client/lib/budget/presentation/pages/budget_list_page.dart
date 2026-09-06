@@ -34,8 +34,8 @@ import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 
-/// 超支红(brief 指定 #c0392b,比 context.yucai.negative 更暗,区分「超预算」)。
-const Color _overBudgetRed = Color(0xFFC0392B);
+// F4-P2:超支红原 brief 色 #C0392B 已语义令牌化 → context.yucai.negative
+// (v2 亮=玫红 / 暗=提亮红,与全应用支出红统一;顶层常量删除)。
 
 /// 预算列表页。对齐 OD 原型:topbar + 月份切换 + 状态筛选 chips + conic 环卡片 +
 /// btn-gold 新建。
@@ -214,7 +214,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
     final chips = <_FilterChipData>[
       _FilterChipData(_StatusFilter.all, '全部', monthBudgets.length, null),
       _FilterChipData(
-          _StatusFilter.over, '超支', overCount, _overBudgetRed, LucideIcons.alertTriangle),
+          _StatusFilter.over, '超支', overCount, context.yucai.negative, LucideIcons.alertTriangle),
       _FilterChipData(
           _StatusFilter.normal, '正常', normalCount, context.yucai.accent, LucideIcons.checkCircle2),
     ];
@@ -254,7 +254,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
               title: '超支',
               icon: LucideIcons.alertTriangle,
               count: overList.length,
-              color: _overBudgetRed),
+              color: context.yucai.negative),
           const SizedBox(height: AppSpacing.sm),
           for (var i = 0; i < overList.length; i++) ...[
             _BudgetCard(budget: overList[i]),
@@ -608,8 +608,8 @@ class _BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final over = budget.isOverBudget;
-    final ringColor = over ? _overBudgetRed : context.yucai.accent;
-    final accentColor = over ? _overBudgetRed : context.yucai.accent;
+    final ringColor = over ? context.yucai.negative : context.yucai.accent;
+    final accentColor = over ? context.yucai.negative : context.yucai.accent;
     // ConicProgressRing progress 限定 [0,1];超支时满格(1.0)。
     final rawPct = budget.totalAmountCents == 0
         ? 0.0
@@ -714,7 +714,7 @@ class _BudgetCard extends StatelessWidget {
                               style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: over ? _overBudgetRed : context.yucai.fg,
+                                  color: over ? context.yucai.negative : context.yucai.fg,
                                   fontFeatures:
                                       AppTypography.tabularFigures),
                             ),
@@ -741,7 +741,7 @@ class _BudgetCard extends StatelessWidget {
                               ? LucideIcons.alertTriangle
                               : LucideIcons.checkCircle2,
                           size: 13,
-                          color: over ? _overBudgetRed : context.yucai.positive),
+                          color: over ? context.yucai.negative : context.yucai.positive),
                       const SizedBox(width: 4),
                       Text(
                         over
@@ -750,7 +750,7 @@ class _BudgetCard extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 12,
                             color: over
-                                ? _overBudgetRed
+                                ? context.yucai.negative
                                 : context.yucai.positive,
                             fontWeight: FontWeight.w600,
                             fontFeatures: AppTypography.tabularFigures),

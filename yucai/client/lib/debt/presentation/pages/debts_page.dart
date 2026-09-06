@@ -345,18 +345,26 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
           label: '房贷', fg: context.yucai.accentDeep, bg: context.yucai.accentSoft);
     }
     if (counterparty.contains('车') || s.contains('car')) {
+      // F4-P2 fix:车贷 badge 底原 v1 亮灰 #EEF0F2 实底在暗色下近白刺眼 →
+      // muted 10% 派生(照 transactions_page chip 同款)。
       return DebtBadgeStyle(
-          label: '车贷', fg: context.yucai.muted, bg: Color(0xFFEEF0F2));
+          label: '车贷',
+          fg: context.yucai.muted,
+          bg: context.yucai.muted.withValues(alpha: 0.10));
     }
     if (counterparty.contains('信用卡') || s.contains('credit')) {
       return DebtBadgeStyle(
-          label: '信用卡', fg: context.yucai.negative, bg: Color(0x1AC4544D));
+          label: '信用卡',
+          fg: context.yucai.negative,
+          bg: context.yucai.negative.withValues(alpha: 0.10));
     }
     if (counterparty.contains('亲友') ||
         counterparty.contains('借') ||
         s.contains('friend')) {
       return DebtBadgeStyle(
-          label: '亲友借款', fg: context.yucai.positive, bg: Color(0x1A2D8A6E));
+          label: '亲友借款',
+          fg: context.yucai.positive,
+          bg: context.yucai.positive.withValues(alpha: 0.10));
     }
     return DebtBadgeStyle(
         label: '借款', fg: context.yucai.accentDeep, bg: context.yucai.accentSoft);

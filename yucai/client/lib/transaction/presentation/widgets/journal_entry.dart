@@ -153,13 +153,13 @@ class _TitleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: context.yucai.border)),
       ),
       child: Row(
-        children: const [
-          Icon(LucideIcons.list, size: 18, color: AppColors.accent),
-          SizedBox(width: 9),
+        children: [
+          Icon(LucideIcons.list, size: 18, color: context.yucai.accent),
+          const SizedBox(width: 9),
           Expanded(
             child: Text(
               '分笔明细 · 复式分录',
@@ -170,16 +170,16 @@ class _TitleRow extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 fontFamily: AppTypography.displayFamily,
                 fontFamilyFallback: AppTypography.displayFallback,
-                color: AppColors.fg,
+                color: context.yucai.fg,
               ),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Text(
             'DOUBLE-ENTRY',
             style: TextStyle(
               fontSize: 11,
-              color: AppColors.muted,
+              color: context.yucai.muted,
               letterSpacing: 0.5,
               fontFeatures: AppTypography.tabularFigures,
             ),
@@ -201,7 +201,7 @@ class _EntryRow extends StatelessWidget {
     final side = entry.entrySide;
     final isDebit = side == EntrySide.debit;
     // OD:借行 amt=expense(红),贷行 amt=income(绿) —— 纯按 side 着色,与账户类型无关。
-    final sideColor = isDebit ? AppColors.negative : AppColors.positive;
+    final sideColor = isDebit ? context.yucai.negative : context.yucai.positive;
     final type = parent.accountTypeOf?.call(entry.accountId);
     final typeLabel = _accountTypeLabel(type);
     final amt = _fmt(entry.amountCents, parent.currencySymbol);
@@ -235,18 +235,18 @@ class _EntryRow extends StatelessWidget {
               children: [
                 Text(
                   parent._accountLabel(entry.accountId),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.fg,
+                    color: context.yucai.fg,
                   ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.muted),
+                    style: TextStyle(
+                        fontSize: 12, color: context.yucai.muted),
                   ),
                 ],
               ],
@@ -278,7 +278,7 @@ class _JeSep extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       height: 1,
-      color: AppColors.border,
+      color: context.yucai.border,
     );
   }
 }
@@ -297,8 +297,8 @@ class _JeBal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: context.yucai.border)),
       ),
       child: Row(
         children: [
@@ -306,19 +306,19 @@ class _JeBal extends StatelessWidget {
             child: _BalCol(
               label: '借方合计',
               value: _fmt(debit, parent.currencySymbol),
-              valueColor: AppColors.negative,
+              valueColor: context.yucai.negative,
             ),
           ),
           Expanded(
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border:
-                    Border(left: BorderSide(color: AppColors.border)),
+                    Border(left: BorderSide(color: context.yucai.border)),
               ),
               child: _BalCol(
                 label: '贷方合计',
                 value: _fmt(credit, parent.currencySymbol),
-                valueColor: AppColors.positive,
+                valueColor: context.yucai.positive,
               ),
             ),
           ),
@@ -346,9 +346,9 @@ class _BalCol extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppColors.muted,
+              color: context.yucai.muted,
               letterSpacing: 0.8,
             ),
           ),
@@ -382,7 +382,7 @@ class _JeFoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = balanced ? AppColors.positive : AppColors.negative;
+    final color = balanced ? context.yucai.positive : context.yucai.negative;
     final label = balanced
         ? '借贷平衡　借贷差额 ${_fmt(diff, currencySymbol)}'
         : '不平衡　借贷差额 ${_fmt(diff, currencySymbol)}';
@@ -390,8 +390,8 @@ class _JeFoot extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        color: context.yucai.surfaceAlt,
+        border: Border(top: BorderSide(color: context.yucai.border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -404,10 +404,12 @@ class _JeFoot extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
+            // 圆底 = positive/negative 令牌;icon 取 bg 反色
+            // (亮=近白同原观感 / 暗=墨黑,两板均可辨识)。
             child: Icon(
               balanced ? LucideIcons.check : LucideIcons.alertTriangle,
               size: 12,
-              color: Colors.white,
+              color: context.yucai.bg,
             ),
           ),
           const SizedBox(width: 8),
@@ -472,8 +474,8 @@ class _FormulaBlock extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        color: context.yucai.bg,
+        border: Border(top: BorderSide(color: context.yucai.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -483,7 +485,7 @@ class _FormulaBlock extends StatelessWidget {
               TextSpan(
                 text: '会计等式：',
                 style: TextStyle(
-                  color: AppColors.fg,
+                  color: context.yucai.fg,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   fontFeatures: AppTypography.tabularFigures,
@@ -491,8 +493,8 @@ class _FormulaBlock extends StatelessWidget {
               ),
               TextSpan(
                 text: '$debitTag $amt ＝ $creditTag $amt',
-                style: const TextStyle(
-                  color: AppColors.fg,
+                style: TextStyle(
+                  color: context.yucai.fg,
                   fontSize: 12,
                   fontFeatures: AppTypography.tabularFigures,
                 ),
@@ -502,8 +504,8 @@ class _FormulaBlock extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             line2,
-            style: const TextStyle(
-              color: AppColors.muted,
+            style: TextStyle(
+              color: context.yucai.muted,
               fontSize: 12,
               height: 1.7,
             ),

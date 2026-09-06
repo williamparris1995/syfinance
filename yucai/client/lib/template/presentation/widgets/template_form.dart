@@ -351,14 +351,14 @@ class _TemplateFormState extends State<TemplateForm> {
               SwitchListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                title: const Text('自动记账',
+                title: Text('自动记账',
                     style:
-                        TextStyle(color: AppColors.fg, fontSize: 13.5)),
-                subtitle: const Text('到周期时由系统自动生成交易',
-                    style:
-                        TextStyle(color: AppColors.muted, fontSize: 11.5)),
+                        TextStyle(color: context.yucai.fg, fontSize: 13.5)),
+                subtitle: Text('到周期时由系统自动生成交易',
+                    style: TextStyle(
+                        color: context.yucai.muted, fontSize: 11.5)),
                 value: _autoRecord,
-                activeThumbColor: AppColors.accent,
+                activeThumbColor: context.yucai.accent,
                 onChanged: (v) => setState(() => _autoRecord = v),
               ),
             ],
@@ -386,7 +386,7 @@ class _TemplateFormState extends State<TemplateForm> {
       children: [
         Text(label,
             style:
-                const TextStyle(color: AppColors.muted, fontSize: 12)),
+                TextStyle(color: context.yucai.muted, fontSize: 12)),
         const SizedBox(height: AppSpacing.xs),
         child,
       ],
@@ -430,7 +430,7 @@ class _TemplateFormState extends State<TemplateForm> {
       icon: allowClear && hasValue
           ? IconButton(
               tooltip: '清除',
-              icon: const Icon(LucideIcons.x, size: 16, color: AppColors.muted),
+              icon: Icon(LucideIcons.x, size: 16, color: context.yucai.muted),
               onPressed: () => onChanged(null),
             )
           : null,
@@ -450,8 +450,8 @@ class _TemplateFormState extends State<TemplateForm> {
           suffix: clearable && value != null
               ? IconButton(
                   tooltip: '清除',
-                  icon: const Icon(LucideIcons.x,
-                      size: 16, color: AppColors.muted),
+                  icon: Icon(LucideIcons.x,
+                      size: 16, color: context.yucai.muted),
                   onPressed: () => setState(() {
                     if (value == _endDate) {
                       _endDate = null;
@@ -460,12 +460,14 @@ class _TemplateFormState extends State<TemplateForm> {
                     }
                   }),
                 )
-              : const Icon(LucideIcons.calendar, size: 16, color: AppColors.muted),
+              : Icon(LucideIcons.calendar,
+                  size: 16, color: context.yucai.muted),
         ),
         child: Text(
           value == null ? '选择日期' : formatDate(value),
           style: TextStyle(
-            color: value == null ? AppColors.muted : AppColors.fg,
+            color:
+                value == null ? context.yucai.muted : context.yucai.fg,
             fontSize: 13.5,
           ),
         ),
@@ -490,6 +492,7 @@ class _TemplateFormState extends State<TemplateForm> {
     );
   }
 
+  /// F4-P2:输入框装饰令牌化(const 因令牌化失效去 const),暗色跟随主题。
   InputDecoration _inputDeco({String? hint, String? prefixText, Widget? suffix}) {
     return InputDecoration(
       isDense: true,
@@ -498,17 +501,17 @@ class _TemplateFormState extends State<TemplateForm> {
       suffixIcon: suffix,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      border: const OutlineInputBorder(
+      border: OutlineInputBorder(
         borderRadius: AppRadius.smBorder,
-        borderSide: BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: context.yucai.border),
       ),
-      enabledBorder: const OutlineInputBorder(
+      enabledBorder: OutlineInputBorder(
         borderRadius: AppRadius.smBorder,
-        borderSide: BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: context.yucai.border),
       ),
-      focusedBorder: const OutlineInputBorder(
+      focusedBorder: OutlineInputBorder(
         borderRadius: AppRadius.smBorder,
-        borderSide: BorderSide(color: AppColors.accent),
+        borderSide: BorderSide(color: context.yucai.accent),
       ),
     );
   }

@@ -1,7 +1,7 @@
 // 持仓迷你走势线(fl_chart 1.x LineChart)。
 //
 // 对齐 A-od holdings-mobile.html `.acc-spark`(sparkSVG):无轴、无网格、无 tooltip
-// 的迷你曲线,盈绿(AppColors.positive) / 亏红(AppColors.negative)。
+// 的迷你曲线,盈绿(context.yucai.positive) / 亏红(context.yucai.negative)。
 //
 // fl_chart 1.x API(非 0.69):LineChartBarData(spots, color, ...) 接收 List<FlSpot>;
 // LineChartData(lineBarsData, titlesData/gridData/borderData 全关 + clipData + minX/maxX/minY/maxY)。
@@ -30,7 +30,7 @@ class HoldingSparkline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = up ? AppColors.positive : AppColors.negative;
+    final color = up ? context.yucai.positive : context.yucai.negative;
     return SizedBox(
       width: width,
       height: height,

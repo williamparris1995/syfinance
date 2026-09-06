@@ -60,7 +60,7 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocListener<BackupSettingsBloc, BackupSettingsState>(
         // 仅保存成功 / 保存失败时弹 SnackBar：
         // - Saved：固定提示「已保存」。
@@ -81,7 +81,7 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
           child: Column(
             children: [
               _topbar(),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: context.yucai.border),
               Expanded(child: _body()),
             ],
           ),
@@ -98,14 +98,14 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
         children: [
           IconButton(
             tooltip: '返回',
-            icon: const Icon(LucideIcons.chevronLeft, color: AppColors.fg),
+            icon: Icon(LucideIcons.chevronLeft, color: context.yucai.fg),
             onPressed: () => context.pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               '自动备份',
               style: TextStyle(
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 fontFamily: AppTypography.displayFamily,
@@ -154,15 +154,15 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
             children: [
               Text('自动备份',
                   style: TextStyle(
-                      color: AppColors.fg,
+                      color: context.yucai.fg,
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       fontFamily: AppTypography.displayFamily,
                       fontFamilyFallback: AppTypography.displayFallback)),
               const SizedBox(height: AppSpacing.xs),
-              const Text(
+              Text(
                 '开启后服务端将按设定频率自动生成本地备份',
-                style: TextStyle(color: AppColors.muted, fontSize: 13),
+                style: TextStyle(color: context.yucai.muted, fontSize: 13),
               ),
               const SizedBox(height: AppSpacing.md),
               _SettingsCard(
@@ -178,7 +178,7 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
                           : (v) => setState(() => _autoBackup = v),
                     ),
                     if (_autoBackup) ...[
-                      const Divider(height: 1, color: AppColors.border),
+                      Divider(height: 1, color: context.yucai.border),
                       const SizedBox(height: AppSpacing.md),
                       _IntervalRow(
                         value: _intervalHours,
@@ -211,13 +211,13 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(LucideIcons.alertCircle,
-              color: AppColors.negative, size: 36),
+          Icon(LucideIcons.alertCircle,
+              color: context.yucai.negative, size: 36),
           const SizedBox(height: AppSpacing.md),
-          const Text(
+          Text(
             '加载失败',
             style: TextStyle(
-              color: AppColors.fg,
+              color: context.yucai.fg,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -225,7 +225,7 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
           const SizedBox(height: AppSpacing.xs),
           Text(
             message,
-            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            style: TextStyle(color: context.yucai.muted, fontSize: 13),
           ),
           const SizedBox(height: AppSpacing.md),
           FilledButton(
@@ -243,7 +243,7 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
     return Positioned.fill(
       child: AbsorbPointer(
         child: Container(
-          color: AppColors.bg.withValues(alpha: 0.5),
+          color: context.yucai.bg.withValues(alpha: 0.5),
           alignment: Alignment.center,
           child: const CircularProgressIndicator(),
         ),
@@ -263,9 +263,9 @@ class _SettingsCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.yucai.surface,
         borderRadius: AppRadius.lgBorder,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.yucai.border),
       ),
       child: child,
     );
@@ -295,13 +295,14 @@ class _SwitchRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: const TextStyle(
-                      color: AppColors.fg,
+                  style: TextStyle(
+                      color: context.yucai.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
               Text(description,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                  style: TextStyle(
+                      color: context.yucai.muted, fontSize: 12)),
             ],
           ),
         ),
@@ -309,7 +310,7 @@ class _SwitchRow extends StatelessWidget {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeThumbColor: AppColors.accent,
+          activeThumbColor: context.yucai.accent,
         ),
       ],
     );
@@ -350,14 +351,15 @@ class _IntervalRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('备份频率',
+              Text('备份频率',
                   style: TextStyle(
-                      color: AppColors.fg,
+                      color: context.yucai.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
-              const Text('两次自动备份之间的间隔',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              Text('两次自动备份之间的间隔',
+                  style: TextStyle(
+                      color: context.yucai.muted, fontSize: 12)),
             ],
           ),
         ),
@@ -369,9 +371,9 @@ class _IntervalRow extends StatelessWidget {
             items: items,
             isExpanded: true,
             underline: const SizedBox(),
-            dropdownColor: AppColors.surface,
-            icon: const Icon(LucideIcons.chevronDown,
-                color: AppColors.accent, size: 20),
+            dropdownColor: context.yucai.surface,
+            icon: Icon(LucideIcons.chevronDown,
+                color: context.yucai.accent, size: 20),
             onChanged: (h) {
               if (h != null) onChanged?.call(h);
             },

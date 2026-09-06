@@ -187,7 +187,8 @@ void main() {
     // 排序按 actual 降序:i2(120000 超支)在 idx 0,i1(100000 正常)在 idx 1。
     final overColor =
         (bars[0].valueColor as AlwaysStoppedAnimation<Color>).value;
-    expect(overColor, const Color(0xFFC0392B));
+    // F4-P2:超支红 #C0392B 令牌化 → negative(裸 MaterialApp 回落 v2 亮板)。
+    expect(overColor, AppColors.negative);
     final normalColor =
         (bars[1].valueColor as AlwaysStoppedAnimation<Color>).value;
     // R8 v2:主色 御财金→翡翠绿,断言改语义色不再钉 hex。

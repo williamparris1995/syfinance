@@ -143,16 +143,17 @@ TxnFlavour _inferFlavour(Transaction txn) {
   return TxnFlavour.compound;
 }
 
-Color _amountColor(TxnFlavour f) {
+/// F4-P2:顶层函数无 context → 补形参穿线;语义色走 context.yucai。
+Color _amountColor(BuildContext context, TxnFlavour f) {
   switch (f) {
     case TxnFlavour.income:
-      return AppColors.positive;
+      return context.yucai.positive;
     case TxnFlavour.expense:
-      return AppColors.negative;
+      return context.yucai.negative;
     case TxnFlavour.transfer:
-      return AppColors.fg;
+      return context.yucai.fg;
     case TxnFlavour.compound:
-      return AppColors.fg;
+      return context.yucai.fg;
   }
 }
 
@@ -183,21 +184,21 @@ class _AccountChip extends StatelessWidget {
           width: 20,
           height: 20,
           decoration: BoxDecoration(
-            color: AppColors.surfaceAlt,
+            color: context.yucai.surfaceAlt,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.yucai.border),
           ),
           alignment: Alignment.center,
           child: Text(ab,
-              style: const TextStyle(
-                  color: AppColors.muted,
+              style: TextStyle(
+                  color: context.yucai.muted,
                   fontSize: 10,
                   fontWeight: FontWeight.w600)),
         ),
         const SizedBox(width: 6),
         Flexible(
           child: Text(label,
-              style: const TextStyle(color: AppColors.fg, fontSize: 13),
+              style: TextStyle(color: context.yucai.fg, fontSize: 13),
               overflow: TextOverflow.ellipsis),
         ),
       ],
@@ -216,12 +217,16 @@ class _CategoryChip extends StatelessWidget {
     final label = account!.category.label;
     final isIncomeType = account!.accountType == AccountType.income;
     final isExpenseType = account!.accountType == AccountType.expense;
+    // F4-P2:字色原 v1 深绿 #236B56/深红 #A0443E → 语义令牌(暗色提亮档);
+    // chip 底由令牌 10% 派生(原 v1 绿/红 10% 透底)。
     final fg = isIncomeType
-        ? const Color(0xFF236B56)
-        : (isExpenseType ? const Color(0xFFA0443E) : AppColors.muted);
+        ? context.yucai.positive
+        : (isExpenseType ? context.yucai.negative : context.yucai.muted);
     final bg = isIncomeType
-        ? const Color(0x1A2D8A6E)
-        : (isExpenseType ? const Color(0x1AC4544D) : AppColors.surfaceAlt);
+        ? context.yucai.positive.withValues(alpha: 0.10)
+        : (isExpenseType
+            ? context.yucai.negative.withValues(alpha: 0.10)
+            : context.yucai.surfaceAlt);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -235,8 +240,8 @@ class _CategoryChip extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: const BoxDecoration(
-                color: AppColors.muted, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                color: context.yucai.muted, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           Flexible(
@@ -263,9 +268,9 @@ class _TransferAccounts extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(child: _AccountChip(label: fromLabel)),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Icon(LucideIcons.arrowRight, size: 14, color: AppColors.muted),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(LucideIcons.arrowRight, size: 14, color: context.yucai.muted),
         ),
         Flexible(child: _AccountChip(label: toLabel)),
       ],
@@ -350,8 +355,8 @@ class _TableRow extends StatelessWidget {
             SizedBox(
               width: 56,
               child: Text(_formatDate(txn.transactionDate),
-                  style: const TextStyle(
-                      color: AppColors.muted,
+                  style: TextStyle(
+                      color: context.yucai.muted,
                       fontSize: 13,
                       fontFeatures: AppTypography.tabularFigures)),
             ),
@@ -365,7 +370,7 @@ class _TableRow extends StatelessWidget {
                   Text(
                     txn.description.isEmpty ? '(无描述)' : txn.description,
                     style:
-                        const TextStyle(color: AppColors.fg, fontSize: 14),
+                        TextStyle(color: context.yucai.fg, fontSize: 14),
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (tags.isNotEmpty) ...[
@@ -400,7 +405,7 @@ class _TableRow extends StatelessWidget {
                 child: Text(
                   _formatCents(amount, row.currencySymbol, signed: true),
                   style: TextStyle(
-                    color: _amountColor(flavour),
+                    color: _amountColor(context, flavour),
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     fontFeatures: AppTypography.tabularFigures,
@@ -441,9 +446,9 @@ class _MobileRow extends StatelessWidget {
             horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.yucai.surface,
           borderRadius: AppRadius.smBorder,
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.yucai.border),
         ),
         child: Row(
           children: [
@@ -453,8 +458,8 @@ class _MobileRow extends StatelessWidget {
                 children: [
                   Text(
                     txn.description.isEmpty ? '(无描述)' : txn.description,
-                    style: const TextStyle(
-                        color: AppColors.fg,
+                    style: TextStyle(
+                        color: context.yucai.fg,
                         fontSize: 14,
                         fontWeight: FontWeight.w500),
                   ),
@@ -464,10 +469,10 @@ class _MobileRow extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(child: _AccountChip(label: cell.fromLabel)),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: Icon(LucideIcons.arrowRight,
-                              size: 14, color: AppColors.muted),
+                              size: 14, color: context.yucai.muted),
                         ),
                         Flexible(child: _AccountChip(label: cell.toLabel)),
                       ],
@@ -475,8 +480,8 @@ class _MobileRow extends StatelessWidget {
                   else
                     Text(
                       '${_formatDate(txn.transactionDate)}${secondary.isEmpty ? '' : ' · $secondary'}',
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12),
+                      style: TextStyle(
+                          color: context.yucai.muted, fontSize: 12),
                     ),
                   if (tags.isNotEmpty) ...[
                     const SizedBox(height: 6),
@@ -488,7 +493,7 @@ class _MobileRow extends StatelessWidget {
             Text(
               _formatCents(amount, row.currencySymbol, signed: true),
               style: TextStyle(
-                color: _amountColor(flavour),
+                color: _amountColor(context, flavour),
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 fontFeatures: AppTypography.tabularFigures,
@@ -507,8 +512,9 @@ class _TxnTagChips extends StatelessWidget {
   const _TxnTagChips({required this.tags});
   final List<Tag> tags;
 
-  Widget _chip(Tag t) {
-    final c = tagColor(t.color);
+  /// F4-P2:回退色注入主题 accent(暗色自动切鎏金);方法补 context 穿线。
+  Widget _chip(BuildContext context, Tag t) {
+    final c = tagColor(t.color, fallback: context.yucai.accent);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
@@ -524,7 +530,7 @@ class _TxnTagChips extends StatelessWidget {
     return Wrap(
       spacing: 4,
       runSpacing: 2,
-      children: [for (final t in tags) _chip(t)],
+      children: [for (final t in tags) _chip(context, t)],
     );
   }
 }

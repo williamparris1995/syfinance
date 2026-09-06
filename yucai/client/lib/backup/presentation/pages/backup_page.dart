@@ -119,15 +119,16 @@ class _BackupPageState extends State<BackupPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 '⚠️ 恢复将覆盖当前所有数据，此操作不可逆，确定？',
-                style: TextStyle(color: AppColors.negative),
+                style: TextStyle(color: dctx.yucai.negative),
               ),
               if (backup.encrypted) ...[
                 const SizedBox(height: AppSpacing.md),
-                const Text(
+                Text(
                   '恢复加密备份，请输入密码：',
-                  style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  style: TextStyle(
+                      color: dctx.yucai.muted, fontSize: 13),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 TextField(
@@ -178,7 +179,8 @@ class _BackupPageState extends State<BackupPage> {
             child: const Text('取消'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.negative),
+            style: TextButton.styleFrom(
+                foregroundColor: dctx.yucai.negative),
             onPressed: () => Navigator.pop(dctx, true),
             child: const Text('删除'),
           ),
@@ -212,7 +214,7 @@ class _BackupPageState extends State<BackupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.yucai.bg,
       body: BlocListener<BackupBloc, BackupState>(
         listenWhen: (prev, curr) =>
             curr is BackupActionSuccess ||
@@ -234,7 +236,7 @@ class _BackupPageState extends State<BackupPage> {
           child: Column(
             children: [
               _topbar(),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: context.yucai.border),
               Expanded(child: _body()),
             ],
           ),
@@ -251,14 +253,14 @@ class _BackupPageState extends State<BackupPage> {
         children: [
           IconButton(
             tooltip: '返回',
-            icon: const Icon(LucideIcons.chevronLeft, color: AppColors.fg),
+            icon: Icon(LucideIcons.chevronLeft, color: context.yucai.fg),
             onPressed: () => context.pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               '本地备份',
               style: TextStyle(
-                color: AppColors.fg,
+                color: context.yucai.fg,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 fontFamily: AppTypography.displayFamily,
@@ -324,26 +326,26 @@ class _BackupPageState extends State<BackupPage> {
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(
-              color: AppColors.accentSoft,
+            decoration: BoxDecoration(
+              color: context.yucai.accentSoft,
               borderRadius: AppRadius.lgBorder,
             ),
-            child: const Icon(LucideIcons.databaseBackup,
-                color: AppColors.accent, size: 28),
+            child: Icon(LucideIcons.databaseBackup,
+                color: context.yucai.accent, size: 28),
           ),
           const SizedBox(height: AppSpacing.md),
-          const Text(
+          Text(
             '暂无备份',
             style: TextStyle(
-              color: AppColors.fg,
+              color: context.yucai.fg,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          const Text(
+          Text(
             '点击「立即备份」创建第一个备份',
-            style: TextStyle(color: AppColors.muted, fontSize: 13),
+            style: TextStyle(color: context.yucai.muted, fontSize: 13),
           ),
         ],
       ),
@@ -355,12 +357,13 @@ class _BackupPageState extends State<BackupPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(LucideIcons.alertCircle, color: AppColors.negative, size: 36),
+          Icon(LucideIcons.alertCircle,
+              color: context.yucai.negative, size: 36),
           const SizedBox(height: AppSpacing.md),
-          const Text(
+          Text(
             '加载失败',
             style: TextStyle(
-              color: AppColors.fg,
+              color: context.yucai.fg,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -368,7 +371,7 @@ class _BackupPageState extends State<BackupPage> {
           const SizedBox(height: AppSpacing.xs),
           Text(
             message,
-            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            style: TextStyle(color: context.yucai.muted, fontSize: 13),
           ),
           const SizedBox(height: AppSpacing.md),
           FilledButton(
@@ -386,7 +389,7 @@ class _BackupPageState extends State<BackupPage> {
     return Positioned.fill(
       child: AbsorbPointer(
         child: Container(
-          color: AppColors.bg.withValues(alpha: 0.5),
+          color: context.yucai.bg.withValues(alpha: 0.5),
           alignment: Alignment.center,
           child: const CircularProgressIndicator(),
         ),

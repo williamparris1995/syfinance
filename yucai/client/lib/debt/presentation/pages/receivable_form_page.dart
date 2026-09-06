@@ -647,6 +647,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
         border: Border.all(color: context.yucai.border),
         borderRadius: AppRadius.lgBorder,
         boxShadow: const [
+          // 深灰黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
           BoxShadow(
               color: Color(0x0A1C1E21), blurRadius: 3, offset: Offset(0, 1)),
         ],
@@ -709,7 +710,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           child: TextFormField(
             key: const ValueKey('counterpartyField'),
             controller: _counterpartyCtrl,
-            decoration: _odDec(hint: '姓名 / 企业名称'),
+            decoration: _odDec(context, hint: '姓名 / 企业名称'),
             validator: (v) => _required(v, '债务人'),
           ),
         ),
@@ -721,7 +722,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
             key: const ValueKey('accountDropdown'),
             value: _accountId,
             decoration:
-                _odDec(hint: _accountsLoading ? '加载中…' : '选择应收账户'),
+                _odDec(context, hint: _accountsLoading ? '加载中…' : '选择应收账户'),
             items: [
               for (final a in _accounts)
                 DropdownMenuItem(value: a.id, child: Text(a.name)),
@@ -756,7 +757,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           required: true,
           child: DropdownButtonFormField<String>(
             value: _sourceAccountId,
-            decoration: _odDec(hint: '选择来源账户'),
+            decoration: _odDec(context, hint: '选择来源账户'),
             items: [
               for (final a in _sourceAccounts)
                 DropdownMenuItem(value: a.id, child: Text(a.name)),
@@ -774,7 +775,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
         child: DropdownButtonFormField<String>(
           key: const ValueKey('collectionAccountDropdown'),
           value: _collectionAccountId,
-          decoration: _odDec(hint: '选择回款账户'),
+          decoration: _odDec(context, hint: '选择回款账户'),
           items: [
             for (final a in _sourceAccounts)
               DropdownMenuItem(value: a.id, child: Text(a.name)),
@@ -789,7 +790,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           child: TextFormField(
             key: const ValueKey('contactField'),
             controller: _contactCtrl,
-            decoration: _odDec(hint: '电话 / 邮箱（可选）'),
+            decoration: _odDec(context, hint: '电话 / 邮箱（可选）'),
           ),
         ),
         _ODField(
@@ -797,7 +798,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           child: TextFormField(
             key: const ValueKey('contractRefField'),
             controller: _contractRefCtrl,
-            decoration: _odDec(hint: '借条编号 / 合同号（可选）'),
+            decoration: _odDec(context, hint: '借条编号 / 合同号（可选）'),
           ),
         ),
       ]),
@@ -816,7 +817,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
             key: const ValueKey('principalField'),
             controller: _principalCtrl,
             decoration:
-                _odDec(prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
+                _odDec(context, prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
             style: TextStyle(
                 fontSize: 14,
                 color: context.yucai.fg,
@@ -832,7 +833,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           child: TextFormField(
             key: const ValueKey('rateField'),
             controller: _rateCtrl,
-            decoration: _odDec(suffix: '%', hint: '0.0'),
+            decoration: _odDec(context, suffix: '%', hint: '0.0'),
             style: TextStyle(
                 fontSize: 14,
                 color: context.yucai.fg,
@@ -936,7 +937,7 @@ class _StepIndicator extends StatelessWidget {
       child: Row(
         children: [
           for (var i = 0; i < 3; i++) ...[
-            _dot(i == current, i < current, _labels[i]),
+            _dot(context, i == current, i < current, _labels[i]),
             if (i < 2)
               Expanded(
                 child: Padding(
@@ -950,10 +951,10 @@ class _StepIndicator extends StatelessWidget {
     );
   }
 
-  Widget _dot(bool active, bool done, String label) {
+  Widget _dot(BuildContext context, bool active, bool done, String label) {
     final color = active
-        ? AppColors.accent
-        : (done ? AppColors.positive : AppColors.border);
+        ? context.yucai.accent
+        : (done ? context.yucai.positive : context.yucai.border);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -961,17 +962,20 @@ class _StepIndicator extends StatelessWidget {
           width: 22,
           height: 22,
           decoration: BoxDecoration(
-            color: active ? AppColors.accent : AppColors.surface,
+            color: active ? context.yucai.accent : context.yucai.surface,
             border: Border.all(color: color, width: 1.5),
             borderRadius: BorderRadius.circular(6),
           ),
           alignment: Alignment.center,
+          // 完成态 check 白字:done 且非 active 时落在 surface 上,亮板沿原
+          // 样(白,现状),暗板墨面上可辨识 —— 豁免双板共用。
           child: done
               ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
               : Text(
+                  // active 序号在 accent 底上 → onAccent(暗=鎏金深墨)。
                   '${_labels.indexOf(label) + 1}',
                   style: TextStyle(
-                    color: active ? Colors.white : AppColors.muted,
+                    color: active ? context.yucai.onAccent : context.yucai.muted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     fontFeatures: AppTypography.tabularFigures,
@@ -981,7 +985,7 @@ class _StepIndicator extends StatelessWidget {
         const SizedBox(width: 6),
         Text(label,
             style: TextStyle(
-              color: active ? AppColors.fg : AppColors.muted,
+              color: active ? context.yucai.fg : context.yucai.muted,
               fontSize: 12,
               fontWeight: active ? FontWeight.w600 : FontWeight.w400,
             )),
@@ -1141,40 +1145,43 @@ class _ODField extends StatelessWidget {
 /// + padding 11/13 + font 14(placeholder muted)。聚焦金边(OD :focus border-color
 /// gold;box-shadow ring Flutter 无法直接复刻,以金边近似)。prefix ¥ 金 w700,
 /// suffix % muted。errorBorder 红(_submit toast 前置校验后 form.validate 兜底)。
-InputDecoration _odDec({
+/// F4-P2:顶层工厂无 context → 补形参穿线(调用点全量更新);
+/// 配色全部令牌化,暗色跟随主题。
+InputDecoration _odDec(
+  BuildContext context, {
   String? hint,
   String? prefix,
   String? suffix,
 }) {
   return InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: AppColors.muted, fontSize: 14),
+    hintStyle: TextStyle(color: context.yucai.muted, fontSize: 14),
     prefixText: prefix,
     prefixStyle: TextStyle(
-        color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 14),
+        color: context.yucai.accent, fontWeight: FontWeight.w700, fontSize: 14),
     suffixText: suffix,
-    suffixStyle: TextStyle(color: AppColors.muted, fontSize: 13),
+    suffixStyle: TextStyle(color: context.yucai.muted, fontSize: 13),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
     filled: true,
-    fillColor: AppColors.surface,
+    fillColor: context.yucai.surface,
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: AppColors.border, width: 1),
+      borderSide: BorderSide(color: context.yucai.border, width: 1),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: AppColors.accent, width: 1),
+      borderSide: BorderSide(color: context.yucai.accent, width: 1),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: AppColors.negative, width: 1),
+      borderSide: BorderSide(color: context.yucai.negative, width: 1),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: AppColors.negative, width: 1),
+      borderSide: BorderSide(color: context.yucai.negative, width: 1),
     ),
-    errorStyle: TextStyle(color: AppColors.negative, fontSize: 11.5),
+    errorStyle: TextStyle(color: context.yucai.negative, fontSize: 11.5),
   );
 }
 
@@ -1387,6 +1394,7 @@ class _ODFormSection extends StatelessWidget {
         borderRadius: AppRadius.lgBorder, // 14
         // OD --shadow-sm:0 1px 2px / 0 1px 3px rgba(28,30,33,.04)。
         boxShadow: const [
+          // 深灰黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
           BoxShadow(
               color: Color(0x0A1C1E21), blurRadius: 3, offset: Offset(0, 1)),
         ],

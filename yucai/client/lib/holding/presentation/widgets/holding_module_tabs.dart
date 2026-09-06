@@ -26,8 +26,8 @@ class HoldingModuleTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = GoRouterState.of(context).matchedLocation;
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: context.yucai.border)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -54,7 +54,7 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.fg : AppColors.muted;
+    final color = active ? context.yucai.fg : context.yucai.muted;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -66,7 +66,7 @@ class _TabItem extends StatelessWidget {
             border: Border(
               bottom: BorderSide(
                 width: 2,
-                color: active ? AppColors.accent : Colors.transparent,
+                color: active ? context.yucai.accent : Colors.transparent,
               ),
             ),
           ),

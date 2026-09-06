@@ -33,13 +33,16 @@ class TagColorPicker extends StatelessWidget {
           child: Container(
             width: 32, height: 32,
             decoration: BoxDecoration(
-              color: tagColor(c),
+              // 预置色板为固定品牌色(中饱和,亮暗两态均可辨识),不随主题迁;
+              // 选中描边 = fg 令牌(暗色自动反浅)。
+              color: tagColor(c, fallback: context.yucai.accent),
               shape: BoxShape.circle,
               border: Border.all(
-                color: isSel ? AppColors.fg : Colors.transparent,
+                color: isSel ? context.yucai.fg : Colors.transparent,
                 width: 2,
               ),
             ),
+            // check 白字落在中饱和色板上,双板共用(豁免:均可辨识)。
             child: isSel
                 ? const Icon(LucideIcons.check, color: Colors.white, size: 16)
                 : null,

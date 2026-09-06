@@ -22,7 +22,9 @@ class CategoryChip extends StatelessWidget {
     this.selected = false,
   });
 
+  /// F4-P2:categoryColor 已 context 化 → 工厂补 context 形参(调用点同步)。
   factory CategoryChip.fromCategory(
+    BuildContext context,
     AccountCategory category, {
     Key? key,
     String? labelOverride,
@@ -32,7 +34,7 @@ class CategoryChip extends StatelessWidget {
     return CategoryChip(
       key: key,
       label: labelOverride ?? category.label,
-      color: categoryColor(category),
+      color: categoryColor(context, category),
       icon: categoryIcon(category),
       onTap: onTap,
       selected: selected,

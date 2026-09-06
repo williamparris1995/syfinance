@@ -358,7 +358,8 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         debt.counterparty.contains('商') ||
         s.contains('biz') ||
         s.contains('business')) {
-      return const Color(0xFF3A6695);
+      // 商业借款 avatar 蓝 → info 令牌(与 receivables_page 同裁决)。
+      return context.yucai.info;
     }
     if (debt.counterparty.contains('亲友') ||
         debt.counterparty.contains('家人') ||

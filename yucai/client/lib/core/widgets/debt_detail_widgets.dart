@@ -31,6 +31,9 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 /// 进度金渐变 #C9A86B/#E0C489)**不随主题迁**——固定深底上亮暗两态均可辨识
 /// 且不刺眼;辅助文字走 context.yucai.muted、辉光走 context.yucai.accent
 /// (暗色下自动切鎏金)。语义色(pill/badge 半透明底)改由令牌 withValues 派生。
+/// 另:schedule 激活 chip 的投影 #1A1C1E21 系深灰黑阴影——暗色墨黑底上天然
+/// 不可见,恰好等效 v2 暗色「无阴影」设计(同 debt_list_widgets 豁免口径),
+/// 保原值不迁。
 
 // ───────────────────────── Hero ─────────────────────────
 

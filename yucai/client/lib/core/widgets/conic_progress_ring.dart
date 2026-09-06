@@ -63,6 +63,10 @@ const List<Color> _kRingGoldGradientDark = [
 ];
 
 /// 主题感知的金渐变:亮 = 原型 v1 御财金;暗 = v2 鎏金(暗底可辨识且不刺眼)。
+///
+/// 前瞻 API:当前零消费方(金渐变弧暂由 DebtDetailHero 固定深色面内联渲染),
+/// 保留作为金渐变序列的唯一主题感知取用点 —— 后续亮色板消费方接入时直接
+/// 换调,**勿删**(T1 review 决议)。
 List<Color> ringGoldGradientOf(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
         ? _kRingGoldGradientDark

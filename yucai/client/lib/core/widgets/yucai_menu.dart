@@ -13,6 +13,10 @@ MenuStyle yucaiMenuStyle(BuildContext context) {
   return MenuStyle(
     backgroundColor: WidgetStatePropertyAll(context.yucai.surface),
     surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+    // F4-P2 黑阴影豁免复用论证(同 debt_list_widgets 口径):菜单投影
+    // #1F000000(黑 12%)在暗色墨黑底上天然不可见,恰好等效 v2 暗色「无
+    // 阴影」设计;改 fg 透导会引入白辉光,保原值不迁(与 _open 内联菜单
+    // 同值同口径)。
     shadowColor: const WidgetStatePropertyAll(Color(0x1F000000)),
     elevation: const WidgetStatePropertyAll(6),
     padding: const WidgetStatePropertyAll(
@@ -92,6 +96,7 @@ class _YucaiAnchoredMenuState extends State<YucaiAnchoredMenu> {
           child: Material(
             color: Theme.of(context).extension<YucaiTheme>()!.surface,
             elevation: 6,
+            // 黑阴影豁免(见 yucaiMenuStyle 注释,同值同口径)。
             shadowColor: const Color(0x1F000000),
             borderRadius: BorderRadius.circular(10),
             child: IntrinsicWidth(

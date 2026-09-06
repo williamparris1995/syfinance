@@ -25,6 +25,9 @@ class FormCard extends StatelessWidget {
             color: context.yucai.surface,
             borderRadius: AppRadius.lgBorder,
             border: Border.all(color: context.yucai.border),
+            // F4-P2 黑阴影豁免复用论证(同 debt_list_widgets 口径):
+            // #0A000000(黑 4%)投影在暗色墨黑底上天然不可见,恰好等效
+            // v2 暗色「无阴影」设计;改 fg 透导会引入白辉光,保原值不迁。
             boxShadow: const [
               BoxShadow(
                   color: Color(0x0A000000),
@@ -141,11 +144,13 @@ class FormActions extends StatelessWidget {
         FilledButton(
           onPressed: submitting ? null : onSubmit,
           child: submitting
-              ? const SizedBox(
+              ? SizedBox(
                   height: 18,
                   width: 18,
-                  child:
-                      CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  // F4-P2:FilledButton 底 = accent(暗=鎏金),spinner 用
+                  // onAccent 反色(亮=白同原观感 / 暗=深墨)。
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: context.yucai.onAccent))
               : Text(submitLabel),
         ),
       ],

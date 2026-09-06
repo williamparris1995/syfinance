@@ -570,15 +570,17 @@ class _AccountsHeader extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    _netBlock(),
+                    _netBlock(context),
                     const SizedBox(width: 32), // gap:32px
-                    _vline(),
+                    _vline(context),
                     const SizedBox(width: 32),
-                    _statBlock('总资产', assetCents, context.yucai.positive),
+                    _statBlock(
+                        context, '总资产', assetCents, context.yucai.positive),
                     const SizedBox(width: 32),
-                    _vline(),
+                    _vline(context),
                     const SizedBox(width: 32),
-                    _statBlock('总负债', liabCents, context.yucai.negative),
+                    _statBlock(
+                        context, '总负债', liabCents, context.yucai.negative),
                   ],
                 ),
               ),
@@ -629,7 +631,10 @@ class _AccountsHeader extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: context.yucai.accent,
                 ),
-                child: const Icon(LucideIcons.plus, color: Colors.white, size: 20),
+                child: Icon(LucideIcons.plus,
+                    // 内容色 = onAccent(暗色鎏金底配深墨,原硬白会刺眼)。
+                    color: context.yucai.onAccent,
+                    size: 20),
               ),
             ),
           ),
@@ -679,11 +684,12 @@ class _AccountsHeader extends StatelessWidget {
   }
 
   /// .net-label 13 muted + .net-val 30 display w600 mt:6 letter-spacing:.5。
-  Widget _netBlock() {
+  Widget _netBlock(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('净资产合计', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+        Text('净资产合计',
+            style: TextStyle(color: context.yucai.muted, fontSize: 13)),
         const SizedBox(height: 6),
         Text(
           _fmtSymbol(netCents, preferred),
@@ -691,7 +697,7 @@ class _AccountsHeader extends StatelessWidget {
             fontSize: 30,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
-            color: netCents < 0 ? AppColors.negative : AppColors.fg,
+            color: netCents < 0 ? context.yucai.negative : context.yucai.fg,
             fontFamily: AppTypography.displayFamily,
             fontFamilyFallback: AppTypography.displayFallback,
           ),
@@ -701,11 +707,12 @@ class _AccountsHeader extends StatelessWidget {
   }
 
   /// .stat-label 12 muted + .stat-val 19 mono w600 mt:5 tabular。
-  Widget _statBlock(String label, int cents, Color color) {
+  Widget _statBlock(BuildContext context, String label, int cents, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: AppColors.muted, fontSize: 12)),
+        Text(label,
+            style: TextStyle(color: context.yucai.muted, fontSize: 12)),
         const SizedBox(height: 5),
         Text(
           _fmtSymbol(cents, preferred),
@@ -721,8 +728,8 @@ class _AccountsHeader extends StatelessWidget {
   }
 
   /// .vline 1×48 border color。
-  Widget _vline() =>
-      Container(width: 1, height: 48, color: AppColors.border);
+  Widget _vline(BuildContext context) =>
+      Container(width: 1, height: 48, color: context.yucai.border);
 }
 
 /// .newbtn：margin-left:auto height:40 padding:0 20 radius:9999px accent bg
@@ -754,23 +761,27 @@ class _NewAccountButtonState extends State<_NewAccountButton> {
           decoration: BoxDecoration(
             color: _hover ? context.yucai.accentDeep : context.yucai.accent, // :hover accent-press(#98773f)
             borderRadius: BorderRadius.circular(9999), // radius:9999px (pill)
-            boxShadow: const [
-              // .newbtn box-shadow:0 4px 12px rgba(176,141,87,.32)
+            boxShadow: [
+              // .newbtn box-shadow:0 4px 12px rgba(176,141,87,.32)——原 v1 金
+              // 投影 → accent 令牌 32% 派生,暗色跟随鎏金(const 因派生失效去 const)。
               BoxShadow(
-                color: Color(0x52B08D57),
+                color: (_hover ? context.yucai.accentDeep : context.yucai.accent)
+                    .withValues(alpha: 0.32),
                 blurRadius: 12,
-                offset: Offset(0, 4),
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(LucideIcons.plus, size: 18, color: Colors.white), // .pl 18 w400
-              SizedBox(width: 7), // gap:7px
+              // 按钮内容色 = onAccent(亮=白 / 暗=鎏金深墨),随 accent 双板。
+              Icon(LucideIcons.plus,
+                  size: 18, color: context.yucai.onAccent), // .pl 18 w400
+              const SizedBox(width: 7), // gap:7px
               Text('新建账户',
                   style: TextStyle(
-                      color: Colors.white,
+                      color: context.yucai.onAccent,
                       fontSize: 14, // 14 w600
                       fontWeight: FontWeight.w600)),
             ],
@@ -881,10 +892,13 @@ class _ChipState extends State<_Chip> {
         ? activeBorder
         : (_hover ? context.yucai.accent : context.yucai.border); // :not(.active):hover accent
     final bg = widget.selected ? activeBg : context.yucai.surface;
-    final fg = widget.selected ? Colors.white : context.yucai.fg;
-    // .cnt：非 active muted；active rgba(255,255,255,.55)
-    final cntColor =
-        widget.selected ? const Color(0x8CFFFFFF) : context.yucai.muted;
+    // active 底 = fg(亮=深墨 / 暗=浅白),反色字取 bg(亮=近白 / 暗=墨黑)
+    // ——原硬白字在暗色 active(浅白底)下会白上加白不可辨识。
+    final fg = widget.selected ? context.yucai.bg : context.yucai.fg;
+    // .cnt：非 active muted；active 55% 反色(bg 55% 派生,原 rgba(255,255,255,.55))
+    final cntColor = widget.selected
+        ? context.yucai.bg.withValues(alpha: 0.55)
+        : context.yucai.muted;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -961,7 +975,7 @@ class _GroupBlock extends StatelessWidget {
                 cstate.rates,
                 cstate.preferred));
     final isLiability = accounts.first.accountType == AccountType.liability;
-    final typeColor = categoryColor(type);
+    final typeColor = categoryColor(context, type);
     // .group-head：gap 11 / padding 0 2 15（tablet）；mobile gap 9 / padding 4 2 10。
     final isMobile = MediaQuery.of(context).size.width < 600;
     final headGap = isMobile ? 9.0 : 11.0;
@@ -1294,6 +1308,7 @@ class _AccountCardState extends State<_AccountCard> {
                 : [
                     if (_hover)
                       // .card:hover box-shadow:0 10px 26px rgba(0,0,0,.07)
+                      // 黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
                       const BoxShadow(
                         color: Color(0x12000000), // .07 alpha
                         blurRadius: 26,
@@ -1313,7 +1328,7 @@ class _AccountCardState extends State<_AccountCard> {
   Widget _fullCard(BuildContext context) {
     final a = widget.account;
     final negative = a.currentBalanceCents < 0;
-    final typeColor = categoryColor(a.category);
+    final typeColor = categoryColor(context, a.category);
     final spec = _usageSpec(a);
     final (label, val) = _compactVal(a);
     final archived = a.status == AccountStatus.archived;
@@ -1607,7 +1622,7 @@ class _AccountCardState extends State<_AccountCard> {
   Widget _compactCard(BuildContext context) {
     final a = widget.account;
     final negative = a.currentBalanceCents < 0;
-    final typeColor = categoryColor(a.category);
+    final typeColor = categoryColor(context, a.category);
     final archived = a.status == AccountStatus.archived;
     final spec = _usageSpec(a);
     final (label, val) = _compactVal(a);

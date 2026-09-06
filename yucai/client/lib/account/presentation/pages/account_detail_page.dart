@@ -462,6 +462,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     // 第2 badge：{资产类/负债类}·活期/定期（fixedDeposit→定期，其他→活期）。
     final liquidity = a.category == AccountCategory.fixedDeposit ? '定期' : '活期';
     final classLabel = '${isLiability ? '负债类' : '资产类'} · $liquidity';
+    // F4-P2 豁免:hero 是 OD 原型刻意的固定深色渐变面(#1C1E21→#2A2D33,
+    // 两主题一致),卡内白系文本/白透描边(hero-pick/ghost badge/hero-fields
+    // 分隔线 #1AFFFFFF)为固定深底内景色,亮暗两态均可辨识且不刺眼,不随主题迁;
+    // 金饰/语义色已走 context.yucai(accent/positive/negative,暗色自动切换)。
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
@@ -835,11 +839,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     // 全 account 类型共用同一 4 卡 icon set（按位置，不按 category）。
     // Lucide 线性 stroke 2px（最接近 OD 原型 inline SVG stroke 1.6px），取代
     // Task 14 的 Material 实心 icon。fileText 在 lucide 0.257 无 notebookText。
+    // F4-P2:icon 方块软底由语义令牌 12% 派生(原 v1 硬软底 #E1EFE8/#F6E3E1/
+    // #E3ECF7 为亮板专用,暗色下随令牌呈微亮底);蓝 #3B6FB0 → info 令牌
+    // (同「中性信息」语义,暗色自动提亮)。
     final iconSpecs = <(Color, Color, IconData)>[
-      (Color(0xFFE1EFE8), context.yucai.positive, LucideIcons.trendingUp),
-      (Color(0xFFF6E3E1), context.yucai.negative, LucideIcons.trendingDown),
+      (context.yucai.positive.withValues(alpha: 0.12),
+          context.yucai.positive, LucideIcons.trendingUp),
+      (context.yucai.negative.withValues(alpha: 0.12),
+          context.yucai.negative, LucideIcons.trendingDown),
       (context.yucai.accentSoft, context.yucai.accent, LucideIcons.wallet),
-      (Color(0xFFE3ECF7), Color(0xFF3B6FB0), LucideIcons.fileText),
+      (context.yucai.info.withValues(alpha: 0.12),
+          context.yucai.info, LucideIcons.fileText),
     ];
     // OD .stat-row：>900 4 列 / ≤900 2 列（gap 14）。
     final w = MediaQuery.of(context).size.width;
@@ -1454,7 +1464,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         height: 128,
         child: CustomPaint(
           painter: _DonutPainter(
-              incomeCents: incomeCents, expenseCents: expenseCents),
+              incomeCents: incomeCents,
+              expenseCents: expenseCents,
+              // 背景环 = surfaceAlt(暗色随卡面浅一档)。
+              trackColor: context.yucai.surfaceAlt,
+              incomeColor: context.yucai.positive,
+              expenseColor: context.yucai.negative),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1770,16 +1785,28 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 /// 收支统计双色饼图 painter（Task 13，对齐 OD .pie-wrap）。
 ///
 /// 仅两段弧（取代 Task 8 的按分类多色）：
-///   - income 弧：[context.yucai.positive]（绿 #2D8A6E），占比 = incomeCents/total。
-///   - expense 弧：[context.yucai.negative]（红 #C4544D），占比 = expenseCents/total。
+///   - income 弧：[incomeColor]（context.yucai.positive），占比 = incomeCents/total。
+///   - expense 弧：[expenseColor]（context.yucai.negative），占比 = expenseCents/total。
 ///
-/// 12 点起顺时针先画 income 再画 expense。背景环 #EFECE4。total == 0 时仅画
+/// 12 点起顺时针先画 income 再画 expense。背景环 [trackColor]。total == 0 时仅画
 /// 背景环（由调用方在 income+expense==0 时改为渲染占位，不走本 painter）。
+///
+/// F4-P2:CustomPainter 无 context,三色由调用方(_pieChart)从 context.yucai
+/// 解析后经构造注入,暗色跟随主题(原 AppColors 静态量 = 亮色锁定)。
 class _DonutPainter extends CustomPainter {
-  _DonutPainter({required this.incomeCents, required this.expenseCents});
+  _DonutPainter({
+    required this.incomeCents,
+    required this.expenseCents,
+    required this.trackColor,
+    required this.incomeColor,
+    required this.expenseColor,
+  });
 
   final int incomeCents;
   final int expenseCents;
+  final Color trackColor;
+  final Color incomeColor;
+  final Color expenseColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1793,7 +1820,7 @@ class _DonutPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = thickness
-        ..color = AppColors.surfaceAlt,
+        ..color = trackColor,
     );
     final total = incomeCents + expenseCents;
     if (total == 0) return;
@@ -1809,7 +1836,7 @@ class _DonutPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = thickness
-        ..color = AppColors.positive,
+        ..color = incomeColor,
     );
     // expense 红弧（紧接 income 弧之后）。
     final expenseSweep = (expenseCents / total) * 2 * pi;
@@ -1821,13 +1848,17 @@ class _DonutPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = thickness
-        ..color = AppColors.negative,
+        ..color = expenseColor,
     );
   }
 
   @override
   bool shouldRepaint(_DonutPainter old) =>
-      old.incomeCents != incomeCents || old.expenseCents != expenseCents;
+      old.incomeCents != incomeCents ||
+      old.expenseCents != expenseCents ||
+      old.trackColor != trackColor ||
+      old.incomeColor != incomeColor ||
+      old.expenseColor != expenseColor;
 }
 
 /// 近期交易行的账户列解析结果（_recentTxnRow 内部用）。

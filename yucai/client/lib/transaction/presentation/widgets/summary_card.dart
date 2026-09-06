@@ -9,8 +9,8 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 /// **纯 UI 组件**：四个数值以分（cents）传入，本组件只负责排版与配色。
 /// 不接 bloc / repository —— Task 5.2 才接真实 MonthlySummary。
 ///
-/// 配色遵循设计规范：收入绿 [AppColors.positive]、支出红 [AppColors.negative]、
-/// 净额按正负染色，日均中性。数字采用 tabular-nums 等宽对齐。
+/// 配色遵循设计规范：收入绿 [context.yucai.positive]、支出红
+/// [context.yucai.negative]、净额按正负染色，日均中性。数字采用 tabular-nums 等宽对齐。
 /// Mobile 单列堆叠；Tablet 2×2；Desktop 一行 4 张。
 class SummaryCard extends StatelessWidget {
   const SummaryCard({
@@ -39,32 +39,33 @@ class SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsiveLayout(
-      mobile: _grid(sliver: false, crossAxisCount: 1),
-      tablet: _grid(sliver: false, crossAxisCount: 2),
-      desktop: _row(),
+      mobile: _grid(context, sliver: false, crossAxisCount: 1),
+      tablet: _grid(context, sliver: false, crossAxisCount: 2),
+      desktop: _row(context),
     );
   }
 
-  Widget _row() {
+  Widget _row(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _cell(_SummaryKind.income, incomeCents)),
+        Expanded(child: _cell(context, _SummaryKind.income, incomeCents)),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(child: _cell(_SummaryKind.expense, expenseCents)),
+        Expanded(child: _cell(context, _SummaryKind.expense, expenseCents)),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(child: _cell(_SummaryKind.net, netCents)),
+        Expanded(child: _cell(context, _SummaryKind.net, netCents)),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(child: _cell(_SummaryKind.dailyAvg, dailyAvgCents)),
+        Expanded(child: _cell(context, _SummaryKind.dailyAvg, dailyAvgCents)),
       ],
     );
   }
 
-  Widget _grid({required bool sliver, required int crossAxisCount}) {
+  Widget _grid(BuildContext context,
+      {required bool sliver, required int crossAxisCount}) {
     final cards = [
-      _cell(_SummaryKind.income, incomeCents),
-      _cell(_SummaryKind.expense, expenseCents),
-      _cell(_SummaryKind.net, netCents),
-      _cell(_SummaryKind.dailyAvg, dailyAvgCents),
+      _cell(context, _SummaryKind.income, incomeCents),
+      _cell(context, _SummaryKind.expense, expenseCents),
+      _cell(context, _SummaryKind.net, netCents),
+      _cell(context, _SummaryKind.dailyAvg, dailyAvgCents),
     ];
     return GridView.count(
       shrinkWrap: true,
@@ -77,8 +78,8 @@ class SummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _cell(_SummaryKind kind, int cents) {
-    final color = kind.colorFor(cents);
+  Widget _cell(BuildContext context, _SummaryKind kind, int cents) {
+    final color = kind.colorFor(context, cents);
     return DataCard(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
@@ -88,8 +89,8 @@ class SummaryCard extends StatelessWidget {
         children: [
           Text(
             kind.label,
-            style: const TextStyle(
-              color: AppColors.muted,
+            style: TextStyle(
+              color: context.yucai.muted,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -151,16 +152,19 @@ extension _SummaryKindX on _SummaryKind {
     }
   }
 
-  Color colorFor(int cents) {
+  /// F4-P2:语义色经 context.yucai 解析(暗色跟随主题提亮档)。
+  Color colorFor(BuildContext context, int cents) {
     switch (this) {
       case _SummaryKind.income:
-        return AppColors.positive;
+        return context.yucai.positive;
       case _SummaryKind.expense:
-        return AppColors.negative;
+        return context.yucai.negative;
       case _SummaryKind.net:
-        return cents >= 0 ? AppColors.positive : AppColors.negative;
+        return cents >= 0
+            ? context.yucai.positive
+            : context.yucai.negative;
       case _SummaryKind.dailyAvg:
-        return AppColors.fg;
+        return context.yucai.fg;
     }
   }
 }

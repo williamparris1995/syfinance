@@ -4,6 +4,8 @@ import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/theme/app_theme.dart';
 // F15-T1 探针挂载 debt 共享件(debt_list_widgets re-export DebtListFilter)。
 import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
+// F15-T2 探针挂载 transaction 模块件(SummaryCard)。
+import 'package:yucai_client/transaction/presentation/widgets/summary_card.dart';
 
 void main() {
   group('YucaiTheme v2 tokens (A+B dual theme)', () {
@@ -185,6 +187,34 @@ void main() {
       // 激活段 count pill 数字 = dark accentDeep(原 AppColors.accentHover 映射)。
       final activeCount = tester.widget<Text>(find.text('2'));
       expect(activeCount.style!.color, const Color(0xFFC9964A));
+    });
+
+    // F15-T2:transaction 模块件迁移(模块页清 AppColors)的最小暗色守卫 ——
+    // 月度汇总卡语义色必须读暗色令牌(旧 AppColors 静态量 = 亮色锁定,会把
+    // 0xFF059669 等 v2 亮色值漏进暗色)。
+    testWidgets('transaction module widget (SummaryCard) renders dark '
+        'tokens under AppTheme.dark() (F15-T2 guard)', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: Center(
+            child: SummaryCard(
+              incomeCents: 100000,
+              expenseCents: 40000,
+              netCents: 60000,
+              dailyAvgCents: 1667,
+            ),
+          ),
+        ),
+      ));
+      // 收入卡 label = dark muted(#8B93A3);金额 = dark positive(#34D399)。
+      final incomeLabel = tester.widget<Text>(find.text('本月收入'));
+      expect(incomeLabel.style!.color, const Color(0xFF8B93A3));
+      final incomeValue = tester.widget<Text>(find.text('¥1,000.00'));
+      expect(incomeValue.style!.color, const Color(0xFF34D399));
+      // 支出金额 = dark negative(#F87171)。
+      final expenseValue = tester.widget<Text>(find.text('¥400.00'));
+      expect(expenseValue.style!.color, const Color(0xFFF87171));
     });
   });
 }

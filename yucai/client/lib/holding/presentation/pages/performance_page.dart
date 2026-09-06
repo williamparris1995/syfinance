@@ -986,7 +986,8 @@ class _PerformancePageState extends State<PerformancePage> {
     Key? key,
   }) {
     final up = value >= 0;
-    final typeColor = kHoldingTypeColors[type] ?? context.yucai.accent;
+    // 类型序列色走主题感知 accessor(暗板自动提亮,见 holding_pie_chart)。
+    final typeColor = holdingTypeColorOf(context, type);
     final pct = scale > 0 ? (value.abs() / scale) * 50 : 0.0;
     return Padding(
       key: key,
@@ -1037,8 +1038,9 @@ class _PerformancePageState extends State<PerformancePage> {
                         left: half - 0.5,
                         top: -2,
                         bottom: -2,
+                        // 中线:原 v1 米灰 #D8D3C7 → border 令牌。
                         child: Container(
-                            width: 1, color: const Color(0xFFD8D3C7)),
+                            width: 1, color: context.yucai.border),
                       ),
                       // 填充。
                       Positioned(
@@ -1219,12 +1221,12 @@ class _BenchmarkMiniBar extends StatelessWidget {
                 style: TextStyle(fontSize: 11, color: context.yucai.muted)),
           ]),
           const SizedBox(height: 8),
-          _row('我的组合', myAnnualized, isMine: true),
+          _row(context, '我的组合', myAnnualized, isMine: true),
           if (hasBench) ...[
             const SizedBox(height: 6),
-            _row(name, _benchAnnualized(), isMine: false),
+            _row(context, name, _benchAnnualized(), isMine: false),
             const SizedBox(height: 6),
-            _deltaRow(),
+            _deltaRow(context),
           ],
         ],
       ),
@@ -1244,18 +1246,19 @@ class _BenchmarkMiniBar extends StatelessWidget {
     return years < 1 ? cum : cum / years; // 年数 < 1 不放大(避免短期失真)
   }
 
-  Widget _deltaRow() {
+  Widget _deltaRow(BuildContext context) {
     final delta = myAnnualized - _benchAnnualized();
     return Padding(
       padding: const EdgeInsets.only(left: 60),
       child: Row(children: [
-        Text('超额', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+        Text('超额',
+            style: TextStyle(fontSize: 11, color: context.yucai.muted)),
         const Spacer(),
         Text(
           '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}%',
           style: TextStyle(
             fontSize: 12, fontWeight: FontWeight.w600,
-            color: delta >= 0 ? AppColors.positive : AppColors.negative,
+            color: delta >= 0 ? context.yucai.positive : context.yucai.negative,
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),
@@ -1263,15 +1266,18 @@ class _BenchmarkMiniBar extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, double pct, {required bool isMine}) {
+  Widget _row(BuildContext context, String label, double pct,
+      {required bool isMine}) {
     final pos = pct >= 0;
-    final fill = isMine ? (pos ? AppColors.accent : AppColors.negative) : AppColors.muted;
-    final valColor = pos ? AppColors.positive : AppColors.negative;
+    final fill = isMine
+        ? (pos ? context.yucai.accent : context.yucai.negative)
+        : context.yucai.muted;
+    final valColor = pos ? context.yucai.positive : context.yucai.negative;
     return Row(children: [
       SizedBox(width: 56, child: Text(label,
-          style: TextStyle(fontSize: 11, color: AppColors.muted))),
+          style: TextStyle(fontSize: 11, color: context.yucai.muted))),
       const SizedBox(width: 6),
-      Expanded(child: _track(pos, pct.abs(), fill)),
+      Expanded(child: _track(context, pos, pct.abs(), fill)),
       const SizedBox(width: 6),
       SizedBox(width: 52, child: Text(
         '${pos ? '+' : ''}${pct.toStringAsFixed(1)}%',
@@ -1283,7 +1289,7 @@ class _BenchmarkMiniBar extends StatelessWidget {
   }
 
   /// 中线对比条:track 底 + 中线(mid)+ fill 从中线向右(pos)/左(neg)。
-  Widget _track(bool pos, double absPct, Color fill) {
+  Widget _track(BuildContext context, bool pos, double absPct, Color fill) {
     final w = (absPct.clamp(0, 50) / 100); // fill 占 track 宽比例(最大 50%)
     return LayoutBuilder(builder: (ctx, c) {
       final mid = c.maxWidth / 2;
@@ -1293,12 +1299,12 @@ class _BenchmarkMiniBar extends StatelessWidget {
         child: Stack(children: [
           // track 底
           Positioned.fill(child: Container(
-            decoration: BoxDecoration(color: AppColors.bg,
+            decoration: BoxDecoration(color: context.yucai.bg,
                 borderRadius: BorderRadius.circular(4)),
           )),
           // 中线
           Positioned(left: mid - 0.5, top: 0, bottom: 0,
-              child: Container(width: 1, color: AppColors.border)),
+              child: Container(width: 1, color: context.yucai.border)),
           // fill:pos 从中线右,neg 从中线左
           Positioned(
             left: pos ? mid : mid - fillW,

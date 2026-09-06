@@ -10,7 +10,7 @@
 //   - [groupInt]           整数千分位（上述两者的基础）
 //
 // 设计原则：纯函数 + 无状态 widget，无图表库依赖（fl_chart 留给各图自身 import），
-// 便于复用与单测。颜色语义沿用 AppColors（与 _SummaryStrip / 交易列表一致）。
+// 便于复用与单测。颜色语义沿用 context.yucai（与 _SummaryStrip / 交易列表一致）。
 import 'package:flutter/material.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -33,7 +33,7 @@ class LegendDot extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Text(label,
-            style: const TextStyle(fontSize: 12, color: AppColors.fg)),
+            style: TextStyle(fontSize: 12, color: context.yucai.fg)),
       ],
     );
   }

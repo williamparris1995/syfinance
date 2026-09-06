@@ -96,6 +96,8 @@ class _ToastViewState extends State<_ToastView>
               decoration: BoxDecoration(
                 color: style.color,
                 borderRadius: AppRadius.smBorder,
+                // 黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值;
+                // toast 为悬浮 overlay,黑投影在两板均不刺眼。
                 boxShadow: const [
                   BoxShadow(
                       color: Color(0x33000000),
@@ -106,6 +108,8 @@ class _ToastViewState extends State<_ToastView>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // 白字/白 icon 落在类型色底上(固定 toast 面惯例,与
+                  // success/error 一致;瞬时提示,双板均可辨识)。
                   Icon(style.icon, color: Colors.white, size: 18),
                   const SizedBox(width: 8),
                   Flexible(
@@ -133,7 +137,10 @@ class _ToastViewState extends State<_ToastView>
       case ToastType.error:
         return _ToastStyle(context.yucai.negative, LucideIcons.circleAlert);
       case ToastType.warning:
-        return const _ToastStyle(Color(0xFFCF9B3A), LucideIcons.triangleAlert);
+        // F4-P2 裁决:原 v1 警示金 #CF9B3A → warn 语义令牌(亮 #D97706 琥珀 /
+        // 暗 #FBBF24 提亮档),与 success=positive / error=negative 同为
+        // 令牌取色;暗色下自动适配(非固定深面,故映射而非豁免)。
+        return _ToastStyle(context.yucai.warn, LucideIcons.triangleAlert);
     }
   }
 }

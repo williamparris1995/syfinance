@@ -1,7 +1,7 @@
 // 月度对比（fl_chart 1.x BarChart，本仓库首次使用）。报表分析页 §3。
 //
 // 数据：近 N（默认 6）个月 [MonthlySummary] 的 incomeCents / expenseCents，
-// 每月两根并排柱：收入(绿 AppColors.positive) + 支出(红 AppColors.negative)。
+// 每月两根并排柱：收入(绿 context.yucai.positive) + 支出(红 context.yucai.negative)。
 // 数据由 ReportPage 调用方并发拉取（Future.wait N 次 summary RPC）后传入。
 //
 // fl_chart 1.x BarChart API：
@@ -41,9 +41,9 @@ class MonthlyComparisonBar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _legend(),
+          _legend(context),
           const SizedBox(height: AppSpacing.sm),
-          SizedBox(height: height, child: _empty()),
+          SizedBox(height: height, child: _empty(context)),
         ],
       );
     }
@@ -56,7 +56,7 @@ class MonthlyComparisonBar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _legend(),
+        _legend(context),
         const SizedBox(height: AppSpacing.sm),
         SizedBox(
           height: height,
@@ -71,7 +71,7 @@ class MonthlyComparisonBar extends StatelessWidget {
                 drawVerticalLine: false,
                 horizontalInterval: yInterval,
                 getDrawingHorizontalLine: (v) => FlLine(
-                  color: AppColors.border.withValues(alpha: 0.7),
+                  color: context.yucai.border.withValues(alpha: 0.7),
                   strokeWidth: 1,
                 ),
               ),
@@ -82,7 +82,8 @@ class MonthlyComparisonBar extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 24,
-                    getTitlesWidget: (value, meta) => _bottomTitle(value),
+                    getTitlesWidget: (value, meta) =>
+                        _bottomTitle(context, value),
                   ),
                 ),
                 leftTitles: AxisTitles(
@@ -90,15 +91,18 @@ class MonthlyComparisonBar extends StatelessWidget {
                     showTitles: true,
                     reservedSize: 44,
                     interval: yInterval,
-                    getTitlesWidget: (value, meta) => _leftTitle(value),
+                    getTitlesWidget: (value, meta) => _leftTitle(context, value),
                   ),
                 ),
               ),
               borderData: FlBorderData(show: false),
               barTouchData: BarTouchData(
                 touchTooltipData: BarTouchTooltipData(
-                  getTooltipColor: (_) => AppColors.sidebar,
-                  getTooltipItem: (group, gi, rod, ri) => _tooltipItem(group, ri),
+                  // F4-P2 豁免:tooltip 为固定深色面(两主题一致,原 v1
+                  // sidebar 墨色),配固定浅灰字可辨识不刺眼,不随主题迁。
+                  getTooltipColor: (_) => const Color(0xFF0E1219),
+                  getTooltipItem: (group, gi, rod, ri) =>
+                      _tooltipItem(context, group, ri),
                   fitInsideHorizontally: true,
                   fitInsideVertically: true,
                 ),
@@ -109,8 +113,10 @@ class MonthlyComparisonBar extends StatelessWidget {
                     x: i,
                     barsSpace: 2,
                     barRods: [
-                      _rod(months[i].incomeCents / 100, AppColors.positive),
-                      _rod(months[i].expenseCents / 100, AppColors.negative),
+                      _rod(months[i].incomeCents / 100,
+                          context.yucai.positive),
+                      _rod(months[i].expenseCents / 100,
+                          context.yucai.negative),
                     ],
                   ),
               ],
@@ -133,27 +139,28 @@ class MonthlyComparisonBar extends StatelessWidget {
 
   // ───────────────────────── 轴标题 ─────────────────────────
 
-  Widget _bottomTitle(double value) {
+  Widget _bottomTitle(BuildContext context, double value) {
     final idx = value.round();
     if (idx < 0 || idx >= months.length) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Text('${months[idx].month}月',
-          style: const TextStyle(
-              fontSize: 10.5, color: AppColors.muted)),
+          style: TextStyle(
+              fontSize: 10.5, color: context.yucai.muted)),
     );
   }
 
-  Widget _leftTitle(double value) {
+  Widget _leftTitle(BuildContext context, double value) {
     if (value <= 0) return const SizedBox.shrink();
     return Text(compactYuan(value),
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 10.5,
-            color: AppColors.muted,
+            color: context.yucai.muted,
             fontFeatures: AppTypography.tabularFigures));
   }
 
-  BarTooltipItem _tooltipItem(BarChartGroupData group, int rodIndex) {
+  BarTooltipItem _tooltipItem(
+      BuildContext context, BarChartGroupData group, int rodIndex) {
     final idx = group.x;
     if (idx < 0 || idx >= months.length) {
       return BarTooltipItem('', const TextStyle());
@@ -161,10 +168,11 @@ class MonthlyComparisonBar extends StatelessWidget {
     final m = months[idx];
     final isIncome = rodIndex == 0;
     final cents = isIncome ? m.incomeCents : m.expenseCents;
-    final color = isIncome ? AppColors.positive : AppColors.negative;
+    final color = isIncome ? context.yucai.positive : context.yucai.negative;
     return BarTooltipItem(
       '${m.month}月  ',
-      const TextStyle(color: AppColors.sidebarFg, fontSize: 11),
+      // tooltip 固定深色面上的固定浅灰字(见 build 豁免注释)。
+      const TextStyle(color: Color(0xFFB8B5AD), fontSize: 11),
       children: [
         TextSpan(
           text: '${isIncome ? '收入' : '支出'}  ¥${fmtYuan(cents / 100)}',
@@ -180,31 +188,34 @@ class MonthlyComparisonBar extends StatelessWidget {
 
   // ───────────────────────── 图例 / 空态 ─────────────────────────
 
-  Widget _legend() {
-    return const Row(
+  Widget _legend(BuildContext context) {
+    return Row(
       children: [
-        LegendDot(color: AppColors.positive, label: '收入'),
-        SizedBox(width: AppSpacing.md),
-        LegendDot(color: AppColors.negative, label: '支出'),
+        LegendDot(color: context.yucai.positive, label: '收入'),
+        const SizedBox(width: AppSpacing.md),
+        LegendDot(color: context.yucai.negative, label: '支出'),
       ],
     );
   }
 
-  Widget _empty() {
+  Widget _empty(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: context.yucai.surfaceAlt,
         borderRadius: AppRadius.smBorder,
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        border:
+            Border.all(color: context.yucai.border.withValues(alpha: 0.7)),
       ),
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.barChart3, size: 22, color: AppColors.muted),
-            SizedBox(height: 6),
+            Icon(LucideIcons.barChart3,
+                size: 22, color: context.yucai.muted),
+            const SizedBox(height: 6),
             Text('暂无月度数据',
-                style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                style: TextStyle(
+                    fontSize: 12.5, color: context.yucai.muted)),
           ],
         ),
       ),

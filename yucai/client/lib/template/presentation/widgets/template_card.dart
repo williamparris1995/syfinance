@@ -28,7 +28,7 @@ class TemplateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = template;
-    final (dirLabel, dirColor) = _directionStyle(t.direction);
+    final (dirLabel, dirColor) = _directionStyle(context, t.direction);
     return DataCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -45,8 +45,8 @@ class TemplateCard extends StatelessWidget {
                         t.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.fg,
+                        style: TextStyle(
+                          color: context.yucai.fg,
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
@@ -77,8 +77,8 @@ class TemplateCard extends StatelessWidget {
                         templateCycleDisplay(t),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.muted,
+                        style: TextStyle(
+                          color: context.yucai.muted,
                           fontSize: 12.5,
                         ),
                       ),
@@ -90,13 +90,13 @@ class TemplateCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      const Icon(LucideIcons.calendarClock,
-                          size: 12, color: AppColors.muted),
+                      Icon(LucideIcons.calendarClock,
+                          size: 12, color: context.yucai.muted),
                       const SizedBox(width: 4),
                       Text(
                         '下次 ${t.nextDate}',
-                        style: const TextStyle(
-                          color: AppColors.muted,
+                        style: TextStyle(
+                          color: context.yucai.muted,
                           fontSize: 12,
                         ),
                       ),
@@ -111,16 +111,16 @@ class TemplateCard extends StatelessWidget {
                     runSpacing: 6,
                     children: [
                       if (t.autoRecord)
-                        const _StatusChip(
+                        _StatusChip(
                           icon: LucideIcons.zap,
                           label: '自动',
-                          color: AppColors.accent,
+                          color: context.yucai.accent,
                         ),
                       if (t.paused)
-                        const _StatusChip(
+                        _StatusChip(
                           icon: LucideIcons.pause,
                           label: '已暂停',
-                          color: AppColors.muted,
+                          color: context.yucai.muted,
                         ),
                     ],
                   ),
@@ -132,25 +132,25 @@ class TemplateCard extends StatelessWidget {
           _IconAction(
             tooltip: '立即记账',
             icon: LucideIcons.circlePlay,
-            color: AppColors.positive,
+            color: context.yucai.positive,
             onTap: t.paused ? null : onRecord,
           ),
           _IconAction(
             tooltip: t.paused ? '恢复' : '暂停',
             icon: t.paused ? LucideIcons.play : LucideIcons.pause,
-            color: AppColors.muted,
+            color: context.yucai.muted,
             onTap: onTogglePause,
           ),
           _IconAction(
             tooltip: '编辑',
             icon: LucideIcons.pencil,
-            color: AppColors.muted,
+            color: context.yucai.muted,
             onTap: onEdit,
           ),
           _IconAction(
             tooltip: '删除',
             icon: LucideIcons.trash2,
-            color: AppColors.negative,
+            color: context.yucai.negative,
             onTap: onDelete,
           ),
         ],
@@ -158,16 +158,18 @@ class TemplateCard extends StatelessWidget {
     );
   }
 
-  (String, Color) _directionStyle(TemplateDirection d) {
+  /// 方向语义色(F4-P2:context 化,暗色跟随主题)。
+  (String, Color) _directionStyle(
+      BuildContext context, TemplateDirection d) {
     switch (d) {
       case TemplateDirection.expense:
-        return ('支出', AppColors.negative);
+        return ('支出', context.yucai.negative);
       case TemplateDirection.income:
-        return ('收入', AppColors.positive);
+        return ('收入', context.yucai.positive);
       case TemplateDirection.transfer:
-        return ('转账', AppColors.accent);
+        return ('转账', context.yucai.accent);
       case TemplateDirection.unspecified:
-        return ('', AppColors.muted);
+        return ('', context.yucai.muted);
     }
   }
 }

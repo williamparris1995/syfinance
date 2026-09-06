@@ -838,7 +838,7 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
   Widget _holdingRow(Holding h) {
     final code = h.currency ?? 'CNY';
     final typeColor = h.securityType != null
-        ? (kHoldingTypeColors[h.securityType!] ?? context.yucai.accent)
+        ? holdingTypeColorOf(context, h.securityType!)
         : context.yucai.accent;
     final typeLabel = h.securityType != null
         ? (kHoldingTypeLabels[h.securityType!] ?? '')

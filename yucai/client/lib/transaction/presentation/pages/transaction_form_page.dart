@@ -1014,6 +1014,7 @@ class _OdCard extends StatelessWidget {
         color: context.yucai.surface,
         borderRadius: AppRadius.lgBorder,
         border: Border.all(color: context.yucai.border),
+        // 黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
         boxShadow: const [
           BoxShadow(
               color: Color(0x09000000),
@@ -1234,6 +1235,7 @@ class _TypeTabState extends State<_TypeTab> {
                 ? context.yucai.surface
                 : (_hover ? context.yucai.surfaceAlt : Colors.transparent),
             borderRadius: BorderRadius.circular(8),
+            // 黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
             boxShadow: selected
                 ? const [
                     BoxShadow(
@@ -1358,11 +1360,11 @@ class _HeroAmount extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _chip('+50', () => onQuickAdd?.call(5000)),
-              _chip('+100', () => onQuickAdd?.call(10000)),
-              _chip('+500', () => onQuickAdd?.call(50000)),
-              _chip('+1,000', () => onQuickAdd?.call(100000)),
-              _chip('清零', onClear, isClear: true),
+              _chip(context, '+50', () => onQuickAdd?.call(5000)),
+              _chip(context, '+100', () => onQuickAdd?.call(10000)),
+              _chip(context, '+500', () => onQuickAdd?.call(50000)),
+              _chip(context, '+1,000', () => onQuickAdd?.call(100000)),
+              _chip(context, '清零', onClear, isClear: true),
             ],
           ),
         ],
@@ -1370,7 +1372,9 @@ class _HeroAmount extends StatelessWidget {
     );
   }
 
-  Widget _chip(String label, VoidCallback? onTap, {bool isClear = false}) {
+  /// F4-P2:方法补 context 穿线。
+  Widget _chip(BuildContext context, String label, VoidCallback? onTap,
+      {bool isClear = false}) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -1378,14 +1382,14 @@ class _HeroAmount extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.border),
+            color: context.yucai.surface,
+            border: Border.all(color: context.yucai.border),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: isClear ? AppColors.muted : AppColors.fg,
+              color: isClear ? context.yucai.muted : context.yucai.fg,
               fontSize: 13,
               fontWeight: FontWeight.w500,
               fontFeatures: AppTypography.tabularFigures,
@@ -1463,7 +1467,8 @@ class _RealTagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = tagColor(tag.color);
+    // F4-P2:回退色注入主题 accent(暗色自动切鎏金)。
+    final c = tagColor(tag.color, fallback: context.yucai.accent);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -1545,6 +1550,7 @@ class _FormJournalPreview extends StatelessWidget {
         color: context.yucai.surface,
         borderRadius: AppRadius.lgBorder,
         border: Border.all(color: context.yucai.border),
+        // 黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
         boxShadow: const [
           BoxShadow(
               color: Color(0x09000000), blurRadius: 20, offset: Offset(0, 6)),

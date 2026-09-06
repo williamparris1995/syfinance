@@ -404,7 +404,7 @@ class _CreditCardStats extends StatelessWidget {
     final balance = acct.currentBalanceCents;
     final util = limit > 0 ? (balance / limit).clamp(0.0, 1.0) : null;
     final utilPct = util == null ? null : (util * 100).toStringAsFixed(1);
-    final utilColor = _utilizationColor(util);
+    final utilColor = _utilizationColor(context, util);
     final preferred = _preferredOf(context);
     final stats = <DebtStatCardData>[
       DebtStatCardData(
@@ -454,11 +454,13 @@ class _CreditCardStats extends StatelessWidget {
     return bloc.state.preferred;
   }
 
-  Color? _utilizationColor(double? util) {
+  /// 利用率三档语义色:健康绿 / 适中 accent / 偏高红(F4-P2:context 化,
+  /// 暗色跟随主题)。
+  Color? _utilizationColor(BuildContext context, double? util) {
     if (util == null) return null;
-    if (util < 0.30) return AppColors.positive;
-    if (util < 0.70) return AppColors.accent;
-    return AppColors.negative;
+    if (util < 0.30) return context.yucai.positive;
+    if (util < 0.70) return context.yucai.accent;
+    return context.yucai.negative;
   }
 
   String _utilizationLabel(double? util) {

@@ -196,7 +196,9 @@ class _PageShell extends StatelessWidget {
 ///   - 任一分录账户 = Expense → 支出色(negative/红)
 ///   - 任一分录账户 = Income  → 收入色(positive/绿)
 ///   - 仅 Asset(SimpleTransfer) → 中性(fg)
-Color amountColorOf(Transaction txn, AccountType? Function(String) accountTypeOf) {
+/// F4-P2:顶层函数无 context → 补形参穿线;三档语义色走 context.yucai。
+Color amountColorOf(BuildContext context, Transaction txn,
+    AccountType? Function(String) accountTypeOf) {
   bool hasExpense = false;
   bool hasIncome = false;
   bool onlyAssetOrUnknown = true;
@@ -212,10 +214,10 @@ Color amountColorOf(Transaction txn, AccountType? Function(String) accountTypeOf
       onlyAssetOrUnknown = false;
     }
   }
-  if (hasExpense) return AppColors.negative;
-  if (hasIncome) return AppColors.positive;
-  if (onlyAssetOrUnknown) return AppColors.fg;
-  return AppColors.fg;
+  if (hasExpense) return context.yucai.negative;
+  if (hasIncome) return context.yucai.positive;
+  if (onlyAssetOrUnknown) return context.yucai.fg;
+  return context.yucai.fg;
 }
 
 /// 主交易的「支付方式」资产账户 —— expense/income 取贷方/借方资产腿，
@@ -319,14 +321,15 @@ class _DetailContent extends StatelessWidget {
 
   // ───────────────────────── col1 交易概要 ─────────────────────────
 
-  Widget _summary() {
-    final amountColor = amountColorOf(txn, accountTypeOf);
+  Widget _summary(BuildContext context) {
+    final amountColor = amountColorOf(context, txn, accountTypeOf);
     final flavour = inferFlavour(txn);
-    final isExpense = amountColor == AppColors.negative;
-    final chipColor = isExpense ? AppColors.negative : AppColors.positive;
+    final isExpense = amountColor == context.yucai.negative;
+    final chipColor =
+        isExpense ? context.yucai.negative : context.yucai.positive;
     final chipLabel = isExpense
         ? '支出'
-        : (amountColor == AppColors.positive ? '收入' : flavour.label);
+        : (amountColor == context.yucai.positive ? '收入' : flavour.label);
     final txnIdShort = txn.id.isEmpty
         ? ''
         : (txn.id.length > 12 ? txn.id.substring(0, 12) : txn.id);
@@ -336,9 +339,10 @@ class _DetailContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(LucideIcons.receipt, size: 16, color: AppColors.accent),
-              SizedBox(width: AppSpacing.sm),
+            children: [
+              Icon(LucideIcons.receipt,
+                  size: 16, color: context.yucai.accent),
+              const SizedBox(width: AppSpacing.sm),
               Text('交易概要',
                   style: TextStyle(
                       fontSize: 14,
@@ -351,7 +355,7 @@ class _DetailContent extends StatelessWidget {
             const SizedBox(height: 2),
             Text('TX-$txnIdShort',
                 style: TextStyle(
-                    color: AppColors.muted,
+                    color: context.yucai.muted,
                     fontSize: 11,
                     letterSpacing: 0.5,
                     fontFeatures: AppTypography.tabularFigures)),
@@ -367,7 +371,7 @@ class _DetailContent extends StatelessWidget {
               Text('¥',
                   style: TextStyle(
                     fontSize: 20,
-                    color: AppColors.muted,
+                    color: context.yucai.muted,
                     fontFamily: AppTypography.displayFamily,
                     fontFamilyFallback: AppTypography.displayFallback,
                   )),
@@ -588,7 +592,7 @@ class _DetailContent extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 115, child: _summary()),
+              Expanded(flex: 115, child: _summary(context)),
               const SizedBox(width: AppSpacing.md),
               Expanded(flex: 100, child: _journal()),
               const SizedBox(width: AppSpacing.md),
@@ -618,7 +622,7 @@ class _DetailContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _summary(),
+                    _summary(context),
                     const SizedBox(height: AppSpacing.md),
                     _journal(),
                   ],
@@ -649,7 +653,7 @@ class _DetailContent extends StatelessWidget {
           AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xl),
       children: [
         _pageHead(context),
-        _summary(),
+        _summary(context),
         const SizedBox(height: AppSpacing.md),
         _journal(),
         const SizedBox(height: AppSpacing.md),
@@ -875,8 +879,9 @@ class _DetailTagChips extends StatelessWidget {
   const _DetailTagChips({required this.tags});
   final List<Tag> tags;
 
-  Widget _chip(Tag t) {
-    final c = tagColor(t.color);
+  /// F4-P2:回退色注入主题 accent;方法补 context 穿线。
+  Widget _chip(BuildContext context, Tag t) {
+    final c = tagColor(t.color, fallback: context.yucai.accent);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -892,7 +897,7 @@ class _DetailTagChips extends StatelessWidget {
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      children: [for (final t in tags) _chip(t)],
+      children: [for (final t in tags) _chip(context, t)],
     );
   }
 }

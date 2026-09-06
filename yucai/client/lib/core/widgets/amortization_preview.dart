@@ -84,7 +84,8 @@ class AmortizationPreviewRow {
 /// 卡内自带的固定内景色(卡面渐变 #1F2228/#262A31、白系文本、表头 #6F747C、
 /// tag 底 #12FFFFFF、行分隔 #0DFFFFFF、金额金 #E8C894 等)**不随主题迁**——
 /// 固定深底上亮暗两态均可辨识且不刺眼;辅助说明文字走 context.yucai.muted
-/// (暗色下自动提亮一档)。
+/// (暗色下自动提亮一档)。卡面投影 #17000000(黑 9%)系黑阴影——暗色墨黑
+/// 底上天然不可见,恰好等效 v2 暗色「无阴影」设计,保原值不迁。
 class AmortizationPreview extends StatelessWidget {
   const AmortizationPreview({
     super.key,

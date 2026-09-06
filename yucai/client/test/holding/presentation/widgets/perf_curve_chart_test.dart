@@ -153,7 +153,7 @@ void main() {
   });
 
   testWidgets(
-      'Task 2: benchmark 灰虚线 — barWidth 1.4, color #8A8A8A, dashArray [4,3]',
+      'Task 2: benchmark 灰虚线 — barWidth 1.4, muted 令牌色, dashArray [4,3]',
       (t) async {
     await t.pumpWidget(_routed(PerfCurveChart(
       points: [
@@ -169,7 +169,8 @@ void main() {
 
     final chart = t.widget<LineChart>(find.byType(LineChart));
     final benchBar = chart.data.lineBarsData[1];
-    expect(benchBar.color, const Color(0xFF8A8A8A));
+    // F4-P2:基准灰 #8A8A8A → muted 令牌(裸 MaterialApp 回落亮板 #64748B)。
+    expect(benchBar.color, const Color(0xFF64748B));
     expect(benchBar.barWidth, 1.4);
     expect(benchBar.dashArray, [4, 3]);
     // portfolio barWidth 1.8(主位更粗)。

@@ -759,12 +759,14 @@ void main() {
     ));
     await t.pumpAndSettle();
 
-    // 超支:header period 颜色 = 支出红(_kExpenseColor=0xFFD4726E),非默认
-    // muted —— 超支信号在 header period 也体现(不止 footer 文案)。
+    // 超支:header period 颜色 = 语义支出红(context.yucai.negative;裸
+    // MaterialApp 回落 YucaiTheme.light() → v2 亮板 negative #E11D48;
+    // F4-P2 由 _kExpenseColor=0xFFD4726E 令牌化改断言,非删测),
+    // 非默认 muted —— 超支信号在 header period 也体现(不止 footer 文案)。
     final period = find.byWidgetPredicate(
         (w) => w is Text && (w.data ?? '').startsWith('已用'));
     expect(period, findsOneWidget);
-    expect(t.widget<Text>(period).style?.color, const Color(0xFFD4726E));
+    expect(t.widget<Text>(period).style?.color, const Color(0xFFE11D48));
   });
 
   testWidgets('目标卡:已完成(current>=target)→ footLeft 显「目标已达成」(I4)',

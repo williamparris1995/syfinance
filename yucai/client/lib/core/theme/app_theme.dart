@@ -83,6 +83,8 @@ class AppTheme {
         color: t.surface,
         elevation: isDark ? 0 : 4,
         // 晨白柔阴影;墨鎏金 0 晕 + 描边分层。
+        // F4-P2 黑阴影豁免(暗色 elevation=0 天然不可见,等效 v2 暗色「无
+        // 阴影」;同 debt_list_widgets 口径,fix round 1 补进豁免清单)。
         shadowColor: const Color(0x0D0F172A),
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.lgBorder),

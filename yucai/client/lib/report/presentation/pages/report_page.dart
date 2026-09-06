@@ -389,16 +389,17 @@ class _PeriodSegmented extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _segment('月', scope == SummaryScope.month,
+          _segment(context, '月', scope == SummaryScope.month,
               () => onChanged(SummaryScope.month)),
-          _segment('年', scope == SummaryScope.year,
+          _segment(context, '年', scope == SummaryScope.year,
               () => onChanged(SummaryScope.year)),
         ],
       ),
     );
   }
 
-  Widget _segment(String label, bool selected, VoidCallback onTap) {
+  Widget _segment(
+      BuildContext context, String label, bool selected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: MouseRegion(
@@ -407,7 +408,7 @@ class _PeriodSegmented extends StatelessWidget {
           duration: const Duration(milliseconds: 140),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
           decoration: BoxDecoration(
-            color: selected ? AppColors.accent : Colors.transparent,
+            color: selected ? context.yucai.accent : Colors.transparent,
             borderRadius: AppRadius.smBorder,
           ),
           child: Text(
@@ -415,7 +416,8 @@ class _PeriodSegmented extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: selected ? Colors.white : AppColors.muted,
+              // 选中字 = onAccent(亮=白 / 暗=鎏金深墨,随 accent 双板)。
+              color: selected ? context.yucai.onAccent : context.yucai.muted,
             ),
           ),
         ),
@@ -450,7 +452,7 @@ class _SummaryStrip extends StatelessWidget {
               _Stat('收入', summary.incomeCents, context.yucai.positive),
               _Stat('支出', summary.expenseCents, context.yucai.negative),
               _Stat(
-                  '结余', summary.netCents, _netColor(summary.netCents)),
+                  '结余', summary.netCents, _netColor(context, summary.netCents)),
               _Stat('日均', summary.dailyAvgCents, context.yucai.fg),
             ];
             if (wide) {
@@ -481,8 +483,8 @@ class _SummaryStrip extends StatelessWidget {
     );
   }
 
-  Color _netColor(int cents) =>
-      cents >= 0 ? AppColors.positive : AppColors.negative;
+  Color _netColor(BuildContext context, int cents) =>
+      cents >= 0 ? context.yucai.positive : context.yucai.negative;
 }
 
 class _Stat {

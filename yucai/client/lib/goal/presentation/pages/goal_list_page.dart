@@ -362,7 +362,8 @@ class _FilterChipState extends State<_FilterChip> {
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
-    final typeMeta = widget.data.type != null ? _typeMeta(widget.data.type!) : null;
+    final typeMeta =
+        widget.data.type != null ? _typeMeta(context, widget.data.type!) : null;
     final iconColor = typeMeta?.color ?? context.yucai.accent;
     final bg = selected
         ? context.yucai.accent
@@ -499,7 +500,7 @@ class _GoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final meta = _typeMeta(goal.type);
+    final meta = _typeMeta(context, goal.type);
     final pct = goal.progressPct;
     final ringValue = (pct / 100).clamp(0.0, 1.0);
     final pctLabel = '${pct.toStringAsFixed(0)}%';
@@ -685,28 +686,31 @@ class _TypeMeta {
 
 /// 类型 → 徽章元数据。对齐 OD 原型 mock-data.js GOAL_TYPES:
 /// savings(金 piggyBank)/ debtPayoff(红 creditCard)/ investment(绿 trendingUp)。
-_TypeMeta _typeMeta(GoalType type) {
+///
+/// F4-P2:三色均为语义位(accent/negative/positive)→ context.yucai 解析
+/// (顶层函数无 context → 补形参穿线;const 因令牌化失效去 const)。
+_TypeMeta _typeMeta(BuildContext context, GoalType type) {
   switch (type) {
     case GoalType.savings:
-      return const _TypeMeta(
+      return _TypeMeta(
         key: 'savings',
         label: '储蓄目标',
         icon: LucideIcons.piggyBank,
-        color: AppColors.accent,
+        color: context.yucai.accent,
       );
     case GoalType.debtPayoff:
-      return const _TypeMeta(
+      return _TypeMeta(
         key: 'debtPayoff',
         label: '债务清偿',
         icon: LucideIcons.creditCard,
-        color: AppColors.negative,
+        color: context.yucai.negative,
       );
     case GoalType.investment:
-      return const _TypeMeta(
+      return _TypeMeta(
         key: 'investment',
         label: '投资目标',
         icon: LucideIcons.trendingUp,
-        color: AppColors.positive,
+        color: context.yucai.positive,
       );
   }
 }

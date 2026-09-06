@@ -30,8 +30,8 @@ class BackupCard extends StatelessWidget {
               children: [
                 Text(
                   backup.filename,
-                  style: const TextStyle(
-                    color: AppColors.fg,
+                  style: TextStyle(
+                    color: context.yucai.fg,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
@@ -42,29 +42,29 @@ class BackupCard extends StatelessWidget {
                     spacing: 6,
                     runSpacing: 4,
                     children: [
-                      if (backup.auto) _chip('自动'),
-                      if (backup.encrypted) _chip('加密'),
+                      if (backup.auto) _chip(context, '自动'),
+                      if (backup.encrypted) _chip(context, '加密'),
                     ],
                   ),
                 ],
                 const SizedBox(height: 6),
                 Text(
                   '${backup.sizeDisplay} · ${_fmtDate(backup.createdAt)}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                  style: TextStyle(color: context.yucai.muted, fontSize: 12),
                 ),
               ],
             ),
           ),
           IconButton(
             tooltip: '恢复',
-            icon: const Icon(LucideIcons.rotateCcw,
-                size: 18, color: AppColors.muted),
+            icon: Icon(LucideIcons.rotateCcw,
+                size: 18, color: context.yucai.muted),
             onPressed: onRestore,
           ),
           IconButton(
             tooltip: '删除',
-            icon: const Icon(LucideIcons.trash2,
-                size: 18, color: AppColors.muted),
+            icon: Icon(LucideIcons.trash2,
+                size: 18, color: context.yucai.muted),
             onPressed: onDelete,
           ),
         ],
@@ -72,16 +72,16 @@ class BackupCard extends StatelessWidget {
     );
   }
 
-  Widget _chip(String label) {
+  Widget _chip(BuildContext context, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: const BoxDecoration(
-        color: AppColors.accentSoft,
+      decoration: BoxDecoration(
+        color: context.yucai.accentSoft,
         borderRadius: AppRadius.smBorder,
       ),
       child: Text(
         label,
-        style: const TextStyle(color: AppColors.fg, fontSize: 11),
+        style: TextStyle(color: context.yucai.fg, fontSize: 11),
       ),
     );
   }

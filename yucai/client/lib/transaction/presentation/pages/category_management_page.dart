@@ -333,16 +333,17 @@ class _PrimaryButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: context.yucai.accent,
             borderRadius: AppRadius.smBorder,
-            boxShadow: const [
+            boxShadow: [
+              // 原 v1 金投影 #33B08D57 → accent 令牌 20% 派生,暗色跟随鎏金。
               BoxShadow(
-                color: Color(0x33B08D57),
+                color: context.yucai.accent.withValues(alpha: 0.20),
                 blurRadius: 8,
-                offset: Offset(0, 2),
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 15, color: Colors.white),
+            Icon(icon, size: 15, color: context.yucai.onAccent),
             const SizedBox(width: 6),
             Text(label,
                 style: const TextStyle(
@@ -561,6 +562,7 @@ class _SegItem extends StatelessWidget {
             decoration: BoxDecoration(
               color: selected ? context.yucai.surface : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
+              // 黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
               boxShadow: selected
                   ? const [BoxShadow(color: Color(0x14000000), blurRadius: 2)]
                   : null,
@@ -934,7 +936,8 @@ class _ListPanel extends StatelessWidget {
               onPressed: () => Navigator.pop(d),
               child: const Text('取消')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.negative),
+            style: FilledButton.styleFrom(
+                backgroundColor: d.yucai.negative),
             onPressed: () {
               Navigator.pop(d);
               ctx.read<CategoryBloc>().add(DeleteCategoryRequested(item.id));
@@ -1191,7 +1194,7 @@ class _EmojiCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = _colorOf(color);
+    final c = _colorOf(context, color);
     return Container(
       width: size,
       height: size,
@@ -1201,7 +1204,7 @@ class _EmojiCircle extends StatelessWidget {
         border: Border.all(color: c.withValues(alpha: 0.22), width: 1),
       ),
       alignment: Alignment.center,
-      child: _iconContent(icon, color, size * 0.55),
+      child: _iconContent(context, icon, color, size * 0.55),
     );
   }
 }
@@ -1609,7 +1612,7 @@ class _Preview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = _colorOf(color);
+    final c = _colorOf(context, color);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm + 2),
       decoration: BoxDecoration(
@@ -1627,7 +1630,7 @@ class _Preview extends StatelessWidget {
             border: Border.all(color: c.withValues(alpha: 0.24), width: 1),
           ),
           alignment: Alignment.center,
-          child: _iconContent(icon, color, 26),
+          child: _iconContent(context, icon, color, 26),
         ),
         const SizedBox(width: AppSpacing.sm + 2),
         Expanded(
@@ -1802,18 +1805,19 @@ class _ColorRow extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: _colorOf(hex),
+                  color: _colorOf(context, hex),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: _isSelected(hex, value)
-                        ? _colorOf(hex)
+                        ? _colorOf(context, hex)
                         : context.yucai.border,
                     width: _isSelected(hex, value) ? 3 : 1,
                   ),
                   boxShadow: _isSelected(hex, value)
                       ? [
                           BoxShadow(
-                            color: _colorOf(hex).withValues(alpha: 0.35),
+                            color: _colorOf(context, hex)
+                                .withValues(alpha: 0.35),
                             blurRadius: 0,
                             spreadRadius: 2,
                           ),
@@ -1931,15 +1935,18 @@ String _fmtMoney(int cents) {
 
 /// Renders the leading icon: emoji text when [icon] is an emoji, else the
 /// default label glyph tinted by [color].
-Widget _iconContent(String icon, String color, double size) {
+Widget _iconContent(
+    BuildContext context, String icon, String color, double size) {
   final isEmoji = icon.isNotEmpty && icon.runes.first > 0x2000;
   return isEmoji
       ? Text(icon, style: TextStyle(fontSize: size * 0.95))
-      : Icon(LucideIcons.tag, size: size, color: _colorOf(color));
+      : Icon(LucideIcons.tag, size: size, color: _colorOf(context, color));
 }
 
-Color _colorOf(String hex) {
-  if (hex.isEmpty || !hex.startsWith('#')) return AppColors.accent;
+/// F4-P2:#RRGGBB 解析失败回退调用方注入的主题 accent(原静态亮值会在
+/// 暗色下漏翡翠绿;顶层函数补 context 形参,调用点穿线)。
+Color _colorOf(BuildContext context, String hex) {
+  if (hex.isEmpty || !hex.startsWith('#')) return context.yucai.accent;
   final v = int.tryParse(hex.substring(1), radix: 16);
-  return v == null ? AppColors.accent : Color(0xFF000000 | v);
+  return v == null ? context.yucai.accent : Color(0xFF000000 | v);
 }

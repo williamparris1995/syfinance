@@ -48,6 +48,9 @@ class _DataCardState extends State<DataCard> {
             color: context.yucai.surface,
             borderRadius: AppRadius.lgBorder,
             border: Border.all(color: context.yucai.border),
+            // F4-P2 黑阴影豁免复用论证(同 debt_list_widgets 口径):
+            // #14/#08 000000(黑 8%/3%)投影在暗色墨黑底上天然不可见,恰好
+            // 等效 v2 暗色「无阴影」设计;改 fg 透导会引入白辉光,保原值不迁。
             boxShadow: [
               BoxShadow(
                 color: _hover

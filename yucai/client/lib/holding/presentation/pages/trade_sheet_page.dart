@@ -44,38 +44,43 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 
 // OD 类型色(design-output/holding/styles.css:524-527)。
 // buy=金 / sell=红 / dividend=绿 / split=蓝灰;soft 为各色浅背景。
-// split 色无 AppColors 对应,故局部常量(_kSplitColor/_kSplitSoft)。
-const _kSplitColor = Color(0xFF6B7A8F);
-const _kSplitSoft = Color(0xFFE7EAEF);
+//
+// F4-P2:三色走 context.yucai 语义令牌(暗色跟随);split 蓝灰 = holding
+// 债券(bond)灰蓝同值 —— 复用 [holdingTypeColorOf] 类型序列色(暗板自动
+// 提亮一档,原局部常量 #6B7A8F 的亮板值保留在 kHoldingTypeColors.bond 槽),
+// 顶层函数无 context → 补形参穿线(调用点全量更新)。
 
 /// 类型主色:seg selected 底色 + 金额数字色(对齐 OD amt-row.t-{type})。
-Color _tradeTypeColor(TradeType t) {
+Color _tradeTypeColor(BuildContext context, TradeType t) {
   switch (t) {
     case TradeType.buy:
-      return AppColors.accent; // 金
+      return context.yucai.accent; // 金(暗色=鎏金)
     case TradeType.sell:
-      return AppColors.negative; // 红
+      return context.yucai.negative; // 红
     case TradeType.dividend:
-      return AppColors.positive; // 绿
+      return context.yucai.positive; // 绿
     case TradeType.split:
-      return _kSplitColor; // 蓝灰
+      return holdingTypeColorOf(context, SecurityType.bond); // 蓝灰(复用序列色)
   }
 }
 
 /// 类型浅背景色:容器 soft 底色(对齐 OD *-soft)。
-Color _tradeTypeSoft(TradeType t) {
+Color _tradeTypeSoft(BuildContext context, TradeType t) {
   switch (t) {
     case TradeType.buy:
-      return AppColors.accentSoft;
+      return context.yucai.accentSoft;
     case TradeType.sell:
-      return AppColors.negative.withValues(alpha: 0.10);
+      return context.yucai.negative.withValues(alpha: 0.10);
     case TradeType.dividend:
-      return AppColors.positive.withValues(alpha: 0.10);
+      return context.yucai.positive.withValues(alpha: 0.10);
     case TradeType.split:
-      return _kSplitSoft;
+      // 原 #E7EAEF 亮板近白软底 → 主色 10% 派生,暗色下呈微亮底不刺眼。
+      return holdingTypeColorOf(context, SecurityType.bond)
+          .withValues(alpha: 0.10);
   }
 }
 
@@ -660,12 +665,13 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         key: const ValueKey('splitPreview'),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: _tradeTypeSoft(TradeType.split),
+          color: _tradeTypeSoft(context, TradeType.split),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            Icon(LucideIcons.info, size: 16, color: _kSplitColor),
+            Icon(LucideIcons.info, size: 16,
+                color: holdingTypeColorOf(context, SecurityType.bond)),
             SizedBox(width: 8),
             Expanded(
               child: Text('无现金流 · 仅调整持有量与成本',
@@ -683,7 +689,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
             ? '卖出净额(扣费用)'
             : '分红总额';
     // amtColor:类型色(对齐 OD amt-row.t-{type},资金流向语义让位类型色)。
-    final amtColor = _tradeTypeColor(_type);
+    final amtColor = _tradeTypeColor(context, _type);
 
     return Container(
       key: const ValueKey('livePreview'),
@@ -783,11 +789,12 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         padding: const EdgeInsets.symmetric(vertical: 14),
       ),
       child: submitting
-          ? const SizedBox(
+          ? SizedBox(
               height: 18,
               width: 18,
+              // FilledButton 底 = accent(暗=鎏金),spinner 用 onAccent 反色。
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
+                  strokeWidth: 2, color: context.yucai.onAccent),
             )
           : Text(_submitLabel),
     );
@@ -878,9 +885,11 @@ class _TypeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _tradeTypeColor(type);
+    final color = _tradeTypeColor(context, type);
     final bg = selected ? color : context.yucai.surface;
-    final fg = selected ? Colors.white : context.yucai.muted;
+    // 选中字色 = bg 反色(亮=近白同原观感 / 暗=墨黑):暗色类型色为提亮档,
+    // 硬白字在鎏金/亮红上对比不足,bg 反色两板均可辨识。
+    final fg = selected ? context.yucai.bg : context.yucai.muted;
     final border = selected ? color : context.yucai.border;
     return MouseRegion(
       cursor: SystemMouseCursors.click,

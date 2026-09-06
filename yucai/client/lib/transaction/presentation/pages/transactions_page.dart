@@ -868,7 +868,7 @@ class _TxTableRow extends StatelessWidget {
                 child: Text(
                   _formatCents(amount, signed: true),
                   style: TextStyle(
-                    color: _amountColor(flavour),
+                    color: _amountColor(context, flavour),
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     fontFeatures: AppTypography.tabularFigures,
@@ -1035,33 +1035,35 @@ class _TxIconBox extends StatelessWidget {
   final Account? category;
   final String description;
 
-  (Color, Color, IconData) get _styling {
+  /// F4-P2:原 getter 改方法补 context 收线;icon 底由语义令牌 10% 派生
+  /// (原 v1 绿/红 10% 透底,暗色跟随主题)。
+  (Color, Color, IconData) _styling(BuildContext context) {
     // icon 对齐 OD thin-stroke per-category lucide（餐饮 utensils / 购物
     // shopping-bag / 交通 car / 工资 banknote …）；传入 description 让同名分类
     // 下不同商户也能差异化（餐饮+星巴克 → coffee，餐饮+望江楼 → utensils）。
     switch (flavour) {
       case TxnFlavour.income:
         return (
-          AppColors.positive,
-          const Color(0x1A2D8A6E),
+          context.yucai.positive,
+          context.yucai.positive.withValues(alpha: 0.10),
           txnCategoryIcon(flavour, category, description: description),
         );
       case TxnFlavour.expense:
         return (
-          AppColors.negative,
-          const Color(0x1AC4544D),
+          context.yucai.negative,
+          context.yucai.negative.withValues(alpha: 0.10),
           txnCategoryIcon(flavour, category, description: description),
         );
       case TxnFlavour.transfer:
-        return (AppColors.accent, AppColors.accentSoft, LucideIcons.arrowLeftRight);
+        return (context.yucai.accent, context.yucai.accentSoft, LucideIcons.arrowLeftRight);
       case TxnFlavour.compound:
-        return (AppColors.accent, AppColors.accentSoft, LucideIcons.receipt);
+        return (context.yucai.accent, context.yucai.accentSoft, LucideIcons.receipt);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final (fg, bg, icon) = _styling;
+    final (fg, bg, icon) = _styling(context);
     return Container(
       width: 34,
       height: 34,
@@ -1089,9 +1091,12 @@ class _CategoryChip extends StatelessWidget {
     final fg = isIncomeType
         ? context.yucai.positive
         : (isExpenseType ? context.yucai.negative : context.yucai.muted);
+    // chip 底由语义令牌 10% 派生(原 v1 绿/红 10% 透底,暗色跟随主题)。
     final bg = isIncomeType
-        ? const Color(0x1A2D8A6E)
-        : (isExpenseType ? const Color(0x1AC4544D) : context.yucai.surfaceAlt);
+        ? context.yucai.positive.withValues(alpha: 0.10)
+        : (isExpenseType
+            ? context.yucai.negative.withValues(alpha: 0.10)
+            : context.yucai.surfaceAlt);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -1502,7 +1507,7 @@ class _MobileTxnCard extends StatelessWidget {
                 Text(
                   _formatCents(amount, signed: true),
                   style: TextStyle(
-                    color: _amountColor(flavour),
+                    color: _amountColor(context, flavour),
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     fontFeatures: AppTypography.tabularFigures,
@@ -1632,15 +1637,16 @@ String _formatCents(int cents, {bool signed = false}) {
   return '$sign¥$yuan.$frac';
 }
 
-Color _amountColor(TxnFlavour f) {
+/// F4-P2:顶层函数无 context → 补形参穿线;语义色走 context.yucai。
+Color _amountColor(BuildContext context, TxnFlavour f) {
   switch (f) {
     case TxnFlavour.income:
-      return AppColors.positive;
+      return context.yucai.positive;
     case TxnFlavour.expense:
-      return AppColors.negative;
+      return context.yucai.negative;
     case TxnFlavour.transfer:
     case TxnFlavour.compound:
-      return AppColors.fg;
+      return context.yucai.fg;
   }
 }
 

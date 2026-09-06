@@ -26,7 +26,9 @@ class TagCard extends StatelessWidget {
   /// 整卡 tap(F8 FR-3 标签反查入口);null = 无跳转语义。
   final VoidCallback? onOpen;
 
-  Color get _color => tagColor(tag.color);
+  /// 标签色:#RRGGBB 解析,失败回退主题 accent(F4-P2:fallback 注入令牌)。
+  Color _color(BuildContext context) => tagColor(tag.color,
+      fallback: context.yucai.accent);
 
   @override
   Widget build(BuildContext context) {
@@ -34,13 +36,13 @@ class TagCard extends StatelessWidget {
       onTap: onOpen,
       child: Row(
         children: [
-          Container(width: 14, height: 14, decoration: BoxDecoration(color: _color, shape: BoxShape.circle)),
+          Container(width: 14, height: 14, decoration: BoxDecoration(color: _color(context), shape: BoxShape.circle)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text(tag.name, style: const TextStyle(color: AppColors.fg, fontSize: 15, fontWeight: FontWeight.w600)),
+            child: Text(tag.name, style: TextStyle(color: context.yucai.fg, fontSize: 15, fontWeight: FontWeight.w600)),
           ),
-          IconButton(tooltip: '编辑', icon: const Icon(LucideIcons.pencil, size: 18, color: AppColors.muted), onPressed: onEdit),
-          IconButton(tooltip: '删除', icon: const Icon(LucideIcons.trash2, size: 18, color: AppColors.muted), onPressed: onDelete),
+          IconButton(tooltip: '编辑', icon: Icon(LucideIcons.pencil, size: 18, color: context.yucai.muted), onPressed: onEdit),
+          IconButton(tooltip: '删除', icon: Icon(LucideIcons.trash2, size: 18, color: context.yucai.muted), onPressed: onDelete),
         ],
       ),
     );
