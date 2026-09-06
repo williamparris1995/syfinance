@@ -29,11 +29,11 @@
 
 ## Sprint roster(建议)
 
-- [ ] sprint-1 同步引擎地基:F16 → F17(server 硬化→client 接入,依赖序)
+- [ ] sprint-1 同步引擎地基:F16(进行中)→ F17(server 硬化→client 接入,依赖序)
 - [ ] sprint-2 冲突与合并:F18 → F19 → F20
 
 ## done-criteria
 
 五 feature 全 done + 双设备同步 e2e 绿 + 契约切片(若破坏性)+ R9 人工验收补记 + 单设备回归门全绿。
 
-## status: pending-planning(待用户确认分解后激活)
+## status: active(2026-09-03 分解确认,sprint-1 启动)
