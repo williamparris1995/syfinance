@@ -9,7 +9,7 @@ server 同步核心硬化(并发序列化/设备身份/PullChanges 业务表/冲
 ## Feature roster(依赖排序)
 
 - [x] **feature F16** server-sync-hardening — server 同步核心硬化 ✅ done(2026-09-03,merge `d9dc34ec`;版本序列化[唯一约束+重试,PG 并发实证]/设备身份[幂等+硬化]/PullChanges 真分页/冲突检测跳过制[双 payload]/mapError 保真/ADR-5 复合PK不迁移;8 硬伤清账[6 修 2 F11 已修];TDD 54 新测;顺手修 4 存量缺陷;契约登记)
-- [ ] **feature F17** client-device-pull — client 设备身份与拉取
+- [ ] **feature F17** client-device-pull — client 设备身份与拉取(claimed: zcode-r10-f17 2026-09-03)
 
 ## defer
 
