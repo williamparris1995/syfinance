@@ -51,12 +51,15 @@ func (SyncLog) Indexes() []ent.Index {
 		//
 		// Migration note: there is no production migration tool — the wire
 		// provider (wire/providers.go provideSyncEntClient) runs ent's
-		// Schema.Create auto-migration at startup, which creates missing
-		// indexes (CREATE UNIQUE INDEX IF NOT EXISTS). On a DEPLOYED database
-		// whose sync_log already carries duplicate (tenant_id, version) rows
-		// (possible only from the pre-fix race window), index creation fails
-		// at startup — operators must deduplicate before upgrading. Fresh and
-		// test databases (all schemas created anew) are unaffected.
+		// Schema.Create auto-migration at startup. CAVEAT (holistic review):
+		// on a DEPLOYED database where the pre-fix NON-unique index of the
+		// same name already exists, ent auto-migration SILENTLY SKIPS the
+		// new unique definition (it sees the same-name index and keeps it)
+		// — the race window stays open with no error. Operators upgrading a
+		// pre-fix deployment must drop the old synclog_tenant_id_version
+		// index and deduplicate any duplicate (tenant_id, version) rows, then
+		// restart so the unique index is created. Fresh and test databases
+		// (all schemas created anew) are unaffected.
 		index.Fields("tenant_id", "version").Unique(),
 		index.Fields("tenant_id", "entity_type", "entity_id"),
 	}

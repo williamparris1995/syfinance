@@ -188,7 +188,7 @@ func TestSyncDevice_RegisterDevice_ServerGeneratedFreshIDs(t *testing.T) {
 // returns the tenant-aggregate view (log frontier — no device row needed);
 // a REGISTERED device id returns that device's row; a MALFORMED device_id is
 // InvalidArgument; an UNKNOWN but well-formed id errors (device not found —
-// mapped Internal by the current mapError until the FR-6 fidelity pass).
+// mapped NotFound after the F16 T2 mapError fidelity pass).
 func TestSyncDevice_GetSyncStatus_DeviceFilter(t *testing.T) {
 	it := newSyncPushIT(t)
 	ctx := context.Background()
