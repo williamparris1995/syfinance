@@ -44,6 +44,18 @@ class _FakePort implements OfflineSyncPort {
   final batches = <SyncBatch>[];
   SyncResult nextResult = const SyncResult.success();
 
+  // F17-T1:接口新增成员的替身实现(本管线链路不触注册,绑定流程才调)。
+  @override
+  Future<void> registerDevice(String deviceName) async {}
+
+  // F17-T2:pull 替身 —— 本管线不注入 applier(拉取编排不生效),恒空页。
+  @override
+  Future<PullBatch> pull(int sinceVersion,
+      {List<String>? entityTypes, int? pageSize}) async {
+    return PullBatch(
+        changes: const [], latestVersion: sinceVersion, hasMore: false);
+  }
+
   @override
   Future<SyncResult> push(SyncBatch batch) async {
     batches.add(batch);

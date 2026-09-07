@@ -12,8 +12,10 @@
 # Run from: yucai/proto/   (or via `make gen-dart` from yucai/)
 #
 # Requires:
-#   - protoc on PATH (libprotoc 25+)
-#   - protoc_plugin 25.0.0  (`dart pub global activate protoc_plugin`)
+#   - protoc on PATH (libprotoc 25+) WITH the well-known-type protos
+#     resolvable (see PROTOC_INCLUDE below — a bare protoc binary without
+#     its include/ directory does NOT resolve google/protobuf/*.proto)
+#   - protoc_plugin 25.0.0  (`dart pub global activate protoc_plugin 25.0.0`)
 #     → installs protoc-gen-dart.bat under %LOCALAPPDATA%\Pub\Cache\bin
 #       (Linux/macOS: ~/.pub-cache/bin/protoc-gen-dart, no extension)
 # ---------------------------------------------------------------------------
@@ -83,8 +85,28 @@ if [[ ${#PLUGIN_FLAG[@]} -eq 0 ]] && ! command -v protoc-gen-dart >/dev/null 2>&
 fi
 
 echo "Generating Dart stubs for ${#PROTO_FILES[@]} proto file(s) → $OUT_DIR"
+# Well-known-type include path (google/protobuf/*.proto): protoc resolves
+# imports ONLY from -I paths (a bare binary like ~/go/bin/protoc carries no
+# include/). Candidates: $PROTOC_INCLUDE override, then the official-release
+# layout next to a protoc installed under ~/go/bin (~/go/include). Only WKT
+# protos used by this tree are needed (any/empty/timestamp — see the raw
+# imports); the dir is NOT part of this repo, so buf's Go generation stays
+# untouched (buf has WKT built in).
+WKT_INCLUDE_FLAG=()
+for c in "${PROTOC_INCLUDE:-}" "${HOME:-}/go/include"; do
+  [[ -n "$c" && -f "$c/google/protobuf/empty.proto" ]] || continue
+  WKT_INCLUDE_FLAG=(-I "$c")
+  break
+done
+if [[ ${#WKT_INCLUDE_FLAG[@]} -eq 0 ]]; then
+  echo "WARNING: no well-known-type include dir found" >&2
+  echo "         (set PROTOC_INCLUDE or place google/protobuf/*.proto" >&2
+  echo "          under ~/go/include) — WKT imports will fail to resolve." >&2
+fi
+
 protoc \
   --proto_path=. \
+  "${WKT_INCLUDE_FLAG[@]}" \
   "${PLUGIN_FLAG[@]}" \
   --dart_out="$OUT_DIR" \
   --dart_opt=grpc \

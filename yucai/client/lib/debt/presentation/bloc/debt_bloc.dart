@@ -7,7 +7,11 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
 
-@injectable
+// @lazySingleton(非 @injectable):债务列表与 /new 表单是 sibling 路由,经
+// BlocProvider.value 共享同一 DebtBloc(66a9e0e9 hotfix:factory 会让两路由各持
+// 一份,创建后列表不刷新)。源注解必须与该契约一致,否则 build_runner regen
+// 会静默回滚成 factory(F17-T2 实际踩中)。
+@LazySingleton()
 class DebtBloc extends Bloc<DebtEvent, DebtState> {
   DebtBloc(this._repo) : super(DebtInitial()) {
     on<LoadDebtsRequested>(_onLoadDebts);

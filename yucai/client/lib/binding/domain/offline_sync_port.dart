@@ -8,8 +8,27 @@
 /// - 本文件的 `SyncEntityDto` 即 upsert(实体 CREATE/UPDATE 合并:单设备
 ///   语义下同为「本地最新全量行」),`SyncTombstoneDto` 即 DELETE;
 /// - F11 已落地 gRPC 实现(GrpcOfflineSyncPort):`fields` 编码进 payload
-///   bytes(jsonEncode)、module 写入 entityType、CREATE 表 upsert 语义。
+///   bytes(jsonEncode)、module 写入 entityType、CREATE 表 upsert 语义;
+/// - F17-T1(FR-2/ADR-1):deviceId 来源 = 安装级 clientId
+///   (TokenStorage.readClientId 的函数缝,见 [ClientIdProvider]);新增
+///   [OfflineSyncPort.registerDevice](绑定流程幂等注册设备行);
+/// - F17-T1(FR-5/ADR-5):push 结果携带 [SyncResult.conflicts](server
+///   PushResponse.conflicts 的最小映射;解决流留给 F18);
+/// - F17-T2(FR-3/ADR-3):新增下行 [OfflineSyncPort.pull] + [PullBatch]/
+///   [PulledChange](sync_log 重放面的原始 payload 流;游标编排归协调器)。
 library;
+
+import 'dart:typed_data';
+
+/// 设备身份来源缝(FR-2/ADR-1):`() => clientId`(TokenStorage.readClientId
+/// 的 tear-off 形态)。
+///
+/// 选函数 typedef 而非注入 TokenStorage 具体类/自定义接口,照库内 DI 惯例
+/// (injection.dart 的 UrlLauncherFn、AuthInterceptor.tokenReader 均为函数
+/// 缝):DI 组合根接线 `getIt<TokenStorage>().readClientId`,binding 域零
+/// 对 auth/data 的跨模块 import(消费方不 import 生产方);测试/e2e 直接
+/// 传闭包或覆写 TokenStorage。
+typedef ClientIdProvider = Future<String?> Function();
 
 /// 单条上行实体 DTO:待上行头表的 server 兼容行快照(module+entityId 定位,
 /// version 为乐观锁版本 —— 对齐 SyncPayload 的 entityType/entityId/version/
@@ -83,22 +102,104 @@ class SyncBatch {
       {...entitiesByModule.keys, ...tombstones.map((t) => t.module)};
 }
 
+/// 一条上行冲突(FR-5/ADR-5 最小面):server `PushResponse.conflicts` 里
+/// ConflictDTO 的三个关键字段。**不含** server/client payload 与 resolution
+/// —— 解决流是 F18 的面,这里只携带「哪个模块的哪个实体、什么冲突类型」
+/// 供协调器状态透传(F12 badge / F18 面板消费)。
+class SyncConflictInfo {
+  const SyncConflictInfo({
+    required this.module,
+    required this.entityId,
+    required this.conflictType,
+  });
+
+  /// 冲突实体模块(= SyncModule 常量;proto entityType)。
+  final String module;
+
+  /// 冲突实体 id。
+  final String entityId;
+
+  /// 冲突类型(F16 起值域:"version_conflict";细化分类随 F18)。
+  final String conflictType;
+}
+
 /// push 结果:成功 / 失败(含原因)。
 ///
-/// 单设备语义下批次原子(F10 本地管线一次收集一次上行;F11 的
-/// PushResponse.conflicts 部分冲突同样收敛为整体失败 + 原因,pending 保留
-/// 待下次触发重试)。
+/// 单设备语义下批次原子(F10 本地管线一次收集一次上行)。F17-T1(FR-5/
+/// ADR-5)成功态新增 [conflicts]:**ok 语义不变** —— conflicts 非空仍视为
+/// 成功(单设备 server 恒空;多设备下信息已携带,批次上行本身落库),仅
+/// 状态面多带一份数据(解决流 F18)。既有 `const SyncResult.success()`
+/// 调用点零改动(conflicts 默认空)。
 class SyncResult {
-  const SyncResult.success()
+  const SyncResult.success({this.conflicts = const []})
       : ok = true,
         reason = null;
 
-  const SyncResult.failure(String this.reason) : ok = false;
+  const SyncResult.failure(String this.reason)
+      : ok = false,
+        conflicts = const [];
 
   final bool ok;
 
   /// 失败原因(展示给 F12 UI / 日志)。
   final String? reason;
+
+  /// push 命中的冲突详情(成功态携带;失败态恒空)。
+  final List<SyncConflictInfo> conflicts;
+
+  /// 冲突条数(= conflicts.length;协调器状态透传的计数形态)。
+  int get conflictCount => conflicts.length;
+}
+
+/// 一条下行变更(F17-T2 FR-3/ADR-3):server sync_log 重放面的**原始
+/// payload 流**条目 —— port 不解码 payload(envelope 行 JSON 的 decode 与
+/// drift 应用归 PullApplier,单一职责),只拆出编排需要的元数据。
+class PulledChange {
+  const PulledChange({
+    required this.module,
+    required this.entityId,
+    required this.isDelete,
+    required this.payload,
+    required this.logVersion,
+    required this.deviceId,
+  });
+
+  /// 模块(entityType;值域 = SyncModule 常量,含 holding_ledger)。
+  final String module;
+
+  /// 实体 id。
+  final String entityId;
+
+  /// 是否 DELETE(墓碑下行;payload 为空)。
+  final bool isDelete;
+
+  /// 原始 payload bytes(CREATE/UPDATE = envelope 行 jsonEncode;DELETE 空)。
+  final Uint8List payload;
+
+  /// **sync_log 版本**(tenant 单调递增,分页游标)—— 注意与上行
+  /// SyncEntityDto.version(实体乐观锁版本)语义不同:pull 面的 wire
+  /// version 字段载的是日志版本(server PayloadToDTO 直传 entry.Version)。
+  final int logVersion;
+
+  /// 来源设备(push 时的 deviceId;协调器 own-echo 过滤用 —— 自设备的
+  /// 推送回声不回灌应用,防墓碑回写死循环,见协调器注释)。
+  final String deviceId;
+}
+
+/// 一页拉取结果(FR-3/ADR-3):changes 按 logVersion 升序(server 契约:
+/// 客户端必须按序应用);[latestVersion] = tenant log frontier(**非**页内
+/// 游标);[hasMore] = 是否仍有更早于 frontier 的条目 —— 续拉用
+/// since = 本页最末条目的 logVersion(非 latestVersion,server ADR-3)。
+class PullBatch {
+  const PullBatch({
+    required this.changes,
+    required this.latestVersion,
+    required this.hasMore,
+  });
+
+  final List<PulledChange> changes;
+  final int latestVersion;
+  final bool hasMore;
 }
 
 /// 回网上行 port(binding 域抽象,design ADR-5):SyncCoordinator 经此把
@@ -108,4 +209,19 @@ class SyncResult {
 /// PushChanges 实现);NoopOfflineSyncPort 保留作测试替身/参考。
 abstract class OfflineSyncPort {
   Future<SyncResult> push(SyncBatch batch);
+
+  /// 设备注册(FR-2/ADR-1):deviceId 由实现自取 clientId(见
+  /// [ClientIdProvider]),deviceName 由调用方给(绑定流程传平台名)。
+  /// server 侧按非空 device_id 幂等(重复注册返回既有设备行)——失败抛出,
+  /// 由调用方(BindingBloc)fire-and-forget 容错。
+  Future<void> registerDevice(String deviceName);
+
+  /// 拉取一页变更(F17-T2 FR-3/ADR-3):sinceVersion 起的 sync_log 重放
+  /// (entityTypes/pageSize 可选过滤,server 缺省 500/上限 1000)。
+  ///
+  /// **失败抛出**(与 push 的结果形态不同):调用方是协调器的
+  /// 失败容忍编排(拉失败 log 后照常 push,不破状态),异常即「本页没拉
+  /// 到、游标不动」——幂等重拉无害(since 不变,下次触发重试)。
+  Future<PullBatch> pull(int sinceVersion,
+      {List<String>? entityTypes, int? pageSize});
 }

@@ -363,8 +363,10 @@ func TestPushChanges_IdempotentRepush(t *testing.T) {
 }
 
 // TestPushChanges_UnknownEntityType_FailsClosed: an entity_type with no
-// registered writer fails the whole batch (forward-compat gate — the future
-// holding_ledger extension will register its own writer).
+// registered writer fails the whole batch (forward-compat gate). F17-T2 note:
+// holding_ledger WAS this test's probe until its writer registered — now a
+// genuinely unregistered type ("future_module") exercises the gate again (a
+// registered-type probe would only trip the payload-id-mismatch path).
 func TestPushChanges_UnknownEntityType_FailsClosed(t *testing.T) {
 	h := newPushHarness(t)
 	ctx := context.Background()
@@ -373,7 +375,7 @@ func TestPushChanges_UnknownEntityType_FailsClosed(t *testing.T) {
 	var acc accountdomain.Account
 	_ = json.Unmarshal(payload, &acc)
 	if _, _, err := h.svc.PushChanges(ctx, h.tenantID, h.deviceID, []SyncPayloadDTO{
-		{EntityType: "holding_ledger", EntityID: uuid.New(), Operation: syncdomain.SyncOperationCreate, Payload: []byte(`{}`), Version: 1, DeviceID: h.deviceID},
+		{EntityType: "future_module", EntityID: uuid.New(), Operation: syncdomain.SyncOperationCreate, Payload: []byte(`{}`), Version: 1, DeviceID: h.deviceID},
 		{EntityType: "account", EntityID: acc.ID, Operation: syncdomain.SyncOperationCreate, Payload: payload, Version: 1, DeviceID: h.deviceID},
 	}); err == nil {
 		t.Fatal("unknown entity_type must fail the batch")

@@ -2002,6 +2002,8 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     $core.double? rangeTwrAnnualizedPct,
     $core.double? cagrAnnualizedPct,
     $core.double? rangeCagrAnnualizedPct,
+    ReturnMetric? primaryReturnMetric,
+    CagrScope? cagrScope,
   }) {
     final result = create();
     if (portfolioPoints != null) result.portfolioPoints.addAll(portfolioPoints);
@@ -2021,6 +2023,9 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     if (cagrAnnualizedPct != null) result.cagrAnnualizedPct = cagrAnnualizedPct;
     if (rangeCagrAnnualizedPct != null)
       result.rangeCagrAnnualizedPct = rangeCagrAnnualizedPct;
+    if (primaryReturnMetric != null)
+      result.primaryReturnMetric = primaryReturnMetric;
+    if (cagrScope != null) result.cagrScope = cagrScope;
     return result;
   }
 
@@ -2054,6 +2059,10 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     ..aD(12, _omitFieldNames ? '' : 'rangeTwrAnnualizedPct')
     ..aD(13, _omitFieldNames ? '' : 'cagrAnnualizedPct')
     ..aD(14, _omitFieldNames ? '' : 'rangeCagrAnnualizedPct')
+    ..aE<ReturnMetric>(15, _omitFieldNames ? '' : 'primaryReturnMetric',
+        enumValues: ReturnMetric.values)
+    ..aE<CagrScope>(16, _omitFieldNames ? '' : 'cagrScope',
+        enumValues: CagrScope.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2191,6 +2200,28 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
   $core.bool hasRangeCagrAnnualizedPct() => $_has(13);
   @$pb.TagNumber(14)
   void clearRangeCagrAnnualizedPct() => $_clearField(14);
+
+  /// Primary return metric designation (audit 06 decision 1): XIRR (money-weighted,
+  /// all cash flows) is the primary headline metric; CAGR is auxiliary — its scope
+  /// is current-holdings cost basis → market value only and IGNORES realized PnL
+  /// (severely understates portfolios with liquidation+rebuild).
+  @$pb.TagNumber(15)
+  ReturnMetric get primaryReturnMetric => $_getN(14);
+  @$pb.TagNumber(15)
+  set primaryReturnMetric(ReturnMetric value) => $_setField(15, value);
+  @$pb.TagNumber(15)
+  $core.bool hasPrimaryReturnMetric() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearPrimaryReturnMetric() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  CagrScope get cagrScope => $_getN(15);
+  @$pb.TagNumber(16)
+  set cagrScope(CagrScope value) => $_setField(16, value);
+  @$pb.TagNumber(16)
+  $core.bool hasCagrScope() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearCagrScope() => $_clearField(16);
 }
 
 class GetHoldingPerformanceRequest extends $pb.GeneratedMessage {

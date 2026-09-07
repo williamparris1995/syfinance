@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/binding/data/pending_collector.dart';
 import 'package:yucai_client/binding/data/pending_count_watcher.dart';
+import 'package:yucai_client/binding/data/pull_applier.dart';
 import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/sync_state.dart' show SyncModule;
@@ -23,7 +25,8 @@ import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 /// 成功:回写 synced + 清墓碑 + 按模块刷新镜像 → clean;失败:failed(reason)
 /// + pending 保留(下次触发重试)。
 ///
-/// 仅 bound 态生效:guest 写全 synced 无上行语义,触发为无操作。
+/// 仅 bound 态生效:guest 写全 synced 无上行语义,触发为无操作(下行拉取
+/// 同门控 —— guest 无 server 侧多设备语义,[_pullAndApply] 不可达)。
 ///
 /// F12 T1(spec FR-2/FR-3,design ADR-2/ADR-3)零破坏增量:
 /// - 计数订阅:构造时(bound)订阅 [PendingCountWatcher] 聚合流,计数变化经
@@ -39,6 +42,10 @@ class SyncCoordinatorBloc
   ///
   /// [pendingWatcher] F12 T1:计数聚合器注入缝(测试用 fake 流手控);
   /// 生产不注入 → bloc 自建(见 [_ensurePendingWatch] 的接线/归属注释)。
+  ///
+  /// [applier]/[clientIdProvider] F17-T2:下行应用器 + 自设备身份缝
+  /// (own-echo 过滤,见 [_pullAndApply]);生产 DI 注入,缺省 null =
+  /// 拉取编排不生效(上行语义与 F10-F13 逐位一致)。
   SyncCoordinatorBloc(
     this._port,
     this._collector,
@@ -47,6 +54,8 @@ class SyncCoordinatorBloc
     Stream<bool>? onlineStream,
     this._mirror,
     this._pendingWatcher,
+    this._applier,
+    this._clientIdProvider,
   ]) : super(const SyncCoordinatorState()) {
     // 计数更新专属管道(**先于**基类触发管道注册):不经 [_transform] 的
     // in-flight 闸门(计数是纯状态信号,flight 中也须实时更新;且绝不能
@@ -86,6 +95,13 @@ class SyncCoordinatorBloc
   /// F12 T1:注入的计数聚合器(测试缝);生产为 null → 自建。
   final PendingCountWatcher? _pendingWatcher;
 
+  /// F17-T2:下行应用器(缺省 null → 拉取编排不生效,见类 doc)。
+  final PullApplier? _applier;
+
+  /// F17-T2:自设备身份缝(own-echo 过滤;与 GrpcOfflineSyncPort 同一
+  /// 注入源 TokenStorage.readClientId)。
+  final ClientIdProvider? _clientIdProvider;
+
   /// 实际生效的计数聚合器(注入或自建);bloc 是其唯一消费者与生命周期
   /// 属主 —— 不走 DI 单独注册(避免 lazySingleton 无人 dispose 的悬挂流,
   /// 见 pending_count_watcher.dart 类 doc 的归属论证)。
@@ -105,13 +121,17 @@ class SyncCoordinatorBloc
     SyncCoordinatorEvent event,
     Emitter<SyncCoordinatorState> emit,
   ) async {
-    // guest 不触发(语义见类 doc):状态保持不变、不收集不 push。
+    // guest 不触发(语义见类 doc):状态保持不变、不收集不 push、不拉取。
     if (_session.isGuest) return;
     // F12 T1:guest 期构造后翻转为 bound 的首触发 → 惰性重订计数流
     // (guest 策略论证见构造尾部注释)。
     _ensurePendingWatch();
 
     try {
+      // F17-T2(ADR-3):**pull 先于 push**(收最新再发 —— 他设备变更先进
+      // 本地,再决定上行内容;失败容忍,见 [_pullAndApply])。构造补扫的
+      // online 分支走同一管道,同样先拉。
+      await _pullAndApply();
       final batch = await _collector.collect();
       if (batch == null) {
         // 空批次(无 pending 无墓碑)→ clean。
@@ -128,13 +148,20 @@ class SyncCoordinatorBloc
         // 上行后的行靠 server 回读存活,不再依赖 pending 保护)。
         await _writeBack(batch);
         await _refreshMirror(batch.modules);
+        // F17-T2(ADR-3):push 成功后再拉一次(他设备变更感知 —— 本批
+        // push 期间 server 可能已追加他设备条目);失败容忍同前。
+        await _pullAndApply();
         // clean 携带实时计数:回写后库内 pending 通常为 0,但 push 在途的
         // FR-1b 降级更新行(版本守卫放行)仍 pending —— 计数须如实携带
-        // (spec FR-2 全态携带);watcher 重算异步,_liveCount 可能短暂滞后,
+        //(spec FR-2 全态携带);watcher 重算异步,_liveCount 可能短暂滞后,
         // 下一次源发射即收敛。
         emit(SyncCoordinatorState(
           status: SyncStatus.clean,
           pendingCount: _liveCount,
+          // F17-T1(FR-5/ADR-5):冲突计数透传(clean 态携带;失败态无冲突
+          // ——失败结果不含 conflicts)。F12 badge 组件**不改**(仅状态
+          // 携带,冲突面板/解决流是 F18 的面)。
+          conflictCount: result.conflictCount,
         ));
       } else {
         // 失败:pending 保留(不动库),下次回网/手动触发重试。
@@ -165,6 +192,8 @@ class SyncCoordinatorBloc
     emit(SyncCoordinatorState(
       status: state.status,
       pendingCount: event.count,
+      // F17-T1:计数纯更新不冲掉冲突计数(同 failureReason 的保留语义)。
+      conflictCount: state.conflictCount,
       failureReason: state.failureReason,
     ));
   }
@@ -214,6 +243,62 @@ class SyncCoordinatorBloc
     }
   }
 
+  /// F17-T2(spec FR-3,design ADR-3)拉取编排:分页循环拉尽并应用下行。
+  ///
+  /// - 游标:drift `sync_cursor` 单行(since=上次页尾;缺省 0=全量重拉,
+  ///   应用路径幂等[upsert 按 id / delete 幂等],重装/清库无一致性风险)。
+  /// - 分页:since=游标 → 应用 → 游标=**页尾条目 logVersion**(非 frontier
+  ///   —— server ADR-3:frontier 可能仍在后续页在途)→ hasMore 续拉。
+  /// - own-echo 过滤:deviceId=自设备的条目跳过应用(server PullChanges
+  ///   无设备过滤,自设备的推送回声必然返流)—— 本地已是这些行的权威态
+  ///   (pending 行有更强保护,synced 行内容等同),回灌纯属浪费;**游标
+  ///   仍按原始页推进**(含被过滤条目),否则会永远重拉同一窗口。
+  /// - 失败容忍:任一页失败(port.pull 抛出 / applier 抛出)→ log 后返回,
+  ///   **不 emit**(push 流与状态机不破),游标停在最后成功页尾 → 下次
+  ///   触发以同游标幂等重拉重放。
+  /// - 应用后不刷新镜像:增量条目即 server 终态(spec FR-3「窄幅镜像刷新
+  ///   不需要」);镜像仍是全量重建场景(登录/绑定/推送后)的面。
+  /// - 未注入 applier(旧测试/降级):整段 no-op(上行语义零回归)。
+  ///
+  /// 破坏性 server 防御:页非空但页尾版本未前进(病态 server/fake 死循环
+  /// 面具)→ 中断本轮,余量留给下次触发。
+  Future<void> _pullAndApply() async {
+    final applier = _applier;
+    if (applier == null) return;
+    try {
+      final own = await _clientIdProvider?.call();
+      var since = await _db.syncCursorDao.readLastPulledVersion();
+      while (true) {
+        final page = await _port.pull(since);
+        if (page.changes.isEmpty) {
+          // 空页:游标推进到 frontier(此后无 >since 条目;防 frontier
+          // 停留导致每次触发重复空拉)。
+          await _db.syncCursorDao.writeLastPulledVersion(page.latestVersion);
+          return;
+        }
+        // own-echo 过滤(游标按原始页推进,理由见 doc)。
+        final foreign = own == null
+            ? page.changes
+            : page.changes.where((c) => c.deviceId != own).toList();
+        if (foreign.isNotEmpty) {
+          await applier.apply(foreign);
+        }
+        if (page.changes.last.logVersion <= since) {
+          // 页尾未前进:病态分页面具,中断防死循环(见 doc)。
+          debugPrint('[sync-coordinator] pull page not advancing '
+              '(since=$since); aborting pull loop');
+          return;
+        }
+        since = page.changes.last.logVersion;
+        await _db.syncCursorDao.writeLastPulledVersion(since);
+        if (!page.hasMore) return;
+      }
+    } catch (e) {
+      // 拉失败容忍:不阻断 push 流、不破状态;游标停在最后成功页尾。
+      debugPrint('[sync-coordinator] pull failed (tolerated): $e');
+    }
+  }
+
   /// 成功回写:批内实体 pending → synced(单事务,带**版本守卫**——仅当
   /// 行当前版本仍等于批次快照版本才回写,push 在途的 FR-1b 降级更新行保持
   /// pending 留下次上行)+ 清批内墓碑(墓碑无版本概念,批内即清)。
@@ -241,6 +326,10 @@ class SyncCoordinatorBloc
             await _db.tagDao.markTagsSynced(versionsById);
           case SyncModule.template:
             await _db.templateDao.markTemplatesSynced(versionsById);
+          case SyncModule.holdingLedger:
+            // 台账行无 syncState(append-only)—— 无回写面;头行 pending
+            // 期间台账全量重收的幂等语义见 collector 注释(F17-T2)。
+            break;
           default:
             break; // 值域外模块防御(不应到达)。
         }
@@ -258,8 +347,14 @@ class SyncCoordinatorBloc
     final mirror = _mirror;
     if (mirror == null) return;
     for (final module in modules) {
-      // SyncModule 常量与 MirrorModule 枚举名逐字一致(sync_state.dart 契约)。
-      await mirror.refreshModule(MirrorModule.values.byName(module));
+      // SyncModule 前 8 常量与 MirrorModule 枚举名逐字一致(sync_state.dart
+      // 契约);holding_ledger 非 MirrorModule 成员(第 9 个 entityType,
+      // append-only 台账)—— 其镜像刷新随 holding 模块整体走
+      // (BoundMirror._refreshHoldings 含 holdings+transactions+securities)。
+      final mirrorModule = module == SyncModule.holdingLedger
+          ? MirrorModule.holding
+          : MirrorModule.values.byName(module);
+      await mirror.refreshModule(mirrorModule);
     }
   }
 
@@ -343,11 +438,16 @@ enum SyncStatus {
 /// F12 T1(spec FR-2):pendingCount **全态携带实时待同步计数**(实体 +
 /// 墓碑)—— idle/clean 亦有值(badge「待同步 N」即读它);Equatable 让
 /// bloc 在 emit 层去重等值状态(纯计数更新的噪声发射被吞)。
+///
+/// F17-T1(FR-5/ADR-5 最小面):[conflictCount] 携带最近一次成功 push 的
+/// 冲突条数(clean 态写入,计数更新不冲掉;0=无冲突)。仅状态携带 ——
+/// F12 badge 组件不改,「冲突 N 待处理」展示与解决流是 F18 的面。
 class SyncCoordinatorState extends Equatable {
   const SyncCoordinatorState({
     this.status = SyncStatus.idle,
     this.pendingCount = 0,
     this.failureReason,
+    this.conflictCount = 0,
   });
 
   final SyncStatus status;
@@ -359,6 +459,9 @@ class SyncCoordinatorState extends Equatable {
   /// failed 态原因。
   final String? failureReason;
 
+  /// F17-T1:最近一次成功 push 的冲突条数(默认 0;F18 冲突面板消费)。
+  final int conflictCount;
+
   @override
-  List<Object?> get props => [status, pendingCount, failureReason];
+  List<Object?> get props => [status, pendingCount, failureReason, conflictCount];
 }

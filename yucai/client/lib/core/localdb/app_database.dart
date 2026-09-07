@@ -11,6 +11,7 @@ import 'daos/derived_dao.dart';
 import 'daos/goal_dao.dart';
 import 'daos/holding_dao.dart';
 import 'daos/reference_dao.dart';
+import 'daos/sync_cursor_dao.dart';
 import 'daos/sync_tombstone_dao.dart';
 import 'daos/tag_dao.dart';
 import 'daos/template_dao.dart';
@@ -63,6 +64,7 @@ part 'app_database.g.dart';
     HoldingSnapshots,
     HoldingLots,
     SyncTombstones,
+    SyncCursors,
   ],
   daos: [
     AccountDao,
@@ -76,6 +78,7 @@ part 'app_database.g.dart';
     ReferenceDao,
     DerivedDao,
     SyncTombstoneDao,
+    SyncCursorDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -129,7 +132,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -154,6 +157,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(tags, tags.syncState);
             await m.addColumn(transactionTemplates, transactionTemplates.syncState);
             await m.createTable(syncTombstones);
+          }
+          // v3→v4(F17-T2 FR-3,design ADR-3):增 SyncCursors 拉取游标表
+          // (单行;缺省 0 = since 从头拉,幂等无害)。仅建表,无损。
+          if (from < 4) {
+            await m.createTable(syncCursors);
           }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)

@@ -102,4 +102,100 @@ func toDomainTrade(tr *holdingent.HoldingTransaction) *domain.HoldingTransaction
 	}
 }
 
+// --- F17-T2 holding_ledger sync writers(ADR-4 台账查证裁决=实施)---
+//
+// 台账查证结论(2026-09-06,task-brief-f17-2 第 5 节):本 repo/ent 即 server
+// 侧台账存储(ent HoldingTransaction 表 + Save 写入路径 + FindAll 读回),
+// 台账并非「仅 client 概念」→ 按 ADR-4 落地第 9 个 entityType
+// "holding_ledger" 的三件套(与 HoldingRepository 的 *ForSync 家族同构,
+// tx-aware via clientFor,写加入 push 批事务)。
+
+// UpsertForSync applies one offline-sync push for a single trade ledger row:
+// find by id+tenant, then full-field update, or a create with the client
+// trade id. Keyed by entity id (append-only ledger: the client never re-issues
+// an id, so the update branch only serves idempotent re-push of the SAME row —
+// re-push is accepted per F11 FR-3). AccountID/SecurityID/CreatedAt/
+// TransactionID are immutable (ent schema) — set at create only. TradeType
+// crosses the wire as the client int enum (buy=1/sell=2/dividend=3/split=4,
+// same value domain as domain.TradeType) and is persisted as its string form
+// (column contract shared with the holding service write path).
+func (r *TradeRepository) UpsertForSync(ctx context.Context, tr *domain.HoldingTransaction) error {
+	c := r.clientFor(ctx)
+	_, err := c.HoldingTransaction.Query().
+		Where(holdingtransaction.ID(tr.ID), holdingtransaction.TenantID(tr.TenantID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		if _, err := c.HoldingTransaction.UpdateOneID(tr.ID).
+			SetTradeType(tr.TradeType.String()).
+			SetQuantity(tr.Quantity).
+			SetPriceCents(tr.PriceCents).
+			SetAmountCents(tr.AmountCents).
+			SetFeeCents(tr.FeeCents).
+			SetRealizedPnlCents(tr.RealizedPnLCents).
+			SetTradeDate(tr.TradeDate).
+			SetNotes(tr.Notes).
+			Save(ctx); err != nil {
+			return fmt.Errorf("sync upsert trade %s: %w", tr.ID, err)
+		}
+		return nil
+	case holdingent.IsNotFound(err):
+		create := c.HoldingTransaction.Create().
+			SetID(tr.ID).SetTenantID(tr.TenantID).
+			SetAccountID(tr.AccountID).SetSecurityID(tr.SecurityID).
+			SetTradeType(tr.TradeType.String()).
+			SetQuantity(tr.Quantity).
+			SetPriceCents(tr.PriceCents).
+			SetAmountCents(tr.AmountCents).
+			SetFeeCents(tr.FeeCents).
+			SetRealizedPnlCents(tr.RealizedPnLCents).
+			SetTradeDate(tr.TradeDate).
+			SetNotes(tr.Notes)
+		// CreatedAt passthrough(mirror Save):zero value falls back to ent
+		// Default(time.Now);TransactionID 可空(离线台账无关联交易)。
+		if !tr.CreatedAt.IsZero() {
+			create = create.SetCreatedAt(tr.CreatedAt)
+		}
+		if tr.TransactionID != nil {
+			create = create.SetTransactionID(*tr.TransactionID)
+		}
+		if _, err := create.Save(ctx); err != nil {
+			return fmt.Errorf("sync create trade %s: %w", tr.ID, err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("sync find trade %s: %w", tr.ID, err)
+	}
+}
+
+// HardDeleteForSync physically removes one ledger row on the offline-sync
+// DELETE path. Idempotent by design (tombstone re-delivery is a no-op).
+// The client collector never emits holding_ledger tombstones today (the
+// offline trade path has no user-facing delete) — this exists for wire
+// completeness so a future ledger delete cannot fail the batch.
+func (r *TradeRepository) HardDeleteForSync(ctx context.Context, tenantID, tradeID uuid.UUID) error {
+	if _, err := r.clientFor(ctx).HoldingTransaction.Delete().
+		Where(holdingtransaction.ID(tradeID), holdingtransaction.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("sync hard delete trade %s: %w", tradeID, err)
+	}
+	return nil
+}
+
+// FindForSync returns the tenant's current ledger row for the sync conflict
+// check (F16 ADR-4) — the read dual of UpsertForSync. found=false means the
+// tenant holds no row for the id.
+func (r *TradeRepository) FindForSync(ctx context.Context, tenantID, tradeID uuid.UUID) (*domain.HoldingTransaction, bool, error) {
+	tr, err := r.clientFor(ctx).HoldingTransaction.Query().
+		Where(holdingtransaction.ID(tradeID), holdingtransaction.TenantID(tenantID)).
+		First(ctx)
+	if err != nil {
+		if holdingent.IsNotFound(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("sync find trade %s: %w", tradeID, err)
+	}
+	return toDomainTrade(tr), true, nil
+}
+
 var _ domain.TradeRepository = (*TradeRepository)(nil)

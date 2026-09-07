@@ -20,4 +20,23 @@ class NoopOfflineSyncPort implements OfflineSyncPort {
         '(${batch.changeCount} changes kept pending)');
     return const SyncResult.failure('同步服务未接入（F11）');
   }
+
+  /// F17-T1:占位实现同语义 —— 注册无副作用(未接真实现前不建设备行);
+  /// 静默成功即可(调用方 BindingBloc 对注册失败本就 fire-and-forget 容错,
+  /// 此处不产生额外噪音)。
+  @override
+  Future<void> registerDevice(String deviceName) async {}
+
+  /// F17-T2:占位实现 —— 未接真实现前无下行语义,恒空页(since 原样回,
+  /// frontier 无推进,hasMore=false 不续拉);协调器拿到空批即无应用动作,
+  /// 幂等无害。真实现见 GrpcOfflineSyncPort.pull(生产 DI 已注册)。
+  @override
+  Future<PullBatch> pull(int sinceVersion,
+      {List<String>? entityTypes, int? pageSize}) async {
+    return PullBatch(
+      changes: const [],
+      latestVersion: sinceVersion,
+      hasMore: false,
+    );
+  }
 }

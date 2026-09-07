@@ -22,8 +22,8 @@ type HoldingRepository = interface {
 //
 // Payload shape: ONE Holding position row (per-row serialization, ADR-2) — NOT
 // the backup envelope's {holdings, transactions} two-array module shape. The
-// trade ledger is append-only and rides the future "holding_ledger" entity
-// type (FR-5, ticket 16 line); its writer will register separately.
+// trade ledger rides the sibling "holding_ledger" entity type (F17-T2,
+// holding_ledger.go — 台账查证裁决=实施).
 type HoldingWriter struct {
 	repo HoldingRepository
 }

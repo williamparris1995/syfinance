@@ -10,6 +10,7 @@ import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/binding/data/grpc_offline_sync_port.dart';
 import 'package:yucai_client/binding/data/pending_collector.dart';
+import 'package:yucai_client/binding/data/pull_applier.dart';
 import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
 import 'package:yucai_client/core/config/app_config.dart';
@@ -19,7 +20,6 @@ import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
-import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
@@ -88,16 +88,29 @@ Future<void> configureDependencies() async {
   //     - OfflineSyncPort:F11 T3 起接 gRPC PushChanges 真实现
   //       GrpcOfflineSyncPort(此前为保 pending 的 Noop 占位——文件保留作
   //       参考/测试替身,NoopOfflineSyncPort);
-  //     - PendingCollector:从 8 头表 DAO + 墓碑表收集增量批次;
+  //       F17-T1:第三参 = 设备身份缝 ClientIdProvider,tear-off
+  //       TokenStorage.readClientId(uuid 安装级,3a 启动生成 —— 函数缝
+  //       惯例照 UrlLauncherFn/tokenReader,理由详 domain/offline_sync_port
+  //       .dart 的 ClientIdProvider doc;BoundMarker 退役出同步链);
+  //       F17-T2:port 增 PullChanges 消费(pull 方法,失败透抛由协调器
+  //       容忍);
+  //     - PendingCollector:从 8 头表 DAO + 墓碑表收集增量批次(F17-T2
+  //       起 holding 台账行按 pending 头行 (account,security) pair 联动
+  //       收集,entityType=holding_ledger);
+  //     - PullApplier(F17-T2):下行增量应用器(envelope 行 → drift
+  //       upsert/硬删;pending 保护);协调器第 8/9 参注入;
   //     - SyncCoordinatorBloc:lazySingleton —— F12 UI 首次消费时构造并
-  //       订阅回网流。
+  //       订阅回网流;F17-T2 起注入 applier + ClientIdProvider(拉取编排
+  //       生效:回网先拉后推、push 成功后拉、分页循环、own-echo 过滤)。
   getIt.registerLazySingleton<OfflineSyncPort>(() => GrpcOfflineSyncPort(
         getIt<GrpcClient>(),
         getIt<AuthRetryCaller>(),
-        getIt<BoundMarker>(),
+        getIt<TokenStorage>().readClientId,
       ));
   getIt.registerLazySingleton<PendingCollector>(
       () => PendingCollector(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<PullApplier>(
+      () => PullApplier(getIt<AppDatabase>()));
   getIt.registerLazySingleton<SyncCoordinatorBloc>(() => SyncCoordinatorBloc(
         getIt<OfflineSyncPort>(),
         getIt<PendingCollector>(),
@@ -105,6 +118,9 @@ Future<void> configureDependencies() async {
         getIt<AppDatabase>(),
         getIt<ConnectivityGateway>().online,
         getIt<BoundMirror>(),
+        null,
+        getIt<PullApplier>(),
+        getIt<TokenStorage>().readClientId,
       ));
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,

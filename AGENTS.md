@@ -7,7 +7,7 @@
 ## 快速命令
 - server:`cd yucai/server && go test ./... && go build ./...`
 - client:`cd yucai/client && flutter test && flutter analyze`
-- proto regen:`cd yucai && make gen-dart`(protoc_plugin 25.0.0)
+- proto regen:`cd yucai && make gen-dart`(前置:protoc + `dart pub global activate protoc_plugin 25.0.0` —— **未预装**;另需 WKT include 目录 `~/go/include/google/protobuf/`,见 `yucai/proto/gen-dart.sh` 头注;sync.pbjson.dart 尾部 F13 手工补丁 regen 后须重套)
 
 ## 关键约束(详 CLAUDE.md)
 - English 结构化日志(无 CJK 在 log 串)

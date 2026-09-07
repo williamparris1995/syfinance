@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -5,6 +9,7 @@ import 'package:yucai_client/backup/data/backup_remote_ds.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/binding/data/bound_mirror.dart';
+import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
@@ -26,6 +31,7 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
     this._backupRemote,
     this._database,
     this._boundMarker,
+    this._syncPort,
   ) : super(const BindingState()) {
     on<BindingStarted>(_onStarted);
     on<BindingUploadConfirmed>(_onUploadConfirmed);
@@ -39,6 +45,10 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
   final BackupRemoteDataSource _backupRemote;
   final db.AppDatabase _database;
   final BoundMarker _boundMarker;
+
+  /// F17-T1(FR-2/ADR-1):绑定成功后的设备注册通道(RegisterDevice 走
+  /// GrpcOfflineSyncPort;deviceId=clientId 由 port 自取)。
+  final OfflineSyncPort _syncPort;
 
   Future<void> _onStarted(
       BindingEvent event, Emitter<BindingState> emit) async {
@@ -100,7 +110,15 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
       getIt.isRegistered<BoundMirror>()
           ? await getIt<BoundMirror>().refreshAll()
           : null;
+      // 'bound' 为纯绑定标记值(F17-T1 语义收敛:tenant 标记与设备身份
+      // 分离 —— deviceId 独立取 clientId,见 GrpcOfflineSyncPort doc)。
       await _boundMarker.markBound('bound');
+      // F17-T1(FR-2/ADR-1):markBound 后 fire-and-forget 注册设备行
+      // (deviceId=clientId 由 port 自取;deviceName 取 Platform 简单值
+      // —— 平台名,足够多设备列表区分,不引设备型号采集)。失败 log warn
+      // 不阻断绑定:server 按非空 device_id 幂等,下次绑定或 F17-T2 拉取
+      // 前重试一次即可,无须在此重试。
+      unawaited(_registerDevice());
       emit(state.copyWith(
         status: BindingStatus.success,
         uploadedEntities: localAccounts.length,
@@ -109,6 +127,18 @@ class BindingBloc extends Bloc<BindingEvent, BindingState> {
     } catch (e) {
       emit(state.copyWith(
           status: BindingStatus.failed, failureMessage: e.toString()));
+    }
+  }
+
+  /// F17-T1:设备注册的 fire-and-forget 容错壳 —— 异常吞掉并 log warn
+  /// (英文结构化日志,无 CJK),绑定流程绝不因注册失败回滚/阻断。
+  Future<void> _registerDevice() async {
+    try {
+      await _syncPort.registerDevice(Platform.operatingSystem);
+    } catch (e) {
+      debugPrint(
+          '[binding] register device failed (idempotent, retried on next '
+          'binding or pull): $e');
     }
   }
 }

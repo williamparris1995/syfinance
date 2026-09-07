@@ -733,8 +733,10 @@ func provideConflictResolver() *syncapp.ConflictResolver {
 // provideSyncEntityWriters aggregates the per-module SyncEntityWriter
 // implementations into the map the sync Service dispatches on. Keys are the
 // writer Name() values (= client SyncModule names / proto entity_type values:
-// account/transaction/debt/budget/goal/holding/tag/template — must match the
-// MirrorModule enumeration verbatim). Mirrors provideBackupExporters.
+// account/transaction/debt/budget/goal/holding/holding_ledger/tag/template —
+// the first eight must match the MirrorModule enumeration verbatim;
+// holding_ledger is the F17-T2 append-only trade-ledger sub-entity, no
+// MirrorModule member). Mirrors provideBackupExporters.
 func provideSyncEntityWriters(
 	account *entitywriter.AccountWriter,
 	transaction *entitywriter.TransactionWriter,
@@ -742,18 +744,20 @@ func provideSyncEntityWriters(
 	budget *entitywriter.BudgetWriter,
 	goal *entitywriter.GoalWriter,
 	holding *entitywriter.HoldingWriter,
+	holdingLedger *entitywriter.HoldingLedgerWriter,
 	tag *entitywriter.TagWriter,
 	template *entitywriter.TemplateWriter,
 ) map[string]syncdomain.SyncEntityWriter {
 	return map[string]syncdomain.SyncEntityWriter{
-		account.Name():     account,
-		transaction.Name(): transaction,
-		debt.Name():        debt,
-		budget.Name():      budget,
-		goal.Name():        goal,
-		holding.Name():     holding,
-		tag.Name():         tag,
-		template.Name():    template,
+		account.Name():        account,
+		transaction.Name():    transaction,
+		debt.Name():           debt,
+		budget.Name():         budget,
+		goal.Name():           goal,
+		holding.Name():        holding,
+		holdingLedger.Name():  holdingLedger,
+		tag.Name():            tag,
+		template.Name():       template,
 	}
 }
 
@@ -774,6 +778,9 @@ func provideGoalWriter(repo *goalrepo.GoalRepository) *entitywriter.GoalWriter {
 }
 func provideHoldingWriter(repo *holdingsec.HoldingRepository) *entitywriter.HoldingWriter {
 	return entitywriter.NewHoldingWriter(repo)
+}
+func provideHoldingLedgerWriter(repo *holdingsec.TradeRepository) *entitywriter.HoldingLedgerWriter {
+	return entitywriter.NewHoldingLedgerWriter(repo)
 }
 func provideTagWriter(repo *tagrepo.TagRepository) *entitywriter.TagWriter {
 	return entitywriter.NewTagWriter(repo)

@@ -37,6 +37,10 @@ import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as wkt;
 
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/auth/data/token_storage.dart';
+import 'package:yucai_client/binding/data/pending_collector.dart';
+import 'package:yucai_client/binding/data/pull_applier.dart';
+import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
@@ -46,7 +50,6 @@ import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
-import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/proto/sync/v1/sync.pb.dart' as pb;
 import 'package:yucai_client/proto/sync/v1/sync.pbserver.dart' as pbsvc;
@@ -59,13 +62,31 @@ import 'link_support.dart';
 /// 假 server 可编程响应模式(ADR-1)。
 enum _PushMode { ok, unavailable }
 
-/// F13 ADR-1:进程内假 SyncService —— extends SyncServiceBase(sync.pbserver
-/// 生成桩);pushChanges 记录收到的 PushChangesRequest **原始 proto**(含
-/// payload bytes),响应按 [mode] 可编程(OK / unavailable);其余 5 方法
-/// throw UnimplementedError(本链路不调用 —— wire 上也不会到达,见桥注册)。
+/// F13 ADR-1 + F17-T2 扩展:进程内假 SyncService —— extends SyncServiceBase
+/// (sync.pbserver 生成桩);pushChanges 记录收到的 PushChangesRequest
+/// **原始 proto**(含 payload bytes),响应按 [mode] 可编程(OK /
+/// unavailable),OK 时每条 change 追加进内部 sync_log(版本 1..N)——
+/// pullChanges 即按 since 过滤该 log 重放(server sync_log 语义的最小模拟,
+/// 不需要真业务表);registerDevice 记录请求并按非空 device_id 幂等回显
+/// (server Register 语义)。其余 3 方法 throw UnimplementedError(本链路
+/// 不调用 —— wire 上也不会到达,见桥注册)。
 class _FakeSyncService extends pbsvc.SyncServiceBase {
   final requests = <pb.PushChangesRequest>[];
   _PushMode mode = _PushMode.ok;
+
+  /// F17-T2:registerDevice 记录面(双设备场景断言)。
+  final deviceRegistrations = <pb.RegisterDeviceRequest>[];
+
+  /// F17-T2:pullChanges 记录面(since 入参断言)。
+  final pullRequests = <pb.PullChangesRequest>[];
+
+  /// F17-T2:内部 sync_log —— push 追加(pushChanges OK 分支),pull 按
+  /// version > since 过滤重放。entry = (version, 原始 SyncPayload)。
+  final _log = <(int, pb.SyncPayload)>[];
+  var _lastVersion = 0;
+
+  /// log 条目快照(测试断言用)。
+  List<(int, pb.SyncPayload)> get logEntries => List.unmodifiable(_log);
 
   @override
   Future<pb.PushResponse> pushChanges(
@@ -77,23 +98,48 @@ class _FakeSyncService extends pbsvc.SyncServiceBase {
         // 失败(pending 保留),即 FR-2 的注入点。
         throw const GrpcError.unavailable('e2e fake outage');
       case _PushMode.ok:
-        return pb.PushResponse(
-            syncedVersion: fixnum.Int64(request.changes.length));
+        // F17-T2:落 sync_log(server PushChanges 语义:批内逐条按依赖序
+        // 追加,version = LatestVersion+1..N;此处免序重排 —— e2e 断言对
+        // 批内序不敏感)。
+        for (final c in request.changes) {
+          _lastVersion++;
+          _log.add((_lastVersion, c));
+        }
+        return pb.PushResponse(syncedVersion: fixnum.Int64(_lastVersion));
     }
   }
 
-  // 其余 5 方法:本链路不调用(不注册到 wire;即便误调也显式炸出)。
   @override
   Future<pb.RegisterDeviceResponse> registerDevice(
-          $pb.ServerContext ctx, pb.RegisterDeviceRequest request) =>
-      throw UnimplementedError();
+      $pb.ServerContext ctx, pb.RegisterDeviceRequest request) async {
+    deviceRegistrations.add(request);
+    // 幂等回显(server:非 Nil device_id → 返回既有设备行)。
+    return pb.RegisterDeviceResponse(
+        deviceId: request.deviceId, lastSyncVersion: fixnum.Int64(0));
+  }
+
+  @override
+  Future<pb.PullChangesResponse> pullChanges(
+      $pb.ServerContext ctx, pb.PullChangesRequest request) async {
+    pullRequests.add(request);
+    final since = request.sinceVersion.toInt();
+    final entries = _log.where((e) => e.$1 > since).toList()
+      ..sort((a, b) => a.$1.compareTo(b.$1));
+    // version 字段载 **log 版本**(server PayloadToDTO 直传 entry.Version,
+    // 非 payload 内的实体版本)—— 分页游标契约。
+    return pb.PullChangesResponse(
+      changes: [
+        for (final e in entries) (e.$2.deepCopy()..version = fixnum.Int64(e.$1))
+      ],
+      latestVersion: fixnum.Int64(_lastVersion),
+      hasMore: false,
+    );
+  }
+
+  // 其余 3 方法:本链路不调用(不注册到 wire;即便误调也显式炸出)。
   @override
   Future<pb.SyncStatusResponse> getSyncStatus(
           $pb.ServerContext ctx, pb.GetSyncStatusRequest request) =>
-      throw UnimplementedError();
-  @override
-  Future<pb.PullChangesResponse> pullChanges(
-          $pb.ServerContext ctx, pb.PullChangesRequest request) =>
       throw UnimplementedError();
   @override
   Future<wkt.Empty> resolveConflict(
@@ -108,9 +154,10 @@ class _FakeSyncService extends pbsvc.SyncServiceBase {
 /// 测试专用桥(纯测试代码,零生产改动):SyncServiceBase 继承的是
 /// **protobuf** 包的 GeneratedService(protoc_plugin 25 生成的 server 桩
 /// 形态),而 grpc 5.x Server 挂载的是自家 Service($addMethod 注册)——
-/// 桥在此把假服务按 wire 方法名(PushChanges)接到 Server;服务/方法名
-/// 取自 sync.pbgrpc 的 @GrpcServiceName 与 client 方法 descriptor(同一
-/// proto 的两侧)。只注册 PushChanges:其余方法走 grpc 天然 unimplemented。
+/// 桥在此把假服务按 wire 方法名接到 Server;服务/方法名取自 sync.pbgrpc
+/// 的 @GrpcServiceName 与 client 方法 descriptor(同一 proto 的两侧)。
+/// F13 注册 PushChanges;F17-T2 增 RegisterDevice/PullChanges(双设备场景
+/// 的两方法)—— 其余方法走 grpc 天然 unimplemented。
 class _SyncServiceGrpcBridge extends Service {
   _SyncServiceGrpcBridge(this._impl) {
     $addMethod(ServiceMethod<pb.PushChangesRequest, pb.PushResponse>(
@@ -121,6 +168,24 @@ class _SyncServiceGrpcBridge extends Service {
       false,
       pb.PushChangesRequest.fromBuffer,
       (pb.PushResponse r) => r.writeToBuffer(),
+    ));
+    $addMethod(ServiceMethod<pb.RegisterDeviceRequest, pb.RegisterDeviceResponse>(
+      'RegisterDevice',
+      (ServiceCall call, Future<pb.RegisterDeviceRequest> request) async =>
+          _impl.registerDevice($pb.ServerContext(), await request),
+      false,
+      false,
+      pb.RegisterDeviceRequest.fromBuffer,
+      (pb.RegisterDeviceResponse r) => r.writeToBuffer(),
+    ));
+    $addMethod(ServiceMethod<pb.PullChangesRequest, pb.PullChangesResponse>(
+      'PullChanges',
+      (ServiceCall call, Future<pb.PullChangesRequest> request) async =>
+          _impl.pullChanges($pb.ServerContext(), await request),
+      false,
+      false,
+      pb.PullChangesRequest.fromBuffer,
+      (pb.PullChangesResponse r) => r.writeToBuffer(),
     ));
   }
 
@@ -146,11 +211,19 @@ class _FakeConnectivityGateway extends ConnectivityGateway {
   final StreamController<bool> controller;
 }
 
-/// F13 ADR-2:BoundMarker fake —— deviceId 来源串固定 'e2e-device'(wire
-/// 断言钉该值;super 构造仅落一个永不被触碰的 secure-storage 引用)。
-class _FakeBoundMarker extends BoundMarker {
+/// F17-T1:TokenStorage fake —— deviceId 来源 = clientId(FR-2/ADR-1,
+/// GrpcOfflineSyncPort 经 ClientIdProvider 缝读 readClientId),默认
+/// 'e2e-device'(wire 断言钉该值;super 构造仅落一个永不被触碰的
+/// secure-storage 引用)。F17-T2 双设备场景:clientId **可变**(换设备 =
+/// 换身份,port 每次 RPC 现读,无需重建)。F13 时代注入的是 BoundMarker
+/// fake(readTenantId),设备身份真实化后注入点随来源迁移。
+class _FakeTokenStorage extends TokenStorage {
+  _FakeTokenStorage();
+
+  String clientId = 'e2e-device';
+
   @override
-  Future<String?> readTenantId() async => 'e2e-device';
+  Future<String?> readClientId() async => clientId;
 }
 
 /// server T2(yucai/server/tests/sync_push_integration_test.go)钉死的
@@ -197,6 +270,9 @@ void main() {
   StreamController<bool>? onlineController;
   GrpcClient? grpcClient;
   SyncCoordinatorBloc? bloc;
+
+  /// F17-T2:token fake 句柄(双设备场景换 clientId 用)。
+  _FakeTokenStorage? tokenStorage;
 
   /// 纯 Future 收敛等待(design ADR-3:本文件无 UI,不 pump —— 轮询 +
   /// 超时断言,照 F10 管线测试的 until 先例)。
@@ -249,14 +325,18 @@ void main() {
     }
     expect(gateway.current, isFalse, reason: 'fake gateway 冷启动应离线');
 
-    // 覆写=同类型重注册:configureDependencies 已注册过这三类,开
-    // allowReassignment 替换(design ADR-2 授权的库内覆写惯例)。三者均
+    // 覆写=同类型重注册:configureDependencies 已注册过这些类型,开
+    // allowReassignment 替换(design ADR-2 授权的库内覆写惯例)。均
     // lazy/待解析,替换后首个消费者(GrpcOfflineSyncPort / tracker /
     // SyncCoordinatorBloc / 各 remote DS)拿到的就是 fake。
+    // F17-T1:deviceId 来源迁移 clientId —— 覆写对象由 BoundMarker 换成
+    // TokenStorage(fake readClientId → 'e2e-device';configureDependencies
+    // 的真实 TokenStorage 是 secure-storage 底,本环境不可读)。
     getIt.allowReassignment = true;
     getIt.registerSingleton<GrpcClient>(client);
     getIt.registerLazySingleton<ConnectivityGateway>(() => gateway);
-    getIt.registerLazySingleton<BoundMarker>(() => _FakeBoundMarker());
+    tokenStorage = _FakeTokenStorage();
+    getIt.registerSingleton<TokenStorage>(tokenStorage!);
 
     // tracker 置 bound + offline(照 F10 管线测试先例直接驱动字段 ——
     // 消除 initialCheck 微任务竞态;构造本身已接 fake gateway 的流订阅,
@@ -403,7 +483,7 @@ void main() {
 
     for (final c in entities) {
       final row = rowOf(c);
-      // deviceId = BoundMarker 绑定串(fake 注入)。
+      // deviceId = clientId(fake TokenStorage 注入,F17-T1)。
       expect(c.deviceId, 'e2e-device');
       // 每实体 payload.ID == entityId(同源 drift 主键不变量;server T1
       // 对不一致 fail-closed,此处消费方钉同一不变量)。
@@ -557,5 +637,94 @@ void main() {
     expect(after, hasLength(1));
     expect(after.single.syncState, SyncState.synced);
     expect(after.single.name, '离线重试现金');
+  });
+
+  testWidgets(
+      'F17-T2 FR-3/FR-6 双设备模拟:设备 A 断网写 → 回网 push(fake 落 log)→ '
+      '同进程模拟设备 B(换 clientId+清本地行+游标归零)→ pull 触发 → '
+      'envelope→drift 应用,A 的数据在 B 侧复现', (t) async {
+    final fake = fakeSync!;
+    final online = onlineController!;
+    final database = getIt<db.AppDatabase>();
+    final accounts = getIt<AccountRepository>();
+    final tags = getIt<TagRepository>();
+
+    // ---- 设备 A('e2e-device',setUp 缺省):bound+offline 写两模块。
+    final a1 = ok(await accounts.create(const CreateAccountParams(
+      name: '设备A账户',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 7000,
+      ownership: Ownership.personal,
+    )));
+    final tagA = ok(await tags.create(name: '设备A标签', color: '#0a0a0a'));
+    expect(await database.accountDao.getPendingAccounts(), hasLength(1));
+    expect(await database.tagDao.getPendingTags(), hasLength(1));
+
+    bloc = getIt<SyncCoordinatorBloc>();
+    await until(() => bloc!.state.pendingCount == 2, '设备 A 补扫计数收敛到 2');
+    online.add(true); // 回网边沿:pull 先行(log 空)→ push → push 后 pull(own-echo)
+    await until(() => bloc!.state.status == SyncStatus.clean, '设备 A 收敛 clean');
+
+    // fake 已落 2 条 log(A 的 push);A 的 push 后拉取把游标推进到页尾
+    //(own-echo 过滤:回声不回灌,游标照走)。
+    expect(fake.requests, hasLength(1));
+    expect(fake.logEntries.map((e) => e.$2.entityId), containsAll([a1.id, tagA.id]));
+    expect(await database.syncCursorDao.readLastPulledVersion(), 2);
+
+    // ---- 同进程模拟设备 B('e2e-device-B'):
+    //   库共享 = B 能看到 A 数据 → 先硬删 A 的行(模拟 B 的全新库没有这些行,
+    //   DAO 裸删不走墓碑 —— B 从未拥有过它们,无上行语义)+ 游标归零
+    //   (B 自己的库游标从 0 起)+ clientId 换 B(port 每次 RPC 现读)。
+    //   取舍论证:库共享 ≠ 真双设备隔离(真 B 是独立 DB+独立安装),但
+    //   envelope→drift 的下行应用路径被**真实覆盖**(payload 从 wire 反序列
+    //   化、upsert 落库、syncState 收敛),隔离性差异只影响夹具构造方式,
+    //   不影响被测链路本身。
+    await database.accountDao.deleteAccountById(a1.id);
+    await database.tagDao.deleteTagById(tagA.id);
+    await database.syncCursorDao.writeLastPulledVersion(0);
+    tokenStorage!.clientId = 'e2e-device-B';
+
+    // B 注册设备行(FR-2:server 按非空 device_id 幂等回显)。
+    await getIt<OfflineSyncPort>().registerDevice('windows-B');
+    expect(fake.deviceRegistrations, hasLength(1));
+    expect(fake.deviceRegistrations.single.deviceId, 'e2e-device-B');
+
+    // 设备 B 的协调器:直接构造(绕过 lazySingleton —— 同进程第二实例),
+    // 组件全走 DI 已覆写的真件(port=真 GrpcOfflineSyncPort→假 server)。
+    final blocB = SyncCoordinatorBloc(
+      getIt<OfflineSyncPort>(),
+      getIt<PendingCollector>(),
+      getIt<SessionModeTracker>(),
+      database,
+      online.stream, // 共享回网流:不再发边沿,触发走手动事件
+      null, // 镜像不注入:本链路数据断言以 DAO 为准(镜像往返是 F10 链路的面)
+      null, // 计数聚合器:bloc 自建
+      PullApplier(database), // F17-T2 下行应用器(真件)
+      tokenStorage!.readClientId, // own-echo 过滤:B 的身份
+    );
+    await bloc!.close();
+    bloc = blocB; // tearDown 统一收尾
+
+    blocB.add(SyncRetryRequested());
+    await until(() => blocB.state.status == SyncStatus.clean, '设备 B 拉取收敛 clean');
+
+    // B 拉了全量 log(since=0),A 的两条(deviceId='e2e-device' ≠ B)被应用。
+    expect(fake.pullRequests, isNotEmpty);
+    expect(fake.pullRequests.last.sinceVersion.toInt(), 0);
+    final accB = await database.accountDao.getAccountById(a1.id);
+    expect(accB, isNotNull, reason: '设备 A 的账户经 pull 在 B 侧复现');
+    expect(accB!.name, '设备A账户');
+    expect(accB.syncState, SyncState.synced);
+    final tagB2 = await database.tagDao.getTagById(tagA.id);
+    expect(tagB2, isNotNull);
+    expect(tagB2!.name, '设备A标签');
+    expect(tagB2.syncState, SyncState.synced);
+
+    // B 无本地变更 → 不 push(fake 仍只收到 A 的那一批)。
+    expect(fake.requests, hasLength(1));
+    // B 的游标推进到 frontier。
+    expect(await database.syncCursorDao.readLastPulledVersion(), 2);
   });
 }
