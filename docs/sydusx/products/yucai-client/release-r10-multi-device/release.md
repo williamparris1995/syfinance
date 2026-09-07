@@ -29,7 +29,7 @@
 
 ## Sprint roster(建议)
 
-- [ ] sprint-1 同步引擎地基:F16(进行中)→ F17(server 硬化→client 接入,依赖序)
+- [x] sprint-1 同步引擎地基:F16 ✅(`d9dc34ec`)→ F17 ✅(`cc118f31`)——多设备推拉/身份/冲突检测/台账地基闭环
 - [ ] sprint-2 冲突与合并:F18 → F19 → F20
 
 ## done-criteria
