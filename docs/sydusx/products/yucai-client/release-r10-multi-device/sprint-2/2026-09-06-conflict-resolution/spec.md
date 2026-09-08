@@ -13,7 +13,7 @@
 
 ## Requirements
 
-- **FR-1 冲突触达修复(阻断级)**:client port 按 SyncEntityDto 区分——`version==1`(该行从未被同步过)发 CREATE,否则 UPDATE;server 检测统一规则:**实体在 server 存在时,任意 operation**:payload 逐字节相同 → 静默跳过(幂等重推,**不记冲突不耗版本不写 log**——顺带落地 F16 的同 payload 短路);payload 不同且 `client.version <= server.version` → 冲突(跳过+记录+响应);`client.version > server.version` → 正常落库。单设备幂等重推测试语义更新(重推不再追加 log)。
+- **FR-1 冲突触达修复(阻断级)**:client port 按 SyncEntityDto 区分——`version==1`(该行从未被同步过)发 CREATE,否则 UPDATE;server 检测统一规则:**实体在 server 存在时,任意 operation**:payload 相同(**canonical 规范形比对**[T1 review fix round 1 修订:入站 payload 经 writer Canonicalize 盖 tenant 后与 server 规范形比对——Dart 线形键序/无 TenantID 不再影响等价判定])→ 静默跳过(幂等重推,**不记冲突不耗版本不写 log**——顺带落地 F16 的同 payload 短路);payload 不同且 `client.version <= server.version` → 冲突(跳过+记录+响应);`client.version > server.version` → 正常落库。单设备幂等重推测试语义更新(重推不再追加 log)。
 - **FR-2 client 冲突确认**:push 响应 conflicts 中的实体 → 本地**标记 synced**(内容已保存在 server 冲突记录,解决时裁决;防反复重推堆冲突);协调器保留完整 `List<SyncConflictInfo>`(扩展 conflictId+双 payload+时间戳[proto 加 created_at,非破坏])。
 - **FR-3 ResolveConflict 落库语义**:`server` → 仅标记(server 行已权威);`client` → writer.Upsert(client_payload)+写 log(同 sqltx);`merged` → Upsert(merged_payload)+写 log。解决后冲突行 resolved,B 经 pull 收敛(见 FR-4)。
 - **FR-4 applier 版本感知 pending 规则**(替换一刀切):下行变更 `pulled.version > 本地 pending 行.version` → **应用**(server 已裁决/他设备更新胜出,本地 pending 内容已在冲突记录或已过时);`<=` → 跳过保 pending。单设备不变式保持(server 不可能有本地 pending 行的更新版本)。**毒丸复议**:per-change try/catch(坏条目记 log 跳过,游标前进,不再钉死)。
