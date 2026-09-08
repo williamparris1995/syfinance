@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
@@ -42,8 +43,11 @@ func TestClampPullPageSize(t *testing.T) {
 }
 
 // TestConflictToProto_CarriesConflictType: the F16 field must survive the
-// DTO->proto mapping (the old mapper silently dropped it).
+// DTO->proto mapping (the old mapper silently dropped it); the F18 created_at
+// must survive it too (a zero time maps to an ABSENT field, keeping the wire
+// addition non-breaking).
 func TestConflictToProto_CarriesConflictType(t *testing.T) {
+	createdAt := time.Date(2026, 9, 8, 12, 30, 0, 0, time.UTC)
 	in := application.ConflictDTO{
 		ID:            uuid.New(),
 		EntityType:    "account",
@@ -52,6 +56,7 @@ func TestConflictToProto_CarriesConflictType(t *testing.T) {
 		ServerPayload: []byte(`{"a":1}`),
 		ClientPayload: []byte(`{"b":2}`),
 		Resolution:    "pending",
+		CreatedAt:     createdAt,
 	}
 	out := conflictToProto(in)
 	if out.ConflictType != "version_conflict" {
@@ -62,6 +67,15 @@ func TestConflictToProto_CarriesConflictType(t *testing.T) {
 	}
 	if string(out.ServerPayload) != `{"a":1}` || string(out.ClientPayload) != `{"b":2}` {
 		t.Fatal("payloads must map verbatim")
+	}
+	if out.CreatedAt == nil || !out.CreatedAt.AsTime().Equal(createdAt) {
+		t.Fatalf("created_at = %v, want %v (F18 FR-6 mapping must not drop it)", out.CreatedAt, createdAt)
+	}
+
+	zero := in
+	zero.CreatedAt = time.Time{}
+	if got := conflictToProto(zero).CreatedAt; got != nil {
+		t.Fatalf("zero created_at must map to an absent field, got %v", got)
 	}
 }
 
@@ -83,6 +97,11 @@ func TestMapError_CodeFidelity(t *testing.T) {
 		{
 			"invalid resolution",
 			fmt.Errorf("resolve conflict: %w", application.ErrInvalidResolution),
+			codes.InvalidArgument,
+		},
+		{
+			"empty merged payload (F18 ADR-3)",
+			fmt.Errorf("resolve conflict: %w", application.ErrEmptyMergedPayload),
 			codes.InvalidArgument,
 		},
 		{

@@ -38,4 +38,15 @@ type SyncEntityWriter interface {
 	// is still a version conflict. A malformed entityID is an error (fail the
 	// batch), never a silent miss.
 	CurrentState(ctx context.Context, tenantID uuid.UUID, entityID string) (version int64, payload []byte, exists bool, err error)
+	// Canonicalize normalizes one upsert payload into the module's canonical
+	// JSON form: decode into the domain entity (the same decode Upsert
+	// performs), stamp tenantID (the same stamping Upsert applies), re-marshal
+	// (F18 review fix round 1, FAIL-1). Two wire encodings of the same data —
+	// the client's envelope map versus the server's Go struct marshal — then
+	// produce identical bytes, which is what the push detection compares
+	// against CurrentState's payload; a raw byte comparison never matched the
+	// real client shape and made the idempotent re-push short-circuit dead. A
+	// structurally invalid payload errors (the same fail-closed decode
+	// contract as Upsert).
+	Canonicalize(tenantID uuid.UUID, payload []byte) ([]byte, error)
 }

@@ -162,7 +162,7 @@ func TestSyncPG_ConcurrentBatches_SerializedVersions(t *testing.T) {
 	writers := map[string]syncdomain.SyncEntityWriter{
 		"account": entitywriter.NewAccountWriter(accountrepo.NewAccountRepository(acctClient)),
 	}
-	svc := syncapp.NewService(logRepo, deviceRepo, conflictRepo, syncapp.NewConflictResolver(), writers, db, pgE2EDialect)
+	svc := syncapp.NewService(logRepo, deviceRepo, conflictRepo, writers, db, pgE2EDialect)
 
 	// Register both devices first (F16 ADR-2) so the version bumps land.
 	phoneID := uuid.New()

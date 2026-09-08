@@ -100,6 +100,9 @@ message ConflictDTO {
   // (an UPDATE whose payload version was not ahead of the server row);
   // finer-grained classes arrive with F18. Non-breaking string field.
   string conflict_type = 7;
+  // F18(FR-6): when the conflict was recorded — the resolution panel sorts
+  // newest-first and shows recency. Non-breaking: field 8, absent = zero.
+  google.protobuf.Timestamp created_at = 8;
 }
 
 message ResolveConflictRequest {

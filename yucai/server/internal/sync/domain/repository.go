@@ -27,6 +27,11 @@ type SyncDeviceRepository interface {
 // SyncConflictRepository manages conflict records.
 type SyncConflictRepository interface {
 	Save(ctx context.Context, conflict *SyncConflict) error
+	// FindByID returns the tenant's conflict row by id (F18 ADR-3: the
+	// resolution flow reads the losing payload + entity coordinates inside
+	// the resolution transaction). An id the tenant does not own surfaces as
+	// the ent NotFound shape so the handler maps codes.NotFound.
+	FindByID(ctx context.Context, tenantID, conflictID uuid.UUID) (*SyncConflict, error)
 	FindPending(ctx context.Context, tenantID uuid.UUID, page PageRequest) (*PaginatedResult[SyncConflict], error)
 	Resolve(ctx context.Context, tenantID, conflictID uuid.UUID, resolution string) error
 }

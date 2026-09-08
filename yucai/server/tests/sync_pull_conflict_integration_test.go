@@ -247,13 +247,24 @@ func TestSyncPush_ConflictDetection_SkipsAndSurfaces(t *testing.T) {
 	if len(list.Conflicts) != 1 || list.Conflicts[0].ConflictType != "version_conflict" {
 		t.Fatalf("ListConflicts = %+v, want one version_conflict", list.Conflicts)
 	}
+	// F18 FR-6: the recorded-at timestamp rides the DTO (non-breaking field
+	// 8; the panel sorts newest-first on it).
+	if list.Conflicts[0].CreatedAt == nil || list.Conflicts[0].CreatedAt.AsTime().IsZero() {
+		t.Fatalf("ListConflicts created_at = %v, want a stamped timestamp", list.Conflicts[0].CreatedAt)
+	}
 }
 
-// TestSyncPush_ConflictDetection_SingleDeviceWireShape_ZeroConflicts (F13
-// zero-regression pin over the wire): the production client always sends
-// CREATE — even an equal-version re-delivery stays conflict-free and applies
-// idempotently.
-func TestSyncPush_ConflictDetection_SingleDeviceWireShape_ZeroConflicts(t *testing.T) {
+// TestSyncPush_ConflictDetection_SingleDeviceWireShape_EditsApply_RepushShortCircuits
+// (F13 zero-regression pin; review fix round 1 FAIL-1 restored the
+// short-circuit for the real wire form): the production client wire shape
+// (CREATE op, deviceId 'bound', envelope map row) applies cleanly while each
+// push carries a strictly-ahead version, and re-delivering the SAME row
+// content — the lost-response retry — is silently short-circuited: zero
+// conflicts, zero new log entries, no log version consumed. Detection
+// compares the writer's Canonicalize form (decode -> tenant stamp ->
+// re-marshal) against the server's current state, so the map-versus-struct
+// encoding difference of equal data no longer fabricates a conflict.
+func TestSyncPush_ConflictDetection_SingleDeviceWireShape_EditsApply_RepushShortCircuits(t *testing.T) {
 	it := newSyncPushIT(t)
 	ctx := context.Background()
 	tenantID := uuid.New()
@@ -268,20 +279,43 @@ func TestSyncPush_ConflictDetection_SingleDeviceWireShape_ZeroConflicts(t *testi
 		return change
 	}
 
+	// Strictly-ahead pushes (fresh ids / bumped versions) apply without
+	// conflicts — the single-device steady state.
 	for i, tc := range []struct {
 		name    string
 		version int64
-	}{{"first", 1}, {"second", 2}, {"re-push same", 2}} {
+	}{{"first", 1}, {"second", 2}} {
 		resp, err := it.handler.PushChanges(pushCtx, &syncpb.PushChangesRequest{Changes: []*syncpb.SyncPayload{mk(tc.name, tc.version)}})
 		if err != nil {
 			t.Fatalf("push %d (%s): %v", i+1, tc.name, err)
 		}
 		if len(resp.Conflicts) != 0 {
-			t.Fatalf("push %d (%s): conflicts = %d, want 0 (single-device CREATE wire shape never checks)", i+1, tc.name, len(resp.Conflicts))
+			t.Fatalf("push %d (%s): conflicts = %d, want 0 (ahead push applies)", i+1, tc.name, len(resp.Conflicts))
 		}
 	}
-	if rows := it.syncLogRows(t, ctx, tenantID); len(rows) != 3 {
-		t.Fatalf("sync_log rows = %d, want 3", len(rows))
+
+	// Lost-response retry: the SAME envelope row re-delivered at the SAME
+	// version short-circuits — no conflict, no log append, version unchanged.
+	resp, err := it.handler.PushChanges(pushCtx, &syncpb.PushChangesRequest{Changes: []*syncpb.SyncPayload{mk("second", 2)}})
+	if err != nil {
+		t.Fatalf("re-push: %v", err)
+	}
+	if len(resp.Conflicts) != 0 {
+		t.Fatalf("re-push conflicts = %d, want 0 (same data in client wire form short-circuits)", len(resp.Conflicts))
+	}
+	if resp.SyncedVersion != 2 {
+		t.Fatalf("re-push synced_version = %d, want 2 (short-circuit consumes no log version)", resp.SyncedVersion)
+	}
+	if rows := it.syncLogRows(t, ctx, tenantID); len(rows) != 2 {
+		t.Fatalf("sync_log rows = %d, want 2 (short-circuit appends nothing)", len(rows))
+	}
+	// And nothing pending for the resolution UI.
+	list, err := it.handler.ListConflicts(pushCtx, &syncpb.ListConflictsRequest{})
+	if err != nil {
+		t.Fatalf("ListConflicts: %v", err)
+	}
+	if len(list.Conflicts) != 0 {
+		t.Fatalf("listed conflicts = %d, want 0", len(list.Conflicts))
 	}
 }
 
@@ -323,6 +357,21 @@ func TestSyncResolveConflict_HandlerCodes(t *testing.T) {
 		t.Fatal("unknown conflict id must error")
 	}
 	assertCode(t, err, codes.NotFound)
+
+	// F18 ADR-3: "merged" without merged_payload is InvalidArgument before
+	// any DB round-trip (nothing persisted, conflict stays pending).
+	_, err = it.handler.ResolveConflict(pushCtx, &syncpb.ResolveConflictRequest{ConflictId: conflictID, Resolution: "merged"})
+	if err == nil {
+		t.Fatal("merged without merged_payload must be rejected")
+	}
+	assertCode(t, err, codes.InvalidArgument)
+	preReject, err := it.handler.ListConflicts(pushCtx, &syncpb.ListConflictsRequest{})
+	if err != nil {
+		t.Fatalf("ListConflicts after empty-merged reject: %v", err)
+	}
+	if len(preReject.Conflicts) != 1 {
+		t.Fatalf("conflicts after empty-merged reject = %d, want 1 (untouched)", len(preReject.Conflicts))
+	}
 
 	// Valid resolution lands and clears the pending count.
 	if _, err := it.handler.ResolveConflict(pushCtx, &syncpb.ResolveConflictRequest{ConflictId: conflictID, Resolution: "server"}); err != nil {

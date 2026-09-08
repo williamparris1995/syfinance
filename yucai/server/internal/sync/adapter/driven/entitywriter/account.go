@@ -66,6 +66,18 @@ func (w *AccountWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID
 	return nil
 }
 
+// Canonicalize round-trips one payload through the domain entity with the
+// tenant stamped — the canonical JSON form the push detection compares
+// against CurrentState's payload (see the port doc).
+func (w *AccountWriter) Canonicalize(tenantID uuid.UUID, payload []byte) ([]byte, error) {
+	var a accountdomain.Account
+	if err := json.Unmarshal(payload, &a); err != nil {
+		return nil, fmt.Errorf("unmarshal account payload: %w", err)
+	}
+	a.TenantID = tenantID
+	return json.Marshal(a)
+}
+
 // CurrentState returns the server's current account row for the push conflict
 // check (F16 ADR-4). The payload is the domain entity marshaled with default
 // Go naming — the same PascalCase envelope shape Upsert decodes — so the

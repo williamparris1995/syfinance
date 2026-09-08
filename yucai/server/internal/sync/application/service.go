@@ -1,6 +1,7 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -29,6 +30,12 @@ var ErrVersionConflict = errors.New("sync push aborted: version conflict retries
 // pre-resolution state, not a resolvable strategy); the handler maps this to
 // gRPC InvalidArgument.
 var ErrInvalidResolution = errors.New("invalid resolution: must be one of server, client, merged")
+
+// ErrEmptyMergedPayload reports a "merged" resolution whose merged_payload is
+// absent/empty (F18 ADR-3): there is nothing to persist for the winning
+// state, so the call is a client error (gRPC InvalidArgument) before any DB
+// round-trip.
+var ErrEmptyMergedPayload = errors.New("merged resolution requires a non-empty merged_payload")
 
 // validResolutions is the ResolveConflict whitelist — the value domain is
 // FINAL (ADR-4): server, client, merged.
@@ -108,7 +115,6 @@ type Service struct {
 	logRepo      domain.SyncLogRepository
 	deviceRepo   domain.SyncDeviceRepository
 	conflictRepo domain.SyncConflictRepository
-	resolver     *ConflictResolver
 	// writers dispatches each change to its module writer, keyed by entity_type
 	// (the client SyncModule name — must match the writer Name() verbatim).
 	writers map[string]domain.SyncEntityWriter
@@ -121,12 +127,13 @@ type Service struct {
 // NewService creates a new sync application service. writers may be nil/empty
 // (PushChanges then fails closed on any typed change — the forward-compat
 // gate); db drives the batch transaction and must be the same pool every
-// module ent client wraps.
+// module ent client wraps. (F18 FR-7: the ConflictResolver parameter is gone —
+// conflict.go's auto-resolution dead code was deleted; resolution is the
+// explicit ResolveConflict flow.)
 func NewService(
 	logRepo domain.SyncLogRepository,
 	deviceRepo domain.SyncDeviceRepository,
 	conflictRepo domain.SyncConflictRepository,
-	resolver *ConflictResolver,
 	writers map[string]domain.SyncEntityWriter,
 	db *sql.DB,
 	dialect string,
@@ -135,7 +142,6 @@ func NewService(
 		logRepo:      logRepo,
 		deviceRepo:   deviceRepo,
 		conflictRepo: conflictRepo,
-		resolver:     resolver,
 		writers:      writers,
 		db:           db,
 		dialect:      dialect,
@@ -223,10 +229,13 @@ func (s *Service) GetTenantSyncStatus(ctx context.Context, tenantID uuid.UUID) (
 //     trusting client ordering.
 //   - Versioning: sync_log versions are assigned LatestVersion+1..N once per
 //     batch (the old loop re-queried LatestVersion per change outside any
-//     transaction). A re-push appends new versions — accepted per FR-3: a
-//     single-device client only re-pushes a batch whose response it never
-//     received, and business-side idempotency is guaranteed by the per-entity
-//     upsert keying.
+//     transaction). A re-push appends new versions ONLY when the payload
+//     differs from the server's state: a canonically-equal re-push (same
+//     data in any wire encoding — see the detection bullet) is silently
+//     short-circuited (F18 FR-1 tightening — a single-device client only
+//     re-pushes a batch whose response it never received, and the end state is
+//     identical either way); business-side idempotency is additionally
+//     guaranteed by the per-entity upsert keying.
 //   - Serialization (F16 ADR-1): two concurrent batches can both read the same
 //     LatestVersion; the (tenant_id, version) unique index turns the loser's
 //     first append into a constraint failure. The WHOLE sqltx is then reopened
@@ -239,27 +248,28 @@ func (s *Service) GetTenantSyncStatus(ctx context.Context, tenantID uuid.UUID) (
 //     Postgres READ COMMITTED the losing transaction is aborted by the
 //     constraint failure and cannot continue; and the stale base version
 //     poisoned every version it derived.
-//   - Conflict detection skip semantics (F16 ADR-4, multi-device): each
-//     UPDATE-typed change is compared against the server's current row via
-//     the writer's CurrentState. When the row exists and the payload's own
-//     version is not strictly ahead (payload.version <= server.version) the
-//     change is SKIPPED — no business write, no sync_log append (it consumes
-//     no log version) — and a sync_conflicts row records both states plus the
-//     response's conflicts slice. The rest of the batch lands normally: one
-//     device's conflict must not fail its own clean changes. Atomicity
-//     boundary: "what is applied is all-or-nothing" — a conflict is an
-//     explicit skip, not a failure, so the committed subset is exactly the
-//     non-conflicting changes. CREATE and DELETE are never checked (spec
-//     FR-4: a new entity cannot conflict; a tombstone is the client's final
-//     word).
-//   - Single-device zero-regression (F10-F13): the shipped client stamps
-//     every upsert CREATE (client binding/data/grpc_offline_sync_port.dart),
-//     which is never checked; and even a genuine UPDATE from the owning
-//     device carries a strictly newer payload version (the client increments
-//     it per local edit), so payload.version <= server.version cannot hold.
-//     Detection therefore only fires for a stale-base push from ANOTHER
-//     device (or an equal-version UPDATE re-delivery — flagged per ADR-4's
-//     "<=" deliberately; identical-payload short-circuiting is F18 space).
+//   - Conflict detection, unified existence check (F18 ADR-1, replacing the F16
+//     UPDATE-only check that never fired — the shipped client stamps every
+//     upsert CREATE): each upsert-typed change, whatever its operation, is
+//     compared against the server's current row via the writer's CurrentState.
+//     When the row exists: a payload canonically EQUAL to the stored state
+//     (writer.Canonicalize on both sides — decode + tenant stamp +
+//     re-marshal) is silently skipped (no conflict, no log version, no log
+//     append — the idempotent re-push short-circuit); a different payload
+//     whose own version is not strictly
+//     ahead (payload.version <= server.version) is SKIPPED and recorded — a
+//     sync_conflicts row holds both states plus the response's conflicts slice;
+//     a different payload that IS strictly ahead applies. An absent row always
+//     applies; DELETE is never checked (spec FR-4: a tombstone is the client's
+//     final word). The rest of the batch lands normally: one device's conflict
+//     must not fail its own clean changes. Atomicity boundary: "what is applied
+//     is all-or-nothing" — a conflict is an explicit skip, not a failure, so
+//     the committed subset is exactly the non-conflicting changes.
+//   - Single-device zero-regression (F10-F13): the single-device flow pushes a
+//     strictly newer payload version per local edit (the client increments it),
+//     so the unified check waves it through; the lost-response re-push now
+//     short-circuits instead of appending a duplicate log version — an
+//     authorized terminal-state-equivalent tightening (F18 FR-1).
 //   - Device row: with the v1 deviceId fallback (= tenantID, RegisterDevice
 //     not yet wired client-side) the device row often does not exist; a
 //     not-found on the version bump is tolerated (logged) rather than failing
@@ -323,14 +333,49 @@ func (s *Service) PushChanges(ctx context.Context, tenantID, deviceID uuid.UUID,
 						return fmt.Errorf("entity id mismatch: change id %s but payload id %s (%s)", p.EntityID, probe.ID, p.EntityType)
 					}
 
-					// Conflict detection (UPDATE only, ADR-4): a stale-base
-					// update is skipped and recorded instead of applied.
-					if p.Operation == domain.SyncOperationUpdate {
-						serverVersion, serverPayload, exists, cerr := writer.CurrentState(ctxT, tenantID, p.EntityID.String())
-						if cerr != nil {
-							return fmt.Errorf("read current state %s %s: %w", p.EntityType, p.EntityID, cerr)
+					// Unified conflict detection (F18 ADR-1 / FR-1, replacing the
+					// F16 UPDATE-only check): EVERY upsert — CREATE and UPDATE
+					// alike — is compared against the server's current row via
+					// the writer's CurrentState. The F16 check never fired for
+					// the real client because it stamps every upsert CREATE
+					// (grpc_offline_sync_port.dart), so multi-device divergent
+					// pushes silently LWW-overwrote each other. Rules for a row
+					// the server holds:
+					//   - payload canonically-equal to the server's state ->
+					//     SILENT skip: no conflict row, no log version consumed,
+					//     no sync_log append (idempotent re-push short-circuit;
+					//     also lands the F16 same-payload backlog). The
+					//     comparison runs on the writer's Canonicalize form —
+					//     decode + tenant stamp + re-marshal — because a RAW
+					//     byte comparison never matches the real client wire
+					//     shape (Dart envelope map vs Go struct re-marshal),
+					//     which left the short-circuit dead (review fix round
+					//     1, FAIL-1);
+					//   - different payload, probe.Version <= serverVersion ->
+					//     conflict: skip + record + carry in the response;
+					//   - different payload, probe.Version > serverVersion ->
+					//     apply (a strictly-ahead push wins regardless of op).
+					// An absent row always applies (a first sighting cannot
+					// conflict); DELETE stays unchecked (a tombstone is the
+					// client's final word).
+					serverVersion, serverPayload, exists, cerr := writer.CurrentState(ctxT, tenantID, p.EntityID.String())
+					if cerr != nil {
+						return fmt.Errorf("read current state %s %s: %w", p.EntityType, p.EntityID, cerr)
+					}
+					if exists {
+						canonical, canerr := writer.Canonicalize(tenantID, p.Payload)
+						if canerr != nil {
+							return fmt.Errorf("canonicalize %s %s payload: %w", p.EntityType, p.EntityID, canerr)
 						}
-						if exists && probe.Version <= serverVersion {
+						if bytes.Equal(canonical, serverPayload) {
+							// Same data re-delivered in any encoding: the
+							// server already holds this exact state, so
+							// re-applying it (and re-logging it) would only
+							// burn a log version. Deliberately silent — not
+							// even a slog line (per-change re-push noise).
+							continue
+						}
+						if probe.Version <= serverVersion {
 							conflict := domain.NewSyncConflict(
 								tenantID, p.EntityType, p.EntityID,
 								conflictTypeVersionConflict,
@@ -527,16 +572,108 @@ func (s *Service) ListConflicts(ctx context.Context, tenantID uuid.UUID, page do
 	return dtos, result.NextPageToken, result.TotalCount, nil
 }
 
-// ResolveConflict resolves a conflict with the given strategy (F16 ADR-4).
-// The resolution value domain is FINAL: {server, client, merged} — validated
-// here BEFORE the repo round-trip so a bad strategy is a client error
-// (InvalidArgument on the wire), not a DB write.
-func (s *Service) ResolveConflict(ctx context.Context, tenantID, conflictID uuid.UUID, resolution string) error {
+// ResolveConflict resolves a conflict with the given strategy (F16 ADR-4
+// whitelist; F18 ADR-3 persistence semantics):
+//   - "server": the server row is already authoritative — ONLY the conflict
+//     row is marked resolved (no business write, no sync_log append).
+//   - "client": payload is the conflict row's client_payload (the merged
+//     argument is ignored on this branch — the client's own state is the
+//     recorded losing payload by definition).
+//   - "merged": payload is the caller-supplied merged_payload (empty ->
+//     ErrEmptyMergedPayload before any DB round-trip).
+//
+// The client/merged branches persist the winning state atomically in ONE
+// sqltx: load the conflict row (entity_type/entity_id), writer.Upsert the
+// winning payload, append one sync_log entry (operation=update) at the NEXT
+// log sequence version, and mark the conflict resolved — a failure anywhere
+// rolls the whole resolution back. The log entry is the losing device's
+// convergence path: it pulls past its old frontier and applies the resolved
+// state (FR-3). The entry's log version is LatestVersion+1, NOT the payload's
+// entity version — sync_log versions are the per-tenant pull cursor, and an
+// entity-version entry would collide with the (tenant_id, version) unique
+// index and sort behind pull cursors (never replayed). The payload's own
+// entity version still lands in the business row via the writer, exactly like
+// a push.
+func (s *Service) ResolveConflict(ctx context.Context, tenantID, conflictID uuid.UUID, resolution string, payload []byte) error {
 	if !validResolutions[resolution] {
 		return fmt.Errorf("%w: got %q", ErrInvalidResolution, resolution)
 	}
-	if err := s.conflictRepo.Resolve(ctx, tenantID, conflictID, resolution); err != nil {
-		return fmt.Errorf("resolve conflict: %w", err)
+	if resolution == "merged" && len(payload) == 0 {
+		return ErrEmptyMergedPayload
 	}
+	if resolution == "server" {
+		if err := s.conflictRepo.Resolve(ctx, tenantID, conflictID, resolution); err != nil {
+			return fmt.Errorf("resolve conflict: %w", err)
+		}
+		return nil
+	}
+
+	var logVersion int64
+	txErr := sqltx.WithTx(ctx, s.db, s.dialect, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	}, func(ctxT context.Context) error {
+		conflict, err := s.conflictRepo.FindByID(ctxT, tenantID, conflictID)
+		if err != nil {
+			return fmt.Errorf("load conflict %s: %w", conflictID, err)
+		}
+		winning := payload
+		if resolution == "client" {
+			winning = conflict.ClientPayload
+		}
+		writer, ok := s.writers[conflict.EntityType]
+		if !ok {
+			// Fail closed: same forward-compat gate as PushChanges.
+			return fmt.Errorf("unknown entity type %q", conflict.EntityType)
+		}
+		// Same payload-id probe as the push path: the log must record the
+		// conflict's entity, never a substituted id hidden in the payload.
+		var probe struct {
+			ID      uuid.UUID
+			Version int64
+		}
+		if err := json.Unmarshal(winning, &probe); err != nil {
+			return fmt.Errorf("decode %s %s payload id: %w", conflict.EntityType, conflict.EntityID, err)
+		}
+		if probe.ID != conflict.EntityID {
+			return fmt.Errorf("entity id mismatch: conflict id %s but payload id %s (%s)", conflict.EntityID, probe.ID, conflict.EntityType)
+		}
+		if err := writer.Upsert(ctxT, tenantID, winning); err != nil {
+			return fmt.Errorf("apply %s %s resolution: %w", conflict.EntityType, conflict.EntityID, err)
+		}
+		base, err := s.logRepo.LatestVersion(ctxT, tenantID)
+		if err != nil {
+			return fmt.Errorf("read latest version: %w", err)
+		}
+		logVersion = base + 1
+		entry := &domain.SyncLogEntry{
+			ID:         uuid.New(),
+			TenantID:   tenantID,
+			EntityType: conflict.EntityType,
+			EntityID:   conflict.EntityID,
+			Operation:  domain.SyncOperationUpdate,
+			Payload:    winning,
+			Version:    logVersion,
+			// Administrative resolution carries no device attribution.
+			DeviceID:  uuid.Nil,
+			CreatedAt: time.Now(),
+		}
+		if err := s.logRepo.Append(ctxT, entry); err != nil {
+			return fmt.Errorf("append sync log: %w", err)
+		}
+		if err := s.conflictRepo.Resolve(ctxT, tenantID, conflictID, resolution); err != nil {
+			return fmt.Errorf("resolve conflict: %w", err)
+		}
+		return nil
+	})
+	if txErr != nil {
+		return txErr
+	}
+
+	slog.Info("sync conflict resolved and persisted",
+		"operation", "sync_resolve_conflict",
+		"tenant_id", tenantID.String(),
+		"conflict_id", conflictID.String(),
+		"resolution", resolution,
+		"log_version", logVersion)
 	return nil
 }

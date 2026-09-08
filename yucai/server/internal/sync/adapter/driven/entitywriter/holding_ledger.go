@@ -74,6 +74,18 @@ func (w *HoldingLedgerWriter) Delete(ctx context.Context, tenantID uuid.UUID, en
 	return nil
 }
 
+// Canonicalize round-trips one payload through the domain entity with the
+// tenant stamped — the canonical JSON form the push detection compares
+// against CurrentState's payload (see the port doc).
+func (w *HoldingLedgerWriter) Canonicalize(tenantID uuid.UUID, payload []byte) ([]byte, error) {
+	var tr holdingdomain.HoldingTransaction
+	if err := json.Unmarshal(payload, &tr); err != nil {
+		return nil, fmt.Errorf("unmarshal holding_ledger payload: %w", err)
+	}
+	tr.TenantID = tenantID
+	return json.Marshal(tr)
+}
+
 // CurrentState returns the server's current ledger row for the push conflict
 // check (F16 ADR-4). The append-only ledger carries no optimistic version —
 // version is pinned to 1. Dead path in practice: the client stamps every

@@ -223,6 +223,14 @@ const ConflictDTO$json = {
     {'1': 'client_payload', '3': 5, '4': 1, '5': 12, '10': 'clientPayload'},
     {'1': 'resolution', '3': 6, '4': 1, '5': 9, '10': 'resolution'},
     {'1': 'conflict_type', '3': 7, '4': 1, '5': 9, '10': 'conflictType'},
+    {
+      '1': 'created_at',
+      '3': 8,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'createdAt'
+    },
   ],
 };
 
@@ -232,7 +240,8 @@ final $typed_data.Uint8List conflictDTODescriptor = $convert.base64Decode(
     'l0eVR5cGUSGwoJZW50aXR5X2lkGAMgASgJUghlbnRpdHlJZBIlCg5zZXJ2ZXJfcGF5bG9hZBgE'
     'IAEoDFINc2VydmVyUGF5bG9hZBIlCg5jbGllbnRfcGF5bG9hZBgFIAEoDFINY2xpZW50UGF5bG'
     '9hZBIeCgpyZXNvbHV0aW9uGAYgASgJUgpyZXNvbHV0aW9uEiMKDWNvbmZsaWN0X3R5cGUYByAB'
-    'KAlSDGNvbmZsaWN0VHlwZQ==');
+    'KAlSDGNvbmZsaWN0VHlwZRI5CgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLl'
+    'RpbWVzdGFtcFIJY3JlYXRlZEF0');
 
 @$core.Deprecated('Use resolveConflictRequestDescriptor instead')
 const ResolveConflictRequest$json = {

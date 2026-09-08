@@ -58,6 +58,18 @@ func (w *TagWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID str
 	return nil
 }
 
+// Canonicalize round-trips one payload through the domain entity with the
+// tenant stamped — the canonical JSON form the push detection compares
+// against CurrentState's payload (see the port doc).
+func (w *TagWriter) Canonicalize(tenantID uuid.UUID, payload []byte) ([]byte, error) {
+	var t tagdomain.Tag
+	if err := json.Unmarshal(payload, &t); err != nil {
+		return nil, fmt.Errorf("unmarshal tag payload: %w", err)
+	}
+	t.TenantID = tenantID
+	return json.Marshal(t)
+}
+
 // CurrentState returns the server's current tag row for the push conflict
 // check (F16 ADR-4). See the port doc in sync/domain/entity_writer.go for
 // the full contract.

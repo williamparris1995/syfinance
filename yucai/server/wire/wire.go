@@ -95,7 +95,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideSyncLogRepo,
 		provideSyncDeviceRepo,
 		provideSyncConflictRepo,
-		provideConflictResolver,
 		provideAccountWriter,
 		provideTransactionWriter,
 		provideDebtWriter,

@@ -35,7 +35,14 @@ func (SyncConflict) Fields() []ent.Field {
 		field.Bytes("client_payload").Comment("Client-side entity state"),
 		field.String("resolution").Default("pending").Comment("pending, server, client, merged"),
 		field.Time("resolved_at").Optional().Nillable(),
-		field.Time("created_at").Default(time.Now).Immutable(),
+		// F18 review fix round 1 (FAIL-2): the default stamps UTC (and strips
+		// the monotonic clock reading time.Now carries). ent persists time
+		// columns on SQLite through time.Time's String() form INCLUDING the
+		// zone, so UTC-uniform writes keep newest-first text ordering ==
+		// chronological, and the FindPending keyset cursor re-binds the exact
+		// stored text for the tuple equality arm. PostgreSQL (timestamptz) is
+		// zone-agnostic and unaffected.
+		field.Time("created_at").Default(func() time.Time { return time.Now().UTC() }).Immutable(),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}
 }

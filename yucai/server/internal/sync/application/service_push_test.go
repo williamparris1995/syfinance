@@ -45,7 +45,6 @@ type pushHarness struct {
 	logRepo      *syncrepo.SyncLogRepository
 	deviceRepo   *syncrepo.SyncDeviceRepository
 	conflictRepo *syncrepo.SyncConflictRepository
-	resolver     *ConflictResolver
 	writers      map[string]syncdomain.SyncEntityWriter
 	db           *sql.DB
 	accountCl    *accountent.Client
@@ -104,10 +103,10 @@ func newPushHarness(t *testing.T) *pushHarness {
 		"tag":         entitywriter.NewTagWriter(tagRepo),
 	}
 
-	svc := NewService(logRepo, deviceRepo, conflictRepo, NewConflictResolver(), writers, db, sqliteDialect)
+	svc := NewService(logRepo, deviceRepo, conflictRepo, writers, db, sqliteDialect)
 	return &pushHarness{
 		svc: svc, logRepo: logRepo, deviceRepo: deviceRepo,
-		conflictRepo: conflictRepo, resolver: NewConflictResolver(),
+		conflictRepo: conflictRepo,
 		writers: writers, db: db,
 		accountCl: accountCl, txnCl: txnCl, tagCl: tagCl, syncCl: syncCl,
 		tenantID: uuid.New(), deviceID: uuid.New(),
@@ -328,11 +327,17 @@ func TestPushChanges_DeleteDependencyOrder(t *testing.T) {
 	}
 }
 
-// TestPushChanges_IdempotentRepush (FR-3): re-pushing the same payload must
-// not duplicate the business row (upsert keyed by entity id). The sync_log
-// append on re-push is accepted by design: a single-device client only re-pushes
-// when it never received the response, and business-side idempotency is what
-// matters (comment contract in PushChanges).
+// TestPushChanges_IdempotentRepush (FR-3, F18 semantic update): re-pushing
+// the same payload must not duplicate the business row (upsert keyed by
+// entity id) AND — since the F18 unified detection (ADR-1) — appends NOTHING
+// to sync_log: the payload is byte-identical to the server's current state
+// (the accountPayload fixture bakes the harness tenant, so push -> store ->
+// CurrentState re-marshal round-trips byte-identically), so the change is
+// silently short-circuited (no log version consumed, no conflict). The
+// pre-F18 behavior appended a fresh log version per re-push; a single-device
+// client only re-pushes when it never received the response, and the
+// end-state is identical either way (business row + log frontier), so the
+// tightening is terminal-state-equivalent.
 func TestPushChanges_IdempotentRepush(t *testing.T) {
 	h := newPushHarness(t)
 	ctx := context.Background()
@@ -349,7 +354,7 @@ func TestPushChanges_IdempotentRepush(t *testing.T) {
 	if _, _, err := h.svc.PushChanges(ctx, h.tenantID, h.deviceID, []SyncPayloadDTO{dto}); err != nil {
 		t.Fatalf("first push: %v", err)
 	}
-	v2, _, err := h.svc.PushChanges(ctx, h.tenantID, h.deviceID, []SyncPayloadDTO{dto})
+	v2, conflicts, err := h.svc.PushChanges(ctx, h.tenantID, h.deviceID, []SyncPayloadDTO{dto})
 	if err != nil {
 		t.Fatalf("re-push: %v", err)
 	}
@@ -357,8 +362,14 @@ func TestPushChanges_IdempotentRepush(t *testing.T) {
 	if n, err := h.accountCl.Account.Query().Where(accpredicate.TenantID(h.tenantID)).Count(ctx); err != nil || n != 1 {
 		t.Fatalf("business rows after re-push = %d err=%v, want 1 (upsert idempotent)", n, err)
 	}
-	if v2 != 2 {
-		t.Fatalf("second push synced version = %d, want 2 (log appends new versions)", v2)
+	if len(conflicts) != 0 {
+		t.Fatalf("re-push conflicts = %d, want 0 (identical re-push short-circuits)", len(conflicts))
+	}
+	if v2 != 1 {
+		t.Fatalf("second push synced version = %d, want 1 (identical re-push appends no log version)", v2)
+	}
+	if entries, err := h.logRepo.FindSince(ctx, h.tenantID, 0, nil, 500); err != nil || len(entries) != 1 {
+		t.Fatalf("log entries after re-push = %d err=%v, want 1 (short-circuit appends nothing)", len(entries), err)
 	}
 }
 

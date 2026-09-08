@@ -612,7 +612,10 @@ type ConflictDTO struct {
 	// F16: conflict classification. Value domain today: "version_conflict"
 	// (an UPDATE whose payload version was not ahead of the server row);
 	// finer-grained classes arrive with F18. Non-breaking string field.
-	ConflictType  string `protobuf:"bytes,7,opt,name=conflict_type,json=conflictType,proto3" json:"conflict_type,omitempty"`
+	ConflictType string `protobuf:"bytes,7,opt,name=conflict_type,json=conflictType,proto3" json:"conflict_type,omitempty"`
+	// F18(FR-6): when the conflict was recorded — the resolution panel sorts
+	// newest-first and shows recency. Non-breaking: field 8, absent = zero.
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -694,6 +697,13 @@ func (x *ConflictDTO) GetConflictType() string {
 		return x.ConflictType
 	}
 	return ""
+}
+
+func (x *ConflictDTO) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
 }
 
 type ResolveConflictRequest struct {
@@ -892,7 +902,7 @@ const file_sync_v1_sync_proto_rawDesc = "" +
 	"\x13PullChangesResponse\x124\n" +
 	"\achanges\x18\x01 \x03(\v2\x1a.yucai.sync.v1.SyncPayloadR\achanges\x12%\n" +
 	"\x0elatest_version\x18\x02 \x01(\x03R\rlatestVersion\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\xee\x01\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\xa9\x02\n" +
 	"\vConflictDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\ventity_type\x18\x02 \x01(\tR\n" +
@@ -903,7 +913,9 @@ const file_sync_v1_sync_proto_rawDesc = "" +
 	"\n" +
 	"resolution\x18\x06 \x01(\tR\n" +
 	"resolution\x12#\n" +
-	"\rconflict_type\x18\a \x01(\tR\fconflictType\"\x80\x01\n" +
+	"\rconflict_type\x18\a \x01(\tR\fconflictType\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x80\x01\n" +
 	"\x16ResolveConflictRequest\x12\x1f\n" +
 	"\vconflict_id\x18\x01 \x01(\tR\n" +
 	"conflictId\x12\x1e\n" +
@@ -969,26 +981,27 @@ var file_sync_v1_sync_proto_depIdxs = []int32{
 	1,  // 2: yucai.sync.v1.PushChangesRequest.changes:type_name -> yucai.sync.v1.SyncPayload
 	10, // 3: yucai.sync.v1.PushResponse.conflicts:type_name -> yucai.sync.v1.ConflictDTO
 	1,  // 4: yucai.sync.v1.PullChangesResponse.changes:type_name -> yucai.sync.v1.SyncPayload
-	15, // 5: yucai.sync.v1.ListConflictsRequest.page:type_name -> yucai.common.v1.PageRequest
-	10, // 6: yucai.sync.v1.ListConflictsResponse.conflicts:type_name -> yucai.sync.v1.ConflictDTO
-	16, // 7: yucai.sync.v1.ListConflictsResponse.page:type_name -> yucai.common.v1.PageResponse
-	2,  // 8: yucai.sync.v1.SyncService.RegisterDevice:input_type -> yucai.sync.v1.RegisterDeviceRequest
-	4,  // 9: yucai.sync.v1.SyncService.GetSyncStatus:input_type -> yucai.sync.v1.GetSyncStatusRequest
-	6,  // 10: yucai.sync.v1.SyncService.PushChanges:input_type -> yucai.sync.v1.PushChangesRequest
-	8,  // 11: yucai.sync.v1.SyncService.PullChanges:input_type -> yucai.sync.v1.PullChangesRequest
-	11, // 12: yucai.sync.v1.SyncService.ResolveConflict:input_type -> yucai.sync.v1.ResolveConflictRequest
-	12, // 13: yucai.sync.v1.SyncService.ListConflicts:input_type -> yucai.sync.v1.ListConflictsRequest
-	3,  // 14: yucai.sync.v1.SyncService.RegisterDevice:output_type -> yucai.sync.v1.RegisterDeviceResponse
-	5,  // 15: yucai.sync.v1.SyncService.GetSyncStatus:output_type -> yucai.sync.v1.SyncStatusResponse
-	7,  // 16: yucai.sync.v1.SyncService.PushChanges:output_type -> yucai.sync.v1.PushResponse
-	9,  // 17: yucai.sync.v1.SyncService.PullChanges:output_type -> yucai.sync.v1.PullChangesResponse
-	17, // 18: yucai.sync.v1.SyncService.ResolveConflict:output_type -> google.protobuf.Empty
-	13, // 19: yucai.sync.v1.SyncService.ListConflicts:output_type -> yucai.sync.v1.ListConflictsResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	14, // 5: yucai.sync.v1.ConflictDTO.created_at:type_name -> google.protobuf.Timestamp
+	15, // 6: yucai.sync.v1.ListConflictsRequest.page:type_name -> yucai.common.v1.PageRequest
+	10, // 7: yucai.sync.v1.ListConflictsResponse.conflicts:type_name -> yucai.sync.v1.ConflictDTO
+	16, // 8: yucai.sync.v1.ListConflictsResponse.page:type_name -> yucai.common.v1.PageResponse
+	2,  // 9: yucai.sync.v1.SyncService.RegisterDevice:input_type -> yucai.sync.v1.RegisterDeviceRequest
+	4,  // 10: yucai.sync.v1.SyncService.GetSyncStatus:input_type -> yucai.sync.v1.GetSyncStatusRequest
+	6,  // 11: yucai.sync.v1.SyncService.PushChanges:input_type -> yucai.sync.v1.PushChangesRequest
+	8,  // 12: yucai.sync.v1.SyncService.PullChanges:input_type -> yucai.sync.v1.PullChangesRequest
+	11, // 13: yucai.sync.v1.SyncService.ResolveConflict:input_type -> yucai.sync.v1.ResolveConflictRequest
+	12, // 14: yucai.sync.v1.SyncService.ListConflicts:input_type -> yucai.sync.v1.ListConflictsRequest
+	3,  // 15: yucai.sync.v1.SyncService.RegisterDevice:output_type -> yucai.sync.v1.RegisterDeviceResponse
+	5,  // 16: yucai.sync.v1.SyncService.GetSyncStatus:output_type -> yucai.sync.v1.SyncStatusResponse
+	7,  // 17: yucai.sync.v1.SyncService.PushChanges:output_type -> yucai.sync.v1.PushResponse
+	9,  // 18: yucai.sync.v1.SyncService.PullChanges:output_type -> yucai.sync.v1.PullChangesResponse
+	17, // 19: yucai.sync.v1.SyncService.ResolveConflict:output_type -> google.protobuf.Empty
+	13, // 20: yucai.sync.v1.SyncService.ListConflicts:output_type -> yucai.sync.v1.ListConflictsResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_sync_v1_sync_proto_init() }

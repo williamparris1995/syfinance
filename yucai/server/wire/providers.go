@@ -726,9 +726,6 @@ func provideSyncDeviceRepo(client *syncent.Client) *syncrepo.SyncDeviceRepositor
 func provideSyncConflictRepo(client *syncent.Client) *syncrepo.SyncConflictRepository {
 	return syncrepo.NewSyncConflictRepository(client)
 }
-func provideConflictResolver() *syncapp.ConflictResolver {
-	return syncapp.NewConflictResolver()
-}
 
 // provideSyncEntityWriters aggregates the per-module SyncEntityWriter
 // implementations into the map the sync Service dispatches on. Keys are the
@@ -788,17 +785,18 @@ func provideTagWriter(repo *tagrepo.TagRepository) *entitywriter.TagWriter {
 func provideTemplateWriter(repo *tmplrepo.TemplateRepository) *entitywriter.TemplateWriter {
 	return entitywriter.NewTemplateWriter(repo)
 }
+// F18 FR-7: the ConflictResolver provider is gone with conflict.go's dead
+// code — resolution is the explicit ResolveConflict flow.
 func provideSyncService(
 	logRepo *syncrepo.SyncLogRepository,
 	deviceRepo *syncrepo.SyncDeviceRepository,
 	conflictRepo *syncrepo.SyncConflictRepository,
-	resolver *syncapp.ConflictResolver,
 	writers map[string]syncdomain.SyncEntityWriter,
 	db *sql.DB,
 ) *syncapp.Service {
 	// dialect = ent postgres string so sqltx emits "$1" placeholders (same
 	// contract as provideBackupService).
-	return syncapp.NewService(logRepo, deviceRepo, conflictRepo, resolver, writers, db, string(dialect.Postgres))
+	return syncapp.NewService(logRepo, deviceRepo, conflictRepo, writers, db, string(dialect.Postgres))
 }
 func provideSyncHandler(svc *syncapp.Service) *syncgrpc.SyncHandler {
 	return syncgrpc.NewSyncHandler(svc)

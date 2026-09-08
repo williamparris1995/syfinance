@@ -7,6 +7,7 @@ package entitywriter_test
 // via clientFor), which fakes cannot prove.
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -902,6 +903,75 @@ func TestTransactionWriter_CurrentState_NestedEntriesRoundTrip(t *testing.T) {
 	}
 	if decoded.ID != tx.ID || len(decoded.Entries) != 2 || decoded.Version != 2 {
 		t.Fatalf("decoded server txn = id %s entries %d v%d, want full entity round-trip", decoded.ID, len(decoded.Entries), decoded.Version)
+	}
+}
+
+// TestTransactionWriter_Canonicalize_MatchesCurrentState (review fix round 1,
+// FAIL-1): the canonical form of a re-encoded payload — the same data as an
+// envelope map (client wire shape: map key order, no TenantID key) — must
+// EQUAL the server's CurrentState payload byte-for-byte, including the nested
+// Entries array. This is the exact property the push detection's idempotent
+// re-push short-circuit compares on; the transaction writer is the probe
+// because its nested shape is the riskiest round-trip.
+func TestTransactionWriter_Canonicalize_MatchesCurrentState(t *testing.T) {
+	db := openWriterDB(t)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := txnent.NewClient(txnent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	repo := txnrepo.NewTransactionRepository(client, nil)
+	w := entitywriter.NewTransactionWriter(repo)
+	tenantID := uuid.New()
+
+	tx := newTransactionFixture(tenantID, uuid.New(), "canonicalize", 3)
+	// The REAL client envelope always carries TransactionTime (the drift row
+	// has the column); when a payload OMITS it the create branch's column
+	// default stamps one server-side and re-push canonical equality cannot
+	// hold — noted here so the asymmetry (server-enriched fields vs
+	// client-carried data) stays visible.
+	tt := tx.TransactionDate.Add(10 * time.Hour)
+	tx.TransactionTime = &tt
+	if err := w.Upsert(ctx, tenantID, mustMarshal(t, tx)); err != nil {
+		t.Fatalf("seed upsert: %v", err)
+	}
+	_, serverPayload, _, err := w.CurrentState(ctx, tenantID, tx.ID.String())
+	if err != nil {
+		t.Fatalf("CurrentState: %v", err)
+	}
+
+	// The same data as a client envelope map: decoded -> domain -> re-marshal
+	// (what the wire JSON of equal data looks like), then strip TenantID —
+	// the client never sends one.
+	var generic map[string]any
+	if err := json.Unmarshal(mustMarshal(t, tx), &generic); err != nil {
+		t.Fatalf("generic decode: %v", err)
+	}
+	delete(generic, "TenantID")
+	clientForm, err := json.Marshal(generic)
+	if err != nil {
+		t.Fatalf("generic encode: %v", err)
+	}
+
+	canonical, err := w.Canonicalize(tenantID, clientForm)
+	if err != nil {
+		t.Fatalf("Canonicalize: %v", err)
+	}
+	if !bytes.Equal(canonical, serverPayload) {
+		t.Fatalf("canonical form of equal client-wire data must equal CurrentState payload\n canonical: %s\n server:   %s", canonical, serverPayload)
+	}
+
+	// The Go-marshal form (tenant already baked in) canonicalizes to itself.
+	if c, err := w.Canonicalize(tenantID, mustMarshal(t, tx)); err != nil || !bytes.Equal(c, serverPayload) {
+		t.Fatalf("canonicalize of the server form must be a fixed point, err=%v", err)
+	}
+
+	// Structurally invalid payloads fail closed (the Upsert decode contract).
+	if _, err := w.Canonicalize(tenantID, []byte("not-json{")); err == nil {
+		t.Fatal("invalid payload must error")
 	}
 }
 

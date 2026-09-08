@@ -26,6 +26,9 @@ type ConflictDTO struct {
 	ServerPayload []byte
 	ClientPayload []byte
 	Resolution    string
+	// CreatedAt is when the conflict was recorded (F18 FR-6): the resolution
+	// panel sorts newest-first and shows recency.
+	CreatedAt time.Time
 }
 
 // SyncStatusDTO represents the current sync state for a device.
@@ -58,5 +61,6 @@ func ConflictToDTO(c *domain.SyncConflict) ConflictDTO {
 		ServerPayload: c.ServerPayload,
 		ClientPayload: c.ClientPayload,
 		Resolution:    c.Resolution.String(),
+		CreatedAt:     c.CreatedAt,
 	}
 }

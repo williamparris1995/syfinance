@@ -121,7 +121,6 @@ func newSyncPushIT(t *testing.T) *syncPushIT {
 		syncrepo.NewSyncLogRepository(syncCl),
 		syncrepo.NewSyncDeviceRepository(syncCl),
 		syncrepo.NewSyncConflictRepository(syncCl),
-		syncapp.NewConflictResolver(),
 		writers, db, syncITSqLiteDialect,
 	)
 	return &syncPushIT{

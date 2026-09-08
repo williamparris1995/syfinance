@@ -257,7 +257,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	syncLogRepo := provideSyncLogRepo(syncClient)
 	syncDeviceRepo := provideSyncDeviceRepo(syncClient)
 	syncConflictRepo := provideSyncConflictRepo(syncClient)
-	conflictResolver := provideConflictResolver()
 	// SyncEntityWriter adapters (F11 ADR-1): each writer consumes its module's
 	// repo (all declared above in their own module blocks). provideSyncEntity-
 	// Writers aggregates them into the map the sync Service dispatches on,
@@ -275,7 +274,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	tagWriter := provideTagWriter(tagRepo)
 	templateWriter := provideTemplateWriter(templateRepo)
 	syncEntityWriters := provideSyncEntityWriters(accountWriter, transactionWriter, debtWriter, budgetWriter, goalWriter, holdingWriter, holdingLedgerWriter, tagWriter, templateWriter)
-	syncService := provideSyncService(syncLogRepo, syncDeviceRepo, syncConflictRepo, conflictResolver, syncEntityWriters, db)
+	syncService := provideSyncService(syncLogRepo, syncDeviceRepo, syncConflictRepo, syncEntityWriters, db)
 	syncHandler := provideSyncHandler(syncService)
 
 	// Currency module

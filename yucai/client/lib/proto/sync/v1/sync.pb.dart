@@ -694,6 +694,7 @@ class ConflictDTO extends $pb.GeneratedMessage {
     $core.List<$core.int>? clientPayload,
     $core.String? resolution,
     $core.String? conflictType,
+    $2.Timestamp? createdAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -703,6 +704,7 @@ class ConflictDTO extends $pb.GeneratedMessage {
     if (clientPayload != null) result.clientPayload = clientPayload;
     if (resolution != null) result.resolution = resolution;
     if (conflictType != null) result.conflictType = conflictType;
+    if (createdAt != null) result.createdAt = createdAt;
     return result;
   }
 
@@ -728,6 +730,8 @@ class ConflictDTO extends $pb.GeneratedMessage {
         5, _omitFieldNames ? '' : 'clientPayload', $pb.PbFieldType.OY)
     ..aOS(6, _omitFieldNames ? '' : 'resolution')
     ..aOS(7, _omitFieldNames ? '' : 'conflictType')
+    ..aOM<$2.Timestamp>(8, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -814,6 +818,19 @@ class ConflictDTO extends $pb.GeneratedMessage {
   $core.bool hasConflictType() => $_has(6);
   @$pb.TagNumber(7)
   void clearConflictType() => $_clearField(7);
+
+  /// F18(FR-6): when the conflict was recorded — the resolution panel sorts
+  /// newest-first and shows recency. Non-breaking: field 8, absent = zero.
+  @$pb.TagNumber(8)
+  $2.Timestamp get createdAt => $_getN(7);
+  @$pb.TagNumber(8)
+  set createdAt($2.Timestamp value) => $_setField(8, value);
+  @$pb.TagNumber(8)
+  $core.bool hasCreatedAt() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearCreatedAt() => $_clearField(8);
+  @$pb.TagNumber(8)
+  $2.Timestamp ensureCreatedAt() => $_ensure(7);
 }
 
 class ResolveConflictRequest extends $pb.GeneratedMessage {

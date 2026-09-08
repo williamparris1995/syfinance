@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -245,9 +246,43 @@ func (r *SyncConflictRepository) Save(ctx context.Context, conflict *domain.Sync
 	return nil
 }
 
-// FindPending returns unresolved conflicts for a tenant.
+// FindByID returns the tenant's conflict row by id (F18 ADR-3): the
+// resolution flow reads the losing payload and the entity coordinates inside
+// the resolution transaction, so this is tx-aware via clientFor like Save. A
+// conflict id the tenant does not own (unknown or another tenant's) surfaces
+// as the ent NotFound shape so the handler maps codes.NotFound.
+func (r *SyncConflictRepository) FindByID(ctx context.Context, tenantID, conflictID uuid.UUID) (*domain.SyncConflict, error) {
+	c, err := r.clientFor(ctx).SyncConflict.Query().
+		Where(syncconflict.ID(conflictID), syncconflict.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find conflict: %w", err)
+	}
+	return &domain.SyncConflict{
+		ID: c.ID, TenantID: c.TenantID,
+		EntityType: c.EntityType, EntityID: c.EntityID,
+		ConflictType: c.ConflictType,
+		ServerPayload: c.ServerPayload, ClientPayload: c.ClientPayload,
+		Resolution: domain.ParseConflictResolution(c.Resolution),
+		ResolvedAt: c.ResolvedAt, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
+	}, nil
+}
+
+// FindPending returns unresolved conflicts for a tenant (F18 ADR-7 repair):
+// ordered newest-first by (created_at DESC, id DESC) — the id is the
+// deterministic tie-breaker — and paged by a KEYSET cursor on that same tuple.
+// The pre-F18 shape (no ORDER BY + an inclusive IDGTE on the last row's uuid)
+// both re-returned the boundary row on the next page and skipped rows whose
+// uuid sorted before the token, because the token's uuid order had nothing to
+// do with the returned order. The cursor predicate is the expanded tuple
+// comparison OR(created_at < cursor, AND(created_at = cursor, id < cursor)) —
+// SQLite and PostgreSQL both lack portable tuple-comparison syntax, and both
+// evaluate this form identically. The page token encodes the tuple as
+// "<timestamp String() form>|<uuid>" (zone-preserving — see
+// decodeConflictCursor); a malformed token errors rather than silently
+// restarting the listing.
 func (r *SyncConflictRepository) FindPending(ctx context.Context, tenantID uuid.UUID, page domain.PageRequest) (*domain.PaginatedResult[domain.SyncConflict], error) {
-	query := r.client.SyncConflict.Query().
+	query := r.clientFor(ctx).SyncConflict.Query().
 		Where(syncconflict.TenantID(tenantID), syncconflict.Resolution("pending"))
 
 	total, err := query.Count(ctx)
@@ -259,21 +294,35 @@ func (r *SyncConflictRepository) FindPending(ctx context.Context, tenantID uuid.
 	if ps <= 0 {
 		ps = 20
 	}
-	query.Limit(ps + 1)
 
 	if page.PageToken != "" {
-		cursorID, _ := uuid.Parse(page.PageToken)
-		query.Where(syncconflict.IDGTE(cursorID))
+		cursorAt, cursorID, err := decodeConflictCursor(page.PageToken)
+		if err != nil {
+			return nil, fmt.Errorf("decode page token %q: %w", page.PageToken, err)
+		}
+		query.Where(syncconflict.Or(
+			syncconflict.CreatedAtLT(cursorAt),
+			syncconflict.And(
+				syncconflict.CreatedAtEQ(cursorAt),
+				syncconflict.IDLT(cursorID),
+			),
+		))
 	}
 
-	results, err := query.All(ctx)
+	results, err := query.
+		Order(
+			syncent.Desc(syncconflict.FieldCreatedAt),
+			syncent.Desc(syncconflict.FieldID),
+		).
+		Limit(ps + 1).
+		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query conflicts: %w", err)
 	}
 
 	nextToken := ""
 	if len(results) > ps {
-		nextToken = results[ps-1].ID.String()
+		nextToken = encodeConflictCursor(results[ps-1].CreatedAt, results[ps-1].ID)
 		results = results[:ps]
 	}
 
@@ -294,6 +343,42 @@ func (r *SyncConflictRepository) FindPending(ctx context.Context, tenantID uuid.
 	}, nil
 }
 
+// goTimeStringLayout is time.Time's own String() layout — the exact form ent
+// persists time.Time columns as on SQLite ("2026-09-08 12:00:00.000000123
+// +0000 UTC"). The cursor carries the timestamp in this zone-preserving form
+// so the tuple equality arm re-binds the exact stored text whatever zone the
+// row was written in (review fix round 1, FAIL-2: a UTC-normalized cursor
+// silently dropped non-UTC rows — their stored text never matched the
+// rebound "+0000 UTC" string). PostgreSQL binds time.Time as timestamptz and
+// compares temporally, so the zone-preserving form is a no-op there.
+const goTimeStringLayout = "2006-01-02 15:04:05.999999999 -0700 MST"
+
+// encodeConflictCursor packs the (created_at, id) keyset tuple into the page
+// token: "<time.String() form>|<uuid>" (String() never contains '|').
+func encodeConflictCursor(createdAt time.Time, id uuid.UUID) string {
+	return fmt.Sprintf("%s|%s", createdAt.String(), id)
+}
+
+// decodeConflictCursor is encodeConflictCursor's dual; every malformed shape
+// (wrong arity, unparsable stamp, non-uuid) errors. time.Parse round-trips
+// the String() form exactly — numeric offset fixes the instant, the zone name
+// is preserved for re-marshaling.
+func decodeConflictCursor(token string) (time.Time, uuid.UUID, error) {
+	timeStr, id, ok := strings.Cut(token, "|")
+	if !ok {
+		return time.Time{}, uuid.Nil, fmt.Errorf("expected '<timestamp>|<uuid>'")
+	}
+	t, err := time.Parse(goTimeStringLayout, timeStr)
+	if err != nil {
+		return time.Time{}, uuid.Nil, fmt.Errorf("parse timestamp: %w", err)
+	}
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return time.Time{}, uuid.Nil, fmt.Errorf("parse uuid: %w", err)
+	}
+	return t, uid, nil
+}
+
 // Resolve marks a conflict as resolved (F16 ADR-4 repair of three stored
 // defects):
 //   - Tenant predicate: the existence check AND the update are scoped by
@@ -306,15 +391,20 @@ func (r *SyncConflictRepository) FindPending(ctx context.Context, tenantID uuid.
 //     (application.ErrInvalidResolution, whitelist {server, client, merged});
 //     the repo persists whatever the port passes.
 //
+// F18 ADR-3: tx-aware via clientFor — the client/merged resolution flows mark
+// the row inside the same transaction as the winning upsert + sync_log
+// append, so a failure anywhere rolls the whole resolution back (no resolved
+// row without its persisted outcome, and vice versa).
+//
 // A conflict id the tenant does not own (unknown or another tenant's)
 // surfaces as the ent NotFound shape so the handler maps codes.NotFound.
 func (r *SyncConflictRepository) Resolve(ctx context.Context, tenantID, conflictID uuid.UUID, resolution string) error {
-	if _, err := r.client.SyncConflict.Query().
+	if _, err := r.clientFor(ctx).SyncConflict.Query().
 		Where(syncconflict.ID(conflictID), syncconflict.TenantID(tenantID)).
 		Only(ctx); err != nil {
 		return fmt.Errorf("resolve conflict: %w", err)
 	}
-	n, err := r.client.SyncConflict.Update().
+	n, err := r.clientFor(ctx).SyncConflict.Update().
 		Where(syncconflict.ID(conflictID), syncconflict.TenantID(tenantID)).
 		SetResolution(resolution).
 		SetResolvedAt(time.Now()).

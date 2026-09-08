@@ -218,7 +218,11 @@ func clampPullPageSize(n int32) int {
 	return int(n)
 }
 
-// ResolveConflict resolves a sync conflict.
+// ResolveConflict resolves a sync conflict. merged_payload (F18 ADR-3) is
+// passed through verbatim: the "merged" branch persists it (empty ->
+// InvalidArgument at the service boundary), the "client" branch ignores it in
+// favor of the conflict row's client_payload, and "server" needs no payload
+// at all. The response stays Empty.
 func (h *SyncHandler) ResolveConflict(ctx context.Context, req *pb.ResolveConflictRequest) (*emptypb.Empty, error) {
 	tenantID, err := getTenantID(ctx)
 	if err != nil {
@@ -231,7 +235,7 @@ func (h *SyncHandler) ResolveConflict(ctx context.Context, req *pb.ResolveConfli
 		return nil, perr
 	}
 
-	if err := h.service.ResolveConflict(ctx, tenantID, conflictID, req.Resolution); err != nil {
+	if err := h.service.ResolveConflict(ctx, tenantID, conflictID, req.Resolution, req.MergedPayload); err != nil {
 		return nil, mapError(err)
 	}
 	return &emptypb.Empty{}, nil
@@ -269,6 +273,13 @@ func (h *SyncHandler) ListConflicts(ctx context.Context, req *pb.ListConflictsRe
 // --- Helpers ---
 
 func conflictToProto(c application.ConflictDTO) *pb.ConflictDTO {
+	// F18 FR-6: when the conflict was recorded. A zero CreatedAt (no row can
+	// actually have one — the column default stamps every conflict) maps to an
+	// absent wire field, keeping the proto addition non-breaking for callers.
+	var createdAt *timestamppb.Timestamp
+	if !c.CreatedAt.IsZero() {
+		createdAt = timestamppb.New(c.CreatedAt)
+	}
 	return &pb.ConflictDTO{
 		Id:            c.ID.String(),
 		EntityType:    c.EntityType,
@@ -279,6 +290,7 @@ func conflictToProto(c application.ConflictDTO) *pb.ConflictDTO {
 		// F16: the conflict classification must survive the mapping (the old
 		// mapper silently dropped it).
 		ConflictType: c.ConflictType,
+		CreatedAt:    createdAt,
 	}
 }
 
@@ -365,7 +377,8 @@ func parseUUIDStrict(field, s string) (uuid.UUID, error) {
 // module's own sentinels):
 //   - ErrVersionConflict (serialization retries exhausted) -> Aborted: the
 //     batch is valid, it kept losing the version race — retryable.
-//   - ErrInvalidResolution (ResolveConflict whitelist) -> InvalidArgument.
+//   - ErrInvalidResolution (ResolveConflict whitelist) / ErrEmptyMergedPayload
+//     (F18 ADR-3) -> InvalidArgument.
 //   - "... not found" (the ent NotFound message shape flowing through the
 //     repos' fmt.Errorf %w wraps — device/conflict lookups) -> NotFound.
 //   - everything else -> Internal: fail-closed. Note mid-batch payload-decode
@@ -377,7 +390,7 @@ func mapError(err error) error {
 	switch {
 	case errors.Is(err, application.ErrVersionConflict):
 		return status.Errorf(codes.Aborted, "sync version conflict: %v", err)
-	case errors.Is(err, application.ErrInvalidResolution):
+	case errors.Is(err, application.ErrInvalidResolution), errors.Is(err, application.ErrEmptyMergedPayload):
 		return status.Errorf(codes.InvalidArgument, "%v", err)
 	case strings.Contains(err.Error(), "not found"):
 		return status.Errorf(codes.NotFound, "%v", err)

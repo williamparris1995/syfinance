@@ -86,7 +86,7 @@ func TestPushChanges_VersionCollision_RetriesWholeBatch(t *testing.T) {
 	// The racing push: first transaction reads a stale base (0) — its appends
 	// at v1/v2 collide with the committed rows above.
 	stale := &staleLatestVersionRepo{SyncLogRepository: h.logRepo, staleFor: 1}
-	racingSvc := NewService(stale, h.deviceRepo, h.conflictRepo, h.resolver, h.writers, h.db, sqliteDialect)
+	racingSvc := NewService(stale, h.deviceRepo, h.conflictRepo, h.writers, h.db, sqliteDialect)
 
 	racing := make([]SyncPayloadDTO, 0, 2)
 	var racingIDs []uuid.UUID
@@ -175,7 +175,7 @@ func TestPushChanges_VersionCollisionExhausted_Aborts(t *testing.T) {
 
 	// Perpetually stale base: every attempt assigns v1 and collides.
 	stale := &staleLatestVersionRepo{SyncLogRepository: h.logRepo, staleFor: 100}
-	racingSvc := NewService(stale, h.deviceRepo, h.conflictRepo, h.resolver, h.writers, h.db, sqliteDialect)
+	racingSvc := NewService(stale, h.deviceRepo, h.conflictRepo, h.writers, h.db, sqliteDialect)
 
 	payload := accountPayload(t, h.tenantID, "Doomed", 1)
 	var acc accountdomain.Account

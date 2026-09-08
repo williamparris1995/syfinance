@@ -63,6 +63,18 @@ func (w *HoldingWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID
 	return nil
 }
 
+// Canonicalize round-trips one payload through the domain entity with the
+// tenant stamped — the canonical JSON form the push detection compares
+// against CurrentState's payload (see the port doc).
+func (w *HoldingWriter) Canonicalize(tenantID uuid.UUID, payload []byte) ([]byte, error) {
+	var h holdingdomain.Holding
+	if err := json.Unmarshal(payload, &h); err != nil {
+		return nil, fmt.Errorf("unmarshal holding payload: %w", err)
+	}
+	h.TenantID = tenantID
+	return json.Marshal(h)
+}
+
 // CurrentState returns the server's current holding position row for the
 // push conflict check (F16 ADR-4). See the port doc in
 // sync/domain/entity_writer.go for the full contract.

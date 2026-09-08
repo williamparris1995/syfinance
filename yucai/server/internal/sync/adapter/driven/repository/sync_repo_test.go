@@ -317,3 +317,243 @@ func TestFindSince_TenantScoped(t *testing.T) {
 		t.Fatalf("tenant B entries = %d, want 2 (tenant A's row excluded)", len(entries))
 	}
 }
+
+// --- F18 T1: FindPending keyset pagination (spec FR-6 / ADR-7) ---
+
+// newConflictRepoHarness migrates the sync schema and returns the conflict
+// repo plus the raw ent client (the pagination tests seed rows with EXPLICIT
+// created_at values, including ties, which the domain constructor stamps with
+// time.Now and the repo's Save never persists — created_at comes from the ent
+// column default — so direct row creation is the only deterministic seeder).
+func newConflictRepoHarness(t *testing.T) (*SyncConflictRepository, *syncent.Client) {
+	t.Helper()
+	dbName := "sync_conflict_repo_" + strings.ReplaceAll(t.Name(), "/", "_")
+	db, err := sql.Open("sqlite", "file:"+dbName+"?mode=memory&_pragma=foreign_keys(1)")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	db.SetMaxOpenConns(1) // single conn owns the named in-memory DB (sqltx contract)
+	t.Cleanup(func() { _ = db.Close() })
+
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := syncent.NewClient(syncent.Driver(drv))
+	ctx := context.Background()
+	if err := client.Schema.Create(ctx); err != nil {
+		t.Fatalf("migrate sync schema: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	return NewSyncConflictRepository(client), client
+}
+
+// seedConflictRow inserts one pending conflict with an explicit created_at.
+func seedConflictRow(t *testing.T, client *syncent.Client, ctx context.Context, tenantID uuid.UUID, createdAt time.Time) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	if _, err := client.SyncConflict.Create().
+		SetID(id).SetTenantID(tenantID).
+		SetEntityType("account").SetEntityID(uuid.New()).
+		SetConflictType("version_conflict").
+		SetServerPayload([]byte(`{}`)).SetClientPayload([]byte(`{}`)).
+		SetResolution("pending").
+		SetCreatedAt(createdAt).
+		Save(ctx); err != nil {
+		t.Fatalf("seed conflict row: %v", err)
+	}
+	return id
+}
+
+// TestFindPending_OrdersByCreatedAtDescThenIDDesc (ADR-7 ordering contract):
+// rows seeded with SHUFFLED created_at values come back strictly descending
+// by (created_at, id) — newest first for the resolution UI, with the id as the
+// deterministic tie-breaker — never in storage order.
+func TestFindPending_OrdersByCreatedAtDescThenIDDesc(t *testing.T) {
+	repo, client := newConflictRepoHarness(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	base := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
+
+	// Shuffled seed order: +3h, -1h, +1h, base, +2h.
+	for _, d := range []time.Duration{3 * time.Hour, -1 * time.Hour, time.Hour, 0, 2 * time.Hour} {
+		seedConflictRow(t, client, ctx, tenant, base.Add(d))
+	}
+
+	result, err := repo.FindPending(ctx, tenant, syncdomain.PageRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("FindPending: %v", err)
+	}
+	if len(result.Items) != 5 {
+		t.Fatalf("items = %d, want 5", len(result.Items))
+	}
+	prev := result.Items[0]
+	if !prev.CreatedAt.Equal(base.Add(3 * time.Hour)) {
+		t.Fatalf("items[0].created_at = %v, want the newest (+3h)", prev.CreatedAt)
+	}
+	for i := 1; i < len(result.Items); i++ {
+		cur := result.Items[i]
+		if cur.CreatedAt.After(prev.CreatedAt) {
+			t.Fatalf("items[%d].created_at %v is NEWER than items[%d] %v — must be descending", i, cur.CreatedAt, i-1, prev.CreatedAt)
+		}
+		if cur.CreatedAt.Equal(prev.CreatedAt) {
+			// Tie: id must break it descending (byte-wise uuid compare, the
+			// same collation the SQL ORDER BY uses).
+			if cur.ID.String() >= prev.ID.String() {
+				t.Fatalf("created_at tie at items[%d]: id %s must sort before %s (descending id tie-break)", i, cur.ID, prev.ID)
+			}
+		}
+		prev = cur
+	}
+}
+
+// TestFindPending_KeysetPagination_NoBoundaryDuplicatesOrSkips (ADR-7): five
+// pending conflicts — three sharing ONE created_at, forcing the page boundary
+// to fall inside the tie group — paged at two per page cover every row
+// EXACTLY once: the pre-F18 shape (no ORDER BY + IDGTE token) both re-returned
+// the boundary row (GTE is inclusive) and skipped rows whose uuid sorted
+// before the token. Every page reports the full TotalCount.
+func TestFindPending_KeysetPagination_NoBoundaryDuplicatesOrSkips(t *testing.T) {
+	repo, client := newConflictRepoHarness(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	tie := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
+
+	want := map[uuid.UUID]bool{}
+	// Three rows tied at `tie`, one older, one newer.
+	for _, at := range []time.Duration{0, 0, 0, -time.Hour, time.Hour} {
+		want[seedConflictRow(t, client, ctx, tenant, tie.Add(at))] = true
+	}
+
+	var seen []uuid.UUID
+	token := ""
+	for page := 0; ; page++ {
+		if page > 5 {
+			t.Fatal("pagination did not terminate")
+		}
+		result, err := repo.FindPending(ctx, tenant, syncdomain.PageRequest{PageSize: 2, PageToken: token})
+		if err != nil {
+			t.Fatalf("page %d: %v", page, err)
+		}
+		if result.TotalCount != 5 {
+			t.Fatalf("page %d: total_count = %d, want 5 on every page", page, result.TotalCount)
+		}
+		if len(result.Items) == 0 {
+			t.Fatalf("page %d: empty page before exhaustion", page)
+		}
+		for i := 1; i < len(result.Items); i++ {
+			a, b := result.Items[i-1], result.Items[i]
+			if a.CreatedAt.Before(b.CreatedAt) || (a.CreatedAt.Equal(b.CreatedAt) && a.ID.String() < b.ID.String()) {
+				t.Fatalf("page %d not strictly descending: (%v %s) then (%v %s)", page, a.CreatedAt, a.ID, b.CreatedAt, b.ID)
+			}
+		}
+		seen = append(seen, idsOf(result.Items)...)
+		if result.NextPageToken == "" {
+			break
+		}
+		token = result.NextPageToken
+	}
+
+	if len(seen) != len(want) {
+		t.Fatalf("paged rows = %d, want %d (no duplicates, no skips)", len(seen), len(want))
+	}
+	got := map[uuid.UUID]bool{}
+	for _, id := range seen {
+		if got[id] {
+			t.Fatalf("row %s returned on multiple pages (boundary duplicate)", id)
+		}
+		got[id] = true
+	}
+	for id := range want {
+		if !got[id] {
+			t.Fatalf("row %s never returned (skipped by the keyset)", id)
+		}
+	}
+}
+
+// idsOf lifts the ids of one page's items.
+func idsOf(items []syncdomain.SyncConflict) []uuid.UUID {
+	out := make([]uuid.UUID, len(items))
+	for i, c := range items {
+		out[i] = c.ID
+	}
+	return out
+}
+
+// TestFindPending_LocalZoneRows_PageWithoutDrops (review fix round 1,
+// FAIL-2): rows stamped in a NON-UTC zone (legacy rows from a deployment that
+// wrote local time — the F18 UTC default only covers new writes) must page
+// without drops: the keyset cursor carries the timestamp in its stored
+// String() form (zone-preserving), so the equality arm re-binds the exact
+// stored text whatever zone it was written in. Three of the five rows share
+// one timestamp, forcing the page boundary inside the tie group.
+func TestFindPending_LocalZoneRows_PageWithoutDrops(t *testing.T) {
+	repo, client := newConflictRepoHarness(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	// A fixed non-UTC zone (the test machine's own zone may or may not be UTC
+	// — make the scenario deterministic either way).
+	cst := time.FixedZone("CST", 8*3600)
+	tie := time.Date(2026, 9, 8, 20, 0, 0, 0, cst)
+
+	want := map[uuid.UUID]bool{}
+	for _, d := range []time.Duration{0, 0, 0, -time.Hour, time.Hour} {
+		want[seedConflictRow(t, client, ctx, tenant, tie.Add(d))] = true
+	}
+
+	var seen []uuid.UUID
+	token := ""
+	for page := 0; ; page++ {
+		if page > 5 {
+			t.Fatal("pagination did not terminate")
+		}
+		result, err := repo.FindPending(ctx, tenant, syncdomain.PageRequest{PageSize: 2, PageToken: token})
+		if err != nil {
+			t.Fatalf("page %d: %v", page, err)
+		}
+		if result.TotalCount != 5 {
+			t.Fatalf("page %d: total_count = %d, want 5 on every page", page, result.TotalCount)
+		}
+		if len(result.Items) == 0 {
+			t.Fatalf("page %d: empty page before exhaustion", page)
+		}
+		for i := 1; i < len(result.Items); i++ {
+			a, b := result.Items[i-1], result.Items[i]
+			if a.CreatedAt.Before(b.CreatedAt) || (a.CreatedAt.Equal(b.CreatedAt) && a.ID.String() < b.ID.String()) {
+				t.Fatalf("page %d not strictly descending: (%v %s) then (%v %s)", page, a.CreatedAt, a.ID, b.CreatedAt, b.ID)
+			}
+		}
+		seen = append(seen, idsOf(result.Items)...)
+		if result.NextPageToken == "" {
+			break
+		}
+		token = result.NextPageToken
+	}
+
+	got := map[uuid.UUID]bool{}
+	for _, id := range seen {
+		if got[id] {
+			t.Fatalf("row %s returned on multiple pages (boundary duplicate)", id)
+		}
+		got[id] = true
+	}
+	for id := range want {
+		if !got[id] {
+			t.Fatalf("row %s never returned (dropped by the zone-mismatched cursor)", id)
+		}
+	}
+}
+
+// TestFindPending_MalformedToken_Rejected: a page token that does not decode
+// to the (created_at, id) cursor shape errors instead of silently restarting
+// the listing (a garbage token must never masquerade as page one — the caller
+// would silently miss rows).
+func TestFindPending_MalformedToken_Rejected(t *testing.T) {
+	repo, client := newConflictRepoHarness(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	seedConflictRow(t, client, ctx, tenant, time.Now())
+
+	for _, bad := range []string{"garbage", "not-a-timestamp|not-a-uuid", "12345"} {
+		if _, err := repo.FindPending(ctx, tenant, syncdomain.PageRequest{PageSize: 10, PageToken: bad}); err == nil {
+			t.Fatalf("malformed page token %q must be rejected", bad)
+		}
+	}
+}

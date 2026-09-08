@@ -58,6 +58,18 @@ func (w *BudgetWriter) Delete(ctx context.Context, tenantID uuid.UUID, entityID 
 	return nil
 }
 
+// Canonicalize round-trips one payload through the domain entity with the
+// tenant stamped — the canonical JSON form the push detection compares
+// against CurrentState's payload (see the port doc).
+func (w *BudgetWriter) Canonicalize(tenantID uuid.UUID, payload []byte) ([]byte, error) {
+	var b budgetdomain.Budget
+	if err := json.Unmarshal(payload, &b); err != nil {
+		return nil, fmt.Errorf("unmarshal budget payload: %w", err)
+	}
+	b.TenantID = tenantID
+	return json.Marshal(b)
+}
+
 // CurrentState returns the server's current budget row (header + nested
 // items in the payload) for the push conflict check (F16 ADR-4). See the
 // port doc in sync/domain/entity_writer.go for the full contract.
