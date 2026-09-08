@@ -12,6 +12,7 @@ import 'package:yucai_client/binding/data/grpc_offline_sync_port.dart';
 import 'package:yucai_client/binding/data/pending_collector.dart';
 import 'package:yucai_client/binding/data/pull_applier.dart';
 import 'package:yucai_client/binding/domain/offline_sync_port.dart';
+import 'package:yucai_client/binding/presentation/bloc/conflict_list_bloc.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
@@ -122,6 +123,11 @@ Future<void> configureDependencies() async {
         getIt<PullApplier>(),
         getIt<TokenStorage>().readClientId,
       ));
+  // F18-T3(FR-5/ADR-5):冲突面板数据面 bloc —— 工厂注册(每次进面板全新
+  // 实例,离开路由释放);port 经构造注入(listConflicts/resolveConflict 的
+  // 真实现已在上方 GrpcOfflineSyncPort)。
+  getIt.registerFactory<ConflictListBloc>(
+      () => ConflictListBloc(getIt<OfflineSyncPort>()));
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.

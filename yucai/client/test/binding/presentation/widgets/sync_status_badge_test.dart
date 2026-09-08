@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
@@ -181,6 +182,112 @@ void main() {
       expect(find.text('同步失败:同步失败'), findsNothing); // 不得拼接空原因。
       expect(find.byType(SyncStatusBadge).evaluate(), isNotEmpty);
       expect(find.textContaining('同步失败'), findsOneWidget);
+    });
+  });
+
+  group('冲突态(F18-T3:五态扩展,四态零破坏)', () {
+    testWidgets('clean + conflictCount>0 → warn chip「冲突 2」,tap 跳转面板路由',
+        (tester) async {
+      getIt.registerSingleton<SessionModeTracker>(
+          SessionModeTracker()..isGuest = false);
+      final bloc = stubBloc(const SyncCoordinatorState(
+          status: SyncStatus.clean, conflictCount: 2));
+
+      // 导航断言需要 GoRouter(badge onTap = context.push 面板路由)。
+      final router = GoRouter(
+        initialLocation: '/home',
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (_, __) => BlocProvider<SyncCoordinatorBloc>.value(
+              value: bloc,
+              child: const Scaffold(
+                  body: Align(
+                      alignment: Alignment.centerLeft,
+                      child: SyncStatusBadge())),
+            ),
+          ),
+          GoRoute(
+            path: '/settings/conflicts',
+            builder: (_, __) =>
+                const Scaffold(body: Text('冲突面板占位')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(
+        routerConfig: router,
+        theme: AppTheme.light(),
+      ));
+      await tester.pump();
+
+      expect(find.text('冲突 2'), findsOneWidget);
+      // warn(amber)语义令牌 —— spec FR-5「amber chip」。
+      expect((chipOf(tester).decoration as BoxDecoration).color,
+          YucaiTheme.light().warn.withValues(alpha: 0.15));
+
+      // onTap 可达:tap → push '/settings/conflicts'(以渲染落点断言 —— push
+      // 后 currentConfiguration 仍指基路由,页面栈顶才是观测面)。
+      await tester.tap(find.text('冲突 2'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('冲突面板占位'), findsOneWidget);
+    });
+
+    testWidgets('idle + conflictCount>0(未触发过的冷态)→ 冲突 chip 照渲染',
+        (tester) async {
+      getIt.registerSingleton<SessionModeTracker>(
+          SessionModeTracker()..isGuest = false);
+      final bloc = stubBloc(const SyncCoordinatorState(
+          status: SyncStatus.idle, conflictCount: 1));
+      await pumpBadge(tester, bloc: bloc);
+      expect(find.text('冲突 1'), findsOneWidget);
+    });
+
+    testWidgets('优先级:syncing > 冲突(syncing 中冲突计数不叠加渲染)',
+        (tester) async {
+      getIt.registerSingleton<SessionModeTracker>(
+          SessionModeTracker()..isGuest = false);
+      final bloc = stubBloc(const SyncCoordinatorState(
+          status: SyncStatus.syncing, conflictCount: 3, pendingCount: 5));
+      await pumpBadge(tester, bloc: bloc);
+      expect(find.text('同步中'), findsOneWidget);
+      expect(find.text('冲突 3'), findsNothing);
+    });
+
+    testWidgets('优先级:failed > 冲突(失败态是唯一可行动信号)',
+        (tester) async {
+      getIt.registerSingleton<SessionModeTracker>(
+          SessionModeTracker()..isGuest = false);
+      final bloc = stubBloc(const SyncCoordinatorState(
+        status: SyncStatus.failed,
+        conflictCount: 3,
+        pendingCount: 5,
+        failureReason: '无法连接服务器',
+      ));
+      await pumpBadge(tester, bloc: bloc);
+      expect(find.text('同步失败:无法连接服务器'), findsOneWidget);
+      expect(find.text('冲突 3'), findsNothing);
+    });
+
+    testWidgets('优先级:冲突 > 待同步(冲突是更强的可行动信号)',
+        (tester) async {
+      getIt.registerSingleton<SessionModeTracker>(
+          SessionModeTracker()..isGuest = false);
+      final bloc = stubBloc(const SyncCoordinatorState(
+          status: SyncStatus.clean, conflictCount: 1, pendingCount: 7));
+      await pumpBadge(tester, bloc: bloc);
+      expect(find.text('冲突 1'), findsOneWidget);
+      expect(find.text('待同步 7'), findsNothing);
+    });
+
+    testWidgets('clean + conflictCount==0 + N==0 → 隐藏(五态之空态不变)',
+        (tester) async {
+      getIt.registerSingleton<SessionModeTracker>(
+          SessionModeTracker()..isGuest = false);
+      final bloc = stubBloc(const SyncCoordinatorState(
+          status: SyncStatus.clean, conflictCount: 0, pendingCount: 0));
+      await pumpBadge(tester, bloc: bloc);
+      expect(tester.getSize(find.byType(SyncStatusBadge)), Size.zero);
     });
   });
 

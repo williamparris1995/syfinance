@@ -6,6 +6,12 @@
 /// 完整 CDC;guest 既有链路零扰动(本文件自建 DI 覆写 + 每测试 reset,
 /// 不泄漏)。
 ///
+/// F18-T3 扩展(spec FR-5/FR-8,design ADR-5):fake 增冲突三能力(push
+/// conflicts 可编程/listConflicts 真 backlog/resolveConflict 记录+移除),
+/// 新增双设备冲突全链测试(A 断网写→push;模拟 B 独立编辑同实体→push 命中
+/// fake 冲突→确认标记+状态携带→badge 冲突 chip→面板双栏→保留我的→fake
+/// resolveConflict 被调+面板刷新空)。
+///
 /// 链路全景(全真件,仅 server 与三处 DI 边界为 fake):
 /// 真 DI(repos 三态路由)/ 真 local DS / 真 drift 库 / 真 PendingCollector
 /// / 真 envelope 编码 / 真 GrpcOfflineSyncPort / 真 grpc 通道 → 假
@@ -28,12 +34,18 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dartz/dartz.dart' as dz;
+import 'package:drift/drift.dart' show Value;
 import 'package:fixnum/fixnum.dart' as fixnum;
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:grpc/grpc.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:protobuf/protobuf.dart' as $pb;
 import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as wkt;
+import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
+    as wt;
 
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -41,7 +53,10 @@ import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/binding/data/pending_collector.dart';
 import 'package:yucai_client/binding/data/pull_applier.dart';
 import 'package:yucai_client/binding/domain/offline_sync_port.dart';
+import 'package:yucai_client/binding/presentation/bloc/conflict_list_bloc.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
+import 'package:yucai_client/binding/presentation/pages/conflict_panel_page.dart';
+import 'package:yucai_client/binding/presentation/widgets/sync_status_badge.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -51,6 +66,8 @@ import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/core/theme/app_theme.dart';
+import 'package:yucai_client/proto/common/v1/pagination.pb.dart' as commonpb;
 import 'package:yucai_client/proto/sync/v1/sync.pb.dart' as pb;
 import 'package:yucai_client/proto/sync/v1/sync.pbserver.dart' as pbsvc;
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
@@ -85,6 +102,24 @@ class _FakeSyncService extends pbsvc.SyncServiceBase {
   final _log = <(int, pb.SyncPayload)>[];
   var _lastVersion = 0;
 
+  /// F18-T3:push conflicts 可编程面 —— 预设「命中冲突的 entityId 集合」。
+  /// push OK 分支逐条检查:entityId ∈ 集合 → 组 ConflictDTO 返回 + 入
+  /// 待解决 backlog + **不落 log**(server T1 语义:冲突跳过落库)。
+  ///
+  /// 实现取舍(对 brief「直接返回预设 ConflictDTO」的最小变形):DTO 的
+  /// server/client payload 取自**实际 wire bytes**(server 侧 = log 内该
+  /// entity 既有 payload,client 侧 = 本次 push 的 payload),免测试手工
+  /// 拼 envelope,面板解码走真行;版本比对检测不做(太重,非本链路被测点)。
+  final conflictEntityIds = <String>{};
+
+  /// F18-T3:待解决冲突 backlog(server conflict 行的最小模拟;resolve
+  /// 时移除,listConflicts 全量返回)。
+  final _conflictRows = <pb.ConflictDTO>[];
+  var _conflictSeq = 0;
+
+  /// F18-T3:resolveConflict 记录面(断言 resolution/conflictId)。
+  final resolveRequests = <pb.ResolveConflictRequest>[];
+
   /// log 条目快照(测试断言用)。
   List<(int, pb.SyncPayload)> get logEntries => List.unmodifiable(_log);
 
@@ -101,12 +136,41 @@ class _FakeSyncService extends pbsvc.SyncServiceBase {
         // F17-T2:落 sync_log(server PushChanges 语义:批内逐条按依赖序
         // 追加,version = LatestVersion+1..N;此处免序重排 —— e2e 断言对
         // 批内序不敏感)。
+        // F18-T3:预设冲突面命中的条目不落 log,组 ConflictDTO 进响应与
+        // backlog(server T1:冲突跳过落库,内容保进冲突行)。
+        final conflicts = <pb.ConflictDTO>[];
         for (final c in request.changes) {
+          if (conflictEntityIds.contains(c.entityId)) {
+            _conflictSeq++;
+            conflicts.add(pb.ConflictDTO(
+              id: 'e2e-conflict-$_conflictSeq',
+              entityType: c.entityType,
+              entityId: c.entityId,
+              serverPayload: _serverPayloadOf(c.entityId),
+              clientPayload: c.payload,
+              conflictType: 'version_conflict',
+              createdAt: wt.Timestamp.fromDateTime(DateTime.now().toUtc()),
+            ));
+            continue;
+          }
           _lastVersion++;
           _log.add((_lastVersion, c));
         }
-        return pb.PushResponse(syncedVersion: fixnum.Int64(_lastVersion));
+        _conflictRows.addAll(conflicts);
+        return pb.PushResponse(
+          syncedVersion: fixnum.Int64(_lastVersion),
+          conflicts: conflicts,
+        );
     }
+  }
+
+  /// log 内该 entity 的既有 payload(= server 侧权威版本;双设备场景 A
+  /// 先推的那份)。无记录 → null(面板该栏收敛「(无法解析)」容错)。
+  List<int> _serverPayloadOf(String entityId) {
+    for (final e in _log) {
+      if (e.$2.entityId == entityId) return e.$2.payload;
+    }
+    return [];
   }
 
   @override
@@ -136,19 +200,35 @@ class _FakeSyncService extends pbsvc.SyncServiceBase {
     );
   }
 
-  // 其余 3 方法:本链路不调用(不注册到 wire;即便误调也显式炸出)。
+  // F18-T3:getSyncStatus 仍不实现(FR-7 YAGNI,面板计数走 ListConflicts
+  // totalCount,不注册到 wire)。
   @override
   Future<pb.SyncStatusResponse> getSyncStatus(
           $pb.ServerContext ctx, pb.GetSyncStatusRequest request) =>
       throw UnimplementedError();
-  @override
-  Future<wkt.Empty> resolveConflict(
-          $pb.ServerContext ctx, pb.ResolveConflictRequest request) =>
-      throw UnimplementedError();
+
+  /// F18-T3:ListConflicts —— backlog 全量返回(created_at DESC 序由
+  /// push 时的入列序近似;totalCount = 剩余数,无分页(nextPageToken 空)。
   @override
   Future<pb.ListConflictsResponse> listConflicts(
-          $pb.ServerContext ctx, pb.ListConflictsRequest request) =>
-      throw UnimplementedError();
+      $pb.ServerContext ctx, pb.ListConflictsRequest request) async {
+    return pb.ListConflictsResponse(
+      conflicts: [for (final c in _conflictRows) c.deepCopy()],
+      page: commonpb.PageResponse(
+          nextPageToken: '', totalCount: _conflictRows.length),
+    );
+  }
+
+  /// F18-T3:ResolveConflict —— 记录 + 从 backlog 移除。server T1 的
+  /// client/merged 落库+写 log 语义**不模拟**(本链路被测点 = client 解决
+  /// 面:调用 wire 形态 + 面板刷新;落库收敛由 server T1 集成测试钉)。
+  @override
+  Future<wkt.Empty> resolveConflict(
+      $pb.ServerContext ctx, pb.ResolveConflictRequest request) async {
+    resolveRequests.add(request);
+    _conflictRows.removeWhere((c) => c.id == request.conflictId);
+    return wkt.Empty();
+  }
 }
 
 /// 测试专用桥(纯测试代码,零生产改动):SyncServiceBase 继承的是
@@ -157,7 +237,8 @@ class _FakeSyncService extends pbsvc.SyncServiceBase {
 /// 桥在此把假服务按 wire 方法名接到 Server;服务/方法名取自 sync.pbgrpc
 /// 的 @GrpcServiceName 与 client 方法 descriptor(同一 proto 的两侧)。
 /// F13 注册 PushChanges;F17-T2 增 RegisterDevice/PullChanges(双设备场景
-/// 的两方法)—— 其余方法走 grpc 天然 unimplemented。
+/// 的两方法);F18-T3 增 ListConflicts/ResolveConflict(冲突面板两方法)
+/// —— getSyncStatus 走 grpc 天然 unimplemented(FR-7 YAGNI)。
 class _SyncServiceGrpcBridge extends Service {
   _SyncServiceGrpcBridge(this._impl) {
     $addMethod(ServiceMethod<pb.PushChangesRequest, pb.PushResponse>(
@@ -186,6 +267,25 @@ class _SyncServiceGrpcBridge extends Service {
       false,
       pb.PullChangesRequest.fromBuffer,
       (pb.PullChangesResponse r) => r.writeToBuffer(),
+    ));
+    // F18-T3:冲突面两方法(面板 bloc 的 listConflicts/resolveConflict)。
+    $addMethod(ServiceMethod<pb.ListConflictsRequest, pb.ListConflictsResponse>(
+      'ListConflicts',
+      (ServiceCall call, Future<pb.ListConflictsRequest> request) async =>
+          _impl.listConflicts($pb.ServerContext(), await request),
+      false,
+      false,
+      pb.ListConflictsRequest.fromBuffer,
+      (pb.ListConflictsResponse r) => r.writeToBuffer(),
+    ));
+    $addMethod(ServiceMethod<pb.ResolveConflictRequest, wkt.Empty>(
+      'ResolveConflict',
+      (ServiceCall call, Future<pb.ResolveConflictRequest> request) async =>
+          _impl.resolveConflict($pb.ServerContext(), await request),
+      false,
+      false,
+      pb.ResolveConflictRequest.fromBuffer,
+      (wkt.Empty r) => r.writeToBuffer(),
     ));
   }
 
@@ -472,16 +572,26 @@ void main() {
     expect(tomb.hasVersion(), isFalse);
     expect(tomb.deviceId, 'e2e-device');
 
-    // 实体:全部 CREATE(单设备 upsert 语义,CREATE/UPDATE 合并)。
+    // 实体 op 区分(F18-T2 触达语义,测试语义更新):version==1 → CREATE
+    //(首建),否则 UPDATE(本地编辑 bump)。本批:交易/标签首建 v1 → CREATE;
+    // 两账户因转账记余额被 update 过(v2)→ UPDATE。单设备 upsert 语义下
+    // 两类均为「本地最新全量行」,fake server 不按 op 分流(真 server 的
+    // 存在性统一检测由 server T1 集成测试钉)。
     final entities = req.changes
         .where((c) => c.operation == pb.SyncOperation.SYNC_OPERATION_CREATE)
         .toList();
-    expect(entities, hasLength(4));
+    expect(entities, hasLength(2));
+    final updates = req.changes
+        .where((c) => c.operation == pb.SyncOperation.SYNC_OPERATION_UPDATE)
+        .toList();
+    expect(updates, hasLength(2),
+        reason: '两账户被转账记更新过(v2)→ UPDATE(F18-T2 区分语义)');
+    final rows = [...entities, ...updates];
 
     Map<String, dynamic> rowOf(pb.SyncPayload c) =>
         jsonDecode(utf8.decode(c.payload)) as Map<String, dynamic>;
 
-    for (final c in entities) {
+    for (final c in rows) {
       final row = rowOf(c);
       // deviceId = clientId(fake TokenStorage 注入,F17-T1)。
       expect(c.deviceId, 'e2e-device');
@@ -503,7 +613,7 @@ void main() {
     // account 行:键集与 T2 syncAccountRow 逐字一致 + 枚举 int(T2 同值域:
     // asset=1/savings=1/personal=1/active=1)+ 名字回读。
     final accountRows = <String, Map<String, dynamic>>{};
-    for (final c in entities.where((c) => c.entityType == SyncModule.account)) {
+    for (final c in rows.where((c) => c.entityType == SyncModule.account)) {
       final row = rowOf(c);
       expect(row.keys.toSet(), _t2AccountKeys,
           reason: 'account 行键集须与 server T2 syncAccountRow 逐字一致');
@@ -522,7 +632,7 @@ void main() {
 
     // transaction 行:键集 + 分录嵌套(T2 syncTransactionRow 同构:两条
     // 平衡分录随头行上行,分录锚回头行 id)。
-    final txnChange = entities.singleWhere(
+    final txnChange = rows.singleWhere(
         (c) => c.entityType == SyncModule.transaction);
     final txnRow = rowOf(txnChange);
     expect(txnRow.keys.toSet(), _t2TransactionKeys);
@@ -542,7 +652,7 @@ void main() {
 
     // tag 行:键集(T2 syncTagRow 同构)+ 内容回读。
     final tagChange =
-        entities.singleWhere((c) => c.entityType == SyncModule.tag);
+        rows.singleWhere((c) => c.entityType == SyncModule.tag);
     final tagRow = rowOf(tagChange);
     expect(tagRow.keys.toSet(), _t2TagKeys);
     expect(tagRow['Name'], '离线标签A');
@@ -727,4 +837,159 @@ void main() {
     // B 的游标推进到 frontier。
     expect(await database.syncCursorDao.readLastPulledVersion(), 2);
   });
+
+  testWidgets(
+      'F18-T3 FR-5/FR-8 双设备冲突全链:A 断网写→push;模拟 B 独立编辑同 '
+      '实体→push 命中 fake 冲突→本地标 synced(确认)+协调器 conflicts 携带'
+      '→badge 冲突 chip onTap 进面板→双栏摘要→「保留我的」→fake '
+      'resolveConflict(client)+面板刷新空', (t) async {
+    final fake = fakeSync!;
+    final online = onlineController!;
+    final database = getIt<db.AppDatabase>();
+    final accounts = getIt<AccountRepository>();
+
+    // ---- 设备 A('e2e-device'):断网写 1 账户 → 回网 push 落 fake log。
+    final a1 = ok(await accounts.create(const CreateAccountParams(
+      name: '设备A账户',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 7000,
+      ownership: Ownership.personal,
+    )));
+    bloc = getIt<SyncCoordinatorBloc>();
+    await until(() => bloc!.state.pendingCount == 1, '设备 A 补扫计数收敛到 1');
+    online.add(true); // 回网边沿:pull(空)→ push → clean
+    await until(() => bloc!.state.status == SyncStatus.clean, '设备 A 收敛 clean');
+    expect(fake.logEntries, hasLength(1), reason: 'A 的行已落 server(log)');
+    expect(bloc!.state.conflictCount, 0);
+
+    // ---- 模拟设备 B('e2e-device-B'):换 clientId + 硬删 A 行 + 种同 id
+    //      不同内容行(模拟 B 独立编辑同实体;DAO 裸操作不走 repo 路由,
+    //      行直接置 pending 供收集器上行)。
+    final rowA = (await database.accountDao.getAccountById(a1.id))!;
+    await database.accountDao.deleteAccountById(a1.id);
+    await database.accountDao.insertAccount(
+      rowA.toCompanion(true).copyWith(
+            name: const Value('设备B账户'),
+            currentBalanceCents: const Value(9900),
+            syncState: const Value(SyncState.pending),
+          ),
+    );
+    tokenStorage!.clientId = 'e2e-device-B';
+
+    // fake 预设冲突面:该 entityId 的 push 命中「server 检测」的 fake 模拟
+    //(版本比对不做,见 _FakeSyncService.conflictEntityIds 注释)。
+    fake.conflictEntityIds.add(a1.id);
+
+    // 设备 B 的协调器:同进程第二实例(照 F17-T2 双设备先例)。
+    final blocB = SyncCoordinatorBloc(
+      getIt<OfflineSyncPort>(),
+      getIt<PendingCollector>(),
+      getIt<SessionModeTracker>(),
+      database,
+      online.stream,
+      null,
+      null,
+      PullApplier(database),
+      tokenStorage!.readClientId,
+    );
+    await bloc!.close();
+    bloc = blocB; // tearDown 统一收尾
+
+    blocB.add(SyncRetryRequested());
+    await until(() => blocB.state.status == SyncStatus.clean, '设备 B 收敛 clean');
+
+    // ---- 断言 1:本地行标 synced(FR-2 确认语义;内容仍是 B 的版本)。
+    final rowB = await database.accountDao.getAccountById(a1.id);
+    expect(rowB, isNotNull, reason: '冲突确认不清行');
+    expect(rowB!.syncState, SyncState.synced, reason: 'push 命中冲突 → 标 synced');
+    expect(rowB.name, '设备B账户');
+
+    // ---- 断言 2:协调器 conflicts 完整列表携带(FR-5 状态面)。
+    expect(blocB.state.conflictCount, 1);
+    final carried = blocB.state.conflicts.single;
+    expect(carried.conflictId, isNotEmpty);
+    expect(carried.module, SyncModule.account);
+    expect(carried.entityId, a1.id);
+
+    // ---- 断言 3:fake 侧冲突面 —— B 的冲突条未落 log(server 跳过语义)。
+    expect(fake.logEntries, hasLength(1));
+
+    // ---- 断言 4:badge 冲突态渲染 + onTap 进面板(FR-5)。
+    //      最小 GoRouter harness:真 badge + 真 ConflictPanelPage + 真 bloc/
+    //      port(DI 已指向假 server),不挂 AppShell(其依赖面与本链路无关)。
+    final router = GoRouter(
+      initialLocation: '/home',
+      routes: [
+        GoRoute(
+          path: '/home',
+          builder: (_, __) => BlocProvider<SyncCoordinatorBloc>.value(
+            value: blocB,
+            child: const Scaffold(
+              body: Align(
+                  alignment: Alignment.centerLeft, child: SyncStatusBadge()),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/conflicts',
+          builder: (_, __) => BlocProvider<ConflictListBloc>(
+            create: (_) => ConflictListBloc(getIt<OfflineSyncPort>()),
+            child: const ConflictPanelPage(),
+          ),
+        ),
+      ],
+    );
+    await t.pumpWidget(MaterialApp.router(
+      routerConfig: router,
+      theme: AppTheme.light(),
+    ));
+
+    // badge 冲突 chip(warn amber「冲突 1」)渲染。
+    await _pumpUntil(t, () => find.text('冲突 1').evaluate().isNotEmpty,
+        'badge 冲突 chip 渲染');
+
+    // onTap 可达 → 进面板;面板经真 gRPC listConflicts 拉 fake backlog。
+    await t.tap(find.text('冲突 1'));
+    await _pumpUntil(t, () => find.text('同步冲突').evaluate().isNotEmpty,
+        '面板打开');
+
+    // ---- 断言 5:条目渲染双栏摘要(双 payload 均为真实 wire envelope bytes:
+    //      server 栏 = A 的行,「我的」栏 = B 的行;模块徽章中文模块名)。
+    await _pumpUntil(
+        t, () => find.text('服务端版本').evaluate().isNotEmpty, '面板加载出条目');
+    expect(find.text('账户'), findsOneWidget, reason: '模块徽章(中文模块名)');
+    expect(find.text('名称:设备A账户'), findsOneWidget, reason: '服务端栏摘要');
+    expect(find.text('名称:设备B账户'), findsOneWidget, reason: '我的栏摘要');
+    expect(find.text('待处理 1 条'), findsOneWidget, reason: '总数(权威计数)');
+
+    // ---- 断言 6:「保留我的」→ fake resolveConflict(client)被调 + 面板
+    //      刷新空(FR-5 解决流闭环)。
+    await t.tap(find.text('保留我的'));
+    await _pumpUntil(t, () => find.text('无待处理冲突').evaluate().isNotEmpty,
+        '解决后面板刷新为空');
+
+    expect(fake.resolveRequests, hasLength(1));
+    expect(fake.resolveRequests.single.conflictId, carried.conflictId);
+    expect(fake.resolveRequests.single.resolution, 'client',
+        reason: '「保留我的」→ resolution=client');
+
+    // 收尾:harness 的面板 bloc 由 provider 拥有,随下一测试 DI reset 释放;
+    // 此处显式停 pump 源(MaterialApp 由后续测试覆盖)。
+  });
+}
+
+/// UI 收敛等待(集成测试的 pump 轮询:gRPC 真往返 + bloc 异步链,不定长;
+/// 50ms 步进,10s 上限 —— 照本文件纯 Future until 的同款口径)。
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  bool Function() cond,
+  String reason,
+) async {
+  final sw = Stopwatch()..start();
+  while (!cond() && sw.elapsed < const Duration(seconds: 10)) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  expect(cond(), isTrue, reason: reason);
 }

@@ -16,7 +16,9 @@ import 'package:yucai_client/account/presentation/pages/account_detail_page.dart
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
 import 'package:yucai_client/app/widgets/app_shell.dart';
 import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
+import 'package:yucai_client/binding/presentation/bloc/conflict_list_bloc.dart';
 import 'package:yucai_client/binding/presentation/pages/binding_page.dart';
+import 'package:yucai_client/binding/presentation/pages/conflict_panel_page.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart'
     as budget_event;
@@ -85,8 +87,12 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 /// Bind-only route prefixes: cloud/session-bound pages guests may not open.
 /// Business routes are guest-accessible (offline-first, R6 FR-2); the server
 /// backup pages under /settings/backup are gRPC-bound and must stay behind
-/// the login wall. Injectable so the guard is testable.
-const List<String> kDefaultBindOnlyPrefixes = ['/settings/backup'];
+/// the login wall; F18 adds /settings/conflicts (server ListConflicts panel,
+/// badge 冲突 chip 的落点). Injectable so the guard is testable.
+const List<String> kDefaultBindOnlyPrefixes = [
+  '/settings/backup',
+  '/settings/conflicts',
+];
 
 /// Builds the app router. Reads auth state to guard routes.
 ///
@@ -929,6 +935,18 @@ GoRouter buildRouter(
                     builder: (_, __) => BlocProvider<TagBloc>(
                       create: (_) => getIt<TagBloc>(),
                       child: const TagPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'conflicts',
+                    // F18-T3(spec FR-5,design ADR-5):同步冲突面板(badge
+                    // 冲突 chip 的落点;bind-only 前缀见顶部守卫)。工厂注册
+                    // 的 ConflictListBloc 每次进入全新实例,port 经 DI 注入;
+                    // Load 事件由页面 initState 自发(单一触发点,e2e/单测
+                    // 同一挂载形态)。
+                    builder: (_, __) => BlocProvider<ConflictListBloc>(
+                      create: (_) => getIt<ConflictListBloc>(),
+                      child: const ConflictPanelPage(),
                     ),
                   ),
                   GoRoute(

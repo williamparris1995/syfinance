@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
@@ -14,6 +15,14 @@ import 'package:yucai_client/core/theme/app_design.dart';
 ///   ([SyncRetryRequested];防重入由 bloc 的 in-flight 幂等兜底,ADR-4);
 /// - 其余态 `pendingCount > 0` → muted chip「待同步 N」(无交互);
 /// - clean(非 syncing/failed 且 N==0)→ 隐藏(在线零感知)。
+///
+/// F18-T3(spec FR-5,design ADR-5)插入第五态(四态语义零破坏,仅扩展
+/// 其余态分支):`conflictCount > 0`(且非 syncing/failed)→ warn(amber)
+/// chip「冲突 N」,onTap 进冲突面板 `/settings/conflicts`。渲染优先级:
+/// **syncing > failed > 冲突 > 待同步 > 隐藏** —— 冲突比待同步计数更强
+/// (需要用户裁决的显式信号),但仍让位于 syncing/failed(在途/失败是
+/// 此刻唯一可行动信号,与 T1 消化观察 (b) 同一论证);冲突计数仍由
+/// `state.conflictCount` 权威携带,面板解决后经 ListConflicts 重取收敛。
 ///
 /// 渲染优先级(T1 review 观察 (b) 的消化):syncing/failed 优先于计数文本 ——
 /// failed 且 N>0 时**只显失败态,计数不叠加**:失败原因+重试入口是此刻唯一
@@ -48,13 +57,16 @@ class SyncStatusBadge extends StatelessWidget {
 
     return BlocBuilder<SyncCoordinatorBloc, SyncCoordinatorState>(
       builder: (context, state) {
-        // 优先级钉死:syncing > failed > 待同步计数;全空 → 隐藏。
+        // 优先级钉死(F18-T3 插入冲突分支):syncing > failed > 冲突 >
+        // 待同步计数;全空 → 隐藏。
         final Widget? chip = switch (state.status) {
           SyncStatus.syncing => _syncingChip(context),
           SyncStatus.failed => _failedChip(context, state.failureReason),
-          _ => state.pendingCount > 0
-              ? _pendingChip(context, state.pendingCount)
-              : null,
+          _ => state.conflictCount > 0
+              ? _conflictChip(context, state.conflictCount)
+              : state.pendingCount > 0
+                  ? _pendingChip(context, state.pendingCount)
+                  : null,
         };
         if (chip == null) return const SizedBox.shrink();
         return Padding(
@@ -62,6 +74,30 @@ class SyncStatusBadge extends StatelessWidget {
           child: chip,
         );
       },
+    );
+  }
+
+  /// F18-T3:冲突 N(非 syncing/failed 且 conflictCount>0)—— warn(amber)
+  /// chip,onTap 进冲突面板(唯一带导航的计数态:冲突需要用户裁决)。
+  Widget _conflictChip(BuildContext context, int count) {
+    final t = context.yucai;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => context.push('/settings/conflicts'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: t.warn.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(LucideIcons.triangleAlert, size: 13, color: t.warn),
+            const SizedBox(width: 4),
+            Text('冲突 $count', style: TextStyle(fontSize: 11, color: t.warn)),
+          ]),
+        ),
+      ),
     );
   }
 

@@ -754,6 +754,20 @@ void main() {
         '/login');
   });
 
+  testWidgets('conflict panel route stays behind the login wall '
+      '(F18 bind-only)', (tester) async {
+    // /settings/conflicts 是 gRPC 绑定的 server 冲突面板(F18 FR-5,badge
+    // 冲突 chip 的落点)—— guest 不得直达(照 backup 先例)。
+    final authBloc = _guestBloc();
+    final router = buildRouter(authBloc);
+    router.go('/settings/conflicts');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/login');
+  });
+
   testWidgets('bind-only prefix mechanism bounces guests to /login '
       '(injectable list)', (tester) async {
     // Pins the mechanism itself for future bound routes (R6 FR-2).
