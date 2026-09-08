@@ -3,9 +3,13 @@
 //   insertOnConflictUpdate(单行 upsert,与 importer 的 purge+全量不同);
 // - DELETE → 本地硬删、**不写墓碑**(pulled delete 源头即 server log,再
 //   上行是回声;多设备回声乒乓 + 镜像数据源论证,详见 PullApplier 类 doc);
-// - pending 保护:同 id 本地 pending → 跳过 + 计 skipped(下行不覆盖
-//   未上行编辑,与 mirror ADR-3 同族);
-// - 原子性:整批单 drift 事务,任一条失败全批回滚;
+// - **F18-T2(FR-4/ADR-4)版本感知 pending 规则**(替换一刀切跳过):本地
+//   pending 行 local.version >= pulled.version → 跳过保 pending;<
+//   → 应用(server 已裁决/他设备胜出,本地内容已在冲突记录或已过时);
+//   非 pending 照常 upsert;pulled.version 从 payload JSON probe(非
+//   logVersion —— 两值语义不同,F18-T1 裁决警示);
+// - **F18-T2 per-change 隔离**(毒丸吸收):坏条目(未知模块/坏 payload)
+//   debugPrint + 跳过,不回滚整批、不再钉死游标;
 // - holding_ledger 台账行应用(ADR-4 台账查证裁决=实施)。
 // payload 生产直接复用 envelope_codec(与真实 push 路径同一份行序列化,
 // 单一事实源)—— 测试即钉「上行编码的行,下行能原样应用」的往返契约。
@@ -276,9 +280,29 @@ void main() {
     });
   });
 
-  group('pending 保护(下行不覆盖未上行编辑,与 mirror ADR-3 同族)', () {
-    test('同 id 本地 pending → 跳过 + 计 skipped,本地内容/存在性保住', () async {
+  group('F18-T2 版本感知 pending 规则(FR-4/ADR-4:替换一刀切跳过)', () {
+    /// 版本感知矩阵四象限(单测内一次钉死):
+    /// pending 同版本 skip / pending 低版本应用(server 裁决)/
+    /// 非 pending 照常 upsert / DELETE 不问版本(既有测试已钉)。
+    test('pending 同版本(1>=1)→ 跳过保 pending,本地内容不被覆盖', () async {
       await seedAccount(accountData('acc-A', syncState: SyncState.pending));
+
+      final result = await applier.apply([
+        upsert(SyncModule.account, 'acc-A',
+            accountRowToEnvelope(accountData('acc-A', name: 'server覆盖'))),
+      ]);
+
+      // 同版本 = 本地未上行编辑仍是更新事实(单设备不变式:server 不可能有
+      // 本地 pending 行的同版本更新)→ 跳过(F17 一刀切语义的唯一保留面)。
+      expect(result.applied, 0);
+      expect(result.skipped, 1);
+      expect((await database.accountDao.getAccountById('acc-A'))!.name,
+          '他设备账户'); // 构造默认名,未被覆盖
+      expect((await database.accountDao.getAccountById('acc-A'))!.syncState,
+          SyncState.pending);
+    });
+
+    test('pending 低版本(1<9)→ 应用(server 已裁决/他设备胜出)', () async {
       await database.tagDao.insertTag(db.TagsCompanion.insert(
         id: 'tag-1',
         name: '本地离线标签',
@@ -290,38 +314,140 @@ void main() {
       ));
 
       final result = await applier.apply([
-        upsert(SyncModule.account, 'acc-A',
-            accountRowToEnvelope(accountData('acc-A', name: 'server覆盖'))),
         upsert(SyncModule.tag, 'tag-1', {
-          'ID': 'tag-1', 'Name': 'server 覆盖', 'Color': '#222222',
+          'ID': 'tag-1', 'Name': 'server 裁决版本', 'Color': '#222222',
           'Version': 9, 'DeletedAt': null,
           'CreatedAt': '2026-09-05T00:00:00.000Z',
           'UpdatedAt': '2026-09-05T00:00:00.000Z',
         }),
       ]);
 
-      expect(result.applied, 0);
-      expect(result.skipped, 2);
-      expect((await database.accountDao.getAccountById('acc-A'))!.name,
-          '他设备账户'); // 构造默认名,未被覆盖
-      expect((await database.tagDao.getTagById('tag-1'))!.name, '本地离线标签');
+      // server 更高版本 = 冲突已裁决(或他设备更新胜出):本地 pending 内容
+      // 已在 server 冲突记录(client_payload),应用下行收敛(F17 一刀切
+      // 在此场景会把 B 设备永久钉死在旧态 —— F18 核心修复点)。
+      expect(result.applied, 1);
+      expect(result.skipped, 0);
+      final tag = await database.tagDao.getTagById('tag-1');
+      expect(tag!.name, 'server 裁决版本');
+      expect(tag.version, 9);
+      expect(tag.syncState, SyncState.synced);
     });
 
-    test('DELETE 对 pending 行:server 删除是存在性终局 —— 硬删不跳过'
-        '(简报口径:pending 跳过仅限 CREATE/UPDATE)', () async {
+    test('非 pending(synced)照常 upsert —— 不设版本防线(F17 语义保持)',
+        () async {
+      // 本地 synced v5;pulled v1(旧版本回放/重放)→ 照常应用:server 日志
+      // 即权威终态,本地 synced 行无「未上行编辑」事实需保护。
+      await seedAccount(accountData('acc-A', syncState: SyncState.synced));
+      await database.accountDao.updateAccount(const db.AccountsCompanion(
+        id: Value('acc-A'),
+        version: Value(5),
+      ));
+      final pulled = accountData('acc-A', name: '重放版本');
+      // envelope 用 drift 行的 version 字段(pulled v1)。
+      final row = accountRowToEnvelope(pulled);
+
+      final result =
+          await applier.apply([upsert(SyncModule.account, 'acc-A', row)]);
+
+      expect(result.applied, 1);
+      expect((await database.accountDao.getAccountById('acc-A'))!.name,
+          '重放版本');
+    });
+
+    test('版本 probe 用 payload 内实体 Version(非 logVersion)',
+        () async {
+      // F18-T1 裁决警示:PulledChange.logVersion 是 tenant pull 游标
+      //(本例 99),与实体乐观锁版本(本例 1)两值。本地 pending v2 ≥
+      // payload 内 v1 → 跳过;若误用 logVersion(2<99)会错误应用。
       await database.tagDao.insertTag(db.TagsCompanion.insert(
         id: 'tag-p',
-        name: 'pending 标签',
+        name: '本地未上行编辑',
         color: '#111111',
-        version: 1,
+        version: 2,
         createdAt: DateTime.utc(2026, 9, 5),
         updatedAt: DateTime.utc(2026, 9, 5),
         syncState: const Value(SyncState.pending),
       ));
 
-      await applier.apply([deletion(SyncModule.tag, 'tag-p')]);
+      final result = await applier.apply([
+        upsert(SyncModule.tag, 'tag-p', {
+          'ID': 'tag-p', 'Name': '低实体版本高log版本', 'Color': '#222222',
+          'Version': 1, 'DeletedAt': null,
+          'CreatedAt': '2026-09-05T00:00:00.000Z',
+          'UpdatedAt': '2026-09-05T00:00:00.000Z',
+        }, logVersion: 99),
+      ]);
 
+      expect(result.applied, 0);
+      expect(result.skipped, 1);
+      expect(
+          (await database.tagDao.getTagById('tag-p'))!.name, '本地未上行编辑');
+    });
+
+    test('DELETE 不问版本:pending 行照删(server 删除是存在性终局,'
+        'F18-T2 保持 —— 版本感知仅限 CREATE/UPDATE)', () async {
+      await database.tagDao.insertTag(db.TagsCompanion.insert(
+        id: 'tag-p',
+        name: 'pending 标签',
+        color: '#111111',
+        version: 9, // 即便本地版本更高:删除不设防线
+        createdAt: DateTime.utc(2026, 9, 5),
+        updatedAt: DateTime.utc(2026, 9, 5),
+        syncState: const Value(SyncState.pending),
+      ));
+
+      final result = await applier.apply([deletion(SyncModule.tag, 'tag-p')]);
+
+      expect(result.applied, 1);
       expect(await database.tagDao.getTagById('tag-p'), isNull);
+    });
+  });
+
+  group('F18-T2 per-change 隔离(FR-4/ADR-4:毒丸吸收,游标不再钉死)', () {
+    test('坏条目(坏 payload)跳过 + 后续条目照常应用(不回滚整批)', () async {
+      final good1 = upsert(SyncModule.tag, 'tag-good', {
+        'ID': 'tag-good', 'Name': '好行1', 'Color': '#000000',
+        'Version': 1, 'DeletedAt': null,
+        'CreatedAt': '2026-09-05T00:00:00.000Z',
+        'UpdatedAt': '2026-09-05T00:00:00.000Z',
+      });
+      // 坏行:ID 缺失 → 行映射 cast 失败(TypeError)→ 条目级跳过。
+      final bad = upsert(SyncModule.account, 'acc-bad', {'Name': '没有 ID'});
+      final good2 = upsert(SyncModule.tag, 'tag-good2', {
+        'ID': 'tag-good2', 'Name': '好行2', 'Color': '#000000',
+        'Version': 1, 'DeletedAt': null,
+        'CreatedAt': '2026-09-05T00:00:00.000Z',
+        'UpdatedAt': '2026-09-05T00:00:00.000Z',
+      });
+
+      // F17 整批事务在此 throwsA;F18-T2 起吞掉毒丸,好行全部落地 ——
+      // 下行是幂等重放,单条失败不再钉死全局(apply 正常返回 = 协调器
+      // 游标照常前进)。
+      final result = await applier.apply([good1, bad, good2]);
+
+      expect(result.applied, 2);
+      expect(await database.tagDao.getTagById('tag-good'), isNotNull);
+      expect(await database.tagDao.getTagById('tag-good2'), isNotNull);
+      expect(await database.accountDao.getAccountById('acc-bad'), isNull);
+    });
+
+    test('未知模块:条目级跳过(不再整批 fail-closed 抛出),不阻批',
+        () async {
+      final good = upsert(SyncModule.tag, 'tag-x', {
+        'ID': 'tag-x', 'Name': '好行', 'Color': '#000000',
+        'Version': 1, 'DeletedAt': null,
+        'CreatedAt': '2026-09-05T00:00:00.000Z',
+        'UpdatedAt': '2026-09-05T00:00:00.000Z',
+      });
+
+      final result =
+          await applier.apply([upsert('future_module', 'x', {'ID': 'x'}), good]);
+
+      // 未知模块条目毒丸吸收(与 server 未知 entityType 的 fail-closed 哲学
+      // 在 client 侧的落地形态 = 单条跳过 + log,防前向兼容期一条新模块
+      // 条目钉死整个拉取游标)。
+      expect(result.applied, 1);
+      expect(await database.tagDao.getTagById('tag-x'), isNotNull);
     });
   });
 
@@ -392,26 +518,7 @@ void main() {
     });
   });
 
-  test('原子性:整批单事务,任一条失败全批回滚(先 applied 的行不残留)',
-      () async {
-    final good = upsert(SyncModule.tag, 'tag-good', {
-      'ID': 'tag-good', 'Name': '好行', 'Color': '#000000',
-      'Version': 1, 'DeletedAt': null,
-      'CreatedAt': '2026-09-05T00:00:00.000Z',
-      'UpdatedAt': '2026-09-05T00:00:00.000Z',
-    });
-    // 坏行:ID 缺失 → 行映射 cast 失败(TypeError)。
-    final bad = upsert(SyncModule.account, 'acc-bad', {'Name': '没有 ID'});
-
-    await expectLater(applier.apply([good, bad]), throwsA(anything));
-
-    expect(await database.tagDao.getTagById('tag-good'), isNull); // 回滚
-  });
-
-  test('未知模块:fail-closed 抛出(与 server 未知 entityType 同哲学)',
-      () async {
-    await expectLater(
-        applier.apply([upsert('future_module', 'x', {'ID': 'x'})]),
-        throwsA(anything));
-  });
+  // F18-T2:F17 的「整批单事务原子性 / 未知模块 fail-closed 抛出」两测已由
+  // 上方 per-change 隔离组改写(毒丸吸收语义:坏条目跳过不阻批 —— 事务粒度
+  // 从整批降为 per-change,论证见 PullApplier 类 doc)。
 }

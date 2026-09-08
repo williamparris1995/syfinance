@@ -5,7 +5,11 @@
 // - 失败链:failed(reason)+ pending 保留 → 再触发成功;
 // - 进行中幂等:flight 期间重入触发被丢弃(push 恰一次);
 // - 回网 true 边沿(注入流)触发。
+// F18-T2(2026-09-08)增:冲突确认语义(FR-2/ADR-2 —— push 命中冲突的实体
+// 标 synced,内容在 server 冲突记录)+ clean 态 conflicts 完整列表(字段级)。
 import 'dart:async';
+import 'dart:convert' show utf8;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -41,6 +45,15 @@ class _FakePort implements OfflineSyncPort {
     return PullBatch(
         changes: const [], latestVersion: sinceVersion, hasMore: false);
   }
+
+  // F18-T2:冲突解决面替身 —— 协调器链路不触(面板 bloc 才消费),空页。
+  @override
+  Future<ConflictPage> listConflicts({String? pageToken}) async =>
+      const ConflictPage(items: [], totalCount: 0);
+
+  @override
+  Future<void> resolveConflict(String conflictId, String resolution,
+      {List<int>? mergedPayload}) async {}
 
   @override
   Future<SyncResult> push(SyncBatch batch) async {
@@ -242,7 +255,63 @@ void main() {
     // ok 语义不变(clean,回写照常);冲突计数仅状态携带 —— F12 badge 组件
     // 不改(F18 面板消费),协调器只透传。
     expect(bloc.state.conflictCount, 2);
+    expect(bloc.state.conflicts, hasLength(2)); // F18-T2 扩:完整列表透传
     expect(await database.accountDao.getPendingAccounts(), isEmpty);
+  });
+
+  test('F18-T2 确认语义+完整列表:push 命中冲突 → 冲突实体标 synced(内容在 '
+      'server 冲突记录,防反复重推)+ clean 态携带字段级 conflicts;空批次 '
+      'clean 后随「最近一次成功 push」语义清零', () async {
+    await seedPending();
+    port.nextResult = SyncResult.success(conflicts: [
+      SyncConflictInfo(
+        conflictId: 'c-1',
+        module: SyncModule.tag,
+        entityId: 'tag-1',
+        conflictType: 'version_conflict',
+        serverPayload: Uint8List.fromList(
+            utf8.encode('{"ID":"tag-1","Name":"服务端版本","Version":3}')),
+        clientPayload: Uint8List.fromList(
+            utf8.encode('{"ID":"tag-1","Name":"本地版本","Version":1}')),
+        createdAt: DateTime.utc(2026, 9, 8, 12, 0, 0),
+      ),
+    ]);
+
+    bloc.add(SyncRetryRequested());
+    await until(() => bloc.state.status == SyncStatus.clean);
+
+    // 确认标记:冲突实体(批内 tag-1)照常标 synced —— server 冲突记录已存
+    // 该内容(client_payload,解决时裁决),不标则每轮重推再堆一条冲突;
+    // 版本守卫同款(批内快照版本,push 在途降级行不受扰)。
+    final tag = await database.tagDao.getTagById('tag-1');
+    expect(tag!.syncState, SyncState.synced);
+
+    // 完整列表:clean 态携带 push 响应的 conflicts(字段级)—— 协调器不拉
+    // ListConflicts(权威计数归面板 bloc,分工注释见 state doc)。
+    expect(bloc.state.conflictCount, 1);
+    expect(bloc.state.conflicts, hasLength(1));
+    final c = bloc.state.conflicts.single;
+    expect(c.conflictId, 'c-1');
+    expect(c.module, SyncModule.tag);
+    expect(c.entityId, 'tag-1');
+    expect(utf8.decode(c.serverPayload!), contains('服务端版本'));
+    expect(utf8.decode(c.clientPayload!), contains('本地版本'));
+    expect(c.createdAt, DateTime.utc(2026, 9, 8, 12, 0, 0));
+
+    // 状态列表防篡改:外部 mutate 不生效(UnmodifiableListView)。
+    expect(() => bloc.state.conflicts.clear(), throwsA(anything));
+
+    // 再触发(已无 pending → 空批次 clean):冲突信息清零(与 conflictCount
+    // 同生命周期 = 「最近一次成功 push」)。注:第一次 push 后的计数克隆态
+    // (clean+preserved conflicts)不算,等「冲突清零的 clean」出现。
+    port.nextResult = const SyncResult.success();
+    bloc.add(SyncRetryRequested());
+    await until(() =>
+        bloc.state.status == SyncStatus.clean &&
+        bloc.state.conflicts.isEmpty &&
+        bloc.state.conflictCount == 0);
+    expect(bloc.state.conflicts, isEmpty);
+    expect(bloc.state.conflictCount, 0);
   });
 
   test('进行中幂等:flight 期间重入触发被丢弃(push 恰一次)', () async {

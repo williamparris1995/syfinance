@@ -40,6 +40,15 @@ class _FakePort implements OfflineSyncPort {
         changes: const [], latestVersion: sinceVersion, hasMore: false);
   }
 
+  // F18-T2:冲突解决面替身 —— 计数链路不触(面板 bloc 才消费),空页。
+  @override
+  Future<ConflictPage> listConflicts({String? pageToken}) async =>
+      const ConflictPage(items: [], totalCount: 0);
+
+  @override
+  Future<void> resolveConflict(String conflictId, String resolution,
+      {List<int>? mergedPayload}) async {}
+
   @override
   Future<SyncResult> push(SyncBatch batch) async {
     batches.add(batch);

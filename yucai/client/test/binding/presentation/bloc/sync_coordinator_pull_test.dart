@@ -5,6 +5,7 @@
 // - own-echo 过滤:自设备推送的回声不回灌应用(游标仍推进);
 // - 失败容忍:拉失败不阻断 push 流、不破状态(游标不动,幂等重拉无害);
 // - 构造补扫 online 分支经同一触发管道,同样先拉(事件序钉死)。
+// F18-T2(2026-09-08)增:毒丸吸收(FR-4/ADR-4 —— 页内坏条目不再钉死游标)。
 // 真件:真 drift 库 + 真 PendingCollector + 真 PullApplier(applier 单测
 // 已深钉);fake 仅 port(可编程 pull 页队列 + 事件序记录)。
 import 'dart:async';
@@ -39,6 +40,15 @@ class _FakePort implements OfflineSyncPort {
 
   @override
   Future<void> registerDevice(String deviceName) async {}
+
+  // F18-T2:冲突解决面替身 —— 拉取编排链路不触(面板 bloc 才消费),空页。
+  @override
+  Future<ConflictPage> listConflicts({String? pageToken}) async =>
+      const ConflictPage(items: [], totalCount: 0);
+
+  @override
+  Future<void> resolveConflict(String conflictId, String resolution,
+      {List<int>? mergedPayload}) async {}
 
   @override
   Future<SyncResult> push(SyncBatch batch) async {
@@ -245,5 +255,35 @@ void main() {
     expect(port.events, ['pull', 'push']);
     expect(port.batches, hasLength(1));
     expect(await database.tagDao.getPendingTags(), hasLength(1)); // pending 保留
+  });
+
+  test('F18-T2 毒丸吸收:页内坏条目不再钉死 —— 后续条目应用 + 游标前进',
+      () async {
+    // 页内一条坏 payload(非 JSON)+ 一条好行:applier per-change 隔离吞掉
+    // 毒丸(apply 正常返回),协调器照常推进游标 —— F17 整批事务下此页
+    // 会因 apply 抛出被容忍吞掉,游标停在 0 永久重拉同一毒丸页。
+    port.pullPages.add(PullBatch(
+      changes: [
+        PulledChange(
+          module: SyncModule.account,
+          entityId: 'acc-poison',
+          isDelete: false,
+          payload: Uint8List.fromList(utf8.encode('not-json-at-all')),
+          logVersion: 1,
+          deviceId: 'device-A',
+        ),
+        foreignAccount('acc-good', '毒丸后好行', logVersion: 2),
+      ],
+      latestVersion: 2,
+      hasMore: false,
+    ));
+
+    bloc.add(SyncRetryRequested());
+    await until(() => bloc.state.status == SyncStatus.clean);
+
+    // 好行照常落库;毒丸条目跳过(不阻批);游标推进过毒丸(页尾 = 2)。
+    expect(await database.accountDao.getAccountById('acc-good'), isNotNull);
+    expect(await database.accountDao.getAccountById('acc-poison'), isNull);
+    expect(await database.syncCursorDao.readLastPulledVersion(), 2);
   });
 }

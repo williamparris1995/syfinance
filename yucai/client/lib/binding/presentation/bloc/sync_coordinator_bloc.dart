@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection' show UnmodifiableListView;
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
@@ -35,6 +36,11 @@ import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 /// - 构造补扫(**闭环原 TODO-F12 观察点 3**):迟构造(如 F12 UI 首次消费
 ///   才 resolve)不补发构造前的回网边沿 → 构造时即 collect 一次兜底,
 ///   online 且非空则触发一次同步,offline 仅计数(见 [_bootstrapScan])。
+///
+/// F18-T2(spec FR-2,design ADR-2)确认语义:push 成功响应命中的冲突实体
+/// 在回写阶段一并标 synced(内容已在 server 冲突记录,防反复重推堆冲突);
+/// 冲突完整列表随 clean 态携带(权威计数归 ListConflicts/面板,协调器不
+/// 重复拉)。解决流(面板)是 T3 的面。
 class SyncCoordinatorBloc
     extends Bloc<SyncCoordinatorEvent, SyncCoordinatorState> {
   /// [onlineStream] 不落字段(构造期订阅即弃);照库内先例(如
@@ -144,9 +150,10 @@ class SyncCoordinatorBloc
       ));
       final result = await _port.push(batch);
       if (result.ok) {
-        // 成功:回写 synced → 清墓碑 → 按模块刷新镜像(T2 保护语义闭环:
-        // 上行后的行靠 server 回读存活,不再依赖 pending 保护)。
-        await _writeBack(batch);
+        // 成功:回写 synced(含 F18-T2 冲突确认标记)→ 清墓碑 → 按模块刷新
+        // 镜像(T2 保护语义闭环:上行后的行靠 server 回读存活,不再依赖
+        // pending 保护)。
+        await _writeBack(batch, result.conflicts);
         await _refreshMirror(batch.modules);
         // F17-T2(ADR-3):push 成功后再拉一次(他设备变更感知 —— 本批
         // push 期间 server 可能已追加他设备条目);失败容忍同前。
@@ -162,6 +169,11 @@ class SyncCoordinatorBloc
           // ——失败结果不含 conflicts)。F12 badge 组件**不改**(仅状态
           // 携带,冲突面板/解决流是 F18 的面)。
           conflictCount: result.conflictCount,
+          // F18-T2(FR-2/ADR-2):冲突**完整列表**随 clean 携带(字段级:
+          // conflictId/双 payload/createdAt,面板消费;与 conflictCount 同
+          // 生命周期)。不可变视图防外部 mutate;权威计数归 ListConflicts
+          // —— 协调器 clean 后不异步重拉,面板 bloc 自己拉(分工见 state doc)。
+          conflicts: UnmodifiableListView(result.conflicts),
         ));
       } else {
         // 失败:pending 保留(不动库),下次回网/手动触发重试。
@@ -192,8 +204,10 @@ class SyncCoordinatorBloc
     emit(SyncCoordinatorState(
       status: state.status,
       pendingCount: event.count,
-      // F17-T1:计数纯更新不冲掉冲突计数(同 failureReason 的保留语义)。
+      // F17-T1:计数纯更新不冲掉冲突计数(同 failureReason 的保留语义);
+      // F18-T2:完整列表同理保留(「最近一次成功 push」携带面)。
       conflictCount: state.conflictCount,
+      conflicts: state.conflicts,
       failureReason: state.failureReason,
     ));
   }
@@ -302,7 +316,21 @@ class SyncCoordinatorBloc
   /// 成功回写:批内实体 pending → synced(单事务,带**版本守卫**——仅当
   /// 行当前版本仍等于批次快照版本才回写,push 在途的 FR-1b 降级更新行保持
   /// pending 留下次上行)+ 清批内墓碑(墓碑无版本概念,批内即清)。
-  Future<void> _writeBack(SyncBatch batch) async {
+  ///
+  /// F18-T2(FR-2/ADR-2)**冲突确认语义**:[conflicts] 命中的实体(必然 ⊆
+  /// 本批实体 —— 冲突仅由本次 push 的条目触发)与正常落库实体走**同一
+  /// versionsById、同一版本守卫**标记 synced:server 冲突记录已保存其内容
+  /// (client_payload,面板解决时裁决),不标记则该行每轮重推、堆一条新
+  /// 冲突记录。守卫同款意味着 push 在途的降级行(版本已推进)**不**被陈旧
+  /// 确认 —— 新内容未进冲突记录,保持 pending 下次上行是正确行为。
+  Future<void> _writeBack(
+      SyncBatch batch, List<SyncConflictInfo> conflicts) async {
+    if (conflicts.isNotEmpty) {
+      // 确认面观测日志(English 结构化,无 CJK):解决前的可观测锚点。
+      debugPrint('[sync-coordinator] conflict acknowledged: '
+          '${conflicts.length} entities recorded server-side '
+          '(content preserved in conflict rows, resolution pending)');
+    }
     await _db.transaction(() async {
       for (final entry in batch.entitiesByModule.entries) {
         // 版本守卫输入:entityId → 批次快照版本。
@@ -442,12 +470,15 @@ enum SyncStatus {
 /// F17-T1(FR-5/ADR-5 最小面):[conflictCount] 携带最近一次成功 push 的
 /// 冲突条数(clean 态写入,计数更新不冲掉;0=无冲突)。仅状态携带 ——
 /// F12 badge 组件不改,「冲突 N 待处理」展示与解决流是 F18 的面。
+/// F18-T2(FR-2/ADR-2)增 [conflicts] 完整列表(clean 态随 conflictCount
+/// 一并携带;权威计数归 ListConflicts/面板,见字段 doc 分工注释)。
 class SyncCoordinatorState extends Equatable {
   const SyncCoordinatorState({
     this.status = SyncStatus.idle,
     this.pendingCount = 0,
     this.failureReason,
     this.conflictCount = 0,
+    this.conflicts = const [],
   });
 
   final SyncStatus status;
@@ -462,6 +493,16 @@ class SyncCoordinatorState extends Equatable {
   /// F17-T1:最近一次成功 push 的冲突条数(默认 0;F18 冲突面板消费)。
   final int conflictCount;
 
+  /// F18-T2(FR-2/ADR-2):最近一次成功 push 命中的冲突**完整列表**(clean
+  /// 态携带,UnmodifiableListView 防外部 mutate;与 [conflictCount] 同生命
+  /// 周期 —— 空批次/失败态清零)。
+  ///
+  /// 分工注释(最小面):此处仅携带 push 响应信息;**权威计数与最新列表 =
+  /// ListConflicts**,由 F18 冲突面板 bloc 自己拉取/解决后重取 —— 协调器
+  /// clean 后**不**异步 listConflicts 刷新(两消费方各取所需,不重复拉)。
+  final List<SyncConflictInfo> conflicts;
+
   @override
-  List<Object?> get props => [status, pendingCount, failureReason, conflictCount];
+  List<Object?> get props =>
+      [status, pendingCount, failureReason, conflictCount, conflicts];
 }

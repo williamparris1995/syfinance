@@ -6,6 +6,8 @@
 // 3. push 成功 → synced 回写 + 墓碑清 + 镜像刷新(真 mirror + mock 远端);
 // 4. 镜像刷新后数据仍在(T2 保护语义闭环);
 // 5. push 失败路径 → failed 态 + pending 保留 → 再触发成功。
+// F18-T2(2026-09-08)增:确认语义管线断言(FR-2/ADR-2 —— push 命中冲突的
+// 实体标 synced + clean 态携带完整冲突列表)。
 import 'dart:async';
 
 import 'package:dartz/dartz.dart' as dz;
@@ -55,6 +57,15 @@ class _FakePort implements OfflineSyncPort {
     return PullBatch(
         changes: const [], latestVersion: sinceVersion, hasMore: false);
   }
+
+  // F18-T2:冲突解决面替身 —— 本管线链路不触(面板 bloc 才消费),空页。
+  @override
+  Future<ConflictPage> listConflicts({String? pageToken}) async =>
+      const ConflictPage(items: [], totalCount: 0);
+
+  @override
+  Future<void> resolveConflict(String conflictId, String resolution,
+          {List<int>? mergedPayload}) async {}
 
   @override
   Future<SyncResult> push(SyncBatch batch) async {
@@ -217,6 +228,62 @@ void main() {
     expect(tagAfter!.name, '离线标签A');
     // 被删 tag 未被镜像复活(墓碑清了但 server 侧本就无此行)。
     expect(await database.tagDao.getTagById(tagIds[1]), isNull);
+  });
+
+  test('F18-T2 确认语义:push 命中冲突 → 冲突实体标 synced(内容在 server '
+      '冲突记录)+ clean 态携带完整冲突列表', () async {
+    final (accountIds, _) = await writeOffline();
+
+    // server 侧预置同 id 状态(镜像刷新数据源;冲突实体须在 server 列表,
+    // 否则镜像 rebuild 会把已确认的行抹掉 —— 本测试 server 行为=内容已在
+    // 冲突记录,镜像面用同 id 行模拟)。
+    for (final (id, name) in [
+      (accountIds[0], '离线现金'),
+      (accountIds[1], '离线储蓄'),
+    ]) {
+      serverAccounts.add(Account(
+        id: id,
+        name: name,
+        accountType: AccountType.asset,
+        category: AccountCategory.savings,
+        currencyCode: 'CNY',
+        initialBalanceCents: 1000,
+        currentBalanceCents: 1000,
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+        version: 1,
+        createdAt: DateTime.utc(2026, 9, 4),
+      ));
+    }
+
+    // push 成功但 accountIds[0] 命中冲突(多设备场景:server 已有更高版本)。
+    port.nextResult = SyncResult.success(conflicts: [
+      SyncConflictInfo(
+        conflictId: 'c-pipe-1',
+        module: SyncModule.account,
+        entityId: accountIds[0],
+        conflictType: 'version_conflict',
+      ),
+    ]);
+
+    tracker.online = true;
+    online.add(true);
+    await until(() => bloc.state.status == SyncStatus.clean);
+
+    // 确认语义:冲突实体(批内 acc[0])与非冲突实体一样标 synced ——
+    // 内容已在 server 冲突记录,防反复重推堆冲突;墓碑照清。
+    final acc0 = await database.accountDao.getAccountById(accountIds[0]);
+    expect(acc0!.syncState, SyncState.synced);
+    final acc1 = await database.accountDao.getAccountById(accountIds[1]);
+    expect(acc1!.syncState, SyncState.synced);
+    expect(await database.accountDao.getPendingAccounts(), isEmpty);
+    expect(await database.syncTombstoneDao.getAllTombstones(), isEmpty);
+
+    // clean 态携带完整冲突列表(F18 面板消费面;权威计数归 ListConflicts)。
+    expect(bloc.state.conflictCount, 1);
+    expect(bloc.state.conflicts, hasLength(1));
+    expect(bloc.state.conflicts.single.conflictId, 'c-pipe-1');
+    expect(bloc.state.conflicts.single.entityId, accountIds[0]);
   });
 
   test('失败路径:failed 态 + pending 保留 → 再触发成功', () async {

@@ -15,10 +15,16 @@
 /// - F17-T1(FR-5/ADR-5):push 结果携带 [SyncResult.conflicts](server
 ///   PushResponse.conflicts 的最小映射;解决流留给 F18);
 /// - F17-T2(FR-3/ADR-3):新增下行 [OfflineSyncPort.pull] + [PullBatch]/
-///   [PulledChange](sync_log 重放面的原始 payload 流;游标编排归协调器)。
+///   [PulledChange](sync_log 重放面的原始 payload 流;游标编排归协调器);
+/// - F18-T2(FR-2/FR-5,ADR-2/ADR-6):[SyncConflictInfo] 扩 conflictId+双
+///   payload+createdAt(ConflictDTO 7+1 字段全解码);新增冲突解决面
+///   [OfflineSyncPort.listConflicts]/[OfflineSyncPort.resolveConflict]
+///   (协调器不消费 —— F18 冲突面板 bloc 的数据源,权威计数=ListConflicts)。
 library;
 
 import 'dart:typed_data';
+
+import 'package:equatable/equatable.dart';
 
 /// 设备身份来源缝(FR-2/ADR-1):`() => clientId`(TokenStorage.readClientId
 /// 的 tear-off 形态)。
@@ -102,15 +108,26 @@ class SyncBatch {
       {...entitiesByModule.keys, ...tombstones.map((t) => t.module)};
 }
 
-/// 一条上行冲突(FR-5/ADR-5 最小面):server `PushResponse.conflicts` 里
-/// ConflictDTO 的三个关键字段。**不含** server/client payload 与 resolution
-/// —— 解决流是 F18 的面,这里只携带「哪个模块的哪个实体、什么冲突类型」
-/// 供协调器状态透传(F12 badge / F18 面板消费)。
-class SyncConflictInfo {
+/// 一条上行冲突:server `PushResponse.conflicts` / `ListConflicts` 里
+/// ConflictDTO 的完整映射。
+///
+/// 演进:F17-T1 最小面只携带 module/entityId/conflictType 三键(状态透传);
+/// **F18-T2(FR-2,ADR-2)扩全量字段** —— conflictId(解决流 ResolveConflict
+/// 的定位键)、serverPayload/clientPayload(envelope 行 JSON bytes,面板
+/// 双栏对照解码)、createdAt(冲突记录时刻,面板最新序排序)。新字段全部
+/// 可选命名参数:F17 时代的构造点(测试替身/无 server 冲突面的场景)零改动。
+///
+/// 值相等(Equatable):协调器 state 经 Equatable 去重时列表按元素 == 深比
+/// (Uint8List 为恒等 ==,仅影响等值发射去重的精度,不影响正确性)。
+class SyncConflictInfo extends Equatable {
   const SyncConflictInfo({
     required this.module,
     required this.entityId,
     required this.conflictType,
+    this.conflictId,
+    this.serverPayload,
+    this.clientPayload,
+    this.createdAt,
   });
 
   /// 冲突实体模块(= SyncModule 常量;proto entityType)。
@@ -121,6 +138,47 @@ class SyncConflictInfo {
 
   /// 冲突类型(F16 起值域:"version_conflict";细化分类随 F18)。
   final String conflictType;
+
+  /// 冲突记录 id(server ConflictDTO.id;ResolveConflict 的定位键;push
+  /// 响应与 ListConflicts 均携带 —— F18-T2 起恒有值,可选仅为 F17 兼容)。
+  final String? conflictId;
+
+  /// 服务端版本 payload(envelope 行 JSON bytes;面板「服务端版本」栏)。
+  final Uint8List? serverPayload;
+
+  /// 客户端版本 payload(envelope 行 JSON bytes;面板「我的版本」栏;解决
+  /// 「保留我的」时 server 侧落库的内容即此份)。
+  final Uint8List? clientPayload;
+
+  /// 冲突记录时刻(server created_at;面板最新序排序;缺省 null)。
+  final DateTime? createdAt;
+
+  @override
+  List<Object?> get props =>
+      [module, entityId, conflictType, conflictId, serverPayload, clientPayload, createdAt];
+}
+
+/// 一页待解决冲突(F18-T2 FR-5/ADR-6):ListConflicts 的 keyset 分页结果。
+///
+/// 分工注释:协调器 push 后**不**异步拉 ListConflicts 刷新状态(最小面 ——
+/// push 响应携带的 conflicts 已够 badge 计数);**权威计数 = ListConflicts 的
+/// [totalCount]**,由 F18 冲突面板 bloc 自己拉取/翻页/解决后重取(协调器
+/// 与面板两消费方各取所需,不重复拉)。
+class ConflictPage {
+  const ConflictPage({
+    required this.items,
+    required this.totalCount,
+    this.nextPageToken,
+  });
+
+  /// 本页冲突条目(server 按 created_at DESC,id DESC 最新序)。
+  final List<SyncConflictInfo> items;
+
+  /// 待解决冲突总数(权威计数;跨页恒定)。
+  final int totalCount;
+
+  /// 下一页游标(空/最后一页 = null;透传回 [OfflineSyncPort.listConflicts])。
+  final String? nextPageToken;
 }
 
 /// push 结果:成功 / 失败(含原因)。
@@ -224,4 +282,22 @@ abstract class OfflineSyncPort {
   /// 到、游标不动」——幂等重拉无害(since 不变,下次触发重试)。
   Future<PullBatch> pull(int sinceVersion,
       {List<String>? entityTypes, int? pageSize});
+
+  /// 拉一页待解决冲突(F18-T2 FR-5/ADR-6):server ListConflicts 的 keyset
+  /// 分页(created_at DESC 最新序;[pageToken] 透传续页,首页 null;server
+  /// 缺省页大小 20)。
+  ///
+  /// **失败抛出**(同 [pull] 契约):调用方是 F18 冲突面板 bloc(自行收敛
+  /// 为加载失败态);协调器不消费此方法(分工见 [ConflictPage] doc)。
+  Future<ConflictPage> listConflicts({String? pageToken});
+
+  /// 解决一条冲突(F18-T2 FR-3/ADR-3):[resolution] 值域 "server"|"client"
+  /// (v1 二选一;"merged" 通道 proto/API 保留,[mergedPayload] 仅该分支消费,
+  /// server 空校验 fail-closed)。
+  ///
+  /// 语义(server 侧 T1 落地):server → 仅标记(服务端行已权威);client/
+  /// merged → 落库 + 写 sync_log(败方设备经 pull 收敛)。**失败抛出**(同
+  /// [pull]):调用方(面板 bloc)自行收敛;成功无返回体。
+  Future<void> resolveConflict(String conflictId, String resolution,
+      {List<int>? mergedPayload});
 }

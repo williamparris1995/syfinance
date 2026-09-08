@@ -39,4 +39,18 @@ class NoopOfflineSyncPort implements OfflineSyncPort {
       hasMore: false,
     );
   }
+
+  /// F18-T2:占位实现 —— 冲突解决面空页(无待解决冲突;面板 bloc 拿到
+  /// 空列表即空态,幂等无害)。真实现见 GrpcOfflineSyncPort.listConflicts
+  /// (生产 DI 已注册)。
+  @override
+  Future<ConflictPage> listConflicts({String? pageToken}) async {
+    return const ConflictPage(items: [], totalCount: 0);
+  }
+
+  /// F18-T2:占位实现 —— 未接真实现前无解决副作用,静默成功即可(调用方
+  /// 是面板 bloc,resolve 后重取列表拿到恒空页,状态自洽)。
+  @override
+  Future<void> resolveConflict(String conflictId, String resolution,
+      {List<int>? mergedPayload}) async {}
 }
