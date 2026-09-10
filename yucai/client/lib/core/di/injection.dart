@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/oidc_authenticator.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
@@ -12,6 +13,7 @@ import 'package:yucai_client/binding/data/grpc_offline_sync_port.dart';
 import 'package:yucai_client/binding/data/pending_collector.dart';
 import 'package:yucai_client/binding/data/pull_applier.dart';
 import 'package:yucai_client/binding/domain/offline_sync_port.dart';
+import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
 import 'package:yucai_client/binding/presentation/bloc/conflict_list_bloc.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
 import 'package:yucai_client/core/config/app_config.dart';
@@ -21,9 +23,12 @@ import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
+import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
 final getIt = GetIt.instance;
 
@@ -128,6 +133,21 @@ Future<void> configureDependencies() async {
   // 真实现已在上方 GrpcOfflineSyncPort)。
   getIt.registerFactory<ConflictListBloc>(
       () => ConflictListBloc(getIt<OfflineSyncPort>()));
+
+  // F19-T1(ADR-1/ADR-3):绑定向导 bloc —— 手工注册(照 ConflictListBloc
+  // 先例;构造依赖 PendingCollector —— 1h 手工注册件,injectable 图不可
+  // 见,故不入 config)。统一合并 push 链在 bloc 内联:markAllPending →
+  // 拆批 push → 回写 → refreshAll → markBound → registerDevice;向导不再
+  // 调用 uploadBackup/exporter(类保留在 lib 中,F20 评估)。
+  getIt.registerFactory<BindingBloc>(() => BindingBloc(
+        getIt<AccountRepository>(),
+        getIt<TransactionRepository>(),
+        getIt<HoldingRepository>(),
+        getIt<AppDatabase>(),
+        getIt<BoundMarker>(),
+        getIt<OfflineSyncPort>(),
+        getIt<PendingCollector>(),
+      ));
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.
