@@ -9,7 +9,7 @@
 ## Feature roster(依赖排序)
 
 - [x] **feature F18** conflict-resolution — 冲突解决 ✅ done(2026-09-06,merge `001c7b07`;检测统一[canonical 规范形短路,阻断修复]+确认语义+解决落库[client/merged Upsert+log]+applier 版本感知+冲突面板[badge amber/双栏对照/二选一]+双设备冲突 e2e;TDD ~80 新测;三门 GREEN)
-- [ ] **feature F19** bind-merge — 非空账号绑定合并
+- [ ] **feature F19** bind-merge — 非空账号绑定合并(claimed: zcode-r10-f19 2026-09-06)
 - [ ] **feature F20** cloud-archive-e2e — 存档上云+多设备 e2e 收官
 
 ## defer
