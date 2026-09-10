@@ -49,8 +49,6 @@ import '../../binding/data/bound_mirror.dart' as _i507;
 // F19-T1: binding_bloc.dart + offline_sync_port.dart imports removed —
 // BindingBloc is hand-registered in injection.dart (PendingCollector is not
 // in the injectable graph; OfflineSyncPort likewise hand-registered, see 1h).
-// F19-T1: binding_bloc.dart import removed — BindingBloc is hand-registered
-// in injection.dart (PendingCollector is not in the injectable graph).
 import '../../budget/data/budget_local_ds.dart' as _i15;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
 import '../../budget/data/budget_repository_impl.dart' as _i364;
