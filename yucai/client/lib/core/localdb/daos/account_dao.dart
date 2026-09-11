@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart';
 
 import '../app_database.dart';
-import '../sync_state.dart' show SyncState;
+import '../sync_state.dart'
+    show SyncState, chunked, syncWritebackChunkSize;
 import '../tables/account_tables.dart';
 
 part 'account_dao.g.dart';
@@ -56,16 +57,32 @@ class AccountDao extends DatabaseAccessor<AppDatabase> with _$AccountDaoMixin {
   /// 误标 synced(该行保持 pending 留下次上行)。形态说明:core 层不能
   /// import binding 域的 SyncEntityDto(依赖方向),以 id→版本 Map 承载
   /// 守卫所需最小信息;条件仍限定 pending,重复回写幂等。
-  Future<int> markAccountsSynced(Map<String, int> versionsById) {
-    if (versionsById.isEmpty) return Future.value(0);
-    final guard = versionsById.entries
-        .map((e) =>
-            accounts.id.equals(e.key) & accounts.version.equals(e.value))
-        .reduce((a, b) => a | b);
-    return (update(accounts)
-          ..where((t) => guard & t.syncState.equals(SyncState.pending)))
-        .write(const AccountsCompanion(syncState: Value(SyncState.synced)));
+  ///
+  /// F19-T1:OR 守卫按 [syncWritebackChunkSize] 分片逐句执行(SQLite 深嵌套
+  /// OR 解析器栈溢出,见常量 doc);净效果与单句等价,返回影响行数求和。
+  Future<int> markAccountsSynced(Map<String, int> versionsById) async {
+    if (versionsById.isEmpty) return 0;
+    var updated = 0;
+    for (final chunk
+        in chunked(versionsById.entries, syncWritebackChunkSize)) {
+      final guard = chunk
+          .map((e) =>
+              accounts.id.equals(e.key) & accounts.version.equals(e.value))
+          .reduce((a, b) => a | b);
+      updated += await (update(accounts)
+            ..where((t) => guard & t.syncState.equals(SyncState.pending)))
+          .write(const AccountsCompanion(syncState: Value(SyncState.synced)));
+    }
+    return updated;
   }
+
+  /// F19-T1(spec FR-2,design ADR-2):合并前全量标记 —— synced → pending,
+  /// guest 期行由此进入 PendingCollector 通路(单条 UPDATE,非逐行)。仅动
+  /// synced 行(pending 行原样),幂等;返回影响行数。guest 无墓碑(F10
+  /// 语义:guest 删除不落墓碑),墓碑表无对应方法。
+  Future<int> markAllPendingForSync() =>
+      (update(accounts)..where((t) => t.syncState.equals(SyncState.synced)))
+          .write(const AccountsCompanion(syncState: Value(SyncState.pending)));
 
   // Chart of accounts (local-owned reference).
   Future<void> insertChartOfAccount(ChartOfAccountsCompanion entry) =>

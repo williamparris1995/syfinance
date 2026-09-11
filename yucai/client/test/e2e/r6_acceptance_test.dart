@@ -1,8 +1,9 @@
 // R6 acceptance e2e — the three success criteria as named integration groups
 // (spec FR-1..FR-4). All components under test are the REAL delivered
-// implementations (local data sources, exporter, blocs, mirror); only the
-// remote side (repos / backup ds) is mocked at the interface level.
-import 'dart:convert';
+// implementations (local data sources, blocs, mirror); only the remote side
+// (repos / sync port) is mocked at the interface level. F19-T1:绑定上云组
+// 改走统一合并 push 链(批次断言替代 envelope 断言;uploadBackup 不再被
+// 向导调用)。
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
@@ -15,15 +16,14 @@ import 'package:yucai_client/account/data/account_repository_impl.dart';
 import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
-import 'package:yucai_client/backup/data/backup_remote_ds.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
-import 'package:yucai_client/binding/data/noop_offline_sync_port.dart';
+import 'package:yucai_client/binding/data/pending_collector.dart';
+import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db
     hide Holding, Transaction, TransactionEntry;
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
-import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/budget/data/budget_local_ds.dart';
 import 'package:yucai_client/holding/data/holding_local_ds.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
@@ -43,13 +43,45 @@ class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockAccountRemoteDS extends Mock implements AccountRemoteDataSource {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
-class _MockBackupRemote extends Mock implements BackupRemoteDataSource {}
 class _RecordingMarker extends Fake implements BoundMarker {
   bool marked = false;
   @override
   Future<bool> isBound() async => marked;
   @override
   Future<void> markBound(String tenantId) async => marked = true;
+}
+
+/// F19-T1 绑定链路 port 替身:push 全成功并记录批次;registerDevice 记录
+/// deviceName(本验收链路无同步服务,注册静默无副作用)。
+class _RecordingSyncPort implements OfflineSyncPort {
+  final batches = <SyncBatch>[];
+  final registerNames = <String>[];
+
+  @override
+  Future<SyncResult> push(SyncBatch batch) async {
+    batches.add(batch);
+    return const SyncResult.success();
+  }
+
+  @override
+  Future<void> registerDevice(String deviceName) async {
+    registerNames.add(deviceName);
+  }
+
+  @override
+  Future<PullBatch> pull(int sinceVersion,
+      {List<String>? entityTypes, int? pageSize}) async {
+    return PullBatch(
+        changes: const [], latestVersion: sinceVersion, hasMore: false);
+  }
+
+  @override
+  Future<ConflictPage> listConflicts({String? pageToken}) async =>
+      const ConflictPage(items: [], totalCount: 0);
+
+  @override
+  Future<void> resolveConflict(String conflictId, String resolution,
+      {List<int>? mergedPayload}) async {}
 }
 
 void main() {
@@ -185,17 +217,16 @@ void main() {
   });
 
   group('e2e-② 绑定上云', () {
-    test('local data → wizard → uploaded envelope carries everything',
+    test('local data → wizard → pushed batches carry everything (F19 merge chain)',
         () async {
       await runGuestChain();
 
       final accounts = _MockAccountRepo();
       final txnRepo = _MockTxnRepo();
       final holdingRepo = _MockHoldingRepo();
-      final backupRemote = _MockBackupRemote();
       final marker = _RecordingMarker();
 
-      // Guard: all three facets empty.
+      // Guard: all three facets empty(空账号 → readyToUpload,ADR-1 内部同链)。
       when(() => accounts.list()).thenAnswer((_) async => const Right([]));
 
       when(() => txnRepo.list(any())).thenAnswer((_) async => const Right(
@@ -203,67 +234,65 @@ void main() {
       when(() => holdingRepo.listHoldings(
               accountId: any(named: 'accountId')))
           .thenAnswer((_) async => const Right(<Holding>[]));
-      // Upload succeeds; post-upload verification sees the data remotely.
-      when(() => backupRemote.uploadBackup(any())).thenAnswer((_) async {});
 
-      // F17-T1:BindingBloc 新增 OfflineSyncPort 参 —— 绑定后注册设备走
-      // noop 替身(本验收链路无同步服务,注册静默无副作用即可)。
-      final bloc = BindingBloc(accounts, txnRepo, holdingRepo,
-          LocalSnapshotExporter(database), backupRemote, database, marker,
-          NoopOfflineSyncPort());
+      // F19-T1:统一合并 push 链 —— port 用记录型替身(push 全成功;注册
+      // 静默无副作用),批次内容即「上传面」的断言对象。
+      final port = _RecordingSyncPort();
+      final bloc = BindingBloc(accounts, txnRepo, holdingRepo, database,
+          marker, port, PendingCollector(database));
 
       bloc.add(BindingStarted());
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(bloc.state.status, BindingStatus.readyToUpload);
 
-      // Now the remote has the data (verification facet — all 3 accounts).
-      Account acc(String id, String name, av.AccountType type, int balance) =>
-          Account(
-              id: id,
-              name: name,
-              accountType: type,
-              category: av.AccountCategory.savings,
-              currencyCode: 'CNY',
-              initialBalanceCents: balance,
-              currentBalanceCents: balance,
-              ownership: av.Ownership.personal,
-              status: av.AccountStatus.active);
-      when(() => accounts.list()).thenAnswer((_) async => Right([
-            acc('cash', '现金', av.AccountType.asset, 5500),
-            acc('food', '餐饮', av.AccountType.expense, 0),
-            acc('inv', '投资', av.AccountType.asset, 2000),
-          ]));
-
       bloc.add(BindingUploadConfirmed());
       await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      expect(bloc.state.status, BindingStatus.success, reason: bloc.state.failureMessage ?? '');
+      expect(bloc.state.status, BindingStatus.success,
+          reason: bloc.state.failureMessage ?? '');
       expect(marker.marked, isTrue);
+      expect(port.registerNames, hasLength(1)); // fire-and-forget 注册已发
 
-      // The uploaded envelope carries the FULL local data.
-      final captured =
-          verify(() => backupRemote.uploadBackup(captureAny())).captured;
-      final envelope =
-          jsonDecode(utf8.decode(captured.single as List<int>)) as Map<String, dynamic>;
-      final modules = envelope['modules'] as Map<String, dynamic>;
-      // ALL 8 contract module keys present (exporter can't silently drop
-      // a module and still pass).
-      expect(modules.keys, containsAll([
-        'account', 'transaction', 'debt', 'budget',
-        'goal', 'tag', 'template', 'holding',
+      // The pushed batches carry the FULL local data(收集器只落非空模块桶;
+      // guest 链种子覆盖 account/transaction/holding/budget/tag)。
+      final batches = port.batches;
+      expect(batches, isNotEmpty);
+      final modules = <String>{
+        for (final batch in batches) ...batch.entitiesByModule.keys,
+      };
+      expect(modules, containsAll([
+        'account', 'transaction', 'holding', 'budget', 'tag',
       ]));
-      expect((modules['account'] as List), hasLength(3)); // cash/food/inv
+      final pushedAccounts = [
+        for (final batch in batches)
+          ...?batch.entitiesByModule['account'],
+      ];
+      expect(pushedAccounts, hasLength(3)); // cash/food/inv
       // Entity IDs match the local store.
       final localIds = (await database.accountDao.getAllAccounts())
           .map((a) => a.id)
           .toSet();
+      expect(pushedAccounts.map((e) => e.entityId).toSet(), localIds);
+      final pushedTxns = [
+        for (final batch in batches) ...?batch.entitiesByModule['transaction'],
+      ];
+      expect(pushedTxns, hasLength(2)); // expense + buy
+      expect([
+        for (final batch in batches) ...?batch.entitiesByModule['holding'],
+      ], hasLength(1));
+      expect([
+        for (final batch in batches) ...?batch.entitiesByModule['budget'],
+      ], hasLength(1));
+      expect([
+        for (final batch in batches) ...?batch.entitiesByModule['tag'],
+      ], hasLength(1));
+      // 上行成功后本地全量已回写 synced(向导收尾态)。
       expect(
-          (modules['account'] as List).map((a) => a['ID']).toSet(),
-          localIds);
-      expect((modules['transaction'] as List).length, 2); // expense + buy
-      expect((modules['holding'] as Map)['holdings'], hasLength(1));
-      expect((modules['budget'] as List), hasLength(1));
-      expect((modules['tag'] as List), hasLength(1));
+          (await database.accountDao.getAllAccounts())
+              .map((a) => a.syncState),
+          everyElement('synced'));
+      expect(bloc.state.uploadedEntities,
+          greaterThanOrEqualTo(3 + 2 + 1 + 1 + 1));
     });
   });
 

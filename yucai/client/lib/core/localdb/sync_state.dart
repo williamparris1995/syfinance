@@ -47,3 +47,24 @@ class SyncModule {
 /// 显式写值而非 Value.absent(),让列默认只服务旧库迁移回填一路。
 Value<String> syncStateValue(bool markPending) =>
     Value(markPending ? SyncState.pending : SyncState.synced);
+
+/// F19-T1(2026-09-11):markXSynced 家族 OR 守卫的分片上限 —— SQLite 解析器
+/// 对深嵌套 OR 表达式栈溢出(实测 200 对 (id,version) 即 parser stack
+/// overflow),50 对/句留足余量。分片循环净效果等价(同守卫同条件逐句执行,
+/// 影响行数求和)。绑定合并链 200 条/批回写(F19 ADR-3)由此支撑;协调器
+/// 大离线批次同样受益。
+const int syncWritebackChunkSize = 50;
+
+/// 顺序切片迭代(不重不漏;[size] ≤0 防御按 1)。
+Iterable<List<T>> chunked<T>(Iterable<T> items, int size) sync* {
+  final s = size <= 0 ? 1 : size;
+  var buf = <T>[];
+  for (final item in items) {
+    buf.add(item);
+    if (buf.length >= s) {
+      yield buf;
+      buf = <T>[];
+    }
+  }
+  if (buf.isNotEmpty) yield buf;
+}
