@@ -12,6 +12,16 @@
 /// fake 冲突→确认标记+状态携带→badge 冲突 chip→面板双栏→保留我的→fake
 /// resolveConflict 被调+面板刷新空)。
 ///
+/// F20-T1 扩展(spec FR-1/FR-2,多设备收官,场景编号续 F18-T3 的 ④):
+/// - 场景⑤ 双向持续循环(FR-1):A 写 X→push→B pull 复现;**B 写 Y→push→
+///   切回 A pull 复现**(B→A 回传是「持续循环」证明,既有测试只有 A→B 单向)
+///   →终态两侧均有 X+Y(fake log 完整+DAO 行与 wire 载荷同版本同内容)。
+/// - 场景⑥ 删除传播(FR-2):A 删 Z(repo 路由=DS 硬删+墓碑)→push 墓碑
+///   DELETE 落 log→B pull→本地硬删不复活+墓碑表空(下行删除不写墓碑)→
+///   B 后续 push 不含 Z。
+/// fake **零改动**:既有 push 落 log(version 递增)/pull 按 since 过滤两能力
+/// 天然支持双向循环与墓碑重放(简报预判兑现)。
+///
 /// 链路全景(全真件,仅 server 与三处 DI 边界为 fake):
 /// 真 DI(repos 三态路由)/ 真 local DS / 真 drift 库 / 真 PendingCollector
 /// / 真 envelope 编码 / 真 GrpcOfflineSyncPort / 真 grpc 通道 → 假
@@ -479,6 +489,23 @@ void main() {
   /// Either 展开帮助:离线写失败直接炸(夹具前置条件,非被测点)。
   T ok<T>(dz.Either<Failure, T> r) =>
       r.fold((f) => throw StateError('offline write failed: $f'), (v) => v);
+
+  /// F20-T1:同进程设备协调器工厂 —— 照 F17-T2/F18-T3 双设备先例直接构造
+  /// (绕过 lazySingleton),组件全走 DI 已覆写真件(port=真 GrpcOfflineSyncPort
+  /// →假 server);own-echo 身份缝接 fake TokenStorage 的**可变** clientId
+  /// (换设备=换身份,port/bloc 每次 RPC 现读,无需重建)。场景⑤⑥ 在 A/B 间
+  /// 多次往复切换,收口此构造避免四份逐字重复。
+  SyncCoordinatorBloc deviceCoordinator() => SyncCoordinatorBloc(
+        getIt<OfflineSyncPort>(),
+        getIt<PendingCollector>(),
+        getIt<SessionModeTracker>(),
+        getIt<db.AppDatabase>(),
+        onlineController!.stream, // 共享回网流:不再发边沿,触发走手动事件
+        null, // 镜像不注入:本链路数据断言以 DAO 为准(照 F17-T2 取舍)
+        null, // 计数聚合器:bloc 自建
+        PullApplier(getIt<db.AppDatabase>()), // F17-T2 下行应用器(真件)
+        tokenStorage!.readClientId, // own-echo 过滤:当前设备身份
+      );
 
   testWidgets(
       'FR-1 契约链路:bound 断网写 → 回网翻转 → 真 gRPC 上行 → 假 server '
@@ -977,6 +1004,253 @@ void main() {
 
     // 收尾:harness 的面板 bloc 由 provider 拥有,随下一测试 DI reset 释放;
     // 此处显式停 pump 源(MaterialApp 由后续测试覆盖)。
+  });
+
+  testWidgets(
+    'F20-T1 场景⑤ FR-1 双向持续循环:A 断网写 X(account)→回网 push 落 log→'
+    '模拟 B(换 clientId+DAO 清 X+游标归零)pull 复现 X(同版本同内容)→B 断网写 '
+    'Y(tag)→push 落 log v2→切回 A(clientId-A+游标=1)pull 复现 Y→终态两侧均有 '
+    'X+Y(fake log 完整+DAO 行与 wire 载荷同版本同内容)', (t) async {
+    final fake = fakeSync!;
+    final online = onlineController!;
+    final database = getIt<db.AppDatabase>();
+    final accounts = getIt<AccountRepository>();
+    final tags = getIt<TagRepository>();
+    final tracker = getIt<SessionModeTracker>();
+
+    // ---- 设备 A('e2e-device',setUp 缺省):bound+offline 写实体 X(account)
+    //      → 回网 push → fake log 有 X(v1;version 递增起点)。
+    final x = ok(await accounts.create(const CreateAccountParams(
+      name: '循环账户X',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 8000,
+      ownership: Ownership.personal,
+    )));
+    bloc = getIt<SyncCoordinatorBloc>();
+    await until(() => bloc!.state.pendingCount == 1, '设备 A 补扫计数收敛到 1');
+    online.add(true); // 回网边沿:pull 先行(log 空)→ push → push 后 pull(own-echo)
+    await until(() => bloc!.state.status == SyncStatus.clean, '设备 A 收敛 clean');
+    expect(fake.requests, hasLength(1));
+    expect(fake.logEntries, hasLength(1), reason: 'A 的 X 已落 fake log');
+    expect(fake.logEntries.single.$1, 1, reason: 'log version 从 1 起递增');
+    expect(fake.logEntries.single.$2.entityId, x.id);
+    expect(fake.logEntries.single.$2.deviceId, 'e2e-device');
+    // A 的游标推进到 1(push 后 own-echo 过滤但游标照走 —— A 只见到 v1,
+    // B 后续推的 v2 对 A 是未拉增量)。
+    expect(await database.syncCursorDao.readLastPulledVersion(), 1);
+
+    // ---- 模拟设备 B('e2e-device-B'):DAO 裸删 X(模拟 B 全新库没有该行,
+    //      不走墓碑 —— B 从未拥有过)+ 游标归零 + 换 clientId(照 F17-T2 先例;
+    //      库共享的隔离性取舍见其注释,envelope→drift 下行路径被真实覆盖)。
+    await database.accountDao.deleteAccountById(x.id);
+    await database.syncCursorDao.writeLastPulledVersion(0);
+    tokenStorage!.clientId = 'e2e-device-B';
+    final blocB = deviceCoordinator();
+    await bloc!.close();
+    bloc = blocB; // tearDown 统一收尾
+
+    blocB.add(SyncRetryRequested());
+    await until(() => blocB.state.status == SyncStatus.clean, '设备 B 拉取收敛 clean');
+    // B 有 X:since=0 全量重放,A 推的条目(deviceId≠B)经 envelope→drift 落库,
+    // 同版本同内容(wire 往返反序列化)。
+    expect(fake.pullRequests.last.sinceVersion.toInt(), 0);
+    final xOnB = await database.accountDao.getAccountById(x.id);
+    expect(xOnB, isNotNull, reason: 'A 的 X 经 pull 在 B 侧复现');
+    expect(xOnB!.name, '循环账户X');
+    expect(xOnB.initialBalanceCents, 8000);
+    expect(xOnB.version, 1, reason: '同版本(X 首建 v1,wire Version 原样往返)');
+    expect(xOnB.syncState, SyncState.synced);
+
+    // ---- B 断网写实体 Y(tag)→ push → fake log 追加(v2)。
+    tracker.online = false; // 模拟 B 断网(测试直驱路由字段,tracker doc 授权)
+    final y = ok(await tags.create(name: '循环标签Y', color: '#0b0b0b'));
+    tracker.online = true; // 回网(路由快照字段,直写即生效)
+    expect(await database.tagDao.getPendingTags(), hasLength(1));
+    blocB.add(SyncRetryRequested());
+    await until(
+        () => fake.requests.length == 2 && blocB.state.status == SyncStatus.clean,
+        '设备 B 写 Y 后 push 收敛 clean');
+    final yEntry = fake.logEntries[1];
+    expect(yEntry.$1, 2, reason: 'B 的 Y 追加为 log v2(version 递增)');
+    expect(yEntry.$2.entityId, y.id);
+    expect(yEntry.$2.entityType, SyncModule.tag);
+    expect(yEntry.$2.deviceId, 'e2e-device-B');
+    expect(fake.requests[1].changes.single.entityId, y.id);
+    expect(fake.requests[1].changes.single.deviceId, 'e2e-device-B');
+
+    // ---- 切回 A:clientId-A + **A 自己的游标**(共享库游标已被 B 的同步推进
+    //      到 2,显式还原为 A 的 1 —— A 只推到 v1,B 推的是 v2,A 从 1 起增量拉)。
+    tokenStorage!.clientId = 'e2e-device';
+    await database.syncCursorDao.writeLastPulledVersion(1);
+    final blocA2 = deviceCoordinator();
+    await blocB.close();
+    bloc = blocA2; // tearDown 统一收尾
+
+    blocA2.add(SyncRetryRequested());
+    await until(
+        () => blocA2.state.status == SyncStatus.clean, '设备 A 第二轮拉取收敛 clean');
+    // A 有 Y(B→A 方向收敛 —— 持续循环证明;B 的条目对 A 非 own-echo,被应用)。
+    expect(fake.pullRequests.last.sinceVersion.toInt(), 1,
+        reason: 'A 以自己的游标 1 增量拉');
+    final yOnA = await database.tagDao.getTagById(y.id);
+    expect(yOnA, isNotNull, reason: 'B 的 Y 经 pull 在 A 侧复现(双向闭环)');
+    expect(yOnA!.name, '循环标签Y');
+    expect(yOnA.color, '#0b0b0b');
+    expect(yOnA.version, 1);
+    expect(yOnA.syncState, SyncState.synced);
+    // A 无本地变更不 push:fake 恰两批(A 的 X、B 的 Y),pull-only 不产上行。
+    expect(fake.requests, hasLength(2));
+
+    // ---- 终态断言:fake log 完整((version, entityId) 序列)+ 两侧(共享库)
+    //      均有 X+Y,DAO 行与 wire 载荷(两侧交换的同一字节)同版本同内容。
+    expect(fake.logEntries.map((e) => (e.$1, e.$2.entityId)).toList(),
+        [(1, x.id), (2, y.id)],
+        reason: 'fake log 完整:X(v1,A 推)+ Y(v2,B 推)');
+    final xRow = await database.accountDao.getAccountById(x.id);
+    final yRow = await database.tagDao.getTagById(y.id);
+    expect(xRow, isNotNull, reason: '终态 X 在库(B 侧拉取落库的行)');
+    expect(yRow, isNotNull, reason: '终态 Y 在库(A 侧拉取落库的行)');
+    final xWire = jsonDecode(utf8.decode(fake.logEntries[0].$2.payload))
+        as Map<String, dynamic>;
+    final yWire =
+        jsonDecode(utf8.decode(yEntry.$2.payload)) as Map<String, dynamic>;
+    expect(xWire['Name'], xRow!.name, reason: 'X 同内容(wire 载荷 vs DAO 行)');
+    expect(xWire['InitialBalanceCents'], xRow.initialBalanceCents);
+    expect(xWire['Version'], xRow.version, reason: 'X 同版本');
+    expect(yWire['Name'], yRow!.name, reason: 'Y 同内容(wire 载荷 vs DAO 行)');
+    expect(yWire['Color'], yRow.color);
+    expect(yWire['Version'], yRow.version, reason: 'Y 同版本');
+    expect(await database.syncCursorDao.readLastPulledVersion(), 2,
+        reason: '终态游标=frontier(两轮同步全量消费)');
+  });
+
+  testWidgets(
+    'F20-T1 场景⑥ FR-2 删除传播:A 断网写 Z(tag)→push;模拟 B pull 得 Z;A 断网删 '
+    'Z(repo 路由=DS 硬删+墓碑)→push 墓碑 DELETE 落 log;B pull→本地硬删不复活+'
+    '墓碑表空;B 后续 push(W)不含 Z;终态两侧 Z 均不存在+log 含墓碑条目', (t) async {
+    final fake = fakeSync!;
+    final online = onlineController!;
+    final database = getIt<db.AppDatabase>();
+    final tags = getIt<TagRepository>();
+    final tracker = getIt<SessionModeTracker>();
+
+    // ---- 设备 A:断网写 Z(tag)→ 回网 push(v1)。
+    final z = ok(await tags.create(name: '删除传播Z', color: '#0c0c0c'));
+    bloc = getIt<SyncCoordinatorBloc>();
+    await until(() => bloc!.state.pendingCount == 1, '设备 A 补扫计数收敛到 1');
+    online.add(true);
+    await until(() => bloc!.state.status == SyncStatus.clean, '设备 A 收敛 clean');
+    expect(fake.logEntries, hasLength(1));
+    expect(fake.logEntries.single.$2.entityId, z.id);
+
+    // ---- 模拟设备 B:DAO 清 Z+游标归零+换 clientId → pull → B 有 Z
+    //      (删除传播的被删对象先在 B 侧到位)。
+    await database.tagDao.deleteTagById(z.id);
+    await database.syncCursorDao.writeLastPulledVersion(0);
+    tokenStorage!.clientId = 'e2e-device-B';
+    final blocB = deviceCoordinator();
+    await bloc!.close();
+    bloc = blocB; // tearDown 统一收尾
+
+    blocB.add(SyncRetryRequested());
+    await until(() => blocB.state.status == SyncStatus.clean, '设备 B 首轮拉取收敛 clean');
+    final zOnB = await database.tagDao.getTagById(z.id);
+    expect(zOnB, isNotNull, reason: 'B pull 得 Z');
+    expect(zOnB!.name, '删除传播Z');
+    expect(zOnB.syncState, SyncState.synced);
+
+    // ---- 切回 A(clientId-A+游标还原 A 的 1):断网删 Z —— repo 真路由
+    //      boundOfflineLocal:DS 硬删行 + 写墓碑(F10 ADR-4,上行删除的本地起点)。
+    tokenStorage!.clientId = 'e2e-device';
+    await database.syncCursorDao.writeLastPulledVersion(1);
+    tracker.online = false; // A 断网(删除走离线路由)
+    final blocA2 = deviceCoordinator();
+    await blocB.close();
+    bloc = blocA2; // tearDown 统一收尾
+
+    ok<void>(await tags.delete(z.id));
+    expect(await database.tagDao.getTagById(z.id), isNull, reason: 'A 侧 DS 硬删');
+    final tombs = await database.syncTombstoneDao.getAllTombstones();
+    expect(tombs, hasLength(1), reason: 'A 侧删除写墓碑');
+    expect(tombs.single.module, SyncModule.tag);
+    expect(tombs.single.entityId, z.id);
+    // 共享库取舍(照 F17-T2 同款论证):A 的硬删连带清掉了共享库中 B 的副本,
+    // 重植 B 上一步 pull 得到的行(synced=B 侧落库语义)—— 还原「B 本地仍持有
+    // Z」的真实双设备状态,使下一步 DELETE 应用是**对存在行的真硬删**而非
+    // 退化的 no-op(toCompanion(true) 全字段保真,同 id 同版本同内容)。
+    await database.tagDao.insertTag(zOnB.toCompanion(true));
+
+    // ---- A 回网 push 墓碑 → fake log 追加墓碑条目(v2)+ A 侧墓碑清(回写)。
+    tracker.online = true;
+    blocA2.add(SyncRetryRequested());
+    await until(
+        () => fake.requests.length == 2 && blocA2.state.status == SyncStatus.clean,
+        '设备 A 墓碑 push 收敛 clean');
+    final tombEntry = fake.logEntries[1];
+    expect(tombEntry.$1, 2);
+    expect(tombEntry.$2.operation, pb.SyncOperation.SYNC_OPERATION_DELETE,
+        reason: 'fake log 含墓碑条目(DELETE)');
+    expect(tombEntry.$2.entityType, SyncModule.tag);
+    expect(tombEntry.$2.entityId, z.id);
+    expect(tombEntry.$2.payload, isEmpty, reason: '墓碑 DELETE 空 payload(wire 契约)');
+    expect(tombEntry.$2.deviceId, 'e2e-device');
+    expect(await database.syncTombstoneDao.getAllTombstones(), isEmpty,
+        reason: 'push 成功回写清墓碑(A 侧)');
+    // A 的墓碑回声被 own-echo 过滤:B 侧副本不被 A 自己的 DELETE 回声误删
+    //(若回声泄漏,B 副本提前消失,下一步 DELETE 应用退化为 no-op)。
+    expect(await database.tagDao.getTagById(z.id), isNotNull,
+        reason: 'A 的墓碑 own-echo 不回灌,B 侧 Z 副本存活至 B 自己拉到 DELETE');
+
+    // ---- 切回 B(clientId-B+游标还原 B 的 1):pull → DELETE → 本地硬删
+    //      不复活 + 墓碑表空(下行删除不写墓碑,F17 论证:源头即 server log,
+    //      再上行是回声,多设备下回声乒乓)。
+    tokenStorage!.clientId = 'e2e-device-B';
+    await database.syncCursorDao.writeLastPulledVersion(1);
+    final blocB2 = deviceCoordinator();
+    await blocA2.close();
+    bloc = blocB2; // tearDown 统一收尾
+
+    blocB2.add(SyncRetryRequested());
+    await until(
+        () => blocB2.state.status == SyncStatus.clean, '设备 B DELETE 拉取收敛 clean');
+    expect(fake.pullRequests.last.sinceVersion.toInt(), 1);
+    expect(await database.tagDao.getTagById(z.id), isNull,
+        reason: 'B 本地 Z 硬删(PullApplier DELETE 下行语义),不复活');
+    expect(await database.syncTombstoneDao.getAllTombstones(), isEmpty,
+        reason: 'B 的墓碑表空:下行删除不写墓碑');
+
+    // ---- B 后续 push(有其他 pending W):不含 Z —— 墓碑从未在 B 侧存在,
+    //      收集面自然不含已删实体(反向确认,FR-2)。
+    tracker.online = false; // B 断网写 W(离线路由落 pending)
+    final w = ok(await tags.create(name: '删除传播W', color: '#0d0d0d'));
+    tracker.online = true;
+    blocB2.add(SyncRetryRequested());
+    await until(
+        () => fake.requests.length == 3 && blocB2.state.status == SyncStatus.clean,
+        '设备 B 后续 push 收敛 clean');
+    final bBatch = fake.requests.last.changes;
+    expect(bBatch.map((c) => c.entityId).toSet(), {w.id},
+        reason: 'B 后续 push 只含 W');
+    expect(bBatch.any((c) => c.entityId == z.id), isFalse,
+        reason: '不含已删的 Z');
+    expect(
+        bBatch.every(
+            (c) => c.operation != pb.SyncOperation.SYNC_OPERATION_DELETE),
+        isTrue,
+        reason: 'B 的后续批次无任何 DELETE(墓碑面空)');
+
+    // ---- 终态:两侧 Z 均不存在;fake log 3 条(Z CREATE / 墓碑 DELETE / W CREATE)。
+    expect(await database.tagDao.getTagById(z.id), isNull,
+        reason: '终态 Z 两侧均不存在');
+    final wRow = await database.tagDao.getTagById(w.id);
+    expect(wRow, isNotNull);
+    expect(wRow!.name, '删除传播W');
+    expect(wRow.syncState, SyncState.synced);
+    expect(fake.logEntries, hasLength(3));
+    expect(fake.logEntries[1].$2.operation, pb.SyncOperation.SYNC_OPERATION_DELETE,
+        reason: 'fake log 含墓碑条目');
   });
 }
 
