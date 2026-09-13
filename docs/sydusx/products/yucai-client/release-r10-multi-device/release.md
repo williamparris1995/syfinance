@@ -30,10 +30,11 @@
 ## Sprint roster(建议)
 
 - [x] sprint-1 同步引擎地基:F16 ✅(`d9dc34ec`)→ F17 ✅(`cc118f31`)——多设备推拉/身份/冲突检测/台账地基闭环
+- [x] sprint-2 冲突与合并:F18 ✅(`001c7b07`)→ F19 ✅(`df651460`)→ F20 ✅(`9acab473`)
 - [ ] sprint-2 冲突与合并:F18 → F19 → F20
 
 ## done-criteria
 
 五 feature 全 done + 双设备同步 e2e 绿 + 契约切片(若破坏性)+ R9 人工验收补记 + 单设备回归门全绿。
 
-## status: active(2026-09-03 分解确认,sprint-1 启动)
+## status: 功能 done(2026-09-06;done-criteria 全达成:五 feature done[F16-F20]+双设备 e2e 绿[10 场景]+契约零破坏[四条向后兼容登记]+回归门全绿[e2e 13+UI 12+flutter 1581+go 66 包])。**待人工验收**:R9+R10 地基真机走查(绑定→断网记账→回网→双设备互看,清单见 R9 release.md)。结构性缺口(server 起源写入不入 sync_log/周期拉取)留 sprint-3 候选。

@@ -10,10 +10,10 @@
 
 - [x] **feature F18** conflict-resolution — 冲突解决 ✅ done(2026-09-06,merge `001c7b07`;检测统一[canonical 规范形短路,阻断修复]+确认语义+解决落库[client/merged Upsert+log]+applier 版本感知+冲突面板[badge amber/双栏对照/二选一]+双设备冲突 e2e;TDD ~80 新测;三门 GREEN)
 - [x] **feature F19** bind-merge — 非空账号绑定合并 ✅ done(2026-09-06,merge `df651460`;合并=sync push+镜像拉回 server 零改动;全量标记+200 批拆分+断点续传;顺带根治 markXSynced 200 实体 SQLite parser overflow 潜伏雷;四场景 e2e;TDD ~40 新测;全门 GREEN)
-- [ ] **feature F20** cloud-archive-e2e — 存档上云+多设备 e2e 收官(claimed: zcode-r10-f20 2026-09-06)
+- [x] **feature F20** cloud-archive-e2e — 存档上云+多设备 e2e 收官 ✅ done(2026-09-06,merge `9acab473`;双向持续循环+删除传播 e2e 进回归门;存档上云事实性映射[R6 defer 闭环,密码版 backlog];R10 done-criteria 达成)
 
 ## defer
 
 - F16/F17 review 遗留观察项(毒丸游标复议等→F18 吸收)
 
-## status: pending(F18 ✅ F19 ✅;F20 待做——R10 收官最后一步)
+## status: done(F18 ✅ F19 ✅ F20 ✅,2026-09-06——R10 sprint-2 收官)
