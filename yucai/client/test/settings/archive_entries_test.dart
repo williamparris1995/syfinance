@@ -10,6 +10,7 @@ import 'package:get_it/get_it.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
@@ -48,6 +49,10 @@ void main() {
     if (!gi.isRegistered<ThemeSettings>()) {
       gi.registerSingleton<ThemeSettings>(_FakeThemeSettings());
     }
+    // SettingsPage reads BoundMarker from getIt (F21 清空入口绑定态判定)。
+    if (!gi.isRegistered<BoundMarker>()) {
+      gi.registerSingleton<BoundMarker>(_FakeBoundMarker());
+    }
     addTearDown(gi.reset);
 
     await t.pumpWidget(MaterialApp(
@@ -85,4 +90,10 @@ class _FakeCurrencySettings extends Fake implements CurrencySettings {
   ValueListenable<String> get listenable => _notifier;
   @override
   String get value => 'CNY';
+}
+
+/// Fake BoundMarker — 未绑定(F21 清空入口按未绑定渲染,既有断言不涉及)。
+class _FakeBoundMarker extends Fake implements BoundMarker {
+  @override
+  Future<bool> isBound() async => false;
 }

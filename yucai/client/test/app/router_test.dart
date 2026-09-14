@@ -33,6 +33,7 @@ import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
@@ -117,6 +118,13 @@ class _FakeCurrencySettings extends Fake implements CurrencySettings {
   String get value => 'CNY';
   @override
   Future<String> getBaseCurrency() async => 'CNY';
+}
+
+/// Fake BoundMarker — SettingsPage build 期读 getIt<BoundMarker>(F21 清空
+/// 入口的绑定态判定);未绑定 → 入口按 guest 形态渲染,既有断言不涉及。
+class _FakeBoundMarker extends Fake implements BoundMarker {
+  @override
+  Future<bool> isBound() async => false;
 }
 
 /// Fake CurrencyBloc — DebtDetailPage / DebtsPage / ReceivablesPage /
@@ -217,6 +225,8 @@ void main() {
     // SettingsPage reads ThemeSettings from getIt (R8 F1 主题模式)。Register a
     // fake so the settings branch resolves without the full DI graph.
     getIt.registerSingleton<ThemeSettings>(_FakeThemeSettings());
+    // SettingsPage reads BoundMarker from getIt (F21 清空入口绑定态判定)。
+    getIt.registerSingleton<BoundMarker>(_FakeBoundMarker());
     // HomePage _loadNetWorth reads getIt<NetWorthDataSource>() at initState
     // (68508b2); register a fake so /home resolves(P0-1 摘要卡 + 既有净资产卡 都依赖)。
     getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs());

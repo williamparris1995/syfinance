@@ -16,6 +16,7 @@ import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
 import 'package:yucai_client/binding/presentation/bloc/conflict_list_bloc.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
+import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
@@ -28,6 +29,7 @@ import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/settings/data/data_reset_controller.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
 final getIt = GetIt.instance;
@@ -147,6 +149,15 @@ Future<void> configureDependencies() async {
         getIt<BoundMarker>(),
         getIt<OfflineSyncPort>(),
         getIt<PendingCollector>(),
+      ));
+
+  // F21-T1(2026-09-14):清空数据控制器(设置页「清空数据重新开始」:备份
+  // 先行 fail-closed → 关库 → 删库文件 → exit)——手工注册(照上方 1h 先例,
+  // 免 build_runner 重生成;依赖均为既有注册件:AppDatabase(1c)+
+  // LocalSnapshotExporter(injectable 图,备份复用导出存档链))。
+  getIt.registerLazySingleton<DataResetController>(() => DataResetController(
+        database: getIt<AppDatabase>(),
+        exporter: getIt<LocalSnapshotExporter>(),
       ));
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,

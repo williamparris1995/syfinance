@@ -62,6 +62,9 @@ dev_dependencies:
   mocktail: ^1.0.4
   integration_test:
     sdk: flutter
+  # F21-T1:测试直接 fake 平台接口(锚定 AppSupport 目录),显式声明
+  # 免 depend_on_referenced_packages(版本随 path_provider 传递解析)。
+  path_provider_platform_interface: ^2.1.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -84,15 +84,18 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
+  /// 库文件名(E2E 隔离用 dart-define):--dart-define=YUCAI_DB_FILE=
+  /// yucai_test.db → 集成测试在独立库上跑,用户真实库(yucai.db)永不被
+  /// 测试触碰。F21-T1 抽为公共常量:清空重置(DataResetController)删库
+  /// 文件时复用同一解析,保证删的就是当前打开的那个库(单一事实源)。
+  static const dbFileName =
+      String.fromEnvironment('YUCAI_DB_FILE', defaultValue: 'yucai.db');
+
   /// The file path resolves lazily on first query so DI registration stays
   /// synchronous (path_provider needs a live platform binding).
   static QueryExecutor _openConnection() => LazyDatabase(() async {
         final dir = await getApplicationSupportDirectory();
-        // 库名可覆盖(E2E 隔离用):--dart-define=YUCAI_DB_FILE=yucai_test.db
-        // → 集成测试在独立库上跑,用户真实库(yucai.db)永不被测试触碰。
-        const name =
-            String.fromEnvironment('YUCAI_DB_FILE', defaultValue: 'yucai.db');
-        final file = File('${dir.path}/$name');
+        final file = File('${dir.path}/$dbFileName');
         return NativeDatabase.createInBackground(file);
       });
 

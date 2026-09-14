@@ -19,6 +19,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
@@ -29,6 +30,13 @@ import 'package:yucai_client/settings/presentation/settings_page.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 
 class _MockAuthRemote extends Mock implements AuthRemoteDataSource {}
+
+/// Fake BoundMarker — 未绑定(F21 清空入口按未绑定渲染;既有断言不涉及该行,
+/// 仅满足页面 build 期的 getIt<BoundMarker> 解析)。
+class _FakeBoundMarker extends Fake implements BoundMarker {
+  @override
+  Future<bool> isBound() async => false;
+}
 
 /// Fake CurrencySettings — fixed base code + records setBaseCurrency calls
 /// (Task 12 D-currency picker). getBaseCurrency drives the FutureBuilder value
@@ -127,6 +135,10 @@ Widget _harness(
   if (!getIt.isRegistered<ThemeSettings>()) {
     getIt.registerSingleton<ThemeSettings>(_FakeThemeSettings());
   }
+  // SettingsPage reads BoundMarker from getIt (F21 清空入口绑定态判定)。
+  if (!getIt.isRegistered<BoundMarker>()) {
+    getIt.registerSingleton<BoundMarker>(_FakeBoundMarker());
+  }
   // SettingsPage reads AuthBloc (guest login card, R6) — provide a stub the
   // same way the production tree does (app.dart BlocProvider above router).
   // Default keeps the card hidden so pre-existing assertions are unchanged.
@@ -169,6 +181,9 @@ void main() {
   tearDown(() {
     if (getIt.isRegistered<CurrencySettings>()) {
       getIt.unregister<CurrencySettings>();
+    }
+    if (getIt.isRegistered<BoundMarker>()) {
+      getIt.unregister<BoundMarker>();
     }
   });
 

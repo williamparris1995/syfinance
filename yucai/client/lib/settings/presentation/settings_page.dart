@@ -23,6 +23,7 @@ import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
+import 'package:yucai_client/settings/data/data_reset_controller.dart';
 
 /// 设置页 —— 偏好货币 + 本位币 + 汇率同步频率。
 ///
@@ -43,13 +44,21 @@ class SettingsPage extends StatelessWidget {
     AuthRemoteDataSource? authRemote,
     CurrencySettings? currencySettings,
     ThemeSettings? themeSettings,
+    BoundMarker? boundMarker,
+    DataResetController? resetController,
   })  : _authRemote = authRemote,
         _currencySettings = currencySettings,
-        _themeSettings = themeSettings;
+        _themeSettings = themeSettings,
+        // 与上方三行同款形态:命名参数无法用 this._x 初始化私有字段。
+        _boundMarker = boundMarker, // ignore: prefer_initializing_formals
+        _resetController = // ignore: prefer_initializing_formals
+            resetController;
 
   final AuthRemoteDataSource? _authRemote;
   final CurrencySettings? _currencySettings;
   final ThemeSettings? _themeSettings;
+  final BoundMarker? _boundMarker;
+  final DataResetController? _resetController;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +66,8 @@ class SettingsPage extends StatelessWidget {
     final ds = _authRemote ?? getIt<AuthRemoteDataSource>();
     final settings = _currencySettings ?? getIt<CurrencySettings>();
     final theme = _themeSettings ?? getIt<ThemeSettings>();
+    // F21 清空重置:绑定态判定入口(build 期需要,FutureBuilder 用)。
+    final marker = _boundMarker ?? getIt<BoundMarker>();
     return Scaffold(
       backgroundColor: context.yucai.bg,
       // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
@@ -173,6 +184,33 @@ class SettingsPage extends StatelessWidget {
                               description: '从存档文件恢复（覆盖本地数据）',
                               control: Icon(LucideIcons.fileUp),
                             ),
+                          ),
+                          // F21 清空数据重新开始:仅 guest 本地模式(未绑定)
+                          // 显示 —— 绑定态的数据主体在服务端,本机清空语义不同
+                          // (server 侧清空另议,spec FR-6),故整行隐藏;判定源
+                          // 是持久化的 BoundMarker(与登录卡片同源)。
+                          FutureBuilder<bool>(
+                            future: marker.isBound(),
+                            builder: (context, snap) {
+                              if (!snap.hasData || snap.data!) {
+                                return const SizedBox.shrink();
+                              }
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Divider(
+                                      height: 1, color: context.yucai.border),
+                                  const SizedBox(height: AppSpacing.md),
+                                  _NavRow(
+                                    icon: LucideIcons.trash2,
+                                    danger: true,
+                                    label: '清空数据重新开始',
+                                    description: '删库前自动加密备份，可通过导入存档找回',
+                                    onTap: () => _showResetData(context),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -447,6 +485,197 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
+  /// F21 清空数据重新开始 —— 三步确认流(警示 → 密码+位置 → 最终确认)，
+  /// 执行面是 [DataResetController](注入缝,widget 测试 mock)。
+  ///
+  /// FR-3 备份先行 fail-closed:步②密码取消 / 保存位置取消或失败 → 直接
+  /// return 整体中止;执行段备份写失败 → error dialog 后中止(库原样保留,
+  /// 执行顺序与论证见 DataResetController 类注释)。
+  Future<void> _showResetData(BuildContext context) async {
+    final controller = _resetController ?? getIt<DataResetController>();
+
+    // 步① 警示:数据规模 + 三重警示,必须点「我已了解风险」才继续。
+    final stats = await controller.stats();
+    if (!context.mounted) return;
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清空数据重新开始'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('当前本机数据:${stats.accounts} 个账户 · ${stats.transactions} 笔交易'),
+            const SizedBox(height: AppSpacing.sm),
+            const Text('· 本机全部账户、交易、资产等数据将被删除;'),
+            const Text('· 删除前会生成加密备份(需设定密码),忘记密码将无法找回;'),
+            const Text('· 完成后应用自动退出,重启后从空库开始。'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          _dangerButton(
+              ctx, '我已了解风险', () => Navigator.of(ctx).pop(true)),
+        ],
+      ),
+    );
+    if (proceed != true || !context.mounted) return;
+
+    // 步② 密码 + 备份位置:密码 dialog(照 _askArchivePassword 形态)→
+    // FilePicker.saveFile 默认名 yucai-reset-backup-yyyyMMdd-HHmm.ycb;
+    // 任一取消/失败 → 直接 return(FR-3,不清空)。
+    final password = await _askResetPassword(context);
+    if (password == null || password.isEmpty) return;
+    if (!context.mounted) return;
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final stamp =
+        '${now.year}${two(now.month)}${two(now.day)}-${two(now.hour)}${two(now.minute)}';
+    final path = await FilePicker.saveFile(
+      dialogTitle: '保存清空备份',
+      fileName: 'yucai-reset-backup-$stamp.ycb',
+    );
+    if (path == null) return; // 用户取消保存 → 中止(FR-3)
+    if (!context.mounted) return;
+
+    // 步③ 最终确认:备份路径摘要 + 找回提示 + 红色「确认清空」。
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认清空'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('备份将保存到:'),
+            const SizedBox(height: AppSpacing.xs),
+            Text(path),
+            const SizedBox(height: AppSpacing.sm),
+            const Text('该密码用于日后找回:设置 → 导入存档 + 该密码即可恢复数据。'),
+            const SizedBox(height: AppSpacing.sm),
+            const Text('确认后本机数据将被清空,应用随即退出。'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          _dangerButton(ctx, '确认清空', () => Navigator.of(ctx).pop(true)),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    // 执行:备份先行(控制器内部 fail-closed —— 任一步失败抛出,关库/删库
+    // 一行不执行);此处捕获后中止并提示,数据原样保留。
+    try {
+      await controller.reset(backupPath: path, password: password);
+    } on Exception catch (e) {
+      if (!context.mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('备份失败,已中止清空'),
+          content: Text('备份未写入成功,本机数据未做任何改动。\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('知道了'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    if (!context.mounted) return;
+
+    // 成功提示(FR-5:路径明示,找回 = 既有导入存档零新开发)→ 经 exit 缝
+    // 退出进程(进程重启论证见 DataResetController 类注释)。
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('已清空'),
+        content: Text(
+          '数据已清空并备份到:\n$path\n\n'
+          '如需找回:设置 → 导入存档 + 备份密码。\n应用即将退出。',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('退出'),
+          ),
+        ],
+      ),
+    );
+    controller.exitApp();
+  }
+
+  /// 步② 密码 dialog:照导出存档的密码 dialog 形态(两次输入一致校验),
+  /// 标题/提示换成清空备份语义。
+  Future<String?> _askResetPassword(BuildContext context) async {
+    final controller = TextEditingController();
+    final controller2 = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('设置清空备份密码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('清空前会生成加密备份;该密码是日后经「导入存档」找回的唯一凭证,请牢记。'),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: controller,
+              obscureText: true,
+              decoration: const InputDecoration(hintText: '密码'),
+            ),
+            TextField(
+              controller: controller2,
+              obscureText: true,
+              decoration: const InputDecoration(hintText: '再次输入密码'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.isEmpty) return;
+              if (controller.text != controller2.text) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('两次输入不一致')));
+                return;
+              }
+              Navigator.of(ctx).pop(controller.text);
+            },
+            child: const Text('选择保存位置'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 红色危险按钮(R8 语义令牌:negative 底 + 白字),供清空流两处确认用。
+  Widget _dangerButton(
+      BuildContext context, String label, VoidCallback onPressed) {
+    return FilledButton(
+      style: FilledButton.styleFrom(
+        backgroundColor: context.yucai.negative,
+        foregroundColor: Colors.white,
+      ),
+      onPressed: onPressed,
+      child: Text(label),
+    );
+  }
+
   Future<bool?> _confirmReplace(BuildContext context) => showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -678,27 +907,33 @@ class _IntervalDropdown extends StatelessWidget {
 /// 导航型设置行：整行可点 → push 子页（settings 页内第一个导航 tile，
 /// 确立「卡片 tile → 子页」范式）。对齐 _PreferenceRow 视觉，但 control
 /// 为 chevron right + 整行 onTap。
+///
+/// [danger] = true 时为危险行(F21 清空数据):icon/label 用 negative
+/// 语义色警示(R8 令牌),其余视觉不变。
 class _NavRow extends StatelessWidget {
   const _NavRow({
     required this.icon,
     required this.label,
     required this.description,
     required this.onTap,
+    this.danger = false,
   });
 
   final IconData icon;
   final String label;
   final String description;
   final VoidCallback onTap;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
+    final tone = danger ? context.yucai.negative : context.yucai.accent;
     return InkWell(
       onTap: onTap,
       borderRadius: AppRadius.smBorder,
       child: Row(
         children: [
-          Icon(icon, color: context.yucai.accent, size: 20),
+          Icon(icon, color: tone, size: 20),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -707,7 +942,7 @@ class _NavRow extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    color: context.yucai.fg,
+                    color: danger ? context.yucai.negative : context.yucai.fg,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
