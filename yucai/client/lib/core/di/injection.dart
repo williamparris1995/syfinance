@@ -25,6 +25,7 @@ import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
+import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
@@ -179,6 +180,11 @@ Future<void> configureDependencies() async {
   // 2b. Sync the persisted theme mode (R8 F1) so MaterialApp starts on the
   //     user's saved light/dark/system instead of the system default.
   await getIt<ThemeSettings>().load();
+
+  // 2c. Sync the persisted tray/close-behavior prefs (R8 F22) so the close
+  //     button decision tree (TrayController, bootstrapNotifications) and the
+  //     settings page read persisted truth synchronously on the hot path.
+  await getIt<TraySettings>().load();
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
   final refreshTokenUseCase = getIt<RefreshTokenUseCase>();

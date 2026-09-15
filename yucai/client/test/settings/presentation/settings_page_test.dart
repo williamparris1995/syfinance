@@ -14,11 +14,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/core/notifications/app_exit_port.dart';
+import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
@@ -77,6 +80,50 @@ class _FakeCurrencySettings extends Fake implements CurrencySettings {
   }
 }
 
+/// Fake TraySettings(F22 窗口与提醒)— 默认 hide/minutes30,记录 setX 调用
+/// (照 _FakeThemeSettings 范式:notifier 驱动 SegmentedButton 选中态)。
+class _FakeTraySettings extends Fake implements TraySettings {
+  final ValueNotifier<TrayCloseBehavior> _close =
+      ValueNotifier<TrayCloseBehavior>(TrayCloseBehavior.hide);
+  final ValueNotifier<TrayScanInterval> _scan =
+      ValueNotifier<TrayScanInterval>(TrayScanInterval.minutes30);
+  final List<TrayCloseBehavior> closeCalls = [];
+  final List<TrayScanInterval> scanCalls = [];
+
+  @override
+  TrayCloseBehavior get closeBehavior => _close.value;
+
+  @override
+  ValueListenable<TrayCloseBehavior> get closeBehaviorListenable => _close;
+
+  @override
+  TrayScanInterval get scanInterval => _scan.value;
+
+  @override
+  ValueListenable<TrayScanInterval> get scanIntervalListenable => _scan;
+
+  @override
+  Future<void> setCloseBehavior(TrayCloseBehavior behavior) async {
+    closeCalls.add(behavior);
+    _close.value = behavior;
+  }
+
+  @override
+  Future<void> setScanInterval(TrayScanInterval interval) async {
+    scanCalls.add(interval);
+    _scan.value = interval;
+  }
+}
+
+/// Fake AppExitPort(F22 页底退出按钮)— 仅计数 exitApp 调用,不真退进程
+/// (真实现 TrayAppExit 会 exit(0) 杀掉测试运行器)。
+class _FakeAppExitPort extends Fake implements AppExitPort {
+  int exitCalls = 0;
+
+  @override
+  Future<void> exitApp() async => exitCalls++;
+}
+
 /// Minimal CurrencyBloc stub: holds a fixed state and records dispatched events
 /// so the test can assert LoadPreferencesRequested was re-dispatched after an
 /// update. Cannot use Fake (need add() to capture events).
@@ -125,6 +172,8 @@ Widget _harness(
   AuthRemoteDataSource authRemote,
   _FakeCurrencySettings currencySettings, {
   AuthState? authState,
+  TraySettings? traySettings,
+  AppExitPort? appExitPort,
 }) {
   final bloc = _StubCurrencyBloc(state);
   final getIt = GetIt.instance;
@@ -134,6 +183,15 @@ Widget _harness(
   // SettingsPage reads ThemeSettings from getIt (R8 F1 主题模式)。
   if (!getIt.isRegistered<ThemeSettings>()) {
     getIt.registerSingleton<ThemeSettings>(_FakeThemeSettings());
+  }
+  // SettingsPage reads TraySettings from getIt (F22 窗口与提醒)。
+  if (!getIt.isRegistered<TraySettings>()) {
+    getIt.registerSingleton<TraySettings>(traySettings ?? _FakeTraySettings());
+  }
+  // SettingsPage reads AppExitPort from getIt (F22 页底退出按钮;生产注册
+  // 在 T4 bootstrap,测试先注册 fake 让按钮渲染)。
+  if (!getIt.isRegistered<AppExitPort>()) {
+    getIt.registerSingleton<AppExitPort>(appExitPort ?? _FakeAppExitPort());
   }
   // SettingsPage reads BoundMarker from getIt (F21 清空入口绑定态判定)。
   if (!getIt.isRegistered<BoundMarker>()) {
@@ -185,6 +243,13 @@ void main() {
     if (getIt.isRegistered<BoundMarker>()) {
       getIt.unregister<BoundMarker>();
     }
+    // F22:TraySettings/AppExitPort fake 记录调用数,须逐测试换新实例。
+    if (getIt.isRegistered<TraySettings>()) {
+      getIt.unregister<TraySettings>();
+    }
+    if (getIt.isRegistered<AppExitPort>()) {
+      getIt.unregister<AppExitPort>();
+    }
   });
 
   testWidgets('guest sees the login entry card; authenticated does not (R6)',
@@ -224,6 +289,12 @@ void main() {
 
   testWidgets('selecting USD calls updatePreferences(USD, 8) and reloads',
       (t) async {
+    // F22 窗口与提醒区使页面超出默认 800x600 视口;拉高测试表面让货币
+    // dropdown 可直接 tap(页面本身可滚动,断言语义不变)。
+    t.view.physicalSize = const Size(800, 1600);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
     const state = CurrencyState(
       currencies: _currencies,
       preferred: 'CNY',
@@ -249,6 +320,11 @@ void main() {
 
   testWidgets('selecting a new interval calls updatePreferences with new interval',
       (t) async {
+    // F22 窗口与提醒区使页面超出默认视口;拉高测试表面(同上,语义不变)。
+    t.view.physicalSize = const Size(800, 1600);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
     const state = CurrencyState(
       currencies: _currencies,
       preferred: 'CNY',
@@ -325,6 +401,11 @@ void main() {
   testWidgets(
       'Task 12 D-currency: selecting USD calls setBaseCurrency(USD) + snackbar',
       (t) async {
+    // F22 窗口与提醒区使页面超出默认视口;拉高测试表面(同上,语义不变)。
+    t.view.physicalSize = const Size(800, 1600);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
     const state = CurrencyState(
       currencies: _currencies,
       preferred: 'CNY',
@@ -348,5 +429,125 @@ void main() {
     // base takes effect on next visit to performance/detail.
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.textContaining('本位币已更新'), findsOneWidget);
+  });
+
+  // ── F22 T2:窗口与提醒区 + 页底退出按钮 ──────────────────────────
+  // 视觉契约 ui/settings-window-reminders.html:区标题、两行 SegmentedButton
+  // (默认 hide + 30 分钟)、hint 文案逐字、页底「退出御财」soft destructive。
+
+  testWidgets('F22: 窗口与提醒区渲染(区标题/两行标签/hint 文案逐字)', (t) async {
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 8,
+      status: CurrencyStatus.loaded,
+    );
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
+    await t.pumpAndSettle();
+
+    // 区标题(brief:置于「数据」区之后,文案照原型)。
+    expect(find.text('窗口与提醒'), findsOneWidget);
+    // 行 1:关闭按钮行为 + hint。
+    expect(find.text('关闭按钮行为'), findsOneWidget);
+    expect(find.text('点窗口 ✕ 时:隐藏到托盘继续运行,或直接退出'), findsOneWidget);
+    // 行 2:提醒检查频率 + hint。
+    expect(find.text('提醒检查频率'), findsOneWidget);
+    expect(find.text('到期提醒与自动记账的定时扫描间隔;数据变更时总会即时检查'),
+        findsOneWidget);
+    // 分段文案:行为两段 + 频率三段。
+    expect(find.text('隐藏到托盘'), findsOneWidget);
+    expect(find.text('退出程序'), findsOneWidget);
+    expect(find.text('15 分钟'), findsOneWidget);
+    expect(find.text('30 分钟'), findsOneWidget);
+    expect(find.text('60 分钟'), findsOneWidget);
+  });
+
+  testWidgets('F22: 关闭按钮行为默认隐藏到托盘,切换调 setCloseBehavior(exit)',
+      (t) async {
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 8,
+      status: CurrencyStatus.loaded,
+    );
+    final tray = _FakeTraySettings();
+    await t.pumpWidget(_harness(state, authRemote, currencySettings,
+        traySettings: tray));
+    await t.pumpAndSettle();
+
+    // 初值 = hide(TraySettings 默认),选中态经 closeBehaviorListenable 驱动。
+    final segFinder = find.byType(SegmentedButton<TrayCloseBehavior>);
+    expect(
+      t.widget<SegmentedButton<TrayCloseBehavior>>(segFinder).selected,
+      {TrayCloseBehavior.hide},
+    );
+
+    // 切到「退出程序」→ setCloseBehavior(exit),高亮随 listenable 刷新。
+    await t.tap(find.text('退出程序'));
+    await t.pumpAndSettle();
+    expect(tray.closeCalls, [TrayCloseBehavior.exit]);
+    expect(
+      t.widget<SegmentedButton<TrayCloseBehavior>>(segFinder).selected,
+      {TrayCloseBehavior.exit},
+    );
+  });
+
+  testWidgets('F22: 提醒检查频率默认 30 分钟,切换调 setScanInterval(minutes60)',
+      (t) async {
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 8,
+      status: CurrencyStatus.loaded,
+    );
+    final tray = _FakeTraySettings();
+    await t.pumpWidget(_harness(state, authRemote, currencySettings,
+        traySettings: tray));
+    await t.pumpAndSettle();
+
+    // 初值 = minutes30(TraySettings 默认)。
+    final segFinder = find.byType(SegmentedButton<TrayScanInterval>);
+    expect(
+      t.widget<SegmentedButton<TrayScanInterval>>(segFinder).selected,
+      {TrayScanInterval.minutes30},
+    );
+
+    // 切到「60 分钟」→ setScanInterval(minutes60)。
+    await t.tap(find.text('60 分钟'));
+    await t.pumpAndSettle();
+    expect(tray.scanCalls, [TrayScanInterval.minutes60]);
+    expect(
+      t.widget<SegmentedButton<TrayScanInterval>>(segFinder).selected,
+      {TrayScanInterval.minutes60},
+    );
+  });
+
+  testWidgets('F22: 页底退出按钮点击即时调 AppExitPort.exitApp(无确认弹窗)',
+      (t) async {
+    // 按钮在页面最底(所有 card 之后):拉高测试表面让可直接 tap。
+    t.view.physicalSize = const Size(800, 1600);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 8,
+      status: CurrencyStatus.loaded,
+    );
+    final exitPort = _FakeAppExitPort();
+    await t.pumpWidget(_harness(state, authRemote, currencySettings,
+        appExitPort: exitPort));
+    await t.pumpAndSettle();
+
+    // 按钮存在(全宽 soft destructive,含退出图标)。
+    expect(find.text('退出御财'), findsOneWidget);
+    expect(find.byIcon(LucideIcons.logOut), findsOneWidget);
+
+    // 点击 → 即时无确认:直接触发 exitApp,不弹 AlertDialog。
+    await t.tap(find.text('退出御财'));
+    await t.pump();
+    expect(exitPort.exitCalls, 1);
+    expect(find.byType(AlertDialog), findsNothing);
   });
 }
