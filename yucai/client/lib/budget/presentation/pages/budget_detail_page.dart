@@ -560,13 +560,16 @@ class _StatusPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // F27 FR-1② 豁免:solid 档 pill 底为类目/状态身份彩底
+          // (negative/positive/accent 调用方注入)——固定白双板可辨识;
+          // 当前调用均 soft(浅底深字),solid 分支备用。
           Icon(icon, size: 12, color: soft ? color : Colors.white),
           const SizedBox(width: 4),
           Text(label,
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: soft ? color : Colors.white,
+                  color: soft ? color : Colors.white, // 同上:solid 档身份彩底固定白(F27 豁免)
                   fontFeatures: AppTypography.tabularFigures)),
         ],
       ),

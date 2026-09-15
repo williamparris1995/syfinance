@@ -345,9 +345,11 @@ class _PrimaryButton extends StatelessWidget {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, size: 15, color: context.yucai.onAccent),
             const SizedBox(width: 6),
+            // F27 FR-1①:主按钮为 accent 面 —— 文字补齐 icon 既有口径走
+            // onAccent(暗=金底深墨;原先 icon 已迁、文字漏白,口径统一)。
             Text(label,
-                style: const TextStyle(
-                    color: Colors.white,
+                style: TextStyle(
+                    color: context.yucai.onAccent,
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
           ]),
@@ -1824,6 +1826,8 @@ class _ColorRow extends StatelessWidget {
                         ]
                       : null,
                 ),
+                // F27 FR-1② 豁免:选中 check 落在预置类目身份彩底(中饱和
+                // 固定色板)上 —— 固定白双板可辨识(同 tag_color_picker 口径)。
                 child: _isSelected(hex, value)
                     ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
                     : null,

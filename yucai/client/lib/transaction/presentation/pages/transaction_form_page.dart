@@ -1136,14 +1136,16 @@ class _GoldSaveBtn extends StatelessWidget {
           border: Border.all(color: context.yucai.accent),
           borderRadius: AppRadius.smBorder,
         ),
+        // F27 FR-1①:保存按钮为 accent 面 —— icon/文字全部 onAccent
+        // (暗=金底深墨;disabled 档底色 0.5 派生不变)。
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(LucideIcons.check, size: 16, color: Colors.white),
-            SizedBox(width: 7),
+          children: [
+            Icon(LucideIcons.check, size: 16, color: context.yucai.onAccent),
+            const SizedBox(width: 7),
             Text('保存',
                 style: TextStyle(
-                    color: Colors.white,
+                    color: context.yucai.onAccent,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w500)),
           ],
@@ -1485,6 +1487,8 @@ class _RealTagChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // F27 FR-1② 豁免:选中态 chip 底为 tag 类目身份彩底(用户定义
+              // hex,中饱和)—— ✓ 与文字固定白,双板可辨识(非 accent 面)。
               if (on) ...[
                 const Text('✓',
                     style: TextStyle(
@@ -1495,7 +1499,7 @@ class _RealTagChip extends StatelessWidget {
               ],
               Text(tag.name,
                   style: TextStyle(
-                    color: on ? Colors.white : c,
+                    color: on ? Colors.white : c, // 同上:类目身份彩底固定白(F27 豁免)
                     fontSize: 13,
                   )),
             ],
@@ -1649,6 +1653,8 @@ class _FormJournalPreview extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
+                      // F27 FR-1② 豁免:平衡指示圆底为 positive/negative
+                      // 状态身份彩底 —— 固定白 icon 双板可辨识。
                       child: Icon(
                         balanced ? LucideIcons.check : LucideIcons.alertTriangle,
                         size: 10,

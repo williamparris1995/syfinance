@@ -160,7 +160,7 @@ class AmortizationPreview extends StatelessWidget {
           Text(title,
               key: const ValueKey('previewTitle'),
               style: const TextStyle(
-                  color: Colors.white,
+                  color: Colors.white, // 深色预览卡固定深底白系(F4-P2/F15 豁免,见文件头)
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                   fontFamily: AppTypography.displayFamily)),
@@ -176,7 +176,7 @@ class AmortizationPreview extends StatelessWidget {
               Text(
                 p == null ? '—' : _fmtSymbol(p.headlineAmount, currencyCode),
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: Colors.white, // 深色预览卡固定深底白系(F4-P2/F15 豁免,见文件头)
                     fontSize: 26,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.01,
@@ -294,7 +294,7 @@ class AmortizationPreview extends StatelessWidget {
               children: [
                 Text(_fmtSymbol(r.principal, currencyCode),
                     style: const TextStyle(
-                        color: Colors.white,
+                        color: Colors.white, // 深色预览卡固定深底白系(F4-P2/F15 豁免,见文件头)
                         fontSize: 12.5,
                         fontWeight: FontWeight.w500,
                         fontFeatures: AppTypography.tabularFigures)),

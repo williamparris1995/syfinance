@@ -581,14 +581,16 @@ class _CreateButton extends StatelessWidget {
             color: context.yucai.accent,
             borderRadius: AppRadius.smBorder,
           ),
-          child: const Row(
+          // F27 FR-1①:新增交易为 accent 面主按钮 —— icon/文字全部 onAccent
+          // (暗=金底深墨 #1A1408,亮=绿底白)。
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(LucideIcons.plus, size: 15, color: Colors.white),
-              SizedBox(width: 6),
+              Icon(LucideIcons.plus, size: 15, color: context.yucai.onAccent),
+              const SizedBox(width: 6),
               Text('新增交易',
                   style: TextStyle(
-                      color: Colors.white,
+                      color: context.yucai.onAccent,
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
             ],
@@ -1864,7 +1866,8 @@ class _MobileFilterSheetState extends State<MobileFilterSheet> {
                       onPressed: () => widget.onApply(_draft),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: context.yucai.accent,
-                        foregroundColor: Colors.white,
+                        // F27 FR-1①:accent 面主按钮前景 → onAccent(暗=金底深墨)。
+                        foregroundColor: context.yucai.onAccent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: const RoundedRectangleBorder(
                             borderRadius: AppRadius.smBorder),

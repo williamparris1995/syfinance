@@ -23,6 +23,7 @@ Future<FirstCloseDialogResult?> showFirstCloseDialog(BuildContext context) {
     // 原型页级令牌 --scrim rgba(2,6,16,.55):**双主题恒定暗遮罩** —— 亮色下
     // 若由 bg 派生会得近白纱罩、模态感弱(review R1);YucaiTheme 无 scrim
     // 变体,以 black@55% 表达(禁裸 hex 不含 Colors.* 语义常量)。
+    // F27 FR-1③ scrim 豁免(恒定暗遮罩,保原值)。
     barrierColor: Colors.black.withValues(alpha: 0.55),
     builder: (dctx) => Dialog(
       // v2 口径:暗=描边分层无阴影,亮=无边框卡+柔阴影(照 AppTheme.cardTheme)。

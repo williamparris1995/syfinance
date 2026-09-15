@@ -68,6 +68,8 @@ class CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = selected ? color : color.withValues(alpha: 0.12);
+    // F27 FR-1② 豁免:选中态底为分类类目身份彩底(categoryColor/category hex,
+    // 中饱和固定色)—— 固定白前景双板可辨识(非 accent 面)。
     final fg = selected ? Colors.white : color;
     final border = selected ? color : color.withValues(alpha: 0.35);
 

@@ -86,7 +86,8 @@ class _PillState<T> extends State<_Pill<T>> {
     final bg = selected
         ? context.yucai.accent
         : (_hover ? context.yucai.surfaceAlt : context.yucai.surface);
-    final fg = selected ? Colors.white : context.yucai.muted;
+    // F27 FR-1①:选中 pill 为 accent 面 → onAccent(暗=金底深墨,亮=绿底白)。
+    final fg = selected ? context.yucai.onAccent : context.yucai.muted;
     final border = selected ? context.yucai.accent : context.yucai.border;
 
     return MouseRegion(

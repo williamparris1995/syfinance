@@ -820,7 +820,8 @@ class _Chip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? Colors.white : context.yucai.fg,
+              // F27 FR-1①:激活 pill 为 accent 面 → onAccent(暗=金底深墨)。
+              color: active ? context.yucai.onAccent : context.yucai.fg,
               fontFeatures: AppTypography.tabularFigures,
             ),
           ),

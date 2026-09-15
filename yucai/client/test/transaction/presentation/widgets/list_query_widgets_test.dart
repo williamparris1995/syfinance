@@ -23,9 +23,12 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
-Widget _harness(Widget child, {Size size = const Size(1440, 900)}) {
+Widget _harness(Widget child,
+    {Size size = const Size(1440, 900),
+    Brightness brightness = Brightness.light}) {
   return MaterialApp(
-    theme: AppTheme.light(),
+    theme:
+        brightness == Brightness.dark ? AppTheme.dark() : AppTheme.light(),
     home: MediaQuery(
       data: MediaQueryData(size: size),
       child: Scaffold(body: child),
@@ -245,6 +248,42 @@ void main() {
       expect(applied?.searchText, '地铁');
       expect(applied?.sortKey, TxnSortKey.amount);
       expect(applied?.sortDir, TxnSortDir.asc);
+    });
+
+    // F27(R12 sprint-2)FR-3 theme-follow 探针:「应用筛选」accent 主按钮
+    // 前景迁 onAccent 后随主题 —— 暗 = 金底深墨 #1A1408(非等值修正,
+    // design-v2 语义本意);亮 = 绿底白 #FFFFFF(等值)。不削既有断言。
+    testWidgets(
+        'F27 探针:dark「应用筛选」前景 = onAccent 深墨,light = 白(随主题)',
+        (tester) async {
+      Future<void> pumpSheet(Brightness b) async {
+        await tester.pumpWidget(_harness(
+          MobileFilterSheet(
+            initial: const TxnFilterState(),
+            accountOptions: const [],
+            categoryOptions: const [],
+            monthOptions: const [],
+            onApply: (_) {},
+          ),
+          size: const Size(375, 900),
+          brightness: b,
+        ));
+        await tester.pumpAndSettle();
+      }
+
+      await pumpSheet(Brightness.dark);
+      var btn = tester
+          .widget<ElevatedButton>(find.widgetWithText(ElevatedButton, '应用筛选'));
+      expect(btn.style?.foregroundColor?.resolve(const <WidgetState>{}),
+          const Color(0xFF1A1408),
+          reason: '暗色 accent 面前景应为 onAccent 金底深墨(F27 FR-1①)');
+
+      await pumpSheet(Brightness.light);
+      btn = tester
+          .widget<ElevatedButton>(find.widgetWithText(ElevatedButton, '应用筛选'));
+      expect(btn.style?.foregroundColor?.resolve(const <WidgetState>{}),
+          const Color(0xFFFFFFFF),
+          reason: '亮色 accent 面前景应为 onAccent 白(等值迁移)');
     });
   });
 }

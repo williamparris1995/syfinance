@@ -368,7 +368,8 @@ class _FilterChipState extends State<_FilterChip> {
     final bg = selected
         ? context.yucai.accent
         : (_hover ? context.yucai.surfaceAlt : context.yucai.surface);
-    final fg = selected ? Colors.white : context.yucai.muted;
+    // F27 FR-1①:选中 chip 恒落 accent 底 → onAccent(暗=金底深墨,亮=绿底白)。
+    final fg = selected ? context.yucai.onAccent : context.yucai.muted;
     final border = selected ? context.yucai.accent : context.yucai.border;
 
     return MouseRegion(
@@ -390,7 +391,7 @@ class _FilterChipState extends State<_FilterChip> {
             children: [
               if (typeMeta != null) ...[
                 Icon(typeMeta.icon,
-                    size: 13, color: selected ? Colors.white : iconColor),
+                    size: 13, color: selected ? context.yucai.onAccent : iconColor),
                 const SizedBox(width: 5),
               ],
               Text(widget.data.label,
@@ -401,7 +402,8 @@ class _FilterChipState extends State<_FilterChip> {
               const SizedBox(width: 5),
               Text('${widget.data.count}',
                   style: TextStyle(
-                      color: selected ? Colors.white : context.yucai.muted,
+                      color:
+                          selected ? context.yucai.onAccent : context.yucai.muted,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       fontFeatures: AppTypography.tabularFigures)),
@@ -415,7 +417,7 @@ class _FilterChipState extends State<_FilterChip> {
 
 // ───────────────────────── btn-gold(对齐原型 .btn-gold) ─────────────────────────
 
-/// 金色背景 + 白文字 + 圆角按钮(对齐 OD 原型 .btn-gold)。
+/// accent 背景按钮(对齐 OD 原型 .btn-gold;F27:前景迁 onAccent,暗=金底深墨)。
 class _GoldButton extends StatelessWidget {
   const _GoldButton({
     super.key,
@@ -431,16 +433,18 @@ class _GoldButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // F27 FR-1①:btn-gold 为 accent 面主按钮 —— icon/label/前景全部 onAccent
+    // (暗=金底深墨 #1A1408,亮=翡翠绿底白字,随主题)。
     final btn = ElevatedButton.icon(
       key: super.key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 16, color: Colors.white),
+      icon: Icon(icon, size: 16, color: context.yucai.onAccent),
       label: Text(label,
           key: ValueKey('goldBtnLabel_$label'),
-          style: const TextStyle(color: Colors.white, fontSize: 13)),
+          style: TextStyle(color: context.yucai.onAccent, fontSize: 13)),
       style: ElevatedButton.styleFrom(
         backgroundColor: context.yucai.accent,
-        foregroundColor: Colors.white,
+        foregroundColor: context.yucai.onAccent,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.smBorder),

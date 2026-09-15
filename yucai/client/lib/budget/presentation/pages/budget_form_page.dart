@@ -663,8 +663,8 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
 
 // ───────────────────────── btn-gold(对齐原型 .btn-gold) ─────────────────────────
 
-/// 金色背景 + 白文字 + 圆角按钮(对齐 OD 原型 .btn-gold)。本地 copy,与
-/// budget_list_page._GoldButton 同款(提取共享 widget 留待后续,避免本次 form
+/// accent 背景按钮(对齐 OD 原型 .btn-gold;F27:前景迁 onAccent,暗=金底深墨)。
+/// 本地 copy,与 budget_list_page._GoldButton 同款(提取共享 widget 留待后续,避免本次 form
 /// 对齐 PR 扩散到 list/detail)。
 class _GoldButton extends StatelessWidget {
   const _GoldButton({
@@ -683,23 +683,26 @@ class _GoldButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // F27 FR-1①:btn-gold 为 accent 面主按钮 —— spinner/icon/label/前景全部
+    // onAccent(暗=金底深墨 #1A1408,亮=绿底白);disabled 档按 0.7 透明度派生。
     return ElevatedButton.icon(
       onPressed: disabled ? null : onPressed,
       icon: loading
-          ? const SizedBox(
+          ? SizedBox(
               height: 16,
               width: 16,
-              child:
-                  CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-          : Icon(icon, size: 16, color: Colors.white),
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: context.yucai.onAccent))
+          : Icon(icon, size: 16, color: context.yucai.onAccent),
       label: Text(label,
           key: ValueKey('goldBtnLabel_$label'),
-          style: const TextStyle(color: Colors.white, fontSize: 13)),
+          style: TextStyle(color: context.yucai.onAccent, fontSize: 13)),
       style: ElevatedButton.styleFrom(
         backgroundColor: context.yucai.accent,
-        foregroundColor: Colors.white,
+        foregroundColor: context.yucai.onAccent,
         disabledBackgroundColor: context.yucai.accent.withValues(alpha: 0.4),
-        disabledForegroundColor: Colors.white70,
+        disabledForegroundColor:
+            context.yucai.onAccent.withValues(alpha: 0.7),
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.smBorder),

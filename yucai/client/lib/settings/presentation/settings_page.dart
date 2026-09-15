@@ -784,6 +784,8 @@ class SettingsPage extends StatelessWidget {
     return FilledButton(
       style: FilledButton.styleFrom(
         backgroundColor: context.yucai.negative,
+        // F27 FR-1② 豁免:危险按钮底为 negative 状态身份彩底 —— 固定白
+        // 双板可辨识(非 accent 面,不走 onAccent)。
         foregroundColor: Colors.white,
       ),
       onPressed: onPressed,

@@ -120,7 +120,7 @@ class DebtDetailHero extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 23,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: Colors.white, // 深金卡固定深底白系(F15/F4-P2 豁免,见文件头)
                           letterSpacing: 0.01,
                           height: 1.15,
                           fontFamily: AppTypography.displayFamily,
@@ -166,7 +166,7 @@ class DebtDetailHero extends StatelessWidget {
           numSize: isMobile ? 34 : 46,
           numWeight: FontWeight.w700,
           numLetterSpacing: -0.4,
-          numColor: Colors.white,
+          numColor: Colors.white, // 深金卡固定深底白系(F15/F4-P2 豁免,见文件头)
           curColor: const Color(0xFFD9B878),
           numFontFamily: AppTypography.displayFamily,
           numFontFamilyFallback: AppTypography.displayFallback,
@@ -190,8 +190,11 @@ class DebtDetailHero extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: ratio,
                 minHeight: 13,
+                // 深金卡固定深底白系(F15/F4-P2 豁免,见文件头):
+                // 轨道白 12% 半透、值色白(经 ShaderMask 染金渐变)。
                 backgroundColor: Colors.white.withValues(alpha: 0.12),
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             ),
           ),
@@ -386,6 +389,7 @@ class DebtDetailHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
+        // 深金卡固定深底白系(F15/F4-P2 豁免,见文件头):tile 白系半透面/描边。
         color: Colors.white.withValues(alpha: 0.045),
         border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
         borderRadius: BorderRadius.circular(11),
@@ -1182,6 +1186,8 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
         : () => widget.onOpenDialog(e);
     return TextButton.icon(
       onPressed: onPressed,
+      // F27 FR-1② 豁免:逾期确认按钮底为 negative 状态身份彩底 —— 图标/前景
+      // 固定白(双板可辨识);非逾期档走 accentDeep 语义。
       icon: Icon(LucideIcons.check,
           size: 12, color: overdue ? Colors.white : context.yucai.accentDeep),
       label: Text(sem.scheduleActionLabel),
@@ -1633,7 +1639,8 @@ class _DebtRecordDialogState extends State<DebtRecordDialog> {
               : () => widget.onSubmit(_selectedAccountId),
           style: ElevatedButton.styleFrom(
             backgroundColor: context.yucai.accent,
-            foregroundColor: Colors.white,
+            // F27 FR-1①:accent 面提交按钮前景 → onAccent(暗=金底深墨)。
+            foregroundColor: context.yucai.onAccent,
           ),
           child: Text(sem.dialogSubmitLabel),
         ),

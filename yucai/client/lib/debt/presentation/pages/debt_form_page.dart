@@ -558,15 +558,16 @@ class _DebtFormPageState extends State<DebtFormPage> {
             onPressed: submitting ? null : _submit,
             style: FilledButton.styleFrom(
               backgroundColor: context.yucai.accent,
-              foregroundColor: Colors.white,
+              // F27 FR-1①:accent 面提交按钮前景 → onAccent(暗=金底深墨)。
+              foregroundColor: context.yucai.onAccent,
               disabledBackgroundColor: context.yucai.accent.withValues(alpha: 0.5),
             ),
             child: submitting
-                ? const SizedBox(
+                ? SizedBox(
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2, color: context.yucai.onAccent),
                   )
                 : Text(_isEdit ? '保存' : '创建债务'),
           ),
@@ -644,7 +645,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
             onPressed: _submit,
             style: FilledButton.styleFrom(
               backgroundColor: context.yucai.accent,
-              foregroundColor: Colors.white,
+              // F27 FR-1①:accent 面提交按钮前景 → onAccent(暗=金底深墨)。
+              foregroundColor: context.yucai.onAccent,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
               padding:
@@ -971,7 +973,7 @@ class _StepIndicator extends StatelessWidget {
           // 完成态 check 白字:done 且非 active 时落在 surface 上,亮板沿原
           // 样(白,现状),暗板墨面上可辨识 —— 豁免双板共用。
           child: done
-              ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
+              ? const Icon(LucideIcons.check, size: 14, color: Colors.white) // 豁免:step-dot done 档白 check(surface 底,历史裁定;亮档辨识靠 positive 描边——存量瑕疵票在案)
               : Text(
                   // active 序号在 accent 底上 → onAccent(暗=鎏金深墨)。
                   '${_labels.indexOf(label) + 1}',
@@ -1020,7 +1022,8 @@ class _RadioCard extends StatelessWidget {
     final cardBg = selected ? context.yucai.accentSoft : context.yucai.surface;
     final cardBorder = selected ? context.yucai.accent : context.yucai.border;
     final tileBg = selected ? context.yucai.accent : context.yucai.accentSoft;
-    final tileFg = selected ? Colors.white : context.yucai.accentDeep;
+    // F27 FR-1①:选中 icon tile 为 accent 面 → onAccent(暗=金底深墨)。
+    final tileFg = selected ? context.yucai.onAccent : context.yucai.accentDeep;
     final labelColor = disabled
         ? context.yucai.muted.withValues(alpha: 0.7)
         : (selected ? context.yucai.accentDeep : context.yucai.fg);
@@ -1336,16 +1339,17 @@ class _ODFormSection extends StatelessWidget {
                     color: context.yucai.accent,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    num,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: AppTypography.tabularFigures,
-                    ),
-                  ),
+              alignment: Alignment.center,
+              child: Text(
+                num,
+                style: TextStyle(
+                  // F27 FR-1①:accent 面序号块前景 → onAccent(暗=金底深墨)。
+                  color: context.yucai.onAccent,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: AppTypography.tabularFigures,
+                ),
+              ),
                 ),
                 const SizedBox(width: 11),
                 Text(title,

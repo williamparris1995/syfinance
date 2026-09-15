@@ -1897,6 +1897,8 @@ class _TxnTypeIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       alignment: Alignment.center,
+      // F27 FR-1② 豁免:icon 方块底为交易类目身份彩底(positive/negative/
+      // muted 品类色,OD .txn-cat 白色线性 icon)—— 固定白双板可辨识。
       child: Icon(txnCategoryIcon(flavour, categoryAccount),
           size: 18, color: Colors.white),
     );

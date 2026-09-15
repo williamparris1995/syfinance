@@ -1121,6 +1121,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           border: Border(top: BorderSide(color: context.yucai.border)),
           boxShadow: [
             BoxShadow(
+              // F27 FR-1③ 豁免:黑投影(底部操作条上抛 4%)—— 暗底天然弱可见,
+              // 等效 v2 暗色「无阴影」设计,保原值不迁。
               color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, -2),

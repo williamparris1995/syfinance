@@ -113,7 +113,8 @@ class _SecurityPageState extends State<SecurityPage> {
         key: const ValueKey('createFab'),
         onPressed: () => _openCreateSheet(context),
         backgroundColor: context.yucai.accent,
-        child: const Icon(LucideIcons.plus, color: Colors.white),
+        // F27 FR-1①:FAB 为 accent 面 → onAccent(暗=金底深墨)。
+        child: Icon(LucideIcons.plus, color: context.yucai.onAccent),
       ),
       body: Column(
         children: [
@@ -472,7 +473,8 @@ class _Chip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? Colors.white : context.yucai.fg,
+              // F27 FR-1①:激活 chip 为 accent 面 → onAccent(暗=金底深墨)。
+              color: active ? context.yucai.onAccent : context.yucai.fg,
               fontFeatures: AppTypography.tabularFigures,
             ),
           ),
@@ -1187,15 +1189,17 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
                   onPressed: _submit,
                   style: FilledButton.styleFrom(
                     backgroundColor: context.yucai.accent,
+                    // F27 FR-1①:accent 面提交按钮前景 → onAccent(暗=金底深墨)。
+                    foregroundColor: context.yucai.onAccent,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: _saving
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 18,
                           width: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: context.yucai.onAccent,
                           ),
                         )
                       : const Text('创建'),

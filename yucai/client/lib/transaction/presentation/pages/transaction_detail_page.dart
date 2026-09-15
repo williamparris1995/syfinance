@@ -924,11 +924,13 @@ class _GoldButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 15, color: Colors.white),
+            // F27 FR-1①:gold 实心按钮为 accent 面 —— icon/文字全部 onAccent
+            // (暗=金底深墨;disabled 档底色 0.5 派生不变)。
+            Icon(icon, size: 15, color: context.yucai.onAccent),
             const SizedBox(width: 6),
             Text(label,
-                style: const TextStyle(
-                    color: Colors.white,
+                style: TextStyle(
+                    color: context.yucai.onAccent,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w500)),
           ],

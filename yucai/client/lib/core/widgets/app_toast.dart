@@ -108,8 +108,8 @@ class _ToastViewState extends State<_ToastView>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 白字/白 icon 落在类型色底上(固定 toast 面惯例,与
-                  // success/error 一致;瞬时提示,双板均可辨识)。
+                  // F27 FR-1② 类目身份彩底豁免:白字/白 icon 落在类型色底上
+                  // (positive/negative/warn 固定 toast 面惯例;瞬时提示,双板均可辨识)。
                   Icon(style.icon, color: Colors.white, size: 18),
                   const SizedBox(width: 8),
                   Flexible(

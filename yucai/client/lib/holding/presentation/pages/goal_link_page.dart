@@ -947,11 +947,12 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
               color: context.yucai.accent,
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const Text('account 级',
+            // F27 FR-1①:金色徽标为 accent 面 → onAccent(暗=金底深墨)。
+            child: Text('account 级',
                 style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white)),
+                    color: context.yucai.onAccent)),
           ),
           const SizedBox(width: 6),
           Expanded(

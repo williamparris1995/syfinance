@@ -183,7 +183,8 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                       label: const Text('记一笔贡献'),
                       style: FilledButton.styleFrom(
                         backgroundColor: context.yucai.accent,
-                        foregroundColor: Colors.white,
+                        // F27 FR-1①:accent 面主按钮前景 → onAccent(暗=金底深墨)。
+                        foregroundColor: context.yucai.onAccent,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
@@ -197,6 +198,8 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                       label: const Text('标记完成'),
                       style: FilledButton.styleFrom(
                         backgroundColor: context.yucai.positive,
+                        // F27 FR-1② 豁免:完成态按钮底为 positive 状态身份彩底
+                        // —— 固定白双板可辨识(非 accent 面,不走 onAccent)。
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),

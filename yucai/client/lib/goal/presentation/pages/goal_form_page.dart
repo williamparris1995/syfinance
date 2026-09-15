@@ -353,28 +353,32 @@ class _GoalFormPageState extends State<GoalFormPage> {
                               child: const Text('取消'),
                             ),
                             const SizedBox(width: AppSpacing.sm),
+                            // F27 FR-1①:btn-gold 为 accent 面主按钮 ——
+                            // spinner/icon/label/前景全部 onAccent
+                            // (暗=金底深墨 #1A1408,亮=绿底白)。
                             ElevatedButton.icon(
                               key: const ValueKey('goalFormSubmit'),
                               onPressed: submitting ? null : _submit,
                               icon: submitting
-                                  ? const SizedBox(
+                                  ? SizedBox(
                                       height: 16,
                                       width: 16,
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: Colors.white))
-                                  : const Icon(LucideIcons.check,
-                                      size: 16, color: Colors.white),
+                                          color: context.yucai.onAccent))
+                                  : Icon(LucideIcons.check,
+                                      size: 16, color: context.yucai.onAccent),
                               label: Text(
                                 _isEdit ? '保存修改' : '确认创建',
                                 key: ValueKey(
                                     'goalFormSubmitLabel_${_isEdit ? 'edit' : 'create'}'),
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 13),
+                                style: TextStyle(
+                                    color: context.yucai.onAccent,
+                                    fontSize: 13),
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: context.yucai.accent,
-                                foregroundColor: Colors.white,
+                                foregroundColor: context.yucai.onAccent,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 18, vertical: 12),
