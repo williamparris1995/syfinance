@@ -19,11 +19,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
@@ -57,6 +59,21 @@ class _FakeThemeSettings extends Fake implements ThemeSettings {
   Future<void> load() async {}
   @override
   Future<void> setThemeMode(ThemeMode mode) async {}
+}
+
+/// Fake TraySettings(F22 窗口与提醒)— 满足 SettingsPage build 期 getIt
+/// 解析与 SegmentedButton 的 listenable 读取(默认 hide/minutes30)。
+class _FakeTraySettings extends Fake implements TraySettings {
+  final ValueNotifier<TrayCloseBehavior> _close =
+      ValueNotifier<TrayCloseBehavior>(TrayCloseBehavior.hide);
+  final ValueNotifier<TrayScanInterval> _scan =
+      ValueNotifier<TrayScanInterval>(TrayScanInterval.minutes30);
+
+  @override
+  ValueListenable<TrayCloseBehavior> get closeBehaviorListenable => _close;
+
+  @override
+  ValueListenable<TrayScanInterval> get scanIntervalListenable => _scan;
 }
 
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
@@ -155,6 +172,12 @@ void main() {
     FilePickerPlatform.instance = picker;
     addTearDown(() => FilePickerPlatform.instance = previous);
     registerFallbackValue(''); // any(named:) 的 String 回退值
+    // SettingsPage reads TraySettings from getIt (F22 窗口与提醒;其余依赖
+    // 经构造注入,此件照 ThemeSettings 先例 getIt 直取)。
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<TraySettings>()) {
+      getIt.registerSingleton<TraySettings>(_FakeTraySettings());
+    }
   });
 
   Widget harness({required bool bound}) => MaterialApp(

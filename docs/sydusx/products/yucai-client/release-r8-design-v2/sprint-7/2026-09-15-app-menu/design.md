@@ -32,6 +32,7 @@
 
 ### ADR-4 首关对话框从 onWindowClose 弹 = GoRouter navigatorKey
 - **决策**:`onWindowClose` 里经 GoRouter 的 navigatorKey 取 context `showDialog`(await 用户选择);**取不到 context(极端时序,如路由切换中)→ 兜底直接隐藏**(fail-open 到既有行为,不阻塞关闭)。
+- **实施偏差回写(T4,2026-09-15)**:「不新建全局 key」前提被证伪——router.dart 需 `rootNavigatorKey`(可变全局,buildRouter 每次换新 key:单一 GlobalKey 复用会把旧 Navigator 元素重挂进新树,app_shell_test 双构建翻车)。bootstrap 的 contextResolver 闭包在关闭时刻读当前值,生产行为不变。
 - **理由**:setPreventClose 已保证关闭被拦截、可 await 后再决定 hide/exit;不新建全局 key(GoRouter 已有)。
 - **备选**:全局 navigatorKey(等价但多一个全局态);不弹对话框改 OS 通知(用户已在 grill 否决)。
 

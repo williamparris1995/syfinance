@@ -102,6 +102,7 @@ import '../../transaction/presentation/bloc/category_bloc.dart' as _i159;
 import '../localdb/app_database.dart' as _i581;
 import '../network/auth_retry.dart' as _i763;
 import '../network/grpc_client.dart' as _i160;
+import '../notifications/tray_settings.dart' as _i84;
 import '../session_mode/bound_marker.dart' as _i98;
 import '../session_mode/session_mode_tracker.dart' as _i781;
 import '../theme/theme_settings.dart' as _i205;
@@ -179,6 +180,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i917.BalanceLocalUpdater>(
       () => _i917.BalanceLocalUpdater(gh<_i581.AppDatabase>()),
+    );
+    gh.lazySingleton<_i84.TraySettings>(
+      () => _i84.TraySettings(gh<_i558.FlutterSecureStorage>()),
     );
     gh.lazySingleton<_i205.ThemeSettings>(
       () => _i205.ThemeSettings(gh<_i558.FlutterSecureStorage>()),

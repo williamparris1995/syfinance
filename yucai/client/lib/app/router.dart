@@ -94,6 +94,18 @@ const List<String> kDefaultBindOnlyPrefixes = [
   '/settings/conflicts',
 ];
 
+/// 根 Navigator 全局 key(F22 ADR-4):托盘控制器 onWindowClose 弹首关
+/// 对话框的 context 源(rootNavigatorKey.currentContext)—— 组合根
+/// (notifications_bootstrap)经 contextResolver 注入 TrayController;
+/// 取不到(极端时序,如路由切换中)→ controller 兜底 hide(fail-open)。
+///
+/// 可变全局:[buildRouter] 每次调用换新 key(当前值 = 最新 build 的
+/// router 所持 key)。同一进程内多次构造 router(测试 harness 逐 pump
+/// 重建、YuCaiApp 重建)时复用同一 GlobalKey 会把旧 Navigator 元素重挂
+/// 进新树(app_shell_test 实测重复渲染子树);bootstrap 的
+/// contextResolver 在关闭时刻读取当前值,始终指向在挂 router。
+GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// Builds the app router. Reads auth state to guard routes.
 ///
 /// 受保护区域用 [StatefulShellRoute.indexedStack] 承载，侧边栏/顶栏
@@ -102,7 +114,11 @@ GoRouter buildRouter(
   AuthBloc authBloc, {
   List<String> bindOnlyPrefixes = kDefaultBindOnlyPrefixes,
 }) {
+  // F22 ADR-4:首关对话框 context 源 —— 每次构建换新 key(见全局声明注),
+  // 并同步全局变量供 contextResolver 读取。
+  rootNavigatorKey = GlobalKey<NavigatorState>();
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     observers: [routeObserver],
     refreshListenable: _AuthBlocListenable(authBloc),
     redirect: (context, state) {

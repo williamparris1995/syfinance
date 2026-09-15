@@ -10,6 +10,7 @@ import 'package:get_it/get_it.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
@@ -49,6 +50,10 @@ void main() {
     if (!gi.isRegistered<ThemeSettings>()) {
       gi.registerSingleton<ThemeSettings>(_FakeThemeSettings());
     }
+    // SettingsPage reads TraySettings from getIt (F22 窗口与提醒)。
+    if (!gi.isRegistered<TraySettings>()) {
+      gi.registerSingleton<TraySettings>(_FakeTraySettings());
+    }
     // SettingsPage reads BoundMarker from getIt (F21 清空入口绑定态判定)。
     if (!gi.isRegistered<BoundMarker>()) {
       gi.registerSingleton<BoundMarker>(_FakeBoundMarker());
@@ -82,6 +87,21 @@ class _FakeThemeSettings extends Fake implements ThemeSettings {
   Future<void> load() async {}
   @override
   Future<void> setThemeMode(ThemeMode mode) async {}
+}
+
+/// Fake TraySettings(F22 窗口与提醒)— 满足页面 build 期 getIt 解析与
+/// SegmentedButton 的 listenable 读取(默认 hide/minutes30)。
+class _FakeTraySettings extends Fake implements TraySettings {
+  final ValueNotifier<TrayCloseBehavior> _close =
+      ValueNotifier<TrayCloseBehavior>(TrayCloseBehavior.hide);
+  final ValueNotifier<TrayScanInterval> _scan =
+      ValueNotifier<TrayScanInterval>(TrayScanInterval.minutes30);
+
+  @override
+  ValueListenable<TrayCloseBehavior> get closeBehaviorListenable => _close;
+
+  @override
+  ValueListenable<TrayScanInterval> get scanIntervalListenable => _scan;
 }
 
 class _FakeCurrencySettings extends Fake implements CurrencySettings {

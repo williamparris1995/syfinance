@@ -67,6 +67,7 @@ import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/data/networth_ds.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
+import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
@@ -109,6 +110,21 @@ class _FakeThemeSettings extends Fake implements ThemeSettings {
   Future<void> load() async {}
   @override
   Future<void> setThemeMode(ThemeMode mode) async {}
+}
+
+/// Fake TraySettings(F22 窗口与提醒)— 满足 SettingsPage build 期 getIt
+/// 解析与 SegmentedButton 的 listenable 读取(默认 hide/minutes30)。
+class _FakeTraySettings extends Fake implements TraySettings {
+  final ValueNotifier<TrayCloseBehavior> _close =
+      ValueNotifier<TrayCloseBehavior>(TrayCloseBehavior.hide);
+  final ValueNotifier<TrayScanInterval> _scan =
+      ValueNotifier<TrayScanInterval>(TrayScanInterval.minutes30);
+
+  @override
+  ValueListenable<TrayCloseBehavior> get closeBehaviorListenable => _close;
+
+  @override
+  ValueListenable<TrayScanInterval> get scanIntervalListenable => _scan;
 }
 
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
@@ -229,6 +245,8 @@ void main() {
     // SettingsPage reads ThemeSettings from getIt (R8 F1 主题模式)。Register a
     // fake so the settings branch resolves without the full DI graph.
     getIt.registerSingleton<ThemeSettings>(_FakeThemeSettings());
+    // SettingsPage reads TraySettings from getIt (F22 窗口与提醒)。
+    getIt.registerSingleton<TraySettings>(_FakeTraySettings());
     // SettingsPage reads BoundMarker from getIt (F21 清空入口绑定态判定)。
     getIt.registerSingleton<BoundMarker>(_FakeBoundMarker());
     // HomePage _loadNetWorth reads getIt<NetWorthDataSource>() at initState

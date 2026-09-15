@@ -16,6 +16,8 @@ import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide Currency;
+import 'package:yucai_client/core/notifications/app_exit_port.dart';
+import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
@@ -45,11 +47,13 @@ class SettingsPage extends StatelessWidget {
     AuthRemoteDataSource? authRemote,
     CurrencySettings? currencySettings,
     ThemeSettings? themeSettings,
+    TraySettings? traySettings,
     BoundMarker? boundMarker,
     DataResetController? resetController,
   })  : _authRemote = authRemote,
         _currencySettings = currencySettings,
         _themeSettings = themeSettings,
+        _traySettings = traySettings, // ignore: prefer_initializing_formals
         // 与上方三行同款形态:命名参数无法用 this._x 初始化私有字段。
         _boundMarker = boundMarker, // ignore: prefer_initializing_formals
         _resetController = // ignore: prefer_initializing_formals
@@ -58,6 +62,7 @@ class SettingsPage extends StatelessWidget {
   final AuthRemoteDataSource? _authRemote;
   final CurrencySettings? _currencySettings;
   final ThemeSettings? _themeSettings;
+  final TraySettings? _traySettings;
   final BoundMarker? _boundMarker;
   final DataResetController? _resetController;
 
@@ -67,8 +72,15 @@ class SettingsPage extends StatelessWidget {
     final ds = _authRemote ?? getIt<AuthRemoteDataSource>();
     final settings = _currencySettings ?? getIt<CurrencySettings>();
     final theme = _themeSettings ?? getIt<ThemeSettings>();
+    // F22 窗口与提醒:照 ThemeSettings 消费方式(getIt 直取,build 期解析)。
+    final tray = _traySettings ?? getIt<TraySettings>();
     // F21 清空重置:绑定态判定入口(build 期需要,FutureBuilder 用)。
     final marker = _boundMarker ?? getIt<BoundMarker>();
+    // F22 页底退出:AppExitPort 生产注册在 T4(bootstrap 手工单例)。照
+    // app_shell 的 isRegistered 守卫先例 —— 只探注册不构造,未注册(测试
+    // 挂页无 DI 图 / T4 合入前)不 resolve,按钮隐藏而非 build 即炸。
+    final exitPort =
+        getIt.isRegistered<AppExitPort>() ? getIt<AppExitPort>() : null;
     return Scaffold(
       backgroundColor: context.yucai.bg,
       // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
@@ -217,6 +229,74 @@ class SettingsPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    // F22 窗口与提醒(置于「数据」区之后,原型
+                    // ui/settings-window-reminders.html):关闭按钮行为 +
+                    // 提醒检查频率,持久化 TraySettings(T1);SegmentedButton
+                    // 行与「外观·主题模式」同款(setting-row-seg),选中态经
+                    // listenable 实时刷新,setX 异步 fire-and-forget(广播即可)。
+                    _SettingsCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('窗口与提醒',
+                              style: TextStyle(
+                                  color: context.yucai.fg,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: AppSpacing.sm),
+                          ValueListenableBuilder<TrayCloseBehavior>(
+                            valueListenable: tray.closeBehaviorListenable,
+                            builder: (context, behavior, _) => _PreferenceRow(
+                              label: '关闭按钮行为',
+                              description:
+                                  '点窗口 ✕ 时:隐藏到托盘继续运行,或直接退出',
+                              control: SegmentedButton<TrayCloseBehavior>(
+                                segments: const [
+                                  ButtonSegment(
+                                      value: TrayCloseBehavior.hide,
+                                      label: Text('隐藏到托盘')),
+                                  ButtonSegment(
+                                      value: TrayCloseBehavior.exit,
+                                      label: Text('退出程序')),
+                                ],
+                                selected: {behavior},
+                                showSelectedIcon: false,
+                                onSelectionChanged: (selection) => tray
+                                    .setCloseBehavior(selection.first),
+                              ),
+                            ),
+                          ),
+                          Divider(height: 1, color: context.yucai.border),
+                          const SizedBox(height: AppSpacing.md),
+                          ValueListenableBuilder<TrayScanInterval>(
+                            valueListenable: tray.scanIntervalListenable,
+                            builder: (context, interval, _) => _PreferenceRow(
+                              label: '提醒检查频率',
+                              description:
+                                  '到期提醒与自动记账的定时扫描间隔;数据变更时总会即时检查',
+                              control: SegmentedButton<TrayScanInterval>(
+                                segments: const [
+                                  ButtonSegment(
+                                      value: TrayScanInterval.minutes15,
+                                      label: Text('15 分钟')),
+                                  ButtonSegment(
+                                      value: TrayScanInterval.minutes30,
+                                      label: Text('30 分钟')),
+                                  ButtonSegment(
+                                      value: TrayScanInterval.minutes60,
+                                      label: Text('60 分钟')),
+                                ],
+                                selected: {interval},
+                                showSelectedIcon: false,
+                                onSelectionChanged: (selection) =>
+                                    tray.setScanInterval(selection.first),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                     _SettingsCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,6 +379,14 @@ class SettingsPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    // F22 页底「退出御财」:所有 card 之后、页面 padding 内。
+                    // AppExitPort 未注册时隐藏(见 build 顶部 isRegistered
+                    // 守卫注释;T4 bootstrap 注册后生产恒显示)。
+                    if (exitPort != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      _ExitFooterButton(
+                          onPressed: () => exitPort.exitApp()),
+                    ],
                   ],
                 ),
               ),
@@ -704,6 +792,51 @@ class SettingsPage extends StatelessWidget {
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// F22 页底「退出御财」按钮(btn-exit-footer):全宽高 40、圆角 12、soft
+/// destructive —— negativeSoft 底 + negative 描边/文字、hover 加深、含
+/// log-out 图标;非实底红,防误触(警示强度与 F21 清空行同级)。
+///
+/// negativeSoft 令牌 YucaiTheme 暂缺(T2 禁区:不改令牌定义),soft 底由
+/// negative 令牌 + 低透明度派生(照 debt_detail_widgets 的 soft 派生先例,
+/// 禁裸 hex);亮暗主题各自随本主题 negative 取值。
+class _ExitFooterButton extends StatelessWidget {
+  const _ExitFooterButton({required this.onPressed});
+
+  /// 点击即退出(经 AppExitPort,即时无确认)。
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final neg = context.yucai.negative;
+    return SizedBox(
+      width: double.infinity,
+      height: 40,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(LucideIcons.logOut, size: 18),
+        label: const Text('退出御财'),
+        style: ButtonStyle(
+          // negSoft 底(默认 ~8% negative);hover 加深(~16%)。
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => neg.withValues(
+                alpha: states.contains(WidgetState.hovered) ? 0.16 : 0.08),
+          ),
+          foregroundColor: WidgetStatePropertyAll(neg),
+          side: WidgetStatePropertyAll(BorderSide(color: neg)),
+          shape: const WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: AppRadius.smBorder)),
+          minimumSize: const WidgetStatePropertyAll(Size.fromHeight(40)),
+          padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: AppSpacing.md)),
+          textStyle: const WidgetStatePropertyAll(
+              TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
   }
 }
 
