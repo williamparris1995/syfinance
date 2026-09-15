@@ -42,6 +42,24 @@ Future<void> main() async {
     exit(0);
   }
   await windowManager.ensureInitialized();
+  // F29 自定义标题栏(FR-1):TitleBarStyle.hidden 只隐藏系统标题栏,原生
+  // 窗口边框/阴影/Snap 贴靠/拖边缩放/Win 快捷键全保留(NFR-1)——标题栏
+  // 内容由 AppTitleBar(app.dart builder 层)接管。照 window_manager 文档
+  // 以 waitUntilReadyToShow 应用 WindowOptions(不 await,不阻塞后续
+  // bootstrap/runApp;回调内 show+focus 为文档最小接线,与 runner 已显窗
+  // 幂等)。F22 启动期 hide(关闭到托盘)与本处 hidden 无冲突(ADR-1)。
+  windowManager.waitUntilReadyToShow(
+    // review S1:与 builder 挂栏同门(仅 Windows hidden),防 linux/macos
+    // 构建得到无栏无钮窗口;Platform 非 const,故 WindowOptions 去 const。
+    WindowOptions(
+      titleBarStyle:
+          Platform.isWindows ? TitleBarStyle.hidden : TitleBarStyle.normal,
+    ),
+    () async {
+      await windowManager.show();
+      await windowManager.focus();
+    },
+  );
 
   await configureDependencies();
   // 演示种子(R7 用户验收):--dart-define=YUCAI_DEMO_SEED=1 时向空库注入

@@ -280,14 +280,27 @@ class _Sidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 14),
             child: Row(children: [
+              // 品牌徽标(review P2 统一):与标题栏/F23 图标同源——「御」金渐变
+              // 圆角方块(此前为 gem 图标实色版,同窗双徽标口径割裂)。
               Container(
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: t.accent,
-                  borderRadius: BorderRadius.circular(9),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [t.accent, t.accentDeep],
+                  ),
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(LucideIcons.gem, color: t.onAccent, size: 18),
+                child: Center(
+                  child: Text('御',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: t.onAccent,
+                      )),
+                ),
               ),
               const SizedBox(width: 10),
               Column(
