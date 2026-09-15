@@ -8,10 +8,10 @@
 
 ## Stories
 
-- [ ] S1: GitHub Actions workflow(tag 触发:checkout→flutter build windows→ISCC→创建 Release 传安装包)
-- [ ] S2: appcast.xml 生成 + EdDSA 签名(私钥 Secrets/公钥入客户端;URL=releases/latest/download/appcast.xml)
-- [ ] S3: 客户端 auto_updater 接入(依赖+feed URL+版本常量对齐+初始化)
-- [ ] S4: 托盘菜单「检查更新」项 + 版本号展示(grill 定形态)
+- [x] S1: GitHub Actions workflow(tag 触发:checkout→flutter build windows→ISCC→创建 Release 传安装包)
+- [x] S2: appcast.xml 生成 + DSA 签名(EdDSA→DSA 引擎降档在案)(私钥 Secrets/公钥入客户端;URL=releases/latest/download/appcast.xml)
+- [x] S3: 客户端 auto_updater 接入(依赖+feed URL+版本常量对齐+初始化)
+- [x] S4: 托盘菜单「检查更新」项 + 版本号展示(grill 定形态)
 - [ ] S5: 发布演练(真 tag 全链 + 旧版安装→新版升级真机验证)
 
 ## Keywords
