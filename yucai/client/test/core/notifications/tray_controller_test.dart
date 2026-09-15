@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 
@@ -7,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:tray_manager/tray_manager.dart' show MenuItem;
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/tray_controller.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
@@ -18,13 +20,16 @@ class _FakeTraySettings implements TraySettings {
     TrayCloseBehavior closeBehavior = TrayCloseBehavior.hide,
     bool firstClosePrompted = false,
     TrayScanInterval scanInterval = TrayScanInterval.minutes30,
+    bool showTrayAmounts = true,
   })  : _close = ValueNotifier<TrayCloseBehavior>(closeBehavior),
         _prompted = ValueNotifier<bool>(firstClosePrompted),
-        _scan = ValueNotifier<TrayScanInterval>(scanInterval);
+        _scan = ValueNotifier<TrayScanInterval>(scanInterval),
+        _amounts = ValueNotifier<bool>(showTrayAmounts);
 
   final ValueNotifier<TrayCloseBehavior> _close;
   final ValueNotifier<bool> _prompted;
   final ValueNotifier<TrayScanInterval> _scan;
+  final ValueNotifier<bool> _amounts;
   final List<bool> promptedCalls = [];
 
   @override
@@ -46,6 +51,12 @@ class _FakeTraySettings implements TraySettings {
   ValueListenable<TrayScanInterval> get scanIntervalListenable => _scan;
 
   @override
+  bool get showTrayAmounts => _amounts.value;
+
+  @override
+  ValueListenable<bool> get showTrayAmountsListenable => _amounts;
+
+  @override
   Future<void> load() async {}
 
   @override
@@ -62,6 +73,11 @@ class _FakeTraySettings implements TraySettings {
   Future<void> setFirstClosePrompted(bool prompted) async {
     promptedCalls.add(prompted);
     _prompted.value = prompted;
+  }
+
+  @override
+  Future<void> setShowTrayAmounts(bool show) async {
+    _amounts.value = show;
   }
 }
 
@@ -82,8 +98,11 @@ class _ExitSpy {
 
 /// window_manager / tray_manager 两 MethodChannel 的调用记录
 /// (既有插件单例无法注入,以 channel mock 手法观测 hide/destroy 等)。
+/// [menus] 额外记录 setContextMenu 下发的 menu JSON(F25 数据头 label
+/// 断言面)。
 class _ChannelLog {
   final calls = <String>[];
+  final menus = <String>[];
 }
 
 void main() {
@@ -105,13 +124,18 @@ void main() {
       const MethodChannel('window_manager'),
       (call) async {
         windowLog.calls.add(call.method);
-        return null;
+        // 查询型方法(isMinimized/isVisible 等)需 bool 返回,null 会使
+        // window_manager 内部 cast 抛错(F25 记一笔测试首触 show() 路径)。
+        return call.method.startsWith('is') ? false : null;
       },
     );
     messenger.setMockMethodCallHandler(
       const MethodChannel('tray_manager'),
       (call) async {
         trayLog.calls.add(call.method);
+        if (call.method == 'setContextMenu') {
+          trayLog.menus.add(jsonEncode(call.arguments['menu']));
+        }
         return null;
       },
     );
@@ -143,12 +167,16 @@ void main() {
     TraySettings? settings,
     Future<FirstCloseChoice?> Function(BuildContext)? closePrompt,
     BuildContext? Function()? contextResolver,
+    TrayHeadProvider? headProvider,
+    Future<void> Function()? newTransactionNav,
   }) =>
       TrayController(
         scan: scanOk,
         settings: settings,
         closePrompt: closePrompt,
         contextResolver: contextResolver,
+        headProvider: headProvider,
+        newTransactionNav: newTransactionNav,
         exitFn: exitSpy.exit0,
       )..trayReady = true;
 
@@ -393,11 +421,252 @@ void main() {
     });
   });
 
-  group('托盘菜单(FR-6)', () {
-    test('仅 显示御财/退出 两项,「立即检查」已撤', () {
+  group('托盘菜单(FR-6 + F25 数据头/快捷操作)', () {
+    test('菜单枚举:数据头两行 disabled + 分隔线 + 记一笔 + 显示御财 + 退出',
+        () {
+      const head = TrayHeadData(
+        todayIncomeCents: 123456, // ¥1,234
+        todayExpenseCents: 7890, // ¥78
+        monthBalanceCents: 12345, // +¥123
+      );
+      final items = TrayController.buildContextMenu(head: head);
+
+      // 分隔线无 key,非空 key 枚举 = 五个语义项。
+      final keys =
+          items.map((i) => i.key).whereType<String>().toList();
+      expect(keys, ['head_today', 'head_month', 'new_transaction', 'show', 'quit']);
+      expect(items.any((i) => i.type == 'separator'), isTrue);
+
+      // FR-1:数据头两行 disabled(仅速览不可点)+ 金额文案逐字。
+      final today = items.firstWhere((i) => i.key == 'head_today');
+      expect(today.disabled, isTrue);
+      expect(today.label, '今日 收 ¥1,234 · 支 ¥78');
+      final month = items.firstWhere((i) => i.key == 'head_month');
+      expect(month.disabled, isTrue);
+      expect(month.label, '本月结余 +¥123');
+
+      // FR-2:记一笔(可点,位于数据头与显示御财之间)。
+      final newTxn = items.firstWhere((i) => i.key == 'new_transaction');
+      expect(newTxn.disabled, isFalse);
+      expect(newTxn.label, '记一笔');
+      expect(keys.indexOf('new_transaction'), lessThan(keys.indexOf('show')));
+
+      // 「立即检查」仍已撤。
+      expect(items.map((i) => i.label ?? ''),
+          isNot(contains(contains('立即检查'))));
+    });
+
+    test('负结余 → -¥;零结余不带符号', () {
+      const head = TrayHeadData(
+        todayIncomeCents: 0,
+        todayExpenseCents: 0,
+        monthBalanceCents: -12345,
+      );
+      final items = TrayController.buildContextMenu(head: head);
+      expect(items.firstWhere((i) => i.key == 'head_month').label,
+          '本月结余 -¥123');
+
+      const zero = TrayHeadData(
+          todayIncomeCents: 0, todayExpenseCents: 0, monthBalanceCents: 0);
+      expect(
+        TrayController.buildContextMenu(head: zero)
+            .firstWhere((i) => i.key == 'head_month')
+            .label,
+        '本月结余 ¥0',
+      );
+    });
+
+    test('showAmounts=false → 「金额已隐藏」单行(FR-3 隐藏态)', () {
+      const head = TrayHeadData(
+          todayIncomeCents: 1, todayExpenseCents: 2, monthBalanceCents: 3);
+      final items =
+          TrayController.buildContextMenu(head: head, showAmounts: false);
+      // 隐藏 → 单行占位(design LLD:单行,不出两行空壳)。
+      final keys = items.map((i) => i.key).whereType<String>().toList();
+      expect(keys, ['head', 'new_transaction', 'show', 'quit']);
+      final headItem = items.firstWhere((i) => i.key == 'head');
+      expect(headItem.disabled, isTrue);
+      expect(headItem.label, '金额已隐藏');
+    });
+
+    test('head=null(查询失败/未注入)→ 「--」占位(FR-4/NFR-1)', () {
       final items = TrayController.buildContextMenu();
-      expect(items.map((i) => i.key), ['show', 'quit']);
-      expect(items.map((i) => i.label), isNot(contains(contains('立即检查'))));
+      final keys = items.map((i) => i.key).whereType<String>().toList();
+      expect(keys, ['head', 'new_transaction', 'show', 'quit']);
+      final headItem = items.firstWhere((i) => i.key == 'head');
+      expect(headItem.disabled, isTrue);
+      expect(headItem.label, '--');
+      // 「--」不阻断其余菜单项(NFR-1)。
+      expect(keys, containsAll(['new_transaction', 'show', 'quit']));
+    });
+
+    test('formatTrayAmount:千分位/整元/负号(F25 金额格式)', () {
+      expect(TrayController.formatTrayAmount(0), '¥0');
+      expect(TrayController.formatTrayAmount(123456), '¥1,234'); // 分截断
+      expect(TrayController.formatTrayAmount(123456789), '¥1,234,567');
+      expect(TrayController.formatTrayAmount(100000000), '¥1,000,000');
+      expect(TrayController.formatTrayAmount(-12345), '-¥123');
+    });
+
+    test('formatTrayBalance:正 +/负 -/零无符号(design LLD)', () {
+      expect(TrayController.formatTrayBalance(12345), '+¥123');
+      expect(TrayController.formatTrayBalance(-12345), '-¥123');
+      expect(TrayController.formatTrayBalance(0), '¥0');
+      expect(TrayController.formatTrayBalance(123456789), '+¥1,234,567');
+    });
+  });
+
+  group('「记一笔」快捷操作(F25 FR-2/ADR-4)', () {
+    test('点击 → 显示并聚焦窗口 + 导航闭包调用一次', () async {
+      var navCalls = 0;
+      final controller = mk(newTransactionNav: () async => navCalls++);
+      controller.onTrayMenuItemClick(
+          MenuItem(key: 'new_transaction', label: '记一笔'));
+      await pump();
+
+      expect(windowLog.calls.where((m) => m == 'show'), isNotEmpty);
+      expect(windowLog.calls.where((m) => m == 'focus'), isNotEmpty);
+      expect(navCalls, 1);
+    });
+
+    test('导航闭包未注入 → 降级仅 show/focus,不炸', () async {
+      final controller = mk();
+      controller.onTrayMenuItemClick(
+          MenuItem(key: 'new_transaction', label: '记一笔'));
+      await pump();
+
+      expect(windowLog.calls.where((m) => m == 'show'), isNotEmpty);
+      expect(windowLog.calls.where((m) => m == 'focus'), isNotEmpty);
+    });
+
+    test('导航闭包抛错(极端时序无 context 等)→ 吞掉不炸', () async {
+      final errors = <Object>[];
+      final controller = mk(
+          newTransactionNav: () async => throw StateError('no context'));
+      runZonedGuarded<void>(
+          () => controller.onTrayMenuItemClick(
+              MenuItem(key: 'new_transaction', label: '记一笔')),
+          (e, _) => errors.add(e));
+      await pump();
+
+      expect(windowLog.calls.where((m) => m == 'show'), isNotEmpty);
+      expect(errors, isEmpty); // 降级不炸(NFR-1)
+    });
+  });
+
+  group('菜单刷新三触发(F25 FR-4/ADR-2)', () {
+    test('start() 托盘注册成功后即刷首次数据头(先注册后填充,不阻塞就绪)',
+        () {
+      fakeAsync((async) {
+        final controller = TrayController(
+          scan: scanOk,
+          settings: _FakeTraySettings(),
+          traySetup: () async => true,
+          headProvider: () async => const TrayHeadData(
+              todayIncomeCents: 123456,
+              todayExpenseCents: 7890,
+              monthBalanceCents: 12345),
+          exitFn: exitSpy.exit0,
+        );
+        unawaited(controller.start());
+        async.flushMicrotasks();
+        // 查询异步:注册就绪不被 _refreshMenu 阻塞(design LLD 首启顺序)。
+        expect(controller.trayReady, isTrue);
+        async.flushMicrotasks();
+        final sets = trayLog.calls.where((m) => m == 'setContextMenu');
+        expect(sets, isNotEmpty);
+        expect(trayLog.menus.last, contains('今日 收 ¥1,234 · 支 ¥78'));
+        expect(trayLog.menus.last, contains('本月结余 +¥123'));
+
+        unawaited(controller.stop());
+        async.flushMicrotasks();
+      });
+    });
+
+    test('watch 防抖尾随菜单重设(数据变更 → 先扫后刷菜单)', () {
+      fakeAsync((async) {
+        final sc = StreamController<void>.broadcast();
+        var providerCalls = 0;
+        final controller = TrayController(
+          scan: scanOk,
+          settings: _FakeTraySettings(),
+          changeTriggers: [sc.stream],
+          traySetup: () async => true,
+          headProvider: () async {
+            providerCalls++;
+            return null; // null → 「--」路径同时被覆盖
+          },
+          exitFn: exitSpy.exit0,
+        );
+        unawaited(controller.start());
+        async.flushMicrotasks();
+        final before = trayLog.calls.where((m) => m == 'setContextMenu').length;
+
+        sc.add(null);
+        async.elapse(const Duration(milliseconds: 500));
+        async.flushMicrotasks();
+        // 防抖到点:扫描 + 菜单重设(provider 被再次消费)。
+        expect(providerCalls, greaterThan(1));
+        expect(trayLog.calls.where((m) => m == 'setContextMenu').length,
+            greaterThan(before));
+        expect(trayLog.menus.last, contains('--'));
+
+        unawaited(controller.stop());
+        async.flushMicrotasks();
+      });
+    });
+
+    test('窗口 show 事件 → 重设菜单;其他事件不触发', () async {
+      final controller = mk(headProvider: () async => null);
+      final before = trayLog.calls.where((m) => m == 'setContextMenu').length;
+
+      controller.onWindowEvent('focus'); // 非 show 事件:不触发
+      await pump();
+      expect(trayLog.calls.where((m) => m == 'setContextMenu').length, before);
+
+      controller.onWindowEvent('show');
+      await pump();
+      expect(trayLog.calls.where((m) => m == 'setContextMenu').length,
+          greaterThan(before));
+      expect(trayLog.menus.last, contains('--'));
+    });
+
+    test('showTrayAmounts 切换即时重设菜单(隐藏 → 「金额已隐藏」)', () {
+      fakeAsync((async) {
+        final settings = _FakeTraySettings();
+        final controller = TrayController(
+          scan: scanOk,
+          settings: settings,
+          traySetup: () async => true,
+          headProvider: () async => const TrayHeadData(
+              todayIncomeCents: 1, todayExpenseCents: 2, monthBalanceCents: 3),
+          exitFn: exitSpy.exit0,
+        );
+        unawaited(controller.start());
+        async.flushMicrotasks();
+        expect(trayLog.menus.last, contains('今日 收'));
+
+        // F25 FR-3:切换即时生效(菜单重设)。
+        unawaited(settings.setShowTrayAmounts(false));
+        async.flushMicrotasks();
+        expect(trayLog.menus.last, contains('金额已隐藏'));
+        expect(trayLog.menus.last, isNot(contains('今日 收')));
+
+        unawaited(controller.stop());
+        async.flushMicrotasks();
+      });
+    });
+
+    test('provider 抛错 → 「--」占位,不炸(NFR-1)', () async {
+      final errors = <Object>[];
+      final controller =
+          mk(headProvider: () async => throw StateError('db corrupted'));
+      runZonedGuarded<void>(
+          () => controller.onWindowEvent('show'), (e, _) => errors.add(e));
+      await pump();
+
+      expect(errors, isEmpty);
+      expect(trayLog.menus.last, contains('--'));
     });
   });
 

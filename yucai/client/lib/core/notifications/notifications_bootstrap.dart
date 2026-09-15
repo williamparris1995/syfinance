@@ -4,6 +4,7 @@ import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:async';
 
+import 'package:go_router/go_router.dart';
 import 'package:yucai_client/app/router.dart' show rootNavigatorKey;
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
@@ -16,10 +17,15 @@ import 'package:yucai_client/core/notifications/single_instance_guard.dart';
 import 'package:yucai_client/core/notifications/tray_controller.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/di/injection.dart';
-// 组合根豁免(core→settings 禁向在本文件豁免):bootstrap 是唯一接线点,
-// 首关对话框组件(settings 模块)在此映射为 core 侧 FirstCloseChoice。
+// 组合根豁免(core→settings/transaction 禁向在本文件豁免):bootstrap 是
+// 唯一接线点 —— 首关对话框组件(settings 模块)在此映射为 core 侧
+// FirstCloseChoice;transaction 本地 DS 在此映射为托盘数据头(F25 ADR-1,
+// core/notifications 不 import transaction 模块,缝 = TrayHeadProvider)。
 import 'package:yucai_client/settings/widgets/first_close_dialog.dart';
 import 'package:yucai_client/template/domain/repositories/template_repository.dart';
+import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
+import 'package:yucai_client/transaction/domain/value_objects.dart'
+    show SummaryScope;
 
 /// 通知/托盘/自启 bootstrap(FR-1..FR-5 接线;仅 Windows)。
 /// main 在 runApp 前调用 [bootstrapNotifications](单实例守卫在更早处)。
@@ -65,16 +71,51 @@ Future<void> _bootstrap(AppDatabase db) async {
     await autoScheduler.run(DateTime.now());
   }
 
+  // F25 ADR-1 接线(组合根):托盘数据头摘要 provider —— 本地 DS
+  // `summary(year, month, {scope})` 单一查询点,day+month 两次调用映射
+  // TrayHeadData(spec FR-1 复用第一,不新造口径);数据头恒本地口径
+  // (design NonGoals:绑定态远程口径差不引入)。查询失败 → null →
+  // 控制器渲染「--」占位(NFR-1;controller 侧还有防御性 try)。
+  final txnLocal = getIt<TransactionLocalDataSource>();
+  Future<TrayHeadData?> trayHead() async {
+    try {
+      final now = DateTime.now();
+      final day = await txnLocal.summary(now.year, now.month,
+          scope: SummaryScope.day, day: now.day);
+      final month = await txnLocal.summary(now.year, now.month,
+          scope: SummaryScope.month);
+      return TrayHeadData(
+        todayIncomeCents: day.incomeCents,
+        todayExpenseCents: day.expenseCents,
+        monthBalanceCents: month.netCents,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // F25 ADR-4 接线:「记一笔」导航闭包 —— contextResolver 同源 context
+  // (rootNavigatorKey)→ GoRouter push;无 context(极端时序)→ no-op,
+  // 控制器侧已 show/focus 兜底(降级不炸)。
+  Future<void> navigateNewTransaction() async {
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) return;
+    GoRouter.of(context).push('/transactions/new');
+  }
+
   // F22 接线(T4,各注入对应 FR 见行尾;无注入不炸由构造默认值保证,
   // 单测覆盖参数组合,bootstrap 手工接线以 code review 承接):
   // - settings: FR-2/3/5 关闭行为/首关标记/扫描间隔(TraySettings.load
   //   在 injection.dart 2c 同位 ThemeSettings 完成);
-  // - changeTriggers: FR-4/ADR-1 两张表 drift watch → 变更即扫
-  //   (paymentScheduleEntries=债务期次,transactionTemplates=自动记账规则);
+  // - changeTriggers: FR-4/ADR-1 drift watch → 变更即扫
+  //   (paymentScheduleEntries=债务期次,transactionTemplates=自动记账规则,
+  //   transactions=F25 数据头刷新面 —— 交易增删改即重设托盘菜单);
   // - closePrompt/contextResolver: FR-3/ADR-4 首关对话框(组合根把
   //   settings 模块的 FirstCloseDialogResult 映射为 core 侧
   //   FirstCloseChoice;context 取自 router.rootNavigatorKey,取不到 →
-  //   controller 兜底 hide)。
+  //   controller 兜底 hide);
+  // - headProvider/newTransactionNav: F25 FR-1/2 数据头 + 记一笔(上方
+  //   两个闭包,组合根跨模块接线)。
   final tray = TrayController(
     scan: () => scanner.scan(DateTime.now()),
     autoRecord: runAutoRecord,
@@ -82,6 +123,7 @@ Future<void> _bootstrap(AppDatabase db) async {
     changeTriggers: [
       db.select(db.paymentScheduleEntries).watch().map((_) {}),
       db.select(db.transactionTemplates).watch().map((_) {}),
+      db.select(db.transactions).watch().map((_) {}),
     ],
     closePrompt: (context) async {
       final result = await showFirstCloseDialog(context);
@@ -92,6 +134,8 @@ Future<void> _bootstrap(AppDatabase db) async {
       };
     },
     contextResolver: () => rootNavigatorKey.currentContext,
+    headProvider: trayHead,
+    newTransactionNav: navigateNewTransaction,
   );
   await tray.start();
 

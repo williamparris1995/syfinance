@@ -293,6 +293,27 @@ class SettingsPage extends StatelessWidget {
                               ),
                             ),
                           ),
+                          Divider(height: 1, color: context.yucai.border),
+                          const SizedBox(height: AppSpacing.md),
+                          // F25 托盘显示金额(FR-3 隐私开关):金额在托盘是
+                          // 肩窥隐私面,默认显示,关闭即数据头变「金额已隐藏」;
+                          // Switch 行照 backup_settings_page._SwitchRow 同款
+                          // (activeThumbColor 语义色,禁裸 hex),选中态经
+                          // listenable 实时刷新,切换即时驱动托盘菜单重设。
+                          ValueListenableBuilder<bool>(
+                            valueListenable: tray.showTrayAmountsListenable,
+                            builder: (context, showAmounts, _) =>
+                                _PreferenceRow(
+                              label: '托盘显示金额',
+                              description: '托盘菜单顶部的今日收支与本月结余',
+                              control: Switch(
+                                value: showAmounts,
+                                onChanged: (v) =>
+                                    tray.setShowTrayAmounts(v),
+                                activeThumbColor: context.yucai.accent,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

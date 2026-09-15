@@ -24,6 +24,30 @@ enum FirstCloseChoice { minimize, quit }
 /// 会完成、且避免向真机 AppData 写文件。返回值 = [TrayController.trayReady]。
 typedef TraySetupFn = Future<bool> Function();
 
+/// F25 ADR-1:托盘数据头值对象(cents)。core/notifications 不 import
+/// transaction 模块(仓跨模块约束),组合根(notifications_bootstrap)
+/// 把本地 DS summary 的 day+month 两次调用映射为本对象注入。
+class TrayHeadData {
+  const TrayHeadData({
+    required this.todayIncomeCents,
+    required this.todayExpenseCents,
+    required this.monthBalanceCents,
+  });
+
+  /// 今日收入合计(分,本地口径)。
+  final int todayIncomeCents;
+
+  /// 今日支出合计(分,本地口径)。
+  final int todayExpenseCents;
+
+  /// 本月结余 = 本月收入 - 本月支出(分,本地口径)。
+  final int monthBalanceCents;
+}
+
+/// F25 ADR-1:摘要提供者函数注入 port(与 exitFn/traySetup 缝同构,最小面)。
+/// null 返回 = 查询失败/未注入 → 数据头「--」占位(NFR-1 fail-safe)。
+typedef TrayHeadProvider = Future<TrayHeadData?> Function();
+
 /// 托盘常驻控制器(FR-3):托盘菜单 + 关闭决策树 + 变更即扫/周期扫描调度
 /// + 启动首扫。
 ///
@@ -46,6 +70,8 @@ class TrayController with TrayListener, WindowListener {
     this.closePrompt,
     this.contextResolver,
     this.traySetup,
+    this.headProvider,
+    this.newTransactionNav,
     AppExitFn? exitFn,
   }) : _exit = exitFn ?? _defaultExit;
 
@@ -72,6 +98,14 @@ class TrayController with TrayListener, WindowListener {
   /// 托盘注册,任一步失败降级 false)。
   final TraySetupFn? traySetup;
 
+  /// 托盘数据头摘要提供者(F25 FR-1/ADR-1);null = 未注入 → 数据头
+  /// 恒「--」占位(等价改造前无数据头能力,其余菜单项不受影响)。
+  final TrayHeadProvider? headProvider;
+
+  /// 「记一笔」导航闭包(F25 FR-2/ADR-4,组合根注入 GoRouter push);
+  /// null / 抛错 = 降级仅 show/focus 窗口(不炸,NFR-1)。
+  final Future<void> Function()? newTransactionNav;
+
   final AppExitFn _exit;
 
   static Never _defaultExit() => exit(0);
@@ -92,10 +126,17 @@ class TrayController with TrayListener, WindowListener {
 
   static const _kShow = 'show';
   static const _kQuit = 'quit';
+  static const _kNewTxn = 'new_transaction';
+  static const _kHeadToday = 'head_today';
+  static const _kHeadMonth = 'head_month';
+  static const _kHead = 'head';
 
   // settings null 容错:所有读走内部 getter(null-safe 默认)。
   TrayCloseBehavior get _closeBehavior =>
       settings?.closeBehavior ?? TrayCloseBehavior.hide;
+
+  /// F25 FR-3:托盘金额开关;settings 未注入 → 默认显示(等价新装机默认)。
+  bool get _showTrayAmounts => settings?.showTrayAmounts ?? true;
 
   /// settings 未注入时视同已提示:等价改造前「点 X 直接隐藏」,且无
   /// 持久化面时弹一次无法标记,宁可不再弹。
@@ -116,10 +157,15 @@ class TrayController with TrayListener, WindowListener {
     windowManager.addListener(this);
     await windowManager.setPreventClose(true); // 关闭 → onWindowClose 分支
     trayReady = await (traySetup ?? _defaultTraySetup)();
+    // F25 LLD 首启顺序:托盘注册成功后即刷首次数据头(先注册后填充;
+    // 摘要查询异步,不阻塞托盘就绪;失败静默保持占位菜单)。
+    unawaited(_refreshMenu());
 
     _armScanTick();
     // 间隔变更即时重臂(FR-5):cancel 旧 Timer + 按新间隔重建。
     settings?.scanIntervalListenable.addListener(_rearmScanTick);
+    // F25 FR-3/ADR-2④:隐私开关切换即时重设菜单(切换即时生效)。
+    settings?.showTrayAmountsListenable.addListener(_refreshMenu);
     // 变更即扫(FR-4/ADR-1):每条 watch 流订阅 → 防抖 500ms 合流。
     // onError 吞错(评审 R1):drift watch 吐错(DB 损坏等)若不接管 →
     // 未捕获 zone 异常 + 订阅静默死亡。取舍:该流后续失效,但周期 tick
@@ -143,6 +189,7 @@ class TrayController with TrayListener, WindowListener {
     }
     _changeSubs.clear();
     settings?.scanIntervalListenable.removeListener(_rearmScanTick);
+    settings?.showTrayAmountsListenable.removeListener(_refreshMenu);
     trayManager.removeListener(this);
     windowManager.removeListener(this);
     if (trayReady) await trayManager.destroy();
@@ -188,6 +235,33 @@ class TrayController with TrayListener, WindowListener {
     } catch (_) {
       // 扫描失败不冒泡(Timer 回调里会变未捕获异步异常);幂等重扫安全,
       // 下次 tick/watch 触发自然重试(FR-5 无条件重扫取代跨日门槛)。
+    }
+    // F25 ADR-2①②:变更即扫防抖路径与周期 tick 的尾部统一刷托盘菜单
+    // (同一入口 → 先扫后刷;重设失败静默保持旧菜单,NFR-1)。
+    unawaited(_refreshMenu());
+  }
+
+  /// F25 ADR-2:托盘菜单重设入口 —— provider 查数 → 组菜单 →
+  /// `setContextMenu`。三触发合一(watch 防抖尾 / tick 尾 / 窗口 show
+  /// 事件)+ 开关 listenable,全部汇入本方法;查询失败 → 「--」占位,
+  /// 重设失败 → 保持旧菜单(附属功能降级不炸)。
+  Future<void> _refreshMenu() async {
+    if (!trayReady) return; // 托盘未就绪/已停:重设无处落,直接跳过。
+    TrayHeadData? head;
+    final provider = headProvider;
+    if (provider != null) {
+      try {
+        head = await provider();
+      } catch (_) {
+        head = null; // NFR-1:摘要查询失败 → 「--」占位,不阻断其余菜单项
+      }
+    }
+    try {
+      await trayManager.setContextMenu(Menu(
+          items: buildContextMenu(
+              head: head, showAmounts: _showTrayAmounts)));
+    } catch (_) {
+      // NFR-1:菜单重设失败 → 菜单保持旧内容(fail-safe 降级)。
     }
   }
 
@@ -238,10 +312,29 @@ class TrayController with TrayListener, WindowListener {
     }
   }
 
+  // F25 ADR-2③:窗口 show 事件(native WM_SHOWWINDOW 经 onWindowEvent
+  // 全事件回调透传 —— 本版 WindowListener 无专用 onWindowShow 钩子)
+  // → 重设菜单;从托盘回窗口的用户最可能刚在别处记了账/跨了日。
+  @override
+  void onWindowEvent(String eventName) {
+    if (eventName == 'show') unawaited(_refreshMenu());
+  }
+
   // ---- tray_manager ----
   @override
   void onTrayMenuItemClick(MenuItem menuItem) async {
     switch (menuItem.key) {
+      case _kNewTxn:
+        // F25 FR-2:显示并聚焦窗口,再跳转记账表单;导航闭包缺失/抛错
+        // (典型:极端时序取不到 context)→ 降级仅 show/focus,不炸。
+        await windowManager.show();
+        await windowManager.focus();
+        final nav = newTransactionNav;
+        if (nav != null) {
+          try {
+            await nav();
+          } catch (_) {}
+        }
       case _kShow:
         await windowManager.show();
         await windowManager.focus();
@@ -257,13 +350,65 @@ class TrayController with TrayListener, WindowListener {
     await windowManager.focus();
   }
 
-  /// 托盘菜单项(FR-6):显示御财 / 退出。「立即检查」已撤 —— 变更即扫
+  /// 托盘菜单项(FR-6 + F25):数据头区(FR-1,动态禁用项)→ 分隔线 →
+  /// 记一笔(FR-2)→ 显示御财 → 退出。「立即检查」已撤 —— 变更即扫
   /// (FR-4)+ 可配间隔(FR-5)治本取代手动逃生口,_kCheck 与其 case 退役。
+  ///
+  /// F25 参数化(design LLD):
+  /// - [head] 非空且 [showAmounts] → 今日/本月两行 disabled;
+  /// - [showAmounts]=false → 「金额已隐藏」单行(不出两行空壳);
+  /// - [head]=null(查询失败/未注入)→ 「--」单行占位,不阻断其余项。
   @visibleForTesting
-  static List<MenuItem> buildContextMenu() => [
-        MenuItem(key: _kShow, label: '显示御财'),
-        MenuItem(key: _kQuit, label: '退出'),
-      ];
+  static List<MenuItem> buildContextMenu({
+    TrayHeadData? head,
+    bool showAmounts = true,
+  }) {
+    final headItems = !showAmounts
+        ? [MenuItem(key: _kHead, label: '金额已隐藏', disabled: true)]
+        : (head == null
+            ? [MenuItem(key: _kHead, label: '--', disabled: true)]
+            : [
+                MenuItem(
+                  key: _kHeadToday,
+                  label:
+                      '今日 收 ${formatTrayAmount(head.todayIncomeCents)} · 支 ${formatTrayAmount(head.todayExpenseCents)}',
+                  disabled: true,
+                ),
+                MenuItem(
+                  key: _kHeadMonth,
+                  label: '本月结余 ${formatTrayBalance(head.monthBalanceCents)}',
+                  disabled: true,
+                ),
+              ]);
+    return [
+      ...headItems,
+      MenuItem.separator(),
+      MenuItem(key: _kNewTxn, label: '记一笔'),
+      MenuItem(key: _kShow, label: '显示御财'),
+      MenuItem(key: _kQuit, label: '退出'),
+    ];
+  }
+
+  /// F25 金额格式(今日收/支):¥ + 千分位整元(分截断;菜单纯文本项
+  /// 紧凑优先,对齐 GoldAmount showFen:false 表单先例的分组算法)。
+  @visibleForTesting
+  static String formatTrayAmount(int cents) {
+    final neg = cents < 0;
+    final yuan = cents.abs() ~/ 100;
+    final s = yuan.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    // 符号在货币符号前(design LLD:-¥123 / +¥123)。
+    return '${neg ? '-' : ''}¥$buf';
+  }
+
+  /// F25 结余格式(design LLD):正 +¥ / 负 -¥ / 零 ¥0(不带符号)。
+  @visibleForTesting
+  static String formatTrayBalance(int cents) =>
+      cents == 0 ? formatTrayAmount(0) : '${cents > 0 ? '+' : ''}${formatTrayAmount(cents)}';
 
   /// 托盘图标是否需要(重)落盘:目标不存在或内容与资产不一致(升级换图标)。
   /// 抽为可测纯判定(F23 P1);逐字节比对,图标仅数百字节成本可忽略。

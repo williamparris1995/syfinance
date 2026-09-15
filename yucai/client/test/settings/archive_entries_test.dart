@@ -90,18 +90,22 @@ class _FakeThemeSettings extends Fake implements ThemeSettings {
 }
 
 /// Fake TraySettings(F22 窗口与提醒)— 满足页面 build 期 getIt 解析与
-/// SegmentedButton 的 listenable 读取(默认 hide/minutes30)。
+/// SegmentedButton/Switch 的 listenable 读取(默认 hide/minutes30/显示金额)。
 class _FakeTraySettings extends Fake implements TraySettings {
   final ValueNotifier<TrayCloseBehavior> _close =
       ValueNotifier<TrayCloseBehavior>(TrayCloseBehavior.hide);
   final ValueNotifier<TrayScanInterval> _scan =
       ValueNotifier<TrayScanInterval>(TrayScanInterval.minutes30);
+  final ValueNotifier<bool> _amounts = ValueNotifier<bool>(true);
 
   @override
   ValueListenable<TrayCloseBehavior> get closeBehaviorListenable => _close;
 
   @override
   ValueListenable<TrayScanInterval> get scanIntervalListenable => _scan;
+
+  @override
+  ValueListenable<bool> get showTrayAmountsListenable => _amounts;
 }
 
 class _FakeCurrencySettings extends Fake implements CurrencySettings {

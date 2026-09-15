@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- **FR-1 托盘数据头**:托盘菜单顶部两个动态**禁用项**:「今日 收 ¥x · 支 ¥y」「本月结余 +¥z」——口径复用 transaction 本地 DS `summary(year, month, {scope})` **单一查询点**(day+month 两次调用),金额格式与 app 内一致(¥ + 千分位);「托盘显示金额」关闭时两行显示「金额已隐藏」。
+- **FR-1 托盘数据头**:托盘菜单顶部两个动态**禁用项**:「今日 收 ¥x · 支 ¥y」「本月结余 +¥z」——口径复用 transaction 本地 DS `summary(year, month, {scope})` **单一查询点**(day+month 两次调用),金额格式与 app 内一致(¥ + 千分位);「托盘显示金额」关闭时数据头收敛为单行「金额已隐藏」。
 - **FR-2 「记一笔」快捷操作**:菜单项(数据头与「显示御财」之间)→ 显示并聚焦窗口 + 跳转 `/transactions/new`。
 - **FR-3 隐私开关**:设置页「窗口与提醒」区新增行「托盘显示金额」(Switch,默认**开**;TraySettings 新字段 `showTrayAmounts` 持久化,镜像既有字段范式);切换即时生效(菜单重设)。
 - **FR-4 菜单刷新**:数据/开关变化即刷新——`Transactions` 表 drift watch(骑 F22 `changeTriggers` 基建,watch 面扩表)+ 周期 tick + 窗口 show 事件 → 防抖重设托盘菜单(重调 `setContextMenu`);摘要查询失败 → 数据头显示「--」占位,不阻断其余菜单项。

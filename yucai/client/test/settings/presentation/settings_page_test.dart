@@ -81,14 +81,17 @@ class _FakeCurrencySettings extends Fake implements CurrencySettings {
 }
 
 /// Fake TraySettings(F22 窗口与提醒)— 默认 hide/minutes30,记录 setX 调用
-/// (照 _FakeThemeSettings 范式:notifier 驱动 SegmentedButton 选中态)。
+/// (照 _FakeThemeSettings 范式:notifier 驱动 SegmentedButton 选中态;
+/// F25 扩第四字段 showTrayAmounts,默认 true)。
 class _FakeTraySettings extends Fake implements TraySettings {
   final ValueNotifier<TrayCloseBehavior> _close =
       ValueNotifier<TrayCloseBehavior>(TrayCloseBehavior.hide);
   final ValueNotifier<TrayScanInterval> _scan =
       ValueNotifier<TrayScanInterval>(TrayScanInterval.minutes30);
+  final ValueNotifier<bool> _amounts = ValueNotifier<bool>(true);
   final List<TrayCloseBehavior> closeCalls = [];
   final List<TrayScanInterval> scanCalls = [];
+  final List<bool> amountCalls = [];
 
   @override
   TrayCloseBehavior get closeBehavior => _close.value;
@@ -103,6 +106,12 @@ class _FakeTraySettings extends Fake implements TraySettings {
   ValueListenable<TrayScanInterval> get scanIntervalListenable => _scan;
 
   @override
+  bool get showTrayAmounts => _amounts.value;
+
+  @override
+  ValueListenable<bool> get showTrayAmountsListenable => _amounts;
+
+  @override
   Future<void> setCloseBehavior(TrayCloseBehavior behavior) async {
     closeCalls.add(behavior);
     _close.value = behavior;
@@ -112,6 +121,12 @@ class _FakeTraySettings extends Fake implements TraySettings {
   Future<void> setScanInterval(TrayScanInterval interval) async {
     scanCalls.add(interval);
     _scan.value = interval;
+  }
+
+  @override
+  Future<void> setShowTrayAmounts(bool show) async {
+    amountCalls.add(show);
+    _amounts.value = show;
   }
 }
 
@@ -549,5 +564,56 @@ void main() {
     await t.pump();
     expect(exitPort.exitCalls, 1);
     expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  // ── F25 T4:「托盘显示金额」Switch 行(FR-3 隐私开关) ─────────────
+  testWidgets('F25: 托盘显示金额行渲染于窗口与提醒区,默认开', (t) async {
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 8,
+      status: CurrencyStatus.loaded,
+    );
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
+    await t.pumpAndSettle();
+
+    // 行标签 + hint(窗口与提醒区第三行)。
+    expect(find.text('托盘显示金额'), findsOneWidget);
+    expect(find.text('托盘菜单顶部的今日收支与本月结余'), findsOneWidget);
+    // Switch 初值 = true(隐私默认显示,spec grill 定案)。
+    expect(t.widget<Switch>(find.byType(Switch)).value, isTrue);
+  });
+
+  testWidgets('F25: 切换托盘显示金额 → setShowTrayAmounts(false) 持久化',
+      (t) async {
+    // F25 行在窗口与提醒区第三行:拉高测试表面让 Switch 可直接 tap
+    // (同 F22 既有测试手法,断言语义不变)。
+    t.view.physicalSize = const Size(800, 1600);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 8,
+      status: CurrencyStatus.loaded,
+    );
+    final tray = _FakeTraySettings();
+    await t.pumpWidget(_harness(state, authRemote, currencySettings,
+        traySettings: tray));
+    await t.pumpAndSettle();
+
+    // 切到关 → setShowTrayAmounts(false)(TraySettings 持久化 + listenable
+    // 即时驱动托盘菜单重设)。
+    await t.tap(find.byType(Switch));
+    await t.pumpAndSettle();
+    expect(tray.amountCalls, [false]);
+    expect(t.widget<Switch>(find.byType(Switch)).value, isFalse);
+
+    // 再切回开。
+    await t.tap(find.byType(Switch));
+    await t.pumpAndSettle();
+    expect(tray.amountCalls, [false, true]);
+    expect(t.widget<Switch>(find.byType(Switch)).value, isTrue);
   });
 }
