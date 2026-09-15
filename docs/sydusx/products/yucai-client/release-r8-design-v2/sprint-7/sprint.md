@@ -9,7 +9,7 @@
 ## Feature roster
 
 - [x] **feature F22** app-menu — 设置页底部「退出御财」按钮(即时退出,AppExitPort;grill D4 推翻顶栏菜单方案)+ 关闭行为设置化(「关闭按钮:隐藏到托盘[默认]/退出程序」+ 首次隐藏一次性对话框[最小化/退出二选一,Esc=取消关闭不消耗标记])+ **扫描调度治本**(债务期次/自动记账规则写入→drift watch 防抖 500ms 即扫;30 分钟跨日门槛→用户可配间隔 15/30/60 周期扫描;应用菜单[已裁撤]与托盘菜单均撤「立即检查」;TrayController 完全注入化为 F25 打地基) ✅ done(2026-09-15,merge `6e6d1698`;1643 全绿+e2e 过+review 门 pass;advisory 3 条在 code-ledger)
-- [ ] **feature F23** app-icon — 字符标「御」图标全套(墨底 #0B0E13 圆角方块 + 鎏金渐变 #E8C07A→#C9964A「御」;SVG 1024 源 → 多尺寸 ICO 16/24/32/48/64/256 替换 windows/runner/resources/app_icon.ico;托盘 assets/tray_icon.ico 单独 16/24 简化形;不用 flutter_launcher_icons——Windows 端只生成单尺寸 ICO,issue #573) **[claimed: zcode 2026-09-15]**
+- [x] **feature F23** app-icon — 字符标「御」图标全套(墨底 #0B0E13 圆角方块 + 鎏金渐变 #E8C07A→#C9964A「御」;SVG 1024 源 → 多尺寸 ICO 16/24/32/48/64/256 替换 windows/runner/resources/app_icon.ico;托盘 assets/tray_icon.ico 单独 16/24 简化形;不用 flutter_launcher_icons——Windows 端只生成单尺寸 ICO,issue #573) ✅ done(2026-09-15,merge `f5d7ac2b`;三轮视觉 QC+评审修复闭环)
 - [ ] **feature F25** tray-info — 托盘数据头+快捷操作(菜单顶部动态禁用项:今日收支/本月结余,复用 dashboard 聚合口径;「记一笔」=显示窗口+跳记账表单;设置页「托盘显示金额」隐私开关。**前置:F22 注入化地基,排其后实施**)
 
 ## defer
