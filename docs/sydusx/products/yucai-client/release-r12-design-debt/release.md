@@ -18,6 +18,10 @@
 
 ## 状态
 
+- 2026-09-15 **release ✅ 收官**:F26/F27/F28 三票全 done——R8 defer 清单(hero/onAccent/占位文案)全部清账,design-v2 令牌三阶段+文案规范达成「全应用零裸色零杂式」。helperText×2 后续票在案。
+- 2026-09-15 **sprint-3 ✅ 收官**:F28 占位文案清理 done(merge `ed4eed69`;31 处迁移,规范表用户两项拍板)。
 - 2026-09-15 **sprint-2 ✅ 收官**:F27 onAccent sweep done(merge `ff4dabf1`;75 处全量判定 47 迁移/29 豁免带注;令牌三阶段闭环)。
 - 2026-09-15 **sprint-1 立项**:F26 hero 重设计。[sprint-1](sprint-1/sprint.md)
 - 2026-09-15 **sprint-1 ✅ 收官**:F26 done(merge `0fa0123b`;hero 双主题终态+F15 豁免两目清零;下一 sprint 候选=onAccent sweep/占位文案)。
+
+## status: done(2026-09-15;helperText×2 后续票+自定义标题栏/AI 语音待 ticket 化在 defer)

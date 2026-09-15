@@ -8,10 +8,10 @@
 
 ## Feature roster
 
-- [ ] **feature F28** copy-cleanup — 文案规范定案→全量清点→统一迁移→测试适配 **[claimed: zcode 2026-09-15]**
+- [x] **feature F28** copy-cleanup — 文案规范定案→全量清点→统一迁移→测试适配 ✅ done(2026-09-15,merge `ed4eed69`[fast-forward];31 处迁移+FR-2 grep 门;1686 全绿;评审双轴 PASS)
 
 ## defer
 
 - (无;R12 本票后可收官评估)
 
-## status: pending
+## status: done(F28 ✅ 2026-09-15)
