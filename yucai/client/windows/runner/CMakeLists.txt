@@ -38,3 +38,7 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# F24 自动更新:Runner.rc 内嵌 DSAPub(dsa_pub.pem);RC 编译规则不追踪其依赖,
+# 换钥后增量构建会静默沿用旧公钥(review MEDIUM)——显式声明依赖强制重编。
+set_property(SOURCE "Runner.rc" PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/dsa_pub.pem")

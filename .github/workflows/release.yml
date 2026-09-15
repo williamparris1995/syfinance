@@ -1,0 +1,186 @@
+# 御财发布流水线(F24 FR-1;ADR-2)——tag push 触发,全自动出 Release + 签名 appcast。
+# 链路:checkout → 版本一致性守护(tag vs pubspec,单源 NFR-2)→ Flutter 构建
+#       → Inno Setup 安装包 → GitHub Release(附安装包)→ 生成 DSA 签名
+#       appcast.xml → 附加到 Release。零手工分发步骤(spec FR-1)。
+# 客户端订阅地址(FR-2,恒指向最新 Release,URL 稳定):
+#   https://github.com/williamparris1995/syfinance/releases/latest/download/appcast.xml
+# 私钥经 Secrets 注入(FR-3):APPCAST_DSA_PRIVATE_KEY(经典 DSA,匹配 auto_updater
+# 1.0.0 捆绑的 WinSparkle 0.8.1 验签档位;见 yucai/client/tool/RELEASE.md)。
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# 全链需创建 Release / 上传资产,显式声明内容写权限(仓库 Settings 亦需允许,见 RELEASE.md)。
+permissions:
+  contents: write
+
+# 同一 tag 重推/重跑时串行,避免双写 Release 资产。
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight secrets check
+        # Secret 缺失前置检查(review):避免 Release 建了才发现没 appcast
+        # (latest feed 404 → 客户端静默无更新直到修复重跑)。
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:APPCAST_DSA_PRIVATE_KEY)) {
+            Write-Error '::error::Secret APPCAST_DSA_PRIVATE_KEY missing'
+            exit 1
+          }
+        env:
+          APPCAST_DSA_PRIVATE_KEY: ${{ secrets.APPCAST_DSA_PRIVATE_KEY }}
+
+      - name: Extract version from tag
+        id: ver
+        shell: bash
+        run: |
+          # tag 形如 vX.Y.Z;去前缀 v 得纯版本号(= pubspec 的 X.Y.Z,+N 构建号不进 tag,
+          # 与 yucai/Makefile windows-installer 的 AppVersion 口径一致)。
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error::tag '$TAG' 不符 vX.Y.Z 形式"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Version consistency guard (tag vs pubspec)
+        shell: bash
+        run: |
+          # 版本单源守护(NFR-2):tag 必须等于 yucai/client/pubspec.yaml 的 version
+          # 去掉 +N 构建号后的部分;不符 fail-fast,防止 tag/pubspec 漂移(Risks 在案)。
+          # 提取方式复制自 yucai/Makefile windows-installer 目标(单一口径)。
+          PUBSPEC_VERSION=$(grep -m1 '^version' yucai/client/pubspec.yaml \
+            | sed 's/version: *//' | cut -d'+' -f1 | tr -d '[:space:]')
+          TAG_VERSION="${{ steps.ver.outputs.version }}"
+          echo "pubspec=$PUBSPEC_VERSION tag=$TAG_VERSION"
+          if [ "$PUBSPEC_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::tag v$TAG_VERSION 与 pubspec version $PUBSPEC_VERSION 不一致(版本单源:yucai/client/pubspec.yaml,先改版本再打 tag)"
+            exit 1
+          fi
+          echo "OK: tag == pubspec == $TAG_VERSION"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # 仓内未钉死 Flutter 版本(pubspec environment 仅约束 Dart sdk >=3.12.0 <4.0.0,
+          # README 无版本线索)→ 用 stable;如后续钉版本,在此加 flutter-version 即可。
+          channel: stable
+          cache: true
+
+      - name: Build Windows release
+        shell: bash
+        run: |
+          # 与 yucai/Makefile windows-installer 的构建步一致;CI 冷环境补 pub get。
+          cd yucai/client
+          flutter pub get
+          flutter build windows --release
+
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: choco install innosetup -y
+
+      - name: Build installer (ISCC)
+        shell: pwsh
+        run: |
+          # 参数复制自 yucai/Makefile windows-installer 目标:/DAppVersion=<版本> 注入
+          # client/packaging/yucai.iss,产物 client/dist/yucai-setup-<版本>.exe。
+          # 与 Makefile 的差异:Makefile 在本机 Git Bash 跑,需 MSYS2_ARG_CONV_EXCL="/D"
+          # 防 MSYS 把 /D 当路径转换;Actions 此步用 pwsh 无该问题,参数本体一致。
+          # choco 版 ISCC 装在 Program Files (x86)(本机 Makefile 用 %LOCALAPPDATA% 每用户装)。
+          $version = "${{ steps.ver.outputs.version }}"
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC not found: $iscc" }
+          & $iscc /DAppVersion=$version yucai/client/packaging/yucai.iss
+          $installer = "yucai/client/dist/yucai-setup-$version.exe"
+          if (-not (Test-Path $installer)) { throw "installer not found: $installer" }
+          Add-Content -Path $env:GITHUB_ENV -Value "INSTALLER_PATH=$installer"
+          Write-Host "installer ready: $installer"
+
+      - name: Create GitHub Release with installer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          # Release 说明 = tag 注释(annotated tag 的 %(contents),spec FR-1「changelog 取 tag 注释」);
+          # 同一份内容随后进 appcast <description>。job 重跑幂等:Release 已存在则改走资产上传。
+          set -euo pipefail
+          NOTES_FILE="release-notes.txt"
+          git tag -l --format='%(contents)' "$TAG" > "$NOTES_FILE"
+          INSTALLER_NAME="$(basename "$INSTALLER_PATH")"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $TAG already exists, uploading installer only"
+            gh release upload "$TAG" "$INSTALLER_PATH" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$INSTALLER_PATH" \
+              --title "御财 $TAG" \
+              --notes-file "$NOTES_FILE" \
+              --repo "$GITHUB_REPOSITORY"
+          fi
+          echo "ASSET_URL=https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$INSTALLER_NAME" >> "$GITHUB_ENV"
+
+      - name: Setup python DSA dependency
+        shell: pwsh
+        run: |
+          # windows-latest 预装 python;经典 DSA(DSA-SHA1)签名用 cryptography,
+          # 显式安装保证确定性(依赖声明见 yucai/client/tool/RELEASE.md)。
+          pip install cryptography
+
+      - name: Generate signed appcast.xml
+        shell: bash
+        env:
+          # FR-3:私钥仅经 Secrets 注入,不回显不入日志。
+          APPCAST_DSA_PRIVATE_KEY: ${{ secrets.APPCAST_DSA_PRIVATE_KEY }}
+          PYTHONUTF8: '1'  # Windows 管道默认非 UTF-8 代码页,中文输出需强制 UTF-8
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          # 生成 Sparkle 规范 appcast(版本/安装包 URL/DSA 签名/长度);
+          # pubDate 取 tag 创建时间(确定性,重跑不漂移)。
+          set -euo pipefail
+          PUB_DATE="$(git tag -l --format='%(creatordate:rfc2822)' "$TAG")"
+          python yucai/client/tool/gen_appcast.py \
+            --tag "$TAG" \
+            --notes-file release-notes.txt \
+            --asset-url "$ASSET_URL" \
+            --asset-file "$INSTALLER_PATH" \
+            --pub-date "$PUB_DATE" \
+            --output appcast.xml
+
+      - name: Attach appcast.xml to Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          # 附加后 feed URL(FR-2)即解析到本次版本;--clobber 支持重跑覆盖。
+          gh release upload "$TAG" appcast.xml --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Release summary
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          {
+            echo "## 御财 $TAG 发布完成"
+            echo ""
+            echo "- 安装包: \`$ASSET_URL\`"
+            echo "- appcast: https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/appcast.xml"
+            echo "- 稳定订阅地址(FR-2): https://github.com/williamparris1995/syfinance/releases/latest/download/appcast.xml"
+          } >> "$GITHUB_STEP_SUMMARY"

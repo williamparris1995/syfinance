@@ -9,6 +9,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart'
     show AppExitFn;
+import 'package:yucai_client/core/notifications/app_updater.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
 
@@ -71,6 +72,7 @@ class TrayController with TrayListener, WindowListener {
     this.contextResolver,
     this.traySetup,
     this.headProvider,
+    this.versionProvider,
     this.newTransactionNav,
     AppExitFn? exitFn,
   }) : _exit = exitFn ?? _defaultExit;
@@ -102,6 +104,11 @@ class TrayController with TrayListener, WindowListener {
   /// 恒「--」占位(等价改造前无数据头能力,其余菜单项不受影响)。
   final TrayHeadProvider? headProvider;
 
+  /// 版本提供者(F24 FR-6/ADR-5;组合根注入 PackageInfo.version,即
+  /// pubspec 单源派生 NFR-2);null = 未注入 → 版本项降级纯「御财」。
+  /// 只在首次菜单刷新时取一次并缓存(见 [_refreshMenu])。
+  final Future<String?> Function()? versionProvider;
+
   /// 「记一笔」导航闭包(F25 FR-2/ADR-4,组合根注入 GoRouter push);
   /// null / 抛错 = 降级仅 show/focus 窗口(不炸,NFR-1)。
   final Future<void> Function()? newTransactionNav;
@@ -130,6 +137,13 @@ class TrayController with TrayListener, WindowListener {
   static const _kHeadToday = 'head_today';
   static const _kHeadMonth = 'head_month';
   static const _kHead = 'head';
+  static const _kCheckUpdate = 'check_update';
+  static const _kVersion = 'version';
+
+  // F24 FR-6:版本号取一次缓存(运行期不变);未取/失败/未注入 → null
+  // → 版本项降级纯「御财」(NFR-1 附属降级)。
+  String? _version;
+  bool _versionLoaded = false;
 
   // settings null 容错:所有读走内部 getter(null-safe 默认)。
   TrayCloseBehavior get _closeBehavior =>
@@ -256,10 +270,25 @@ class TrayController with TrayListener, WindowListener {
         head = null; // NFR-1:摘要查询失败 → 「--」占位,不阻断其余菜单项
       }
     }
+    // F24 FR-6/ADR-5:版本异步取一次并入本刷新数据流(刷新触发复用 F25
+    // 三触发合一机制);查询失败 → null 缓存,label 降级「御财」不炸。
+    if (!_versionLoaded) {
+      _versionLoaded = true;
+      final versionProvider = this.versionProvider;
+      if (versionProvider != null) {
+        try {
+          _version = await versionProvider();
+        } catch (_) {
+          _version = null; // NFR-1:版本查询失败不阻断菜单其余项
+        }
+      }
+    }
     try {
       await trayManager.setContextMenu(Menu(
           items: buildContextMenu(
-              head: head, showAmounts: _showTrayAmounts)));
+              head: head,
+              showAmounts: _showTrayAmounts,
+              version: _version)));
     } catch (_) {
       // NFR-1:菜单重设失败 → 菜单保持旧内容(fail-safe 降级)。
     }
@@ -335,6 +364,13 @@ class TrayController with TrayListener, WindowListener {
             await nav();
           } catch (_) {}
         }
+      case _kCheckUpdate:
+        // F24 FR-5/6:手动检查 → auto_updater 引擎检查 UI(WinSparkle,
+        // 英文弹窗决策在案)。引擎抛错(bootstrap 降级后未初始化/平台
+        // 缺失)→ 吞掉降级:手动检查项恒可点、恒不炸(NFR-1)。
+        try {
+          await AppUpdater.checkForUpdates();
+        } catch (_) {}
       case _kShow:
         await windowManager.show();
         await windowManager.focus();
@@ -350,18 +386,22 @@ class TrayController with TrayListener, WindowListener {
     await windowManager.focus();
   }
 
-  /// 托盘菜单项(FR-6 + F25):数据头区(FR-1,动态禁用项)→ 分隔线 →
+  /// 托盘菜单项(FR-6 + F25 + F24):数据头区(FR-1,动态禁用项)→ 分隔线 →
+  /// 检查更新(F24 FR-5,enabled)→ 御财 vX.Y.Z(F24 FR-6,disabled)→
   /// 记一笔(FR-2)→ 显示御财 → 退出。「立即检查」已撤 —— 变更即扫
   /// (FR-4)+ 可配间隔(FR-5)治本取代手动逃生口,_kCheck 与其 case 退役。
   ///
   /// F25 参数化(design LLD):
   /// - [head] 非空且 [showAmounts] → 今日/本月两行 disabled;
   /// - [showAmounts]=false → 「金额已隐藏」单行(不出两行空壳);
-  /// - [head]=null(查询失败/未注入)→ 「--」单行占位,不阻断其余项。
+  /// - [head]=null(查询失败/未注入)→ 「--」单行占位,不阻断其余项;
+  /// - [version](F24,PackageInfo 派生)非空 → 「御财 vX.Y.Z」,否则
+  ///   降级纯「御财」(见 [formatVersionLabel])。
   @visibleForTesting
   static List<MenuItem> buildContextMenu({
     TrayHeadData? head,
     bool showAmounts = true,
+    String? version,
   }) {
     final headItems = !showAmounts
         ? [MenuItem(key: _kHead, label: '金额已隐藏', disabled: true)]
@@ -383,11 +423,21 @@ class TrayController with TrayListener, WindowListener {
     return [
       ...headItems,
       MenuItem.separator(),
+      MenuItem(key: _kCheckUpdate, label: '检查更新'),
+      MenuItem(
+          key: _kVersion, label: formatVersionLabel(version), disabled: true),
       MenuItem(key: _kNewTxn, label: '记一笔'),
       MenuItem(key: _kShow, label: '显示御财'),
       MenuItem(key: _kQuit, label: '退出'),
     ];
   }
+
+  /// F24 FR-6:「御财 vX.Y.Z」label 组装(X.Y.Z 取 PackageInfo.version,
+  /// 即 pubspec 单源派生 NFR-2);版本未知(未注入/查询失败/空)→ 降级
+  /// 纯「御财」,不阻断菜单(NFR-1)。
+  @visibleForTesting
+  static String formatVersionLabel(String? version) =>
+      (version == null || version.isEmpty) ? '御财' : '御财 v$version';
 
   /// F25 金额格式(今日收/支):¥ + 千分位整元(分截断;菜单纯文本项
   /// 紧凑优先,对齐 GoldAmount showFen:false 表单先例的分组算法)。

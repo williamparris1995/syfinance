@@ -111,6 +111,8 @@ void main() {
   late _ChannelLog windowLog;
   late _ChannelLog trayLog;
   late _ExitSpy exitSpy;
+  late List<MethodCall> updaterCalls;
+  late bool updaterFailNext;
 
   Future<ScanResult> scanOk() async => const ScanResult(scanned: 0, sent: 0);
 
@@ -118,6 +120,8 @@ void main() {
     windowLog = _ChannelLog();
     trayLog = _ChannelLog();
     exitSpy = _ExitSpy();
+    updaterCalls = [];
+    updaterFailNext = false;
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
@@ -139,11 +143,24 @@ void main() {
         return null;
       },
     );
+    // F24:auto_updater 引擎 channel(「检查更新」菜单项的调用/降级断言面)。
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('dev.leanflutter.plugins/auto_updater'),
+      (call) async {
+        updaterCalls.add(call);
+        if (updaterFailNext) {
+          throw PlatformException(code: 'engine-unavailable');
+        }
+        return null;
+      },
+    );
     addTearDown(() {
       messenger.setMockMethodCallHandler(
           const MethodChannel('window_manager'), null);
       messenger.setMockMethodCallHandler(
           const MethodChannel('tray_manager'), null);
+      messenger.setMockMethodCallHandler(
+          const MethodChannel('dev.leanflutter.plugins/auto_updater'), null);
     });
   });
 
@@ -169,6 +186,7 @@ void main() {
     BuildContext? Function()? contextResolver,
     TrayHeadProvider? headProvider,
     Future<void> Function()? newTransactionNav,
+    Future<String?> Function()? versionProvider,
   }) =>
       TrayController(
         scan: scanOk,
@@ -177,6 +195,7 @@ void main() {
         contextResolver: contextResolver,
         headProvider: headProvider,
         newTransactionNav: newTransactionNav,
+        versionProvider: versionProvider,
         exitFn: exitSpy.exit0,
       )..trayReady = true;
 
@@ -421,8 +440,8 @@ void main() {
     });
   });
 
-  group('托盘菜单(FR-6 + F25 数据头/快捷操作)', () {
-    test('菜单枚举:数据头两行 disabled + 分隔线 + 记一笔 + 显示御财 + 退出',
+  group('托盘菜单(FR-6 + F25 数据头/快捷操作 + F24 更新/版本项)', () {
+    test('菜单枚举:数据头两行 + 分隔线 + 检查更新 + 版本 + 记一笔 + 显示御财 + 退出',
         () {
       const head = TrayHeadData(
         todayIncomeCents: 123456, // ¥1,234
@@ -431,10 +450,10 @@ void main() {
       );
       final items = TrayController.buildContextMenu(head: head);
 
-      // 分隔线无 key,非空 key 枚举 = 五个语义项。
+      // 分隔线无 key,非空 key 枚举 = 七个语义项。
       final keys =
           items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['head_today', 'head_month', 'new_transaction', 'show', 'quit']);
+      expect(keys, ['head_today', 'head_month', 'check_update', 'version', 'new_transaction', 'show', 'quit']);
       expect(items.any((i) => i.type == 'separator'), isTrue);
 
       // FR-1:数据头两行 disabled(仅速览不可点)+ 金额文案逐字。
@@ -444,6 +463,17 @@ void main() {
       final month = items.firstWhere((i) => i.key == 'head_month');
       expect(month.disabled, isTrue);
       expect(month.label, '本月结余 +¥123');
+
+      // F24 FR-6:检查更新 enabled;版本项 disabled;两項同置于数据头
+      // 之下、显示御财之上(spec FR-6 位置约束)。
+      final check = items.firstWhere((i) => i.key == 'check_update');
+      expect(check.disabled, isFalse);
+      expect(check.label, '检查更新');
+      final version = items.firstWhere((i) => i.key == 'version');
+      expect(version.disabled, isTrue);
+      expect(keys.indexOf('check_update'),
+          lessThan(keys.indexOf('new_transaction')));
+      expect(keys.indexOf('version'), lessThan(keys.indexOf('show')));
 
       // FR-2:记一笔(可点,位于数据头与显示御财之间)。
       final newTxn = items.firstWhere((i) => i.key == 'new_transaction');
@@ -483,7 +513,7 @@ void main() {
           TrayController.buildContextMenu(head: head, showAmounts: false);
       // 隐藏 → 单行占位(design LLD:单行,不出两行空壳)。
       final keys = items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['head', 'new_transaction', 'show', 'quit']);
+      expect(keys, ['head', 'check_update', 'version', 'new_transaction', 'show', 'quit']);
       final headItem = items.firstWhere((i) => i.key == 'head');
       expect(headItem.disabled, isTrue);
       expect(headItem.label, '金额已隐藏');
@@ -492,12 +522,12 @@ void main() {
     test('head=null(查询失败/未注入)→ 「--」占位(FR-4/NFR-1)', () {
       final items = TrayController.buildContextMenu();
       final keys = items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['head', 'new_transaction', 'show', 'quit']);
+      expect(keys, ['head', 'check_update', 'version', 'new_transaction', 'show', 'quit']);
       final headItem = items.firstWhere((i) => i.key == 'head');
       expect(headItem.disabled, isTrue);
       expect(headItem.label, '--');
       // 「--」不阻断其余菜单项(NFR-1)。
-      expect(keys, containsAll(['new_transaction', 'show', 'quit']));
+      expect(keys, containsAll(['check_update', 'version', 'new_transaction', 'show', 'quit']));
     });
 
     test('formatTrayAmount:千分位/整元/负号(F25 金额格式)', () {
@@ -551,6 +581,99 @@ void main() {
 
       expect(windowLog.calls.where((m) => m == 'show'), isNotEmpty);
       expect(errors, isEmpty); // 降级不炸(NFR-1)
+    });
+  });
+
+  group('F24 检查更新 + 版本项(FR-5/FR-6/ADR-5)', () {
+    test('formatVersionLabel:御财 vX.Y.Z 组装;null/空 → 降级「御财」', () {
+      expect(TrayController.formatVersionLabel('1.2.3'), '御财 v1.2.3');
+      expect(TrayController.formatVersionLabel('10.20.30'), '御财 v10.20.30');
+      expect(TrayController.formatVersionLabel(null), '御财');
+      expect(TrayController.formatVersionLabel(''), '御财');
+    });
+
+    test('buildContextMenu(version:) → 版本项带 vX.Y.Z 文案(FR-6)', () {
+      final items = TrayController.buildContextMenu(
+          head: null, version: '1.2.3');
+      expect(items.firstWhere((i) => i.key == 'version').label, '御财 v1.2.3');
+    });
+
+    test('点击「检查更新」→ auto_updater 引擎前台检查(channel mock 断言)',
+        () async {
+      final controller = mk();
+      controller.onTrayMenuItemClick(
+          MenuItem(key: 'check_update', label: '检查更新'));
+      await pump();
+
+      expect(updaterCalls.single.method, 'checkForUpdates');
+      expect(updaterCalls.single.arguments, {'inBackground': false});
+    });
+
+    test('引擎抛错(未初始化/平台缺失)→ 吞掉不炸(降级,NFR-1)', () async {
+      final errors = <Object>[];
+      updaterFailNext = true;
+      final controller = mk();
+      runZonedGuarded<void>(
+          () => controller.onTrayMenuItemClick(
+              MenuItem(key: 'check_update', label: '检查更新')),
+          (e, _) => errors.add(e));
+      await pump();
+
+      expect(errors, isEmpty); // 手动检查项恒可点、恒不炸
+    });
+
+    test('versionProvider 并入 _refreshMenu 数据流:窗口 show → 菜单带 vX.Y.Z'
+        '(刷新触发复用 F25 机制)', () async {
+      final controller = mk(
+        headProvider: () async => null,
+        versionProvider: () async => '1.2.3',
+      );
+      controller.onWindowEvent('show');
+      await pump();
+
+      expect(trayLog.menus.last, contains('御财 v1.2.3'));
+    });
+
+    test('版本只取一次缓存:两次刷新 → provider 单次调用', () async {
+      var providerCalls = 0;
+      final controller = mk(
+        headProvider: () async => null,
+        versionProvider: () async {
+          providerCalls++;
+          return '1.2.3';
+        },
+      );
+      controller.onWindowEvent('show');
+      await pump();
+      controller.onWindowEvent('show');
+      await pump();
+
+      expect(providerCalls, 1); // 首刷已缓存,后续刷新直接复用
+      expect(trayLog.menus.last, contains('御财 v1.2.3'));
+    });
+
+    test('versionProvider 抛错 → 降级「御财」,不炸(NFR-1)', () async {
+      final errors = <Object>[];
+      final controller = mk(
+        headProvider: () async => null,
+        versionProvider: () async => throw StateError('package_info missing'),
+      );
+      runZonedGuarded<void>(
+          () => controller.onWindowEvent('show'), (e, _) => errors.add(e));
+      await pump();
+
+      expect(errors, isEmpty);
+      expect(trayLog.menus.last, contains('"御财"')); // 无版本后缀
+    });
+
+    test('versionProvider 未注入 → 版本项降级「御财」(等价改造前无该项能力)',
+        () async {
+      final controller = mk(headProvider: () async => null);
+      controller.onWindowEvent('show');
+      await pump();
+
+      expect(trayLog.menus.last, contains('"御财"'));
+      expect(trayLog.menus.last, isNot(contains('御财 v')));
     });
   });
 

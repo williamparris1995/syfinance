@@ -14,16 +14,16 @@
 ## Decisions(ADR)
 
 ### ADR-1 引擎 = auto_updater(WinSparkle)
-- **理由**:Flutter Windows 事实标准;EdDSA 验签引擎内置(不在理财 app 里手写密码学);下载续传/调度/安装流久经考验。
+- **理由**:Flutter Windows 事实标准;签名验签引擎内置(不在理财 app 里手写密码学;**签名档位=DSA(Sparkle 经典)**——auto_updater 1.0.0 捆绑 WinSparkle 0.8.1 仅支持 DSA,原裁 EdDSA 需 0.9+,降档与切回清单见 tool/gen_appcast.py 头注);下载续传/调度/安装流久经考验。
 - **备选**:自研(中文 UI 但手写 ed25519 验证+续传+调度,风险>收益;grill 用户裁「通用」)。
 - **代价接受**:英文更新弹窗;随包 WinSparkle DLL(CMake 步骤接入)。
 
 ### ADR-2 流水线 = 单 workflow 文件(tag 触发)+ 站内脚本复用
-- `.github/workflows/release.yml`:on push tags `v*`;job:checkout(submodules 无)→ setup-flutter → `flutter build windows --release` → ISCC(装 Inno Setup via choco)→ `gh release create`(安装包)→ appcast 生成(py 脚本,版本/tag 注释→XML)→ EdDSA 签名(auto_updater 官方签名工具或 python 等价,私钥自 Secrets)→ 附加 appcast 到 Release。
+- `.github/workflows/release.yml`:on push tags `v*`;job:checkout(submodules 无)→ setup-flutter → `flutter build windows --release` → ISCC(装 Inno Setup via choco)→ `gh release create`(安装包)→ appcast 生成(py 脚本,版本/tag 注释→XML)→ **DSA 签名**(DSA-SHA1,私钥自 `APPCAST_DSA_PRIVATE_KEY` Secret)→ 附加 appcast 到 Release。
 - **版本派生**:workflow 从 tag ref 提取版本(与 pubspec 校验一致性,不一致 fail-fast——版本单源守护)。
 
-### ADR-3 密钥 = EdDSA 密钥对一次性脚本生成
-- `tool/gen_appcast_eddsa_key.py`(或 auto_updater CLI):产 `.eddsa` 密钥对;私钥仅入 GitHub Secrets(文档注明**不得入库**);公钥入 `windows/runner` 配置(WinSparkle feeds 验签公钥参数,auto_updater 接入步骤)。
+### ADR-3 密钥 = DSA(Sparkle 经典 1024-bit)密钥对一次性脚本生成
+- `tool/gen_appcast_dsa_key.py`:私钥 PEM 仅入 GitHub Secrets `APPCAST_DSA_PRIVATE_KEY`(文档注明**不得入库**);公钥 PEM 烤入 `windows/runner/dsa_pub.pem`(Runner.rc `DSAPub DSAPEM` 资源,WinSparkle 验签)。原裁 EdDSA 被引擎现实降档(WinSparkle 0.8.1),升级路径在案。
 
 ### ADR-4 客户端接入 = bootstrap 附属降级
 - bootstrap 末尾 try/catch 初始化 auto_updater(setFeedURL+公钥);失败仅记 print 降级(通知域既有容错先例);手动检查=托盘菜单项→WinSparkle 检查 UI。
@@ -44,7 +44,7 @@ yucai/client/lib/main.dart 或 bootstrap                  # auto_updater 初始�
 
 ## LLD 关键流程
 
-- appcast XML:sparkle 规范(`sparkle:edSignature` + 版本 + url 指向本 Release 安装包资产 URL);生成脚本输入(tag/notes/资产 URL)输出签名 XML。
+- appcast XML:sparkle 规范(`sparkle:dsaSignature`(DSA-SHA1 base64)+ 版本 + url 指向本 Release 安装包资产 URL);生成脚本输入(tag/notes/资产 URL)输出签名 XML。
 - 版本一致性守护:workflow 步骤比对 tag 与 pubspec version,不符 exit 1。
 - 托盘 action:检查更新→`AutoUpdater.instance.checkForUpdates()`(引擎 UI);版本项 label 由 `PackageInfo.fromPlatform` 异步取后并入 `_refreshMenu` 数据流(或构建期 dart-define 注入,二选一实现时定,倾向 PackageInfo 零构建耦合)。
 - 测试面:菜单项枚举/版本 label 组装/AutoUpdater 初始化降级(channel mock)/appcast 生成脚本单测(python:XML 结构+签名存在性,签名字节级验证用公钥侧脚本);workflow 全链只能发布演练验证(FR-7)。

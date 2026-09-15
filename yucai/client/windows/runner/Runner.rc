@@ -1,4 +1,4 @@
-// Microsoft Visual C++ generated resource script.
+﻿// Microsoft Visual C++ generated resource script.
 //
 #pragma code_page(65001)
 #include "resource.h"
@@ -104,6 +104,27 @@ BEGIN
         VALUE "Translation", 0x409, 1252
     END
 END
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// WinSparkle — F24 自动更新验签公钥(auto_updater 1.0.0 捆绑 WinSparkle 0.8.1)
+//
+// 引擎档位现实(spec FR-3 定档 DSA 后目标为 DSA 公钥(原 EdDSA 表述已过时,review 修),记录在案):该版 WinSparkle 仅
+// 支持经典 DSA 验签 —— 从 exe 资源「名 DSAPub / 类型 DSAPEM」读取 PEM
+// 公钥,校验 appcast 的 sparkle:dsaSignature;EdDSA(EdDSAPub/EDDSA 资源)
+// 属 WinSparkle 0.9+,本引擎版本不可用。Dart 侧 setFeedURL 不传公钥,
+// 公钥只能经此资源烤入 exe。
+//
+// 当前 dsa_pub.pem 为一次性丢弃钥占位(私钥已销毁):占位期任何真实
+// appcast 签名都验不过 → 更新拒绝安装(fail-safe)。真钥替换流程:
+// 1. T1 密钥脚本(tool/,ADR-3)产出 DSA 密钥对;
+// 2. 私钥仅入 GitHub Actions Secrets,不入库不入日志;
+// 3. 公钥 PEM 覆盖本目录 dsa_pub.pem(本行资源无需改动);
+// 4. lib/core/notifications/app_updater.dart 的 publicKeyIsPlaceholder
+//    翻 false(含单测守卫),防演练带占位密钥发版;
+// 5. 重跑 flutter build windows --release 验证。
+//
+DSAPub DSAPEM "dsa_pub.pem"
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////

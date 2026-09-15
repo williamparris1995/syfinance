@@ -5,10 +5,12 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:async';
 
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:yucai_client/app/router.dart' show rootNavigatorKey;
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart';
+import 'package:yucai_client/core/notifications/app_updater.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/drift_due_source.dart';
 import 'package:yucai_client/core/notifications/auto_record_scheduler.dart';
@@ -103,6 +105,12 @@ Future<void> _bootstrap(AppDatabase db) async {
     GoRouter.of(context).push('/transactions/new');
   }
 
+  // F24 FR-6 接线(组合根):托盘「御财 vX.Y.Z」版本提供者 ——
+  // PackageInfo.version 自构建注入(pubspec 单源派生 NFR-2,零构建耦合,
+  // design LLD 二选一定案);查询失败由控制器降级纯「御财」。
+  Future<String?> trayVersion() async =>
+      (await PackageInfo.fromPlatform()).version;
+
   // F22 接线(T4,各注入对应 FR 见行尾;无注入不炸由构造默认值保证,
   // 单测覆盖参数组合,bootstrap 手工接线以 code review 承接):
   // - settings: FR-2/3/5 关闭行为/首关标记/扫描间隔(TraySettings.load
@@ -135,6 +143,7 @@ Future<void> _bootstrap(AppDatabase db) async {
     },
     contextResolver: () => rootNavigatorKey.currentContext,
     headProvider: trayHead,
+    versionProvider: trayVersion,
     newTransactionNav: navigateNewTransaction,
   );
   await tray.start();
@@ -167,6 +176,13 @@ Future<void> _bootstrap(AppDatabase db) async {
     appPath: Platform.resolvedExecutable,
   );
   await LaunchAtStartup.instance.enable();
+
+  // F24 FR-4/5 + ADR-4:auto_updater 初始化(WinSparkle)挂末尾 ——
+  // setFeedURL 即启动默认 1 天后台自动检查;验签公钥烤于 Runner.rc 的
+  // DSAPub/DSAPEM 资源(占位状态与替换流程见 app_updater.dart)。
+  // 附属降级:任一环节失败仅 print 英文,不阻断 app 启动(NFR-1;
+  // 手动「检查更新」菜单项不受初始化成败影响,恒可用)。
+  await bootstrapAppUpdater();
 }
 
 /// 单实例判定 + 次实例信号。返回 false = 本进程是次实例,main 应直接退出。

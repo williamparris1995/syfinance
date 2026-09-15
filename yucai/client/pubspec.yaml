@@ -51,6 +51,11 @@ dependencies:
   window_manager: ^0.5.2
   launch_at_startup: ^0.5.1
   flutter_single_instance: ^1.1.2
+  # F24 自动更新(ADR-1:auto_updater = WinSparkle;EdDSA 验签引擎内置)。
+  auto_updater: ^1.0.0
+  # F24 FR-6:托盘「御财 vX.Y.Z」版本号(pubspec 单源派生,NFR-2)。
+  # 9.x 上限:file_picker 11 锁 win32 ^5.x,10.x 需 win32 ^6 冲突。
+  package_info_plus: ^9.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
