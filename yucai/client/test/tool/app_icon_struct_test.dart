@@ -41,12 +41,15 @@ void main() {
     }
   });
 
-  test('两档图标同源御财字符标(墨底令牌抽样:F23 FR-1)', () {
-    // 抽样 16px 帧最难档:左上角像素应为墨底系(非透明非 Flutter 默认蓝系)。
-    // 只做存在性/非默认守护;颜色细样由管线常量+人工验收承载。
+  test('tray 16px 帧为 PNG 编码且非空(F23 FR-1 结构层)', () {
+    // 帧=PNG(管线经 PIL 合成;魔法数 89 50 4E 47),颜色细样由管线常量
+    // +人工验收承载;圆角遮罩下四角透明属预期,不做角落像素断言。
     final b = File('assets/tray_icon.ico').readAsBytesSync();
     final off = b[6 + 12] | (b[6 + 13] << 8) | (b[6 + 14] << 16) | (b[6 + 15] << 24);
-    // BMP 数据头 40 字节 + 高度翻倍(AND 掩码)→ 像素区起点;直接断言有像素数据。
-    expect(b.length - off, greaterThan(40), reason: '16px 帧含像素数据');
+    expect(b[off], 0x89, reason: 'PNG magic[0]');
+    expect(b[off + 1], 0x50, reason: 'PNG magic[1]=P');
+    expect(b[off + 2], 0x4E, reason: 'PNG magic[2]=N');
+    expect(b[off + 3], 0x47, reason: 'PNG magic[3]=G');
+    expect(b.length - off, greaterThan(100), reason: '16px 帧有实际数据');
   });
 }

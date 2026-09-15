@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
@@ -539,4 +540,21 @@ void main() {
       });
     });
   });
+
+/// F23 P1:托盘图标落盘判定 —— 内容不一致即覆盖(升级用户换新图标)。
+group('trayIconNeedsWrite (F23 P1)', () {
+  test('目标不存在 → 需写入', () async {
+    final f = File('${Directory.systemTemp.path}/yc_tray_${DateTime.now().microsecondsSinceEpoch}.ico');
+    expect(await TrayController.trayIconNeedsWrite(f, [1, 2, 3]), isTrue);
+  });
+  test('内容一致 → 跳过;不一致 → 覆盖(升级换图)', () async {
+    final f = File('${Directory.systemTemp.path}/yc_tray_${DateTime.now().microsecondsSinceEpoch}.ico');
+    await f.writeAsBytes([1, 2, 3], flush: true);
+    expect(await TrayController.trayIconNeedsWrite(f, [1, 2, 3]), isFalse);
+    expect(await TrayController.trayIconNeedsWrite(f, [1, 2, 4]), isTrue);
+    expect(await TrayController.trayIconNeedsWrite(f, [1, 2]), isTrue);
+    await f.delete();
+  });
+});
+
 }

@@ -265,6 +265,20 @@ class TrayController with TrayListener, WindowListener {
         MenuItem(key: _kQuit, label: '退出'),
       ];
 
+  /// 托盘图标是否需要(重)落盘:目标不存在或内容与资产不一致(升级换图标)。
+  /// 抽为可测纯判定(F23 P1);逐字节比对,图标仅数百字节成本可忽略。
+  @visibleForTesting
+  static Future<bool> trayIconNeedsWrite(
+      File target, List<int> assetBytes) async {
+    if (!await target.exists()) return true;
+    final existing = await target.readAsBytes();
+    if (existing.length != assetBytes.length) return true;
+    for (var i = 0; i < existing.length; i++) {
+      if (existing[i] != assetBytes[i]) return true;
+    }
+    return false;
+  }
+
   /// 生产默认托盘 setup([TraySetupFn] 的缺省实例实现):图标落盘 + 菜单/
   /// tooltip/图标注册。任一步失败(典型:打包版资产非磁盘文件)只降级
   /// 返回 false —— 窗口关闭回退真退出,绝不隐藏成僵尸(user-acceptance
@@ -277,9 +291,11 @@ class TrayController with TrayListener, WindowListener {
       //  此时 setPreventClose 已生效 → 隐形窗口僵尸)。
       final dir = await getApplicationSupportDirectory();
       final iconFile = File('${dir.path}${Platform.pathSeparator}tray_icon.ico');
-      if (!await iconFile.exists()) {
-        final data = await rootBundle.load('assets/tray_icon.ico');
-        await iconFile.writeAsBytes(data.buffer.asUint8List(), flush: true);
+      final data = await rootBundle.load('assets/tray_icon.ico');
+      final assetBytes = data.buffer.asUint8List();
+      // 内容不一致即覆盖(F23 P1):仅判存在会让升级用户永远滞留旧图标。
+      if (await trayIconNeedsWrite(iconFile, assetBytes)) {
+        await iconFile.writeAsBytes(assetBytes, flush: true);
       }
       await trayManager.setIcon(iconFile.path);
       await trayManager.setToolTip('御财');

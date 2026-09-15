@@ -5,7 +5,7 @@
 令牌取 design-v2(design-v2.md §2):墨底 #0B0E13 / 鎏金 #E8C07A→#C9964A。
 
 产物(幂等,重跑即再生成):
-  windows/runner/resources/app_icon.ico  六档 16/24/32/48/64/256(≤20px 简化形)
+  windows/runner/resources/app_icon.ico  六档 16/24/32/48/64/256(≤24px 印章简化形)
   assets/tray_icon.ico                  16/24 简化形专用档(托盘渲染档)
 
 依赖:Python3 + Pillow;字形=微软雅黑 Bold(Windows 内置 msyhbd.ttc;
@@ -31,7 +31,7 @@ FONT_PATH = r"C:\Windows\Fonts\msyhbd.ttc"
 
 APP_ICON_SIZES = [256, 64, 48, 32, 24, 16]  # exe 六档(FR-2)
 TRAY_ICON_SIZES = [24, 16]                  # 托盘简化档(FR-3)
-SIMPLE_MAX = 24  # ≤此档位用简化形(去细节、字占满)
+SIMPLE_MAX = 24  # ≤此档位用印章简化形(小尺寸防糊,ADR-3)
 
 
 def _gold_gradient(size: int) -> Image.Image:
@@ -88,7 +88,7 @@ def make_icon(size: int, simple: bool) -> Image.Image:
             Image.new("RGBA", (size, size), (16, 20, 28, 255)), base, shade)
     img.paste(base, (0, 0), mask)
 
-    if simple or size <= 24:
+    if simple or size <= SIMPLE_MAX:
         img.alpha_composite(_simple_form_glyph(size))
         return img
 

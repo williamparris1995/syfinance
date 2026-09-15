@@ -22,8 +22,8 @@
 - **理由**:PIL 12.2 已验证(圆角/渐变/字形蒙版/ICO 多尺寸保存);ImageMagick 本环境未验证;无新依赖(Python 仓外工具)。
 - **备选**:ImageMagick 命令行(等价但引入新工具依赖)。
 
-### ADR-3 托盘独立简化形(非全形缩放)
-- **理由**:app 全形(圆角+渐变字 64%)在 16px 糊;简化形去细节、字面 78%(spec FR-3,Microsoft「16px 基线」)。
+### ADR-3 托盘/小档独立简化形(非全形缩放)
+- **理由**:app 全形(圆角+渐变字 64%)在 ≤24px 糊。简化形经视觉 QC 两轮迭代定稿:字体降采样与滤波剪影均不可辨 → **印章式手绘基元**(暗金圆角外框+亮金三笔抽象「御」,双色阶弃渐变;spec FR-1/FR-3,Microsoft「16px 基线」)。
 
 ### ADR-4 源参数集中 + 产物直接覆盖目标文件
 - 生成脚本头部集中常量(INK/GOLD_HI/GOLD_LO/圆角率/字面占比/档位表);输出直接写 `windows/runner/resources/app_icon.ico` 与 `assets/tray_icon.ico`(幂等,重跑即再生成)。
@@ -41,7 +41,7 @@ yucai/client/test/tool/app_icon_struct_test.dart  # ICO 结构守护(档位齐�
 ## LLD
 
 - 渐变:`Image.linear_gradient('L')` 旋转 45° 作索引在 #C9964A→#E8C07A 插值(预览同款)。
-- 字形:`ImageDraw.text(anchor='mm')` 居中;frac=0.64(全形)/0.78(简化);≤20px 自动简化。
+- 字形:全形档 `ImageDraw.text(anchor='mm')` 居中,frac=0.64;≤SIMPLE_MAX(24)档走 `_simple_form_glyph` 手绘基元(外框+三笔,percentile 定位)。
 - ICO:逐档 RGBA 渲染 → `img.save(path, format='ICO', sizes=[...])`(PIL 原生多尺寸)。
 - 结构测试:读 ICO 头(entry count=6/2 + 尺寸集合断言),纯 Dart 解析(ICO 目录 6 字节头 + 16 字节/entry)。
 

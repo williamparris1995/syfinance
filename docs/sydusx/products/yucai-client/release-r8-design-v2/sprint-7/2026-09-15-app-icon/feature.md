@@ -12,7 +12,7 @@
 
 ## Stories
 
-- [ ] S1: SVG 源设计(1024 主形 + 16px 简化形变体;取色 design-v2 令牌;暗底双主题下均成立)
+- [x] S1: 源设计(spec 排除项改道:弃手绘 SVG 路径,字体栅格+手绘印章基元;取色 design-v2 令牌;三轮视觉 QC 定稿)
 - [x] S2: ICO 合成管线(tool/gen_app_icon.py,PIL 逐档原生帧合成,可重跑)
 - [x] S3: 替换落地(runner 六档 + tray 16/24;Runner.rc 核对无异常)
 - [x] S4: 视觉验收(CDN 视觉三轮 QC 达可发布标准;真机任务栏/开始菜单/托盘走查待用户——Windows 图标缓存需 ie4uinit -show 或新文件名刷新)
