@@ -8,7 +8,7 @@ hero 从 v1 固定深面迁到 design-v2 §4 随主题终态(dark=渐变描边+�
 
 ## Feature roster
 
-- [ ] **feature F26** hero-redesign — 净资产/账户 hero 双主题终态化(design-v2 §4;视觉变体经 prototype v2 用户拍板;F15 豁免条目退役)
+- [ ] **feature F26** hero-redesign — 净资产/账户 hero 双主题终态化(design-v2 §4;视觉变体经 prototype v2 用户拍板;F15 豁免条目退役) **[claimed: zcode 2026-09-15]**
 
 ## defer
 
