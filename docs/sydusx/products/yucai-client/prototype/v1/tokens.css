@@ -1,0 +1,4 @@
+/* F22 prototype v1 令牌入口 —— 单一事实源直连,不复制值。
+   事实源:design-output-v2/ab/assets/theme.css(design-v2 双主题令牌+组件类)。
+   修改令牌请改事实源,本文件仅 @import。 */
+@import url("../../../../../../design-output-v2/ab/assets/theme.css");
