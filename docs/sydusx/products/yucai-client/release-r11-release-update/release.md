@@ -22,3 +22,4 @@
 ## 状态
 
 - 2026-09-15 **sprint-1 立项**:F24 自动更新(全链)。[sprint-1](sprint-1/sprint.md)
+- 2026-09-15 **F24 代码面 ✅ done**(merge `021cd2d9`[fast-forward]):Actions 流水线+DSA 签名 appcast(EdDSA 被引擎降档在案)+客户端 auto_updater+托盘两新项;1679 全绿;**S5 发布演练待用户**(RELEASE.md runbook)。
