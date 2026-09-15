@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>F26 · 净资产 hero 重设计 — 双主题 × 三变体</title>
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  /* F26 变体页:仅 var(--*) 令牌(页级新令牌定义于 :root) */
+  :root{ --hero-border-w:1.5px; }
+  body{display:block !important}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px;background:var(--bg)}
+  h1{font-size:18px;margin-bottom:4px}
+  .sub{font-size:12.5px;color:var(--muted);margin-bottom:20px}
+  .row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}
+  .row-label{font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:10px}
+  .hero{
+    position:relative;border-radius:24px;padding:28px 30px;overflow:hidden;
+    min-height:150px;display:flex;flex-direction:column;justify-content:center;
+  }
+  .hero .lbl{font-size:12px;color:var(--muted);letter-spacing:.4px}
+  .hero .num{margin-top:8px;font-size:42px;font-weight:600;letter-spacing:-.6px;
+    font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:6px}
+  .hero .num .cur{font-size:21px;color:var(--muted)}
+  .hero .pill{display:inline-flex;margin-top:12px;padding:3px 10px;border-radius:999px;
+    font-size:12px;background:var(--pos-soft);color:var(--pos)}
+  .glow{position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;
+    background:radial-gradient(circle,rgba(232,192,122,.18),transparent 70%);pointer-events:none}
+
+  /* 变体 A · design-v2 正统:暗=渐变描边+渐变金字;亮=白卡阴影+黑字 */
+  .vA[data-t="dark"]{background:var(--surface);
+    border:var(--hero-border-w) solid transparent;
+    background-clip:padding-box}
+  .vA[data-t="dark"]::before{content:"";position:absolute;inset:0;border-radius:24px;
+    padding:var(--hero-border-w);
+    background:linear-gradient(135deg,#E8C07A,#C9964A);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+  .vA[data-t="dark"] .num{background:linear-gradient(135deg,#E8C07A,#C9964A);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .vA[data-t="light"]{background:var(--surface);box-shadow:var(--shadow)}
+  .vA[data-t="light"] .num{color:var(--fg)}
+
+  /* 变体 B · 氛围强化:A + 大金晕 + 渐变金 pill;亮=极简白卡 */
+  .vB[data-t="dark"]{background:var(--surface)}
+  .vB[data-t="dark"]::before{content:"";position:absolute;inset:0;border-radius:24px;
+    padding:var(--hero-border-w);background:linear-gradient(135deg,#E8C07A,#C9964A);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+  .vB[data-t="dark"] .glow{width:300px;height:300px;top:-100px;right:-90px;
+    background:radial-gradient(circle,rgba(232,192,122,.30),transparent 70%)}
+  .vB[data-t="dark"] .num{background:linear-gradient(135deg,#E8C07A,#C9964A);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .vB[data-t="dark"] .pill{background:linear-gradient(135deg,#E8C07A,#C9964A);color:#1A1408}
+  .vB[data-t="light"]{background:var(--surface);box-shadow:var(--shadow)}
+  .vB[data-t="light"] .num{color:var(--fg)}
+  .vB[data-t="light"] .pill{background:var(--pos-soft);color:var(--pos)}
+
+  /* 变体 C · 渐变面血统(随主题):暗=墨系渐变面+实金数字;亮=晨白渐变面+黑字 */
+  .vC[data-t="dark"]{background:linear-gradient(135deg,var(--bg),var(--surface-2))}
+  .vC[data-t="dark"] .num{color:var(--acc)}
+  .vC[data-t="light"]{background:linear-gradient(135deg,var(--surface),var(--surface-2));
+    box-shadow:var(--shadow)}
+  .vC[data-t="light"] .num{color:var(--fg)}
+
+  .toggle{position:fixed;top:16px;right:16px}
+</style>
+</head>
+<body>
+  <button class="icon-btn toggle" id="themeToggle" title="切换主题">☾/☀</button>
+  <div class="wrap">
+    <h1>净资产 hero 重设计 — 三变体 × 双主题</h1>
+    <div class="sub">design-v2 §4 终态:随主题。现状(v1 遗留)=固定深渐变面两主题同款,亮色下突兀。</div>
+
+    <div class="row-label">变体 A · design-v2 正统 —— 暗=墨面卡+金渐变描边+渐变金字;亮=白卡柔影+黑字</div>
+    <div class="row">
+      <div class="hero vA" data-t="dark"><div class="glow"></div>
+        <div class="lbl">总净资产</div>
+        <div class="num"><span class="cur">¥</span>1,284,650</div>
+        <span class="pill">较上月 +2.3%</span></div>
+      <div class="hero vA" data-t="light"><div class="glow"></div>
+        <div class="lbl">总净资产</div>
+        <div class="num"><span class="cur">¥</span>1,284,650</div>
+        <span class="pill">较上月 +2.3%</span></div>
+    </div>
+
+    <div class="row-label">变体 B · 氛围强化 —— A 基础上:大金晕 + 渐变金 pill(私行感);亮=极简白卡</div>
+    <div class="row">
+      <div class="hero vB" data-t="dark"><div class="glow"></div>
+        <div class="lbl">总净资产</div>
+        <div class="num"><span class="cur">¥</span>1,284,650</div>
+        <span class="pill">较上月 +2.3%</span></div>
+      <div class="hero vB" data-t="light"><div class="glow"></div>
+        <div class="lbl">总净资产</div>
+        <div class="num"><span class="cur">¥</span>1,284,650</div>
+        <span class="pill">较上月 +2.3%</span></div>
+    </div>
+
+    <div class="row-label">变体 C · 渐变面血统 —— 保留「面渐变」但随主题:暗=墨系渐变面+实金数字;亮=晨白渐变面+黑字</div>
+    <div class="row">
+      <div class="hero vC" data-t="dark"><div class="glow"></div>
+        <div class="lbl">总净资产</div>
+        <div class="num"><span class="cur">¥</span>1,284,650</div>
+        <span class="pill">较上月 +2.3%</span></div>
+      <div class="hero vC" data-t="light"><div class="glow"></div>
+        <div class="lbl">总净资产</div>
+        <div class="num"><span class="cur">¥</span>1,284,650</div>
+        <span class="pill">较上月 +2.3%</span></div>
+    </div>
+  </div>
+<script>
+  const root=document.documentElement;
+  const saved=localStorage.getItem('yc2-theme'); if(saved) root.dataset.theme=saved;
+  document.getElementById('themeToggle').onclick=()=>{
+    root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+    localStorage.setItem('yc2-theme',root.dataset.theme);
+  };
+</script>
+</body>
+</html>
