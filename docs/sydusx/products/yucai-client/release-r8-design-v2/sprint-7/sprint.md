@@ -8,7 +8,7 @@
 
 ## Feature roster
 
-- [ ] **feature F22** app-menu — 顶栏应用菜单(_TopBar 最右 MenuAnchor 复用 F5 yucaiMenuStyle:显示御财/立即检查(提醒/记账)/设置…/退出御财;TrayController scan/stop 提为可注入)+ 关闭行为设置化(设置页「关闭按钮:隐藏到托盘[默认]/退出程序」+ 首次隐藏一次性提示「已最小化到托盘」)
+- [ ] **feature F22** app-menu — 顶栏应用菜单(_TopBar 最右 MenuAnchor 复用 F5 yucaiMenuStyle:显示御财/立即检查(提醒/记账)/设置…/退出御财;TrayController scan/stop 提为可注入)+ 关闭行为设置化(设置页「关闭按钮:隐藏到托盘[默认]/退出程序」+ 首次隐藏一次性提示「已最小化到托盘」) **[claimed: zcode 2026-09-15]**
 - [ ] **feature F23** app-icon — 字符标「御」图标全套(墨底 #0B0E13 圆角方块 + 鎏金渐变 #E8C07A→#C9964A「御」;SVG 1024 源 → 多尺寸 ICO 16/24/32/48/64/256 替换 windows/runner/resources/app_icon.ico;托盘 assets/tray_icon.ico 单独 16/24 简化形;不用 flutter_launcher_icons——Windows 端只生成单尺寸 ICO,issue #573)
 
 ## defer
