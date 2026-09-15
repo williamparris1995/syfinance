@@ -18,5 +18,6 @@
 
 ## 状态
 
+- 2026-09-15 **sprint-2 ✅ 收官**:F27 onAccent sweep done(merge `ff4dabf1`;75 处全量判定 47 迁移/29 豁免带注;令牌三阶段闭环)。
 - 2026-09-15 **sprint-1 立项**:F26 hero 重设计。[sprint-1](sprint-1/sprint.md)
 - 2026-09-15 **sprint-1 ✅ 收官**:F26 done(merge `0fa0123b`;hero 双主题终态+F15 豁免两目清零;下一 sprint 候选=onAccent sweep/占位文案)。
