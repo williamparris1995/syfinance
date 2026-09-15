@@ -18,6 +18,7 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/debt_detail_widgets.dart';
+import 'package:yucai_client/core/widgets/hero_shell.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -392,99 +393,96 @@ class _NetWorthCard extends StatelessWidget {
             ? '--'
             : _groupThousands(netWorth ~/ 100);
     final symbol = currencySymbol(currency);
-    // F4-P2 豁免:hero 是 OD 原型刻意的固定深色渐变面(#1C1E21→#2A2D33,
-    // 两主题一致,与账户详情 hero 同款),卡内白系文本(white/white54)为
-    // 固定深底内景色,亮暗两态均可辨识且不刺眼,不随主题迁;金晕与语义
-    // pill 已走 context.yucai(accent/positive,暗色自动切换)。
-    return ClipRRect(
-      borderRadius: AppRadius.lgBorder,
-      child: Container(
-        padding: const EdgeInsets.all(32),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1C1E21), Color(0xFF2A2D33)],
-          ),
+    // F4-P2 豁免已退役(F26,R12 sprint-1):hero 迁 design-v2 §4 变体 A 随主题
+    // 终态 —— 暗 = surface 墨面卡 + 1.5px 金渐变描边 + 数字 ShaderMask 渐变金;
+    // 亮 = surface 白卡 + 柔影 + 数字 fg(HeroShell/HeroGradientText)。历史:
+    // 曾为 OD 原型刻意固定深渐变面(#1C1E21→#2A2D33 两主题同款)+ 白系文本
+    // (white/white54)豁免,语义令牌化后退役;pill/label 本就走 context.yucai。
+    // 币符在渐变 mask 之外恒 muted(review P1:整块 RichText 进 ShaderMask 会
+    // 把币符也染成渐变金,违背 prototype .cur=muted);Row 基线对齐替代
+    // RichText 天然基线。
+    final Widget number = Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text('$symbol ',
+            style: TextStyle(
+                fontSize: 21,
+                color: context.yucai.muted,
+                fontFamily: AppTypography.displayFamily,
+                fontFamilyFallback: AppTypography.displayFallback)),
+        HeroGradientText(
+          child: Text(valueText,
+              style: TextStyle(
+                fontSize: 42,
+                fontWeight: FontWeight.w600,
+                color: context.yucai.fg,
+                letterSpacing: -0.6,
+                fontFamily: AppTypography.displayFamily,
+                fontFamilyFallback: AppTypography.displayFallback,
+              )),
         ),
-        child: Stack(
-          children: [
-            // 金色径向光晕（原型 ::after）
-            Positioned(
-              top: -40,
-              right: -40,
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      context.yucai.accent.withValues(alpha: 0.18),
-                      Colors.transparent,
-                    ],
-                  ),
+      ],
+    );
+    // 数字排版(21 cur + 42 value/600/-0.6)不变,仅色随主题:暗 = 渐变金
+    // (ADR-2 ShaderMask),亮 = fg 直出。
+    return HeroShell(
+      padding: const EdgeInsets.all(32),
+      child: Stack(
+        children: [
+          // 金色径向光晕(原型 ::after;ADR-4 暗 0.18 / 亮 0.10 两主题保留)。
+          Positioned(
+            top: -40,
+            right: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    context.yucai.accent
+                        .withValues(alpha: heroGlowAlpha(context)),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('总净资产',
-                    style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                        letterSpacing: 0.4)),
-                const SizedBox(height: 8),
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '$symbol ',
-                        style: TextStyle(
-                            fontSize: 21,
-                            color: Colors.white54,
-                            fontFamily: AppTypography.displayFamily,
-                            fontFamilyFallback: AppTypography.displayFallback),
-                      ),
-                      TextSpan(
-                        text: valueText,
-                        style: TextStyle(
-                          fontSize: 42,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: -0.6,
-                          fontFamily: AppTypography.displayFamily,
-                          fontFamilyFallback: AppTypography.displayFallback,
-                        ),
-                      ),
-                    ],
-                  ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('总净资产',
+                  style: TextStyle(
+                      color: context.yucai.muted,
+                      fontSize: 12,
+                      letterSpacing: 0.4)),
+              const SizedBox(height: 8),
+              // 渐变包装在 number 内部(币符在 mask 外,review P1),此处直用。
+              number,
+              const SizedBox(height: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: context.yucai.positive.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(99),
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: context.yucai.positive.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(LucideIcons.wallet,
-                          size: 13, color: context.yucai.positive),
-                      const SizedBox(width: 4),
-                      Text('共 $accountCount 个账户',
-                          style: TextStyle(
-                              color: context.yucai.positive, fontSize: 13)),
-                    ],
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.wallet,
+                        size: 13, color: context.yucai.positive),
+                    const SizedBox(width: 4),
+                    Text('共 $accountCount 个账户',
+                        style: TextStyle(
+                            color: context.yucai.positive, fontSize: 13)),
+                  ],
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

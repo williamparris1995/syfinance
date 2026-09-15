@@ -33,6 +33,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/theme/app_theme.dart';
 import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -108,8 +109,8 @@ Transaction _txn(String id, DateTime date, {int amount = 5000}) {
   );
 }
 
-Widget _harness({required Widget child}) {
-  return MaterialApp(home: child);
+Widget _harness({required Widget child, ThemeData? theme}) {
+  return MaterialApp(theme: theme, home: child);
 }
 
 void main() {
@@ -172,6 +173,7 @@ void main() {
     List<Transaction>? transactions,
     MonthlySummary? summary,
     List<Account>? accounts,
+    ThemeData? theme,
   }) async {
     final a = account ?? _account();
     final net = netCents ?? 44556;
@@ -217,6 +219,7 @@ void main() {
         .thenAnswer((_) async => dartz.Right(accountsList));
 
     await tester.pumpWidget(_harness(
+      theme: theme,
       child: MultiBlocProvider(
         providers: [
           BlocProvider<AccountBloc>(
@@ -438,10 +441,13 @@ void main() {
 
   // ───── Task 2: 账户详情 Hero 升级（深色金色渐变 + badge + 本月净额 + 字段网格）─────
 
-  testWidgets('hero: 深色金色渐变 Container + 径向金色光晕', (tester) async {
-    await pumpPage(tester);
+  testWidgets('hero: 变体 A 金渐变描边 Container + 径向金色光晕(F26)', (tester) async {
+    // F26:固定深渐变面(#1C1E21→#2A2D33)退役 → 暗 = surface 卡 + 金渐变描边
+    // (accent→accentDeep)。裸 MaterialApp 回落亮色(无描边),须 AppTheme.dark()
+    // 注入语义令牌后再断言(双主题完整探针见 test/account/hero_theme_follow_test)。
+    await pumpPage(tester, theme: AppTheme.dark());
 
-    // Hero 是带 LinearGradient 的 Container（#1C1E21 → #2A2D33）。
+    // Hero 描边层 = LinearGradient Container(#E8C07A → #C9964A,暗档 accent/accentDeep)。
     final containers = tester
         .widgetList<Container>(find.byType(Container))
         .where((c) =>
@@ -453,10 +459,22 @@ void main() {
 
     final grad =
         (containers.first.decoration as BoxDecoration).gradient as LinearGradient;
-    expect(grad.colors.first, const Color(0xFF1C1E21));
-    expect(grad.colors.last, const Color(0xFF2A2D33));
+    expect(grad.colors.first, const Color(0xFFE8C07A));
+    expect(grad.colors.last, const Color(0xFFC9964A));
 
-    // 径向金色光晕（RadialGradient + accent #B08D57 alpha 0.18）。
+    // 固定深色面退役:全树无 #1C1E21/#2A2D33 系渐变残留。
+    final deep = tester
+        .widgetList<Container>(find.byType(Container))
+        .where((c) {
+      if (c.decoration is! BoxDecoration) return false;
+      final g = (c.decoration as BoxDecoration).gradient;
+      if (g is! LinearGradient) return false;
+      return g.colors.contains(const Color(0xFF1C1E21)) ||
+          g.colors.contains(const Color(0xFF2A2D33));
+    });
+    expect(deep, isEmpty, reason: 'v1 固定深渐变面应退役(F26)');
+
+    // 径向金色光晕(RadialGradient + 暗档 accent #E8C07A alpha 0.18)。
     final radial = tester
         .widgetList<Container>(find.byType(Container))
         .where((c) =>
@@ -466,19 +484,20 @@ void main() {
     expect(radial, isNotEmpty, reason: 'hero 应有径向金色光晕');
     final rg = (radial.first.decoration as BoxDecoration).gradient
         as RadialGradient;
-    expect(rg.colors.first.withValues(alpha: 1.0), AppColors.accent);
+    expect(rg.colors.first.withValues(alpha: 1.0), const Color(0xFFE8C07A));
   });
 
-  testWidgets('hero: 40px serif 白字余额', (tester) async {
+  testWidgets('hero: 40px serif 余额 fg 色(F26 白系文本退役)', (tester) async {
     await pumpPage(tester);
 
     // currentBalanceCents 100000 → _fmt "¥ 1,000.00"（hero 用 _fmt）。
-    // 找到 40px 的 Text。
+    // 找到 40px 的 Text。F26:白字 → context.yucai.fg(裸 MaterialApp 回落
+    // 晨白 → #0F172A = AppColors.fg;暗色渐变金形态见 hero_theme_follow 探针)。
     final bal = tester.widgetList<Text>(find.byType(Text)).firstWhere(
       (t) => t.style?.fontSize == 40,
       orElse: () => throw StateError('未找到 40px 余额文本'),
     );
-    expect(bal.style?.color, Colors.white);
+    expect(bal.style?.color, AppColors.fg);
     expect(bal.style?.fontFamily, AppTypography.displayFamily);
   });
 

@@ -18,6 +18,7 @@ import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/hero_shell.dart';
 import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -462,137 +463,134 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     // 第2 badge：{资产类/负债类}·活期/定期（fixedDeposit→定期，其他→活期）。
     final liquidity = a.category == AccountCategory.fixedDeposit ? '定期' : '活期';
     final classLabel = '${isLiability ? '负债类' : '资产类'} · $liquidity';
-    // F4-P2 豁免:hero 是 OD 原型刻意的固定深色渐变面(#1C1E21→#2A2D33,
-    // 两主题一致),卡内白系文本/白透描边(hero-pick/ghost badge/hero-fields
-    // 分隔线 #1AFFFFFF)为固定深底内景色,亮暗两态均可辨识且不刺眼,不随主题迁;
-    // 金饰/语义色已走 context.yucai(accent/positive/negative,暗色自动切换)。
-    return ClipRRect(
-      borderRadius: AppRadius.lgBorder,
-      child: Container(
-        // OD .hero padding 28 32 30（top 28 / 左右 32 / bottom 30）。
-        padding: const EdgeInsets.fromLTRB(32, 28, 32, 30),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1C1E21), Color(0xFF2A2D33)],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // 径向金色光晕（御财金 #B08D57 alpha 0.18）。
-            Positioned(
-              top: -40,
-              right: -40,
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      context.yucai.accent.withValues(alpha: 0.18),
-                      Colors.transparent,
-                    ],
-                  ),
+    // F4-P2 豁免已退役(F26,R12 sprint-1):hero 迁 design-v2 §4 变体 A(与
+    // home 净资产 hero 同款)—— 暗 = surface 墨面卡 + 1.5px 金渐变描边 +
+    // 余额数字 ShaderMask 渐变金;亮 = surface 白卡 + 柔影。历史:曾为 OD
+    // 原型刻意固定深渐变面(#1C1E21→#2A2D33 两主题同款)+ 白系文本/白透描边
+    // (hero-pick/ghost badge/hero-fields 分隔线)豁免,语义令牌化(fg/muted/
+    // border)后退役;金晕/金饰/语义色本就走 context.yucai。
+    return HeroShell(
+      // OD .hero padding 28 32 30（top 28 / 左右 32 / bottom 30）。
+      padding: const EdgeInsets.fromLTRB(32, 28, 32, 30),
+      child: Stack(
+        children: [
+          // 径向金色光晕（ADR-4 暗 0.18 / 亮 0.10 两主题保留）。
+          Positioned(
+            top: -40,
+            right: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    context.yucai.accent
+                        .withValues(alpha: heroGlowAlpha(context)),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
-            // hero-pick（右上角）：已绑定实名 · 银行直连（对齐 OD .hero-pick）。
-            // Positioned 在 Column 之上但不挡 Column（Column 左上起，pill 右上角）。
-            // Final-review #4：仅银行类账户（储蓄/信用卡/定期/贷款）+ institution 非空
-            // 才显示「银行直连」pill —— 对 goldFx/realEstate/otherAsset/investment 等非银
-            // 行账户该文案误导，隐藏。
-            if (_isBankLinked(a))
-              Positioned(top: 0, right: 0, child: _heroPick()),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // hero-badges: 类型徽章（金色实心 + icon）+ 资产/负债类·活期/定期（ghost）。
-                // 对齐 OD .hero-badges（第1 .hero-badge 金色 icon，第2 .hero-badge.ghost）。
-                Wrap(
-                  spacing: 7,
-                  runSpacing: 8,
-                  children: [
-                    _heroBadge(
-                      '${a.category.label}账户',
-                      icon: _categoryIcon(a.category),
-                    ),
-                    _heroBadge(classLabel, ghost: true),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                // hero-name: 账户名 28px serif（对齐 OD .hero-name）。
-                // 账户名从 AppBar title 移入 hero（AppBar title 保持「账户详情」）。
-                Text(
-                  a.name,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 0.01,
-                    height: 1.15,
-                    fontFamily: AppTypography.displayFamily,
-                    fontFamilyFallback: AppTypography.displayFallback,
+          ),
+          // hero-pick（右上角）：已绑定实名 · 银行直连（对齐 OD .hero-pick）。
+          // Positioned 在 Column 之上但不挡 Column（Column 左上起，pill 右上角）。
+          // Final-review #4：仅银行类账户（储蓄/信用卡/定期/贷款）+ institution 非空
+          // 才显示「银行直连」pill —— 对 goldFx/realEstate/otherAsset/investment 等非银
+          // 行账户该文案误导，隐藏。
+          if (_isBankLinked(a))
+            Positioned(top: 0, right: 0, child: _heroPick()),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // hero-badges: 类型徽章（金色实心 + icon）+ 资产/负债类·活期/定期（ghost）。
+              // 对齐 OD .hero-badges（第1 .hero-badge 金色 icon，第2 .hero-badge.ghost）。
+              Wrap(
+                spacing: 7,
+                runSpacing: 8,
+                children: [
+                  _heroBadge(
+                    '${a.category.label}账户',
+                    icon: _categoryIcon(a.category),
                   ),
+                  _heroBadge(classLabel, ghost: true),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // hero-name: 账户名 28px serif（对齐 OD .hero-name）。
+              // 账户名从 AppBar title 移入 hero（AppBar title 保持「账户详情」）。
+              // F26:名称走 fg 不渐变(ADR-2 克制 —— 仅「大数字」渐变金)。
+              Text(
+                a.name,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: context.yucai.fg,
+                  letterSpacing: 0.01,
+                  height: 1.15,
+                  fontFamily: AppTypography.displayFamily,
+                  fontFamilyFallback: AppTypography.displayFallback,
                 ),
-                const SizedBox(height: 6),
-                // hero-org: 机构 · 币种 · 尾号（对齐 OD .hero-org）。
-                Text(
-                  org,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
+              ),
+              const SizedBox(height: 6),
+              // hero-org: 机构 · 币种 · 尾号（对齐 OD .hero-org）。
+              Text(
+                org,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: context.yucai.muted,
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                // hero-bal-label「可用余额」（对齐 OD .hero-bal-label）。
-                Text(
-                  '可用余额',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.55),
-                    letterSpacing: 0.04,
-                  ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              // hero-bal-label「可用余额」（对齐 OD .hero-bal-label）。
+              Text(
+                '可用余额',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.yucai.muted,
+                  letterSpacing: 0.04,
                 ),
-                const SizedBox(height: 6),
-                // 余额 mobile 32px / desktop 40px 白字 serif display。
-                Text(
+              ),
+              const SizedBox(height: 6),
+              // 余额 mobile 32px / desktop 40px serif display。
+              // F26:暗色经 HeroGradientText 渐变金(ADR-2),亮色 fg 直出。
+              HeroGradientText(
+                child: Text(
                   key: const ValueKey('heroBalance'),
                   _fmt(a.currentBalanceCents, a.currencyCode),
                   style: TextStyle(
                     fontSize: isMobile ? 32 : 40,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.5,
-                    color: Colors.white,
+                    color: context.yucai.fg,
                     fontFeatures: AppTypography.tabularFigures,
                     fontFamily: AppTypography.displayFamily,
                     fontFamilyFallback: AppTypography.displayFallback,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                // hero-bal-sub {scope}收支（正绿 #6FCF9A 负红 #E57373）。
-                // Task 11：前缀跟随 _scope（本日/本月/本年）。
-                Text(
-                  '$_scopeLabel收支 ${netPositive ? '+' : '-'}${currencySymbol(a.currencyCode)}'
-                  '${(netCents.abs() ~/ 100).toString()}.'
-                  '${(netCents.abs() % 100).toString().padLeft(2, '0')}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: netPositive
-                        ? context.yucai.positive
-                        : context.yucai.negative,
-                    fontFeatures: AppTypography.tabularFigures,
-                  ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              // hero-bal-sub {scope}收支（正绿 #6FCF9A 负红 #E57373）。
+              // Task 11：前缀跟随 _scope（本日/本月/本年）。
+              Text(
+                '$_scopeLabel收支 ${netPositive ? '+' : '-'}${currencySymbol(a.currencyCode)}'
+                '${(netCents.abs() ~/ 100).toString()}.'
+                '${(netCents.abs() % 100).toString().padLeft(2, '0')}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: netPositive
+                      ? context.yucai.positive
+                      : context.yucai.negative,
+                  fontFeatures: AppTypography.tabularFigures,
                 ),
-                const SizedBox(height: 26),
-                // hero-fields 类型专属字段网格（OD .hero-fields：margin-top 26，
-                // padding-top 22 + border-top，gap 18）。
-                _heroFields(a),
-              ],
-            ),
-          ],
-        ),
+              ),
+              const SizedBox(height: 26),
+              // hero-fields 类型专属字段网格（OD .hero-fields：margin-top 26，
+              // padding-top 22 + border-top，gap 18）。
+              _heroFields(a),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -612,13 +610,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   }
 
   /// hero-pick：右上角 pill「已绑定实名 · 银行直连」（对齐 OD .hero-pick）。
-  /// 白底 alpha 0.08 + 白描边 alpha 0.14 + r9 + padding 8/14 + shieldCheck 金色。
+  /// r9 + padding 8/14 + shieldCheck 金色。F26:白底 8%/白描边 14%/白字 85%
+  /// 白系豁免退役 → fg 8% 派生底 + border 语义描边 + fg 文本。
   Widget _heroPick() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(9),
-          color: Colors.white.withValues(alpha: 0.08),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+          color: context.yucai.fg.withValues(alpha: 0.08),
+          border: Border.all(color: context.yucai.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -633,7 +632,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               '已绑定实名 · 银行直连',
               style: TextStyle(
                 fontSize: 12.5,
-                color: Colors.white.withValues(alpha: 0.85),
+                color: context.yucai.fg,
               ),
             ),
           ],
@@ -653,9 +652,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         AccountCategory.otherLiability => LucideIcons.wallet,
       };
 
-  /// hero-badge：第1金色实心（icon + 文字）；第2 ghost（半透明白）。
+  /// hero-badge：第1金色实心（icon + 文字）；第2 ghost（半透明）。
   /// 对齐 OD .hero-badge（金底 #b08d57 18% + 金描边 32% + #e0bd84 字 + bank icon）
-  /// 与 .hero-badge.ghost（白底 7% + 白描边 12% + 白字 70%）。
+  /// 与 .hero-badge.ghost（白底 7% + 白描边 12% + 白字 70%）。F26:ghost 的白系
+  /// 豁免退役 → fg 7% 派生底 + border 语义描边 + muted 文本。
   Widget _heroBadge(String label, {IconData? icon, bool ghost = false}) =>
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -663,11 +663,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: ghost
-                ? Colors.white.withValues(alpha: 0.12)
+                ? context.yucai.border
                 : context.yucai.accent.withValues(alpha: 0.32),
           ),
           color: ghost
-              ? Colors.white.withValues(alpha: 0.07)
+              ? context.yucai.fg.withValues(alpha: 0.07)
               : context.yucai.accent.withValues(alpha: 0.18),
         ),
         child: Row(
@@ -683,9 +683,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.02,
-                color: ghost
-                    ? Colors.white.withValues(alpha: 0.7)
-                    : context.yucai.accent,
+                color: ghost ? context.yucai.muted : context.yucai.accent,
               ),
             ),
           ],
@@ -769,11 +767,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     }
 
     return Container(
-      // OD .hero-fields：padding-top 22 + 顶部细分割线（rgba(255,255,255,.1)）。
+      // OD .hero-fields：padding-top 22 + 顶部细分割线。F26:白透分隔线
+      // (#1AFFFFFF)豁免退役 → border 语义令牌。
       padding: const EdgeInsets.only(top: 22),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Color(0x1AFFFFFF), width: 1),
+          top: BorderSide(color: context.yucai.border, width: 1),
         ),
       ),
       child: LayoutBuilder(
@@ -797,7 +796,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     );
   }
 
-  /// hero-field：浅色 label + 白字 value 的单格。
+  /// hero-field：浅色 label + fg value 的单格(F26 白系文本已语义令牌化)。
   Widget _heroField(String label, String value) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -806,7 +805,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.5),
+              color: context.yucai.muted,
             ),
           ),
           const SizedBox(height: 2),
@@ -814,9 +813,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Colors.white,
+              color: context.yucai.fg,
               fontWeight: FontWeight.w500,
               fontFeatures: AppTypography.tabularFigures,
             ),

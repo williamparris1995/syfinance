@@ -22,8 +22,8 @@
 ### ADR-3 主题分支 = YucaiTheme.brightness 判定
 - `Theme.of(context).brightness` 暗亮分支描边/渐变字 vs 白卡阴影;色值全部 context.yucai 语义令牌(accent/accentDeep/surface/shadow 口径走 AppTheme cardTheme 先例)。
 
-### ADR-4 金晕两主题保留(极淡),随 prototype
-- 暗色 0.18(现状)/亮色 0.10(radial accent);prototype 为事实源。
+### ADR-4 金晕两主题保留,随 prototype
+- 单值 0.18 双主题(prototype .glow 单一定义,亮色无覆盖;评审修正了亮 0.10 的失实出处)。
 
 ## HLD
 
@@ -35,7 +35,7 @@ test/...hero_theme_follow_test.dart           NFR-1 探针(双主题)
 
 ## LLD
 
-- 卡:padding 32 保持;radius 24(lgBorder);暗=描边 1.5;亮=shadow(AppTheme.cardTheme 亮色阴影值先例)。
+- 卡:padding 32 保持;radius AppRadius.xl=24(此前笔误写 lgBorder);暗=描边 1.5(内层同心 24−1.5);亮=双层柔影(prototype --shadow 双层口径)。
 - 数字排版(21 cur + 42 value/600/-0.6 letterSpacing/tabular)不变,仅色随主题。
 - 探针断言用 widget 树特征(存在 ShaderMask/描边双容器/Container boxShadow),避免 golden 脆测。
 
@@ -43,7 +43,7 @@ test/...hero_theme_follow_test.dart           NFR-1 探针(双主题)
 
 | 风险 | 缓解 |
 |---|---|
-| 双层容器圆角接缝(1.5px 内缩弧) | 半径同值内缩;视觉走查 |
+| 双层容器圆角接缝(1.5px 内缩弧) | 内层半径同心内缩(xl−1.5);视觉走查 |
 | 账户详情 hero 结构差异(字段多) | 只换容器皮,内容不动 |
 
 ## Migration

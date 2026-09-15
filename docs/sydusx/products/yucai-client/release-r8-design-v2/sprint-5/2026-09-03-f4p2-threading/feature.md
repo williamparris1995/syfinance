@@ -42,7 +42,8 @@ F4 暗色迁移的 P2 回退点清零:剩余 321 处 `AppColors.*` 静态引用(
 - yucai_menu:菜单投影 #1F000000(×2,范围外文件,复用论证)
 - app_toast:toast 投影 #33000000(范围外文件,悬浮 overlay)
 
-### 固定深色面(OD 原型刻意深底,两主题一致;文件头/行内注释)
+### 固定深色面(OD 原型刻意深底,两主题一致;文件头/行内注释)——**已退役(F26,R12 sprint-1,2026-09-15)**:下述 home/账户详情两条深渐变面已迁 design-v2 §4 随主题形态,该两条豁免作废;其余条目(debt 深金渐变卡/LIVE 深渐变面等)仍在豁免期内。
+
 - debt_detail_widgets:DebtDetailHero 深金渐变卡全套内景色(T1)
 - amortization_preview:LIVE 预览深渐变卡全套内景色(T1+T2 补清单)
 - account_detail_page:账户 hero 深渐变面 #1C1E21→#2A2D33 + 白系文本/白透描边
