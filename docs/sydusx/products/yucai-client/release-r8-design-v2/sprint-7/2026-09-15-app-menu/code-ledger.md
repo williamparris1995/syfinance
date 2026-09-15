@@ -23,3 +23,6 @@
 | NFR-3 零回归 | 全量 1643/1643 绿 + analyze 431=基线 + make client-e2e 全过 |
 
 门证据(T5):flutter analyze 431(=基线,新文件 0)/ flutter test +1643 All passed / make client-e2e all suites passed。
+
+## 整体 review 门(2026-09-15):**pass**
+advisory(不阻断,流向后续):①TrayController.quit() 缺 try/finally(stop 抛错不 exit;AppExitPort 路径已有——fail-safe 姿态不一致,F25/polish 轮统一);②negativeSoft 令牌缺失(退出钮 8%/16% vs 原型 10% 派生已注释,记令牌债务);③code-plan T4 watch 测试措辞与实现口径小偏差(注入流 vs 真表)。
