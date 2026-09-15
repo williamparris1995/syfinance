@@ -712,7 +712,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           child: TextFormField(
             key: const ValueKey('counterpartyField'),
             controller: _counterpartyCtrl,
-            decoration: _odDec(context, hint: '姓名 / 企业名称'),
+            decoration: _odDec(context, hint: '请输入姓名 / 企业名称'),
             validator: (v) => _required(v, '债务人'),
           ),
         ),
@@ -792,7 +792,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           child: TextFormField(
             key: const ValueKey('contactField'),
             controller: _contactCtrl,
-            decoration: _odDec(context, hint: '电话 / 邮箱（可选）'),
+            decoration: _odDec(context, hint: '电话 / 邮箱(可选)'),
           ),
         ),
         _ODField(
@@ -800,7 +800,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           child: TextFormField(
             key: const ValueKey('contractRefField'),
             controller: _contractRefCtrl,
-            decoration: _odDec(context, hint: '借条编号 / 合同号（可选）'),
+            decoration: _odDec(context, hint: '借条编号 / 合同号(可选)'),
           ),
         ),
       ]),

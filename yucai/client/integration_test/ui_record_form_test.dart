@@ -102,13 +102,13 @@ void main() {
     await t.pumpAndSettle();
 
     // 转出账户下拉:点下拉 hint 展开菜单,再点菜单项(overlay 渲染在后,取 .last)。
-    await t.tap(find.text('如招商银行、现金').first);
+    await t.tap(find.text('例如：招商银行、现金').first);
     await t.pumpAndSettle();
     await t.tap(find.text('UI记钱包').last);
     await t.pumpAndSettle();
 
     // 支出分类下拉(account-as-category:expense 账户即分类)。
-    await t.tap(find.text('如餐饮、交通').first);
+    await t.tap(find.text('例如：餐饮、交通').first);
     await t.pumpAndSettle();
     await t.tap(find.text('UI记餐饮').last);
     await t.pumpAndSettle();
@@ -144,15 +144,15 @@ void main() {
     await t.pumpAndSettle();
 
     // 收入模式字段:转入账户 / 收入分类。
-    await t.tap(find.text('如招商银行、现金').first);
+    await t.tap(find.text('例如：招商银行、现金').first);
     await t.pumpAndSettle();
     await t.tap(find.text('UI记钱包').last);
     await t.pumpAndSettle();
 
     // 收入分类下拉在表单底部(实机曾落视口底缘,tap 命中偏离)→ 先滚动露出。
-    await t.ensureVisible(find.text('如工资、理财收益').first);
+    await t.ensureVisible(find.text('例如：工资、理财收益').first);
     await t.pumpAndSettle();
-    await t.tap(find.text('如工资、理财收益').first);
+    await t.tap(find.text('例如：工资、理财收益').first);
     await t.pumpAndSettle();
     await t.tap(find.text('UI记工资').last);
     await t.pumpAndSettle();

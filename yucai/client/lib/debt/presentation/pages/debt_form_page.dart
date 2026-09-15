@@ -673,7 +673,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
           child: TextFormField(
             key: const ValueKey('counterpartyField'),
             controller: _counterpartyCtrl,
-            decoration: _odDec(context, hint: '如 招商银行 / 张三'),
+            decoration: _odDec(context, hint: '例如：招商银行 / 张三'),
             validator: (v) => _required(v, '债权方'),
           ),
         ),

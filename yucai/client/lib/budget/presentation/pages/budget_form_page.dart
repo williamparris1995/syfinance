@@ -422,7 +422,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
                   labelText: '预算名称 *',
-                  hintText: '如:日常开销预算',
+                  hintText: '例如：日常开销预算',
                 ),
               ),
             ),
@@ -510,7 +510,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     if (_rows.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Text('暂无条目,点击下方「添加条目」开始',
+        child: Text('暂无条目，点击下方「添加条目」开始',
             style: TextStyle(color: context.yucai.muted, fontSize: 13)),
       );
     }

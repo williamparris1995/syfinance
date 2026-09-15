@@ -323,8 +323,8 @@ void main() {
     await tester.tap(find.text('+50'));
     await tester.pumpAndSettle();
     // 支出模式:转出账户(asset) + 支出分类(expense)
-    await _openDropdownAndPick(tester, '如招商银行、现金', '现金');
-    await _openDropdownAndPick(tester, '如餐饮、交通', '餐饮');
+    await _openDropdownAndPick(tester, '例如：招商银行、现金', '现金');
+    await _openDropdownAndPick(tester, '例如：餐饮、交通', '餐饮');
     // 提交(成功后 listener 异步跑 _syncTags → AddTag;pumpAndSettle 排空微任务)
     await tester.ensureVisible(find.text('保存'));
     await tester.pumpAndSettle();

@@ -1462,7 +1462,7 @@ class _EditorPanelState extends State<_EditorPanel> {
                   child: TextField(
                     controller: _nameCtrl,
                     decoration: const InputDecoration(
-                      hintText: '输入分类名称',
+                      hintText: '请输入分类名称',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),

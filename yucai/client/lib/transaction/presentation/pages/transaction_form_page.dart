@@ -707,20 +707,20 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     switch (_type) {
       case TxnType.expense:
         fields = [
-          _accountField('转出账户', '如招商银行、现金', assetAccounts,
+          _accountField('转出账户', '例如：招商银行、现金', assetAccounts,
               _assetAccountId, (v) => setState(() => _assetAccountId = v),
               allAccounts: allAccounts),
-          _accountField('支出分类', '如餐饮、交通', expenseAccounts,
+          _accountField('支出分类', '例如：餐饮、交通', expenseAccounts,
               _categoryAccountId, (v) => setState(() => _categoryAccountId = v),
               allAccounts: allAccounts),
         ];
         break;
       case TxnType.income:
         fields = [
-          _accountField('转入账户', '如招商银行、现金', assetAccounts,
+          _accountField('转入账户', '例如：招商银行、现金', assetAccounts,
               _assetAccountId, (v) => setState(() => _assetAccountId = v),
               allAccounts: allAccounts),
-          _accountField('收入分类', '如工资、理财收益', incomeAccounts,
+          _accountField('收入分类', '例如：工资、理财收益', incomeAccounts,
               _categoryAccountId, (v) => setState(() => _categoryAccountId = v),
               allAccounts: allAccounts),
         ];
@@ -928,7 +928,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           maxLines: 3,
           decoration: const InputDecoration(
             labelText: '备注',
-            hintText: '补充说明，例如聚餐人数、报销事由…',
+            hintText: '补充说明，例如：聚餐人数、报销事由…',
             alignLabelWithHint: true,
           ),
         ),

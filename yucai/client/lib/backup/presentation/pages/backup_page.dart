@@ -69,7 +69,7 @@ class _BackupPageState extends State<BackupPage> {
               controller: ctrl,
               obscureText: true,
               decoration: const InputDecoration(
-                hintText: '密码',
+                hintText: '请输入密码',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -136,7 +136,7 @@ class _BackupPageState extends State<BackupPage> {
                   obscureText: true,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    hintText: '密码',
+                    hintText: '请输入密码',
                     isDense: true,
                   ),
                 ),

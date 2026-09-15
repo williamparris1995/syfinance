@@ -1057,8 +1057,8 @@ void main() {
     // 填表:+50 快捷金额 + 资金账户(现金)+ 支出分类(餐饮)。
     await tester.tap(find.text('+50'));
     await tester.pumpAndSettle();
-    await _openDropdownAndPick(tester, '如招商银行、现金', '现金');
-    await _openDropdownAndPick(tester, '如餐饮、交通', '餐饮');
+    await _openDropdownAndPick(tester, '例如：招商银行、现金', '现金');
+    await _openDropdownAndPick(tester, '例如：餐饮、交通', '餐饮');
     await tester.ensureVisible(find.text('保存'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('保存'));
@@ -1216,8 +1216,8 @@ void main() {
 
     await tester.tap(find.text('+50'));
     await tester.pumpAndSettle();
-    await _openDropdownAndPick(tester, '如招商银行、现金', '现金');
-    await _openDropdownAndPick(tester, '如餐饮、交通', '餐饮');
+    await _openDropdownAndPick(tester, '例如：招商银行、现金', '现金');
+    await _openDropdownAndPick(tester, '例如：餐饮、交通', '餐饮');
     await tester.ensureVisible(find.text('保存'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('保存'));

@@ -49,7 +49,7 @@ class _TagPageState extends State<TagPage> {
               const SizedBox(height: AppSpacing.xs),
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: '如:日常'),
+                decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: '例如：日常'),
               ),
               const SizedBox(height: AppSpacing.md),
               Text('颜色', style: TextStyle(color: context.yucai.muted, fontSize: 12)),

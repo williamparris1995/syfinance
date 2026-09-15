@@ -488,7 +488,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
                               controller: _notesCtrl,
                               maxLines: 3,
                               decoration: const InputDecoration(
-                                hintText: '补充说明,如账户用途、关联卡片、还款提醒等(可选)',
+                                hintText: '补充说明，例如：账户用途、关联卡片、还款提醒等(可选)',
                               ),
                             ),
                           ],

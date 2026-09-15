@@ -512,7 +512,7 @@ class _PerformancePageState extends State<PerformancePage> {
                   SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '已实现收益加载中或暂无数据,请稍后重试',
+                      '已实现收益加载中或暂无数据，请稍后重试',
                       key: ValueKey('splitRealizedHint'),
                       style: TextStyle(
                           fontSize: 11.5, color: context.yucai.muted),

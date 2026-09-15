@@ -568,13 +568,13 @@ class SettingsPage extends StatelessWidget {
             TextField(
               controller: controller,
               obscureText: true,
-              decoration: const InputDecoration(hintText: '密码'),
+              decoration: const InputDecoration(hintText: '请输入密码'),
             ),
             if (confirm)
               TextField(
                 controller: controller2,
                 obscureText: true,
-                decoration: const InputDecoration(hintText: '再次输入密码'),
+                decoration: const InputDecoration(hintText: '请再次输入密码'),
               ),
           ],
         ),
@@ -747,12 +747,12 @@ class SettingsPage extends StatelessWidget {
             TextField(
               controller: controller,
               obscureText: true,
-              decoration: const InputDecoration(hintText: '密码'),
+              decoration: const InputDecoration(hintText: '请输入密码'),
             ),
             TextField(
               controller: controller2,
               obscureText: true,
-              decoration: const InputDecoration(hintText: '再次输入密码'),
+              decoration: const InputDecoration(hintText: '请再次输入密码'),
             ),
           ],
         ),

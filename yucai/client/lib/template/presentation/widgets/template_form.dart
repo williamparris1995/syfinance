@@ -323,7 +323,7 @@ class _TemplateFormState extends State<TemplateForm> {
                   child: TextField(
                     controller: _cycleDaysCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: _inputDeco(hint: '如 30'),
+                    decoration: _inputDeco(hint: '例如：30'),
                   ),
                 ),
               ],
@@ -395,7 +395,7 @@ class _TemplateFormState extends State<TemplateForm> {
 
   Widget _nameField() => TextField(
         controller: _nameCtrl,
-        decoration: _inputDeco(hint: '如:房租 / 工资'),
+        decoration: _inputDeco(hint: '例如：房租 / 工资'),
         textInputAction: TextInputAction.next,
       );
 

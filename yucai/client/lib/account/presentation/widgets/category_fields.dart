@@ -248,7 +248,7 @@ List<Widget> categoryFieldsWidget(
         TextFormField(
           controller: b.institutionCtrl,
           decoration: const InputDecoration(
-              labelText: '机构（券商）', hintText: '如 华泰证券'),
+              labelText: '机构（券商）', hintText: '例如：华泰证券'),
         ),
         TextFormField(
           controller: b.cardNumberTailCtrl,
@@ -302,7 +302,7 @@ List<Widget> categoryFieldsWidget(
         TextFormField(
           controller: b.goldProductTypeCtrl,
           decoration: const InputDecoration(
-              labelText: '品种', hintText: '如 实物黄金 / 美元 USD'),
+              labelText: '品种', hintText: '例如：实物黄金 / 美元 USD'),
         ),
         TextFormField(
           controller: b.goldQuantityCtrl,

@@ -547,7 +547,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
         controller: _nameCtrl,
         decoration: const InputDecoration(
           labelText: '目标名称',
-          hintText: '如 紧急备用金',
+          hintText: '例如：紧急备用金',
         ),
         validator: (v) => (v == null || v.trim().isEmpty) ? '请输入目标名称' : null,
       ),
