@@ -9,7 +9,7 @@
 | product | domain | vision | 当前 release | 说明 |
 |---|---|---|---|---|
 | [yucai-server](../products/yucai-server/) | software | [vision](../products/yucai-server/vision.md) | [R5 审计整改](../products/yucai-server/release-r5-audit/release.md)(🔄 active) | Go 后端;produces [yucai-api](contracts/yucai-api/README.md) |
-| [yucai-client](../products/yucai-client/) | software | [vision](../products/yucai-client/vision.md) | [R11 发布与更新](../products/yucai-client/release-r11-release-update/release.md)(🔄 active,S5 演练待用户) · [R12 design-debt](../products/yucai-client/release-r12-design-debt/release.md)(✅ done 2026-09-15,三 sprint[F26/F27/F28]收官) | Flutter 客户端;consumes yucai-api;R7/R8/R9/R10 已收官 |
+| [yucai-client](../products/yucai-client/) | software | [vision](../products/yucai-client/vision.md) | [R11 发布与更新](../products/yucai-client/release-r11-release-update/release.md)(🔄 active,S5 演练待用户) · [R13 shell 打磨](../products/yucai-client/release-r13-shell-polish/release.md)(🔄 active,sprint-1) | Flutter 客户端;consumes yucai-api;R7/R8/R9/R10/R12 已收官 | Flutter 客户端;consumes yucai-api;R7/R8/R9/R10 已收官 |
 
 ## Current position
 
