@@ -19,3 +19,4 @@
 ## 状态
 
 - 2026-09-15 **sprint-1 立项**:F26 hero 重设计。[sprint-1](sprint-1/sprint.md)
+- 2026-09-15 **sprint-1 ✅ 收官**:F26 done(merge `0fa0123b`;hero 双主题终态+F15 豁免两目清零;下一 sprint 候选=onAccent sweep/占位文案)。

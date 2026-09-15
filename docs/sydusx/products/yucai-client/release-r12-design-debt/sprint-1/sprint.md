@@ -8,11 +8,11 @@ hero 从 v1 固定深面迁到 design-v2 §4 随主题终态(dark=渐变描边+�
 
 ## Feature roster
 
-- [ ] **feature F26** hero-redesign — 净资产/账户 hero 双主题终态化(design-v2 §4;视觉变体经 prototype v2 用户拍板;F15 豁免条目退役) **[claimed: zcode 2026-09-15]**
+- [x] **feature F26** hero-redesign — 净资产/账户 hero 双主题终态化(design-v2 §4;视觉变体经 prototype v2 用户拍板;F15 豁免条目退役) ✅ done(2026-09-15,merge `0fa0123b`[fast-forward];变体 A 拍板+探针 4 测+1683 全绿+analyze 429;评审 3 Minor 全修)
 
 ## defer
 
 - 迷你 hero 变体(次级 38px 档)是否同步——视变体拍板结果
 - onAccent sweep/占位文案(下一 sprint 候选)
 
-## status: pending
+## status: done(F26 ✅ 2026-09-15;R12 目标「零豁免」推进:F15 固定深色面两条目清零,onAccent sweep/占位文案待下一 sprint)
