@@ -33,6 +33,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
@@ -171,6 +172,9 @@ Widget _harness({
   final getIt = GetIt.instance;
   getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs(netWorthResult));
   getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings(baseCurrency));
+  // Hotfix(导入存档刷新):HomePage initState 订阅 DataRefreshNotifier;本组
+  // 测试不断言 bump 行为(专测见 home_page_refresh_test),仅需 resolve 成功。
+  getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
 
   // accounts: null → 默认 1 笔储蓄(维持现有 NetWorth test 的流动资产断言)。
   final accs = accounts ?? [_account()];
@@ -381,6 +385,8 @@ Widget _routerHarness() {
   final getIt = GetIt.instance;
   getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs(() async => _view()));
   getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings('CNY'));
+  // 同 _harness:HomePage 订阅 DataRefreshNotifier(hotfix 导入存档刷新)。
+  getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
 
   final accountRepo = _MockAccountRepo();
   when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(<Account>[]));

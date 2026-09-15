@@ -29,6 +29,7 @@ import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
@@ -106,6 +107,9 @@ void main() {
     // HomePage reads CurrencySettings from getIt (cross-page refresh listener
     // in initState); register a fake so the home branch resolves.
     getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings());
+    // HomePage 也订阅 DataRefreshNotifier(hotfix:存档导入后的全局重拉通知);
+    // 注册真实例即可 —— 测试无需断言 bump,仅需 resolve 成功。
+    getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
     // HomePage 依赖(占位修复 68508b2 + P0-1 摘要卡):注册 NetWorthDataSource +
     // Debt/Holding/Budget/Goal Repository,stub 返空/Left → 各卡隐藏或空态。
     getIt.registerSingleton<DebtRepository>(debtRepo);

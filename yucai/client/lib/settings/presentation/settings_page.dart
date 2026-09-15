@@ -12,8 +12,9 @@ import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/backup/data/archive_codec.dart';
 import 'package:yucai_client/backup/data/archive_importer.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
-import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide Currency;
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -419,6 +420,11 @@ class SettingsPage extends StatelessWidget {
       final confirmed = await _confirmReplace(context);
       if (confirmed != true) return;
       await getIt<ArchiveImporter>().importAll(envelope);
+      // Hotfix(导入存档后 dashboard 全零):importAll 已整批替换本地库,但
+      // 首页等页面驻留在 IndexedStack 分支里(一次性 initState 加载,切回不
+      // 重建),零通知会让启动空态永续 —— 这里 bump 通知长期驻留的页面级
+      // 缓存重拉。绑定/镜像路径不走此通知器(各有自己的刷新语义)。
+      getIt<DataRefreshNotifier>().bump();
       if (!context.mounted) return;
       _toast(context, '存档已导入（本地数据已替换）');
     } on NotArchiveError {

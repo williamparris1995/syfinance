@@ -13,6 +13,7 @@ import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -64,6 +65,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final NetWorthDataSource _netWorthDs = getIt<NetWorthDataSource>();
   late final CurrencySettings _currencySettings = getIt<CurrencySettings>();
+  // Hotfix(导入存档后 dashboard 全零):全局数据刷新通知器(存档导入成功后
+  // 由设置页 bump)。存字段保证 add/remove 同一实例(照 _currencySettings)。
+  late final DataRefreshNotifier _dataRefresh = getIt<DataRefreshNotifier>();
   // 3 摘要卡数据源(getIt @LazySingleton,与 _netWorthDs 同款直调)。
   late final TransactionRepository _txnRepo = getIt<TransactionRepository>();
   late final BudgetRepository _budgetRepo = getIt<BudgetRepository>();
@@ -85,6 +89,11 @@ class _HomePageState extends State<HomePage> {
     _loadNetWorth();
     _loadSummaryCards();
     _currencySettings.listenable.addListener(_onBaseChanged);
+    // Hotfix(导入存档后 dashboard 全零):本页驻留在 IndexedStack 分支内,
+    // initState 一次性加载后,设置页「导入存档」整批替换本地库时本页毫不知
+    // 情(切回分支不重建不 didPopNext)→ 启动空态永续。订阅全局数据刷新
+    // 通知器,存档导入成功后重拉页面级缓存。
+    _dataRefresh.addListener(_onDataRefresh);
   }
 
   /// 3 摘要卡并发拉取(照 _loadNetWorth 模式,各 Future 独立 await,无相互
@@ -118,9 +127,21 @@ class _HomePageState extends State<HomePage> {
     setState(() {});
   }
 
+  // Hotfix(导入存档后 dashboard 全零):存档导入成功后(设置页 bump),重跑
+  // initState 同组加载 —— AccountBloc Load + 净资产 + 3 摘要卡,Future 替换
+  // 即触发各 FutureBuilder 重渲染(照 _onBaseChanged 的 setState 模式)。
+  void _onDataRefresh() {
+    if (!mounted) return;
+    context.read<AccountBloc>().add(LoadAccountsRequested());
+    _loadNetWorth();
+    _loadSummaryCards();
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _currencySettings.listenable.removeListener(_onBaseChanged);
+    _dataRefresh.removeListener(_onDataRefresh);
     super.dispose();
   }
 

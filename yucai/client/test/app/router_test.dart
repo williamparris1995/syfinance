@@ -33,6 +33,7 @@ import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
@@ -222,6 +223,9 @@ void main() {
     // cross-page refresh listener in initState). Register a fake so the home
     // branch resolves without pulling in the full DI graph.
     getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings());
+    // HomePage 也订阅 DataRefreshNotifier(hotfix:存档导入后的全局重拉通知);
+    // 注册真实例即可 —— 测试无需断言 bump,仅需 resolve 成功。
+    getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
     // SettingsPage reads ThemeSettings from getIt (R8 F1 主题模式)。Register a
     // fake so the settings branch resolves without the full DI graph.
     getIt.registerSingleton<ThemeSettings>(_FakeThemeSettings());

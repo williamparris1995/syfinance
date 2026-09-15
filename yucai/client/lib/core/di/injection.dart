@@ -19,6 +19,7 @@ import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dar
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
@@ -159,6 +160,12 @@ Future<void> configureDependencies() async {
         database: getIt<AppDatabase>(),
         exporter: getIt<LocalSnapshotExporter>(),
       ));
+
+  // 1i. Hotfix(导入存档后 dashboard 全零):数据整批替换后的全局刷新通知器
+  //     —— 手工注册 lazySingleton(照 1h/F21 先例,免 build_runner 重生成;
+  //     无构造依赖)。fire 点 = 设置页导入存档成功;listen 点 = 长期驻留
+  //     IndexedStack 分支的页面级缓存(HomePage),见 core/data_refresh.dart。
+  getIt.registerLazySingleton<DataRefreshNotifier>(DataRefreshNotifier.new);
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.
