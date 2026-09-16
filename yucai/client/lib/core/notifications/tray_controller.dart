@@ -131,7 +131,6 @@ class TrayController with TrayListener, WindowListener {
   /// 防御性,当前生产 stop 后必 exit 不可达)。
   bool _closeInProgress = false;
 
-  static const _kShow = 'show';
   static const _kQuit = 'quit';
   static const _kNewTxn = 'new_transaction';
   static const _kHeadToday = 'head_today';
@@ -371,9 +370,6 @@ class TrayController with TrayListener, WindowListener {
         try {
           await AppUpdater.checkForUpdates();
         } catch (_) {}
-      case _kShow:
-        await windowManager.show();
-        await windowManager.focus();
       case _kQuit:
         // 真正退出:dispose 托盘后结束进程(spec NFR:不留僵尸)。
         await quit();
@@ -401,7 +397,7 @@ class TrayController with TrayListener, WindowListener {
 
   /// 托盘菜单项(FR-6 + F25 + F24):数据头区(FR-1,动态禁用项)→ 分隔线 →
   /// 检查更新(F24 FR-5,enabled)→ 御财 vX.Y.Z(F24 FR-6,disabled)→
-  /// 记一笔(FR-2)→ 显示御财 → 退出。「立即检查」已撤 —— 变更即扫
+  /// 记一笔(置顶)→ 数据头 → 检查更新/版本 → 退出。「显示御财」已撤(左键即显示)、「立即检查」已撤 —— 变更即扫
   /// (FR-4)+ 可配间隔(FR-5)治本取代手动逃生口,_kCheck 与其 case 退役。
   ///
   /// F25 参数化(design LLD):
@@ -433,14 +429,17 @@ class TrayController with TrayListener, WindowListener {
                   disabled: true,
                 ),
               ]);
+    // 验收调序(2026-09-16 用户拍板):记一笔置顶;「显示御财」移除(左键单击
+    // 托盘即显示,菜单项冗余);数据头/更新组居中;退出独立收尾(惯例)。
     return [
+      MenuItem(key: _kNewTxn, label: '记一笔'),
+      MenuItem.separator(),
       ...headItems,
       MenuItem.separator(),
       MenuItem(key: _kCheckUpdate, label: '检查更新'),
       MenuItem(
           key: _kVersion, label: formatVersionLabel(version), disabled: true),
-      MenuItem(key: _kNewTxn, label: '记一笔'),
-      MenuItem(key: _kShow, label: '显示御财'),
+      MenuItem.separator(),
       MenuItem(key: _kQuit, label: '退出'),
     ];
   }

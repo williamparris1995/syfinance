@@ -441,7 +441,7 @@ void main() {
   });
 
   group('托盘菜单(FR-6 + F25 数据头/快捷操作 + F24 更新/版本项)', () {
-    test('菜单枚举:数据头两行 + 分隔线 + 检查更新 + 版本 + 记一笔 + 显示御财 + 退出',
+    test('菜单枚举(验收调序):记一笔置顶 + 数据头 + 检查更新/版本 + 退出(无显示御财)',
         () {
       const head = TrayHeadData(
         todayIncomeCents: 123456, // ¥1,234
@@ -450,10 +450,12 @@ void main() {
       );
       final items = TrayController.buildContextMenu(head: head);
 
-      // 分隔线无 key,非空 key 枚举 = 七个语义项。
+      // 分隔线无 key,非空 key 枚举 = 六个语义项;顺序 = 验收调序拍板。
       final keys =
           items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['head_today', 'head_month', 'check_update', 'version', 'new_transaction', 'show', 'quit']);
+      expect(keys, ['new_transaction', 'head_today', 'head_month', 'check_update', 'version', 'quit']);
+      // 「显示御财」已撤(左键单击即显示)。
+      expect(keys, isNot(contains('show')));
       expect(items.any((i) => i.type == 'separator'), isTrue);
 
       // FR-1:数据头两行 disabled(仅速览不可点)+ 金额文案逐字。
@@ -471,15 +473,16 @@ void main() {
       expect(check.label, '检查更新');
       final version = items.firstWhere((i) => i.key == 'version');
       expect(version.disabled, isTrue);
-      expect(keys.indexOf('check_update'),
-          lessThan(keys.indexOf('new_transaction')));
-      expect(keys.indexOf('version'), lessThan(keys.indexOf('show')));
+      // 验收调序:记一笔居首,退出居尾,检查更新在版本号前。
+      expect(keys.first, 'new_transaction');
+      expect(keys.last, 'quit');
+      expect(keys.indexOf('check_update'), lessThan(keys.indexOf('version')));
 
       // FR-2:记一笔(可点,位于数据头与显示御财之间)。
       final newTxn = items.firstWhere((i) => i.key == 'new_transaction');
       expect(newTxn.disabled, isFalse);
       expect(newTxn.label, '记一笔');
-      expect(keys.indexOf('new_transaction'), lessThan(keys.indexOf('show')));
+      expect(keys.indexOf('head_today'), lessThan(keys.indexOf('quit')));
 
       // 「立即检查」仍已撤。
       expect(items.map((i) => i.label ?? ''),
@@ -513,7 +516,7 @@ void main() {
           TrayController.buildContextMenu(head: head, showAmounts: false);
       // 隐藏 → 单行占位(design LLD:单行,不出两行空壳)。
       final keys = items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['head', 'check_update', 'version', 'new_transaction', 'show', 'quit']);
+      expect(keys, ['new_transaction', 'head', 'check_update', 'version', 'quit']);
       final headItem = items.firstWhere((i) => i.key == 'head');
       expect(headItem.disabled, isTrue);
       expect(headItem.label, '金额已隐藏');
@@ -522,12 +525,12 @@ void main() {
     test('head=null(查询失败/未注入)→ 「--」占位(FR-4/NFR-1)', () {
       final items = TrayController.buildContextMenu();
       final keys = items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['head', 'check_update', 'version', 'new_transaction', 'show', 'quit']);
+      expect(keys, ['new_transaction', 'head', 'check_update', 'version', 'quit']);
       final headItem = items.firstWhere((i) => i.key == 'head');
       expect(headItem.disabled, isTrue);
       expect(headItem.label, '--');
       // 「--」不阻断其余菜单项(NFR-1)。
-      expect(keys, containsAll(['check_update', 'version', 'new_transaction', 'show', 'quit']));
+      expect(keys, containsAll(['new_transaction', 'check_update', 'version', 'quit']));
     });
 
     test('formatTrayAmount:千分位/整元/负号(F25 金额格式)', () {
