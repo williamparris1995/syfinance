@@ -473,6 +473,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       // OD .hero padding 28 32 30（top 28 / 左右 32 / bottom 30）。
       padding: const EdgeInsets.fromLTRB(32, 28, 32, 30),
       child: Stack(
+        // 默认 Clip.hardEdge 把负偏移金晕裁在内容框上;放行后由 HeroShell
+        // 卡面 antiAlias 按卡片圆角裁(同 home 净资产 hero 口径)。
+        clipBehavior: Clip.none,
         children: [
           // 径向金色光晕（ADR-4 暗 0.18 / 亮 0.10 两主题保留）。
           Positioned(

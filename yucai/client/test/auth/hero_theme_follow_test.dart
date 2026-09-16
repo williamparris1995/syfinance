@@ -261,6 +261,13 @@ void main() {
         as RadialGradient;
     expect(rg.colors.first.a, closeTo(0.18, 0.01));
 
+    // 金晕溢出放行:Stack 不得在内容框硬裁(默认 hardEdge 会把负偏移晕切成
+    // 直边方块残块),交给 HeroShell 卡面 antiAlias 按卡片圆角裁。
+    final glowStack = t.widget<Stack>(
+        find.ancestor(of: glow, matching: find.byType(Stack)).first);
+    expect(glowStack.clipBehavior, Clip.none,
+        reason: '负偏移金晕应溢出至卡缘由卡面圆角裁剪');
+
     // label 语义色(muted 暗档)。
     expect(t.widget<Text>(find.text('总净资产')).style?.color,
         const Color(0xFF8B93A3));
@@ -307,5 +314,10 @@ void main() {
     final rg = (t.widget<Container>(glow).decoration as BoxDecoration).gradient
         as RadialGradient;
     expect(rg.colors.first.a, closeTo(0.18, 0.01));
+
+    // 亮色同口径:Stack 溢出放行(负偏移晕由卡面 antiAlias 圆角裁)。
+    final glowStack = t.widget<Stack>(
+        find.ancestor(of: glow, matching: find.byType(Stack)).first);
+    expect(glowStack.clipBehavior, Clip.none);
   });
 }

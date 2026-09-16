@@ -507,6 +507,22 @@ void main() {
     expect(_textContaining('12,000'), findsWidgets);
   });
 
+  testWidgets(
+      'negative net worth: hero 千分位不把负号计入定位(-195,616 非 -,195,616)',
+      (t) async {
+    // net = 300000 − 19861600 = −19561600 cents = −¥195,616.00。
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(assets: 300000, liabilities: 19861600),
+      baseCurrency: 'CNY',
+    ));
+    await t.pumpAndSettle();
+
+    // hero 整数部分正确分组,负号紧贴首位数字。
+    expect(_textContaining('-195,616'), findsWidgets);
+    // 回归:符号被计入长度时的错位产物 "-,195,616" 不得出现。
+    expect(_textContaining('-,'), findsNothing);
+  });
+
   testWidgets('success (USD base): symbol switches to \$ (非硬编码 ¥)',
       (t) async {
     await t.pumpWidget(_harness(

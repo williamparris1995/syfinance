@@ -46,9 +46,13 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 
 /// 千分位分组(1234567 → "1,234,567")。home_page 多处共用(净资产大卡 /
 /// 收支卡 _formatCents / prog-amt),top-level 消除 3 处重复定义(M1 defer)。
+/// 负数安全:先拆符号再按位定位(净资产大卡直传带符号值,若把 '-' 计入
+/// 长度,-195616 会错位成 "-,195,616")。
 String _groupThousands(int n) {
-  final s = n.toString();
+  final negative = n < 0;
+  final s = (negative ? -n : n).toString();
   final buf = StringBuffer();
+  if (negative) buf.write('-');
   for (var i = 0; i < s.length; i++) {
     if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
     buf.write(s[i]);
@@ -429,6 +433,10 @@ class _NetWorthCard extends StatelessWidget {
     return HeroShell(
       padding: const EdgeInsets.all(32),
       child: Stack(
+        // 默认 Clip.hardEdge 会把负偏移金晕裁在内容框上(直边方块残块);
+        // 放行溢出,交给 HeroShell 卡面 Clip.antiAlias 按卡片圆角裁(hero_shell
+        // 头注「内层 clip 以裁住负偏移金晕」的本意)。
+        clipBehavior: Clip.none,
         children: [
           // 金色径向光晕(原型 ::after;ADR-4 暗 0.18 / 亮 0.10 两主题保留)。
           Positioned(
