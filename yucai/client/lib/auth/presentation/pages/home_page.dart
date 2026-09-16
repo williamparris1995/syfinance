@@ -46,16 +46,18 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 
 /// 千分位分组(1234567 → "1,234,567")。home_page 多处共用(净资产大卡 /
 /// 收支卡 _formatCents / prog-amt),top-level 消除 3 处重复定义(M1 defer)。
-/// 负数安全:先拆符号再按位定位(净资产大卡直传带符号值,若把 '-' 计入
-/// 长度,-195616 会错位成 "-,195,616")。
+/// 负数安全:符号从字符串侧剥离再按位定位(净资产大卡直传带符号值,若把
+/// '-' 计入长度,-195616 会错位成 "-,195,616";不走 -n 取反——int64 最小值
+/// 取反回绕自身,字符串侧无此问题,review Spec/WRONG 修复)。
 String _groupThousands(int n) {
-  final negative = n < 0;
-  final s = (negative ? -n : n).toString();
+  final s = n.toString();
+  final negative = s.startsWith('-');
+  final digits = negative ? s.substring(1) : s;
   final buf = StringBuffer();
   if (negative) buf.write('-');
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-    buf.write(s[i]);
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buf.write(',');
+    buf.write(digits[i]);
   }
   return buf.toString();
 }

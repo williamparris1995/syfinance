@@ -202,6 +202,12 @@ void main() {
         as RadialGradient;
     expect(rg.colors.first.a, closeTo(0.18, 0.01));
 
+    // 暗色同口径(补齐 4 组合覆盖,review Spec/MISSING):Stack 溢出放行,
+    // 负偏移晕由卡面 antiAlias 圆角裁。
+    final glowStack = t.widget<Stack>(
+        find.ancestor(of: glow, matching: find.byType(Stack)).first);
+    expect(glowStack.clipBehavior, Clip.none);
+
     // 白系文本 → 语义令牌:账户名 fg(暗档 #F2F4F8)/label muted(#8B93A3)。
     expect(t.widget<Text>(find.text('现金')).style?.color,
         const Color(0xFFF2F4F8));
