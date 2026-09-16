@@ -43,9 +43,8 @@ void main() {
       );
     });
 
-    test('公钥占位标记为 true(T1 真钥替换后须翻 false,防演练带占位发版)',
-        () {
-      expect(AppUpdater.publicKeyIsPlaceholder, isTrue);
+    test('公钥占位标记(D-1 真钥接入后为 false,防演练带占位发版)', () {
+      expect(AppUpdater.publicKeyIsPlaceholder, isFalse);
     });
   });
 

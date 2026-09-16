@@ -38,7 +38,8 @@ class AppUpdater {
   /// 4. 本标记翻 false(单测 [app_updater_test] 同步翻转,防演练带占位
   ///    密钥发版);
   /// 5. 重跑 `flutter build windows --release` 验证。
-  static const bool publicKeyIsPlaceholder = true;
+  static const bool publicKeyIsPlaceholder =
+      false; // F24 演练 D-1:真钥已接入(2026-09-16),占位期结束
 
   /// FR-4:初始化 —— setFeedURL(feed 常量)+ 引擎默认 1 天调度。
   ///
