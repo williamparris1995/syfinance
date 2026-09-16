@@ -23,6 +23,6 @@
 
 - 2026-09-15 **sprint-1 ✅ 收官 = R13 release 收官**:F29 标题栏(`4a4a676b`)/F30 窗口状态(`3bd8cd35`)/F31 散件(`17a2073e`)全 done——窗口 chrome 品牌化+状态记忆+文案清尾,「商业级观感最后一公里」达成;真机验收(Snap/双击/三钮/窗口恢复)待用户。
 - 2026-09-15 **sprint-1 立项**:F29/F30/F31。[sprint-1](sprint-1/sprint.md)
-- 2026-09-16 **sprint-2 立项+✅ 收官**:F32 hero 验收缺陷修复(merge `0f220db6`[ff];用户拍板挂 R13;精简走法 feature/spec 在 feature 目录;worktree 门 1735 全绿+analyze 429 基线;真机 dashboard 复核待用户)。[sprint-2](sprint-2/sprint.md)
+- 2026-09-16 **sprint-2 立项+✅ 收官**:F32 hero 验收缺陷修复(merge `0f220db6`[ff];用户拍板挂 R13;精简走法 feature/spec 在 feature 目录;worktree 门 1735 全绿+analyze 429 基线;两轴 review pass——3 Minor 修 2 defer 1,评审修复 `364669f4`[ff],prototype v2 卡缘裁剪语义对照 pass;真机 dashboard 复核待用户)。[sprint-2](sprint-2/sprint.md)
 
 ## status: done(2026-09-15 sprint-1 / 2026-09-16 sprint-2 补票;任务栏缩略图/多窗口 defer)
