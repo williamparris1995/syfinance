@@ -8,6 +8,6 @@ dashboard hero 两处验收缺陷清零:负净资产千分位错位 + hero 光�
 
 ## Feature roster
 
-- [ ] **feature F32** hero-acceptance-fix — 负净资产千分位 + 两 hero 光晕裁剪(claimed: zcode session 2026-09-16,worktree `.claude/worktrees/r13-f32`)
+- [x] **feature F32** hero-acceptance-fix — 负净资产千分位 + 两 hero 光晕裁剪 ✅ done(2026-09-16,merge `0f220db6`[ff];+3 测,worktree 门 1735 全绿+analyze 429 基线;真机 dashboard 复核待用户)
 
-## status: executing(2026-09-16)
+## status: done(F32 `0f220db6`,2026-09-16)
