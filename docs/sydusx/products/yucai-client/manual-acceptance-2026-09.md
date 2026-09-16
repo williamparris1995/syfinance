@@ -37,10 +37,10 @@
 
 ## 阶段四 F24 发布演练(改 GitHub 网页;本地材料已备)
 
-- [ ] D-1 打开 `.scratch/appcast-keys/keys.txt`(本地未入库):**私钥 PEM** 段复制 → GitHub 仓库 Settings→Secrets→Actions 新建 `APPCAST_DSA_PRIVATE_KEY`;**公钥 PEM** 段整段替换 `yucai/client/windows/runner/dsa_pub.pem`;`lib/core/notifications/app_updater.dart` 的 `publicKeyIsPlaceholder` 翻 `false`
-- [ ] D-2 GitHub 仓库 Settings→Actions→General 确认 Workflow permissions=Read and write
-- [ ] D-3 版本:`yucai/client/pubspec.yaml` version 改 `1.0.1+2` → 提交 → `git tag -a v1.0.1 -m "..." && git push origin main --tags`
-- [ ] D-4 Actions 页看 release workflow 全绿;Releases 页出现 v1.0.1(安装包+appcast.xml)
+- [x] D-1 打开 `.scratch/appcast-keys/keys.txt`(本地未入库):**私钥 PEM** 段复制 → GitHub 仓库 Settings→Secrets→Actions 新建 `APPCAST_DSA_PRIVATE_KEY`;**公钥 PEM** 段整段替换 `yucai/client/windows/runner/dsa_pub.pem`;`lib/core/notifications/app_updater.dart` 的 `publicKeyIsPlaceholder` 翻 `false`
+- [x] D-2 GitHub 仓库 Settings→Actions→General 确认 Workflow permissions=Read and write
+- [x] D-3 版本:`yucai/client/pubspec.yaml` version 改 `1.0.1+2` → 提交 → `git tag -a v1.0.1 -m "..." && git push origin main --tags`
+- [x] D-4 Actions 页看 release workflow 全绿;Releases 页出现 v1.0.1(安装包+appcast.xml)
 - [ ] D-5 旧版本(v1.0.0 安装态)启动 → 托盘菜单「检查更新」→ 引擎弹英文更新窗 → 安装 → 重启后版本号=1.0.1;或等待自动检查(默认 1 天)
 - [ ] D-6 异常排查:[RELEASE.md §5](../../yucai/client/tool/RELEASE.md)(密钥/权限/缓存)
 

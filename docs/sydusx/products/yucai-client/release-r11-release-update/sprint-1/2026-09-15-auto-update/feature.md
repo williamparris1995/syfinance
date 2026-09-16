@@ -12,7 +12,7 @@
 - [x] S2: appcast.xml 生成 + DSA 签名(EdDSA→DSA 引擎降档在案)(私钥 Secrets/公钥入客户端;URL=releases/latest/download/appcast.xml)
 - [x] S3: 客户端 auto_updater 接入(依赖+feed URL+版本常量对齐+初始化)
 - [x] S4: 托盘菜单「检查更新」项 + 版本号展示(grill 定形态)
-- [ ] S5: 发布演练(真 tag 全链 + 旧版安装→新版升级真机验证)
+- [x] S5: 发布演练(v1.0.1 全链 2026-09-16 绿:密钥→Secrets→tag→Actions→Release 双资产;D-5 真机升级进行中)
 
 ## Keywords
 

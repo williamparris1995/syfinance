@@ -22,4 +22,7 @@
 ## 状态
 
 - 2026-09-15 **sprint-1 立项**:F24 自动更新(全链)。[sprint-1](sprint-1/sprint.md)
+- 2026-09-16 **R11 release ✅ 收官**:发布演练 v1.0.1 全链绿(cdb3264d 真钥接入→tag 推送→Actions 构建→Release 安装包+DSA 签名 appcast)——「推 tag 即发版」闭环达成;D-5 真机旧版升级提示为最后人工走查项(验收手册阶段四)。
 - 2026-09-15 **F24 代码面 ✅ done**(merge `021cd2d9`[fast-forward]):Actions 流水线+DSA 签名 appcast(EdDSA 被引擎降档在案)+客户端 auto_updater+托盘两新项;1679 全绿;**S5 发布演练待用户**(RELEASE.md runbook)。
+
+## status: done(2026-09-16;Authenticode/多通道/差分 defer 在案)

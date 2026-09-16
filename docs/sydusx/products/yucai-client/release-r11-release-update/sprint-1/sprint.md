@@ -16,4 +16,4 @@ tag 推送 → GitHub Actions 自动构建 Inno 安装包 → Release + 签名 a
 - Linux/macOS 通道、prerelease 通道、差分更新
 - 更新弹窗中文化(取决于引擎选型,spec 裁)
 
-## status: active(S1-S4 done;S5 发布演练=用户外部步骤)
+## status: done(F24 ✅ 2026-09-16;演练全链绿,D-5 真机升级为最后人工项)
