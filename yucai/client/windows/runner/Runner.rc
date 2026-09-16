@@ -66,8 +66,11 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 #define VERSION_AS_NUMBER 1,0,0,0
 #endif
 
-#if defined(FLUTTER_VERSION)
-#define VERSION_AS_STRING FLUTTER_VERSION
+// 版本字符串 = X.Y.Z(FLUTTER_VERSION_XYZ,定义见 runner/CMakeLists.txt):
+// WinSparkle 读 ProductVersion 字符串与 appcast 比对,原文 FLUTTER_VERSION 的
+// 「+N」会被其比较器判为预发布串(1.0.4+5 < 1.0.4)→ 更新死循环。
+#if defined(FLUTTER_VERSION_XYZ)
+#define VERSION_AS_STRING FLUTTER_VERSION_XYZ
 #else
 #define VERSION_AS_STRING "1.0.0"
 #endif
