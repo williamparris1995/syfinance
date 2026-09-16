@@ -85,8 +85,8 @@ void main() {
     testWidgets('「御」徽标 +「御财」字样 + 三窗钮,高 38', (tester) async {
       await tester.pumpWidget(harness());
 
-      expect(find.text('御'), findsOneWidget); // 徽标字形(F23 同源)
-      expect(find.text('御财'), findsOneWidget);
+      expect(find.text('御'), findsNothing, reason: '验收拍板:徽标移除'); // 徽标字形(F23 同源)
+      expect(find.text('御财'), findsNothing, reason: '验收拍板:文字移除');
       expect(find.byIcon(LucideIcons.minus), findsOneWidget);
       expect(find.byIcon(LucideIcons.square), findsOneWidget);
       expect(find.byIcon(LucideIcons.x), findsOneWidget);
@@ -155,7 +155,9 @@ void main() {
     testWidgets('标题栏拖动 → startDragging', (tester) async {
       await tester.pumpWidget(harness());
 
-      await tester.drag(find.text('御财'), const Offset(30, 0));
+      // 验收拍板后无文字锚:标题栏左侧空白坐标拖拽(tapAt 系)。
+      final tb = tester.getTopLeft(find.byType(AppTitleBar));
+      await tester.dragFrom(tb + const Offset(20, 19), const Offset(30, 0));
       await tester.pump();
 
       expect(windowLog.calls, contains('startDragging'));
@@ -167,9 +169,11 @@ void main() {
       await tester.pumpWidget(harness());
 
       // 双击 = 两 tap 间隔落在 kDoubleTapMinTime..kDoubleTapTimeout 内。
-      await tester.tap(find.text('御财'));
+      // 验收拍板后无文字锚:标题栏左侧空白坐标。
+      final tb = tester.getTopLeft(find.byType(AppTitleBar));
+      await tester.tapAt(tb + const Offset(20, 19));
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.text('御财'));
+      await tester.tapAt(tb + const Offset(20, 19));
       await tester.pump();
 
       expect(windowLog.calls, containsAllInOrder(['isMaximized', 'maximize']));
@@ -181,9 +185,10 @@ void main() {
       isMaximizedResult = true;
       await tester.pumpWidget(harness());
 
-      await tester.tap(find.text('御财'));
+      final tb = tester.getTopLeft(find.byType(AppTitleBar));
+      await tester.tapAt(tb + const Offset(20, 19));
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.text('御财'));
+      await tester.tapAt(tb + const Offset(20, 19));
       await tester.pump();
 
       expect(windowLog.calls, containsAllInOrder(['isMaximized', 'unmaximize']));
@@ -216,9 +221,10 @@ void main() {
     testWidgets('暗色:标题栏底色 = sidebarBg 令牌(侧栏同口径)', (tester) async {
       await tester.pumpWidget(harness(theme: AppTheme.dark()));
 
+      // 验收拍板后无文字锚点;底色断言锚窗钮祖先容器(同壳容器)。
       expect(
         ancestorContainerWithColor(
-            find.text('御财'), YucaiTheme.dark().sidebarBg),
+            find.byIcon(LucideIcons.minus), YucaiTheme.dark().sidebarBg),
         findsOneWidget,
       );
     });
@@ -228,7 +234,7 @@ void main() {
 
       expect(
         ancestorContainerWithColor(
-            find.text('御财'), YucaiTheme.light().sidebarBg),
+            find.byIcon(LucideIcons.minus), YucaiTheme.light().sidebarBg),
         findsOneWidget,
       );
     });

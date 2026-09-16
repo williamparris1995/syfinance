@@ -949,4 +949,21 @@ group('trayIconNeedsWrite (F23 P1)', () {
   });
 });
 
+/// 验收热修(2026-09-16):右键托盘 → Dart 侧主动 popUpContextMenu
+/// (tray_manager 0.5.3 原生只发事件不弹菜单,自 R7 起右键从未工作)。
+group('onTrayIconRightMouseDown (验收热修)', () {
+  test('trayReady → popUpContextMenu 恰一次', () async {
+    final tray = mk();
+    tray.onTrayIconRightMouseDown();
+    await pump();
+    expect(trayLog.calls.where((m) => m == 'popUpContextMenu'), hasLength(1));
+  });
+
+  test('托盘未就绪 → 不弹', () async {
+    final tray = mk()..trayReady = false;
+    tray.onTrayIconRightMouseDown();
+    await pump();
+    expect(trayLog.calls.where((m) => m == 'popUpContextMenu'), isEmpty);
+  });
+});
 }

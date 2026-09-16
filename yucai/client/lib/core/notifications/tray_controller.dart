@@ -381,6 +381,19 @@ class TrayController with TrayListener, WindowListener {
   }
 
   @override
+  void onTrayIconRightMouseDown() async {
+    // 验收热修(2026-09-16 D-5):tray_manager 0.5.3 原生侧 WM_RBUTTONUP 只发
+    // 事件**不弹菜单**(windows/tray_manager_plugin.cpp:204 仅 InvokeMethod),
+    // 必须由 Dart 侧主动弹——自 R7 起右键从未真正工作,真机验收暴露。
+    if (!trayReady) return;
+    try {
+      await trayManager.popUpContextMenu();
+    } catch (_) {
+      // 弹出失败静默(附属功能降级;图标/事件不受影响)。
+    }
+  }
+
+  @override
   void onTrayIconMouseDown() async {
     await windowManager.show();
     await windowManager.focus();

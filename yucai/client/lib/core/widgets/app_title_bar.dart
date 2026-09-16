@@ -6,9 +6,8 @@ import 'package:yucai_client/core/theme/app_design.dart';
 
 /// F29 自定义标题栏 —— 经典双层第一层(spec FR-2)。
 ///
-/// - 高 38;左=「御」金渐变圆角徽标(34px/圆角 11,brand 口径
-///   accent→accentDeep,135deg 同 hero 描边先例;「御」字形与 F23 托盘
-///   图标同源)+「御财」13/w600;
+/// - 高 38;纯 chrome:无徽标无文字(验收拍板 2026-09-16,品牌锚点在侧栏),
+///   整行拖拽/双击区 + 右侧窗口钮;
 /// - 右=三窗钮「─ / □(最大化态切 ❐)/ ✕」;
 /// - 整行(钮除外)=拖拽区:onPanStart → windowManager.startDragging();
 ///   双击 = toggle 最大化。窗钮为拖拽区**兄弟节点**(非子节点)—— 否则
@@ -87,46 +86,11 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
             behavior: HitTestBehavior.opaque,
             onPanStart: (_) => windowManager.startDragging(),
             onDoubleTap: _toggleMaximize,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(children: [
-                // 「御」金渐变徽标:34px 圆角 11(ADR-2 brand 口径)。
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [t.accent, t.accentDeep],
-                    ),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '御',
-                      style: TextStyle(
-                        color: t.onAccent,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: AppTypography.displayFamily,
-                        fontFamilyFallback: AppTypography.displayFallback,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  '御财',
-                  style: TextStyle(
-                    color: t.fg,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: AppTypography.displayFamily,
-                    fontFamilyFallback: AppTypography.displayFallback,
-                  ),
-                ),
-              ]),
+            // 验收拍板(2026-09-16):徽标+「御财」文字移除,标题栏只留窗口钮
+            // (品牌锚点=侧栏徽标;chrome 极简)。整行纯拖拽/双击区。
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: SizedBox(height: 38),
             ),
           ),
         ),
