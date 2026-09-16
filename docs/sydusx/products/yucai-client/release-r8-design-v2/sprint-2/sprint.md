@@ -10,7 +10,7 @@
 
 - [x] **feature F6** 2026-09-02-e2e-module-links — E2E 全模块关联链路补全(订阅/模板标签/预算目标/债权备份) ✅ done(2026-09-03;merge `160c3f30`;10 管道链+2 条件裁决+11 UI 链双层入口[`make client-e2e` 47 测试默认回归 / `make client-e2e-ui` 17 测试手动,均支持 `F=` 单文件];holistic review PASS;附带修复仓库金图卫生地雷[.gitignore `*.png` 挡掉 3 金图,全新 checkout 必红];生产疑点 6 处只记未修见 code-ledger)
 
-> F5 menu-anchor 由另一会话进行中(worktree `r8-f5`),不属本 sprint 追踪。
+> F5 menu-anchor 由另一会话进行中(worktree `r8-f5`),不属本 sprint 追踪。(2026-09-16 回收:代码已全合并入 main,worktree `r8-f5` 与分支 `feature/r8-f5-menu-anchor` 已清除,feature 空闲。)
 
 ## defer
 
