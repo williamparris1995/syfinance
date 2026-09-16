@@ -46,3 +46,7 @@ yucai/server/backups/
 # graphify knowledge-graph output (regenerable; graph.json ~36MB)
 graphify-out/
 docs/**/*.claim.lock
+
+# 会话杂项与工作树不入库(事故防复发 2026-09-16:git add -A 曾带入私钥)
+.scratch/
+.claude/worktrees/
