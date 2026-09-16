@@ -49,6 +49,11 @@ dependencies:
   local_notifier: ^0.1.6
   tray_manager: ^0.5.3
   window_manager: ^0.5.2
+  # F30 窗口状态记忆(S2 出屏检测):显示器矩形(logical 全局坐标)。
+  # 窗口几何来源 window_manager 0.5.2 的既有传递依赖(其自身依赖
+  # screen_retriever ^0.2.2),提升为直接依赖零新增解析 —— 该 Flutter
+  # 版本 dart:ui 的 FlutterView/Display 均不暴露显示器全局位置。
+  screen_retriever: ^0.2.2
   launch_at_startup: ^0.5.1
   flutter_single_instance: ^1.1.2
   # F24 自动更新(ADR-1:auto_updater = WinSparkle;EdDSA 验签引擎内置)。

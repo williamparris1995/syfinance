@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:yucai_client/app/app.dart';
@@ -9,6 +10,7 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/demo/demo_seed.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/notifications_bootstrap.dart';
+import 'package:yucai_client/core/notifications/window_state.dart';
 
 /// 全局错误落盘(用户验收辅助):release 无控制台,报错写
 /// AppData/com.yucai/yucai_client/error.log(单文件追加,cap 64KB 截断)。
@@ -42,6 +44,13 @@ Future<void> main() async {
     exit(0);
   }
   await windowManager.ensureInitialized();
+  // F30 窗口状态记忆(S1,组合根接线注):控制器在此手工构造而非 injectable
+  // 图 —— 恢复须发生在下方 waitUntilReadyToShow 回调内,而该回调与
+  // configureDependencies 的完成**无时序保证**,getIt 此时可能尚未建图;
+  // restore 内部以 memo future 等待 secure_storage 读完成,竞态安全。
+  // const FlutterSecureStorage() 与 injection.dart 1a 注册的为同一 const
+  // 规范实例,共享同一后端。
+  final windowState = WindowStateController(const FlutterSecureStorage());
   // F29 自定义标题栏(FR-1):TitleBarStyle.hidden 只隐藏系统标题栏,原生
   // 窗口边框/阴影/Snap 贴靠/拖边缩放/Win 快捷键全保留(NFR-1)——标题栏
   // 内容由 AppTitleBar(app.dart builder 层)接管。照 window_manager 文档
@@ -56,6 +65,16 @@ Future<void> main() async {
           Platform.isWindows ? TitleBarStyle.hidden : TitleBarStyle.normal,
     ),
     () async {
+      // F30 恢复(S1,排序依据 window_manager 0.5.2 lib/src/window_manager
+      // .dart waitUntilReadyToShow 源码):`if (await isMaximized()) await
+      // unmaximize();` 等启动副作用全部 await 决议**之后**才调用本回调
+      // —— 故回调内的恢复 maximize() 不会被插件启动期 unmaximize 覆盖
+      // (AppTitleBar initState P1 暗桩注释所指「F30 恢复最大化须在
+      // isMaximized?unmaximize 副作用决议后恢复」即落位于此)。回调内
+      // 顺序:restore(先 setBounds 后 maximize,内部已定序)→ show →
+      // focus —— 恢复先于 show,避免窗口可见后的几何跳变;出屏/异常
+      // 尺寸时 restore 零调用,走 runner 默认(10,10 左上 1280×720,非居中——既有 runner 行为)(S2 安全回退)。
+      await windowState.restore();
       await windowManager.show();
       await windowManager.focus();
     },
@@ -69,5 +88,11 @@ Future<void> main() async {
   }
   // 托盘常驻 + 到期提醒 + 自启(仅 Windows;R7-B)。
   await bootstrapNotifications(getIt<AppDatabase>());
+  // F30 挂窗口几何保存监听(组合根接线;挂 main 而非 bootstrapNotifications
+  // —— 后者仅 Windows 生效,而 main 的 windowManager 用法是无平台门的):
+  // move/resize/maximize/unmaximize → 防抖 500ms 落盘 secure_storage。
+  // F22「关闭=hide 到托盘」与真 exit 均天然覆盖 —— 保存不依赖关闭时机,
+  // 几何每次变更后即持久化,关闭时无需补存。
+  windowState.start();
   runApp(const YuCaiApp());
 }
