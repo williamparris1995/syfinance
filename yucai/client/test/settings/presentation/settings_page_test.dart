@@ -10,6 +10,7 @@
 // current base (CNY · Chinese Yuan) and that selecting USD calls
 // CurrencySettings.setBaseCurrency('USD') + surfaces a snackbar.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -616,4 +617,40 @@ void main() {
     expect(tray.amountCalls, [false, true]);
     expect(t.widget<Switch>(find.byType(Switch)).value, isTrue);
   });
+
+/// 「关于与更新」卡(验收补充 2026-09-16):版本行 + 检查更新入口。
+group('关于与更新卡 (验收补充)', () {
+  testWidgets('版本行与检查更新入口渲染;点击 → auto_updater channel', (t) async {
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('dev.leanflutter.plugins/auto_updater'),
+      (call) async {
+        calls.add(call);
+        return null;
+      },
+    );
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 24,
+      status: CurrencyStatus.loaded,
+    );
+    // 卡在页底:拉高视口(F25 先例),否则检查更新行在屏外 tap 不到。
+    t.view.physicalSize = const Size(800, 1800);
+    t.view.devicePixelRatio = 1.0;
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
+    await t.pumpAndSettle();
+
+    expect(find.text('关于与更新'), findsOneWidget);
+    expect(find.text('检查更新'), findsOneWidget);
+    // 版本行:PackageInfo 在测试环境解析出 '1.0.0'/'unknown' 均可,断言含 v 或 --。
+    expect(
+      find.textContaining(RegExp(r'御财 v|--')), findsOneWidget);
+
+    await t.tap(find.text('检查更新'));
+    await t.pump();
+    expect(calls.map((c) => c.method), contains('checkForUpdates'));
+  });
+});
 }

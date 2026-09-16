@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/backup/data/archive_codec.dart';
 import 'package:yucai_client/backup/data/archive_importer.dart';
+import 'package:yucai_client/core/notifications/app_updater.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -400,6 +402,10 @@ class SettingsPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    // 「关于与更新」卡(验收补充 2026-09-16):版本号展示 +
+                    // 检查更新入口 —— 托盘菜单不可达时(如本次右键 bug 的
+                    // 鸡生蛋场景)的更新逃生口;调用 F24 的 AppUpdater。
+                    _AboutUpdateCard(),
                     // F22 页底「退出御财」:所有 card 之后、页面 padding 内。
                     // AppExitPort 未注册时隐藏(见 build 顶部 isRegistered
                     // 守卫注释;T4 bootstrap 注册后生产恒显示)。
@@ -815,6 +821,60 @@ class SettingsPage extends StatelessWidget {
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// 「关于与更新」卡(验收补充 2026-09-16):版本号(PackageInfo=pubspec 单源)
+/// + 「检查更新」(AppUpdater 引擎 UI,失败静默降级)。纯展示+入口,无状态。
+class _AboutUpdateCard extends StatefulWidget {
+  const _AboutUpdateCard();
+
+  @override
+  State<_AboutUpdateCard> createState() => _AboutUpdateCardState();
+}
+
+class _AboutUpdateCardState extends State<_AboutUpdateCard> {
+  String? _version;
+
+  @override
+  void initState() {
+    super.initState();
+    // 版本取 PackageInfo(pubspec 单源派生,与托盘菜单版本行同源);
+    // 失败/未达 → null(行右侧显示 '--')。
+    PackageInfo.fromPlatform()
+        .then((i) => mounted ? setState(() => _version = i.version) : null)
+        .catchError((Object _) => null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.yucai;
+    return _SettingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('关于与更新',
+              style: TextStyle(
+                  color: t.fg, fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          _PreferenceRow(
+            label: '版本',
+            description: '当前安装的御财版本',
+            control: Text(
+              _version == null ? '--' : '御财 v$_version',
+              style: TextStyle(color: t.muted, fontSize: 13),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _NavRow(
+            icon: LucideIcons.refreshCw,
+            label: '检查更新',
+            description: '手动检查新版本(每天也会自动检查)',
+            onTap: () => AppUpdater.checkForUpdates(),
+          ),
+        ],
+      ),
+    );
   }
 }
 
