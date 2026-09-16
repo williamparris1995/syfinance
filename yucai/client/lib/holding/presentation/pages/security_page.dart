@@ -1113,7 +1113,7 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
                 decoration: const InputDecoration(
                   labelText: 'Symbol *',
                   hintText: 'AAPL',
-                  helperText: '如 AAPL',
+                  helperText: '例如：AAPL', // F31:按 F28 规范统一「例如：」
                   border: OutlineInputBorder(),
                 ),
               ),

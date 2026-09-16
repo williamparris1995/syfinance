@@ -611,7 +611,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
             controller: _ratioCtrl,
             decoration: const InputDecoration(
               labelText: '拆分比例',
-              helperText: '如 2 = 1 股拆为 2 股;0.5 = 2 股合为 1 股',
+              helperText: '例如：2 = 1 股拆为 2 股;0.5 = 2 股合为 1 股', // F31:按 F28 规范统一「例如：」
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: (v) =>

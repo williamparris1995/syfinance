@@ -716,7 +716,7 @@ class SettingsPage extends StatelessWidget {
         title: const Text('已清空'),
         content: Text(
           '数据已清空并备份到:\n$path\n\n'
-          '如需找回:设置 → 导入存档 + 备份密码。\n应用即将退出。',
+          '如需找回：设置 → 导入存档 + 备份密码。\n应用即将退出。',
         ),
         actions: [
           FilledButton(
