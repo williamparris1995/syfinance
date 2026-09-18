@@ -22,6 +22,7 @@ import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/data/contract_attachment_store.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
@@ -47,7 +48,7 @@ class DebtDetailPage extends StatefulWidget {
   State<DebtDetailPage> createState() => _DebtDetailPageState();
 }
 
-class _DebtDetailPageState extends State<DebtDetailPage> {
+class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
   List<Account> _accounts = const [];
   // 全量账户缓存(供信用卡 StatRow 查 credit_card 账户,credit_card 属 liability
   // 不在 _accounts 的 asset 过滤集)。
@@ -92,6 +93,29 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
     context.read<DebtBloc>().add(LoadDebtRequested(widget.id));
     _loadAccounts();
     _loadAttachment();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 订阅 debts 分支观察者:编辑/记账表单 pop 回本页时 didPopNext 重拉。
+    // 缺此订阅时,bloc 状态已被列表态(DebtsLoaded,更新成功路径的
+    // LoadDebtsRequested)覆盖,详情停在旧快照 —— 用户看到「保存了但没变」
+    //(F33 验收缺陷根因)。
+    debtsRouteObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void didPopNext() {
+    // 从编辑/记账表单返回:重拉详情 + 兑现 :56 附件重读注释。
+    context.read<DebtBloc>().add(LoadDebtRequested(widget.id));
+    _loadAttachment();
+  }
+
+  @override
+  void dispose() {
+    debtsRouteObserver.unsubscribe(this);
+    super.dispose();
   }
 
   Future<void> _loadAccounts() async {

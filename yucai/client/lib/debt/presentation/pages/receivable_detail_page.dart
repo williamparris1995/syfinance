@@ -18,6 +18,7 @@ import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/data/contract_attachment_store.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
@@ -41,7 +42,8 @@ class ReceivableDetailPage extends StatefulWidget {
   State<ReceivableDetailPage> createState() => _ReceivableDetailPageState();
 }
 
-class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
+class _ReceivableDetailPageState extends State<ReceivableDetailPage>
+    with RouteAware {
   List<Account> _accounts = const [];
   bool _recordPending = false;
   // 合同文件附件(本地 v1):进页读取,编辑页替换后返回经 didPopNext 重读。
@@ -83,6 +85,29 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     context.read<DebtBloc>().add(LoadDebtRequested(widget.id));
     _loadAccounts();
     _loadAttachment();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 订阅 receivables 分支观察者(镜像 debt 详情页 F33 修复):编辑/收款
+    // 表单 pop 回本页时 didPopNext 重拉,否则 bloc 状态已被列表态覆盖,
+    // 详情停在旧快照。
+    receivablesRouteObserver.subscribe(
+        this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void didPopNext() {
+    // 从编辑/收款表单返回:重拉详情 + 兑现 :47 附件重读注释。
+    context.read<DebtBloc>().add(LoadDebtRequested(widget.id));
+    _loadAttachment();
+  }
+
+  @override
+  void dispose() {
+    receivablesRouteObserver.unsubscribe(this);
+    super.dispose();
   }
 
   Future<void> _loadAccounts() async {

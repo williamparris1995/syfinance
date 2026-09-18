@@ -163,6 +163,7 @@ Account _assetAccount({
 Widget _harness({
   required DebtDetail detail,
   List<Account> accounts = const [],
+  DebtDetail? detailAfterReload,
 }) {
   final debtRepo = _MockDebtRepo();
   final accountRepo = _MockAccountRepo();
@@ -170,8 +171,13 @@ Widget _harness({
   GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
   registerFallbackValue(const RecordPaymentRequested(
       debtId: '', scheduleEntryId: '', fromAccountId: ''));
-  when(() => debtRepo.get(any()))
-      .thenAnswer((_) async => dartz.Right(detail));
+  // F33 镜像:detailAfterReload 非空时,get 第 2 次起返回重拉后的详情。
+  var getCalls = 0;
+  when(() => debtRepo.get(any())).thenAnswer((_) async {
+    getCalls += 1;
+    return dartz.Right(
+        (detailAfterReload != null && getCalls > 1) ? detailAfterReload : detail);
+  });
   when(() => debtRepo.recordPayment(
           debtId: any(named: 'debtId'),
           scheduleEntryId: any(named: 'scheduleEntryId'),
@@ -658,6 +664,24 @@ void main() {
       // 「记录还款」「确认记账」对话框标题/按钮不应出现（未开 dialog 时）
       expect(find.text('记录还款'), findsNothing);
       expect(find.text('确认记账'), findsNothing);
+    });
+  });
+
+  group('F33 didPopNext 详情重拉(镜像 debt 详情页)', () {
+    testWidgets('编辑保存返回(didPopNext)重拉详情,counterparty 更新', (t) async {
+      final detailAfterReload =
+          _detail(debt: _receivable(counterparty: '王五 · 个人借款'));
+      await t.pumpWidget(_harness(
+        detail: _detail(debt: _receivable(counterparty: '李四 · 商业借款')),
+        detailAfterReload: detailAfterReload,
+      ));
+      await t.pumpAndSettle();
+      expect(find.textContaining('李四'), findsWidgets);
+      // 模拟编辑保存返回:表单 pop 回本页触发 RouteAware.didPopNext。
+      // (State 私有类静态类型无该方法,dynamic 调用之。)
+      (t.state(find.byType(ReceivableDetailPage)) as dynamic).didPopNext();
+      await t.pumpAndSettle();
+      expect(find.textContaining('王五'), findsWidgets);
     });
   });
 }

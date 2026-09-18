@@ -147,6 +147,7 @@ Account _assetAccount({
 Widget _harness({
   required DebtDetail detail,
   List<Account> accounts = const [],
+  DebtDetail? detailAfterReload,
 }) {
   final debtRepo = _MockDebtRepo();
   final accountRepo = _MockAccountRepo();
@@ -155,8 +156,14 @@ Widget _harness({
   GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
   registerFallbackValue(const RecordPaymentRequested(
       debtId: '', scheduleEntryId: '', fromAccountId: ''));
-  when(() => debtRepo.get(any()))
-      .thenAnswer((_) async => dartz.Right(detail));
+  // F33:detailAfterReload 非空时,get 第 2 次起返回重拉后的详情(编辑保存
+  // 返回场景);第 1 次仍为初始详情。
+  var getCalls = 0;
+  when(() => debtRepo.get(any())).thenAnswer((_) async {
+    getCalls += 1;
+    return dartz.Right(
+        (detailAfterReload != null && getCalls > 1) ? detailAfterReload : detail);
+  });
   when(() => debtRepo.recordPayment(
           debtId: any(named: 'debtId'),
           scheduleEntryId: any(named: 'scheduleEntryId'),
@@ -641,6 +648,44 @@ void main() {
       await t.pumpWidget(_harness(detail: _detail(debt: legacyDebt)));
       await t.pumpAndSettle();
       expect(find.byKey(const ValueKey('creditCardStatsRow')), findsNothing);
+    });
+  });
+
+  group('F33 didPopNext 详情重拉', () {
+    // 最小 Debt 构造(subtype 驱动 badge 文字)。
+    Debt subDebt(String subtype) => Debt(
+          id: 'd1',
+          accountId: 'a1',
+          counterparty: '链路银行',
+          interestRate: 0.05,
+          amortization: AmortizationMethod.equalPrincipalInterest,
+          startDate: DateTime(2026, 1, 1),
+          dueDate: DateTime(2027, 1, 1),
+          totalPrincipalCents: 10000000,
+          remainingPrincipalCents: 10000000,
+          subtype: subtype,
+          version: 1,
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 9, 18),
+        );
+
+    testWidgets('编辑保存返回(didPopNext)重拉详情,badge 更新为新分类', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(
+        detail: _detail(debt: subDebt(DebtSubtypes.mortgage)),
+        detailAfterReload: _detail(debt: subDebt(DebtSubtypes.creditLoan)),
+      ));
+      await t.pumpAndSettle();
+      // 初始:旧分类 badge 可见。
+      expect(find.textContaining('房贷'), findsWidgets);
+      // 模拟编辑保存返回:表单 pop 回本页触发 RouteAware.didPopNext。
+      // (State 私有类静态类型无该方法,dynamic 调用之。)
+      (t.state(find.byType(DebtDetailPage)) as dynamic).didPopNext();
+      await t.pumpAndSettle();
+      // 详情已重拉:badge 更新为新分类(FR-1 用户可见闭环)。
+      expect(find.textContaining('信用贷款'), findsWidgets);
     });
   });
 }
