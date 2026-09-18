@@ -94,9 +94,14 @@ void main() {
 
   group('DebtSubtypes const', () {
     test('exposes all borrowedIn subtype keys', () {
+      // F33-T3:9 类扩容(原型 v3 顺序),单一事实源 value_objects.dart。
       expect(DebtSubtypes.all, [
         DebtSubtypes.mortgage,
         DebtSubtypes.autoLoan,
+        DebtSubtypes.creditLoan,
+        DebtSubtypes.cashInstallment,
+        DebtSubtypes.consumptionLoan,
+        DebtSubtypes.businessLoan,
         DebtSubtypes.creditCard,
         DebtSubtypes.family,
         DebtSubtypes.other,
