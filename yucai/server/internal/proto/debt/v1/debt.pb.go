@@ -809,8 +809,13 @@ type UpdateDebtRequest struct {
 	// optional = presence-aware: unset keeps the current waiver, set replaces
 	// (0 clears the waiver).
 	InterestWaivedCents *int64 `protobuf:"varint,18,opt,name=interest_waived_cents,json=interestWaivedCents,proto3,oneof" json:"interest_waived_cents,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Debt subtype label (plain string, verbatim; same space as
+	// CreateDebtRequest.subtype). Empty = keep unchanged: pre-F33 clients do
+	// not send the field, so an unconditional replace would wipe it on every
+	// legacy edit (F33 NFR-2).
+	Subtype       string `protobuf:"bytes,19,opt,name=subtype,proto3" json:"subtype,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateDebtRequest) Reset() {
@@ -967,6 +972,13 @@ func (x *UpdateDebtRequest) GetInterestWaivedCents() int64 {
 		return *x.InterestWaivedCents
 	}
 	return 0
+}
+
+func (x *UpdateDebtRequest) GetSubtype() string {
+	if x != nil {
+		return x.Subtype
+	}
+	return ""
 }
 
 type DeleteDebtRequest struct {
@@ -1873,7 +1885,7 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\fterm_periods\x18\x13 \x01(\x05R\vtermPeriods\x12%\n" +
 	"\x0eguarantor_name\x18\x14 \x01(\tR\rguarantorName\x12+\n" +
 	"\x11guarantor_contact\x18\x15 \x01(\tR\x10guarantorContact\x122\n" +
-	"\x15interest_waived_cents\x18\x16 \x01(\x03R\x13interestWaivedCents\"\x84\x06\n" +
+	"\x15interest_waived_cents\x18\x16 \x01(\x03R\x13interestWaivedCents\"\x9e\x06\n" +
 	"\x11UpdateDebtRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fcounterparty\x18\x02 \x01(\tR\fcounterparty\x12#\n" +
@@ -1893,7 +1905,8 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x03nth\x18\x0f \x01(\x05R\x03nth\x12%\n" +
 	"\x0eguarantor_name\x18\x10 \x01(\tR\rguarantorName\x12+\n" +
 	"\x11guarantor_contact\x18\x11 \x01(\tR\x10guarantorContact\x127\n" +
-	"\x15interest_waived_cents\x18\x12 \x01(\x03H\x00R\x13interestWaivedCents\x88\x01\x01B\x18\n" +
+	"\x15interest_waived_cents\x18\x12 \x01(\x03H\x00R\x13interestWaivedCents\x88\x01\x01\x12\x18\n" +
+	"\asubtype\x18\x13 \x01(\tR\asubtypeB\x18\n" +
 	"\x16_interest_waived_cents\"#\n" +
 	"\x11DeleteDebtRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x83\x01\n" +

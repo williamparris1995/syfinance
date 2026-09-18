@@ -156,6 +156,11 @@ message UpdateDebtRequest {
   // optional = presence-aware: unset keeps the current waiver, set replaces
   // (0 clears the waiver).
   optional int64 interest_waived_cents = 18;
+  // Debt subtype label (plain string, verbatim; same space as
+  // CreateDebtRequest.subtype). Empty = keep unchanged: pre-F33 clients do
+  // not send the field, so an unconditional replace would wipe it on every
+  // legacy edit (F33 NFR-2).
+  string subtype = 19;
 }
 
 message DeleteDebtRequest { string id = 1; }

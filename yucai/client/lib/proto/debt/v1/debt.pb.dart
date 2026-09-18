@@ -994,6 +994,7 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
     $core.String? guarantorName,
     $core.String? guarantorContact,
     $fixnum.Int64? interestWaivedCents,
+    $core.String? subtype,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -1017,6 +1018,7 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
     if (guarantorContact != null) result.guarantorContact = guarantorContact;
     if (interestWaivedCents != null)
       result.interestWaivedCents = interestWaivedCents;
+    if (subtype != null) result.subtype = subtype;
     return result;
   }
 
@@ -1054,6 +1056,7 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
     ..aOS(16, _omitFieldNames ? '' : 'guarantorName')
     ..aOS(17, _omitFieldNames ? '' : 'guarantorContact')
     ..aInt64(18, _omitFieldNames ? '' : 'interestWaivedCents')
+    ..aOS(19, _omitFieldNames ? '' : 'subtype')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1242,6 +1245,19 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasInterestWaivedCents() => $_has(17);
   @$pb.TagNumber(18)
   void clearInterestWaivedCents() => $_clearField(18);
+
+  /// Debt subtype label (plain string, verbatim; same space as
+  /// CreateDebtRequest.subtype). Empty = keep unchanged: pre-F33 clients do
+  /// not send the field, so an unconditional replace would wipe it on every
+  /// legacy edit (F33 NFR-2).
+  @$pb.TagNumber(19)
+  $core.String get subtype => $_getSZ(18);
+  @$pb.TagNumber(19)
+  set subtype($core.String value) => $_setString(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasSubtype() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearSubtype() => $_clearField(19);
 }
 
 class DeleteDebtRequest extends $pb.GeneratedMessage {

@@ -438,6 +438,7 @@ const UpdateDebtRequest$json = {
       '10': 'interestWaivedCents',
       '17': true
     },
+    {'1': 'subtype', '3': 19, '4': 1, '5': 9, '10': 'subtype'},
   ],
   '8': [
     {'1': '_interest_waived_cents'},
@@ -459,7 +460,8 @@ final $typed_data.Uint8List updateDebtRequestDescriptor = $convert.base64Decode(
     'Y3VycmVuY2VNb250aGx5TW9kZVILbW9udGhseU1vZGUSEAoDbnRoGA8gASgFUgNudGgSJQoOZ3'
     'VhcmFudG9yX25hbWUYECABKAlSDWd1YXJhbnRvck5hbWUSKwoRZ3VhcmFudG9yX2NvbnRhY3QY'
     'ESABKAlSEGd1YXJhbnRvckNvbnRhY3QSNwoVaW50ZXJlc3Rfd2FpdmVkX2NlbnRzGBIgASgDSA'
-    'BSE2ludGVyZXN0V2FpdmVkQ2VudHOIAQFCGAoWX2ludGVyZXN0X3dhaXZlZF9jZW50cw==');
+    'BSE2ludGVyZXN0V2FpdmVkQ2VudHOIAQESGAoHc3VidHlwZRgTIAEoCVIHc3VidHlwZUIYChZf'
+    'aW50ZXJlc3Rfd2FpdmVkX2NlbnRz');
 
 @$core.Deprecated('Use deleteDebtRequestDescriptor instead')
 const DeleteDebtRequest$json = {
