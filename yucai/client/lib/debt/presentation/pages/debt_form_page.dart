@@ -87,6 +87,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
 
   /// 债务子类型 key（DebtSubtypes.*）。存 key —— 判断用 const，UI 显示 labels[key]。
   String _subtypeKey = DebtSubtypes.mortgage;
+  /// 用户手动碰过 subtype 即为 true：创建模式自动归位不再覆盖（F33 LLD ②）。
+  bool _subtypeTouched = false;
   AmortizationMethod _amortization = AmortizationMethod.equalPrincipalInterest;
 
   String? _accountId;
@@ -231,6 +233,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
       _accountId = v;
       _refillCreditCardFields();
     });
+    // F33-T5 创建自动归位(design LLD ②):仅创建模式且用户未手动碰过 subtype
+    // 时按账户类别联动默认值;编辑模式不归位(存量修正靠编辑自由改)。
+    if (_isEdit || _subtypeTouched) return;
+    final d = DebtSubtypeAffinity.defaultSubtypeFor(
+        _selectedAccount?.category.name);
+    if (d != null) setState(() => _subtypeKey = d);
   }
 
   Future<void> _persistCreditCardFieldsIfNeeded() async {
@@ -532,6 +540,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
         counterparty: _counterpartyCtrl.text.trim(),
         interestRate: rate,
         version: e.version,
+        // F33-T5 编辑解禁:显式携带当前选中 subtype(FR-1 存量修正)。
+        subtype: _subtypeKey,
         guarantorName: _guarantorNameCtrl.text.trim(),
         guarantorContact: _guarantorContactCtrl.text.trim(),
         amortizationIndex: _amortization.index,
@@ -936,27 +946,24 @@ class _DebtFormPageState extends State<DebtFormPage> {
                 icon: _debtTypeIcon(key),
                 label: DebtSubtypes.labels[key]!,
                 selected: _subtypeKey == key,
-                // 编辑模式:UpdateDebtParams 不传 subtype(空串 = 不修改,
-                // F33-T4),chips 只读显示。
-                onTap: _isEdit
-                    ? null
-                    : () => setState(() {
-                          _subtypeKey = key;
-                          _refillCreditCardFields();
-                        }),
+                // F33-T5:创建+编辑都可选;触碰后创建模式不再自动归位。
+                onTap: () => setState(() {
+                      _subtypeKey = key;
+                      _subtypeTouched = true;
+                      // 切到 credit_card 时 _visibleAccounts 收窄为信用卡
+                      // 账户,已选非信用卡账户失效 → 清空保持下拉
+                      // value ⊆ items(design.md「归位 × 信用卡过滤交互」)。
+                      if (_accountId != null &&
+                          !_visibleAccounts
+                              .any((a) => a.id == _accountId)) {
+                        _accountId = null;
+                      }
+                      _refillCreditCardFields();
+                    }),
               ),
           ],
         ),
       ),
-      if (_isEdit)
-        Padding(
-          key: ValueKey('subtypeReadonlyHint'),
-          padding: EdgeInsets.only(top: 4),
-          child: Text(
-            '编辑模式不可更改债务类型',
-            style: TextStyle(color: context.yucai.muted, fontSize: 11),
-          ),
-        ),
       // 信用卡子类型 + 无 credit_card 账户 → 提示去账户管理创建。
       if (_isCreditCard && _visibleAccounts.isEmpty && !_accountsLoading)
         Padding(
@@ -1288,9 +1295,9 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-/// 单选卡(债务类型 5 / 摊还方法 3)。对齐 OD .radio:32px icon tile(选中金实心)
+/// 单选卡(债务类型 9 / 摊还方法 3)。对齐 OD .radio:32px icon tile(选中金实心)
 /// + label + 可选 desc。复用 TypeTabs 金选中态视觉。
-/// [onTap] == null → 禁用态(只读显示,编辑模式 subtype 不可更改)。
+/// [onTap] == null → 禁用态视觉(当前无调用方传 null,保留通用禁用样式)。
 class _RadioCard extends StatelessWidget {
   const _RadioCard({
     super.key,

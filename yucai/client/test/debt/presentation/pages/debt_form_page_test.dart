@@ -102,6 +102,22 @@ Account _creditCardAccount({
       version: version,
     );
 
+Account _otherLiabilityAccount({
+  String id = 'ol-1',
+  String name = '个人待还款',
+}) =>
+    Account(
+      id: id,
+      name: name,
+      accountType: AccountType.liability,
+      category: AccountCategory.otherLiability,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+
 Widget _harness({
   required _MockDebtRepo debtRepo,
   required _MockAccountRepo accountRepo,
@@ -446,30 +462,6 @@ void main() {
   });
 
   group('编辑模式（existing）', () {
-    // 复用 _emptyDetail 的 Debt 结构，但 counterparty/version 改为可识别值。
-    Debt existingDebt({
-      String id = 'd-1',
-      String counterparty = '招商银行',
-      // 存储约定=小数(0.0425 即 4.25%;表单回显转百分数,提交 /100)。
-      double interestRate = 0.0425,
-      int totalPrincipalCents = 15000000,
-      int version = 3,
-    }) =>
-        Debt(
-          id: id,
-          accountId: 'loan-1',
-          counterparty: counterparty,
-          interestRate: interestRate,
-          amortization: AmortizationMethod.equalPrincipalInterest,
-          startDate: DateTime(2025, 1, 1),
-          dueDate: DateTime(2030, 1, 1),
-          totalPrincipalCents: totalPrincipalCents,
-          remainingPrincipalCents: totalPrincipalCents,
-          version: version,
-          createdAt: DateTime(2025, 1, 1),
-          updatedAt: DateTime(2025, 6, 1),
-        );
-
     testWidgets('AppBar title = 编辑债务 + 预填 counterparty / 本金 / 利率',
         (t) async {
       t.view.physicalSize = desktop;
@@ -529,6 +521,9 @@ void main() {
               counterparty: any(named: 'counterparty'),
               interestRate: any(named: 'interestRate'),
               version: any(named: 'version'),
+              // F33-T5 后表单显式带 subtype → 必须 any() 通配(漏写会按
+              // 接口默认值 '' 字面匹配,非 '' 即失配 → noSuchMethod 返回 null)。
+              subtype: any(named: 'subtype'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
               guarantorName: any(named: 'guarantorName'),
@@ -573,42 +568,219 @@ void main() {
     });
 
     testWidgets(
-        'edit mode: subtype chips are read-only (tapping does not change subtype)',
+        'edit mode: subtype chips enabled → switch to credit_loan + submit sends new subtype',
         (t) async {
-      // M2 fix:UpdateDebtParams 不携带 subtype,后端不支持改 —— chips 必须
-      // 显示当前 subtype 但不可点击,避免用户误改后静默丢失。
+      // F33-T5:编辑解禁 —— chips 可改;UpdateDebtParams.subtype 显式携带
+      // _subtypeKey(存量 subtype 修正走编辑自由改,FR-1)。
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
       final debtRepo = _MockDebtRepo();
       final accountRepo = _MockAccountRepo();
-      // existing.subtype 用真实 const(非 mortgage,便于验证不被切换回 mortgage)。
-      final existing = existingDebt();
+      registerFallbackValue(const UpdateDebtParams(
+        id: '',
+        counterparty: '',
+        interestRate: 0,
+        version: 0,
+      ));
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'loan-1')]));
+      String? capturedSubtype;
+      var updated = false;
+      when(() => debtRepo.update(
+              id: any(named: 'id'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              version: any(named: 'version'),
+              subtype: any(named: 'subtype'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              dueDate: any(named: 'dueDate'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              interestWaivedCents: any(named: 'interestWaivedCents'),
+              termPeriods: any(named: 'termPeriods'))).thenAnswer((inv) {
+        capturedSubtype = inv.namedArguments[#subtype] as String?;
+        updated = true;
+        return Future.value(dartz.Right(existingDebt(counterparty: '已改')));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: existingDebt(),
+      ));
+      await t.pumpAndSettle();
+
+      // 切到「信用贷款」chip —— 编辑模式也可改(T5 解禁)。
+      final creditLoanChip =
+          find.byKey(const ValueKey('debtType-${DebtSubtypes.creditLoan}'));
+      await t.ensureVisible(creditLoanChip);
+      await t.pumpAndSettle();
+      await t.tap(creditLoanChip);
+      await t.pumpAndSettle();
+
+      // 提交:desktop 走 actions 卡「保存」
+      final submitFinder = find.byKey(const ValueKey('submitButton')).evaluate().isNotEmpty
+          ? find.byKey(const ValueKey('submitButton'))
+          : find.text('保存修改');
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 10 && !updated; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(updated, isTrue);
+      // 显式携带切换后的新值(而非空串「不修改」)
+      expect(capturedSubtype, DebtSubtypes.creditLoan);
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+  });
+
+  // F33-T5 —— 创建自动归位(_subtypeTouched 守护)+ 编辑不归位 +
+  // 归位 × 信用卡过滤交互一致性。选中 subtype 的可观测出口 = 预览标题
+  // 「未命名 · {subtypeLabel}」(previewTitle ValueKey)。
+  group('F33-T5 子类型自动归位', () {
+    // key 就挂在标题 Text 上 → 用 byWidgetPredicate 匹配 data。
+    Finder previewTitleContaining(String s) => find.byWidgetPredicate((w) =>
+        w is Text &&
+        w.key == const ValueKey('previewTitle') &&
+        (w.data?.contains(s) ?? false));
+
+    testWidgets(
+        'create: picking 个人待还款(otherLiability) auto-affines subtype → family',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+            [_loanAccount(id: 'l1', name: '招行房贷'), _otherLiabilityAccount()],
+          ));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 初始默认 mortgage(预览标题「未命名 · 房贷」)
+      expect(previewTitleContaining('房贷'), findsOneWidget);
+      // 未碰 subtype → 切账户到 otherLiability → 自动归位 family
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('个人待还款').last);
+      await t.pumpAndSettle();
+      expect(previewTitleContaining('亲友借款'), findsOneWidget);
+      expect(previewTitleContaining('房贷'), findsNothing);
+    });
+
+    testWidgets(
+        'create: manual subtype pick (credit_loan) survives later account switch',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+            [_loanAccount(id: 'l1', name: '招行房贷'), _otherLiabilityAccount()],
+          ));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 先手动点「信用贷款」→ 视为表达意图(_subtypeTouched)
+      await t.tap(
+          find.byKey(const ValueKey('debtType-${DebtSubtypes.creditLoan}')));
+      await t.pumpAndSettle();
+      expect(previewTitleContaining('信用贷款'), findsOneWidget);
+      // 再切账户到 otherLiability → 不得覆盖用户选择
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('个人待还款').last);
+      await t.pumpAndSettle();
+      expect(previewTitleContaining('信用贷款'), findsOneWidget);
+      expect(previewTitleContaining('亲友借款'), findsNothing);
+    });
+
+    testWidgets('edit: changing account does not re-affine subtype', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _loanAccount(id: 'loan-1', name: '招行房贷'),
+            _otherLiabilityAccount(),
+          ]));
       when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(_harness(
         debtRepo: debtRepo,
         accountRepo: accountRepo,
-        existing: existing,
+        existing: existingDebt(subtype: DebtSubtypes.family),
       ));
       await t.pumpAndSettle();
 
-      // 提示文案存在
-      expect(find.byKey(const ValueKey('subtypeReadonlyHint')), findsOneWidget);
-      // 点其他 subtype chip 后,selected 状态不变(仍是默认 mortgage,因为
-      // existing 未带 subtype → initState fallback 到 mortgage)。
-      final creditCardChip =
-          find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}'));
-      // 默认 selected 是 mortgage —— mortgage chip 应有 selected 视觉,
-      // creditCard chip 不 selected。tapped 后仍如此。
-      // GestureDetector.onTap=null 时 tap 被忽略,无异常。
-      await t.tap(creditCardChip, warnIfMissed: false);
+      // 装载已有 subtype = family
+      expect(previewTitleContaining('亲友借款'), findsOneWidget);
+      // 编辑模式改账户(loan,若误联动会变 credit_loan)→ 不归位
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
       await t.pumpAndSettle();
-      // 再次断言提示仍在 + creditCard chip 仍未变 selected(通过 hint 仍存在
-      // 间接证明 chips 未被点动 —— _isEdit 不变,提示不会消失)。
-      expect(find.byKey(const ValueKey('subtypeReadonlyHint')), findsOneWidget);
+      await t.tap(find.text('个人待还款').last);
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('招行房贷').last);
+      await t.pumpAndSettle();
+      expect(previewTitleContaining('亲友借款'), findsOneWidget);
+      expect(previewTitleContaining('信用贷款'), findsNothing);
+    });
+
+    testWidgets(
+        'affinity × credit-card filter: loan account → credit_loan → manual credit_card switch keeps dropdown consistent',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _loanAccount(id: 'l1', name: '招行房贷'),
+            _creditCardAccount(id: 'cc1', name: '招行信用卡'),
+          ]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // ① 选贷款账户 → 自动归位 credit_loan
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('招行房贷').last);
+      await t.pumpAndSettle();
+      expect(previewTitleContaining('信用贷款'), findsOneWidget);
+      // ② 手动切 credit_card → 下拉突变为仅信用卡账户,已选贷款账户失效
+      await t.tap(
+          find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}')));
+      await t.pumpAndSettle();
+      // 最终状态一致:失效选中被清空(hint 复现)+ 下拉仅剩信用卡账户。
+      expect(find.textContaining('选择信用卡账户'), findsWidgets);
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
+      await t.pumpAndSettle();
+      expect(find.text('招行信用卡'), findsOneWidget);
+      expect(find.text('招行房贷'), findsNothing);
     });
   });
 
@@ -955,6 +1127,33 @@ void main() {
           reason: '点开入口应弹出共享规则编辑器');
     });
 }
+
+/// 复用 _emptyDetail 的 Debt 结构,counterparty/version/subtype 可指定。
+/// (F33-T5 从「编辑模式」group 提升到文件级,供 T5 归位 group 复用。)
+Debt existingDebt({
+  String id = 'd-1',
+  String counterparty = '招商银行',
+  // 存储约定=小数(0.0425 即 4.25%;表单回显转百分数,提交 /100)。
+  double interestRate = 0.0425,
+  int totalPrincipalCents = 15000000,
+  int version = 3,
+  String subtype = '',
+}) =>
+    Debt(
+      id: id,
+      accountId: 'loan-1',
+      counterparty: counterparty,
+      interestRate: interestRate,
+      amortization: AmortizationMethod.equalPrincipalInterest,
+      startDate: DateTime(2025, 1, 1),
+      dueDate: DateTime(2030, 1, 1),
+      totalPrincipalCents: totalPrincipalCents,
+      remainingPrincipalCents: totalPrincipalCents,
+      version: version,
+      subtype: subtype,
+      createdAt: DateTime(2025, 1, 1),
+      updatedAt: DateTime(2025, 6, 1),
+    );
 
 DebtDetail _emptyDetail() => DebtDetail(
       debt: Debt(
