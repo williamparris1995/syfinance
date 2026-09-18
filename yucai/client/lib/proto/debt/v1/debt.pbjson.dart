@@ -23,6 +23,7 @@ const AmortizationMethod$json = {
     {'1': 'AMORTIZATION_EQUAL_PRINCIPAL_INTEREST', '2': 1},
     {'1': 'AMORTIZATION_EQUAL_PRINCIPAL', '2': 2},
     {'1': 'AMORTIZATION_LUMP_SUM', '2': 3},
+    {'1': 'AMORTIZATION_INTEREST_FIRST', '2': 4},
   ],
 };
 
@@ -30,7 +31,8 @@ const AmortizationMethod$json = {
 final $typed_data.Uint8List amortizationMethodDescriptor = $convert.base64Decode(
     'ChJBbW9ydGl6YXRpb25NZXRob2QSHAoYQU1PUlRJWkFUSU9OX1VOU1BFQ0lGSUVEEAASKQolQU'
     '1PUlRJWkFUSU9OX0VRVUFMX1BSSU5DSVBBTF9JTlRFUkVTVBABEiAKHEFNT1JUSVpBVElPTl9F'
-    'UVVBTF9QUklOQ0lQQUwQAhIZChVBTU9SVElaQVRJT05fTFVNUF9TVU0QAw==');
+    'UVVBTF9QUklOQ0lQQUwQAhIZChVBTU9SVElaQVRJT05fTFVNUF9TVU0QAxIfChtBTU9SVElaQV'
+    'RJT05fSU5URVJFU1RfRklSU1QQBA==');
 
 @$core.Deprecated('Use debtTypeDescriptor instead')
 const DebtType$json = {
@@ -142,6 +144,47 @@ const DebtDTO$json = {
       '5': 3,
       '10': 'remainingTrendCents'
     },
+    {
+      '1': 'cycle',
+      '3': 22,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceCycle',
+      '10': 'cycle'
+    },
+    {'1': 'interval', '3': 23, '4': 1, '5': 5, '10': 'interval'},
+    {'1': 'weekday_mask', '3': 24, '4': 1, '5': 5, '10': 'weekdayMask'},
+    {
+      '1': 'monthly_mode',
+      '3': 25,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceMonthlyMode',
+      '10': 'monthlyMode'
+    },
+    {'1': 'nth', '3': 26, '4': 1, '5': 5, '10': 'nth'},
+    {'1': 'guarantor_name', '3': 27, '4': 1, '5': 9, '10': 'guarantorName'},
+    {
+      '1': 'guarantor_contact',
+      '3': 28,
+      '4': 1,
+      '5': 9,
+      '10': 'guarantorContact'
+    },
+    {
+      '1': 'interest_waived_cents',
+      '3': 29,
+      '4': 1,
+      '5': 3,
+      '10': 'interestWaivedCents'
+    },
+    {
+      '1': 'remaining_interest_cents',
+      '3': 30,
+      '4': 1,
+      '5': 3,
+      '10': 'remainingInterestCents'
+    },
   ],
 };
 
@@ -163,7 +206,15 @@ final $typed_data.Uint8List debtDTODescriptor = $convert.base64Decode(
     'oKEW5leHRfcGF5bWVudF9kYXRlGBIgASgJUg9uZXh0UGF5bWVudERhdGUSOQoZbmV4dF9wYXlt'
     'ZW50X2Ftb3VudF9jZW50cxgTIAEoA1IWbmV4dFBheW1lbnRBbW91bnRDZW50cxIzChZuZXh0X3'
     'BheW1lbnRfcGVyaW9kX25vGBQgASgFUhNuZXh0UGF5bWVudFBlcmlvZE5vEjIKFXJlbWFpbmlu'
-    'Z190cmVuZF9jZW50cxgVIAEoA1ITcmVtYWluaW5nVHJlbmRDZW50cw==');
+    'Z190cmVuZF9jZW50cxgVIAEoA1ITcmVtYWluaW5nVHJlbmRDZW50cxI2CgVjeWNsZRgWIAEoDj'
+    'IgLnl1Y2FpLmNvbW1vbi52MS5SZWN1cnJlbmNlQ3ljbGVSBWN5Y2xlEhoKCGludGVydmFsGBcg'
+    'ASgFUghpbnRlcnZhbBIhCgx3ZWVrZGF5X21hc2sYGCABKAVSC3dlZWtkYXlNYXNrEkkKDG1vbn'
+    'RobHlfbW9kZRgZIAEoDjImLnl1Y2FpLmNvbW1vbi52MS5SZWN1cnJlbmNlTW9udGhseU1vZGVS'
+    'C21vbnRobHlNb2RlEhAKA250aBgaIAEoBVIDbnRoEiUKDmd1YXJhbnRvcl9uYW1lGBsgASgJUg'
+    '1ndWFyYW50b3JOYW1lEisKEWd1YXJhbnRvcl9jb250YWN0GBwgASgJUhBndWFyYW50b3JDb250'
+    'YWN0EjIKFWludGVyZXN0X3dhaXZlZF9jZW50cxgdIAEoA1ITaW50ZXJlc3RXYWl2ZWRDZW50cx'
+    'I4ChhyZW1haW5pbmdfaW50ZXJlc3RfY2VudHMYHiABKANSFnJlbWFpbmluZ0ludGVyZXN0Q2Vu'
+    'dHM=');
 
 @$core.Deprecated('Use paymentEntryDTODescriptor instead')
 const PaymentEntryDTO$json = {
@@ -266,6 +317,41 @@ const CreateDebtRequest$json = {
       '5': 9,
       '10': 'collectionAccountId'
     },
+    {
+      '1': 'cycle',
+      '3': 14,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceCycle',
+      '10': 'cycle'
+    },
+    {'1': 'interval', '3': 15, '4': 1, '5': 5, '10': 'interval'},
+    {'1': 'weekday_mask', '3': 16, '4': 1, '5': 5, '10': 'weekdayMask'},
+    {
+      '1': 'monthly_mode',
+      '3': 17,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceMonthlyMode',
+      '10': 'monthlyMode'
+    },
+    {'1': 'nth', '3': 18, '4': 1, '5': 5, '10': 'nth'},
+    {'1': 'term_periods', '3': 19, '4': 1, '5': 5, '10': 'termPeriods'},
+    {'1': 'guarantor_name', '3': 20, '4': 1, '5': 9, '10': 'guarantorName'},
+    {
+      '1': 'guarantor_contact',
+      '3': 21,
+      '4': 1,
+      '5': 9,
+      '10': 'guarantorContact'
+    },
+    {
+      '1': 'interest_waived_cents',
+      '3': 22,
+      '4': 1,
+      '5': 3,
+      '10': 'interestWaivedCents'
+    },
   ],
 };
 
@@ -280,7 +366,14 @@ final $typed_data.Uint8List createDebtRequestDescriptor = $convert.base64Decode(
     'ASgOMhcueXVjYWkuZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGUSGAoHc3VidHlwZRgJIAEoCV'
     'IHc3VidHlwZRIqChFzb3VyY2VfYWNjb3VudF9pZBgKIAEoCVIPc291cmNlQWNjb3VudElkEhgK'
     'B2NvbnRhY3QYCyABKAlSB2NvbnRhY3QSIQoMY29udHJhY3RfcmVmGAwgASgJUgtjb250cmFjdF'
-    'JlZhIyChVjb2xsZWN0aW9uX2FjY291bnRfaWQYDSABKAlSE2NvbGxlY3Rpb25BY2NvdW50SWQ=');
+    'JlZhIyChVjb2xsZWN0aW9uX2FjY291bnRfaWQYDSABKAlSE2NvbGxlY3Rpb25BY2NvdW50SWQS'
+    'NgoFY3ljbGUYDiABKA4yIC55dWNhaS5jb21tb24udjEuUmVjdXJyZW5jZUN5Y2xlUgVjeWNsZR'
+    'IaCghpbnRlcnZhbBgPIAEoBVIIaW50ZXJ2YWwSIQoMd2Vla2RheV9tYXNrGBAgASgFUgt3ZWVr'
+    'ZGF5TWFzaxJJCgxtb250aGx5X21vZGUYESABKA4yJi55dWNhaS5jb21tb24udjEuUmVjdXJyZW'
+    '5jZU1vbnRobHlNb2RlUgttb250aGx5TW9kZRIQCgNudGgYEiABKAVSA250aBIhCgx0ZXJtX3Bl'
+    'cmlvZHMYEyABKAVSC3Rlcm1QZXJpb2RzEiUKDmd1YXJhbnRvcl9uYW1lGBQgASgJUg1ndWFyYW'
+    '50b3JOYW1lEisKEWd1YXJhbnRvcl9jb250YWN0GBUgASgJUhBndWFyYW50b3JDb250YWN0EjIK'
+    'FWludGVyZXN0X3dhaXZlZF9jZW50cxgWIAEoA1ITaW50ZXJlc3RXYWl2ZWRDZW50cw==');
 
 @$core.Deprecated('Use updateDebtRequestDescriptor instead')
 const UpdateDebtRequest$json = {
@@ -299,6 +392,55 @@ const UpdateDebtRequest$json = {
       '5': 9,
       '10': 'collectionAccountId'
     },
+    {
+      '1': 'amortization_method',
+      '3': 8,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.debt.v1.AmortizationMethod',
+      '10': 'amortizationMethod'
+    },
+    {'1': 'due_date', '3': 9, '4': 1, '5': 9, '10': 'dueDate'},
+    {'1': 'term_periods', '3': 10, '4': 1, '5': 5, '10': 'termPeriods'},
+    {
+      '1': 'cycle',
+      '3': 11,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceCycle',
+      '10': 'cycle'
+    },
+    {'1': 'interval', '3': 12, '4': 1, '5': 5, '10': 'interval'},
+    {'1': 'weekday_mask', '3': 13, '4': 1, '5': 5, '10': 'weekdayMask'},
+    {
+      '1': 'monthly_mode',
+      '3': 14,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceMonthlyMode',
+      '10': 'monthlyMode'
+    },
+    {'1': 'nth', '3': 15, '4': 1, '5': 5, '10': 'nth'},
+    {'1': 'guarantor_name', '3': 16, '4': 1, '5': 9, '10': 'guarantorName'},
+    {
+      '1': 'guarantor_contact',
+      '3': 17,
+      '4': 1,
+      '5': 9,
+      '10': 'guarantorContact'
+    },
+    {
+      '1': 'interest_waived_cents',
+      '3': 18,
+      '4': 1,
+      '5': 3,
+      '9': 0,
+      '10': 'interestWaivedCents',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_interest_waived_cents'},
   ],
 };
 
@@ -308,7 +450,16 @@ final $typed_data.Uint8List updateDebtRequestDescriptor = $convert.base64Decode(
     'gJUgxjb3VudGVycGFydHkSIwoNaW50ZXJlc3RfcmF0ZRgDIAEoAVIMaW50ZXJlc3RSYXRlEhgK'
     'B3ZlcnNpb24YBCABKANSB3ZlcnNpb24SGAoHY29udGFjdBgFIAEoCVIHY29udGFjdBIhCgxjb2'
     '50cmFjdF9yZWYYBiABKAlSC2NvbnRyYWN0UmVmEjIKFWNvbGxlY3Rpb25fYWNjb3VudF9pZBgH'
-    'IAEoCVITY29sbGVjdGlvbkFjY291bnRJZA==');
+    'IAEoCVITY29sbGVjdGlvbkFjY291bnRJZBJSChNhbW9ydGl6YXRpb25fbWV0aG9kGAggASgOMi'
+    'EueXVjYWkuZGVidC52MS5BbW9ydGl6YXRpb25NZXRob2RSEmFtb3J0aXphdGlvbk1ldGhvZBIZ'
+    'CghkdWVfZGF0ZRgJIAEoCVIHZHVlRGF0ZRIhCgx0ZXJtX3BlcmlvZHMYCiABKAVSC3Rlcm1QZX'
+    'Jpb2RzEjYKBWN5Y2xlGAsgASgOMiAueXVjYWkuY29tbW9uLnYxLlJlY3VycmVuY2VDeWNsZVIF'
+    'Y3ljbGUSGgoIaW50ZXJ2YWwYDCABKAVSCGludGVydmFsEiEKDHdlZWtkYXlfbWFzaxgNIAEoBV'
+    'ILd2Vla2RheU1hc2sSSQoMbW9udGhseV9tb2RlGA4gASgOMiYueXVjYWkuY29tbW9uLnYxLlJl'
+    'Y3VycmVuY2VNb250aGx5TW9kZVILbW9udGhseU1vZGUSEAoDbnRoGA8gASgFUgNudGgSJQoOZ3'
+    'VhcmFudG9yX25hbWUYECABKAlSDWd1YXJhbnRvck5hbWUSKwoRZ3VhcmFudG9yX2NvbnRhY3QY'
+    'ESABKAlSEGd1YXJhbnRvckNvbnRhY3QSNwoVaW50ZXJlc3Rfd2FpdmVkX2NlbnRzGBIgASgDSA'
+    'BSE2ludGVyZXN0V2FpdmVkQ2VudHOIAQFCGAoWX2ludGVyZXN0X3dhaXZlZF9jZW50cw==');
 
 @$core.Deprecated('Use deleteDebtRequestDescriptor instead')
 const DeleteDebtRequest$json = {
@@ -359,6 +510,55 @@ final $typed_data.Uint8List recordPaymentResponseDescriptor = $convert.base64Dec
     'ChVSZWNvcmRQYXltZW50UmVzcG9uc2USJQoOdHJhbnNhY3Rpb25faWQYASABKAlSDXRyYW5zYW'
     'N0aW9uSWQSNAoFZW50cnkYAiABKAsyHi55dWNhaS5kZWJ0LnYxLlBheW1lbnRFbnRyeURUT1IF'
     'ZW50cnk=');
+
+@$core.Deprecated('Use setPaymentDateRequestDescriptor instead')
+const SetPaymentDateRequest$json = {
+  '1': 'SetPaymentDateRequest',
+  '2': [
+    {'1': 'debt_id', '3': 1, '4': 1, '5': 9, '10': 'debtId'},
+    {'1': 'entry_id', '3': 2, '4': 1, '5': 9, '10': 'entryId'},
+    {'1': 'payment_date', '3': 3, '4': 1, '5': 9, '10': 'paymentDate'},
+  ],
+};
+
+/// Descriptor for `SetPaymentDateRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List setPaymentDateRequestDescriptor = $convert.base64Decode(
+    'ChVTZXRQYXltZW50RGF0ZVJlcXVlc3QSFwoHZGVidF9pZBgBIAEoCVIGZGVidElkEhkKCGVudH'
+    'J5X2lkGAIgASgJUgdlbnRyeUlkEiEKDHBheW1lbnRfZGF0ZRgDIAEoCVILcGF5bWVudERhdGU=');
+
+@$core.Deprecated('Use paymentEntryResponseDescriptor instead')
+const PaymentEntryResponse$json = {
+  '1': 'PaymentEntryResponse',
+  '2': [
+    {
+      '1': 'entry',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.yucai.debt.v1.PaymentEntryDTO',
+      '10': 'entry'
+    },
+  ],
+};
+
+/// Descriptor for `PaymentEntryResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List paymentEntryResponseDescriptor = $convert.base64Decode(
+    'ChRQYXltZW50RW50cnlSZXNwb25zZRI0CgVlbnRyeRgBIAEoCzIeLnl1Y2FpLmRlYnQudjEuUG'
+    'F5bWVudEVudHJ5RFRPUgVlbnRyeQ==');
+
+@$core.Deprecated('Use markEntryPaidRequestDescriptor instead')
+const MarkEntryPaidRequest$json = {
+  '1': 'MarkEntryPaidRequest',
+  '2': [
+    {'1': 'debt_id', '3': 1, '4': 1, '5': 9, '10': 'debtId'},
+    {'1': 'entry_id', '3': 2, '4': 1, '5': 9, '10': 'entryId'},
+  ],
+};
+
+/// Descriptor for `MarkEntryPaidRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List markEntryPaidRequestDescriptor = $convert.base64Decode(
+    'ChRNYXJrRW50cnlQYWlkUmVxdWVzdBIXCgdkZWJ0X2lkGAEgASgJUgZkZWJ0SWQSGQoIZW50cn'
+    'lfaWQYAiABKAlSB2VudHJ5SWQ=');
 
 @$core.Deprecated('Use getDebtRequestDescriptor instead')
 const GetDebtRequest$json = {

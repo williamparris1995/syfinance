@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 )
 
 func TestNewTemplate_Valid(t *testing.T) {
 	tmpl, err := NewTransactionTemplate(
 		uuid.New(), "Rent", 500000,
 		DirectionExpense, uuid.New(),
-		CycleMonthly, 1,
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1},
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	)
 	if err != nil {
@@ -29,7 +30,8 @@ func TestNewTemplate_EmptyName(t *testing.T) {
 	_, err := NewTransactionTemplate(
 		uuid.New(), "  ", 500000,
 		DirectionExpense, uuid.New(),
-		CycleMonthly, 1, time.Now(),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1},
+		time.Now(),
 	)
 	if err == nil {
 		t.Error("expected error for empty name")
@@ -40,7 +42,7 @@ func TestTemplate_IsDue(t *testing.T) {
 	tmpl, _ := NewTransactionTemplate(
 		uuid.New(), "Rent", 500000,
 		DirectionExpense, uuid.New(),
-		CycleMonthly, 1,
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1},
 		time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 	)
 	if !tmpl.IsDue() {
@@ -52,7 +54,8 @@ func TestTemplate_PauseResume(t *testing.T) {
 	tmpl, _ := NewTransactionTemplate(
 		uuid.New(), "Rent", 500000,
 		DirectionExpense, uuid.New(),
-		CycleMonthly, 1, time.Now(),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1},
+		time.Now(),
 	)
 	tmpl.Pause()
 	if !tmpl.Paused {
@@ -64,33 +67,36 @@ func TestTemplate_PauseResume(t *testing.T) {
 	}
 }
 
-func TestCalculateNextDate_Monthly(t *testing.T) {
-	base := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	next := CalculateNextDate(base, CycleMonthly, 15, 1)
-	if next.Month() != time.February {
-		t.Errorf("expected February, got %v", next.Month())
+func TestNewTemplate_NextDateUsesRule(t *testing.T) {
+	// Every 2nd Tuesday: first occurrence after 2026-01-01 is 2026-01-13.
+	tmpl, err := NewTransactionTemplate(
+		uuid.New(), "Rent", 500000,
+		DirectionExpense, uuid.New(),
+		recurrence.Rule{
+			Cycle:       recurrence.CycleMonthly,
+			MonthlyMode: recurrence.MonthlyByNthWeekday,
+			Nth:         2,
+			WeekdayMask: 1 << 1,
+		},
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("NewTransactionTemplate failed: %v", err)
 	}
-	if next.Day() != 15 {
-		t.Errorf("expected day 15, got %d", next.Day())
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-01-13" {
+		t.Errorf("expected next date 2026-01-13, got %s", got)
 	}
 }
 
-func TestCalculateNextDate_MonthEndClamping(t *testing.T) {
-	base := time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC)
-	next := CalculateNextDate(base, CycleMonthly, 31, 1)
-	if next.Month() != time.February {
-		t.Errorf("expected February, got %v", next.Month())
-	}
-	if next.Day() != 28 {
-		t.Errorf("expected day 28 (Feb), got %d", next.Day())
-	}
-}
-
-func TestCalculateNextDate_Weekly(t *testing.T) {
-	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) // Thursday
-	next := CalculateNextDate(base, CycleWeekly, 0, 1)
-	if next.Day() != 8 {
-		t.Errorf("expected day 8, got %d", next.Day())
+func TestNewTemplate_InvalidRule(t *testing.T) {
+	_, err := NewTransactionTemplate(
+		uuid.New(), "Rent", 500000,
+		DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleWeekly, WeekdayMask: 0x80},
+		time.Now(),
+	)
+	if err == nil {
+		t.Error("expected error for invalid weekday mask")
 	}
 }
 
@@ -98,7 +104,7 @@ func TestTemplate_AdvanceToNext(t *testing.T) {
 	tmpl, _ := NewTransactionTemplate(
 		uuid.New(), "Rent", 500000,
 		DirectionExpense, uuid.New(),
-		CycleMonthly, 15,
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 15},
 		time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
 	)
 	before := tmpl.NextDate

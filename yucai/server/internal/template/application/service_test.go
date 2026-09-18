@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/template/domain"
 )
 
@@ -72,7 +73,7 @@ func newTestTemplate(t *testing.T, direction domain.TemplateDirection, paused bo
 	t.Helper()
 	tmpl, err := domain.NewTransactionTemplate(
 		uuid.New(), "Rent", 500000, direction, uuid.New(),
-		domain.CycleMonthly, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1}, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	)
 	if err != nil {
 		t.Fatalf("build template: %v", err)
@@ -209,5 +210,94 @@ func TestRecordTransaction_NilRecorder_Errors(t *testing.T) {
 	}
 	if res != nil {
 		t.Errorf("want nil result, got %+v", res)
+	}
+}
+
+func TestUpdateTemplate_RuleChangeRecomputesNextDate(t *testing.T) {
+	// 未来起始日(2050-01-01 周六)使重算基准 = max(start, today) 恒为 start,
+	// 结果确定:首个 >= 2050-01-01 的周一 = 2050-01-03。
+	tmpl, err := domain.NewTransactionTemplate(
+		uuid.New(), "Rent", 500000, domain.DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1},
+		time.Date(2050, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("build template: %v", err)
+	}
+	repo := &fakeRepo{tmpl: tmpl}
+	svc := NewService(repo, nil)
+
+	resp, err := svc.UpdateTemplate(context.Background(), UpdateTemplateRequest{
+		TenantID:    tmpl.TenantID,
+		ID:          tmpl.ID,
+		Name:        "Rent",
+		AmountCents: 500000,
+		Cycle:       domain.CycleWeekly,
+		WeekdayMask: 1 << 0,
+		Version:     tmpl.Version,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTemplate: %v", err)
+	}
+	if got := resp.NextDate.Format("2006-01-02"); got != "2050-01-03" {
+		t.Errorf("rule change should recompute next date to 2050-01-03, got %s", got)
+	}
+	if resp.Cycle != domain.CycleWeekly || resp.WeekdayMask != 1<<0 {
+		t.Errorf("rule fields not persisted: %+v", resp)
+	}
+}
+
+func TestUpdateTemplate_RuleUnchangedKeepsNextDate(t *testing.T) {
+	tmpl, err := domain.NewTransactionTemplate(
+		uuid.New(), "Rent", 500000, domain.DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1},
+		time.Date(2050, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("build template: %v", err)
+	}
+	repo := &fakeRepo{tmpl: tmpl}
+	svc := NewService(repo, nil)
+
+	resp, err := svc.UpdateTemplate(context.Background(), UpdateTemplateRequest{
+		TenantID:    tmpl.TenantID,
+		ID:          tmpl.ID,
+		Name:        "Rent v2",
+		AmountCents: 600000,
+		Cycle:       domain.CycleMonthly,
+		BillingDay:  1,
+		Version:     tmpl.Version,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTemplate: %v", err)
+	}
+	if !resp.NextDate.Equal(tmpl.NextDate) {
+		t.Errorf("unchanged rule must keep next date %v, got %v", tmpl.NextDate, resp.NextDate)
+	}
+}
+
+func TestUpdateTemplate_InvalidRuleRejected(t *testing.T) {
+	tmpl, err := domain.NewTransactionTemplate(
+		uuid.New(), "Rent", 500000, domain.DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1},
+		time.Date(2050, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("build template: %v", err)
+	}
+	repo := &fakeRepo{tmpl: tmpl}
+	svc := NewService(repo, nil)
+
+	_, err = svc.UpdateTemplate(context.Background(), UpdateTemplateRequest{
+		TenantID:    tmpl.TenantID,
+		ID:          tmpl.ID,
+		Name:        "Rent",
+		AmountCents: 500000,
+		Cycle:       domain.CycleWeekly,
+		WeekdayMask: 0x80, // invalid: outside bit0..bit6
+		Version:     tmpl.Version,
+	})
+	if err == nil {
+		t.Error("expected error for invalid weekday mask")
 	}
 }

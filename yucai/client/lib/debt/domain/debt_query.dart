@@ -39,6 +39,14 @@ bool debtMatchesListFilter(Debt d, DebtListFilter f) {
   }
 }
 
+/// 分类(subtype)命中:key null/空 = 全部。subtype 是纯 String(DebtSubtypes /
+/// ReceivableSubtypes 的 key),与状态筛选正交,两页共用。
+bool debtMatchesSubtype(Debt d, String? subtypeKey) {
+  final k = subtypeKey?.trim() ?? '';
+  if (k.isEmpty) return true;
+  return d.subtype == k;
+}
+
 /// 列表默认序(原 debt_list_widgets.dart,语义不变):未结清在前(按到期
 /// 升序),已结清沉底。
 int debtCompareList(Debt a, Debt b) {

@@ -673,6 +673,14 @@ type TransactionTemplateMutation struct {
 	addcycle_days          *int32
 	billing_day            *int32
 	addbilling_day         *int32
+	interval               *int32
+	addinterval            *int32
+	weekday_mask           *int32
+	addweekday_mask        *int32
+	monthly_mode           *int32
+	addmonthly_mode        *int32
+	nth                    *int32
+	addnth                 *int32
 	next_date              *time.Time
 	start_date             *time.Time
 	end_date               *time.Time
@@ -1271,6 +1279,286 @@ func (m *TransactionTemplateMutation) ResetBillingDay() {
 	delete(m.clearedFields, transactiontemplate.FieldBillingDay)
 }
 
+// SetInterval sets the "interval" field.
+func (m *TransactionTemplateMutation) SetInterval(i int32) {
+	m.interval = &i
+	m.addinterval = nil
+}
+
+// Interval returns the value of the "interval" field in the mutation.
+func (m *TransactionTemplateMutation) Interval() (r int32, exists bool) {
+	v := m.interval
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInterval returns the old "interval" field's value of the TransactionTemplate entity.
+// If the TransactionTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionTemplateMutation) OldInterval(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInterval is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInterval requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInterval: %w", err)
+	}
+	return oldValue.Interval, nil
+}
+
+// AddInterval adds i to the "interval" field.
+func (m *TransactionTemplateMutation) AddInterval(i int32) {
+	if m.addinterval != nil {
+		*m.addinterval += i
+	} else {
+		m.addinterval = &i
+	}
+}
+
+// AddedInterval returns the value that was added to the "interval" field in this mutation.
+func (m *TransactionTemplateMutation) AddedInterval() (r int32, exists bool) {
+	v := m.addinterval
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInterval clears the value of the "interval" field.
+func (m *TransactionTemplateMutation) ClearInterval() {
+	m.interval = nil
+	m.addinterval = nil
+	m.clearedFields[transactiontemplate.FieldInterval] = struct{}{}
+}
+
+// IntervalCleared returns if the "interval" field was cleared in this mutation.
+func (m *TransactionTemplateMutation) IntervalCleared() bool {
+	_, ok := m.clearedFields[transactiontemplate.FieldInterval]
+	return ok
+}
+
+// ResetInterval resets all changes to the "interval" field.
+func (m *TransactionTemplateMutation) ResetInterval() {
+	m.interval = nil
+	m.addinterval = nil
+	delete(m.clearedFields, transactiontemplate.FieldInterval)
+}
+
+// SetWeekdayMask sets the "weekday_mask" field.
+func (m *TransactionTemplateMutation) SetWeekdayMask(i int32) {
+	m.weekday_mask = &i
+	m.addweekday_mask = nil
+}
+
+// WeekdayMask returns the value of the "weekday_mask" field in the mutation.
+func (m *TransactionTemplateMutation) WeekdayMask() (r int32, exists bool) {
+	v := m.weekday_mask
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWeekdayMask returns the old "weekday_mask" field's value of the TransactionTemplate entity.
+// If the TransactionTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionTemplateMutation) OldWeekdayMask(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWeekdayMask is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWeekdayMask requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWeekdayMask: %w", err)
+	}
+	return oldValue.WeekdayMask, nil
+}
+
+// AddWeekdayMask adds i to the "weekday_mask" field.
+func (m *TransactionTemplateMutation) AddWeekdayMask(i int32) {
+	if m.addweekday_mask != nil {
+		*m.addweekday_mask += i
+	} else {
+		m.addweekday_mask = &i
+	}
+}
+
+// AddedWeekdayMask returns the value that was added to the "weekday_mask" field in this mutation.
+func (m *TransactionTemplateMutation) AddedWeekdayMask() (r int32, exists bool) {
+	v := m.addweekday_mask
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearWeekdayMask clears the value of the "weekday_mask" field.
+func (m *TransactionTemplateMutation) ClearWeekdayMask() {
+	m.weekday_mask = nil
+	m.addweekday_mask = nil
+	m.clearedFields[transactiontemplate.FieldWeekdayMask] = struct{}{}
+}
+
+// WeekdayMaskCleared returns if the "weekday_mask" field was cleared in this mutation.
+func (m *TransactionTemplateMutation) WeekdayMaskCleared() bool {
+	_, ok := m.clearedFields[transactiontemplate.FieldWeekdayMask]
+	return ok
+}
+
+// ResetWeekdayMask resets all changes to the "weekday_mask" field.
+func (m *TransactionTemplateMutation) ResetWeekdayMask() {
+	m.weekday_mask = nil
+	m.addweekday_mask = nil
+	delete(m.clearedFields, transactiontemplate.FieldWeekdayMask)
+}
+
+// SetMonthlyMode sets the "monthly_mode" field.
+func (m *TransactionTemplateMutation) SetMonthlyMode(i int32) {
+	m.monthly_mode = &i
+	m.addmonthly_mode = nil
+}
+
+// MonthlyMode returns the value of the "monthly_mode" field in the mutation.
+func (m *TransactionTemplateMutation) MonthlyMode() (r int32, exists bool) {
+	v := m.monthly_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMonthlyMode returns the old "monthly_mode" field's value of the TransactionTemplate entity.
+// If the TransactionTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionTemplateMutation) OldMonthlyMode(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMonthlyMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMonthlyMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMonthlyMode: %w", err)
+	}
+	return oldValue.MonthlyMode, nil
+}
+
+// AddMonthlyMode adds i to the "monthly_mode" field.
+func (m *TransactionTemplateMutation) AddMonthlyMode(i int32) {
+	if m.addmonthly_mode != nil {
+		*m.addmonthly_mode += i
+	} else {
+		m.addmonthly_mode = &i
+	}
+}
+
+// AddedMonthlyMode returns the value that was added to the "monthly_mode" field in this mutation.
+func (m *TransactionTemplateMutation) AddedMonthlyMode() (r int32, exists bool) {
+	v := m.addmonthly_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMonthlyMode clears the value of the "monthly_mode" field.
+func (m *TransactionTemplateMutation) ClearMonthlyMode() {
+	m.monthly_mode = nil
+	m.addmonthly_mode = nil
+	m.clearedFields[transactiontemplate.FieldMonthlyMode] = struct{}{}
+}
+
+// MonthlyModeCleared returns if the "monthly_mode" field was cleared in this mutation.
+func (m *TransactionTemplateMutation) MonthlyModeCleared() bool {
+	_, ok := m.clearedFields[transactiontemplate.FieldMonthlyMode]
+	return ok
+}
+
+// ResetMonthlyMode resets all changes to the "monthly_mode" field.
+func (m *TransactionTemplateMutation) ResetMonthlyMode() {
+	m.monthly_mode = nil
+	m.addmonthly_mode = nil
+	delete(m.clearedFields, transactiontemplate.FieldMonthlyMode)
+}
+
+// SetNth sets the "nth" field.
+func (m *TransactionTemplateMutation) SetNth(i int32) {
+	m.nth = &i
+	m.addnth = nil
+}
+
+// Nth returns the value of the "nth" field in the mutation.
+func (m *TransactionTemplateMutation) Nth() (r int32, exists bool) {
+	v := m.nth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNth returns the old "nth" field's value of the TransactionTemplate entity.
+// If the TransactionTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionTemplateMutation) OldNth(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNth is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNth requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNth: %w", err)
+	}
+	return oldValue.Nth, nil
+}
+
+// AddNth adds i to the "nth" field.
+func (m *TransactionTemplateMutation) AddNth(i int32) {
+	if m.addnth != nil {
+		*m.addnth += i
+	} else {
+		m.addnth = &i
+	}
+}
+
+// AddedNth returns the value that was added to the "nth" field in this mutation.
+func (m *TransactionTemplateMutation) AddedNth() (r int32, exists bool) {
+	v := m.addnth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearNth clears the value of the "nth" field.
+func (m *TransactionTemplateMutation) ClearNth() {
+	m.nth = nil
+	m.addnth = nil
+	m.clearedFields[transactiontemplate.FieldNth] = struct{}{}
+}
+
+// NthCleared returns if the "nth" field was cleared in this mutation.
+func (m *TransactionTemplateMutation) NthCleared() bool {
+	_, ok := m.clearedFields[transactiontemplate.FieldNth]
+	return ok
+}
+
+// ResetNth resets all changes to the "nth" field.
+func (m *TransactionTemplateMutation) ResetNth() {
+	m.nth = nil
+	m.addnth = nil
+	delete(m.clearedFields, transactiontemplate.FieldNth)
+}
+
 // SetNextDate sets the "next_date" field.
 func (m *TransactionTemplateMutation) SetNextDate(t time.Time) {
 	m.next_date = &t
@@ -1778,7 +2066,7 @@ func (m *TransactionTemplateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TransactionTemplateMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 24)
 	if m.tenant_id != nil {
 		fields = append(fields, transactiontemplate.FieldTenantID)
 	}
@@ -1808,6 +2096,18 @@ func (m *TransactionTemplateMutation) Fields() []string {
 	}
 	if m.billing_day != nil {
 		fields = append(fields, transactiontemplate.FieldBillingDay)
+	}
+	if m.interval != nil {
+		fields = append(fields, transactiontemplate.FieldInterval)
+	}
+	if m.weekday_mask != nil {
+		fields = append(fields, transactiontemplate.FieldWeekdayMask)
+	}
+	if m.monthly_mode != nil {
+		fields = append(fields, transactiontemplate.FieldMonthlyMode)
+	}
+	if m.nth != nil {
+		fields = append(fields, transactiontemplate.FieldNth)
 	}
 	if m.next_date != nil {
 		fields = append(fields, transactiontemplate.FieldNextDate)
@@ -1867,6 +2167,14 @@ func (m *TransactionTemplateMutation) Field(name string) (ent.Value, bool) {
 		return m.CycleDays()
 	case transactiontemplate.FieldBillingDay:
 		return m.BillingDay()
+	case transactiontemplate.FieldInterval:
+		return m.Interval()
+	case transactiontemplate.FieldWeekdayMask:
+		return m.WeekdayMask()
+	case transactiontemplate.FieldMonthlyMode:
+		return m.MonthlyMode()
+	case transactiontemplate.FieldNth:
+		return m.Nth()
 	case transactiontemplate.FieldNextDate:
 		return m.NextDate()
 	case transactiontemplate.FieldStartDate:
@@ -1916,6 +2224,14 @@ func (m *TransactionTemplateMutation) OldField(ctx context.Context, name string)
 		return m.OldCycleDays(ctx)
 	case transactiontemplate.FieldBillingDay:
 		return m.OldBillingDay(ctx)
+	case transactiontemplate.FieldInterval:
+		return m.OldInterval(ctx)
+	case transactiontemplate.FieldWeekdayMask:
+		return m.OldWeekdayMask(ctx)
+	case transactiontemplate.FieldMonthlyMode:
+		return m.OldMonthlyMode(ctx)
+	case transactiontemplate.FieldNth:
+		return m.OldNth(ctx)
 	case transactiontemplate.FieldNextDate:
 		return m.OldNextDate(ctx)
 	case transactiontemplate.FieldStartDate:
@@ -2015,6 +2331,34 @@ func (m *TransactionTemplateMutation) SetField(name string, value ent.Value) err
 		}
 		m.SetBillingDay(v)
 		return nil
+	case transactiontemplate.FieldInterval:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInterval(v)
+		return nil
+	case transactiontemplate.FieldWeekdayMask:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWeekdayMask(v)
+		return nil
+	case transactiontemplate.FieldMonthlyMode:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMonthlyMode(v)
+		return nil
+	case transactiontemplate.FieldNth:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNth(v)
+		return nil
 	case transactiontemplate.FieldNextDate:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -2102,6 +2446,18 @@ func (m *TransactionTemplateMutation) AddedFields() []string {
 	if m.addbilling_day != nil {
 		fields = append(fields, transactiontemplate.FieldBillingDay)
 	}
+	if m.addinterval != nil {
+		fields = append(fields, transactiontemplate.FieldInterval)
+	}
+	if m.addweekday_mask != nil {
+		fields = append(fields, transactiontemplate.FieldWeekdayMask)
+	}
+	if m.addmonthly_mode != nil {
+		fields = append(fields, transactiontemplate.FieldMonthlyMode)
+	}
+	if m.addnth != nil {
+		fields = append(fields, transactiontemplate.FieldNth)
+	}
 	if m.addversion != nil {
 		fields = append(fields, transactiontemplate.FieldVersion)
 	}
@@ -2119,6 +2475,14 @@ func (m *TransactionTemplateMutation) AddedField(name string) (ent.Value, bool) 
 		return m.AddedCycleDays()
 	case transactiontemplate.FieldBillingDay:
 		return m.AddedBillingDay()
+	case transactiontemplate.FieldInterval:
+		return m.AddedInterval()
+	case transactiontemplate.FieldWeekdayMask:
+		return m.AddedWeekdayMask()
+	case transactiontemplate.FieldMonthlyMode:
+		return m.AddedMonthlyMode()
+	case transactiontemplate.FieldNth:
+		return m.AddedNth()
 	case transactiontemplate.FieldVersion:
 		return m.AddedVersion()
 	}
@@ -2151,6 +2515,34 @@ func (m *TransactionTemplateMutation) AddField(name string, value ent.Value) err
 		}
 		m.AddBillingDay(v)
 		return nil
+	case transactiontemplate.FieldInterval:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInterval(v)
+		return nil
+	case transactiontemplate.FieldWeekdayMask:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWeekdayMask(v)
+		return nil
+	case transactiontemplate.FieldMonthlyMode:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMonthlyMode(v)
+		return nil
+	case transactiontemplate.FieldNth:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddNth(v)
+		return nil
 	case transactiontemplate.FieldVersion:
 		v, ok := value.(int64)
 		if !ok {
@@ -2177,6 +2569,18 @@ func (m *TransactionTemplateMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(transactiontemplate.FieldBillingDay) {
 		fields = append(fields, transactiontemplate.FieldBillingDay)
+	}
+	if m.FieldCleared(transactiontemplate.FieldInterval) {
+		fields = append(fields, transactiontemplate.FieldInterval)
+	}
+	if m.FieldCleared(transactiontemplate.FieldWeekdayMask) {
+		fields = append(fields, transactiontemplate.FieldWeekdayMask)
+	}
+	if m.FieldCleared(transactiontemplate.FieldMonthlyMode) {
+		fields = append(fields, transactiontemplate.FieldMonthlyMode)
+	}
+	if m.FieldCleared(transactiontemplate.FieldNth) {
+		fields = append(fields, transactiontemplate.FieldNth)
 	}
 	if m.FieldCleared(transactiontemplate.FieldEndDate) {
 		fields = append(fields, transactiontemplate.FieldEndDate)
@@ -2212,6 +2616,18 @@ func (m *TransactionTemplateMutation) ClearField(name string) error {
 		return nil
 	case transactiontemplate.FieldBillingDay:
 		m.ClearBillingDay()
+		return nil
+	case transactiontemplate.FieldInterval:
+		m.ClearInterval()
+		return nil
+	case transactiontemplate.FieldWeekdayMask:
+		m.ClearWeekdayMask()
+		return nil
+	case transactiontemplate.FieldMonthlyMode:
+		m.ClearMonthlyMode()
+		return nil
+	case transactiontemplate.FieldNth:
+		m.ClearNth()
 		return nil
 	case transactiontemplate.FieldEndDate:
 		m.ClearEndDate()
@@ -2259,6 +2675,18 @@ func (m *TransactionTemplateMutation) ResetField(name string) error {
 		return nil
 	case transactiontemplate.FieldBillingDay:
 		m.ResetBillingDay()
+		return nil
+	case transactiontemplate.FieldInterval:
+		m.ResetInterval()
+		return nil
+	case transactiontemplate.FieldWeekdayMask:
+		m.ResetWeekdayMask()
+		return nil
+	case transactiontemplate.FieldMonthlyMode:
+		m.ResetMonthlyMode()
+		return nil
+	case transactiontemplate.FieldNth:
+		m.ResetNth()
 		return nil
 	case transactiontemplate.FieldNextDate:
 		m.ResetNextDate()

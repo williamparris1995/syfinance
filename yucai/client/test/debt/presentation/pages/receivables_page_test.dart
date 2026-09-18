@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -70,6 +71,9 @@ Debt _debt({
       version: 1,
       createdAt: DateTime(2026, 1, 1),
       updatedAt: DateTime(2026, 1, 1),
+      // 债权页按 borrowedOut 切片(2026-09 混淆缺陷定案:全量状态 + 表现层
+      // 切片),夹具显式声明方向。
+      type: DebtType.borrowedOut,
       nextPaymentDate: nextPaymentDate,
       nextPaymentAmountCents: nextPaymentAmountCents,
       nextPaymentPeriodNo: nextPaymentPeriodNo,
@@ -131,6 +135,7 @@ Widget _harness(List<Debt> debts, {ReceivablesSummary? summary}) {
   }
   // getIt 注册 mock summary repo(页面 initState 走 getIt<ReceivablesSummaryRepository>())。
   GetIt.instance.registerSingleton<ReceivablesSummaryRepository>(summaryRepo);
+  GetIt.instance.registerLazySingleton<DataRefreshNotifier>(DataRefreshNotifier.new);
   return MaterialApp(
     home: MultiBlocProvider(
       providers: [
@@ -171,7 +176,7 @@ void main() {
     _debt(
       id: 'r2',
       counterparty: '李四',
-      interestRate: 8.00,
+      interestRate: 0.08,
       amortization: AmortizationMethod.equalPrincipalInterest,
       dueDate: DateTime(2027, 2, 15),
       totalPrincipalCents: 10000000,
@@ -329,7 +334,7 @@ void main() {
       _debt(
         id: 'o1',
         counterparty: '王五',
-        interestRate: 5.00,
+        interestRate: 0.05,
         amortization: AmortizationMethod.lumpSum,
         dueDate: DateTime(2025, 6, 1), // 过去 + 未结清 → 逾期
         totalPrincipalCents: 8000000,
@@ -394,7 +399,7 @@ void main() {
         AppColors.accent);
   });
 
-  testWidgets('已结清: 默认「进行中」隐藏,切「全部」显示「已结清 ✓」badge', (t) async {
+  testWidgets('已结清: 默认「全部」直接显示「已结清 ✓」badge', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
@@ -407,10 +412,9 @@ void main() {
       totalPrincipalCents: 5000000,
       remainingPrincipalCents: 0, // 已结清
     );
+    // 2026-09-17 用户裁决:默认「全部」,已结清不再默认隐藏(否则总览总额
+    // 与账户页负债口径对不上)。
     await t.pumpWidget(_harness([settled]));
-    await t.pumpAndSettle();
-    expect(find.text('赵六'), findsNothing);
-    await t.tap(find.byKey(const ValueKey('listFilter-全部')));
     await t.pumpAndSettle();
     expect(find.text('赵六'), findsOneWidget);
     expect(find.text('已结清 ✓'), findsOneWidget);
@@ -422,7 +426,7 @@ void main() {
         findsNothing);
   });
 
-  testWidgets('筛选 segmented: 计数 + 切换(默认进行中隐藏已结清)', (t) async {
+  testWidgets('筛选 segmented: 计数 + 切换(默认「全部」,切「已结清」聚焦)', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
@@ -448,7 +452,8 @@ void main() {
               matching: find.text(l)),
           findsOneWidget);
     }
-    expect(find.text('赵六'), findsNothing);
+    // 默认「全部」:进行中与已结清都在列。
+    expect(find.text('赵六'), findsOneWidget);
     expect(find.text('张三'), findsOneWidget);
     await t.tap(find.byKey(const ValueKey('listFilter-已结清')));
     await t.pumpAndSettle();
@@ -515,7 +520,9 @@ void main() {
     expect(find.textContaining('还没有债权'), findsOneWidget);
   });
 
-  testWidgets('LoadDebtsRequested(typeFilter: borrowedOut) dispatched on init',
+  // 全量拉取(2026-09 混淆缺陷定案):页面派发不带过滤,方向排除由
+  // _debtsOf 表现层切片承担。
+  testWidgets('unfiltered LoadDebtsRequested dispatched on init',
       (t) async {
     final repo = _MockRepo();
     final summaryRepo = _MockSummaryRepo();
@@ -537,6 +544,7 @@ void main() {
     when(() => summaryRepo.fetch())
         .thenAnswer((_) async => dartz.Right(_summary()));
     GetIt.instance.registerSingleton<ReceivablesSummaryRepository>(summaryRepo);
+    GetIt.instance.registerLazySingleton<DataRefreshNotifier>(DataRefreshNotifier.new);
     await t.pumpWidget(MaterialApp(
       home: MultiBlocProvider(
         providers: [
@@ -549,7 +557,7 @@ void main() {
     ));
     await t.pumpAndSettle();
     expect(calls, isNotEmpty);
-    expect(calls.last, DebtType.borrowedOut);
+    expect(calls.last, isNull); // 全量(typeFilter null)
   });
 
   // ───────────────── F9-T3:搜索 + 排序(共享 DebtSearchSortBar) ─────────────────

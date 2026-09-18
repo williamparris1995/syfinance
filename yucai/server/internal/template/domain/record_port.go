@@ -13,29 +13,6 @@ import (
 // distinguish a paused rejection from other record failures.
 var ErrTemplatePaused = errors.New("template is paused")
 
-// AdvanceNextDate 推进模板的 next_date 到下一个周期。
-// 纯函数:根据 cycle 在 current 基础上叠加一个周期。
-//   - CycleWeekly  → +7 天
-//   - CycleMonthly → +1 月
-//   - CycleYearly  → +1 年
-//   - CycleCustom  → +cycleDays 天
-//   - 未指定(0/未知)→ 不变(返回 current)
-func AdvanceNextDate(current time.Time, cycle TemplateCycle, cycleDays int32) time.Time {
-	switch cycle {
-	case CycleWeekly:
-		return current.AddDate(0, 0, 7)
-	case CycleMonthly:
-		return current.AddDate(0, 1, 0)
-	case CycleYearly:
-		return current.AddDate(1, 0, 0)
-	case CycleCustom:
-		return current.AddDate(0, 0, int(cycleDays))
-	default:
-		// 未指定或未知 cycle → 不推进
-		return current
-	}
-}
-
 // RecordRequest 是 template 模块请求 transaction 模块记账的入参。
 // 由 template application 组装(template 不 import transaction),经
 // TransactionRecorder port 传递给 transaction application 的 adapter。

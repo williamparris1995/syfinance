@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -62,6 +64,9 @@ Future<void> _pump(WidgetTester t, Brightness brightness) async {
   // 详情页 _loadAccounts 直连 getIt<AccountRepository>(解析近期交易行 entries)。
   GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
   GetIt.instance.registerSingleton<TransactionRepository>(txnRepo);
+  // 详情页订阅 DataRefreshNotifier(跨 branch 交易变更回拉);同 auth 版
+  // hero_theme_follow_test 的注册口径。
+  GetIt.instance.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
 
   final a = _account();
   when(() => accountRepo.getById(any()))

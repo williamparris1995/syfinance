@@ -20,6 +20,8 @@ import 'sync_state.dart' show SyncState;
 import 'tables/account_tables.dart';
 import 'tables/budget_tables.dart';
 import 'tables/debt_tables.dart';
+import 'repairs.dart' show runRepaymentHistoryRepairOnce;
+import 'tables/app_meta.dart';
 import 'tables/reminder_tables.dart';
 import 'tables/derived_tables.dart';
 import 'tables/goal_tables.dart';
@@ -44,6 +46,7 @@ part 'app_database.g.dart';
     TransactionEntries,
     Debts,
     PaymentScheduleEntries,
+    ContractAttachments,
     ReminderLogs,
     Budgets,
     BudgetItems,
@@ -53,6 +56,7 @@ part 'app_database.g.dart';
     Tags,
     TransactionTags,
     TransactionTemplates,
+    AppMeta,
     Holdings,
     HoldingTransactions,
     Currencies,
@@ -135,7 +139,19 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 9;
+
+  /// 幂等加列:先查 PRAGMA table_info,列已存在则跳过。
+  /// 背景:库文件可能被不同版本的 App 触碰(安装版/调试版/手工恢复备份),
+  /// user_version 与真实列结构可能脱节,盲 ALTER 会撞 duplicate column。
+  Future<void> _addColumnIfAbsent(TableInfo table, GeneratedColumn column) async {
+    final cols =
+        await customSelect('PRAGMA table_info(' + table.actualTableName + ')').get();
+    final exists = cols.any((r) => r.data['name'] == column.name);
+    if (!exists) {
+      await createMigrator().addColumn(table, column);
+    }
+  }
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -151,14 +167,14 @@ class AppDatabase extends _$AppDatabase {
           // 列(NOT NULL DEFAULT 'synced',ALTER TABLE 回填既有行 = synced)
           // + 增 SyncTombstones 墓碑表。仅加列/建表,既有数据无损。
           if (from < 3) {
-            await m.addColumn(accounts, accounts.syncState);
-            await m.addColumn(transactions, transactions.syncState);
-            await m.addColumn(debts, debts.syncState);
-            await m.addColumn(budgets, budgets.syncState);
-            await m.addColumn(goals, goals.syncState);
-            await m.addColumn(holdings, holdings.syncState);
-            await m.addColumn(tags, tags.syncState);
-            await m.addColumn(transactionTemplates, transactionTemplates.syncState);
+            await _addColumnIfAbsent(accounts, accounts.syncState);
+            await _addColumnIfAbsent(transactions, transactions.syncState);
+            await _addColumnIfAbsent(debts, debts.syncState);
+            await _addColumnIfAbsent(budgets, budgets.syncState);
+            await _addColumnIfAbsent(goals, goals.syncState);
+            await _addColumnIfAbsent(holdings, holdings.syncState);
+            await _addColumnIfAbsent(tags, tags.syncState);
+            await _addColumnIfAbsent(transactionTemplates, transactionTemplates.syncState);
             await m.createTable(syncTombstones);
           }
           // v3→v4(F17-T2 FR-3,design ADR-3):增 SyncCursors 拉取游标表
@@ -166,11 +182,88 @@ class AppDatabase extends _$AppDatabase {
           if (from < 4) {
             await m.createTable(syncCursors);
           }
+          // v4→v5(2026-09 担保人字段 + 合同附件):Debts 加 guarantor_name /
+          // guarantor_contact 两列(text NOT NULL DEFAULT '',存量行回填空串,
+          // 语义 = 无担保人)+ 增 ContractAttachments 附件表(本地 v1)。
+          // 仅加列/建表,既有数据无损。
+          if (from < 5) {
+            await _addColumnIfAbsent(debts, debts.guarantorName);
+            await _addColumnIfAbsent(debts, debts.guarantorContact);
+            await m.createTable(contractAttachments);
+          }
+          // v5→v6(周期规则统一):TransactionTemplates 加 interval/weekday_mask/
+          // monthly_mode/nth 四列,Debts 加 cycle/interval/weekday_mask/
+          // monthly_mode/nth 五列(全部 NOT NULL 带默认 = 旧「按月/单间隔」
+          // 行为,存量行零迁移)。仅加列,无损。
+          if (from < 6) {
+            await _addColumnIfAbsent(
+                transactionTemplates, transactionTemplates.interval);
+            await _addColumnIfAbsent(
+                transactionTemplates, transactionTemplates.weekdayMask);
+            await _addColumnIfAbsent(
+                transactionTemplates, transactionTemplates.monthlyMode);
+            await _addColumnIfAbsent(transactionTemplates, transactionTemplates.nth);
+            await _addColumnIfAbsent(debts, debts.cycle);
+            await _addColumnIfAbsent(debts, debts.interval);
+            await _addColumnIfAbsent(debts, debts.weekdayMask);
+            await _addColumnIfAbsent(debts, debts.monthlyMode);
+            await _addColumnIfAbsent(debts, debts.nth);
+          }
+          // v6→v7(2026-09-17「上传卡住」修复):重建 contract_attachments 去掉
+          // debt_id 对本地 debts 的外键 —— 在线创建的债务头行由镜像异步回填,
+          // 先到的附件行命中 FK(constraint failed)打断表单 pop。SQLite 不能
+          // ALTER 删 FK,走 rename→create→copy→drop 整表重建;本地 overlay 表
+          // 必须容忍指向服务端 id,数据无损。
+          if (from < 7) {
+            // renameTable(table, oldName) 的参数序是「新表信息, 旧名」,不便
+            // 表达「改名让位」,故重命名走原生 SQL:
+            await customStatement(
+                'ALTER TABLE contract_attachments RENAME TO contract_attachments_v6');
+            await m.createTable(contractAttachments);
+            await customStatement(
+                'INSERT OR IGNORE INTO contract_attachments '
+                '(id, debt_id, original_name, stored_name, size_bytes, attached_at) '
+                'SELECT id, debt_id, original_name, stored_name, size_bytes, attached_at '
+                'FROM contract_attachments_v6');
+            await m.deleteTable('contract_attachments_v6');
+          }
+          // v7→v8(利息一次性减免):Debts 加 interest_waived_cents
+          // (NOT NULL DEFAULT 0,存量行 = 无减免)。仅加列,无损。
+          if (from < 8) {
+            await _addColumnIfAbsent(debts, debts.interestWaivedCents);
+          }
+          // v8→v9:AppMeta 键值元数据表(一次性修复标记等)。
+          if (from < 9) {
+            await m.createTable(appMeta);
+          }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)
         // need the pragma enabled per connection.
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
+
+          // 历史还款记录一次性修复(只跑一次,AppMeta 标记门控;失败静默,
+          // 下次打开重试)。详见 repairs.dart 头注释。
+          try {
+            await runRepaymentHistoryRepairOnce(this);
+          } catch (_) {}
+          // 一次性数据修复(2026-09-17):还款交易描述曾把函数对象插进字符串
+          // ("还款 Closure: ... (row)"),真实对手方名从未写入。经
+          // 期次表反查关联债务取回 counterparty;只命中含 Closure 残渣的行,
+          // 幂等且查不到关联债务的行保持原样。
+          await customStatement("""
+            UPDATE transactions SET description =
+              '还款 ' || (SELECT d.counterparty FROM debts d
+                          JOIN payment_schedule_entries p
+                            ON p.debt_id = d.id
+                          WHERE p.transaction_id = transactions.id)
+            WHERE description LIKE '%Closure:%'
+              AND description LIKE '还款 %'
+              AND EXISTS (SELECT 1 FROM debts d
+                          JOIN payment_schedule_entries p
+                            ON p.debt_id = d.id
+                          WHERE p.transaction_id = transactions.id)
+          """);
         },
       );
 }

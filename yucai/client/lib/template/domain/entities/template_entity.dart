@@ -1,10 +1,15 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:yucai_client/core/recurrence/recurrence_rule.dart';
+
 /// 交易方向(对齐 proto TemplateDirection,客户端独立枚举;data 层 mapper 负责转换)。
 enum TemplateDirection { unspecified, expense, income, transfer }
 
 /// 周期(对齐 proto TemplateCycle,客户端独立枚举;data 层 mapper 负责转换)。
 enum TemplateCycle { unspecified, weekly, monthly, yearly, custom }
+
+/// 月度取日方式(对齐 proto common RecurrenceMonthlyMode 0/1)。
+enum TemplateMonthlyMode { byDate, byNthWeekday }
 
 /// 交易模板实体。对应 proto TemplateDTO(20 字段)。
 class Template extends Equatable {
@@ -19,6 +24,10 @@ class Template extends Equatable {
     required this.cycle,
     required this.cycleDays,
     required this.billingDay,
+    this.interval = 0,
+    this.weekdayMask = 0,
+    this.monthlyMode = TemplateMonthlyMode.byDate,
+    this.nth = 0,
     required this.nextDate,
     required this.startDate,
     required this.endDate,
@@ -40,7 +49,29 @@ class Template extends Equatable {
   final String? destinationAccountId; // transfer 目标账户
   final TemplateCycle cycle;
   final int cycleDays; // CYCLE_CUSTOM 时自定义天数
-  final int billingDay; // 月度账单日(1-28)
+  final int billingDay; // 月度账单日(1-31,31=月末语义)
+  final int interval; // 每 N 周/月/年(<=0 视为 1)
+  final int weekdayMask; // bit0=周一…bit6=周日;0=沿用起始日星期
+  final TemplateMonthlyMode monthlyMode; // 月度取日方式
+  final int nth; // 1-4=第 N 个;5=最后一个(nth 模式)
+
+  /// 周期规则视图(推进算法/人话文案共用;镜像 server Rule())。
+  RecurrenceRule get rule => RecurrenceRule(
+        cycle: switch (cycle) {
+          TemplateCycle.weekly => RecurrenceCycle.weekly,
+          TemplateCycle.yearly => RecurrenceCycle.yearly,
+          TemplateCycle.custom => RecurrenceCycle.custom,
+          _ => RecurrenceCycle.monthly,
+        },
+        interval: interval,
+        cycleDays: cycleDays,
+        billingDay: billingDay,
+        weekdayMask: weekdayMask,
+        monthlyMode: monthlyMode == TemplateMonthlyMode.byNthWeekday
+            ? RecurrenceMonthlyMode.byNthWeekday
+            : RecurrenceMonthlyMode.byDate,
+        nth: nth,
+      );
   final String? nextDate; // 下一笔预计日期(服务端算,date-only string)
   final String? startDate; // 起始日期
   final String? endDate; // 结束日期
@@ -64,6 +95,10 @@ class Template extends Equatable {
         cycle,
         cycleDays,
         billingDay,
+        interval,
+        weekdayMask,
+        monthlyMode,
+        nth,
         nextDate,
         startDate,
         endDate,

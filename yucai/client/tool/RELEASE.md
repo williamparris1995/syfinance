@@ -162,6 +162,7 @@ WinSparkle 公钥资源 DSAPub/DSAPEM,更新验签用):
 | `gh release create` 403 / 资产上传失败 | 仓库未给 workflow 写权限 | 见 §2 步骤 4(Read and write permissions) |
 | appcast 步骤 `未提供私钥` | Secret 名拼错/未配 | 核对名称必须精确为 `APPCAST_DSA_PRIVATE_KEY` |
 | 客户端验签失败(下载后拒绝安装) | 公私钥不配对(如换钥后旧版客户端) | 见 §6 密钥轮换 |
+| 客户端验签失败(钥配对仍失败,所有版本) | WinSparkle 0.8.1 验的是 `SHA1(SHA1(file))` 双哈希,签名若是单哈希恒不过(v1.0.2–v1.0.5 根因) | gen_appcast.py 已修为双哈希口径(2026-09-16);存量 Release 用修后脚本对同一安装包重签 appcast 并 `gh release upload --clobber` 覆盖 |
 | 已装最新版仍恒提示可更新(装完再查依旧) | exe ProductVersion 字符串带 `+N`:WinSparkle 比较器把「+…」判为预发布串(`1.0.4+5` < `1.0.4`,Sparkle「1.5 > 1.5b3」同规) | Runner.rc 版本字符串固定 X.Y.Z(FLUTTER_VERSION_XYZ,updater_version_struct_test 守卫);`+N` 历史版本升到首个 X.Y.Z 串的 Release 后自愈 |
 | 客户端检查更新静默无反应 | 尚无任何 Release(feed 404) | 正常降级(design Migration 在案),发出首个 Release 即好 |
 | 安装包被 SmartScreen 拦截 | 免 Authenticode 签名的已知代价(spec 排除项) | 「更多信息 → 仍要运行」 |

@@ -980,6 +980,49 @@ void main() {
     expect(find.byType(AccountDetailPage), findsNothing);
   });
 
+  // ───────── 用户验收回归:订阅管理顶栏面包屑 + 侧栏单高亮 ─────────
+  // /accounts/templates 是 accounts branch 子路由:此前顶栏面包屑按 branch
+  // 元数据原样显示「财务 › 账户管理」(用户报:进入订阅管理后顶部还是上一
+  // 模块的标题);侧栏「账户管理」(branch 1)与「订阅管理」也曾同时高亮。
+  // 修法:_branchMetaOf 按 location 覆盖为「交易 › 订阅管理」;branch 项在
+  // route-only 导航项声称的路径下让位高亮(_claimedByRouteOnlyNav)。
+  testWidgets('/accounts/templates 顶栏面包屑显「交易 › 订阅管理」,'
+      '侧栏仅「订阅管理」高亮', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final templateRepo = _MockTemplateRepo();
+    when(() => templateRepo.list(paused: any(named: 'paused')))
+        .thenAnswer((_) async => const dartz.Right(<Template>[]));
+    getIt.registerFactory<TemplateBloc>(() => TemplateBloc(templateRepo));
+
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/accounts/templates');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // 面包屑:不再残留 accounts branch 元数据的「财务 › 账户管理」。
+    expect(find.text('财务'), findsNothing,
+        reason: '顶栏 section 不应残留 accounts branch 的「财务」');
+    expect(find.text('订阅管理'), findsNWidgets(2),
+        reason: '侧栏导航项 + 顶栏面包屑 page 两处均为「订阅管理」');
+    // 侧栏单高亮:订阅管理亮、账户管理让位。
+    AnimatedContainer tileOf(String label) => tester.widget<AnimatedContainer>(
+        find
+            .ancestor(
+                of: find.text(label),
+                matching: find.byType(AnimatedContainer))
+            .first);
+    expect((tileOf('账户管理').decoration as BoxDecoration).color,
+        Colors.transparent,
+        reason: '/accounts/templates 下「账户管理」不应保持 branch 高亮');
+    expect((tileOf('订阅管理').decoration as BoxDecoration).color,
+        isNot(equals(Colors.transparent)),
+        reason: '/accounts/templates 下「订阅管理」应高亮');
+  });
+
   testWidgets('/accounts/:id still resolves to AccountDetailPage '
       '(templates 静态路由不影响参数路由)', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);

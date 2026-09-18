@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -127,6 +128,8 @@ Widget _harness({
 }
 
 void main() {
+  GetIt.instance.registerLazySingleton<DataRefreshNotifier>(DataRefreshNotifier.new);
+
   setUpAll(() {
     registerFallbackValue(DebtType.borrowedIn);
   });
@@ -393,7 +396,15 @@ void main() {
               sourceAccountId: any(named: 'sourceAccountId'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
-              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((inv) {
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods'))).thenAnswer((inv) {
         capturedType = inv.namedArguments[#type] as DebtType?;
         capturedSubtype = inv.namedArguments[#subtype] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
@@ -472,7 +483,15 @@ void main() {
               sourceAccountId: any(named: 'sourceAccountId'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
-              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((inv) {
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods'))).thenAnswer((inv) {
         capturedSource = inv.namedArguments[#sourceAccountId] as String?;
         capturedAccount = inv.namedArguments[#accountId] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
@@ -595,7 +614,15 @@ void main() {
               version: any(named: 'version'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
-              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((_) {
+              collectionAccountId: any(named: 'collectionAccountId'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              dueDate: any(named: 'dueDate'),
+              termPeriods: any(named: 'termPeriods'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'))).thenAnswer((_) {
         updated = true;
         return Future.value(dartz.Right(existingDebt(counterparty: '已改')));
       });
@@ -888,7 +915,15 @@ void main() {
               sourceAccountId: any(named: 'sourceAccountId'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
-              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((inv) {
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods'))).thenAnswer((inv) {
         capturedContact = inv.namedArguments[#contact] as String?;
         capturedContractRef = inv.namedArguments[#contractRef] as String?;
         capturedCollection = inv.namedArguments[#collectionAccountId] as String?;
@@ -976,7 +1011,13 @@ void main() {
               sourceAccountId: any(named: 'sourceAccountId'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
-              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((_) {
+              collectionAccountId: any(named: 'collectionAccountId'),
+              termPeriods: any(named: 'termPeriods'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'))).thenAnswer((_) {
         createCalled = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });

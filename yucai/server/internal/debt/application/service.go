@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	accountdomain "github.com/yucai/server/internal/account/domain"
 	"github.com/yucai/server/internal/debt/domain"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/sqltx"
 )
 
@@ -84,24 +85,54 @@ func (s *Service) CreateDebt(ctx context.Context, req CreateDebtRequest) (*DebtD
 	if req.DebtType == domain.BorrowedOut && req.CollectionAccountID == nil {
 		return nil, fmt.Errorf("create debt: receivable requires collection account")
 	}
+
+	// Normalize the rule (zero cycle = legacy monthly) and validate ranges.
+	rule := req.Rule()
+	if rule.Cycle == 0 {
+		rule.Cycle = recurrence.CycleMonthly
+	}
+	if err := rule.Validate(); err != nil {
+		return nil, fmt.Errorf("create debt: %w", err)
+	}
+
+	// By-periods mode: derive due from the last occurrence so the stored
+	// due_date stays consistent with the generated schedule.
+	due := req.DueDate
+	if req.TermPeriods > 0 {
+		dates := domain.ScheduleDatesFrom(rule, req.StartDate, req.DueDate, req.TermPeriods)
+		due = dates[len(dates)-1]
+	}
+
 	debt, err := domain.NewDebtDetails(
 		req.TenantID, req.AccountID,
 		req.Counterparty,
 		req.InterestRate,
 		req.AmortizationMethod,
-		req.StartDate, req.DueDate,
+		req.StartDate, due,
 		req.TotalPrincipalCents,
 		req.DebtType,
 		req.Subtype,
 		req.Contact,
 		req.ContractRef,
 		req.CollectionAccountID,
+		req.GuarantorName,
+		req.GuarantorContact,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create debt: %w", err)
 	}
+	debt.Cycle = rule.Cycle
+	debt.Interval = rule.Interval
+	debt.WeekdayMask = rule.WeekdayMask
+	debt.MonthlyMode = rule.MonthlyMode
+	debt.Nth = rule.Nth
+	debt.InterestWaivedCents = req.InterestWaivedCents
 
 	debt.GenerateSchedule()
+
+	if req.InterestWaivedCents > domain.TotalInterest(debt.Schedule) {
+		return nil, fmt.Errorf("create debt: interest waiver must not exceed total interest")
+	}
 
 	if err := s.repo.Save(ctx, debt); err != nil {
 		return nil, fmt.Errorf("save debt: %w", err)
@@ -111,7 +142,13 @@ func (s *Service) CreateDebt(ctx context.Context, req CreateDebtRequest) (*DebtD
 	return &dto, nil
 }
 
-// UpdateDebt updates a debt's mutable fields.
+// UpdateDebt updates a debt's mutable fields. Schedule-affecting fields
+// (amortization method, interest rate, recurrence rule, term) follow the
+// Google-Calendar semantics confirmed by the user: already-recorded entries
+// (paid / partially paid / tied to a transaction) are frozen and untouched;
+// the future schedule regenerates from the remaining principal under the new
+// parameters. Zero values on the schedule-affecting fields keep the current
+// value so legacy callers (header-only updates) behave exactly as before.
 func (s *Service) UpdateDebt(ctx context.Context, req UpdateDebtRequest) (*DebtDTO, error) {
 	debt, err := s.repo.FindByID(ctx, req.TenantID, req.ID)
 	if err != nil {
@@ -122,24 +159,253 @@ func (s *Service) UpdateDebt(ctx context.Context, req UpdateDebtRequest) (*DebtD
 		return nil, fmt.Errorf("optimistic lock conflict: expected version %d, got %d", req.Version, debt.Version)
 	}
 
+	// Resolve schedule-affecting parameters (zero/nil = keep current).
+	method := debt.AmortizationMethod
+	if req.AmortizationMethod != 0 {
+		method = req.AmortizationMethod
+	}
+	rate := req.InterestRate
+	rule := debt.Rule()
+	ruleChanged := false
+	if req.Cycle != 0 {
+		newRule := recurrence.Rule{
+			Cycle:       req.Cycle,
+			Interval:    req.Interval,
+			WeekdayMask: req.WeekdayMask,
+			MonthlyMode: req.MonthlyMode,
+			Nth:         req.Nth,
+		}
+		if err := newRule.Validate(); err != nil {
+			return nil, fmt.Errorf("update debt: %w", err)
+		}
+		ruleChanged = newRule != rule
+		rule = newRule
+	}
+	due := debt.DueDate
+	dueChanged := false
+	if req.DueDate != nil && !req.DueDate.Equal(debt.DueDate) {
+		due = *req.DueDate
+		dueChanged = true
+	}
+	// Waiver: presence-aware (nil = keep); schedule-affecting because the
+	// regenerated schedule must re-apply the (possibly new) waiver.
+	waiver := debt.InterestWaivedCents
+	waiverChanged := false
+	if req.InterestWaivedCents != nil {
+		waiverChanged = *req.InterestWaivedCents != debt.InterestWaivedCents
+		waiver = *req.InterestWaivedCents
+	}
+
+	scheduleChanged := method != debt.AmortizationMethod || rate != debt.InterestRate ||
+		ruleChanged || dueChanged || req.TermPeriods > 0 || waiverChanged
+
 	debt.Counterparty = req.Counterparty
-	debt.InterestRate = req.InterestRate
 	debt.Contact = req.Contact
 	debt.ContractRef = req.ContractRef
 	debt.CollectionAccountID = req.CollectionAccountID
+	debt.GuarantorName = req.GuarantorName
+	debt.GuarantorContact = req.GuarantorContact
+	debt.InterestRate = rate
+	debt.AmortizationMethod = method
+	debt.Cycle = rule.Cycle
+	debt.Interval = rule.Interval
+	debt.WeekdayMask = rule.WeekdayMask
+	debt.MonthlyMode = rule.MonthlyMode
+	debt.Nth = rule.Nth
+	debt.InterestWaivedCents = waiver
+	if dueChanged {
+		debt.DueDate = due
+	}
+
+	var future []domain.PaymentScheduleEntry
+	if scheduleChanged {
+		future, err = s.regenerateFuture(debt, rule, req.TermPeriods)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	debt.IncrementVersion()
 
-	if err := s.repo.Update(ctx, debt); err != nil {
-		return nil, fmt.Errorf("update debt: %w", err)
+	if scheduleChanged {
+		// debt.Schedule holds only the frozen entries here so repo.Update's
+		// per-entry loop touches existing rows only; the future rows are
+		// inserted by ReplaceFutureSchedule in the same tx.
+		if err := s.runWriteTx(ctx, func(ctxT context.Context) error {
+			if err := s.repo.ReplaceFutureSchedule(ctxT, debt.ID, future); err != nil {
+				return fmt.Errorf("replace future schedule: %w", err)
+			}
+			if err := s.repo.Update(ctxT, debt); err != nil {
+				return fmt.Errorf("update debt: %w", err)
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		debt.Schedule = append(debt.Schedule, future...)
+	} else {
+		if err := s.repo.Update(ctx, debt); err != nil {
+			return nil, fmt.Errorf("update debt: %w", err)
+		}
 	}
 
 	dto := DebtToDTO(debt)
 	return &dto, nil
 }
 
+// regenerateFuture rebuilds the post-frozen schedule on the debt aggregate:
+// frozen (already-recorded) entries keep their dates and amounts (left in
+// debt.Schedule); the returned future entries are built from the remaining
+// principal, anchored after the last frozen date (or the start date when
+// nothing is frozen). DueDate is updated to the last future date so the
+// header stays consistent with the schedule.
+func (s *Service) regenerateFuture(debt *domain.DebtDetails, rule recurrence.Rule, termPeriods int32) ([]domain.PaymentScheduleEntry, error) {
+	frozen := debt.FrozenEntries()
+
+	anchor := debt.StartDate
+	if len(frozen) > 0 {
+		anchor = frozen[len(frozen)-1].PaymentDate
+	}
+
+	var paidPrincipal int64
+	for _, e := range frozen {
+		paidPrincipal += e.PrincipalCents
+	}
+	remaining := debt.TotalPrincipalCents - paidPrincipal
+	if remaining < 0 {
+		remaining = 0
+	}
+
+	dates := domain.ScheduleDatesFrom(rule, anchor, debt.DueDate, termPeriods)
+	if len(dates) == 0 {
+		return nil, fmt.Errorf("regenerate future schedule: no future dates resolved")
+	}
+
+	calc := domain.AmortizationCalculator{}
+	future := calc.RegenerateFutureSchedule(debt, anchor, dates, remaining)
+	domain.ApplyInterestWaiver(future, debt.InterestWaivedCents)
+	if debt.InterestWaivedCents > domain.TotalInterest(future) {
+		return nil, fmt.Errorf("update debt: interest waiver must not exceed total interest")
+	}
+	for i := range future {
+		future[i].DebtID = debt.ID
+	}
+	debt.DueDate = dates[len(dates)-1]
+	debt.Schedule = frozen
+	return future, nil
+}
+
+// runWriteTx wraps fn in a single sqltx.WithTx (nil db = run directly, same
+// semantics as runInTx). Used by the schedule-regenerating update path so the
+// unpaid-entries delete + future insert + header update commit atomically.
+func (s *Service) runWriteTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if s.db == nil {
+		return fn(ctx)
+	}
+	return sqltx.WithTx(ctx, s.db, "postgres", nil, func(ctxT context.Context) error {
+		return fn(ctxT)
+	})
+}
+
 // DeleteDebt deletes a debt by ID.
 func (s *Service) DeleteDebt(ctx context.Context, tenantID, id uuid.UUID) error {
 	return s.repo.Delete(ctx, tenantID, id)
+}
+
+// MarkEntryPaidRequest is the input for MarkEntryPaid.
+type MarkEntryPaidRequest struct {
+	TenantID uuid.UUID
+	DebtID   uuid.UUID
+	EntryID  uuid.UUID
+}
+
+// MarkEntryPaid marks ONE unpaid schedule entry as already repaid WITHOUT
+// booking a cash transaction — for installments settled before the debt was
+// entered into the app. The entry becomes frozen (paid/paidCents set,
+// TransactionID stays null so it is distinguishable from a booked repayment).
+func (s *Service) MarkEntryPaid(ctx context.Context, req MarkEntryPaidRequest) (*PaymentEntryDTO, error) {
+	debt, err := s.repo.FindByID(ctx, req.TenantID, req.DebtID)
+	if err != nil {
+		return nil, fmt.Errorf("debt not found: %w", err)
+	}
+	idx := -1
+	for i := range debt.Schedule {
+		if debt.Schedule[i].ID == req.EntryID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return nil, fmt.Errorf("schedule entry %s not found", req.EntryID)
+	}
+	entry := debt.Schedule[idx]
+	if entry.Paid || entry.PaidCents > 0 || entry.TransactionID != nil {
+		return nil, fmt.Errorf("schedule entry is already recorded and must stay frozen")
+	}
+
+	debt.Schedule[idx].Paid = true
+	debt.Schedule[idx].PaidCents = debt.Schedule[idx].TotalCents
+	debt.IncrementVersion()
+	if err := s.repo.Update(ctx, debt); err != nil {
+		return nil, fmt.Errorf("update debt: %w", err)
+	}
+
+	dto := entryToDTO(debt.Schedule[idx])
+	return &dto, nil
+}
+
+// SetPaymentDateRequest is the input for SetPaymentDate.
+type SetPaymentDateRequest struct {
+	TenantID    uuid.UUID
+	DebtID      uuid.UUID
+	EntryID     uuid.UUID
+	PaymentDate time.Time
+}
+
+// SetPaymentDate moves ONE unpaid schedule entry to a new date (Google-
+// Calendar per-occurrence edit). Already-recorded entries (paid / partially
+// paid / transaction-linked) are frozen and rejected; the target date must
+// not collide with another entry of the same debt (the DB enforces a
+// UNIQUE(debt_id, payment_date) index) and must stay after the start date.
+// Amounts are untouched — moving a date is administrative, not a re-quote.
+func (s *Service) SetPaymentDate(ctx context.Context, req SetPaymentDateRequest) (*PaymentEntryDTO, error) {
+	debt, err := s.repo.FindByID(ctx, req.TenantID, req.DebtID)
+	if err != nil {
+		return nil, fmt.Errorf("debt not found: %w", err)
+	}
+
+	idx := -1
+	for i := range debt.Schedule {
+		if debt.Schedule[i].ID == req.EntryID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return nil, fmt.Errorf("schedule entry %s not found", req.EntryID)
+	}
+	entry := debt.Schedule[idx]
+	if entry.Paid || entry.PaidCents > 0 || entry.TransactionID != nil {
+		return nil, fmt.Errorf("schedule entry is already recorded and must stay frozen")
+	}
+	newDate := time.Date(req.PaymentDate.Year(), req.PaymentDate.Month(), req.PaymentDate.Day(), 0, 0, 0, 0, req.PaymentDate.Location())
+	if !newDate.After(debt.StartDate) {
+		return nil, fmt.Errorf("payment date must be after the start date")
+	}
+	for i := range debt.Schedule {
+		if i != idx && debt.Schedule[i].PaymentDate.Equal(newDate) {
+			return nil, fmt.Errorf("payment date must not collide with another entry on %s", newDate.Format("2006-01-02"))
+		}
+	}
+
+	debt.Schedule[idx].PaymentDate = newDate
+	debt.IncrementVersion()
+	if err := s.repo.Update(ctx, debt); err != nil {
+		return nil, fmt.Errorf("update debt: %w", err)
+	}
+
+	dto := entryToDTO(debt.Schedule[idx])
+	return &dto, nil
 }
 
 // GetDebt retrieves a debt with its full payment schedule.

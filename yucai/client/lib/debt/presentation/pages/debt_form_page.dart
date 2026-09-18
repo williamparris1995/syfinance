@@ -1,8 +1,8 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get_it/get_it.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -10,15 +10,24 @@ import 'package:yucai_client/account/domain/repositories/account_repository.dart
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
+import 'package:yucai_client/core/recurrence/next_after.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule_editor.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule_text.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/amortization_preview.dart';
+import 'package:get_it/get_it.dart';
+import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/debt/data/contract_attachment_store.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
+import 'package:yucai_client/debt/presentation/widgets/debt_guarantor_contract_fields.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 
 /// 债务表单页（创建 + 编辑模式）。对齐 OD 原型 debt-form.html / tablet / mobile。
@@ -43,12 +52,15 @@ class DebtFormPage extends StatefulWidget {
     this.initialStartDate,
     this.initialDueDate,
     this.initialAccountId,
+    // 借入创建的到账账户(资产侧,必选);测试/深链可预置。
+    this.initialDisbursementAccountId,
   });
 
   final Debt? existing;
   final DateTime? initialStartDate;
   final DateTime? initialDueDate;
   final String? initialAccountId;
+  final String? initialDisbursementAccountId;
 
   @override
   State<DebtFormPage> createState() => _DebtFormPageState();
@@ -67,6 +79,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
   final _ccAnnualFeeCtrl = TextEditingController();
   bool _ccDirty = false;
 
+  // 担保人与合同文件(2026-09 用户需求,可选)。
+  final _guarantorNameCtrl = TextEditingController();
+  final _guarantorContactCtrl = TextEditingController();
+  StagedContractFile? _stagedFile; // 选中即暂存(源文件可能临时失效)
+  String? _existingAttachmentName; // 编辑态已有附件名(null = 无)
+
   /// 债务子类型 key（DebtSubtypes.*）。存 key —— 判断用 const，UI 显示 labels[key]。
   String _subtypeKey = DebtSubtypes.mortgage;
   AmortizationMethod _amortization = AmortizationMethod.equalPrincipalInterest;
@@ -74,6 +92,13 @@ class _DebtFormPageState extends State<DebtFormPage> {
   String? _accountId;
   DateTime? _startDate;
   DateTime? _dueDate;
+
+  // ---- 周期规则(类 Google Calendar;lumpSum 不参与)与期数双模式 ----
+  RecurrenceRule _rule = const RecurrenceRule();
+  bool _byPeriods = false; // true = 按期数(N 期,due 自动推导)
+  final _termPeriodsCtrl = TextEditingController(text: '12');
+  // 一次性利息减免(元输入;存储为分)。
+  final _waiverCtrl = TextEditingController();
 
   List<Account> _accounts = const [];
   // 借入到账账户(资产侧,可选):选择后创建时自动双记现金入账。
@@ -91,6 +116,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
     AmortizationMethod.equalPrincipalInterest,
     AmortizationMethod.equalPrincipal,
     AmortizationMethod.lumpSum,
+    AmortizationMethod.interestFirst,
   ];
 
   @override
@@ -108,14 +134,22 @@ class _DebtFormPageState extends State<DebtFormPage> {
       _amortization = e.amortization;
       _startDate = e.startDate;
       _dueDate = e.dueDate;
+      _rule = e.rule;
+      if (e.interestWaivedCents > 0) {
+        _waiverCtrl.text = (e.interestWaivedCents / 100).toStringAsFixed(2);
+      }
       _accountId = e.accountId;
       _subtypeKey = e.subtype.isEmpty ? DebtSubtypes.mortgage : e.subtype;
+      _guarantorNameCtrl.text = e.guarantorName;
+      _guarantorContactCtrl.text = e.guarantorContact;
     } else {
       _startDate = widget.initialStartDate;
       _dueDate = widget.initialDueDate;
       _accountId = widget.initialAccountId;
+      _disbursementAccountId = widget.initialDisbursementAccountId;
     }
     _loadAccounts();
+    if (_isEdit) _loadAttachment();
     _principalCtrl.addListener(() => setState(() {}));
     _rateCtrl.addListener(() => setState(() {}));
     void markCcDirty() => _ccDirty = true;
@@ -134,6 +168,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _ccRepaymentDayCtrl.dispose();
     _ccLimitCtrl.dispose();
     _ccAnnualFeeCtrl.dispose();
+    _termPeriodsCtrl.dispose();
+    _waiverCtrl.dispose();
+    _guarantorNameCtrl.dispose();
+    _guarantorContactCtrl.dispose();
     super.dispose();
   }
 
@@ -231,42 +269,95 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _loadAccounts();
   }
 
-  // ===================== 摊还预览（client-side） =====================
+  // ===================== 合同文件(本地附件 v1) =====================
 
-  int _monthsBetween(DateTime? a, DateTime? b) {
-    if (a == null || b == null) return 0;
-    final m = (b.year - a.year) * 12 + (b.month - a.month);
-    return m <= 0 ? 0 : m;
+  Future<void> _loadAttachment() async {
+    // 测试 harness 可能不注册 GetIt;缺注册 = 无已有附件,吞错保持表单可用。
+    try {
+      final a = await GetIt.instance<ContractAttachmentStore>()
+          .forDebt(_existing!.id);
+      if (mounted) setState(() => _existingAttachmentName = a?.originalName);
+    } catch (_) {}
   }
+
+  Future<void> _pickContractFile() async {
+    final res = await FilePicker.pickFiles(
+      dialogTitle: '选择合同文件',
+      allowMultiple: false,
+    );
+    final f = res?.files.singleOrNull;
+    if (f == null || f.path == null) return;
+    final staged =
+        await GetIt.instance<ContractAttachmentStore>().stage(f.path!, f.name);
+    if (mounted) setState(() => _stagedFile = staged);
+  }
+
+  /// 移除仅作用于编辑态已有附件;已暂存新文件时重新选择即替换。
+  Future<void> _removeExistingAttachment() async {
+    final e = _existing;
+    if (e == null || _stagedFile != null) return;
+    await GetIt.instance<ContractAttachmentStore>().remove(e.id);
+    if (mounted) setState(() => _existingAttachmentName = null);
+  }
+
+  /// 提交成功后把暂存文件绑定到债务 id(创建态 id 由 bloc.lastCreated 提供)。
+  Future<void> _bindAttachment(String debtId) async {
+    final staged = _stagedFile;
+    if (staged == null) return;
+    await GetIt.instance<ContractAttachmentStore>().bind(debtId, staged);
+    _stagedFile = null;
+  }
+
+  Widget _guarantorContractFields() => DebtGuarantorContractFields(
+        guarantorNameCtrl: _guarantorNameCtrl,
+        guarantorContactCtrl: _guarantorContactCtrl,
+        attachmentLabel: _stagedFile?.originalName ?? _existingAttachmentName,
+        onPickFile: _pickContractFile,
+        onRemoveFile: (_existingAttachmentName != null && _stagedFile == null)
+            ? _removeExistingAttachment
+            : null,
+      );
+
+  // ===================== 摊还预览（client-side） =====================
 
   AmortizationPreviewData? _computePreview() {
     final p = double.tryParse(_principalCtrl.text) ?? 0;
     final annualRate = double.tryParse(_rateCtrl.text) ?? 0;
-    final n = _monthsBetween(_startDate, _dueDate);
-    if (p <= 0 || _startDate == null || _dueDate == null || n <= 0) return null;
+    if (p <= 0 || _startDate == null) return null;
+    final dates = _effectiveDates();
+    if (dates.isEmpty) return null;
+    final n = dates.length;
+    final rate = annualRate / 100;
+    // 期利率 = 年利率 × 周期年化长度(月度单间隔 = rate/12,与旧口径一致)。
+    final r = rate * periodYears(_rule);
+    final waiver = _waiverCents();
+    final monthly = _rule.cycle == RecurrenceCycle.monthly;
 
-    final r = annualRate / 100 / 12;
     switch (_amortization) {
       case AmortizationMethod.equalPrincipalInterest:
         final pow = _pow(1 + r, n);
-        final monthly = r > 0 ? p * r * pow / (pow - 1) : p / n;
-        final rows = <AmortizationPreviewRow>[];
+        final per = r > 0 ? p * r * pow / (pow - 1) : p / n;
+        // 全序列利息 → 减免 → 行渲染/合计。
+        final interests = <double>[];
         var bal = p;
-        for (var i = 1; i <= (n < 5 ? n : 5); i++) {
-          final interest = bal * r;
-          final principal = monthly - interest;
-          bal -= principal;
-          rows.add(AmortizationPreviewRow(
-            index: i,
-            date: _addMonths(_startDate!, i - 1),
-            principal: principal,
-            interest: interest,
-          ));
+        for (var i = 0; i < n; i++) {
+          interests.add(bal * r);
+          bal -= (per - interests[i]);
         }
-        final totalInterestAll = monthly * n - p;
+        _applyWaiver(interests, waiver.toDouble());
+        final rows = <AmortizationPreviewRow>[
+          for (var i = 0; i < (n < 5 ? n : 5); i++)
+            AmortizationPreviewRow(
+              index: i + 1,
+              date: dates[i],
+              principal: per - interests[i],
+              interest: interests[i],
+            ),
+        ];
+        final totalInterestAll = interests.fold(0.0, (a, b) => a + b);
         return AmortizationPreviewData(
-          label: '月供',
-          headlineAmount: monthly,
+          label: monthly ? '月供' : '每期还款',
+          headlineAmount: per,
           rows: rows,
           n: n,
           totalInterest: totalInterestAll,
@@ -274,42 +365,73 @@ class _DebtFormPageState extends State<DebtFormPage> {
           annualRate: annualRate,
         );
       case AmortizationMethod.equalPrincipal:
-        final monthlyPrincipal = p / n;
-        final rows = <AmortizationPreviewRow>[];
-        var bal = p;
-        for (var i = 1; i <= (n < 5 ? n : 5); i++) {
-          final interest = bal * r;
-          bal -= monthlyPrincipal;
-          rows.add(AmortizationPreviewRow(
-            index: i,
-            date: _addMonths(_startDate!, i - 1),
-            principal: monthlyPrincipal,
-            interest: interest,
-          ));
-        }
+        final perPrincipal = p / n;
+        final interests = <double>[];
         var b = p;
-        var totalInterest = 0.0;
         for (var i = 0; i < n; i++) {
-          totalInterest += b * r;
-          b -= monthlyPrincipal;
+          interests.add(b * r);
+          b -= perPrincipal;
         }
-        final firstMonthly = monthlyPrincipal + p * r;
+        _applyWaiver(interests, waiver.toDouble());
+        final rows = <AmortizationPreviewRow>[
+          for (var i = 0; i < (n < 5 ? n : 5); i++)
+            AmortizationPreviewRow(
+              index: i + 1,
+              date: dates[i],
+              principal: perPrincipal,
+              interest: interests[i],
+            ),
+        ];
+        final totalInterest = interests.fold(0.0, (a, b) => a + b);
+        final first = perPrincipal + interests.first;
         return AmortizationPreviewData(
-          label: '首月供',
-          headlineAmount: firstMonthly,
+          label: monthly ? '首月供' : '首期还款',
+          headlineAmount: first,
           rows: rows,
           n: n,
           totalInterest: totalInterest,
           totalPayment: p + totalInterest,
           annualRate: annualRate,
         );
+      case AmortizationMethod.interestFirst:
+        // 先息后本:每期利息 = 全本金 × 期利率;末期还本。
+        final perInterest = p * r;
+        final interestsIf = [for (var i = 0; i < n; i++) perInterest];
+        _applyWaiver(interestsIf, waiver / 100);
+        final rowsIf = <AmortizationPreviewRow>[
+          for (var i = 0; i < (n < 5 ? n : 5); i++)
+            AmortizationPreviewRow(
+              index: i + 1,
+              date: dates[i],
+              principal: i == n - 1 ? p : 0,
+              interest: interestsIf[i],
+            ),
+        ];
+        final totalInterestIf = interestsIf.fold(0.0, (a, b) => a + b);
+        return AmortizationPreviewData(
+          label: '每期利息',
+          headlineAmount: perInterest,
+          rows: rowsIf,
+          n: n,
+          totalInterest: totalInterestIf,
+          totalPayment: p + totalInterestIf,
+          annualRate: annualRate,
+        );
       case AmortizationMethod.lumpSum:
-        final years = n / 12;
-        final interest = p * annualRate / 100 * years;
+        // 月度沿用旧 months/12;其余周期按实际天数 /365(镜像 server)。
+        final last = dates.last;
+        double years;
+        if (monthly) {
+          years = monthsBetween(_startDate!, last) / 12.0;
+        } else {
+          years = last.difference(_startDate!).inDays / 365;
+          if (years <= 0) years = periodYears(_rule) * n;
+        }
+        final interest = (p * rate * years - waiver / 100).clamp(0.0, double.maxFinite);
         final rows = <AmortizationPreviewRow>[
           AmortizationPreviewRow(
             index: 1,
-            date: _addMonths(_startDate!, n),
+            date: last,
             principal: p,
             interest: interest,
             isDue: true,
@@ -327,6 +449,17 @@ class _DebtFormPageState extends State<DebtFormPage> {
     }
   }
 
+  /// 一次性减免 → 最早几期依次扣减(元序列;镜像 server earliest-first)。
+  void _applyWaiver(List<double> interests, double waiver) {
+    if (waiver <= 0) return;
+    var left = waiver;
+    for (var i = 0; i < interests.length && left > 0; i++) {
+      final take = interests[i] > left ? left : interests[i];
+      interests[i] -= take;
+      left -= take;
+    }
+  }
+
   double _pow(double base, int exp) {
     var r = 1.0;
     for (var i = 0; i < exp; i++) {
@@ -334,9 +467,6 @@ class _DebtFormPageState extends State<DebtFormPage> {
     }
     return r;
   }
-
-  DateTime _addMonths(DateTime d, int months) =>
-      DateTime(d.year, d.month + months, d.day);
 
   // ===================== 提交 =====================
 
@@ -361,18 +491,31 @@ class _DebtFormPageState extends State<DebtFormPage> {
       AppToast.show(context, '请输入年利率', type: ToastType.warning);
       return;
     }
+    // 到账账户必选(创建):借款金额必须落到一个资产账户,否则后续还款会把
+    // 还款账户扣成负数(账不平)。
+    if (!_isEdit && _disbursementAccountId == null) {
+      AppToast.show(context, '请选择到账账户(借款金额到账的账户)',
+          type: ToastType.warning);
+      return;
+    }
     if (_startDate == null) {
       AppToast.show(context, '请选择起始日期', type: ToastType.warning);
       return;
     }
-    if (_dueDate == null) {
-      AppToast.show(context, '请选择到期日期', type: ToastType.warning);
+    final dates = _effectiveDates();
+    if (dates.isEmpty) {
+      AppToast.show(
+          context,
+          _byPeriods ? '请输入有效的期数' : '请选择晚于起始日期的到期日期',
+          type: ToastType.warning);
       return;
     }
-    if (_dueDate!.isBefore(_startDate!)) {
+    if (!_byPeriods && _dueDate!.isBefore(_startDate!)) {
       AppToast.show(context, '到期日期需晚于起始日期', type: ToastType.warning);
       return;
     }
+    // 按期数模式:到期日 = 末个发生日(服务端按期数推导,此处供展示/编辑)。
+    final effectiveDue = dates.last;
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _formKey.currentState?.save();
@@ -382,11 +525,24 @@ class _DebtFormPageState extends State<DebtFormPage> {
     await _persistCreditCardFieldsIfNeeded();
     final e = _existing;
     if (e != null) {
+      // 编辑允许改规则/摊销/期限(Google-Calendar 式:已发生期次冻结,
+      // 未来按剩余本金重排 —— 服务端 UpdateDebt 处理)。
       bloc.add(UpdateDebtRequested(UpdateDebtParams(
         id: e.id,
         counterparty: _counterpartyCtrl.text.trim(),
         interestRate: rate,
         version: e.version,
+        guarantorName: _guarantorNameCtrl.text.trim(),
+        guarantorContact: _guarantorContactCtrl.text.trim(),
+        amortizationIndex: _amortization.index,
+        dueDate: effectiveDue,
+        termPeriods: _byPeriods ? dates.length : 0,
+        cycle: _rule.cycleInt,
+        interval: _rule.interval,
+        weekdayMask: _rule.weekdayMask,
+        monthlyMode: _rule.monthlyModeInt,
+        nth: _rule.nth,
+        interestWaivedCents: _waiverCents(),
       )));
     } else {
       bloc.add(CreateDebtRequested(CreateDebtParams(
@@ -396,9 +552,18 @@ class _DebtFormPageState extends State<DebtFormPage> {
         amortizationIndex: _amortization.index,
         sourceAccountId: _disbursementAccountId,
         startDateOption: _startDate,
-        dueDateOption: _dueDate,
+        dueDateOption: effectiveDue,
         totalPrincipalCents: principalCents,
         subtype: _subtypeKey,
+        guarantorName: _guarantorNameCtrl.text.trim(),
+        guarantorContact: _guarantorContactCtrl.text.trim(),
+        cycle: _rule.cycleInt,
+        interval: _rule.interval,
+        weekdayMask: _rule.weekdayMask,
+        monthlyMode: _rule.monthlyModeInt,
+        nth: _rule.nth,
+        termPeriods: _byPeriods ? dates.length : 0,
+        interestWaivedCents: _waiverCents(),
       )));
     }
   }
@@ -422,11 +587,29 @@ class _DebtFormPageState extends State<DebtFormPage> {
         scrolledUnderElevation: 0,
       ),
       body: BlocListener<DebtBloc, DebtState>(
-        listenWhen: (prev, curr) =>
-            _submitted && curr is DebtsLoaded && prev is! DebtsLoaded,
-        listener: (context, state) {
+        listenWhen: (prev, curr) => _submitted &&
+            (curr is DebtsLoaded || curr is DebtError),
+        listener: (context, state) async {
+          if (state is DebtError) {
+            // 写失败不再静默:toast 提示后留在表单,用户可改后重试。
+            _submitted = false;
+            AppToast.show(context, state.message, type: ToastType.error);
+            return;
+          }
           _submitted = false;
-          Navigator.of(context).pop(true);
+          // 跨页广播:账户页负债/总览数字随之刷新(债务账户余额变动)。
+          try {
+            getIt<DataRefreshNotifier>().bump();
+          } catch (_) {}
+          // 创建态新债务 id 来自 bloc.lastCreated(绑定本地合同附件用)。
+          // 附件绑定是本地 best-effort:任何失败(历史 FK 版本表/磁盘/占用)
+          // 都不得阻断 pop —— 债务本体已保存成功(「上传卡住」缺陷根因)。
+          final bloc = context.read<DebtBloc>();
+          final debtId = _existing?.id ?? bloc.lastCreated?.id;
+          try {
+            if (debtId != null) await _bindAttachment(debtId);
+          } catch (_) {}
+          if (context.mounted) Navigator.of(context).pop(true);
         },
         child: BlocBuilder<DebtBloc, DebtState>(
           builder: (context, state) {
@@ -494,7 +677,11 @@ class _DebtFormPageState extends State<DebtFormPage> {
                 children: [
                   if (_step == 0) ..._basicInfoFields(),
                   if (_step == 1) ..._amountRateFields(),
-                  if (_step == 2) ..._dateFields(),
+                  if (_step == 2) ...[
+                    ..._dateFields(),
+                    const SizedBox(height: 18),
+                    _guarantorContractFields(),
+                  ],
                   const SizedBox(height: AppSpacing.lg),
                   _stepActions(submitting),
                 ],
@@ -601,6 +788,13 @@ class _DebtFormPageState extends State<DebtFormPage> {
           children: _dateFields(),
         ),
         const SizedBox(height: 16),
+        _ODFormSection(
+          num: '4',
+          title: '担保人与合同',
+          sub: '全部选填 · 合同文件保存在本机',
+          children: [_guarantorContractFields()],
+        ),
+        const SizedBox(height: 16),
         _actionsCard(),
       ],
     );
@@ -698,15 +892,15 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ),
         ),
         _ODField(
-          label: '到账账户(可选)',
-          hint: '借款现金自动入账的资产账户',
+          label: '到账账户',
+          required: true,
+          hint: '借款金额到账的资产账户(必选:保证还款时账户不为负)',
           child: DropdownButtonFormField<String>(
             key: const ValueKey('disbursementDropdown'),
             value: _disbursementAccountId,
             isExpanded: true,
-            decoration: _odDec(context, hint: '选择资产账户(不选则不自动入账)'),
+            decoration: _odDec(context, hint: '选择到账的银行卡/资产账户'),
             items: [
-              const DropdownMenuItem(value: null, child: Text('不自动入账')),
               for (final a in _assetAccounts)
                 DropdownMenuItem(value: a.id, child: Text(a.name)),
             ],
@@ -714,6 +908,22 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ),
         ),
       ]),
+      _ODField(
+        label: '利息减免(选填)',
+        hint: '银行一次性优惠,从最早几期利息中扣减',
+        child: TextFormField(
+          key: const ValueKey('waiverField'),
+          controller: _waiverCtrl,
+          decoration: _odDec(context, prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
+          style: TextStyle(
+              fontSize: 14,
+              color: context.yucai.fg,
+              fontFeatures: AppTypography.tabularFigures),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
+        ),
+      ),
+      const SizedBox(height: AppSpacing.sm),
       // 债务类型(5 卡):OD .radio-row.c5。icon + label(无 desc,对齐 OD 类型卡)。
       _ODField(
         label: '债务类型',
@@ -871,10 +1081,73 @@ class _DebtFormPageState extends State<DebtFormPage> {
     ];
   }
 
-  // ----- 字段：日期（Step 3） -----
+  // ----- 字段：日期（Step 3;含周期规则入口与期数双模式） -----
+
+  /// 当前生效的发生日序列(按期数模式含推导;空 = 输入不全)。
+  List<DateTime> _effectiveDates() {
+    if (_startDate == null) return const [];
+    final term = _termPeriods();
+    if (_byPeriods) {
+      if (term <= 0) return const [];
+      return scheduleDatesFrom(_rule, _startDate!, _startDate!, term);
+    }
+    if (_dueDate == null) return const [];
+    return scheduleDatesFrom(_rule, _startDate!, _dueDate!, 0);
+  }
+
+  int _termPeriods() => int.tryParse(_termPeriodsCtrl.text.trim()) ?? 0;
+
+  /// 利息减免(分);空/非法 = 0。
+  int _waiverCents() =>
+      ((double.tryParse(_waiverCtrl.text.trim()) ?? 0) * 100).round();
+
+  Future<void> _pickDebtRule() async {
+    final rule = await showRecurrenceRuleEditor(
+      context,
+      initial: _rule,
+      anchor: RecurrenceAnchor.startDate, // 借贷按日期锚定起始日
+    );
+    if (rule != null) setState(() => _rule = rule);
+  }
+
   List<Widget> _dateFields() {
-    final periods = _monthsBetween(_startDate, _dueDate);
+    final dates = _effectiveDates();
+    final periods = dates.length;
+    final derivedDue = dates.isEmpty ? null : dates.last;
     return [
+      // 周期规则入口(lumpSum 单期不参与)。
+      if (_amortization != AmortizationMethod.lumpSum)
+        _ODField(
+          label: '周期',
+          required: true,
+          child: InkWell(
+            key: const ValueKey('debtRuleEntry'),
+            onTap: _pickDebtRule,
+            child: InputDecorator(
+              decoration: _odDec(context).copyWith(
+                  suffixIcon: Icon(LucideIcons.chevronRight,
+                      size: 16, color: context.yucai.muted)),
+              child: Text(
+                recurrenceRuleText(_rule),
+                style:
+                    TextStyle(color: context.yucai.fg, fontSize: 13.5),
+              ),
+            ),
+          ),
+        ),
+      if (_amortization != AmortizationMethod.lumpSum) ...[
+        const SizedBox(height: AppSpacing.sm),
+        SegmentedButton<bool>(
+          key: const ValueKey('termModeToggle'),
+          segments: const [
+            ButtonSegment(value: false, label: Text('按到期日')),
+            ButtonSegment(value: true, label: Text('按期数')),
+          ],
+          selected: {_byPeriods},
+          onSelectionChanged: (sel) => setState(() => _byPeriods = sel.first),
+        ),
+      ],
+      const SizedBox(height: AppSpacing.sm),
       _ODGrid2(children: [
         _ODField(
           label: '起始日期',
@@ -885,19 +1158,36 @@ class _DebtFormPageState extends State<DebtFormPage> {
             onChanged: (d) => setState(() => _startDate = d),
           ),
         ),
-        _ODField(
-          label: '到期日期',
-          required: true,
-          hint: periods > 0 ? '期数 $periods 期（按月）' : null,
-          child: _ODDateField(
-            key: const ValueKey('dueDatePicker'),
-            value: _dueDate,
-            onChanged: (d) => setState(() => _dueDate = d),
+        if (_byPeriods)
+          _ODField(
+            label: '期数',
+            required: true,
+            hint: derivedDue == null ? null : '到期 ${_fmtDate(derivedDue)}',
+            child: TextFormField(
+              key: const ValueKey('termPeriodsField'),
+              controller: _termPeriodsCtrl,
+              decoration: _odDec(context, hint: '例如：12'),
+              keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
+            ),
+          )
+        else
+          _ODField(
+            label: '到期日期',
+            required: true,
+            hint: periods > 0 ? '共 $periods 期' : null,
+            child: _ODDateField(
+              key: const ValueKey('dueDatePicker'),
+              value: _dueDate,
+              onChanged: (d) => setState(() => _dueDate = d),
+            ),
           ),
-        ),
       ]),
     ];
   }
+
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   // ----- 预览列 -----
   Widget _previewColumn() {
@@ -1388,6 +1678,8 @@ String _amortizationLabel(AmortizationMethod m) {
       return '等额本金';
     case AmortizationMethod.lumpSum:
       return '一次性还本付息';
+    case AmortizationMethod.interestFirst:
+      return '先息后本';
   }
 }
 
@@ -1400,6 +1692,8 @@ IconData _amortizationIcon(AmortizationMethod m) {
       return LucideIcons.barChart3;
     case AmortizationMethod.lumpSum:
       return LucideIcons.circle;
+    case AmortizationMethod.interestFirst:
+      return LucideIcons.landmark;
   }
 }
 
@@ -1412,6 +1706,8 @@ String _amortizationDesc(AmortizationMethod m) {
       return '月供递减 总利息更少';
     case AmortizationMethod.lumpSum:
       return '到期还本付息 无月供';
+    case AmortizationMethod.interestFirst:
+      return '每期付息 到期一次还本';
   }
 }
 

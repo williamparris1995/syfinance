@@ -26,15 +26,21 @@ class AmortizationMethod extends $pb.ProtobufEnum {
   static const AmortizationMethod AMORTIZATION_LUMP_SUM =
       AmortizationMethod._(3, _omitEnumNames ? '' : 'AMORTIZATION_LUMP_SUM');
 
+  /// 先息后本:每期付息,到期一次还本。
+  static const AmortizationMethod AMORTIZATION_INTEREST_FIRST =
+      AmortizationMethod._(
+          4, _omitEnumNames ? '' : 'AMORTIZATION_INTEREST_FIRST');
+
   static const $core.List<AmortizationMethod> values = <AmortizationMethod>[
     AMORTIZATION_UNSPECIFIED,
     AMORTIZATION_EQUAL_PRINCIPAL_INTEREST,
     AMORTIZATION_EQUAL_PRINCIPAL,
     AMORTIZATION_LUMP_SUM,
+    AMORTIZATION_INTEREST_FIRST,
   ];
 
   static final $core.List<AmortizationMethod?> _byValue =
-      $pb.ProtobufEnum.$_initByValueList(values, 3);
+      $pb.ProtobufEnum.$_initByValueList(values, 4);
   static AmortizationMethod? valueOf($core.int value) =>
       value < 0 || value >= _byValue.length ? null : _byValue[value];
 

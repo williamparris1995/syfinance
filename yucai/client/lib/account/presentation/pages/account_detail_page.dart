@@ -2,6 +2,7 @@ import 'dart:math' show pi;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -12,10 +13,13 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/hero_shell.dart';
@@ -54,6 +58,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// 写操作成功后的 toast 文案（关闭/激活共用同一套 pending → BlocListener 流程）。
   String? _pendingSuccessMsg;
 
+  /// 跨 branch 刷新:交易在别处(交易 branch 的详情/编辑页)记/改/删后,本页
+  /// 作为被覆盖的驻留路由不重建,余额/近期交易/统计滞留旧值 —— 订阅全局
+  /// 通知器重拉(与 _recordTxn .then(ok) 的同组回拉,照 accounts_page 同款)。
+  late final DataRefreshNotifier _dataRefresh = getIt<DataRefreshNotifier>();
+
+  void _onDataRefresh() {
+    if (!mounted) return;
+    _refreshTxn();
+    context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+  }
+
   /// 近期交易标准查询套件（F9 FR-2/ADR-4，替换 Task 6 的 5 条/页客户端
   /// 迷你分页 —— 旧 _recentPageSize/_recentPage/_recentPager 已删除）。
   ///
@@ -80,6 +95,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// 异步捕获（而非 build 期同步读）。
   Map<String, Account> _accountsMap = const {};
 
+  /// 关联债务(该账户名下全部借入债务,一户可多笔):贷款字段的实时数据源。
+  List<Debt> _linkedDebts = const [];
+
   /// 当前 scope 的中文前缀（Task 11）。用于 summary-based 的 label：
   /// 储蓄/其他类 4 卡（收入/支出/净流入/交易）+ hero-bal-sub「{scope}收支」+
   /// fixed/gold/realEstate 的 summary 4th 卡。类型专属字段 label（额度/市值/
@@ -94,6 +112,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+    _loadLinkedDebt();
+    _dataRefresh.addListener(_onDataRefresh);
     // 加载全量账户列表，供近期交易行解析 entries（分类/资产账户名）。
     // 直接走 repository（不经 AccountBloc —— 其 _onGet 的 AccountDetailLoaded
     // 不带 accounts，且 _onLoad 的 AccountLoading 会覆盖 detail state，导致
@@ -107,6 +127,24 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     // context.watch<TransactionBloc>() 能找到。本页不再自建 BlocProvider
     //（旧实现把 Provider 放在 build 返回的 Builder child 里，而 State.context
     // 在 Provider 之上，运行时抛 ProviderNotFoundException）。
+  }
+
+  @override
+  void dispose() {
+    _dataRefresh.removeListener(_onDataRefresh);
+    super.dispose();
+  }
+
+  /// 按账户 id 收集名下全部借入债务(loan 字段聚合的数据源)。
+  Future<void> _loadLinkedDebt() async {
+    try {
+      final r = await GetIt.instance<DebtRepository>().list();
+      r.fold((_) {}, (list) {
+        final linked =
+            list.where((d) => d.accountId == widget.id).toList();
+        if (mounted) setState(() => _linkedDebts = linked);
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadAccounts() async {
@@ -347,11 +385,30 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             a.creditRepaymentDay == null ? null : '${a.creditRepaymentDay}日');
         addNum('年费', a.creditAnnualFeeCents);
       case AccountCategory.loan:
-        addNum('原始本金', a.loanOriginalCents);
-        addNum('剩余本金', a.loanRemainingCents);
-        addNum('月供', a.loanMonthlyCents);
-        add('下次还款',
-            a.loanNextPaymentDate == null ? null : _fmtDate(a.loanNextPaymentDate!));
+        // 贷款字段以债务模块实时数据为准(一户多笔:原始/剩余/利息 = 合计,
+        // 月供/下次 = 最早到期那笔);无关联债务时回退账户静态字段。
+        if (_linkedDebts.isNotEmpty) {
+          final first1 = _linkedDebts.reduce((x, y) =>
+              (x.nextPaymentDate ?? DateTime(9999))
+                      .isBefore(y.nextPaymentDate ?? DateTime(9999))
+                  ? x
+                  : y);
+          addNum('原始本金',
+              _linkedDebts.fold<int>(0, (s, d) => s + d.totalPrincipalCents));
+          addNum('剩余本金',
+              _linkedDebts.fold<int>(0, (s, d) => s + d.remainingPrincipalCents));
+          addNum('剩余利息',
+              _linkedDebts.fold<int>(0, (s, d) => s + d.unpaidInterestCents));
+          addNum('月供', first1.nextPaymentAmountCents);
+          final npd1 = first1.nextPaymentDate;
+          if (npd1 != null) add('下次还款', _fmtDate(npd1));
+        } else {
+          addNum('原始本金', a.loanOriginalCents);
+          addNum('剩余本金', a.loanRemainingCents);
+          addNum('月供', a.loanMonthlyCents);
+          add('下次还款',
+              a.loanNextPaymentDate == null ? null : _fmtDate(a.loanNextPaymentDate!));
+        }
       case AccountCategory.investment:
         addNum('市值', a.investMarketValueCents);
         addNum('成本', a.investCostCents);
@@ -727,10 +784,28 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         addDay('还款日', a.creditRepaymentDay);
         addNum('年费', a.creditAnnualFeeCents);
       case AccountCategory.loan:
-        addNum('原始本金', a.loanOriginalCents);
-        addNum('剩余本金', a.loanRemainingCents);
-        addNum('月供', a.loanMonthlyCents);
-        addDate('下次还款', a.loanNextPaymentDate);
+        if (_linkedDebts.isNotEmpty) {
+          final first2 = _linkedDebts.reduce((x, y) =>
+              (x.nextPaymentDate ?? DateTime(9999))
+                      .isBefore(y.nextPaymentDate ?? DateTime(9999))
+                  ? x
+                  : y);
+          addNum('原始本金',
+              _linkedDebts.fold<int>(0, (s, d) => s + d.totalPrincipalCents));
+          addNum('剩余本金',
+              _linkedDebts.fold<int>(0, (s, d) => s + d.remainingPrincipalCents));
+          addNum('剩余利息',
+              _linkedDebts.fold<int>(0, (s, d) => s + d.unpaidInterestCents));
+          addNum('月供', first2.nextPaymentAmountCents);
+          if (first2.nextPaymentDate != null) {
+            addDate('下次还款', first2.nextPaymentDate);
+          }
+        } else {
+          addNum('原始本金', a.loanOriginalCents);
+          addNum('剩余本金', a.loanRemainingCents);
+          addNum('月供', a.loanMonthlyCents);
+          addDate('下次还款', a.loanNextPaymentDate);
+        }
       case AccountCategory.investment:
         addNum('市值', a.investMarketValueCents);
         addNum('成本', a.investCostCents);
@@ -1212,9 +1287,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ? context.yucai.positive
         : (flavour == TxnFlavour.expense ? context.yucai.negative : context.yucai.fg);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+    return InkWell(
+      key: ValueKey('recentTxn-${t.id}'),
+      onTap: () => context.push('/transactions/${t.id}'),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
         children: [
           _TxnTypeIcon(flavour: flavour, categoryAccount: cell.categoryAccount),
           const SizedBox(width: AppSpacing.sm),
@@ -1257,6 +1336,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -93,6 +93,10 @@ void main() {
             cycle: TemplateCycle.monthly,
             cycleDays: 0,
             billingDay: 1,
+            interval: 0,
+            weekdayMask: 0,
+            monthlyMode: 0,
+            nth: 0,
             startDate: null,
             endDate: null,
             autoRecord: false,
@@ -127,6 +131,10 @@ void main() {
             cycle: TemplateCycle.monthly,
             cycleDays: 0,
             billingDay: 1,
+            interval: 0,
+            weekdayMask: 0,
+            monthlyMode: 0,
+            nth: 0,
             startDate: null,
             endDate: null,
             autoRecord: false,
@@ -150,6 +158,11 @@ void main() {
             version: 1,
             name: '房租2',
             amountCents: 350000,
+            billingDay: null,
+            interval: null,
+            weekdayMask: null,
+            monthlyMode: null,
+            nth: null,
           )).thenAnswer((_) async => Right(_sampleTemplate()));
       when(() => repo.list())
           .thenAnswer((_) async => Right([_sampleTemplate()]));

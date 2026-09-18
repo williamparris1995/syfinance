@@ -74,7 +74,8 @@ func seedOneEntryDebt(t *testing.T, repo domain.DebtRepository, tenantID uuid.UU
 		tenantID, uuid.New(), "Bank", 0.0, domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
-		1_000_00, domain.BorrowedIn, "", "", "", nil,
+		1_000_00, domain.BorrowedIn, "", "", "", nil,"", "",
+
 	)
 	if err != nil {
 		t.Fatalf("seed debt: build: %v", err)

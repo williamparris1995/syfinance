@@ -1,5 +1,6 @@
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
+import 'package:yucai_client/proto/common/v1/recurrence.pbenum.dart' as pbcommon;
 import 'package:yucai_client/proto/debt/v1/debt.pb.dart' as pb;
 
 /// Maps generated proto DebtDTO / PaymentEntryDTO ↔ domain entities.
@@ -26,6 +27,19 @@ class DebtMapper {
       createdAt: dto.createdAt.toDateTime(),
       updatedAt: dto.updatedAt.toDateTime(),
       type: debtTypeFromProto(dto.debtType),
+      // 周期规则(0 值 = 旧「按月」;cycle UNSPECIFIED → 2=monthly)。
+      cycle: dto.cycle == pbcommon.RecurrenceCycle.RECURRENCE_CYCLE_UNSPECIFIED
+          ? 2
+          : dto.cycle.value,
+      interval: dto.interval <= 0 ? 1 : dto.interval,
+      weekdayMask: dto.weekdayMask,
+      monthlyMode: dto.monthlyMode ==
+              pbcommon.RecurrenceMonthlyMode.MONTHLY_MODE_BY_NTH_WEEKDAY
+          ? 1
+          : 0,
+      nth: dto.nth,
+      interestWaivedCents: dto.interestWaivedCents.toInt(),
+      unpaidInterestCents: dto.remainingInterestCents.toInt(),
       // subtype 是纯 String,与 proto 直传,无名称映射(区别于 DebtType)。
       subtype: dto.subtype,
       // receivables 对齐字段(Task 8):cents 为 proto Int64(getter),`.toInt()`
@@ -34,6 +48,9 @@ class DebtMapper {
       // 不抛,落 null,与可空语义一致)。
       contact: dto.contact,
       contractRef: dto.contractRef,
+      // 担保人字段(2026-09 用户需求):proto string 直传,'' = 无/未填。
+      guarantorName: dto.guarantorName,
+      guarantorContact: dto.guarantorContact,
       collectionAccountId:
           dto.collectionAccountId.isEmpty ? null : dto.collectionAccountId,
       nextPaymentDate:
@@ -65,6 +82,8 @@ class DebtMapper {
         return AmortizationMethod.equalPrincipal;
       case pb.AmortizationMethod.AMORTIZATION_LUMP_SUM:
         return AmortizationMethod.lumpSum;
+      case pb.AmortizationMethod.AMORTIZATION_INTEREST_FIRST:
+        return AmortizationMethod.interestFirst;
       default:
         return AmortizationMethod.equalPrincipalInterest;
     }
@@ -72,6 +91,8 @@ class DebtMapper {
 
   static pb.AmortizationMethod amortToProto(AmortizationMethod m) {
     switch (m) {
+      case AmortizationMethod.interestFirst:
+        return pb.AmortizationMethod.AMORTIZATION_INTEREST_FIRST;
       case AmortizationMethod.equalPrincipalInterest:
         return pb.AmortizationMethod.AMORTIZATION_EQUAL_PRINCIPAL_INTEREST;
       case AmortizationMethod.equalPrincipal:

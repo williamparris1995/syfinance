@@ -298,6 +298,53 @@ class DebtCardActionBtn extends StatelessWidget {
 
 /// OD `.seg` 风格列表筛选 segmented(bg #EFEDE6 + border + radius 10 + padding 3)。
 /// 4 段 全部/进行中/已结清/逾期,每段 label + count pill(active 用 gold-soft)。
+/// 分类(subtype)筛选 chips(债务/债权两页共用):「全部分类」+ 各分类 key
+/// 的中文 label;单选,再点选中项取消回全部。命中经 domain 纯函数
+/// debtMatchesSubtype(与状态筛选正交)。
+class DebtSubtypeChips extends StatelessWidget {
+  const DebtSubtypeChips({
+    super.key,
+    required this.labels,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  /// 有序 subtype key → 中文 label(DebtSubtypes.labels / ReceivableSubtypes.labels)。
+  final Map<String, String> labels;
+  final String? selected;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget chip(String? key, String label) {
+      final isSel = (selected ?? '') == (key ?? '');
+      return ChoiceChip(
+        key: ValueKey('subtypeChip-${key ?? 'all'}'),
+        label: Text(label),
+        selected: isSel,
+        showCheckmark: false,
+        visualDensity: VisualDensity.compact,
+        labelStyle: TextStyle(
+            fontSize: 12,
+            color: isSel ? context.yucai.onAccent : context.yucai.muted),
+        selectedColor: context.yucai.accent,
+        backgroundColor: context.yucai.surfaceAlt,
+        side: BorderSide(color: context.yucai.border),
+        onSelected: (_) => onChanged(isSel ? null : key),
+      );
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        chip(null, '全部分类'),
+        for (final e in labels.entries) chip(e.key, e.value),
+      ],
+    );
+  }
+}
+
 class DebtListFilterSegmented extends StatelessWidget {
   const DebtListFilterSegmented({
     super.key,
@@ -557,8 +604,11 @@ class DebtListStatStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
+    // 卡片数可变(本金 4 张 + 未付利息第 5 张):窄宽下等分列会溢出,
+    // 自动切换横向滚动(每张固定 170 宽);宽屏仍等宽分列。
+    return LayoutBuilder(builder: (ctx, c) {
+      final needScroll = c.maxWidth < cards.length * 170;
+      final strip = Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < cards.length; i++) ...[
@@ -566,8 +616,28 @@ class DebtListStatStrip extends StatelessWidget {
             if (i < cards.length - 1) const SizedBox(width: 14),
           ],
         ],
-      ),
-    );
+      );
+      if (needScroll) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: c.maxWidth),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < cards.length; i++) ...[
+                    SizedBox(width: 170, child: _StatCard(data: cards[i])),
+                    if (i < cards.length - 1) const SizedBox(width: 14),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+      return IntrinsicHeight(child: strip);
+    });
   }
 }
 
@@ -621,6 +691,7 @@ class _StatCardState extends State<_StatCard> {
                 ],
                 Flexible(
                   child: Text(d.label,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 12,
                           color: context.yucai.muted,
@@ -629,14 +700,17 @@ class _StatCardState extends State<_StatCard> {
               ],
             ),
             const SizedBox(height: 7),
-            Text(
-              d.value,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: d.color ?? context.yucai.fg,
-                letterSpacing: -0.1,
-                fontFeatures: AppTypography.tabularFigures,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                d.value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: d.color ?? context.yucai.fg,
+                  letterSpacing: -0.1,
+                  fontFeatures: AppTypography.tabularFigures,
+                ),
               ),
             ),
             if (d.sub != null) ...[
@@ -686,6 +760,7 @@ class DebtListOverviewCard extends StatelessWidget {
     this.pendingInterestCents,
     this.nextPayment,
     this.firstId,
+    this.unpaidInterestCents,
   });
 
   final DebtViewSemantics sem;
@@ -706,6 +781,10 @@ class DebtListOverviewCard extends StatelessWidget {
   final OvNextPayment? nextPayment;
   // CTA「查看收款/还款计划」跳转目标 id。
   final String? firstId;
+
+  /// 未付利息(本息口径):大字「剩余待还(本息)」= 剩余本金 + 此项;
+  /// 底部「已还/待还」保持本金口径(与进度同基数)。
+  final int? unpaidInterestCents;
 
   @override
   Widget build(BuildContext context) {
@@ -793,7 +872,8 @@ class DebtListOverviewCard extends StatelessWidget {
                               letterSpacing: 0.7,
                               color: context.yucai.muted)),
                       const SizedBox(height: 4),
-                      _bigAmt(context, totalRemaining),
+                      _bigAmt(context,
+                          totalRemaining + (unpaidInterestCents ?? 0)),
                       if (pendingInterestCents != null &&
                           pendingInterestCents! > 0) ...[
                         const SizedBox(height: 6),
@@ -958,7 +1038,8 @@ class DebtListOverviewCard extends StatelessWidget {
                 Text(sem.remainingLabel,
                     style: TextStyle(fontSize: 10.5, color: context.yucai.muted)),
                 const SizedBox(height: 3),
-                _bigAmt(context, totalRemaining),
+                _bigAmt(context,
+                    totalRemaining + (unpaidInterestCents ?? 0)),
                 if (pendingInterestCents != null &&
                     pendingInterestCents! > 0) ...[
                   const SizedBox(height: 5),
@@ -1578,7 +1659,7 @@ class DebtListCard extends StatelessWidget {
                               color: context.yucai.muted)),
                       const SizedBox(height: 4),
                       GoldAmount(
-                        cents: debt.remainingPrincipalCents,
+                        cents: debt.remainingPrincipalCents + debt.unpaidInterestCents,
                         preferred: preferred,
                         curSize: 13,
                         numSize: 19,
@@ -1602,7 +1683,7 @@ class DebtListCard extends StatelessWidget {
                         sem.cardCollectedMetaLabel,
                         sharedFmtSymbol(
                             debt.totalPrincipalCents -
-                                debt.remainingPrincipalCents,
+                                debt.remainingPrincipalCents + debt.unpaidInterestCents,
                             preferred),
                       ),
                     ],
@@ -1615,7 +1696,7 @@ class DebtListCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       DebtCardMetaKv(
-                          '年利率', '${debt.interestRate.toStringAsFixed(2)}%'),
+                          '年利率', '${(debt.interestRate * 100).toStringAsFixed(2)}%'),
                       const SizedBox(height: 5),
                       DebtCardMetaKv('到期日', sharedFmtDate(debt.dueDate)),
                     ],
@@ -1697,7 +1778,7 @@ class DebtListCard extends StatelessWidget {
                   fontSize: 10.5, letterSpacing: 0.5, color: context.yucai.muted)),
           const SizedBox(height: 4),
           Text(
-            sharedFmtSymbol(debt.remainingPrincipalCents, preferred),
+            sharedFmtSymbol(debt.remainingPrincipalCents + debt.unpaidInterestCents, preferred),
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -1715,7 +1796,7 @@ class DebtListCard extends StatelessWidget {
             children: [
               DebtCardMetaItem(
                   icon: LucideIcons.percent,
-                  text: '${debt.interestRate.toStringAsFixed(2)}%'),
+                  text: '${(debt.interestRate * 100).toStringAsFixed(2)}%'),
               DebtCardMetaItem(
                   icon: LucideIcons.calendar,
                   text: '到期 ${sharedFmtDate(debt.dueDate)}'),
@@ -1792,7 +1873,7 @@ class DebtListCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${sharedAmortLabel(debt.amortization)} · ${debt.interestRate.toStringAsFixed(2)}%',
+                      '${sharedAmortLabel(debt.amortization)} · ${(debt.interestRate * 100).toStringAsFixed(2)}%',
                       style: TextStyle(
                           fontSize: 11.5, color: context.yucai.muted),
                     ),
@@ -1808,7 +1889,7 @@ class DebtListCard extends StatelessWidget {
                           TextStyle(fontSize: 10, color: context.yucai.muted)),
                   const SizedBox(height: 2),
                   Text(
-                    sharedFmtSymbol(debt.remainingPrincipalCents, preferred),
+                    sharedFmtSymbol(debt.remainingPrincipalCents + debt.unpaidInterestCents, preferred),
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,

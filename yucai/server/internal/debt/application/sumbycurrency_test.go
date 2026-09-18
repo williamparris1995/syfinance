@@ -85,6 +85,10 @@ func (m *pagedDebtRepo) FindAll(_ context.Context, tenantID uuid.UUID, page doma
 	}
 	return res, nil
 }
+func (m *pagedDebtRepo) ReplaceFutureSchedule(_ context.Context, _ uuid.UUID, _ []domain.PaymentScheduleEntry) error {
+	return nil
+}
+
 func (m *pagedDebtRepo) Update(_ context.Context, d *domain.DebtDetails) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -160,7 +164,8 @@ func seedDebt(t *testing.T, tenantID, accountID uuid.UUID, total, principalPaid 
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC),
 		total, domain.BorrowedIn, "",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err != nil {
 		t.Fatalf("seed debt: %v", err)
@@ -221,7 +226,8 @@ func seedDebtAsType(t *testing.T, tenantID, accountID uuid.UUID, total, principa
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC),
 		total, debtType, "",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err != nil {
 		t.Fatalf("seed debt: %v", err)

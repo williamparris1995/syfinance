@@ -92,6 +92,28 @@ func TestDebtToProto_EmitsSubtype(t *testing.T) {
 	}
 }
 
+// TestDebtToProto_EmitsGuarantor verifies debtToProto carries the optional
+// guarantor fields through verbatim (2026-09 user request: guarantor name +
+// contact on both debt directions).
+func TestDebtToProto_EmitsGuarantor(t *testing.T) {
+	cases := []struct{ name, guarantor, contact string }{
+		{"empty", "", ""},
+		{"filled", "王担保", "13800000000 / 微信 same"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dto := application.DebtDTO{GuarantorName: tc.guarantor, GuarantorContact: tc.contact}
+			p := debtToProto(dto)
+			if p.GuarantorName != tc.guarantor {
+				t.Errorf("debtToProto GuarantorName = %q, want %q", p.GuarantorName, tc.guarantor)
+			}
+			if p.GuarantorContact != tc.contact {
+				t.Errorf("debtToProto GuarantorContact = %q, want %q", p.GuarantorContact, tc.contact)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // RecordPayment double-write tests (credit-card-sync Task 2)
 // ---------------------------------------------------------------------------
@@ -120,6 +142,10 @@ func (r *fakeDebtRepo) FindByID(_ context.Context, _ uuid.UUID, id uuid.UUID) (*
 	}
 	c := *d
 	return &c, nil
+}
+
+func (r *fakeDebtRepo) ReplaceFutureSchedule(_ context.Context, _ uuid.UUID, _ []domain.PaymentScheduleEntry) error {
+	return nil
 }
 
 func (r *fakeDebtRepo) Update(_ context.Context, d *domain.DebtDetails) error {
@@ -305,7 +331,7 @@ func setupRecordPaymentHarness(t *testing.T, debtType domain.DebtType) (
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	due := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
 	debt, err := domain.NewDebtDetails(tenantID, debtAccID, "counterparty", 5.0,
-		domain.AmortizationLumpSum, start, due, 1_000_00, debtType, "", "", "", nil)
+		domain.AmortizationLumpSum, start, due, 1_000_00, debtType, "", "", "", nil, "", "")
 	if err != nil {
 		t.Fatalf("seed debt: %v", err)
 	}
@@ -1132,7 +1158,7 @@ func setupReceivablesSummaryHarness(t *testing.T) (h *DebtHandler, tenantID uuid
 		domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
-		1_000_00, domain.BorrowedOut, "", "AliceContact", "", nil)
+		1_000_00, domain.BorrowedOut, "", "AliceContact", "", nil, "", "")
 	if err != nil {
 		t.Fatalf("seed debtA: %v", err)
 	}
@@ -1150,7 +1176,7 @@ func setupReceivablesSummaryHarness(t *testing.T) (h *DebtHandler, tenantID uuid
 		domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
-		500_00, domain.BorrowedOut, "", "", "", nil)
+		500_00, domain.BorrowedOut, "", "", "", nil, "", "")
 	if err != nil {
 		t.Fatalf("seed debtB: %v", err)
 	}
@@ -1166,7 +1192,7 @@ func setupReceivablesSummaryHarness(t *testing.T) (h *DebtHandler, tenantID uuid
 		domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
-		9_000_00, domain.BorrowedIn, "", "", "", nil)
+		9_000_00, domain.BorrowedIn, "", "", "", nil, "", "")
 	if err != nil {
 		t.Fatalf("seed debtC: %v", err)
 	}

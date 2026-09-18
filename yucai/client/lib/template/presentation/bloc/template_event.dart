@@ -21,6 +21,10 @@ class CreateTemplateRequested extends TemplateEvent {
     required this.cycle,
     required this.cycleDays,
     required this.billingDay,
+    this.interval = 0,
+    this.weekdayMask = 0,
+    this.monthlyMode = 0,
+    this.nth = 0,
     this.startDate,
     this.endDate,
     required this.autoRecord,
@@ -36,6 +40,10 @@ class CreateTemplateRequested extends TemplateEvent {
   final TemplateCycle cycle;
   final int cycleDays;
   final int billingDay;
+  final int interval;
+  final int weekdayMask;
+  final int monthlyMode;
+  final int nth;
   final String? startDate;
   final String? endDate;
   final bool autoRecord;
@@ -68,6 +76,11 @@ class UpdateTemplateRequested extends TemplateEvent {
     this.amountCents,
     this.cycle,
     this.cycleDays,
+    this.billingDay,
+    this.interval,
+    this.weekdayMask,
+    this.monthlyMode,
+    this.nth,
     this.endDate,
     this.autoRecord,
   });
@@ -79,6 +92,11 @@ class UpdateTemplateRequested extends TemplateEvent {
   final int? amountCents;
   final TemplateCycle? cycle;
   final int? cycleDays;
+  final int? billingDay;
+  final int? interval;
+  final int? weekdayMask;
+  final int? monthlyMode;
+  final int? nth;
   final String? endDate;
   final bool? autoRecord;
 
@@ -91,6 +109,11 @@ class UpdateTemplateRequested extends TemplateEvent {
         amountCents,
         cycle,
         cycleDays,
+        billingDay,
+        interval,
+        weekdayMask,
+        monthlyMode,
+        nth,
         endDate,
         autoRecord,
       ];

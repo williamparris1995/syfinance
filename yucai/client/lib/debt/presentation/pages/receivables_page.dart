@@ -10,6 +10,8 @@ import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/entities/receivables_summary.dart';
@@ -39,7 +41,11 @@ class ReceivablesPage extends StatefulWidget {
 }
 
 class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
-  DebtListFilter _filter = DebtListFilter.active;
+  // 默认「全部」(2026-09-17 用户反馈:默认「进行中」会把已结清债务藏起来,
+  // 总览总额与账户页负债口径对不上 —— 两页账目必须同口径可见)。
+  DebtListFilter _filter = DebtListFilter.all;
+  // 分类(subtype)筛选:null/空 = 全部(ReceivableSubtypes.* key)。
+  String? _subtype;
   ReceivablesSummary? _summary;
 
   // F9 FR-4 查询态(与 debts_page 镜像:共享 DebtSearchSortBar + domain 纯函数
@@ -55,30 +61,42 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
   @override
   void initState() {
     super.initState();
-    context
-        .read<DebtBloc>()
-        .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut));
+    // 不带 typeFilter 全量拉取(bloc 状态对 debts/receivables 两页共享),
+    // 本页在 _debtsOf 表现层切片 borrowedOut(债权),与 DebtsPage 镜像。
+    _dataRefresh.addListener(_onDataRefresh);
+    context.read<DebtBloc>().add(const LoadDebtsRequested());
     _loadSummary();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+    // 订阅 receivables 分支观察者(router.dart branch observers):顶层
+    // routeObserver 挂根 Navigator,看不到本分支嵌套 Navigator 的
+    // /receivables/new、/receivables/:id push/pop → didPopNext 从未触发,
+    // 汇总(债权笔数等)只在 initState 拉一次,创建首笔债权后停在 0。
+    receivablesRouteObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  late final DataRefreshNotifier _dataRefresh = getIt<DataRefreshNotifier>();
+
+  void _onDataRefresh() {
+    if (mounted) {
+      context.read<DebtBloc>().add(const LoadDebtsRequested());
+    }
   }
 
   @override
   void dispose() {
-    routeObserver.unsubscribe(this);
+    _dataRefresh.removeListener(_onDataRefresh);
+    receivablesRouteObserver.unsubscribe(this);
     super.dispose();
   }
 
   @override
   void didPopNext() {
     if (mounted) {
-      context
-          .read<DebtBloc>()
-          .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut));
+      context.read<DebtBloc>().add(const LoadDebtsRequested());
       _loadSummary();
     }
   }
@@ -91,9 +109,12 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
   }
 
   List<Debt> _debtsOf(DebtState state) {
-    if (state is DebtsLoaded) return state.debts;
-    if (state is DebtSubmitting) return state.last;
-    if (state is DebtError) return state.last;
+    // 共享 bloc 状态可能含 borrowedIn(债务)—— 本页只取 borrowedOut 切片。
+    List<Debt> slice(List<Debt> all) =>
+        all.where((d) => d.type == DebtType.borrowedOut).toList();
+    if (state is DebtsLoaded) return slice(state.debts);
+    if (state is DebtSubmitting) return slice(state.last);
+    if (state is DebtError) return slice(state.last);
     return const [];
   }
 
@@ -155,27 +176,31 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
     int toPreferred(int cents) =>
         toPreferredCents(cents, 'CNY', cstate.rates, preferred);
 
-    final totalRemaining = debts.fold<int>(
-        0, (s, d) => s + toPreferred(d.remainingPrincipalCents));
-    final totalPrincipal = debts.fold<int>(
-        0, (s, d) => s + toPreferred(d.totalPrincipalCents));
-    final totalCollected = totalPrincipal - totalRemaining;
-    final overallRatio = totalPrincipal > 0
-        ? (totalCollected / totalPrincipal).clamp(0.0, 1.0)
-        : 0.0;
-    final nextCollectDate = debts.isEmpty
-        ? null
-        : debts.map((d) => d.dueDate).reduce((a, b) => a.isBefore(b) ? a : b);
-
     // F9 FR-4 前端查询管道(与 debts_page 镜像;DS list 参数同口径):搜索 →
-    // 四态排序 → segmented 筛选。默认态与改造前逐位一致(NFR-2);总览/统计
-    // 仍按全量 debts + summary 计算,搜索只作用于列表。
+    // 排序 → 状态筛选 → 分类筛选。
     final searched =
         debts.where((d) => debtSearchMatches(d, _search)).toList();
     final filtered = ([...searched]
           ..sort((a, b) => debtCompareQuery(a, b, _sortKey, _sortDir)))
         .where((d) => debtMatchesListFilter(d, _filter))
+        .where((d) => debtMatchesSubtype(d, _subtype))
         .toList();
+
+    // 总览/统计条按**筛选后**集合计算(与 debts_page 同裁决:统计跟随所见)。
+    final totalRemaining = filtered.fold<int>(
+        0, (s, d) => s + toPreferred(d.remainingPrincipalCents));
+    // 未收利息单独成卡(不与本金混合)。
+    final totalUnpaidInterest = filtered.fold<int>(
+        0, (s, d) => s + toPreferred(d.unpaidInterestCents));
+    final totalPrincipal = filtered.fold<int>(
+        0, (s, d) => s + toPreferred(d.totalPrincipalCents));
+    final totalCollected = totalPrincipal - totalRemaining;
+    final overallRatio = totalPrincipal > 0
+        ? (totalCollected / totalPrincipal).clamp(0.0, 1.0)
+        : 0.0;
+    final nextCollectDate = filtered.isEmpty
+        ? null
+        : filtered.map((d) => d.dueDate).reduce((a, b) => a.isBefore(b) ? a : b);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
@@ -192,7 +217,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
                 totalPrincipal: totalPrincipal,
                 totalRemaining: totalRemaining,
                 totalCollected: totalCollected,
-                count: debts.length,
+                count: filtered.length,
                 overallRatio: overallRatio,
                 nextCollectDate: nextCollectDate,
                 trendCents: _summary?.principalTrendCents,
@@ -207,9 +232,10 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
                         amountCents: _summary!.nextPaymentAmountCents,
                       ),
                 firstId: debts.isEmpty ? null : debts.first.id,
+                unpaidInterestCents: totalUnpaidInterest,
               ),
               const SizedBox(height: AppSpacing.md),
-              DebtListStatStrip(cards: _statCards(debts, preferred)),
+              DebtListStatStrip(cards: _statCards(filtered, preferred, totalUnpaidInterest)),
               const SizedBox(height: AppSpacing.lg),
               // F9 FR-4 共享查询控件条(搜索 + 排序;无分页条 —— 矩阵定案)。
               DebtSearchSortBar(
@@ -221,6 +247,13 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
                   _sortKey = k;
                   _sortDir = d;
                 }),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // 分类筛选 chips(全部 + ReceivableSubtypes)。
+              DebtSubtypeChips(
+                labels: ReceivableSubtypes.labels,
+                selected: _subtype,
+                onChanged: (v) => setState(() => _subtype = v),
               ),
               const SizedBox(height: AppSpacing.md),
               _sectionHeadWithFilter(searched.length),
@@ -261,7 +294,8 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
   }
 
   /// L2 stat strip 4 卡(summary 驱动;null → '—' 占位)。
-  List<DebtListStatCardData> _statCards(List<Debt> debts, String preferred) {
+  List<DebtListStatCardData> _statCards(
+      List<Debt> debts, String preferred, int unpaidInterest) {
     if (_summary == null) {
       return [
         const DebtListStatCardData(

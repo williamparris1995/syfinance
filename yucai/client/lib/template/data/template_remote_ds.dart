@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
 import 'package:yucai_client/proto/common/v1/pagination.pb.dart' as common;
+import 'package:yucai_client/proto/common/v1/recurrence.pbenum.dart' as pbcommon;
 import 'package:yucai_client/proto/template/v1/template.pb.dart' as pb;
 import 'package:yucai_client/proto/template/v1/template.pbgrpc.dart' as grpc;
 import 'package:yucai_client/template/data/mappers/template_mapper.dart';
@@ -44,6 +45,10 @@ class TemplateRemoteDataSource {
     TemplateCycle cycle = TemplateCycle.unspecified,
     int cycleDays = 0,
     int billingDay = 0,
+    int interval = 0,
+    int weekdayMask = 0,
+    int monthlyMode = 0,
+    int nth = 0,
     String? startDate,
     String? endDate,
     bool autoRecord = false,
@@ -77,6 +82,11 @@ class TemplateRemoteDataSource {
     int? amountCents,
     TemplateCycle? cycle,
     int? cycleDays,
+    int? billingDay,
+    int? interval,
+    int? weekdayMask,
+    int? monthlyMode,
+    int? nth,
     String? endDate,
     bool? autoRecord,
   }) async {
@@ -86,8 +96,16 @@ class TemplateRemoteDataSource {
         name: name ?? '',
         description: description ?? '',
         amountCents: amountCents != null ? Int64(amountCents) : Int64.ZERO,
+        // 规则字段整体提交(cycle 0 = 服务端保持现规则;提交时全量带上)。
         cycle: cycle != null ? TemplateMapper.toPbCycle(cycle) : pb.TemplateCycle.CYCLE_UNSPECIFIED,
         cycleDays: cycleDays ?? 0,
+        billingDay: billingDay ?? 0,
+        interval: interval ?? 0,
+        weekdayMask: weekdayMask ?? 0,
+        monthlyMode: (monthlyMode ?? 0) == 1
+            ? pbcommon.RecurrenceMonthlyMode.MONTHLY_MODE_BY_NTH_WEEKDAY
+            : pbcommon.RecurrenceMonthlyMode.MONTHLY_MODE_BY_DATE,
+        nth: nth ?? 0,
         endDate: endDate ?? '',
         autoRecord: autoRecord ?? false,
         version: Int64(version),

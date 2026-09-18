@@ -35,6 +35,14 @@ const (
 	FieldCycleDays = "cycle_days"
 	// FieldBillingDay holds the string denoting the billing_day field in the database.
 	FieldBillingDay = "billing_day"
+	// FieldInterval holds the string denoting the interval field in the database.
+	FieldInterval = "interval"
+	// FieldWeekdayMask holds the string denoting the weekday_mask field in the database.
+	FieldWeekdayMask = "weekday_mask"
+	// FieldMonthlyMode holds the string denoting the monthly_mode field in the database.
+	FieldMonthlyMode = "monthly_mode"
+	// FieldNth holds the string denoting the nth field in the database.
+	FieldNth = "nth"
 	// FieldNextDate holds the string denoting the next_date field in the database.
 	FieldNextDate = "next_date"
 	// FieldStartDate holds the string denoting the start_date field in the database.
@@ -81,6 +89,10 @@ var Columns = []string{
 	FieldCycle,
 	FieldCycleDays,
 	FieldBillingDay,
+	FieldInterval,
+	FieldWeekdayMask,
+	FieldMonthlyMode,
+	FieldNth,
 	FieldNextDate,
 	FieldStartDate,
 	FieldEndDate,
@@ -112,6 +124,14 @@ var (
 	DefaultCycleDays int32
 	// DefaultBillingDay holds the default value on creation for the "billing_day" field.
 	DefaultBillingDay int32
+	// DefaultInterval holds the default value on creation for the "interval" field.
+	DefaultInterval int32
+	// DefaultWeekdayMask holds the default value on creation for the "weekday_mask" field.
+	DefaultWeekdayMask int32
+	// DefaultMonthlyMode holds the default value on creation for the "monthly_mode" field.
+	DefaultMonthlyMode int32
+	// DefaultNth holds the default value on creation for the "nth" field.
+	DefaultNth int32
 	// DefaultAutoRecord holds the default value on creation for the "auto_record" field.
 	DefaultAutoRecord bool
 	// DefaultPaused holds the default value on creation for the "paused" field.
@@ -186,6 +206,26 @@ func ByCycleDays(opts ...sql.OrderTermOption) OrderOption {
 // ByBillingDay orders the results by the billing_day field.
 func ByBillingDay(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBillingDay, opts...).ToFunc()
+}
+
+// ByInterval orders the results by the interval field.
+func ByInterval(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInterval, opts...).ToFunc()
+}
+
+// ByWeekdayMask orders the results by the weekday_mask field.
+func ByWeekdayMask(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWeekdayMask, opts...).ToFunc()
+}
+
+// ByMonthlyMode orders the results by the monthly_mode field.
+func ByMonthlyMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMonthlyMode, opts...).ToFunc()
+}
+
+// ByNth orders the results by the nth field.
+func ByNth(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNth, opts...).ToFunc()
 }
 
 // ByNextDate orders the results by the next_date field.

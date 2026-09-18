@@ -187,6 +187,114 @@ func (ttu *TransactionTemplateUpdate) ClearBillingDay() *TransactionTemplateUpda
 	return ttu
 }
 
+// SetInterval sets the "interval" field.
+func (ttu *TransactionTemplateUpdate) SetInterval(i int32) *TransactionTemplateUpdate {
+	ttu.mutation.ResetInterval()
+	ttu.mutation.SetInterval(i)
+	return ttu
+}
+
+// SetNillableInterval sets the "interval" field if the given value is not nil.
+func (ttu *TransactionTemplateUpdate) SetNillableInterval(i *int32) *TransactionTemplateUpdate {
+	if i != nil {
+		ttu.SetInterval(*i)
+	}
+	return ttu
+}
+
+// AddInterval adds i to the "interval" field.
+func (ttu *TransactionTemplateUpdate) AddInterval(i int32) *TransactionTemplateUpdate {
+	ttu.mutation.AddInterval(i)
+	return ttu
+}
+
+// ClearInterval clears the value of the "interval" field.
+func (ttu *TransactionTemplateUpdate) ClearInterval() *TransactionTemplateUpdate {
+	ttu.mutation.ClearInterval()
+	return ttu
+}
+
+// SetWeekdayMask sets the "weekday_mask" field.
+func (ttu *TransactionTemplateUpdate) SetWeekdayMask(i int32) *TransactionTemplateUpdate {
+	ttu.mutation.ResetWeekdayMask()
+	ttu.mutation.SetWeekdayMask(i)
+	return ttu
+}
+
+// SetNillableWeekdayMask sets the "weekday_mask" field if the given value is not nil.
+func (ttu *TransactionTemplateUpdate) SetNillableWeekdayMask(i *int32) *TransactionTemplateUpdate {
+	if i != nil {
+		ttu.SetWeekdayMask(*i)
+	}
+	return ttu
+}
+
+// AddWeekdayMask adds i to the "weekday_mask" field.
+func (ttu *TransactionTemplateUpdate) AddWeekdayMask(i int32) *TransactionTemplateUpdate {
+	ttu.mutation.AddWeekdayMask(i)
+	return ttu
+}
+
+// ClearWeekdayMask clears the value of the "weekday_mask" field.
+func (ttu *TransactionTemplateUpdate) ClearWeekdayMask() *TransactionTemplateUpdate {
+	ttu.mutation.ClearWeekdayMask()
+	return ttu
+}
+
+// SetMonthlyMode sets the "monthly_mode" field.
+func (ttu *TransactionTemplateUpdate) SetMonthlyMode(i int32) *TransactionTemplateUpdate {
+	ttu.mutation.ResetMonthlyMode()
+	ttu.mutation.SetMonthlyMode(i)
+	return ttu
+}
+
+// SetNillableMonthlyMode sets the "monthly_mode" field if the given value is not nil.
+func (ttu *TransactionTemplateUpdate) SetNillableMonthlyMode(i *int32) *TransactionTemplateUpdate {
+	if i != nil {
+		ttu.SetMonthlyMode(*i)
+	}
+	return ttu
+}
+
+// AddMonthlyMode adds i to the "monthly_mode" field.
+func (ttu *TransactionTemplateUpdate) AddMonthlyMode(i int32) *TransactionTemplateUpdate {
+	ttu.mutation.AddMonthlyMode(i)
+	return ttu
+}
+
+// ClearMonthlyMode clears the value of the "monthly_mode" field.
+func (ttu *TransactionTemplateUpdate) ClearMonthlyMode() *TransactionTemplateUpdate {
+	ttu.mutation.ClearMonthlyMode()
+	return ttu
+}
+
+// SetNth sets the "nth" field.
+func (ttu *TransactionTemplateUpdate) SetNth(i int32) *TransactionTemplateUpdate {
+	ttu.mutation.ResetNth()
+	ttu.mutation.SetNth(i)
+	return ttu
+}
+
+// SetNillableNth sets the "nth" field if the given value is not nil.
+func (ttu *TransactionTemplateUpdate) SetNillableNth(i *int32) *TransactionTemplateUpdate {
+	if i != nil {
+		ttu.SetNth(*i)
+	}
+	return ttu
+}
+
+// AddNth adds i to the "nth" field.
+func (ttu *TransactionTemplateUpdate) AddNth(i int32) *TransactionTemplateUpdate {
+	ttu.mutation.AddNth(i)
+	return ttu
+}
+
+// ClearNth clears the value of the "nth" field.
+func (ttu *TransactionTemplateUpdate) ClearNth() *TransactionTemplateUpdate {
+	ttu.mutation.ClearNth()
+	return ttu
+}
+
 // SetNextDate sets the "next_date" field.
 func (ttu *TransactionTemplateUpdate) SetNextDate(t time.Time) *TransactionTemplateUpdate {
 	ttu.mutation.SetNextDate(t)
@@ -474,6 +582,42 @@ func (ttu *TransactionTemplateUpdate) sqlSave(ctx context.Context) (n int, err e
 	if ttu.mutation.BillingDayCleared() {
 		_spec.ClearField(transactiontemplate.FieldBillingDay, field.TypeInt32)
 	}
+	if value, ok := ttu.mutation.Interval(); ok {
+		_spec.SetField(transactiontemplate.FieldInterval, field.TypeInt32, value)
+	}
+	if value, ok := ttu.mutation.AddedInterval(); ok {
+		_spec.AddField(transactiontemplate.FieldInterval, field.TypeInt32, value)
+	}
+	if ttu.mutation.IntervalCleared() {
+		_spec.ClearField(transactiontemplate.FieldInterval, field.TypeInt32)
+	}
+	if value, ok := ttu.mutation.WeekdayMask(); ok {
+		_spec.SetField(transactiontemplate.FieldWeekdayMask, field.TypeInt32, value)
+	}
+	if value, ok := ttu.mutation.AddedWeekdayMask(); ok {
+		_spec.AddField(transactiontemplate.FieldWeekdayMask, field.TypeInt32, value)
+	}
+	if ttu.mutation.WeekdayMaskCleared() {
+		_spec.ClearField(transactiontemplate.FieldWeekdayMask, field.TypeInt32)
+	}
+	if value, ok := ttu.mutation.MonthlyMode(); ok {
+		_spec.SetField(transactiontemplate.FieldMonthlyMode, field.TypeInt32, value)
+	}
+	if value, ok := ttu.mutation.AddedMonthlyMode(); ok {
+		_spec.AddField(transactiontemplate.FieldMonthlyMode, field.TypeInt32, value)
+	}
+	if ttu.mutation.MonthlyModeCleared() {
+		_spec.ClearField(transactiontemplate.FieldMonthlyMode, field.TypeInt32)
+	}
+	if value, ok := ttu.mutation.Nth(); ok {
+		_spec.SetField(transactiontemplate.FieldNth, field.TypeInt32, value)
+	}
+	if value, ok := ttu.mutation.AddedNth(); ok {
+		_spec.AddField(transactiontemplate.FieldNth, field.TypeInt32, value)
+	}
+	if ttu.mutation.NthCleared() {
+		_spec.ClearField(transactiontemplate.FieldNth, field.TypeInt32)
+	}
 	if value, ok := ttu.mutation.NextDate(); ok {
 		_spec.SetField(transactiontemplate.FieldNextDate, field.TypeTime, value)
 	}
@@ -732,6 +876,114 @@ func (ttuo *TransactionTemplateUpdateOne) AddBillingDay(i int32) *TransactionTem
 // ClearBillingDay clears the value of the "billing_day" field.
 func (ttuo *TransactionTemplateUpdateOne) ClearBillingDay() *TransactionTemplateUpdateOne {
 	ttuo.mutation.ClearBillingDay()
+	return ttuo
+}
+
+// SetInterval sets the "interval" field.
+func (ttuo *TransactionTemplateUpdateOne) SetInterval(i int32) *TransactionTemplateUpdateOne {
+	ttuo.mutation.ResetInterval()
+	ttuo.mutation.SetInterval(i)
+	return ttuo
+}
+
+// SetNillableInterval sets the "interval" field if the given value is not nil.
+func (ttuo *TransactionTemplateUpdateOne) SetNillableInterval(i *int32) *TransactionTemplateUpdateOne {
+	if i != nil {
+		ttuo.SetInterval(*i)
+	}
+	return ttuo
+}
+
+// AddInterval adds i to the "interval" field.
+func (ttuo *TransactionTemplateUpdateOne) AddInterval(i int32) *TransactionTemplateUpdateOne {
+	ttuo.mutation.AddInterval(i)
+	return ttuo
+}
+
+// ClearInterval clears the value of the "interval" field.
+func (ttuo *TransactionTemplateUpdateOne) ClearInterval() *TransactionTemplateUpdateOne {
+	ttuo.mutation.ClearInterval()
+	return ttuo
+}
+
+// SetWeekdayMask sets the "weekday_mask" field.
+func (ttuo *TransactionTemplateUpdateOne) SetWeekdayMask(i int32) *TransactionTemplateUpdateOne {
+	ttuo.mutation.ResetWeekdayMask()
+	ttuo.mutation.SetWeekdayMask(i)
+	return ttuo
+}
+
+// SetNillableWeekdayMask sets the "weekday_mask" field if the given value is not nil.
+func (ttuo *TransactionTemplateUpdateOne) SetNillableWeekdayMask(i *int32) *TransactionTemplateUpdateOne {
+	if i != nil {
+		ttuo.SetWeekdayMask(*i)
+	}
+	return ttuo
+}
+
+// AddWeekdayMask adds i to the "weekday_mask" field.
+func (ttuo *TransactionTemplateUpdateOne) AddWeekdayMask(i int32) *TransactionTemplateUpdateOne {
+	ttuo.mutation.AddWeekdayMask(i)
+	return ttuo
+}
+
+// ClearWeekdayMask clears the value of the "weekday_mask" field.
+func (ttuo *TransactionTemplateUpdateOne) ClearWeekdayMask() *TransactionTemplateUpdateOne {
+	ttuo.mutation.ClearWeekdayMask()
+	return ttuo
+}
+
+// SetMonthlyMode sets the "monthly_mode" field.
+func (ttuo *TransactionTemplateUpdateOne) SetMonthlyMode(i int32) *TransactionTemplateUpdateOne {
+	ttuo.mutation.ResetMonthlyMode()
+	ttuo.mutation.SetMonthlyMode(i)
+	return ttuo
+}
+
+// SetNillableMonthlyMode sets the "monthly_mode" field if the given value is not nil.
+func (ttuo *TransactionTemplateUpdateOne) SetNillableMonthlyMode(i *int32) *TransactionTemplateUpdateOne {
+	if i != nil {
+		ttuo.SetMonthlyMode(*i)
+	}
+	return ttuo
+}
+
+// AddMonthlyMode adds i to the "monthly_mode" field.
+func (ttuo *TransactionTemplateUpdateOne) AddMonthlyMode(i int32) *TransactionTemplateUpdateOne {
+	ttuo.mutation.AddMonthlyMode(i)
+	return ttuo
+}
+
+// ClearMonthlyMode clears the value of the "monthly_mode" field.
+func (ttuo *TransactionTemplateUpdateOne) ClearMonthlyMode() *TransactionTemplateUpdateOne {
+	ttuo.mutation.ClearMonthlyMode()
+	return ttuo
+}
+
+// SetNth sets the "nth" field.
+func (ttuo *TransactionTemplateUpdateOne) SetNth(i int32) *TransactionTemplateUpdateOne {
+	ttuo.mutation.ResetNth()
+	ttuo.mutation.SetNth(i)
+	return ttuo
+}
+
+// SetNillableNth sets the "nth" field if the given value is not nil.
+func (ttuo *TransactionTemplateUpdateOne) SetNillableNth(i *int32) *TransactionTemplateUpdateOne {
+	if i != nil {
+		ttuo.SetNth(*i)
+	}
+	return ttuo
+}
+
+// AddNth adds i to the "nth" field.
+func (ttuo *TransactionTemplateUpdateOne) AddNth(i int32) *TransactionTemplateUpdateOne {
+	ttuo.mutation.AddNth(i)
+	return ttuo
+}
+
+// ClearNth clears the value of the "nth" field.
+func (ttuo *TransactionTemplateUpdateOne) ClearNth() *TransactionTemplateUpdateOne {
+	ttuo.mutation.ClearNth()
 	return ttuo
 }
 
@@ -1051,6 +1303,42 @@ func (ttuo *TransactionTemplateUpdateOne) sqlSave(ctx context.Context) (_node *T
 	}
 	if ttuo.mutation.BillingDayCleared() {
 		_spec.ClearField(transactiontemplate.FieldBillingDay, field.TypeInt32)
+	}
+	if value, ok := ttuo.mutation.Interval(); ok {
+		_spec.SetField(transactiontemplate.FieldInterval, field.TypeInt32, value)
+	}
+	if value, ok := ttuo.mutation.AddedInterval(); ok {
+		_spec.AddField(transactiontemplate.FieldInterval, field.TypeInt32, value)
+	}
+	if ttuo.mutation.IntervalCleared() {
+		_spec.ClearField(transactiontemplate.FieldInterval, field.TypeInt32)
+	}
+	if value, ok := ttuo.mutation.WeekdayMask(); ok {
+		_spec.SetField(transactiontemplate.FieldWeekdayMask, field.TypeInt32, value)
+	}
+	if value, ok := ttuo.mutation.AddedWeekdayMask(); ok {
+		_spec.AddField(transactiontemplate.FieldWeekdayMask, field.TypeInt32, value)
+	}
+	if ttuo.mutation.WeekdayMaskCleared() {
+		_spec.ClearField(transactiontemplate.FieldWeekdayMask, field.TypeInt32)
+	}
+	if value, ok := ttuo.mutation.MonthlyMode(); ok {
+		_spec.SetField(transactiontemplate.FieldMonthlyMode, field.TypeInt32, value)
+	}
+	if value, ok := ttuo.mutation.AddedMonthlyMode(); ok {
+		_spec.AddField(transactiontemplate.FieldMonthlyMode, field.TypeInt32, value)
+	}
+	if ttuo.mutation.MonthlyModeCleared() {
+		_spec.ClearField(transactiontemplate.FieldMonthlyMode, field.TypeInt32)
+	}
+	if value, ok := ttuo.mutation.Nth(); ok {
+		_spec.SetField(transactiontemplate.FieldNth, field.TypeInt32, value)
+	}
+	if value, ok := ttuo.mutation.AddedNth(); ok {
+		_spec.AddField(transactiontemplate.FieldNth, field.TypeInt32, value)
+	}
+	if ttuo.mutation.NthCleared() {
+		_spec.ClearField(transactiontemplate.FieldNth, field.TypeInt32)
 	}
 	if value, ok := ttuo.mutation.NextDate(); ok {
 		_spec.SetField(transactiontemplate.FieldNextDate, field.TypeTime, value)

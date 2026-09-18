@@ -38,6 +38,14 @@ type TransactionTemplate struct {
 	CycleDays int32 `json:"cycle_days,omitempty"`
 	// BillingDay holds the value of the "billing_day" field.
 	BillingDay int32 `json:"billing_day,omitempty"`
+	// every N weeks/months/years; 1 = legacy
+	Interval int32 `json:"interval,omitempty"`
+	// bit0=Monday..bit6=Sunday; 0 = start-date weekday
+	WeekdayMask int32 `json:"weekday_mask,omitempty"`
+	// 0 = by billing day, 1 = by nth weekday
+	MonthlyMode int32 `json:"monthly_mode,omitempty"`
+	// 1-4 = the Nth, 5 = the last (nth-weekday mode)
+	Nth int32 `json:"nth,omitempty"`
 	// NextDate holds the value of the "next_date" field.
 	NextDate time.Time `json:"next_date,omitempty"`
 	// StartDate holds the value of the "start_date" field.
@@ -91,7 +99,7 @@ func (*TransactionTemplate) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case transactiontemplate.FieldAutoRecord, transactiontemplate.FieldPaused:
 			values[i] = new(sql.NullBool)
-		case transactiontemplate.FieldAmountCents, transactiontemplate.FieldCycleDays, transactiontemplate.FieldBillingDay, transactiontemplate.FieldVersion:
+		case transactiontemplate.FieldAmountCents, transactiontemplate.FieldCycleDays, transactiontemplate.FieldBillingDay, transactiontemplate.FieldInterval, transactiontemplate.FieldWeekdayMask, transactiontemplate.FieldMonthlyMode, transactiontemplate.FieldNth, transactiontemplate.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case transactiontemplate.FieldName, transactiontemplate.FieldDescription, transactiontemplate.FieldDirection, transactiontemplate.FieldCycle, transactiontemplate.FieldCategory:
 			values[i] = new(sql.NullString)
@@ -180,6 +188,30 @@ func (tt *TransactionTemplate) assignValues(columns []string, values []any) erro
 				return fmt.Errorf("unexpected type %T for field billing_day", values[i])
 			} else if value.Valid {
 				tt.BillingDay = int32(value.Int64)
+			}
+		case transactiontemplate.FieldInterval:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field interval", values[i])
+			} else if value.Valid {
+				tt.Interval = int32(value.Int64)
+			}
+		case transactiontemplate.FieldWeekdayMask:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field weekday_mask", values[i])
+			} else if value.Valid {
+				tt.WeekdayMask = int32(value.Int64)
+			}
+		case transactiontemplate.FieldMonthlyMode:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field monthly_mode", values[i])
+			} else if value.Valid {
+				tt.MonthlyMode = int32(value.Int64)
+			}
+		case transactiontemplate.FieldNth:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field nth", values[i])
+			} else if value.Valid {
+				tt.Nth = int32(value.Int64)
 			}
 		case transactiontemplate.FieldNextDate:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -315,6 +347,18 @@ func (tt *TransactionTemplate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("billing_day=")
 	builder.WriteString(fmt.Sprintf("%v", tt.BillingDay))
+	builder.WriteString(", ")
+	builder.WriteString("interval=")
+	builder.WriteString(fmt.Sprintf("%v", tt.Interval))
+	builder.WriteString(", ")
+	builder.WriteString("weekday_mask=")
+	builder.WriteString(fmt.Sprintf("%v", tt.WeekdayMask))
+	builder.WriteString(", ")
+	builder.WriteString("monthly_mode=")
+	builder.WriteString(fmt.Sprintf("%v", tt.MonthlyMode))
+	builder.WriteString(", ")
+	builder.WriteString("nth=")
+	builder.WriteString(fmt.Sprintf("%v", tt.Nth))
 	builder.WriteString(", ")
 	builder.WriteString("next_date=")
 	builder.WriteString(tt.NextDate.Format(time.ANSIC))

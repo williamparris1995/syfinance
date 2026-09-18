@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -46,7 +47,7 @@ class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
 Debt _debt({
   String id = 'd1',
   String counterparty = '招商银行 · 个人住房贷款',
-  double interestRate = 4.10,
+  double interestRate = 0.041,
   AmortizationMethod amortization = AmortizationMethod.equalPrincipalInterest,
   DateTime? dueDate,
   int totalPrincipalCents = 280000000, // 280 万
@@ -176,6 +177,8 @@ Widget _harness({
 }
 
 void main() {
+  GetIt.instance.registerLazySingleton<DataRefreshNotifier>(DataRefreshNotifier.new);
+
   // 详情页 initState 走 getIt<AccountRepository>；每个测试结束重置避免重复注册。
   tearDown(() {
     GetIt.instance.reset();
@@ -573,7 +576,7 @@ void main() {
       required String subtype,
       String accountId = 'cc-1',
       String counterparty = '招行信用卡',
-      double interestRate = 18.0,
+      double interestRate = 0.18,
       AmortizationMethod amortization = AmortizationMethod.lumpSum,
     }) =>
         Debt(

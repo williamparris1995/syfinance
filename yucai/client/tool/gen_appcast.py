@@ -8,8 +8,11 @@
     前缀 v,即 pubspec 的 X.Y.Z —— 版本单源,NFR-2;+N 构建号不进版本串,
     与 yucai/Makefile windows-installer 的 AppVersion 口径一致)
   - <enclosure url=...> 指向本 Release 的安装包资产 URL
-  - sparkle:dsaSignature = 对安装包【完整字节】的经典 DSA(DSA-SHA1)签名
-    (base64(DER),即 OpenSSL DSA 签名形态)
+  - sparkle:dsaSignature = WinSparkle 0.8.1 口径的经典 DSA 签名 —— 签名对象是
+    【SHA1(SHA1(安装包))】双哈希摘要,不是文件单哈希!(engine
+    signatureverifier.cpp VerifyDSASHA1Signature 的现实,等价
+    `openssl dgst -sha1 -binary < f | openssl dgst -sha1 -sign key`;单哈希
+    签名恒验不过 → v1.0.2–v1.0.5 全部「更新未正确签名」的根因,2026-09-16 修)
   - length = 安装包字节数(WinSparkle 下载完整性校验)
 
 签名档位 = 经典 DSA 的现实依据(集成验证结论,用户裁决修订):auto_updater 1.0.0
@@ -55,6 +58,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import os
 import sys
 import tempfile
@@ -146,17 +150,24 @@ def load_private_key(material: str):
 
 
 def sign_file(key, path: str) -> tuple[str, int]:
-    """读安装包字节 → DSA-SHA1 签名;返回 (base64(DER 签名), 文件字节数)。
+    """读安装包字节 → WinSparkle 0.8.1 口径 DSA 签名;返回 (base64(DER 签名), 文件字节数)。
 
-    Sparkle 经典口径:DSA 私钥 + SHA-1 摘要,签名体为 OpenSSL DER(r‖s 序列),
-    base64 后写入 sparkle:dsaSignature(WinSparkle 下载后按同口径验签);
+    引擎口径(signatureverifier.cpp VerifyDSASHA1Signature):对
+    SHA1(SHA1(file)) 双哈希摘要做 DSA-SHA1 签名 —— 与
+    `openssl dgst -sha1 -binary < f | openssl dgst -sha1 -sign key` 等价;
+    签名体为 OpenSSL DER(r‖s 序列),base64 后写入 sparkle:dsaSignature。
+    【勿改回单哈希 key.sign(data, SHA1):引擎恒验不过,更新死拒】
     DSA 无流式接口,整体载入内存(CI 安装包约百 MB 级,可接受);
-    签名对象为文件【精确字节】。
+    返回的 length 仍为文件【精确字节】(WinSparkle 下载完整性校验)。
     """
+    from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
+
     _, hashes, _, _ = _load_dsa()
     with open(path, "rb") as f:
         data = f.read()
-    signature = base64.b64encode(key.sign(data, hashes.SHA1())).decode("ascii")
+    inner = hashlib.sha1(data).digest()
+    outer = hashlib.sha1(inner).digest()
+    signature = base64.b64encode(key.sign(outer, Prehashed(hashes.SHA1()))).decode("ascii")
     return signature, len(data)
 
 
@@ -286,15 +297,28 @@ def _run_self_test() -> None:
     # pubDate 可被 RFC 2822 解析。
     parsedate_to_datetime(item.findtext("pubDate"))
 
-    # 4) 公钥验签往返(dsa_pub.pem 同款 PEM 重载公钥,模拟 WinSparkle 侧校验)。
+    # 4) 公钥验签往返 —— 按【引擎口径】(双哈希,模拟 WinSparkle 侧校验):
+    #    签名须过 SHA1(SHA1(payload)),且必须不过单哈希 SHA1(payload)
+    #    (单哈希口径回归门:v1.0.2–1.0.5「更新未正确签名」的根因,勿退回)。
+    from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
+
     pub = load_pem_public_key(pub_pem.encode("ascii"))
     sig = base64.b64decode(enc.get(f"{{{SPARKLE_NS}}}dsaSignature"))
-    pub.verify(sig, payload, hashes.SHA1())  # 失败即抛异常
+    inner = hashlib.sha1(payload).digest()
+    outer = hashlib.sha1(inner).digest()
+    pub.verify(sig, outer, Prehashed(hashes.SHA1()))  # 失败即抛异常
+    try:
+        pub.verify(sig, inner, Prehashed(hashes.SHA1()))
+    except Exception:
+        pass
+    else:
+        raise AssertionError("单哈希口径竟验签通过,签名实现退回错误口径")
     # 篡改一个字节必须验签失败(防「恒真」假阳性)。
     tampered = bytearray(payload)
     tampered[0] ^= 0xFF
+    t_outer = hashlib.sha1(hashlib.sha1(bytes(tampered)).digest()).digest()
     try:
-        pub.verify(sig, bytes(tampered), hashes.SHA1())
+        pub.verify(sig, t_outer, Prehashed(hashes.SHA1()))
     except Exception:
         pass
     else:

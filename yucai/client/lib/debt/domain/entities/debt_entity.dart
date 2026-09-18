@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 
 class Debt extends Equatable {
@@ -16,9 +17,18 @@ class Debt extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.type = DebtType.borrowedIn,
+    this.cycle = 2,
+    this.interval = 1,
+    this.weekdayMask = 0,
+    this.monthlyMode = 0,
+    this.nth = 0,
+    this.interestWaivedCents = 0,
+    this.unpaidInterestCents = 0,
     this.subtype = '',
     this.contact = '',
     this.contractRef = '',
+    this.guarantorName = '',
+    this.guarantorContact = '',
     this.collectionAccountId,
     this.nextPaymentDate,
     this.nextPaymentAmountCents = 0,
@@ -44,6 +54,29 @@ class Debt extends Equatable {
 
   /// 债务子类型(对应 DebtSubtypes / ReceivableSubtypes const 值,纯 String)。
   /// 默认 '' 以保持既有调用点(data mapper / 测试)无需改动即可编译。
+  /// 周期规则(零值 = 旧「按月」;cycle 存 proto 序号 1-4,默认 2=monthly;
+  /// 借贷 by-date 锚定起始日,无账单日概念)。
+  final int cycle;
+  final int interval;
+  final int weekdayMask;
+  final int monthlyMode;
+  final int nth;
+
+  /// 一次性利息减免(分;银行优惠):生成计划时从最早几期利息依次扣减。
+  final int interestWaivedCents;
+
+  /// 剩余未付利息(分;未还期次利息合计;列表页由服务端/本地计算填充)。
+  final int unpaidInterestCents;
+
+  /// 规则视图(推进/摊销/文案共用;镜像 server DebtDetails.Rule())。
+  RecurrenceRule get rule => RecurrenceRule.fromInts(
+        cycle: cycle,
+        interval: interval,
+        weekdayMask: weekdayMask,
+        monthlyMode: monthlyMode,
+        nth: nth,
+      );
+
   final String subtype;
 
   /// 应收/负债追踪字段(receivables 对齐,Task 8)。全部带默认值,
@@ -51,6 +84,10 @@ class Debt extends Equatable {
   /// mapper 直传空/0,自动适配。
   final String contact; // 联系人/对方
   final String contractRef; // 合同/借条编号
+  /// 担保人姓名(可选,'' = 无担保人;2026-09 用户需求,债务/债权两方向通用)。
+  final String guarantorName;
+  /// 担保人联系方式(可选:电话/微信等,'' = 未填)。
+  final String guarantorContact;
   final String? collectionAccountId; // 回款关联账户('' → null)
   final DateTime? nextPaymentDate; // 下一期还款日(date-only string → DateTime)
   final int nextPaymentAmountCents; // 下一期还款金额(本+利)
@@ -78,9 +115,18 @@ class Debt extends Equatable {
         createdAt,
         updatedAt,
         type,
+        cycle,
+        interval,
+        weekdayMask,
+        monthlyMode,
+        nth,
+        interestWaivedCents,
+        unpaidInterestCents,
         subtype,
         contact,
         contractRef,
+        guarantorName,
+        guarantorContact,
         collectionAccountId,
         nextPaymentDate,
         nextPaymentAmountCents,

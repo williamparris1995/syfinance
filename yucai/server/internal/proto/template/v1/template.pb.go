@@ -153,8 +153,13 @@ type TemplateDTO struct {
 	Version              int64                  `protobuf:"varint,18,opt,name=version,proto3" json:"version,omitempty"`
 	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Recurrence rule extensions (zero values = legacy behavior).
+	Interval      int32                    `protobuf:"varint,21,opt,name=interval,proto3" json:"interval,omitempty"`                          // every N weeks/months/years; <=0 treated as 1
+	WeekdayMask   int32                    `protobuf:"varint,22,opt,name=weekday_mask,json=weekdayMask,proto3" json:"weekday_mask,omitempty"` // bit0=Monday ... bit6=Sunday; 0 = start-date weekday
+	MonthlyMode   v1.RecurrenceMonthlyMode `protobuf:"varint,23,opt,name=monthly_mode,json=monthlyMode,proto3,enum=yucai.common.v1.RecurrenceMonthlyMode" json:"monthly_mode,omitempty"`
+	Nth           int32                    `protobuf:"varint,24,opt,name=nth,proto3" json:"nth,omitempty"` // 1-4 = the Nth, 5 = the last (nth-weekday mode)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TemplateDTO) Reset() {
@@ -327,21 +332,53 @@ func (x *TemplateDTO) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *TemplateDTO) GetInterval() int32 {
+	if x != nil {
+		return x.Interval
+	}
+	return 0
+}
+
+func (x *TemplateDTO) GetWeekdayMask() int32 {
+	if x != nil {
+		return x.WeekdayMask
+	}
+	return 0
+}
+
+func (x *TemplateDTO) GetMonthlyMode() v1.RecurrenceMonthlyMode {
+	if x != nil {
+		return x.MonthlyMode
+	}
+	return v1.RecurrenceMonthlyMode(0)
+}
+
+func (x *TemplateDTO) GetNth() int32 {
+	if x != nil {
+		return x.Nth
+	}
+	return 0
+}
+
 type CreateTemplateRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Name                 string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description          string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	AmountCents          int64                  `protobuf:"varint,3,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
-	Direction            TemplateDirection      `protobuf:"varint,4,opt,name=direction,proto3,enum=yucai.template.v1.TemplateDirection" json:"direction,omitempty"`
-	SourceAccountId      string                 `protobuf:"bytes,5,opt,name=source_account_id,json=sourceAccountId,proto3" json:"source_account_id,omitempty"`
-	DestinationAccountId string                 `protobuf:"bytes,6,opt,name=destination_account_id,json=destinationAccountId,proto3" json:"destination_account_id,omitempty"`
-	Cycle                TemplateCycle          `protobuf:"varint,7,opt,name=cycle,proto3,enum=yucai.template.v1.TemplateCycle" json:"cycle,omitempty"`
-	CycleDays            int32                  `protobuf:"varint,8,opt,name=cycle_days,json=cycleDays,proto3" json:"cycle_days,omitempty"`
-	BillingDay           int32                  `protobuf:"varint,9,opt,name=billing_day,json=billingDay,proto3" json:"billing_day,omitempty"`
-	StartDate            string                 `protobuf:"bytes,10,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
-	EndDate              string                 `protobuf:"bytes,11,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
-	AutoRecord           bool                   `protobuf:"varint,12,opt,name=auto_record,json=autoRecord,proto3" json:"auto_record,omitempty"`
-	Category             string                 `protobuf:"bytes,13,opt,name=category,proto3" json:"category,omitempty"`
+	state                protoimpl.MessageState   `protogen:"open.v1"`
+	Name                 string                   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description          string                   `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	AmountCents          int64                    `protobuf:"varint,3,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
+	Direction            TemplateDirection        `protobuf:"varint,4,opt,name=direction,proto3,enum=yucai.template.v1.TemplateDirection" json:"direction,omitempty"`
+	SourceAccountId      string                   `protobuf:"bytes,5,opt,name=source_account_id,json=sourceAccountId,proto3" json:"source_account_id,omitempty"`
+	DestinationAccountId string                   `protobuf:"bytes,6,opt,name=destination_account_id,json=destinationAccountId,proto3" json:"destination_account_id,omitempty"`
+	Cycle                TemplateCycle            `protobuf:"varint,7,opt,name=cycle,proto3,enum=yucai.template.v1.TemplateCycle" json:"cycle,omitempty"`
+	CycleDays            int32                    `protobuf:"varint,8,opt,name=cycle_days,json=cycleDays,proto3" json:"cycle_days,omitempty"`
+	BillingDay           int32                    `protobuf:"varint,9,opt,name=billing_day,json=billingDay,proto3" json:"billing_day,omitempty"`
+	StartDate            string                   `protobuf:"bytes,10,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
+	EndDate              string                   `protobuf:"bytes,11,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
+	AutoRecord           bool                     `protobuf:"varint,12,opt,name=auto_record,json=autoRecord,proto3" json:"auto_record,omitempty"`
+	Category             string                   `protobuf:"bytes,13,opt,name=category,proto3" json:"category,omitempty"`
+	Interval             int32                    `protobuf:"varint,14,opt,name=interval,proto3" json:"interval,omitempty"`
+	WeekdayMask          int32                    `protobuf:"varint,15,opt,name=weekday_mask,json=weekdayMask,proto3" json:"weekday_mask,omitempty"`
+	MonthlyMode          v1.RecurrenceMonthlyMode `protobuf:"varint,16,opt,name=monthly_mode,json=monthlyMode,proto3,enum=yucai.common.v1.RecurrenceMonthlyMode" json:"monthly_mode,omitempty"`
+	Nth                  int32                    `protobuf:"varint,17,opt,name=nth,proto3" json:"nth,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -467,17 +504,52 @@ func (x *CreateTemplateRequest) GetCategory() string {
 	return ""
 }
 
+func (x *CreateTemplateRequest) GetInterval() int32 {
+	if x != nil {
+		return x.Interval
+	}
+	return 0
+}
+
+func (x *CreateTemplateRequest) GetWeekdayMask() int32 {
+	if x != nil {
+		return x.WeekdayMask
+	}
+	return 0
+}
+
+func (x *CreateTemplateRequest) GetMonthlyMode() v1.RecurrenceMonthlyMode {
+	if x != nil {
+		return x.MonthlyMode
+	}
+	return v1.RecurrenceMonthlyMode(0)
+}
+
+func (x *CreateTemplateRequest) GetNth() int32 {
+	if x != nil {
+		return x.Nth
+	}
+	return 0
+}
+
 type UpdateTemplateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	AmountCents   int64                  `protobuf:"varint,4,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
-	Cycle         TemplateCycle          `protobuf:"varint,5,opt,name=cycle,proto3,enum=yucai.template.v1.TemplateCycle" json:"cycle,omitempty"`
-	CycleDays     int32                  `protobuf:"varint,6,opt,name=cycle_days,json=cycleDays,proto3" json:"cycle_days,omitempty"`
-	EndDate       string                 `protobuf:"bytes,7,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
-	AutoRecord    bool                   `protobuf:"varint,8,opt,name=auto_record,json=autoRecord,proto3" json:"auto_record,omitempty"`
-	Version       int64                  `protobuf:"varint,9,opt,name=version,proto3" json:"version,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	AmountCents int64                  `protobuf:"varint,4,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
+	Cycle       TemplateCycle          `protobuf:"varint,5,opt,name=cycle,proto3,enum=yucai.template.v1.TemplateCycle" json:"cycle,omitempty"`
+	CycleDays   int32                  `protobuf:"varint,6,opt,name=cycle_days,json=cycleDays,proto3" json:"cycle_days,omitempty"`
+	EndDate     string                 `protobuf:"bytes,7,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
+	AutoRecord  bool                   `protobuf:"varint,8,opt,name=auto_record,json=autoRecord,proto3" json:"auto_record,omitempty"`
+	Version     int64                  `protobuf:"varint,9,opt,name=version,proto3" json:"version,omitempty"`
+	// Rule fields are editable on update; a rule change recomputes next_date
+	// as the first occurrence >= max(start_date, today).
+	BillingDay    int32                    `protobuf:"varint,10,opt,name=billing_day,json=billingDay,proto3" json:"billing_day,omitempty"`
+	Interval      int32                    `protobuf:"varint,11,opt,name=interval,proto3" json:"interval,omitempty"`
+	WeekdayMask   int32                    `protobuf:"varint,12,opt,name=weekday_mask,json=weekdayMask,proto3" json:"weekday_mask,omitempty"`
+	MonthlyMode   v1.RecurrenceMonthlyMode `protobuf:"varint,13,opt,name=monthly_mode,json=monthlyMode,proto3,enum=yucai.common.v1.RecurrenceMonthlyMode" json:"monthly_mode,omitempty"`
+	Nth           int32                    `protobuf:"varint,14,opt,name=nth,proto3" json:"nth,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -571,6 +643,41 @@ func (x *UpdateTemplateRequest) GetAutoRecord() bool {
 func (x *UpdateTemplateRequest) GetVersion() int64 {
 	if x != nil {
 		return x.Version
+	}
+	return 0
+}
+
+func (x *UpdateTemplateRequest) GetBillingDay() int32 {
+	if x != nil {
+		return x.BillingDay
+	}
+	return 0
+}
+
+func (x *UpdateTemplateRequest) GetInterval() int32 {
+	if x != nil {
+		return x.Interval
+	}
+	return 0
+}
+
+func (x *UpdateTemplateRequest) GetWeekdayMask() int32 {
+	if x != nil {
+		return x.WeekdayMask
+	}
+	return 0
+}
+
+func (x *UpdateTemplateRequest) GetMonthlyMode() v1.RecurrenceMonthlyMode {
+	if x != nil {
+		return x.MonthlyMode
+	}
+	return v1.RecurrenceMonthlyMode(0)
+}
+
+func (x *UpdateTemplateRequest) GetNth() int32 {
+	if x != nil {
+		return x.Nth
 	}
 	return 0
 }
@@ -999,7 +1106,7 @@ var File_template_v1_template_proto protoreflect.FileDescriptor
 
 const file_template_v1_template_proto_rawDesc = "" +
 	"\n" +
-	"\x1atemplate/v1/template.proto\x12\x11yucai.template.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\x06\n" +
+	"\x1atemplate/v1/template.proto\x12\x11yucai.template.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1acommon/v1/recurrence.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\a\n" +
 	"\vTemplateDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1027,7 +1134,11 @@ const file_template_v1_template_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x85\x04\n" +
+	"updated_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\binterval\x18\x15 \x01(\x05R\binterval\x12!\n" +
+	"\fweekday_mask\x18\x16 \x01(\x05R\vweekdayMask\x12I\n" +
+	"\fmonthly_mode\x18\x17 \x01(\x0e2&.yucai.common.v1.RecurrenceMonthlyModeR\vmonthlyMode\x12\x10\n" +
+	"\x03nth\x18\x18 \x01(\x05R\x03nth\"\xa1\x05\n" +
 	"\x15CreateTemplateRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12!\n" +
@@ -1046,7 +1157,11 @@ const file_template_v1_template_proto_rawDesc = "" +
 	"\bend_date\x18\v \x01(\tR\aendDate\x12\x1f\n" +
 	"\vauto_record\x18\f \x01(\bR\n" +
 	"autoRecord\x12\x1a\n" +
-	"\bcategory\x18\r \x01(\tR\bcategory\"\xad\x02\n" +
+	"\bcategory\x18\r \x01(\tR\bcategory\x12\x1a\n" +
+	"\binterval\x18\x0e \x01(\x05R\binterval\x12!\n" +
+	"\fweekday_mask\x18\x0f \x01(\x05R\vweekdayMask\x12I\n" +
+	"\fmonthly_mode\x18\x10 \x01(\x0e2&.yucai.common.v1.RecurrenceMonthlyModeR\vmonthlyMode\x12\x10\n" +
+	"\x03nth\x18\x11 \x01(\x05R\x03nth\"\xea\x03\n" +
 	"\x15UpdateTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1058,7 +1173,14 @@ const file_template_v1_template_proto_rawDesc = "" +
 	"\bend_date\x18\a \x01(\tR\aendDate\x12\x1f\n" +
 	"\vauto_record\x18\b \x01(\bR\n" +
 	"autoRecord\x12\x18\n" +
-	"\aversion\x18\t \x01(\x03R\aversion\"'\n" +
+	"\aversion\x18\t \x01(\x03R\aversion\x12\x1f\n" +
+	"\vbilling_day\x18\n" +
+	" \x01(\x05R\n" +
+	"billingDay\x12\x1a\n" +
+	"\binterval\x18\v \x01(\x05R\binterval\x12!\n" +
+	"\fweekday_mask\x18\f \x01(\x05R\vweekdayMask\x12I\n" +
+	"\fmonthly_mode\x18\r \x01(\x0e2&.yucai.common.v1.RecurrenceMonthlyModeR\vmonthlyMode\x12\x10\n" +
+	"\x03nth\x18\x0e \x01(\x05R\x03nth\"'\n" +
 	"\x15DeleteTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"&\n" +
 	"\x14PauseTemplateRequest\x12\x0e\n" +
@@ -1100,8 +1222,7 @@ const file_template_v1_template_proto_rawDesc = "" +
 	"\x19ResumeTransactionTemplate\x12(.yucai.template.v1.ResumeTemplateRequest\x1a#.yucai.template.v1.TemplateResponse\x12d\n" +
 	"\x16GetTransactionTemplate\x12%.yucai.template.v1.GetTemplateRequest\x1a#.yucai.template.v1.TemplateResponse\x12m\n" +
 	"\x18ListTransactionTemplates\x12'.yucai.template.v1.ListTemplatesRequest\x1a(.yucai.template.v1.ListTemplatesResponse\x12k\n" +
-	"\x11RecordTransaction\x12(.yucai.template.v1.RecordTemplateRequest\x1a,.yucai.template.v1.RecordTransactionResponseB\xcb\x01\n" +
-	"\x15com.yucai.template.v1B\rTemplateProtoP\x01Z=github.com/yucai/server/internal/proto/template/v1;templatev1\xa2\x02\x03YTX\xaa\x02\x11Yucai.Template.V1\xca\x02\x11Yucai\\Template\\V1\xe2\x02\x1dYucai\\Template\\V1\\GPBMetadata\xea\x02\x13Yucai::Template::V1b\x06proto3"
+	"\x11RecordTransaction\x12(.yucai.template.v1.RecordTemplateRequest\x1a,.yucai.template.v1.RecordTransactionResponseB4Z2github.com/yucai/server/internal/proto/template/v1b\x06proto3"
 
 var (
 	file_template_v1_template_proto_rawDescOnce sync.Once
@@ -1133,44 +1254,48 @@ var file_template_v1_template_proto_goTypes = []any{
 	(*RecordTemplateRequest)(nil),     // 12: yucai.template.v1.RecordTemplateRequest
 	(*RecordTransactionResponse)(nil), // 13: yucai.template.v1.RecordTransactionResponse
 	(*timestamppb.Timestamp)(nil),     // 14: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),            // 15: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),           // 16: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),             // 17: google.protobuf.Empty
+	(v1.RecurrenceMonthlyMode)(0),     // 15: yucai.common.v1.RecurrenceMonthlyMode
+	(*v1.PageRequest)(nil),            // 16: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),           // 17: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),             // 18: google.protobuf.Empty
 }
 var file_template_v1_template_proto_depIdxs = []int32{
 	0,  // 0: yucai.template.v1.TemplateDTO.direction:type_name -> yucai.template.v1.TemplateDirection
 	1,  // 1: yucai.template.v1.TemplateDTO.cycle:type_name -> yucai.template.v1.TemplateCycle
 	14, // 2: yucai.template.v1.TemplateDTO.created_at:type_name -> google.protobuf.Timestamp
 	14, // 3: yucai.template.v1.TemplateDTO.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 4: yucai.template.v1.CreateTemplateRequest.direction:type_name -> yucai.template.v1.TemplateDirection
-	1,  // 5: yucai.template.v1.CreateTemplateRequest.cycle:type_name -> yucai.template.v1.TemplateCycle
-	1,  // 6: yucai.template.v1.UpdateTemplateRequest.cycle:type_name -> yucai.template.v1.TemplateCycle
-	15, // 7: yucai.template.v1.ListTemplatesRequest.page:type_name -> yucai.common.v1.PageRequest
-	2,  // 8: yucai.template.v1.ListTemplatesResponse.templates:type_name -> yucai.template.v1.TemplateDTO
-	16, // 9: yucai.template.v1.ListTemplatesResponse.page:type_name -> yucai.common.v1.PageResponse
-	2,  // 10: yucai.template.v1.TemplateResponse.template:type_name -> yucai.template.v1.TemplateDTO
-	14, // 11: yucai.template.v1.RecordTransactionResponse.next_date:type_name -> google.protobuf.Timestamp
-	3,  // 12: yucai.template.v1.TransactionTemplateService.CreateTransactionTemplate:input_type -> yucai.template.v1.CreateTemplateRequest
-	4,  // 13: yucai.template.v1.TransactionTemplateService.UpdateTransactionTemplate:input_type -> yucai.template.v1.UpdateTemplateRequest
-	5,  // 14: yucai.template.v1.TransactionTemplateService.DeleteTransactionTemplate:input_type -> yucai.template.v1.DeleteTemplateRequest
-	6,  // 15: yucai.template.v1.TransactionTemplateService.PauseTransactionTemplate:input_type -> yucai.template.v1.PauseTemplateRequest
-	7,  // 16: yucai.template.v1.TransactionTemplateService.ResumeTransactionTemplate:input_type -> yucai.template.v1.ResumeTemplateRequest
-	8,  // 17: yucai.template.v1.TransactionTemplateService.GetTransactionTemplate:input_type -> yucai.template.v1.GetTemplateRequest
-	9,  // 18: yucai.template.v1.TransactionTemplateService.ListTransactionTemplates:input_type -> yucai.template.v1.ListTemplatesRequest
-	12, // 19: yucai.template.v1.TransactionTemplateService.RecordTransaction:input_type -> yucai.template.v1.RecordTemplateRequest
-	11, // 20: yucai.template.v1.TransactionTemplateService.CreateTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	11, // 21: yucai.template.v1.TransactionTemplateService.UpdateTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	17, // 22: yucai.template.v1.TransactionTemplateService.DeleteTransactionTemplate:output_type -> google.protobuf.Empty
-	11, // 23: yucai.template.v1.TransactionTemplateService.PauseTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	11, // 24: yucai.template.v1.TransactionTemplateService.ResumeTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	11, // 25: yucai.template.v1.TransactionTemplateService.GetTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	10, // 26: yucai.template.v1.TransactionTemplateService.ListTransactionTemplates:output_type -> yucai.template.v1.ListTemplatesResponse
-	13, // 27: yucai.template.v1.TransactionTemplateService.RecordTransaction:output_type -> yucai.template.v1.RecordTransactionResponse
-	20, // [20:28] is the sub-list for method output_type
-	12, // [12:20] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	15, // 4: yucai.template.v1.TemplateDTO.monthly_mode:type_name -> yucai.common.v1.RecurrenceMonthlyMode
+	0,  // 5: yucai.template.v1.CreateTemplateRequest.direction:type_name -> yucai.template.v1.TemplateDirection
+	1,  // 6: yucai.template.v1.CreateTemplateRequest.cycle:type_name -> yucai.template.v1.TemplateCycle
+	15, // 7: yucai.template.v1.CreateTemplateRequest.monthly_mode:type_name -> yucai.common.v1.RecurrenceMonthlyMode
+	1,  // 8: yucai.template.v1.UpdateTemplateRequest.cycle:type_name -> yucai.template.v1.TemplateCycle
+	15, // 9: yucai.template.v1.UpdateTemplateRequest.monthly_mode:type_name -> yucai.common.v1.RecurrenceMonthlyMode
+	16, // 10: yucai.template.v1.ListTemplatesRequest.page:type_name -> yucai.common.v1.PageRequest
+	2,  // 11: yucai.template.v1.ListTemplatesResponse.templates:type_name -> yucai.template.v1.TemplateDTO
+	17, // 12: yucai.template.v1.ListTemplatesResponse.page:type_name -> yucai.common.v1.PageResponse
+	2,  // 13: yucai.template.v1.TemplateResponse.template:type_name -> yucai.template.v1.TemplateDTO
+	14, // 14: yucai.template.v1.RecordTransactionResponse.next_date:type_name -> google.protobuf.Timestamp
+	3,  // 15: yucai.template.v1.TransactionTemplateService.CreateTransactionTemplate:input_type -> yucai.template.v1.CreateTemplateRequest
+	4,  // 16: yucai.template.v1.TransactionTemplateService.UpdateTransactionTemplate:input_type -> yucai.template.v1.UpdateTemplateRequest
+	5,  // 17: yucai.template.v1.TransactionTemplateService.DeleteTransactionTemplate:input_type -> yucai.template.v1.DeleteTemplateRequest
+	6,  // 18: yucai.template.v1.TransactionTemplateService.PauseTransactionTemplate:input_type -> yucai.template.v1.PauseTemplateRequest
+	7,  // 19: yucai.template.v1.TransactionTemplateService.ResumeTransactionTemplate:input_type -> yucai.template.v1.ResumeTemplateRequest
+	8,  // 20: yucai.template.v1.TransactionTemplateService.GetTransactionTemplate:input_type -> yucai.template.v1.GetTemplateRequest
+	9,  // 21: yucai.template.v1.TransactionTemplateService.ListTransactionTemplates:input_type -> yucai.template.v1.ListTemplatesRequest
+	12, // 22: yucai.template.v1.TransactionTemplateService.RecordTransaction:input_type -> yucai.template.v1.RecordTemplateRequest
+	11, // 23: yucai.template.v1.TransactionTemplateService.CreateTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	11, // 24: yucai.template.v1.TransactionTemplateService.UpdateTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	18, // 25: yucai.template.v1.TransactionTemplateService.DeleteTransactionTemplate:output_type -> google.protobuf.Empty
+	11, // 26: yucai.template.v1.TransactionTemplateService.PauseTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	11, // 27: yucai.template.v1.TransactionTemplateService.ResumeTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	11, // 28: yucai.template.v1.TransactionTemplateService.GetTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	10, // 29: yucai.template.v1.TransactionTemplateService.ListTransactionTemplates:output_type -> yucai.template.v1.ListTemplatesResponse
+	13, // 30: yucai.template.v1.TransactionTemplateService.RecordTransaction:output_type -> yucai.template.v1.RecordTransactionResponse
+	23, // [23:31] is the sub-list for method output_type
+	15, // [15:23] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_template_v1_template_proto_init() }

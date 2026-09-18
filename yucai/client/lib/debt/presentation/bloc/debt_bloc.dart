@@ -1,9 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
-import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
 
@@ -20,24 +20,36 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     on<UpdateDebtRequested>(_onUpdate);
     on<DeleteDebtRequested>(_onDelete);
     on<RecordPaymentRequested>(_onRecordPayment);
+    on<SetPaymentDateRequested>(_onSetPaymentDate);
+    on<MarkEntryPaidRequested>(_onMarkEntryPaid);
   }
 
   final DebtRepository _repo;
 
   List<Debt> _last = const [];
 
-  /// 上一次 LoadDebtsRequested 携带的 typeFilter。create/update/delete 成功后的
-  /// 刷新用它重放,使 debts_page(borrowedIn)与 receivables_page(borrowedOut)
-  /// 的内联操作不会因刷新重置为「全部」而泄漏另一方向的债务。
-  DebtType? _lastTypeFilter;
+  /// 最近一次 create 成功返回的 Debt(含服务端/本地生成 id)。表单在
+  /// BlocListener(DebtsLoaded)里读它拿新债务 id 绑定本地合同附件 —— 不进
+  /// state(刷新态只携带列表,消费方无需感知);无 create 会话时为 null。
+  Debt? lastCreated;
 
+  /// LoadDebtsRequested:repo 层按 event.typeFilter 过滤(非空时)。
+  ///
+  /// 写后刷新(create/update/delete)一律 `LoadDebtsRequested()` 不带过滤:
+  /// 本 bloc 是 debts/receivables 两条 branch 共享的单例,若按「最后一次
+  /// 过滤」重放,先访债权页再回债务页创建 → 刷新加载的是 borrowedOut 列表,
+  /// 债务页看不到新建债务(用户实测「添加债务没有任何显示」)。全量刷新后
+  /// 两个页面各自在表现层按方向切片(_debtsOf),互不串扰。
   Future<void> _onLoadDebts(
     LoadDebtsRequested event,
     Emitter<DebtState> emit,
   ) async {
-    _lastTypeFilter = event.typeFilter;
     emit(DebtLoading());
     final result = await _repo.list(typeFilter: event.typeFilter);
+    result.fold(
+      (f) => debugPrint('[DEBT-DIAG] list FAILED: ${f.displayMessage} typeFilter=${event.typeFilter}'),
+      (debts) => debugPrint('[DEBT-DIAG] list loaded: ${debts.length} debts (borrowedIn=${debts.where((d) => d.type.index == 0).length}) typeFilter=${event.typeFilter}'),
+    );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
       (debts) {
@@ -78,12 +90,23 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       sourceAccountId: p.sourceAccountId,
       contact: p.contact,
       contractRef: p.contractRef,
+      guarantorName: p.guarantorName,
+      guarantorContact: p.guarantorContact,
       collectionAccountId: p.collectionAccountId,
+      cycle: p.cycle,
+      interval: p.interval,
+      weekdayMask: p.weekdayMask,
+      monthlyMode: p.monthlyMode,
+      nth: p.nth,
+      termPeriods: p.termPeriods,
+      interestWaivedCents: p.interestWaivedCents,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) =>
-          add(LoadDebtsRequested(typeFilter: _lastTypeFilter)), // refresh list on success
+      (debt) {
+        lastCreated = debt;
+        add(const LoadDebtsRequested()); // refresh list on success
+      },
     );
   }
 
@@ -100,12 +123,22 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       version: p.version,
       contact: p.contact,
       contractRef: p.contractRef,
+      guarantorName: p.guarantorName,
+      guarantorContact: p.guarantorContact,
       collectionAccountId: p.collectionAccountId,
+      amortizationIndex: p.amortizationIndex,
+      dueDate: p.dueDate,
+      termPeriods: p.termPeriods,
+      cycle: p.cycle,
+      interval: p.interval,
+      weekdayMask: p.weekdayMask,
+      monthlyMode: p.monthlyMode,
+      nth: p.nth,
+      interestWaivedCents: p.interestWaivedCents,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) =>
-          add(LoadDebtsRequested(typeFilter: _lastTypeFilter)), // refresh list on success
+      (_) => add(const LoadDebtsRequested()), // refresh list on success
     );
   }
 
@@ -116,8 +149,7 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     final result = await _repo.delete(event.id);
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) =>
-          add(LoadDebtsRequested(typeFilter: _lastTypeFilter)), // refresh list on success
+      (_) => add(const LoadDebtsRequested()), // refresh list on success
     );
   }
 
@@ -133,6 +165,37 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
       (_) => add(LoadDebtRequested(event.debtId)), // refresh detail on success
+    );
+  }
+
+  /// 单期改日(Google-Calendar 式):成功后刷新详情。
+  Future<void> _onSetPaymentDate(
+    SetPaymentDateRequested event,
+    Emitter<DebtState> emit,
+  ) async {
+    final result = await _repo.setPaymentDate(
+      debtId: event.debtId,
+      entryId: event.entryId,
+      paymentDate: event.paymentDate,
+    );
+    result.fold(
+      (failure) => emit(DebtError(failure.displayMessage, last: _last)),
+      (_) => add(LoadDebtRequested(event.debtId)),
+    );
+  }
+
+  /// 标记已还(历史还款,不记账):成功后刷新详情。
+  Future<void> _onMarkEntryPaid(
+    MarkEntryPaidRequested event,
+    Emitter<DebtState> emit,
+  ) async {
+    final result = await _repo.markEntryPaid(
+      debtId: event.debtId,
+      entryId: event.entryId,
+    );
+    result.fold(
+      (failure) => emit(DebtError(failure.displayMessage, last: _last)),
+      (_) => add(LoadDebtRequested(event.debtId)),
     );
   }
 }

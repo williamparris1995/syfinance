@@ -9,6 +9,7 @@ import (
 	accountdomain "github.com/yucai/server/internal/account/domain"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	"github.com/yucai/server/internal/debt/application"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/debt/domain"
 	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	pb "github.com/yucai/server/internal/proto/debt/v1"
@@ -102,6 +103,15 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		Subtype:             req.Subtype,
 		Contact:             req.Contact,
 		ContractRef:         req.ContractRef,
+		GuarantorName:       req.GuarantorName,
+		GuarantorContact:    req.GuarantorContact,
+		Cycle:               protoToCycle(req.Cycle),
+		Interval:            req.Interval,
+		WeekdayMask:         req.WeekdayMask,
+		MonthlyMode:         recurrence.MonthlyMode(req.MonthlyMode),
+		Nth:                 req.Nth,
+		TermPeriods:         req.TermPeriods,
+		InterestWaivedCents: req.InterestWaivedCents,
 	}
 	if debtType == domain.BorrowedOut {
 		// Collection account = where repayments land.
@@ -251,6 +261,16 @@ func (h *DebtHandler) UpdateDebt(ctx context.Context, req *pb.UpdateDebtRequest)
 		}
 		collectionAccountID = &parsed
 	}
+	// Schedule-affecting edit (Google-Calendar style): due_date "" and
+	// amortization/cycle zero values keep the current value (legacy callers).
+	var dueDate *time.Time
+	if req.DueDate != "" {
+		parsed, err := parseDate(req.DueDate)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid due_date")
+		}
+		dueDate = &parsed
+	}
 	resp, err := h.service.UpdateDebt(ctx, application.UpdateDebtRequest{
 		TenantID:            tenantID,
 		ID:                  id,
@@ -260,11 +280,53 @@ func (h *DebtHandler) UpdateDebt(ctx context.Context, req *pb.UpdateDebtRequest)
 		Contact:             req.Contact,
 		ContractRef:         req.ContractRef,
 		CollectionAccountID: collectionAccountID,
+		GuarantorName:       req.GuarantorName,
+		GuarantorContact:    req.GuarantorContact,
+		AmortizationMethod:  protoToMethodKeepUnspecified(req.AmortizationMethod),
+		DueDate:             dueDate,
+		TermPeriods:         req.TermPeriods,
+		Cycle:               recurrence.Cycle(req.Cycle),
+		Interval:            req.Interval,
+		WeekdayMask:         req.WeekdayMask,
+		MonthlyMode:         recurrence.MonthlyMode(req.MonthlyMode),
+		Nth:                 req.Nth,
 	})
 	if err != nil {
 		return nil, mapError(err)
 	}
 	return &pb.DebtResponse{Debt: debtToProto(*resp)}, nil
+}
+
+// SetPaymentDate moves one unpaid schedule entry to a new date (Google-
+// Calendar per-occurrence edit; frozen entries are rejected by the service).
+func (h *DebtHandler) SetPaymentDate(ctx context.Context, req *pb.SetPaymentDateRequest) (*pb.PaymentEntryResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	debtID, err := uuid.Parse(req.DebtId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid debt_id")
+	}
+	entryID, err := uuid.Parse(req.EntryId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid entry_id")
+	}
+	date, err := parseDate(req.PaymentDate)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid payment_date")
+	}
+
+	entry, err := h.service.SetPaymentDate(ctx, application.SetPaymentDateRequest{
+		TenantID:    tenantID,
+		DebtID:      debtID,
+		EntryID:     entryID,
+		PaymentDate: date,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.PaymentEntryResponse{Entry: entryToProto(*entry)}, nil
 }
 
 // DeleteDebt deletes a debt.
@@ -617,6 +679,13 @@ func debtToProto(d application.DebtDTO) *pb.DebtDTO {
 		Counterparty:            d.Counterparty,
 		InterestRate:            d.InterestRate,
 		AmortizationMethod:      methodToProto(d.AmortizationMethod),
+		Cycle:                   cycleToProto(d.Cycle),
+		Interval:                d.Interval,
+		WeekdayMask:             d.WeekdayMask,
+		MonthlyMode:             commonpb.RecurrenceMonthlyMode(d.MonthlyMode),
+		Nth:                     d.Nth,
+		InterestWaivedCents:     d.InterestWaivedCents,
+		RemainingInterestCents:  d.RemainingInterestCents,
 		StartDate:               d.StartDate.Format("2006-01-02"),
 		DueDate:                 d.DueDate.Format("2006-01-02"),
 		TotalPrincipalCents:     d.TotalPrincipalCents,
@@ -624,6 +693,8 @@ func debtToProto(d application.DebtDTO) *pb.DebtDTO {
 		Subtype:                 d.Subtype,
 		Contact:                 d.Contact,
 		ContractRef:             d.ContractRef,
+		GuarantorName:           d.GuarantorName,
+		GuarantorContact:        d.GuarantorContact,
 		NextPaymentDate:         d.NextPaymentDate,
 		NextPaymentAmountCents:  d.NextPaymentAmountCents,
 		NextPaymentPeriodNo:     d.NextPaymentPeriodNo,
@@ -665,6 +736,37 @@ func detailToProto(d application.DebtDetailDTO) *pb.DebtDetailDTO {
 	}
 }
 
+// protoToCycle converts a proto RecurrenceCycle to the shared domain enum.
+// UNSPECIFIED (0) reaches the caller as 0 = "keep/legacy monthly".
+func protoToCycle(c commonpb.RecurrenceCycle) recurrence.Cycle {
+	return recurrence.Cycle(c)
+}
+
+// cycleToProto converts the shared domain cycle to proto (0 → MONTHLY so old
+// clients always see a concrete cycle).
+func cycleToProto(c recurrence.Cycle) commonpb.RecurrenceCycle {
+	if c == 0 {
+		c = recurrence.CycleMonthly
+	}
+	return commonpb.RecurrenceCycle(c)
+}
+
+// protoToMethodKeepUnspecified maps AMORTIZATION_UNSPECIFIED (0) to 0 so the
+// service treats it as "keep current" (unlike protoToMethod, which defaults
+// to annuity for the create path).
+func protoToMethodKeepUnspecified(m pb.AmortizationMethod) domain.AmortizationMethod {
+	switch m {
+	case pb.AmortizationMethod_AMORTIZATION_EQUAL_PRINCIPAL_INTEREST:
+		return domain.AmortizationEqualPrincipalInterest
+	case pb.AmortizationMethod_AMORTIZATION_EQUAL_PRINCIPAL:
+		return domain.AmortizationEqualPrincipal
+	case pb.AmortizationMethod_AMORTIZATION_LUMP_SUM:
+		return domain.AmortizationLumpSum
+	default:
+		return 0
+	}
+}
+
 func protoToMethod(m pb.AmortizationMethod) domain.AmortizationMethod {
 	switch m {
 	case pb.AmortizationMethod_AMORTIZATION_EQUAL_PRINCIPAL_INTEREST:
@@ -673,6 +775,8 @@ func protoToMethod(m pb.AmortizationMethod) domain.AmortizationMethod {
 		return domain.AmortizationEqualPrincipal
 	case pb.AmortizationMethod_AMORTIZATION_LUMP_SUM:
 		return domain.AmortizationLumpSum
+	case pb.AmortizationMethod_AMORTIZATION_INTEREST_FIRST:
+		return domain.AmortizationInterestFirst
 	default:
 		return domain.AmortizationEqualPrincipalInterest
 	}
@@ -686,6 +790,8 @@ func methodToProto(m domain.AmortizationMethod) pb.AmortizationMethod {
 		return pb.AmortizationMethod_AMORTIZATION_EQUAL_PRINCIPAL
 	case domain.AmortizationLumpSum:
 		return pb.AmortizationMethod_AMORTIZATION_LUMP_SUM
+	case domain.AmortizationInterestFirst:
+		return pb.AmortizationMethod_AMORTIZATION_INTEREST_FIRST
 	default:
 		return pb.AmortizationMethod_AMORTIZATION_UNSPECIFIED
 	}

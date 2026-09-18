@@ -14,6 +14,11 @@ import 'package:yucai_client/account/presentation/widgets/account_category_style
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
@@ -86,6 +91,24 @@ int _displayValueCents(Account a) {
   }
 }
 
+/// 账户关联债务的聚合视图(贷款卡「原始/月供/下次/剩余」的数据源;
+/// 一户关联多笔时:剩余/原始 = 合计,月供/下次 = 最早到期那笔)。
+class AccountDebtInfo {
+  const AccountDebtInfo({
+    required this.remainingCents,
+    required this.totalCents,
+    required this.perPeriodCents,
+    required this.nextPaymentDate,
+    required this.count,
+  });
+
+  final int remainingCents; // Σ 剩余应还
+  final int totalCents; // Σ 总本金
+  final int perPeriodCents; // 最早到期债务的每期应还
+  final DateTime? nextPaymentDate; // 最早到期债务的下次还款日
+  final int count; // 关联债务笔数
+}
+
 class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// null = 全部。
   AccountCategory? _filter;
@@ -98,23 +121,97 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// 正在执行写操作的账户 id 集合（删除 / 关闭等），支持多操作并发追踪。
   final _pendingIds = <String>{};
 
+  // 跨 branch 刷新:交易记/改/删(表单页/详情页 bump DataRefreshNotifier)后
+  // 本页驻留在 IndexedStack 分支里,RouteAware 只覆盖本分支内 pop → 需全局
+  // 通知器补位(照 home_page _onDataRefresh 同款)。与 didPopNext 在本分支内
+  // pop 时可能双双触发 → 两次 LoadAccountsRequested,事件队列串行,后者覆盖
+  // 前者,无正确性问题。
+  late final DataRefreshNotifier _dataRefresh = getIt<DataRefreshNotifier>();
+
+  /// 借入债务(负债口径源):总负债/净资产对债务账户改用「剩余未还本金」
+  /// 合成,而非负债账户余额 —— 账户余额不可靠(借入创建 server 不入账、
+  /// guest 不选到账账户也不入账),与 networth 的 DebtSource 口径对齐。
+  List<Debt> _debts = const [];
+
+  /// accountId → 账户关联债务聚合信息(剩余/原始/月供/下次)。
+  Map<String, AccountDebtInfo> _debtInfoByAccount = {};
+
+  Future<void> _loadDebts() async {
+    try {
+      final r = await getIt<DebtRepository>().list();
+      r.fold((_) {}, (list) {
+        if (mounted) {
+          final borrowedIn =
+              list.where((d) => d.type == DebtType.borrowedIn).toList();
+          final byAccount = <String, List<Debt>>{};
+          for (final d in borrowedIn) {
+            byAccount.putIfAbsent(d.accountId, () => []).add(d);
+          }
+          AccountDebtInfo infoOf(List<Debt> ds) {
+            // 本息口径:剩余 = 未还本金 + 未还利息(与债务页卡片同口径)。
+            final remaining = ds.fold<int>(0,
+                (s, d) => s + d.remainingPrincipalCents + d.unpaidInterestCents);
+            final total =
+                ds.fold<int>(0, (s, d) => s + d.totalPrincipalCents);
+            // 最早到期那笔提供「月供/下次」口径。
+            final first = [...ds]..sort((a, b) {
+              final ad = a.nextPaymentDate;
+              final bd = b.nextPaymentDate;
+              if (ad == null && bd == null) return 0;
+              if (ad == null) return 1;
+              if (bd == null) return -1;
+              return ad.compareTo(bd);
+            });
+            return AccountDebtInfo(
+              remainingCents: remaining,
+              totalCents: total,
+              perPeriodCents: first.first.nextPaymentAmountCents,
+              nextPaymentDate: first.first.nextPaymentDate,
+              count: ds.length,
+            );
+          }
+
+          setState(() {
+            _debts = borrowedIn;
+            _debtInfoByAccount = {
+              for (final e in byAccount.entries) e.key: infoOf(e.value)
+            };
+          });
+        }
+      });
+    } catch (_) {
+      // 静默降级:取不到债务时退回账户余额口径(与旧行为一致)。
+    }
+  }
+
+  /// 账户的债务信息覆盖:账户被任一借入债务关联 → 返回聚合信息;
+  /// 未关联 → null(回退账户余额口径)。**不限贷款类别** —— 个人待还款等
+  /// 其他负债账户同样适用。
+  AccountDebtInfo? _debtInfoFor(Account a) => _debtInfoByAccount[a.id];
+
   @override
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(LoadAccountsRequested());
+    _dataRefresh.addListener(_onDataRefresh);
+    _loadDebts();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 订阅全局 RouteObserver：从详情页/编辑页 pop 回来时 didPopNext 触发，重新拉
-    // 列表——详情页用独立 AccountBloc，编辑只刷新它自己的 bloc，列表不会自动更新。
-    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+    // 订阅 accounts branch 专用观察者：从详情页 pop 回来时 didPopNext 触发，
+    // 重新拉列表——详情页用独立 AccountBloc，编辑只刷新它自己的 bloc，列表
+    // 不会自动更新。(修复:此前订阅顶层 routeObserver,但 go_router 只把
+    // GoRouter.observers 给根 Navigator,accounts 分支无观察者 → didPopNext
+    // 从未触发;详见 route_observer.dart 头注释。)
+    accountsRouteObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
 
   @override
   void dispose() {
-    routeObserver.unsubscribe(this);
+    accountsRouteObserver.unsubscribe(this);
+    _dataRefresh.removeListener(_onDataRefresh);
     super.dispose();
   }
 
@@ -123,7 +220,31 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     // 从详情/编辑返回：账户数据可能已变（编辑估值、记交易等），重新拉取。
     if (mounted) {
       context.read<AccountBloc>().add(LoadAccountsRequested());
+      _loadDebts();
     }
+  }
+
+  void _onDataRefresh() {
+    if (!mounted) return;
+    context.read<AccountBloc>().add(LoadAccountsRequested());
+    _loadDebts();
+  }
+
+  /// 关联债务(loan 账户 ↔ 债务 1:1):卡面「剩余本金/月供/下次还款」以
+  /// 债务模块实时数据为准(账户静态字段从不回填,恒空导致显示错误)。
+  Debt? _debtFor(Account a) {
+    if (a.category != AccountCategory.loan) return null;
+    for (final d in _debts) {
+      if (d.accountId == a.id) return d;
+    }
+    return null;
+  }
+
+  /// 卡面价值:loan 账户优先用债务剩余本金(无关联债务回退旧口径)。
+  int _valueCents(Account a) {
+    final d = _debtFor(a);
+    if (d != null) return d.remainingPrincipalCents;
+    return _displayValueCents(a);
   }
 
   String _formatCents(int cents, String currencyCode) {
@@ -395,10 +516,30 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     // 负债类用 currentBalanceCents（欠款/余额，负值），不用 _displayValueCents：
     // loan 的 loanRemainingCents 是正数（剩余本金），若 fold 进 netCents(=asset+liab)
     // 会把负债误加成资产。资产类才用 _displayValueCents（含估值字段）。
-    final liabCents = active.where((a) => a.accountType == AccountType.liability).fold<int>(
-        0,
-        (s, a) => s +
-            toPreferredCents(a.currentBalanceCents, a.currencyCode, cstate.rates, cstate.preferred));
+    // 负债 = 非债务负债账户余额 + Σ 借入债务剩余未还本金(按各自账户币种
+    // 换算)。债务账户余额不参与(可能从未入账或仅剩已还冲减),保证总负债
+    // 恒等于「真实的剩余应还」。
+    final debtAccountIds = _debts.map((d) => d.accountId).toSet();
+    final otherLiabCents = active
+        .where((a) =>
+            a.accountType == AccountType.liability &&
+            !debtAccountIds.contains(a.id))
+        .fold<int>(
+            0,
+            (s, a) => s +
+                toPreferredCents(a.currentBalanceCents, a.currencyCode,
+                    cstate.rates, cstate.preferred));
+    var debtRemainingCents = 0;
+    for (final d in _debts) {
+      final code = active
+              .where((a) => a.id == d.accountId)
+              .firstOrNull
+              ?.currencyCode ??
+          'CNY';
+      debtRemainingCents +=
+          toPreferredCents(d.remainingPrincipalCents, code, cstate.rates, cstate.preferred);
+    }
+    final liabCents = otherLiabCents - debtRemainingCents;
     final netCents = assetCents + liabCents; // 负债余额为负，相加得净资产
     final scoped = _showArchived ? balanceSheet.toList() : active;
     // F9 FR-5 搜索（页面层，见 _search 字段注释）：作用域 = 归档开关后的
@@ -480,6 +621,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                       type: entry.key,
                       accounts: entry.value,
                       formatCents: _formatCents,
+                      debtInfoFor: _debtInfoFor,
                       onEdit: _openEditForm,
                       onDuplicate: _openCopyForm,
                       onClose: _confirmClose,
@@ -945,6 +1087,7 @@ class _GroupBlock extends StatelessWidget {
     required this.type,
     required this.accounts,
     required this.formatCents,
+    required this.debtInfoFor,
     required this.onEdit,
     required this.onDuplicate,
     required this.onClose,
@@ -955,6 +1098,7 @@ class _GroupBlock extends StatelessWidget {
   final AccountCategory type;
   final List<Account> accounts;
   final String Function(int, String) formatCents;
+  final AccountDebtInfo? Function(Account) debtInfoFor;
   final void Function(Account) onEdit;
   final void Function(Account) onDuplicate;
   final void Function(Account) onClose;
@@ -966,14 +1110,15 @@ class _GroupBlock extends StatelessWidget {
     final cstate = context.watch<CurrencyBloc>().state;
     final subtotal = accounts.fold<int>(
         0,
-        (s, a) => s +
-            toPreferredCents(
-                a.accountType == AccountType.liability
-                    ? a.currentBalanceCents
-                    : _displayValueCents(a),
-                a.currencyCode,
-                cstate.rates,
-                cstate.preferred));
+        (s, a) {
+          final info = debtInfoFor(a);
+          final cents = (a.accountType == AccountType.liability)
+              ? (info != null
+                  ? -info.remainingCents // 债务账户:剩余应还的负数(与卡面同源)
+                  : a.currentBalanceCents)
+              : _displayValueCents(a);
+          return s + toPreferredCents(cents, a.currencyCode, cstate.rates, cstate.preferred);
+        });
     final isLiability = accounts.first.accountType == AccountType.liability;
     final typeColor = categoryColor(context, type);
     // .group-head：gap 11 / padding 0 2 15（tablet）；mobile gap 9 / padding 4 2 10。
@@ -1088,6 +1233,7 @@ class _GroupBlock extends StatelessWidget {
                     _AccountCard(
                       account: accounts[i],
                       formatCents: formatCents,
+                      debtInfoFor: debtInfoFor,
                       onEdit: () => onEdit(accounts[i]),
                       onDuplicate: () => onDuplicate(accounts[i]),
                       onClose: () => onClose(accounts[i]),
@@ -1122,6 +1268,7 @@ class _GroupBlock extends StatelessWidget {
               itemBuilder: (_, i) => _AccountCard(
                 account: accounts[i],
                 formatCents: formatCents,
+                debtInfoFor: debtInfoFor,
                 onEdit: () => onEdit(accounts[i]),
                 onDuplicate: () => onDuplicate(accounts[i]),
                 onClose: () => onClose(accounts[i]),
@@ -1145,6 +1292,7 @@ class _AccountCard extends StatefulWidget {
   const _AccountCard({
     required this.account,
     required this.formatCents,
+    required this.debtInfoFor,
     required this.onEdit,
     required this.onDuplicate,
     required this.onClose,
@@ -1154,6 +1302,7 @@ class _AccountCard extends StatefulWidget {
 
   final Account account;
   final String Function(int, String) formatCents;
+  final AccountDebtInfo? Function(Account) debtInfoFor;
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onClose;
@@ -1757,7 +1906,9 @@ class _AccountCardState extends State<_AccountCard> {
       AccountCategory.savings => '可用余额',
     };
     // 金额统一取 _displayValueCents（与总计/小计同口径），原货币符号。
-    return (label, formatCents(_displayValueCents(a), a.currencyCode));
+    final info = widget.debtInfoFor(a);
+    return (label,
+        formatCents(info?.remainingCents ?? _displayValueCents(a), a.currencyCode));
   }
 
   bool _hasSub(Account a) {
@@ -1780,6 +1931,19 @@ class _AccountCardState extends State<_AccountCard> {
     final style = TextStyle(color: context.yucai.muted, fontSize: 12);
     Color tone(double v) => v >= 0 ? context.yucai.positive : context.yucai.negative;
     String sign(double v) => v >= 0 ? '+' : '';
+    // 关联债务的账户(贷款/个人待还款等):副行直接给债务实时数据。
+    final info = widget.debtInfoFor(a);
+    if (info != null) {
+      final sub = info.count > 1 ? '（${info.count} 笔债务）' : '';
+      return Text(
+        '原始 ${formatCents(info.totalCents, a.currencyCode)} · '
+        '月供 ${formatCents(info.perPeriodCents, a.currencyCode)} · '
+        '下次 ${_fmtDate(info.nextPaymentDate)}$sub',
+        style: style,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
     switch (a.category) {
       case AccountCategory.creditCard:
         return Text(

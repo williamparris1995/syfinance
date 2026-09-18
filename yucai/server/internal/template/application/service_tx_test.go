@@ -18,6 +18,7 @@ import (
 	accountdomain "github.com/yucai/server/internal/account/domain"
 	accountent "github.com/yucai/server/internal/account/ent"
 	"github.com/yucai/server/internal/account/ent/account"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	tmplrepo "github.com/yucai/server/internal/template/adapter/driven/repository"
 	"github.com/yucai/server/internal/template/domain"
 	tmplent "github.com/yucai/server/internal/template/ent"
@@ -203,7 +204,7 @@ func TestRecordTransaction_RollbackOnNextDateAdvanceFailure(t *testing.T) {
 	// Real template pointing at the seeded accounts (expense → SimpleExpense).
 	tmpl, err := domain.NewTransactionTemplate(
 		tenantID, "Rent", 50_00, domain.DirectionExpense, assetID,
-		domain.CycleMonthly, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1}, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	)
 	if err != nil {
 		t.Fatalf("build template: %v", err)
@@ -300,7 +301,7 @@ func TestRecordTransaction_CommitsOnSuccess(t *testing.T) {
 
 	tmpl, err := domain.NewTransactionTemplate(
 		tenantID, "Rent", 50_00, domain.DirectionExpense, assetID,
-		domain.CycleMonthly, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1}, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	)
 	if err != nil {
 		t.Fatalf("build template: %v", err)
@@ -400,7 +401,7 @@ func TestRecordTransaction_Idempotent_OnSameRecordDate(t *testing.T) {
 
 	tmpl, err := domain.NewTransactionTemplate(
 		tenantID, "Rent", 50_00, domain.DirectionExpense, assetID,
-		domain.CycleMonthly, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 1}, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	)
 	if err != nil {
 		t.Fatalf("build template: %v", err)

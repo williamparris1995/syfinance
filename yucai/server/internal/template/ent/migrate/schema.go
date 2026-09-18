@@ -56,6 +56,10 @@ var (
 		{Name: "cycle", Type: field.TypeString, Comment: "weekly, monthly, yearly, custom"},
 		{Name: "cycle_days", Type: field.TypeInt32, Nullable: true, Default: 0},
 		{Name: "billing_day", Type: field.TypeInt32, Nullable: true, Default: 0},
+		{Name: "interval", Type: field.TypeInt32, Nullable: true, Comment: "every N weeks/months/years; 1 = legacy", Default: 1},
+		{Name: "weekday_mask", Type: field.TypeInt32, Nullable: true, Comment: "bit0=Monday..bit6=Sunday; 0 = start-date weekday", Default: 0},
+		{Name: "monthly_mode", Type: field.TypeInt32, Nullable: true, Comment: "0 = by billing day, 1 = by nth weekday", Default: 0},
+		{Name: "nth", Type: field.TypeInt32, Nullable: true, Comment: "1-4 = the Nth, 5 = the last (nth-weekday mode)", Default: 0},
 		{Name: "next_date", Type: field.TypeTime},
 		{Name: "start_date", Type: field.TypeTime},
 		{Name: "end_date", Type: field.TypeTime, Nullable: true},
@@ -81,7 +85,7 @@ var (
 			{
 				Name:    "transactiontemplate_tenant_id_paused_next_date",
 				Unique:  false,
-				Columns: []*schema.Column{TransactionTemplatesColumns[1], TransactionTemplatesColumns[15], TransactionTemplatesColumns[11]},
+				Columns: []*schema.Column{TransactionTemplatesColumns[1], TransactionTemplatesColumns[19], TransactionTemplatesColumns[15]},
 			},
 		},
 	}

@@ -25,6 +25,18 @@ const (
 	FieldInterestRate = "interest_rate"
 	// FieldAmortizationMethod holds the string denoting the amortization_method field in the database.
 	FieldAmortizationMethod = "amortization_method"
+	// FieldCycle holds the string denoting the cycle field in the database.
+	FieldCycle = "cycle"
+	// FieldInterval holds the string denoting the interval field in the database.
+	FieldInterval = "interval"
+	// FieldWeekdayMask holds the string denoting the weekday_mask field in the database.
+	FieldWeekdayMask = "weekday_mask"
+	// FieldMonthlyMode holds the string denoting the monthly_mode field in the database.
+	FieldMonthlyMode = "monthly_mode"
+	// FieldNth holds the string denoting the nth field in the database.
+	FieldNth = "nth"
+	// FieldInterestWaivedCents holds the string denoting the interest_waived_cents field in the database.
+	FieldInterestWaivedCents = "interest_waived_cents"
 	// FieldStartDate holds the string denoting the start_date field in the database.
 	FieldStartDate = "start_date"
 	// FieldDueDate holds the string denoting the due_date field in the database.
@@ -43,6 +55,10 @@ const (
 	FieldContractRef = "contract_ref"
 	// FieldCollectionAccountID holds the string denoting the collection_account_id field in the database.
 	FieldCollectionAccountID = "collection_account_id"
+	// FieldGuarantorName holds the string denoting the guarantor_name field in the database.
+	FieldGuarantorName = "guarantor_name"
+	// FieldGuarantorContact holds the string denoting the guarantor_contact field in the database.
+	FieldGuarantorContact = "guarantor_contact"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -77,6 +93,12 @@ var Columns = []string{
 	FieldCounterparty,
 	FieldInterestRate,
 	FieldAmortizationMethod,
+	FieldCycle,
+	FieldInterval,
+	FieldWeekdayMask,
+	FieldMonthlyMode,
+	FieldNth,
+	FieldInterestWaivedCents,
 	FieldStartDate,
 	FieldDueDate,
 	FieldTotalPrincipalCents,
@@ -86,6 +108,8 @@ var Columns = []string{
 	FieldContact,
 	FieldContractRef,
 	FieldCollectionAccountID,
+	FieldGuarantorName,
+	FieldGuarantorContact,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -101,6 +125,18 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultCycle holds the default value on creation for the "cycle" field.
+	DefaultCycle string
+	// DefaultInterval holds the default value on creation for the "interval" field.
+	DefaultInterval int32
+	// DefaultWeekdayMask holds the default value on creation for the "weekday_mask" field.
+	DefaultWeekdayMask int32
+	// DefaultMonthlyMode holds the default value on creation for the "monthly_mode" field.
+	DefaultMonthlyMode int32
+	// DefaultNth holds the default value on creation for the "nth" field.
+	DefaultNth int32
+	// DefaultInterestWaivedCents holds the default value on creation for the "interest_waived_cents" field.
+	DefaultInterestWaivedCents int64
 	// TotalPrincipalCentsValidator is a validator for the "total_principal_cents" field. It is called by the builders before save.
 	TotalPrincipalCentsValidator func(int64) error
 	// DefaultDebtType holds the default value on creation for the "debt_type" field.
@@ -113,6 +149,10 @@ var (
 	DefaultContact string
 	// DefaultContractRef holds the default value on creation for the "contract_ref" field.
 	DefaultContractRef string
+	// DefaultGuarantorName holds the default value on creation for the "guarantor_name" field.
+	DefaultGuarantorName string
+	// DefaultGuarantorContact holds the default value on creation for the "guarantor_contact" field.
+	DefaultGuarantorContact string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -154,6 +194,36 @@ func ByInterestRate(opts ...sql.OrderTermOption) OrderOption {
 // ByAmortizationMethod orders the results by the amortization_method field.
 func ByAmortizationMethod(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAmortizationMethod, opts...).ToFunc()
+}
+
+// ByCycle orders the results by the cycle field.
+func ByCycle(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCycle, opts...).ToFunc()
+}
+
+// ByInterval orders the results by the interval field.
+func ByInterval(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInterval, opts...).ToFunc()
+}
+
+// ByWeekdayMask orders the results by the weekday_mask field.
+func ByWeekdayMask(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWeekdayMask, opts...).ToFunc()
+}
+
+// ByMonthlyMode orders the results by the monthly_mode field.
+func ByMonthlyMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMonthlyMode, opts...).ToFunc()
+}
+
+// ByNth orders the results by the nth field.
+func ByNth(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNth, opts...).ToFunc()
+}
+
+// ByInterestWaivedCents orders the results by the interest_waived_cents field.
+func ByInterestWaivedCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInterestWaivedCents, opts...).ToFunc()
 }
 
 // ByStartDate orders the results by the start_date field.
@@ -199,6 +269,16 @@ func ByContractRef(opts ...sql.OrderTermOption) OrderOption {
 // ByCollectionAccountID orders the results by the collection_account_id field.
 func ByCollectionAccountID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCollectionAccountID, opts...).ToFunc()
+}
+
+// ByGuarantorName orders the results by the guarantor_name field.
+func ByGuarantorName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGuarantorName, opts...).ToFunc()
+}
+
+// ByGuarantorContact orders the results by the guarantor_contact field.
+func ByGuarantorContact(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGuarantorContact, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

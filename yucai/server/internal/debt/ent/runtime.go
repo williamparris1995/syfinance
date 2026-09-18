@@ -18,36 +18,68 @@ import (
 func init() {
 	debtdetailsFields := schema.DebtDetails{}.Fields()
 	_ = debtdetailsFields
+	// debtdetailsDescCycle is the schema descriptor for cycle field.
+	debtdetailsDescCycle := debtdetailsFields[5].Descriptor()
+	// debtdetails.DefaultCycle holds the default value on creation for the cycle field.
+	debtdetails.DefaultCycle = debtdetailsDescCycle.Default.(string)
+	// debtdetailsDescInterval is the schema descriptor for interval field.
+	debtdetailsDescInterval := debtdetailsFields[6].Descriptor()
+	// debtdetails.DefaultInterval holds the default value on creation for the interval field.
+	debtdetails.DefaultInterval = debtdetailsDescInterval.Default.(int32)
+	// debtdetailsDescWeekdayMask is the schema descriptor for weekday_mask field.
+	debtdetailsDescWeekdayMask := debtdetailsFields[7].Descriptor()
+	// debtdetails.DefaultWeekdayMask holds the default value on creation for the weekday_mask field.
+	debtdetails.DefaultWeekdayMask = debtdetailsDescWeekdayMask.Default.(int32)
+	// debtdetailsDescMonthlyMode is the schema descriptor for monthly_mode field.
+	debtdetailsDescMonthlyMode := debtdetailsFields[8].Descriptor()
+	// debtdetails.DefaultMonthlyMode holds the default value on creation for the monthly_mode field.
+	debtdetails.DefaultMonthlyMode = debtdetailsDescMonthlyMode.Default.(int32)
+	// debtdetailsDescNth is the schema descriptor for nth field.
+	debtdetailsDescNth := debtdetailsFields[9].Descriptor()
+	// debtdetails.DefaultNth holds the default value on creation for the nth field.
+	debtdetails.DefaultNth = debtdetailsDescNth.Default.(int32)
+	// debtdetailsDescInterestWaivedCents is the schema descriptor for interest_waived_cents field.
+	debtdetailsDescInterestWaivedCents := debtdetailsFields[10].Descriptor()
+	// debtdetails.DefaultInterestWaivedCents holds the default value on creation for the interest_waived_cents field.
+	debtdetails.DefaultInterestWaivedCents = debtdetailsDescInterestWaivedCents.Default.(int64)
 	// debtdetailsDescTotalPrincipalCents is the schema descriptor for total_principal_cents field.
-	debtdetailsDescTotalPrincipalCents := debtdetailsFields[7].Descriptor()
+	debtdetailsDescTotalPrincipalCents := debtdetailsFields[13].Descriptor()
 	// debtdetails.TotalPrincipalCentsValidator is a validator for the "total_principal_cents" field. It is called by the builders before save.
 	debtdetails.TotalPrincipalCentsValidator = debtdetailsDescTotalPrincipalCents.Validators[0].(func(int64) error)
 	// debtdetailsDescDebtType is the schema descriptor for debt_type field.
-	debtdetailsDescDebtType := debtdetailsFields[8].Descriptor()
+	debtdetailsDescDebtType := debtdetailsFields[14].Descriptor()
 	// debtdetails.DefaultDebtType holds the default value on creation for the debt_type field.
 	debtdetails.DefaultDebtType = debtdetailsDescDebtType.Default.(string)
 	// debtdetailsDescSubtype is the schema descriptor for subtype field.
-	debtdetailsDescSubtype := debtdetailsFields[9].Descriptor()
+	debtdetailsDescSubtype := debtdetailsFields[15].Descriptor()
 	// debtdetails.DefaultSubtype holds the default value on creation for the subtype field.
 	debtdetails.DefaultSubtype = debtdetailsDescSubtype.Default.(string)
 	// debtdetailsDescVersion is the schema descriptor for version field.
-	debtdetailsDescVersion := debtdetailsFields[10].Descriptor()
+	debtdetailsDescVersion := debtdetailsFields[16].Descriptor()
 	// debtdetails.DefaultVersion holds the default value on creation for the version field.
 	debtdetails.DefaultVersion = debtdetailsDescVersion.Default.(int64)
 	// debtdetailsDescContact is the schema descriptor for contact field.
-	debtdetailsDescContact := debtdetailsFields[11].Descriptor()
+	debtdetailsDescContact := debtdetailsFields[17].Descriptor()
 	// debtdetails.DefaultContact holds the default value on creation for the contact field.
 	debtdetails.DefaultContact = debtdetailsDescContact.Default.(string)
 	// debtdetailsDescContractRef is the schema descriptor for contract_ref field.
-	debtdetailsDescContractRef := debtdetailsFields[12].Descriptor()
+	debtdetailsDescContractRef := debtdetailsFields[18].Descriptor()
 	// debtdetails.DefaultContractRef holds the default value on creation for the contract_ref field.
 	debtdetails.DefaultContractRef = debtdetailsDescContractRef.Default.(string)
+	// debtdetailsDescGuarantorName is the schema descriptor for guarantor_name field.
+	debtdetailsDescGuarantorName := debtdetailsFields[20].Descriptor()
+	// debtdetails.DefaultGuarantorName holds the default value on creation for the guarantor_name field.
+	debtdetails.DefaultGuarantorName = debtdetailsDescGuarantorName.Default.(string)
+	// debtdetailsDescGuarantorContact is the schema descriptor for guarantor_contact field.
+	debtdetailsDescGuarantorContact := debtdetailsFields[21].Descriptor()
+	// debtdetails.DefaultGuarantorContact holds the default value on creation for the guarantor_contact field.
+	debtdetails.DefaultGuarantorContact = debtdetailsDescGuarantorContact.Default.(string)
 	// debtdetailsDescCreatedAt is the schema descriptor for created_at field.
-	debtdetailsDescCreatedAt := debtdetailsFields[14].Descriptor()
+	debtdetailsDescCreatedAt := debtdetailsFields[22].Descriptor()
 	// debtdetails.DefaultCreatedAt holds the default value on creation for the created_at field.
 	debtdetails.DefaultCreatedAt = debtdetailsDescCreatedAt.Default.(func() time.Time)
 	// debtdetailsDescUpdatedAt is the schema descriptor for updated_at field.
-	debtdetailsDescUpdatedAt := debtdetailsFields[15].Descriptor()
+	debtdetailsDescUpdatedAt := debtdetailsFields[23].Descriptor()
 	// debtdetails.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	debtdetails.DefaultUpdatedAt = debtdetailsDescUpdatedAt.Default.(func() time.Time)
 	// debtdetails.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

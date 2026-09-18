@@ -113,6 +113,17 @@ const TemplateDTO$json = {
       '6': '.google.protobuf.Timestamp',
       '10': 'updatedAt'
     },
+    {'1': 'interval', '3': 21, '4': 1, '5': 5, '10': 'interval'},
+    {'1': 'weekday_mask', '3': 22, '4': 1, '5': 5, '10': 'weekdayMask'},
+    {
+      '1': 'monthly_mode',
+      '3': 23,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceMonthlyMode',
+      '10': 'monthlyMode'
+    },
+    {'1': 'nth', '3': 24, '4': 1, '5': 5, '10': 'nth'},
   ],
 };
 
@@ -131,7 +142,10 @@ final $typed_data.Uint8List templateDTODescriptor = $convert.base64Decode(
     'dF90cmFuc2FjdGlvbl9pZBgQIAEoCVIRbGFzdFRyYW5zYWN0aW9uSWQSGgoIY2F0ZWdvcnkYES'
     'ABKAlSCGNhdGVnb3J5EhgKB3ZlcnNpb24YEiABKANSB3ZlcnNpb24SOQoKY3JlYXRlZF9hdBgT'
     'IAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCWNyZWF0ZWRBdBI5Cgp1cGRhdGVkX2'
-    'F0GBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdXBkYXRlZEF0');
+    'F0GBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdXBkYXRlZEF0EhoKCGludGVy'
+    'dmFsGBUgASgFUghpbnRlcnZhbBIhCgx3ZWVrZGF5X21hc2sYFiABKAVSC3dlZWtkYXlNYXNrEk'
+    'kKDG1vbnRobHlfbW9kZRgXIAEoDjImLnl1Y2FpLmNvbW1vbi52MS5SZWN1cnJlbmNlTW9udGhs'
+    'eU1vZGVSC21vbnRobHlNb2RlEhAKA250aBgYIAEoBVIDbnRo');
 
 @$core.Deprecated('Use createTemplateRequestDescriptor instead')
 const CreateTemplateRequest$json = {
@@ -170,6 +184,17 @@ const CreateTemplateRequest$json = {
     {'1': 'end_date', '3': 11, '4': 1, '5': 9, '10': 'endDate'},
     {'1': 'auto_record', '3': 12, '4': 1, '5': 8, '10': 'autoRecord'},
     {'1': 'category', '3': 13, '4': 1, '5': 9, '10': 'category'},
+    {'1': 'interval', '3': 14, '4': 1, '5': 5, '10': 'interval'},
+    {'1': 'weekday_mask', '3': 15, '4': 1, '5': 5, '10': 'weekdayMask'},
+    {
+      '1': 'monthly_mode',
+      '3': 16,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceMonthlyMode',
+      '10': 'monthlyMode'
+    },
+    {'1': 'nth', '3': 17, '4': 1, '5': 5, '10': 'nth'},
   ],
 };
 
@@ -184,7 +209,10 @@ final $typed_data.Uint8List createTemplateRequestDescriptor = $convert.base64Dec
     'ZRIdCgpjeWNsZV9kYXlzGAggASgFUgljeWNsZURheXMSHwoLYmlsbGluZ19kYXkYCSABKAVSCm'
     'JpbGxpbmdEYXkSHQoKc3RhcnRfZGF0ZRgKIAEoCVIJc3RhcnREYXRlEhkKCGVuZF9kYXRlGAsg'
     'ASgJUgdlbmREYXRlEh8KC2F1dG9fcmVjb3JkGAwgASgIUgphdXRvUmVjb3JkEhoKCGNhdGVnb3'
-    'J5GA0gASgJUghjYXRlZ29yeQ==');
+    'J5GA0gASgJUghjYXRlZ29yeRIaCghpbnRlcnZhbBgOIAEoBVIIaW50ZXJ2YWwSIQoMd2Vla2Rh'
+    'eV9tYXNrGA8gASgFUgt3ZWVrZGF5TWFzaxJJCgxtb250aGx5X21vZGUYECABKA4yJi55dWNhaS'
+    '5jb21tb24udjEuUmVjdXJyZW5jZU1vbnRobHlNb2RlUgttb250aGx5TW9kZRIQCgNudGgYESAB'
+    'KAVSA250aA==');
 
 @$core.Deprecated('Use updateTemplateRequestDescriptor instead')
 const UpdateTemplateRequest$json = {
@@ -206,6 +234,18 @@ const UpdateTemplateRequest$json = {
     {'1': 'end_date', '3': 7, '4': 1, '5': 9, '10': 'endDate'},
     {'1': 'auto_record', '3': 8, '4': 1, '5': 8, '10': 'autoRecord'},
     {'1': 'version', '3': 9, '4': 1, '5': 3, '10': 'version'},
+    {'1': 'billing_day', '3': 10, '4': 1, '5': 5, '10': 'billingDay'},
+    {'1': 'interval', '3': 11, '4': 1, '5': 5, '10': 'interval'},
+    {'1': 'weekday_mask', '3': 12, '4': 1, '5': 5, '10': 'weekdayMask'},
+    {
+      '1': 'monthly_mode',
+      '3': 13,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.common.v1.RecurrenceMonthlyMode',
+      '10': 'monthlyMode'
+    },
+    {'1': 'nth', '3': 14, '4': 1, '5': 5, '10': 'nth'},
   ],
 };
 
@@ -216,7 +256,10 @@ final $typed_data.Uint8List updateTemplateRequestDescriptor = $convert.base64Dec
     'IAEoA1ILYW1vdW50Q2VudHMSNgoFY3ljbGUYBSABKA4yIC55dWNhaS50ZW1wbGF0ZS52MS5UZW'
     '1wbGF0ZUN5Y2xlUgVjeWNsZRIdCgpjeWNsZV9kYXlzGAYgASgFUgljeWNsZURheXMSGQoIZW5k'
     'X2RhdGUYByABKAlSB2VuZERhdGUSHwoLYXV0b19yZWNvcmQYCCABKAhSCmF1dG9SZWNvcmQSGA'
-    'oHdmVyc2lvbhgJIAEoA1IHdmVyc2lvbg==');
+    'oHdmVyc2lvbhgJIAEoA1IHdmVyc2lvbhIfCgtiaWxsaW5nX2RheRgKIAEoBVIKYmlsbGluZ0Rh'
+    'eRIaCghpbnRlcnZhbBgLIAEoBVIIaW50ZXJ2YWwSIQoMd2Vla2RheV9tYXNrGAwgASgFUgt3ZW'
+    'VrZGF5TWFzaxJJCgxtb250aGx5X21vZGUYDSABKA4yJi55dWNhaS5jb21tb24udjEuUmVjdXJy'
+    'ZW5jZU1vbnRobHlNb2RlUgttb250aGx5TW9kZRIQCgNudGgYDiABKAVSA250aA==');
 
 @$core.Deprecated('Use deleteTemplateRequestDescriptor instead')
 const DeleteTemplateRequest$json = {

@@ -1,44 +1,35 @@
-/// 周期模板 nextDate 推进算法(FR-5;oracle=server template/domain 用例移植)。
-/// 语义:weekly +7d;monthly 月加+billingDay 钳制月末(server addMonthsClamped);
-/// yearly +1y;custom +cycleDays 天(client 语义,纠正 server +1d 存根,grill #3)。
-/// 有意分歧:yearly 2/29 → 次年 2/28 钳制(server AddDate 归一化为 3/1)——
-/// 按财务惯例(周年账单日落入二月末);unspecified 回退 +1d(server 为 +1mo,
-/// 该分支创建即拒绝,实际不可达)。UTC 日粒度。
+/// 周期模板 nextDate 推进(兼容适配层)。
+///
+/// 历史:本文件曾是推进算法的 client oracle(FR-5);周期规则统一后算法
+/// 本体移至共享内核 `core/recurrence/next_after.dart`(与 server
+/// internal/shared/domain/recurrence 同用例集),此处仅做 int 参数 →
+/// RecurrenceRule 的薄适配,保留旧签名供既有调用方与测试使用。
+/// 语义:c cycle 1=weekly/2=monthly/3=yearly/4=custom(按天);月度带
+/// billingDay 钳制月末;yearly 2/29 → 2/28;custom 按 cycleDays(≤0 视为 1)。
 library;
+
+import 'package:yucai_client/core/recurrence/next_after.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule.dart';
 
 DateTime advanceNextDate(
   DateTime current, {
   required int cycle,
-  required int cycleDays,
-  required int billingDay,
-}) {
-  switch (cycle) {
-    case 1: // weekly
-      return DateTime.utc(current.year, current.month, current.day + 7);
-    case 2: // monthly
-      return _addMonthsClamped(current, 1, billingDay);
-    case 3: // yearly
-      final next = DateTime.utc(current.year + 1, current.month, current.day);
-      // 2/29 → 次年 2/28:DateTime 构造器对非法日会滚动到 3/1,需钳回。
-      return next.month == current.month
-          ? next
-          : DateTime.utc(current.year + 1, current.month + 1, 0);
-    case 4: // custom
-      final days = cycleDays > 0 ? cycleDays : 1;
-      return DateTime.utc(current.year, current.month, current.day + days);
-    default:
-      return DateTime.utc(current.year, current.month, current.day + 1);
-  }
-}
-
-/// 月加 + billingDay(≤0 取发生日)+ 目标月末钳制。
-DateTime _addMonthsClamped(DateTime base, int months, int billingDay) {
-  final total = base.month - 1 + months;
-  final year = base.year + total ~/ 12;
-  final month = total % 12 + 1;
-  var day = billingDay > 0 ? billingDay : base.day;
-  // 月末日 = 下月 1 号的前一天。
-  final lastDay = DateTime.utc(year, month + 1, 0).day;
-  if (day > lastDay) day = lastDay;
-  return DateTime.utc(year, month, day);
-}
+  int cycleDays = 0,
+  int billingDay = 0,
+  int interval = 0,
+  int weekdayMask = 0,
+  int monthlyMode = 0,
+  int nth = 0,
+}) =>
+    nextAfter(
+      current,
+      RecurrenceRule.fromInts(
+        cycle: cycle,
+        cycleDays: cycleDays,
+        billingDay: billingDay,
+        interval: interval,
+        weekdayMask: weekdayMask,
+        monthlyMode: monthlyMode,
+        nth: nth,
+      ),
+    );

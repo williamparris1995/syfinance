@@ -28,6 +28,18 @@ type DebtDetails struct {
 	InterestRate float64 `json:"interest_rate,omitempty"`
 	// equal_principal_interest, equal_principal, lump_sum
 	AmortizationMethod string `json:"amortization_method,omitempty"`
+	// recurrence cycle: weekly, monthly, yearly, custom
+	Cycle string `json:"cycle,omitempty"`
+	// every N weeks/months/years; 1 = legacy
+	Interval int32 `json:"interval,omitempty"`
+	// bit0=Monday..bit6=Sunday; 0 = start-date weekday
+	WeekdayMask int32 `json:"weekday_mask,omitempty"`
+	// 0 = by date (start-date anchor), 1 = by nth weekday
+	MonthlyMode int32 `json:"monthly_mode,omitempty"`
+	// 1-4 = the Nth, 5 = the last (nth-weekday mode)
+	Nth int32 `json:"nth,omitempty"`
+	// one-off interest waiver, deducted from earliest installments
+	InterestWaivedCents int64 `json:"interest_waived_cents,omitempty"`
 	// StartDate holds the value of the "start_date" field.
 	StartDate time.Time `json:"start_date,omitempty"`
 	// DueDate holds the value of the "due_date" field.
@@ -46,6 +58,10 @@ type DebtDetails struct {
 	ContractRef string `json:"contract_ref,omitempty"`
 	// FK to Account — collection account for receivables (borrowed_out)
 	CollectionAccountID *uuid.UUID `json:"collection_account_id,omitempty"`
+	// Guarantor name (optional)
+	GuarantorName string `json:"guarantor_name,omitempty"`
+	// Guarantor contact: phone/wechat/... (optional)
+	GuarantorContact string `json:"guarantor_contact,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -94,9 +110,9 @@ func (*DebtDetails) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case debtdetails.FieldInterestRate:
 			values[i] = new(sql.NullFloat64)
-		case debtdetails.FieldTotalPrincipalCents, debtdetails.FieldVersion:
+		case debtdetails.FieldInterval, debtdetails.FieldWeekdayMask, debtdetails.FieldMonthlyMode, debtdetails.FieldNth, debtdetails.FieldInterestWaivedCents, debtdetails.FieldTotalPrincipalCents, debtdetails.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case debtdetails.FieldCounterparty, debtdetails.FieldAmortizationMethod, debtdetails.FieldDebtType, debtdetails.FieldSubtype, debtdetails.FieldContact, debtdetails.FieldContractRef:
+		case debtdetails.FieldCounterparty, debtdetails.FieldAmortizationMethod, debtdetails.FieldCycle, debtdetails.FieldDebtType, debtdetails.FieldSubtype, debtdetails.FieldContact, debtdetails.FieldContractRef, debtdetails.FieldGuarantorName, debtdetails.FieldGuarantorContact:
 			values[i] = new(sql.NullString)
 		case debtdetails.FieldStartDate, debtdetails.FieldDueDate, debtdetails.FieldCreatedAt, debtdetails.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -153,6 +169,42 @@ func (dd *DebtDetails) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				dd.AmortizationMethod = value.String
 			}
+		case debtdetails.FieldCycle:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cycle", values[i])
+			} else if value.Valid {
+				dd.Cycle = value.String
+			}
+		case debtdetails.FieldInterval:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field interval", values[i])
+			} else if value.Valid {
+				dd.Interval = int32(value.Int64)
+			}
+		case debtdetails.FieldWeekdayMask:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field weekday_mask", values[i])
+			} else if value.Valid {
+				dd.WeekdayMask = int32(value.Int64)
+			}
+		case debtdetails.FieldMonthlyMode:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field monthly_mode", values[i])
+			} else if value.Valid {
+				dd.MonthlyMode = int32(value.Int64)
+			}
+		case debtdetails.FieldNth:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field nth", values[i])
+			} else if value.Valid {
+				dd.Nth = int32(value.Int64)
+			}
+		case debtdetails.FieldInterestWaivedCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field interest_waived_cents", values[i])
+			} else if value.Valid {
+				dd.InterestWaivedCents = value.Int64
+			}
 		case debtdetails.FieldStartDate:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field start_date", values[i])
@@ -207,6 +259,18 @@ func (dd *DebtDetails) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				dd.CollectionAccountID = new(uuid.UUID)
 				*dd.CollectionAccountID = *value.S.(*uuid.UUID)
+			}
+		case debtdetails.FieldGuarantorName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field guarantor_name", values[i])
+			} else if value.Valid {
+				dd.GuarantorName = value.String
+			}
+		case debtdetails.FieldGuarantorContact:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field guarantor_contact", values[i])
+			} else if value.Valid {
+				dd.GuarantorContact = value.String
 			}
 		case debtdetails.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -281,6 +345,24 @@ func (dd *DebtDetails) String() string {
 	builder.WriteString("amortization_method=")
 	builder.WriteString(dd.AmortizationMethod)
 	builder.WriteString(", ")
+	builder.WriteString("cycle=")
+	builder.WriteString(dd.Cycle)
+	builder.WriteString(", ")
+	builder.WriteString("interval=")
+	builder.WriteString(fmt.Sprintf("%v", dd.Interval))
+	builder.WriteString(", ")
+	builder.WriteString("weekday_mask=")
+	builder.WriteString(fmt.Sprintf("%v", dd.WeekdayMask))
+	builder.WriteString(", ")
+	builder.WriteString("monthly_mode=")
+	builder.WriteString(fmt.Sprintf("%v", dd.MonthlyMode))
+	builder.WriteString(", ")
+	builder.WriteString("nth=")
+	builder.WriteString(fmt.Sprintf("%v", dd.Nth))
+	builder.WriteString(", ")
+	builder.WriteString("interest_waived_cents=")
+	builder.WriteString(fmt.Sprintf("%v", dd.InterestWaivedCents))
+	builder.WriteString(", ")
 	builder.WriteString("start_date=")
 	builder.WriteString(dd.StartDate.Format(time.ANSIC))
 	builder.WriteString(", ")
@@ -309,6 +391,12 @@ func (dd *DebtDetails) String() string {
 		builder.WriteString("collection_account_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("guarantor_name=")
+	builder.WriteString(dd.GuarantorName)
+	builder.WriteString(", ")
+	builder.WriteString("guarantor_contact=")
+	builder.WriteString(dd.GuarantorContact)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(dd.CreatedAt.Format(time.ANSIC))

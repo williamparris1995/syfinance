@@ -6,59 +6,95 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 )
 
-func TestAdvanceNextDate_Weekly(t *testing.T) {
-	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := AdvanceNextDate(current, CycleWeekly, 0)
-	want := time.Date(2026, 1, 22, 0, 0, 0, 0, time.UTC)
-	if !got.Equal(want) {
-		t.Errorf("weekly: expected %v, got %v", want, got)
+// 推进算法本体(NextAfter)的用例在 internal/shared/domain/recurrence;
+// 此处覆盖 template 实体经 Rule() 视图推进的集成语义。
+func TestRule_AdvanceWeekly(t *testing.T) {
+	tmpl, _ := NewTransactionTemplate(
+		uuid.New(), "Rent", 500000,
+		DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleWeekly},
+		time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+	)
+	before := tmpl.NextDate
+	tmpl.AdvanceToNext()
+	want := before.AddDate(0, 0, 7)
+	if !tmpl.NextDate.Equal(want) {
+		t.Errorf("weekly: expected %v, got %v", want, tmpl.NextDate)
 	}
 }
 
-func TestAdvanceNextDate_Monthly(t *testing.T) {
-	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := AdvanceNextDate(current, CycleMonthly, 0)
-	want := time.Date(2026, 2, 15, 0, 0, 0, 0, time.UTC)
-	if !got.Equal(want) {
-		t.Errorf("monthly: expected %v, got %v", want, got)
+func TestRule_AdvanceMonthlyClampsMonthEnd(t *testing.T) {
+	// billingDay=0(legacy 未设账单日)锚定发生日自身:1/31 → 2/28(月末钳制,
+	// 不再滚到 3/3);此后按 28 日漂移 —— 与旧 client/server 推进语义一致。
+	tmpl, _ := NewTransactionTemplate(
+		uuid.New(), "Rent", 500000,
+		DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly},
+		time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC),
+	)
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-02-28" {
+		t.Errorf("monthly clamp first: expected 2026-02-28, got %s", got)
+	}
+	tmpl.AdvanceToNext()
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-03-28" {
+		t.Errorf("monthly clamp next: expected 2026-03-28, got %s", got)
 	}
 }
 
-func TestAdvanceNextDate_Yearly(t *testing.T) {
-	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := AdvanceNextDate(current, CycleYearly, 0)
-	want := time.Date(2027, 1, 15, 0, 0, 0, 0, time.UTC)
-	if !got.Equal(want) {
-		t.Errorf("yearly: expected %v, got %v", want, got)
+func TestRule_AdvanceMonthlyBilling31IsMonthEnd(t *testing.T) {
+	// billingDay=31 + 钳制 = 「每月末」语义:2 月 → 2/28,3 月 → 3/31,不漂移。
+	tmpl, _ := NewTransactionTemplate(
+		uuid.New(), "Rent", 500000,
+		DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 31},
+		time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+	)
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-02-28" {
+		t.Errorf("month-end feb: expected 2026-02-28, got %s", got)
+	}
+	tmpl.AdvanceToNext()
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-03-31" {
+		t.Errorf("month-end mar: expected 2026-03-31, got %s", got)
 	}
 }
 
-func TestAdvanceNextDate_Custom(t *testing.T) {
-	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := AdvanceNextDate(current, CycleCustom, 10)
-	want := time.Date(2026, 1, 25, 0, 0, 0, 0, time.UTC)
-	if !got.Equal(want) {
-		t.Errorf("custom: expected %v, got %v", want, got)
+func TestRule_AdvanceCustomUsesCycleDays(t *testing.T) {
+	tmpl, _ := NewTransactionTemplate(
+		uuid.New(), "Rent", 500000,
+		DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleCustom, CycleDays: 10},
+		time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+	)
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-01-25" {
+		t.Errorf("custom first: expected 2026-01-25, got %s", got)
+	}
+	tmpl.AdvanceToNext()
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-02-04" {
+		t.Errorf("custom next: expected 2026-02-04, got %s", got)
 	}
 }
 
-func TestAdvanceNextDate_CustomZeroDays(t *testing.T) {
-	// custom with cycleDays=0 → no advance (+0 days)
-	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := AdvanceNextDate(current, CycleCustom, 0)
-	if !got.Equal(current) {
-		t.Errorf("custom zero days: expected unchanged %v, got %v", current, got)
+func TestRule_AdvanceEvery2WeeksOnMonday(t *testing.T) {
+	tmpl, _ := NewTransactionTemplate(
+		uuid.New(), "Rent", 500000,
+		DirectionExpense, uuid.New(),
+		recurrence.Rule{
+			Cycle:       recurrence.CycleWeekly,
+			Interval:    2,
+			WeekdayMask: 1 << 0,
+		},
+		time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC), // Monday
+	)
+	// 创建即得首个发生日(严格晚于起始日),再推进一个周期。
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-01-19" {
+		t.Errorf("biweekly monday first: expected 2026-01-19, got %s", got)
 	}
-}
-
-func TestAdvanceNextDate_Unspecified(t *testing.T) {
-	// unspecified / zero cycle → unchanged (no advance)
-	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := AdvanceNextDate(current, 0, 0)
-	if !got.Equal(current) {
-		t.Errorf("unspecified: expected unchanged %v, got %v", current, got)
+	tmpl.AdvanceToNext()
+	if got := tmpl.NextDate.Format("2006-01-02"); got != "2026-02-02" {
+		t.Errorf("biweekly monday next: expected 2026-02-02, got %s", got)
 	}
 }
 

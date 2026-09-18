@@ -1,3 +1,4 @@
+import 'package:yucai_client/proto/common/v1/recurrence.pbenum.dart' as pbcommon;
 import 'package:yucai_client/proto/template/v1/template.pb.dart' as pb;
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
 
@@ -19,6 +20,12 @@ class TemplateMapper {
       cycle: toDomainCycle(dto.cycle),
       cycleDays: dto.cycleDays,
       billingDay: dto.billingDay,
+      interval: dto.interval,
+      weekdayMask: dto.weekdayMask,
+      monthlyMode: dto.monthlyMode == pbcommon.RecurrenceMonthlyMode.MONTHLY_MODE_BY_NTH_WEEKDAY
+          ? TemplateMonthlyMode.byNthWeekday
+          : TemplateMonthlyMode.byDate,
+      nth: dto.nth,
       nextDate: _emptyToNull(dto.nextDate),
       startDate: _emptyToNull(dto.startDate),
       endDate: _emptyToNull(dto.endDate),

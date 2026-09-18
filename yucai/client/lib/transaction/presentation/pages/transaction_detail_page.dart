@@ -7,6 +7,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/app/route_observer.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
@@ -45,7 +47,8 @@ class TransactionDetailPage extends StatefulWidget {
   State<TransactionDetailPage> createState() => _TransactionDetailPageState();
 }
 
-class _TransactionDetailPageState extends State<TransactionDetailPage> {
+class _TransactionDetailPageState extends State<TransactionDetailPage>
+    with RouteAware {
   List<Account> _accounts = const [];
   List<Tag> _tags = const [];
 
@@ -54,6 +57,32 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     super.initState();
     // Self-drive the detail load (mirrors account_detail_page). Without this a
     // real route entry renders blank (no parent dispatches).
+    context.read<TransactionBloc>().add(LoadTransactionDetail(widget.id));
+    _loadAccounts();
+    _loadTags();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 本页位于 transactions branch 的嵌套 Navigator(router /transactions/:id),
+    // 编辑页(/transactions/:id/edit)push/pop 都在该 Navigator 上 —— pop 回来
+    // 时 didPopNext 触发回拉(编辑保存后详情页自身金额/描述已变,不重拉则
+    // 显示旧值)。照 transactions_page F14 #3 同款观察者。
+    transactionsRouteObserver.subscribe(
+        this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    transactionsRouteObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    // 重跑 initState 同组加载;编辑保存后 version 已 +1,再编辑基于新值。
     context.read<TransactionBloc>().add(LoadTransactionDetail(widget.id));
     _loadAccounts();
     _loadTags();
@@ -126,6 +155,9 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
         listener: (context, state) {
           if (state is TransactionDeleted) {
             AppToast.show(context, '已删除', type: ToastType.success);
+            // 跨页刷新:删除已持久化,仪表盘/账户列表等驻留页重拉页面级缓存
+            // (与表单保存成功同一通知器,照设置页导入存档 bump 先例)。
+            GetIt.instance<DataRefreshNotifier>().bump();
             // pop with true so the originating list refreshes (OD detail 删除后回列表)。
             // GoRouter.maybeOf 让本页在无 GoRouter 的测试 harness 里也不抛。
             final router = GoRouter.maybeOf(context);
@@ -677,9 +709,9 @@ class _DetailContent extends StatelessWidget {
   }
 
   void _copy(BuildContext context) {
-    // 复制 → 新建表单（clone-to-new）。全字段预填待 form 支持 extra 后补；
-    // 当前导航到通用记一笔入口。
-    context.push('/transactions/new');
+    // 复制 → 新建表单(clone-to-new):extra 携带源交易,表单全字段预填,
+    // 提交走创建(isCopy 模式,不携带原 id/版本)。
+    context.push('/transactions/new', extra: txn);
   }
 
   void _viewAccount(BuildContext context) {

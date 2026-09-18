@@ -61,6 +61,26 @@ class DebtServiceClient extends $grpc.Client {
     return $createUnaryCall(_$recordPayment, request, options: options);
   }
 
+  /// Google-Calendar-style per-occurrence edit: move ONE unpaid installment to
+  /// a new date (paid / partially paid / transaction-linked entries are
+  /// frozen). Server rejects collisions on the target date.
+  $grpc.ResponseFuture<$0.PaymentEntryResponse> setPaymentDate(
+    $0.SetPaymentDateRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$setPaymentDate, request, options: options);
+  }
+
+  /// Mark an unpaid installment as already repaid WITHOUT booking a cash
+  /// transaction — for loans whose early installments were settled before the
+  /// debt was entered into the app. The entry becomes frozen.
+  $grpc.ResponseFuture<$0.PaymentEntryResponse> markEntryPaid(
+    $0.MarkEntryPaidRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$markEntryPaid, request, options: options);
+  }
+
   $grpc.ResponseFuture<$0.DebtDetailResponse> getDebt(
     $0.GetDebtRequest request, {
     $grpc.CallOptions? options,
@@ -111,6 +131,16 @@ class DebtServiceClient extends $grpc.Client {
           '/yucai.debt.v1.DebtService/RecordPayment',
           ($0.RecordPaymentRequest value) => value.writeToBuffer(),
           $0.RecordPaymentResponse.fromBuffer);
+  static final _$setPaymentDate =
+      $grpc.ClientMethod<$0.SetPaymentDateRequest, $0.PaymentEntryResponse>(
+          '/yucai.debt.v1.DebtService/SetPaymentDate',
+          ($0.SetPaymentDateRequest value) => value.writeToBuffer(),
+          $0.PaymentEntryResponse.fromBuffer);
+  static final _$markEntryPaid =
+      $grpc.ClientMethod<$0.MarkEntryPaidRequest, $0.PaymentEntryResponse>(
+          '/yucai.debt.v1.DebtService/MarkEntryPaid',
+          ($0.MarkEntryPaidRequest value) => value.writeToBuffer(),
+          $0.PaymentEntryResponse.fromBuffer);
   static final _$getDebt =
       $grpc.ClientMethod<$0.GetDebtRequest, $0.DebtDetailResponse>(
           '/yucai.debt.v1.DebtService/GetDebt',
@@ -168,6 +198,24 @@ abstract class DebtServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.RecordPaymentRequest.fromBuffer(value),
             ($0.RecordPaymentResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.SetPaymentDateRequest, $0.PaymentEntryResponse>(
+            'SetPaymentDate',
+            setPaymentDate_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.SetPaymentDateRequest.fromBuffer(value),
+            ($0.PaymentEntryResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.MarkEntryPaidRequest, $0.PaymentEntryResponse>(
+            'MarkEntryPaid',
+            markEntryPaid_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.MarkEntryPaidRequest.fromBuffer(value),
+            ($0.PaymentEntryResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetDebtRequest, $0.DebtDetailResponse>(
         'GetDebt',
         getDebt_Pre,
@@ -234,6 +282,24 @@ abstract class DebtServiceBase extends $grpc.Service {
 
   $async.Future<$0.RecordPaymentResponse> recordPayment(
       $grpc.ServiceCall call, $0.RecordPaymentRequest request);
+
+  $async.Future<$0.PaymentEntryResponse> setPaymentDate_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.SetPaymentDateRequest> $request) async {
+    return setPaymentDate($call, await $request);
+  }
+
+  $async.Future<$0.PaymentEntryResponse> setPaymentDate(
+      $grpc.ServiceCall call, $0.SetPaymentDateRequest request);
+
+  $async.Future<$0.PaymentEntryResponse> markEntryPaid_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.MarkEntryPaidRequest> $request) async {
+    return markEntryPaid($call, await $request);
+  }
+
+  $async.Future<$0.PaymentEntryResponse> markEntryPaid(
+      $grpc.ServiceCall call, $0.MarkEntryPaidRequest request);
 
   $async.Future<$0.DebtDetailResponse> getDebt_Pre($grpc.ServiceCall $call,
       $async.Future<$0.GetDebtRequest> $request) async {

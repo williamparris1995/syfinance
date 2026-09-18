@@ -8,6 +8,7 @@ import (
 	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"github.com/google/uuid"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/template/application"
 	"github.com/yucai/server/internal/template/domain"
 	"google.golang.org/grpc/codes"
@@ -64,6 +65,10 @@ func (h *TemplateHandler) CreateTransactionTemplate(ctx context.Context, req *pb
 		Cycle:               protoToCycle(req.Cycle),
 		CycleDays:           req.CycleDays,
 		BillingDay:          req.BillingDay,
+		Interval:            req.Interval,
+		WeekdayMask:         req.WeekdayMask,
+		MonthlyMode:         recurrence.MonthlyMode(req.MonthlyMode),
+		Nth:                 req.Nth,
 		StartDate:           startDate,
 		EndDate:             endDate,
 		AutoRecord:          req.AutoRecord,
@@ -96,6 +101,11 @@ func (h *TemplateHandler) UpdateTransactionTemplate(ctx context.Context, req *pb
 		AmountCents: req.AmountCents,
 		Cycle:       protoToCycle(req.Cycle),
 		CycleDays:   req.CycleDays,
+		BillingDay:  req.BillingDay,
+		Interval:    req.Interval,
+		WeekdayMask: req.WeekdayMask,
+		MonthlyMode: recurrence.MonthlyMode(req.MonthlyMode),
+		Nth:         req.Nth,
 		EndDate:     endDate,
 		AutoRecord:  req.AutoRecord,
 		Version:     req.Version,
@@ -227,6 +237,10 @@ func templateToProto(t application.TemplateDTO) *pb.TemplateDTO {
 		Cycle:           cycleToProto(t.Cycle),
 		CycleDays:       t.CycleDays,
 		BillingDay:      t.BillingDay,
+		Interval:        t.Interval,
+		WeekdayMask:     t.WeekdayMask,
+		MonthlyMode:     commonpb.RecurrenceMonthlyMode(t.MonthlyMode),
+		Nth:             t.Nth,
 		NextDate:        t.NextDate.Format("2006-01-02"),
 		StartDate:       t.StartDate.Format("2006-01-02"),
 		AutoRecord:      t.AutoRecord,

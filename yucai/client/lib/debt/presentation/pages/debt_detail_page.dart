@@ -1,9 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -14,6 +19,7 @@ import 'package:yucai_client/core/widgets/debt_detail_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/debt/data/contract_attachment_store.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
@@ -47,6 +53,36 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
   // 不在 _accounts 的 asset 过滤集)。
   List<Account> _allAccounts = const [];
   bool _recordPending = false;
+  // 合同文件附件(本地 v1):进页读取,编辑页替换后返回经 didPopNext 重读。
+  ContractAttachment? _attachment;
+
+  Future<void> _loadAttachment() async {
+    // 测试 harness 可能不注册 GetIt;缺注册 = 无附件,吞错保持页面可用。
+    try {
+      final a = await getIt<ContractAttachmentStore>().forDebt(widget.id);
+      if (mounted) setState(() => _attachment = a);
+    } catch (_) {}
+  }
+
+  Future<void> _openAttachment() async {
+    final a = _attachment;
+    if (a == null) return;
+    final path = await getIt<ContractAttachmentStore>().absolutePath(a);
+    if (!await File(path).exists()) {
+      if (mounted) {
+        AppToast.show(context, '合同文件不存在(本设备未上传该附件)',
+            type: ToastType.warning);
+      }
+      return;
+    }
+    try {
+      await launchUrl(Uri.file(path));
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(context, '无法打开文件', type: ToastType.warning);
+      }
+    }
+  }
 
   static const _sem = DebtViewSemantics.debt;
 
@@ -55,6 +91,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
     super.initState();
     context.read<DebtBloc>().add(LoadDebtRequested(widget.id));
     _loadAccounts();
+    _loadAttachment();
   }
 
   Future<void> _loadAccounts() async {
@@ -172,6 +209,10 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
           if (state is DebtDetailLoaded) {
             setState(() => _recordPending = false);
             _loadAccounts();
+            // 跨页广播:还款/标记已还/改日影响账户余额与统计。
+            try {
+              GetIt.instance<DataRefreshNotifier>().bump();
+            } catch (_) {}
             AppToast.show(context, _sem.recordSuccessToast,
                 type: ToastType.success);
           } else if (state is DebtError) {
@@ -230,6 +271,9 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
       collectionAccountId: debt.collectionAccountId,
       onConfirmInline: (e) => _confirmInline(e, preferred),
       onOpenDialog: _openRecordPayment,
+      onEditDate: (e) => _editPaymentDate(e),
+      onMarkPaid: (e) => _markEntryPaid(e),
+      onMarkPaidBatch: (entries) => _markEntryPaidBatch(entries),
     );
     final side = DebtDetailSidePanel(
       sem: _sem,
@@ -239,6 +283,8 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
       collectionName: _lookupAccountName(debt.collectionAccountId),
       collectionTail: _lookupAccountTail(debt.collectionAccountId),
       receivableName: _lookupAccountName(debt.accountId),
+      attachmentName: _attachment?.originalName,
+      onOpenAttachment: _attachment == null ? null : _openAttachment,
     );
 
     // debt 专属附录:信用卡 StatRow(only subtype==creditCard)。
@@ -299,6 +345,75 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
         ));
     AppToast.show(context, '${_sem.recordSuccessToast} ${sharedFmtSymbol(e.totalCents, preferred)}',
         type: ToastType.success);
+  }
+
+  /// 批量标记已还:一次确认 → 逐个派发(每个内部自带刷新,最后一致)。
+  Future<void> _markEntryPaidBatch(List<PaymentEntry> entries) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text('批量标记已还(${entries.length} 期)'),
+        content: const Text('所选期次将直接标记为已还，不创建还款交易、'
+            '不改动任何账户余额。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('标记已还')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final bloc = context.read<DebtBloc>();
+    for (final e in entries) {
+      bloc.add(MarkEntryPaidRequested(debtId: widget.id, entryId: e.id));
+    }
+  }
+
+  /// 标记已还(历史还款,不记账):确认对话框 → MarkEntryPaidRequested。
+  Future<void> _markEntryPaid(PaymentEntry e) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('标记为已还'),
+        content: const Text('该期次将直接标记为已还，不创建还款交易、'
+            '不改动任何账户余额。适用于账本建立前就已还清的期次。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('标记已还')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    context.read<DebtBloc>().add(MarkEntryPaidRequested(
+      debtId: widget.id,
+      entryId: e.id,
+    ));
+  }
+
+  /// 单期改日(Google-Calendar 式):日期选择器 → SetPaymentDateRequested。
+  /// 已还期次在组件层不可点;服务端/本地再兜底校验冻结与撞日。
+  Future<void> _editPaymentDate(PaymentEntry e) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: e.paymentDate.isAfter(now) ? e.paymentDate : now,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: '修改还款日期',
+    );
+    if (picked == null || !mounted) return;
+    context.read<DebtBloc>().add(SetPaymentDateRequested(
+      debtId: widget.id,
+      entryId: e.id,
+      paymentDate: picked,
+    ));
   }
 
   void _openRecordPayment(PaymentEntry e) {

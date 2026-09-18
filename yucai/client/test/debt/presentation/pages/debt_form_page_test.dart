@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -61,6 +62,19 @@ Account _loanAccount({
       status: AccountStatus.active,
     );
 
+Account _cashAccount({String id = 'cash-1'}) =>
+    Account(
+      id: id,
+      name: '招商银行储蓄卡',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 100000,
+      currentBalanceCents: 100000,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+
 Account _creditCardAccount({
   String id = 'cc-1',
   String name = '招商银行信用卡',
@@ -94,6 +108,7 @@ Widget _harness({
   DateTime? startDate,
   DateTime? dueDate,
   String? accountId,
+  String? disbursementAccountId,
   Debt? existing,
 }) {
   // 表单页 initState 走 GetIt<AccountRepository>().list()（对齐
@@ -113,12 +128,15 @@ Widget _harness({
         initialStartDate: startDate,
         initialDueDate: dueDate,
         initialAccountId: accountId,
+        initialDisbursementAccountId: disbursementAccountId,
       ),
     ),
   );
 }
 
 void main() {
+  GetIt.instance.registerLazySingleton<DataRefreshNotifier>(DataRefreshNotifier.new);
+
   setUpAll(() {
     registerFallbackValue(DebtType.borrowedIn);
   });
@@ -282,7 +300,9 @@ void main() {
               startDate: DateTime(2026, 7, 1),
               dueDate: DateTime(2030, 7, 1)));
       await t.pumpAndSettle();
-      // 选「等额本金」
+      // 选「等额本金」(利息减免字段加入后卡片可能被挤出视口 → 先滚动到可见)
+      await t.ensureVisible(find.byKey(const ValueKey('amortization-equalPrincipal')));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('amortization-equalPrincipal')));
       await fillForm(t);
       expect(find.textContaining('首月供'), findsWidgets);
@@ -305,6 +325,8 @@ void main() {
           _harness(debtRepo: debtRepo, accountRepo: accountRepo,
               startDate: DateTime(2026, 7, 1),
               dueDate: DateTime(2030, 7, 1)));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.byKey(const ValueKey('amortization-lumpSum')));
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('amortization-lumpSum')));
       await fillForm(t);
@@ -368,13 +390,23 @@ void main() {
               sourceAccountId: any(named: 'sourceAccountId'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
-              collectionAccountId: any(named: 'collectionAccountId')))
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods')))
           .thenAnswer((inv) {
         created = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });
       when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => const dartz.Right([]));
+      when(() => accountRepo.list()).thenAnswer((_) async =>
+          dartz.Right([_loanAccount(), _cashAccount()]));
       await t.pumpWidget(_harness(
         debtRepo: debtRepo,
         accountRepo: accountRepo,
@@ -382,6 +414,7 @@ void main() {
         startDate: DateTime(2026, 7, 1),
         dueDate: DateTime(2030, 7, 1),
         accountId: 'loan-1',
+        disbursementAccountId: 'cash-1',
       ));
       await t.pumpAndSettle();
 
@@ -498,7 +531,18 @@ void main() {
               version: any(named: 'version'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
-              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((_) {
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              dueDate: any(named: 'dueDate'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              interestWaivedCents: any(named: 'interestWaivedCents'),
+              termPeriods: any(named: 'termPeriods'))).thenAnswer((_) {
         updated = true;
         return Future.value(dartz.Right(existingDebt(counterparty: '已改')));
       });
@@ -729,6 +773,7 @@ void main() {
         debtRepo: debtRepo,
         accountRepo: accountRepo,
         accountId: 'cc-1',
+        disbursementAccountId: 'cash-1',
       ));
       await t.pumpAndSettle();
 
@@ -795,8 +840,8 @@ void main() {
           const UpdateAccountParams(id: '', version: 0));
       // 捕获 create 收到的 subtype（应 == DebtSubtypes.creditCard const key）。
       String? capturedSubtype;
-      when(() => accountRepo.list()).thenAnswer(
-          (_) async => dartz.Right([_creditCardAccount(id: 'cc-1', version: 7)]));
+      when(() => accountRepo.list()).thenAnswer((_) async =>
+          dartz.Right([_creditCardAccount(id: 'cc-1', version: 7), _cashAccount()]));
       when(() => debtRepo.create(
               accountId: any(named: 'accountId'),
               counterparty: any(named: 'counterparty'),
@@ -810,7 +855,15 @@ void main() {
               sourceAccountId: any(named: 'sourceAccountId'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
-              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((inv) {
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods'))).thenAnswer((inv) {
         capturedSubtype = inv.namedArguments[#subtype] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });
@@ -828,6 +881,7 @@ void main() {
         startDate: DateTime(2026, 7, 1),
         dueDate: DateTime(2030, 7, 1),
         accountId: 'cc-1',
+        disbursementAccountId: 'cash-1',
       ));
       await t.pumpAndSettle();
 
@@ -873,6 +927,33 @@ void main() {
       }
     });
   });
+
+    testWidgets('编辑态渲染周期入口与期数双模式', (t) async {
+      t.view.physicalSize = const Size(1400, 900);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'loan-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: _emptyDetail().debt, // 等额本息(非 lumpSum)
+      ));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('debtRuleEntry')), findsOneWidget,
+          reason: '编辑态应渲染周期规则入口(分期摊销)');
+      expect(find.byKey(const ValueKey('termModeToggle')), findsOneWidget);
+      await t.ensureVisible(find.byKey(const ValueKey('debtRuleEntry')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('debtRuleEntry')));
+      await t.pumpAndSettle();
+      expect(find.text('重复规则'), findsOneWidget,
+          reason: '点开入口应弹出共享规则编辑器');
+    });
 }
 
 DebtDetail _emptyDetail() => DebtDetail(

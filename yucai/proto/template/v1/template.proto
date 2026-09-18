@@ -5,6 +5,7 @@ package yucai.template.v1;
 option go_package = "github.com/yucai/server/internal/proto/template/v1";
 
 import "common/v1/pagination.proto";
+import "common/v1/recurrence.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -55,6 +56,11 @@ message TemplateDTO {
   int64 version = 18;
   google.protobuf.Timestamp created_at = 19;
   google.protobuf.Timestamp updated_at = 20;
+  // Recurrence rule extensions (zero values = legacy behavior).
+  int32 interval = 21;     // every N weeks/months/years; <=0 treated as 1
+  int32 weekday_mask = 22; // bit0=Monday ... bit6=Sunday; 0 = start-date weekday
+  yucai.common.v1.RecurrenceMonthlyMode monthly_mode = 23;
+  int32 nth = 24;          // 1-4 = the Nth, 5 = the last (nth-weekday mode)
 }
 
 message CreateTemplateRequest {
@@ -71,6 +77,10 @@ message CreateTemplateRequest {
   string end_date = 11;
   bool auto_record = 12;
   string category = 13;
+  int32 interval = 14;
+  int32 weekday_mask = 15;
+  yucai.common.v1.RecurrenceMonthlyMode monthly_mode = 16;
+  int32 nth = 17;
 }
 
 message UpdateTemplateRequest {
@@ -83,6 +93,13 @@ message UpdateTemplateRequest {
   string end_date = 7;
   bool auto_record = 8;
   int64 version = 9;
+  // Rule fields are editable on update; a rule change recomputes next_date
+  // as the first occurrence >= max(start_date, today).
+  int32 billing_day = 10;
+  int32 interval = 11;
+  int32 weekday_mask = 12;
+  yucai.common.v1.RecurrenceMonthlyMode monthly_mode = 13;
+  int32 nth = 14;
 }
 
 message DeleteTemplateRequest { string id = 1; }

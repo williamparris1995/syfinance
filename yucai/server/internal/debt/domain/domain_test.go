@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -18,7 +19,8 @@ func TestNewDebtDetails_Valid(t *testing.T) {
 		10000000, // 100,000 yuan in cents
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err != nil {
 		t.Fatalf("NewDebtDetails failed: %v", err)
@@ -44,7 +46,8 @@ func TestNewDebtDetails_EmptyCounterparty(t *testing.T) {
 		100000,
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err == nil {
 		t.Error("expected error for empty counterparty")
@@ -60,7 +63,8 @@ func TestNewDebtDetails_NonPositivePrincipal(t *testing.T) {
 		0,
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err == nil {
 		t.Error("expected error for zero principal")
@@ -76,7 +80,8 @@ func TestNewDebtDetails_NegativeInterestRate(t *testing.T) {
 		100000,
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err == nil {
 		t.Error("expected error for negative interest rate")
@@ -92,7 +97,8 @@ func TestNewDebtDetails_DueDateBeforeStartDate(t *testing.T) {
 		100000,
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err == nil {
 		t.Error("expected error for due date before start date")
@@ -108,7 +114,8 @@ func TestLumpSumSchedule(t *testing.T) {
 		12000000, // 120,000 yuan
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 1 {
@@ -137,7 +144,8 @@ func TestEqualPrincipalSchedule(t *testing.T) {
 		12000000, // 120,000 yuan, 6 months
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 6 {
@@ -177,7 +185,8 @@ func TestEqualPrincipalNonDivisibleRoundsMonthly(t *testing.T) {
 		1000001, // 3 个月,不可整除
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 3 {
@@ -214,7 +223,8 @@ func TestEqualPrincipalInterestSchedule(t *testing.T) {
 		12000000, // 120,000 yuan, 6 months
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 6 {
@@ -251,7 +261,8 @@ func TestZeroInterestRate(t *testing.T) {
 		900000, // 9,000 yuan, 3 months
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 3 {
@@ -276,7 +287,8 @@ func TestMarkPaid(t *testing.T) {
 		1000000,
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	d.GenerateSchedule()
 	entryID := d.Schedule[0].ID
@@ -306,7 +318,8 @@ func TestMarkPaid_EntryNotFound(t *testing.T) {
 		1000000,
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	err := d.MarkPaid(uuid.New(), uuid.New())
 	if err == nil {
@@ -323,7 +336,8 @@ func TestRemainingPrincipal(t *testing.T) {
 		900000, // 3 months
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	d.GenerateSchedule()
 
@@ -348,7 +362,8 @@ func TestTermInMonths(t *testing.T) {
 		1000000,
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if months := d.TermInMonths(); months != 6 {
 		t.Errorf("expected 6 months, got %d", months)
@@ -364,7 +379,8 @@ func TestIncrementVersion(t *testing.T) {
 		1000000,
 		DebtTypeUnspecified,
 		"",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	before := d.Version
 	d.IncrementVersion()
@@ -440,7 +456,8 @@ func TestNewDebtDetails_SubtypeRoundTrips(t *testing.T) {
 				time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 				1000000, DebtTypeUnspecified,
 				tc.subtype,
-				"", "", nil,
+				"", "", nil,"", "",
+
 			)
 			if err != nil {
 				t.Fatalf("NewDebtDetails failed: %v", err)
@@ -480,13 +497,136 @@ func TestSubtypeConstValues(t *testing.T) {
 	}
 }
 
-func TestAddMonths_Clamping(t *testing.T) {
-	// Jan 31 + 1 month = Feb 28
-	result := addMonths(time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC), 1)
-	if result.Month() != time.February {
-		t.Errorf("expected February, got %v", result.Month())
+func TestScheduleDates_LegacyMonthlyParity(t *testing.T) {
+	// Jan 31 + 1 month = Feb 28;月度规则沿用旧 month-diff 期数与月末钳制。
+	debt := &DebtDetails{
+		StartDate: time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC),
+		DueDate:   time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC),
 	}
-	if result.Day() != 28 {
-		t.Errorf("expected day 28, got %d", result.Day())
+	dates := debt.ScheduleDates()
+	if len(dates) != 2 {
+		t.Fatalf("expected 2 occurrences, got %d (%v)", len(dates), dates)
+	}
+	if got := dates[0].Format("2006-01-02"); got != "2026-02-28" {
+		t.Errorf("first = %s, want 2026-02-28", got)
+	}
+	if got := dates[1].Format("2006-01-02"); got != "2026-03-31" {
+		t.Errorf("second = %s, want 2026-03-31", got)
+	}
+}
+
+// TestGenerateSchedule_LegacyMonthlyParity pins the monthly annuity output to
+// the pre-recurrence formula (verbatim mirror of the old equalPrincipalInterest
+// + addMonths) so existing rows regenerate identically.
+func TestGenerateSchedule_LegacyMonthlyParity(t *testing.T) {
+	start := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
+	debt := &DebtDetails{
+		InterestRate:        0.06,
+		AmortizationMethod:  AmortizationEqualPrincipalInterest,
+		StartDate:           start,
+		DueDate:             time.Date(2027, 1, 15, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 100_000_00,
+	}
+	entries := debt.GenerateSchedule()
+	if len(entries) != 12 {
+		t.Fatalf("expected 12 entries, got %d", len(entries))
+	}
+
+	// Legacy math mirror.
+	months := 12
+	monthlyRate := 0.06 / 12.0
+	principal := 100_000_00.00 // cents
+	factor := math.Pow(1+monthlyRate, float64(months))
+	payment := principal * monthlyRate * factor / (factor - 1)
+	remaining := principal
+	for i := 0; i < months; i++ {
+		interest := int64(math.Round(remaining * monthlyRate))
+		var pc int64
+		if i == months-1 {
+			pc = int64(math.Round(remaining))
+		} else {
+			pc = int64(math.Round(payment)) - interest
+		}
+		if entries[i].InterestCents != interest {
+			t.Errorf("entry[%d] interest = %d, want %d", i, entries[i].InterestCents, interest)
+		}
+		if entries[i].PrincipalCents != pc {
+			t.Errorf("entry[%d] principal = %d, want %d", i, entries[i].PrincipalCents, pc)
+		}
+		wantDate := legacyAddMonths(start, i+1)
+		if !entries[i].PaymentDate.Equal(wantDate) {
+			t.Errorf("entry[%d] date = %v, want %v", i, entries[i].PaymentDate, wantDate)
+		}
+		remaining -= float64(pc)
+	}
+}
+
+// legacyAddMonths mirrors the pre-recurrence addMonths (verbatim).
+func legacyAddMonths(t time.Time, months int) time.Time {
+	year := t.Year()
+	month := int(t.Month()) + months
+	day := t.Day()
+	year += (month - 1) / 12
+	month = (month-1)%12 + 1
+	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, t.Location()).Day()
+	if day > lastDay {
+		day = lastDay
+	}
+	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, t.Location())
+}
+
+// TestScheduleDates_NthWeekdayMonthly verifies the by-Nth-weekday monthly rule
+// resolves installment dates from the shared recurrence kernel.
+func TestScheduleDates_NthWeekdayMonthly(t *testing.T) {
+	debt := &DebtDetails{
+		Cycle:       2, // monthly
+		MonthlyMode: 1, // by nth weekday
+		Nth:         2,
+		WeekdayMask: 1 << 1,
+		StartDate:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:     time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+	}
+	dates := debt.ScheduleDates()
+	want := []string{"2026-01-13", "2026-02-10", "2026-03-10"}
+	if len(dates) != len(want) {
+		t.Fatalf("expected %d dates, got %d (%v)", len(want), len(dates), dates)
+	}
+	for i, w := range want {
+		if got := dates[i].Format("2006-01-02"); got != w {
+			t.Errorf("date[%d] = %s, want %s", i, got, w)
+		}
+	}
+}
+
+// TestInterestFirstSchedule: 每期付息(全本金×期利率),末期一次还本。
+func TestInterestFirstSchedule(t *testing.T) {
+	debt := &DebtDetails{
+		InterestRate:        0.12,
+		AmortizationMethod:  AmortizationInterestFirst,
+		Cycle:               1, // weekly
+		WeekdayMask:         1, // 周一
+		StartDate:           time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 2, 2, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 400_00,
+	}
+	entries := debt.GenerateSchedule()
+	if len(entries) != 4 {
+		t.Fatalf("expected 4 entries, got %d", len(entries))
+	}
+	perInterest := int64(math.Round(400_00 * 0.12 * 7 / 365))
+	for i, e := range entries[:3] {
+		if e.PrincipalCents != 0 {
+			t.Errorf("entry[%d] principal = %d, want 0", i, e.PrincipalCents)
+		}
+		if e.InterestCents != perInterest {
+			t.Errorf("entry[%d] interest = %d, want %d", i, e.InterestCents, perInterest)
+		}
+	}
+	last := entries[3]
+	if last.PrincipalCents != 400_00 {
+		t.Errorf("last principal = %d, want 40000", last.PrincipalCents)
+	}
+	if last.InterestCents != perInterest {
+		t.Errorf("last interest = %d, want %d", last.InterestCents, perInterest)
 	}
 }

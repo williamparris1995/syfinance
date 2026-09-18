@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/domain"
 	debtent "github.com/yucai/server/internal/debt/ent"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 	"github.com/yucai/server/internal/sqltx"
@@ -51,6 +52,12 @@ func (r *DebtRepository) Save(ctx context.Context, d *domain.DebtDetails) error 
 		SetCounterparty(d.Counterparty).
 		SetInterestRate(d.InterestRate).
 		SetAmortizationMethod(d.AmortizationMethod.String()).
+		SetCycle(d.Cycle.String()).
+		SetInterval(d.Interval).
+		SetWeekdayMask(d.WeekdayMask).
+		SetMonthlyMode(int32(d.MonthlyMode)).
+		SetNth(d.Nth).
+		SetInterestWaivedCents(d.InterestWaivedCents).
 		SetStartDate(d.StartDate).
 		SetDueDate(d.DueDate).
 		SetTotalPrincipalCents(d.TotalPrincipalCents).
@@ -59,6 +66,8 @@ func (r *DebtRepository) Save(ctx context.Context, d *domain.DebtDetails) error 
 		SetContact(d.Contact).
 		SetContractRef(d.ContractRef).
 		SetNillableCollectionAccountID(d.CollectionAccountID).
+		SetGuarantorName(d.GuarantorName).
+		SetGuarantorContact(d.GuarantorContact).
 		SetVersion(d.Version).
 		SetCreatedAt(d.CreatedAt).
 		SetUpdatedAt(d.UpdatedAt).
@@ -174,6 +183,7 @@ func (r *DebtRepository) Update(ctx context.Context, d *domain.DebtDetails) erro
 	// Update schedule entries
 	for _, entry := range d.Schedule {
 		update := r.clientFor(ctx).PaymentSchedule.UpdateOneID(entry.ID).
+			SetPaymentDate(entry.PaymentDate).
 			SetPrincipalCents(entry.PrincipalCents).
 			SetInterestCents(entry.InterestCents).
 			SetTotalCents(entry.TotalCents).
@@ -192,9 +202,19 @@ func (r *DebtRepository) Update(ctx context.Context, d *domain.DebtDetails) erro
 		Where(debtdetails.Version(d.Version - 1)).
 		SetCounterparty(d.Counterparty).
 		SetInterestRate(d.InterestRate).
+		SetAmortizationMethod(d.AmortizationMethod.String()).
+		SetCycle(d.Cycle.String()).
+		SetInterval(d.Interval).
+		SetWeekdayMask(d.WeekdayMask).
+		SetMonthlyMode(int32(d.MonthlyMode)).
+		SetNth(d.Nth).
+		SetInterestWaivedCents(d.InterestWaivedCents).
+		SetDueDate(d.DueDate).
 		SetContact(d.Contact).
 		SetContractRef(d.ContractRef).
 		SetNillableCollectionAccountID(d.CollectionAccountID).
+		SetGuarantorName(d.GuarantorName).
+		SetGuarantorContact(d.GuarantorContact).
 		SetVersion(d.Version).
 		SetUpdatedAt(d.UpdatedAt).
 		Save(ctx)
@@ -267,6 +287,12 @@ func (r *DebtRepository) UpsertForSync(ctx context.Context, d *domain.DebtDetail
 			SetCounterparty(d.Counterparty).
 			SetInterestRate(d.InterestRate).
 			SetAmortizationMethod(d.AmortizationMethod.String()).
+			SetCycle(d.Cycle.String()).
+			SetInterval(d.Interval).
+			SetWeekdayMask(d.WeekdayMask).
+			SetMonthlyMode(int32(d.MonthlyMode)).
+			SetNth(d.Nth).
+			SetInterestWaivedCents(d.InterestWaivedCents).
 			SetStartDate(d.StartDate).
 			SetDueDate(d.DueDate).
 			SetTotalPrincipalCents(d.TotalPrincipalCents).
@@ -450,6 +476,43 @@ func (r *DebtRepository) FindUpcomingPayments(ctx context.Context, tenantID uuid
 	return result, nil
 }
 
+// ReplaceFutureSchedule deletes every not-yet-recorded schedule entry
+// (paid=false AND paid_cents=0 AND transaction_id IS NULL) and inserts the
+// given future entries. Already-recorded (frozen) rows stay untouched —
+// the persistence dual of DebtDetails.FrozenEntries. Tx-aware via clientFor.
+func (r *DebtRepository) ReplaceFutureSchedule(ctx context.Context, debtID uuid.UUID, future []domain.PaymentScheduleEntry) error {
+	c := r.clientFor(ctx)
+	if _, err := c.PaymentSchedule.Delete().
+		Where(
+			paymentschedule.DebtID(debtID),
+			paymentschedule.PaidEQ(false),
+			paymentschedule.PaidCentsEQ(0),
+			paymentschedule.TransactionIDIsNil(),
+		).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("replace future schedule delete: %w", err)
+	}
+	for i := range future {
+		entry := future[i]
+		create := c.PaymentSchedule.Create().
+			SetID(entry.ID).
+			SetDebtID(debtID).
+			SetPaymentDate(entry.PaymentDate).
+			SetPrincipalCents(entry.PrincipalCents).
+			SetInterestCents(entry.InterestCents).
+			SetTotalCents(entry.TotalCents).
+			SetPaid(entry.Paid).
+			SetPaidCents(entry.PaidCents)
+		if entry.TransactionID != nil {
+			create.SetTransactionID(*entry.TransactionID)
+		}
+		if _, err := create.Save(ctx); err != nil {
+			return fmt.Errorf("replace future schedule insert: %w", err)
+		}
+	}
+	return nil
+}
+
 func toDomainDebt(dd *debtent.DebtDetails, entries []*debtent.PaymentSchedule) *domain.DebtDetails {
 	schedule := make([]domain.PaymentScheduleEntry, len(entries))
 	for i, e := range entries {
@@ -462,6 +525,12 @@ func toDomainDebt(dd *debtent.DebtDetails, entries []*debtent.PaymentSchedule) *
 		Counterparty:        dd.Counterparty,
 		InterestRate:        dd.InterestRate,
 		AmortizationMethod:  domain.ParseAmortizationMethod(dd.AmortizationMethod),
+		Cycle:               recurrence.ParseCycle(dd.Cycle),
+		Interval:            dd.Interval,
+		WeekdayMask:         dd.WeekdayMask,
+		MonthlyMode:         recurrence.MonthlyMode(dd.MonthlyMode),
+		Nth:                 dd.Nth,
+		InterestWaivedCents: dd.InterestWaivedCents,
 		StartDate:           dd.StartDate,
 		DueDate:             dd.DueDate,
 		TotalPrincipalCents: dd.TotalPrincipalCents,
@@ -470,6 +539,8 @@ func toDomainDebt(dd *debtent.DebtDetails, entries []*debtent.PaymentSchedule) *
 		Contact:             dd.Contact,
 		ContractRef:         dd.ContractRef,
 		CollectionAccountID: dd.CollectionAccountID,
+		GuarantorName:       dd.GuarantorName,
+		GuarantorContact:    dd.GuarantorContact,
 		Schedule:            schedule,
 		Version:             dd.Version,
 		CreatedAt:           dd.CreatedAt,

@@ -106,6 +106,26 @@ func BillingDay(v int32) predicate.TransactionTemplate {
 	return predicate.TransactionTemplate(sql.FieldEQ(FieldBillingDay, v))
 }
 
+// Interval applies equality check predicate on the "interval" field. It's identical to IntervalEQ.
+func Interval(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldEQ(FieldInterval, v))
+}
+
+// WeekdayMask applies equality check predicate on the "weekday_mask" field. It's identical to WeekdayMaskEQ.
+func WeekdayMask(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldEQ(FieldWeekdayMask, v))
+}
+
+// MonthlyMode applies equality check predicate on the "monthly_mode" field. It's identical to MonthlyModeEQ.
+func MonthlyMode(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldEQ(FieldMonthlyMode, v))
+}
+
+// Nth applies equality check predicate on the "nth" field. It's identical to NthEQ.
+func Nth(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldEQ(FieldNth, v))
+}
+
 // NextDate applies equality check predicate on the "next_date" field. It's identical to NextDateEQ.
 func NextDate(v time.Time) predicate.TransactionTemplate {
 	return predicate.TransactionTemplate(sql.FieldEQ(FieldNextDate, v))
@@ -694,6 +714,206 @@ func BillingDayIsNil() predicate.TransactionTemplate {
 // BillingDayNotNil applies the NotNil predicate on the "billing_day" field.
 func BillingDayNotNil() predicate.TransactionTemplate {
 	return predicate.TransactionTemplate(sql.FieldNotNull(FieldBillingDay))
+}
+
+// IntervalEQ applies the EQ predicate on the "interval" field.
+func IntervalEQ(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldEQ(FieldInterval, v))
+}
+
+// IntervalNEQ applies the NEQ predicate on the "interval" field.
+func IntervalNEQ(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNEQ(FieldInterval, v))
+}
+
+// IntervalIn applies the In predicate on the "interval" field.
+func IntervalIn(vs ...int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldIn(FieldInterval, vs...))
+}
+
+// IntervalNotIn applies the NotIn predicate on the "interval" field.
+func IntervalNotIn(vs ...int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNotIn(FieldInterval, vs...))
+}
+
+// IntervalGT applies the GT predicate on the "interval" field.
+func IntervalGT(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldGT(FieldInterval, v))
+}
+
+// IntervalGTE applies the GTE predicate on the "interval" field.
+func IntervalGTE(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldGTE(FieldInterval, v))
+}
+
+// IntervalLT applies the LT predicate on the "interval" field.
+func IntervalLT(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldLT(FieldInterval, v))
+}
+
+// IntervalLTE applies the LTE predicate on the "interval" field.
+func IntervalLTE(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldLTE(FieldInterval, v))
+}
+
+// IntervalIsNil applies the IsNil predicate on the "interval" field.
+func IntervalIsNil() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldIsNull(FieldInterval))
+}
+
+// IntervalNotNil applies the NotNil predicate on the "interval" field.
+func IntervalNotNil() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNotNull(FieldInterval))
+}
+
+// WeekdayMaskEQ applies the EQ predicate on the "weekday_mask" field.
+func WeekdayMaskEQ(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldEQ(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskNEQ applies the NEQ predicate on the "weekday_mask" field.
+func WeekdayMaskNEQ(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNEQ(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskIn applies the In predicate on the "weekday_mask" field.
+func WeekdayMaskIn(vs ...int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldIn(FieldWeekdayMask, vs...))
+}
+
+// WeekdayMaskNotIn applies the NotIn predicate on the "weekday_mask" field.
+func WeekdayMaskNotIn(vs ...int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNotIn(FieldWeekdayMask, vs...))
+}
+
+// WeekdayMaskGT applies the GT predicate on the "weekday_mask" field.
+func WeekdayMaskGT(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldGT(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskGTE applies the GTE predicate on the "weekday_mask" field.
+func WeekdayMaskGTE(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldGTE(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskLT applies the LT predicate on the "weekday_mask" field.
+func WeekdayMaskLT(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldLT(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskLTE applies the LTE predicate on the "weekday_mask" field.
+func WeekdayMaskLTE(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldLTE(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskIsNil applies the IsNil predicate on the "weekday_mask" field.
+func WeekdayMaskIsNil() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldIsNull(FieldWeekdayMask))
+}
+
+// WeekdayMaskNotNil applies the NotNil predicate on the "weekday_mask" field.
+func WeekdayMaskNotNil() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNotNull(FieldWeekdayMask))
+}
+
+// MonthlyModeEQ applies the EQ predicate on the "monthly_mode" field.
+func MonthlyModeEQ(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldEQ(FieldMonthlyMode, v))
+}
+
+// MonthlyModeNEQ applies the NEQ predicate on the "monthly_mode" field.
+func MonthlyModeNEQ(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNEQ(FieldMonthlyMode, v))
+}
+
+// MonthlyModeIn applies the In predicate on the "monthly_mode" field.
+func MonthlyModeIn(vs ...int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldIn(FieldMonthlyMode, vs...))
+}
+
+// MonthlyModeNotIn applies the NotIn predicate on the "monthly_mode" field.
+func MonthlyModeNotIn(vs ...int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNotIn(FieldMonthlyMode, vs...))
+}
+
+// MonthlyModeGT applies the GT predicate on the "monthly_mode" field.
+func MonthlyModeGT(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldGT(FieldMonthlyMode, v))
+}
+
+// MonthlyModeGTE applies the GTE predicate on the "monthly_mode" field.
+func MonthlyModeGTE(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldGTE(FieldMonthlyMode, v))
+}
+
+// MonthlyModeLT applies the LT predicate on the "monthly_mode" field.
+func MonthlyModeLT(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldLT(FieldMonthlyMode, v))
+}
+
+// MonthlyModeLTE applies the LTE predicate on the "monthly_mode" field.
+func MonthlyModeLTE(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldLTE(FieldMonthlyMode, v))
+}
+
+// MonthlyModeIsNil applies the IsNil predicate on the "monthly_mode" field.
+func MonthlyModeIsNil() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldIsNull(FieldMonthlyMode))
+}
+
+// MonthlyModeNotNil applies the NotNil predicate on the "monthly_mode" field.
+func MonthlyModeNotNil() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNotNull(FieldMonthlyMode))
+}
+
+// NthEQ applies the EQ predicate on the "nth" field.
+func NthEQ(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldEQ(FieldNth, v))
+}
+
+// NthNEQ applies the NEQ predicate on the "nth" field.
+func NthNEQ(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNEQ(FieldNth, v))
+}
+
+// NthIn applies the In predicate on the "nth" field.
+func NthIn(vs ...int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldIn(FieldNth, vs...))
+}
+
+// NthNotIn applies the NotIn predicate on the "nth" field.
+func NthNotIn(vs ...int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNotIn(FieldNth, vs...))
+}
+
+// NthGT applies the GT predicate on the "nth" field.
+func NthGT(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldGT(FieldNth, v))
+}
+
+// NthGTE applies the GTE predicate on the "nth" field.
+func NthGTE(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldGTE(FieldNth, v))
+}
+
+// NthLT applies the LT predicate on the "nth" field.
+func NthLT(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldLT(FieldNth, v))
+}
+
+// NthLTE applies the LTE predicate on the "nth" field.
+func NthLTE(v int32) predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldLTE(FieldNth, v))
+}
+
+// NthIsNil applies the IsNil predicate on the "nth" field.
+func NthIsNil() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldIsNull(FieldNth))
+}
+
+// NthNotNil applies the NotNil predicate on the "nth" field.
+func NthNotNil() predicate.TransactionTemplate {
+	return predicate.TransactionTemplate(sql.FieldNotNull(FieldNth))
 }
 
 // NextDateEQ applies the EQ predicate on the "next_date" field.

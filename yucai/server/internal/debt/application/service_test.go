@@ -9,16 +9,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/domain"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 )
 
 // --- In-memory mock repo (stateful) ---
 
 type mockDebtRepo struct {
-	mu           sync.Mutex
-	byID         map[uuid.UUID]*domain.DebtDetails
-	lastFilter   *domain.DebtType // records the typeFilter passed to the most recent FindAll
-	findAllErr   error
-	findAllCalls int
+	mu             sync.Mutex
+	byID           map[uuid.UUID]*domain.DebtDetails
+	lastFilter     *domain.DebtType // records the typeFilter passed to the most recent FindAll
+	findAllErr     error
+	findAllCalls   int
+	replacedFuture []domain.PaymentScheduleEntry // captures ReplaceFutureSchedule arg
 }
 
 func newMockDebtRepo() *mockDebtRepo {
@@ -67,6 +69,13 @@ func (m *mockDebtRepo) FindAll(_ context.Context, tenantID uuid.UUID, _ domain.P
 	}
 	out.TotalCount = int32(len(out.Items))
 	return out, nil
+}
+
+func (m *mockDebtRepo) ReplaceFutureSchedule(_ context.Context, _ uuid.UUID, future []domain.PaymentScheduleEntry) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.replacedFuture = append([]domain.PaymentScheduleEntry(nil), future...)
+	return nil
 }
 
 func (m *mockDebtRepo) Update(_ context.Context, d *domain.DebtDetails) error {
@@ -164,6 +173,41 @@ func TestCreateDebt_PersistsDebtType(t *testing.T) {
 				t.Errorf("persisted DebtType = %v, want %v", saved.DebtType, expected)
 			}
 		})
+	}
+}
+
+// TestCreateDebt_PersistsGuarantor verifies the optional guarantor fields
+// pass from CreateDebtRequest through the domain aggregate into the DTO and
+// the persisted copy (2026-09 user request).
+func TestCreateDebt_PersistsGuarantor(t *testing.T) {
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+	req := CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Lender",
+		InterestRate:        0.05,
+		AmortizationMethod:  domain.AmortizationLumpSum,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 1000000,
+		DebtType:            domain.BorrowedIn,
+		GuarantorName:       "王担保",
+		GuarantorContact:    "13800000000",
+	}
+	resp, err := svc.CreateDebt(context.Background(), req)
+	if err != nil {
+		t.Fatalf("CreateDebt failed: %v", err)
+	}
+	if resp.GuarantorName != "王担保" || resp.GuarantorContact != "13800000000" {
+		t.Errorf("DTO guarantor = (%q, %q), want persisted values", resp.GuarantorName, resp.GuarantorContact)
+	}
+	saved, ok := repo.byID[resp.ID]
+	if !ok {
+		t.Fatalf("debt not persisted")
+	}
+	if saved.GuarantorName != "王担保" || saved.GuarantorContact != "13800000000" {
+		t.Errorf("persisted guarantor = (%q, %q), want persisted values", saved.GuarantorName, saved.GuarantorContact)
 	}
 }
 
@@ -265,7 +309,7 @@ func TestListDebts_TypeFilter_PassedThroughAndApplied(t *testing.T) {
 			time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 			time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
 			100000, dt, "",
-			"", "", nil,
+			"", "", nil, "", "",
 		)
 		repo.byID[d.ID] = d
 	}
@@ -355,7 +399,7 @@ func seedReceivable(t *testing.T, tenant uuid.UUID, repo *mockDebtRepo, principa
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		principal, domain.BorrowedOut, "",
-		contact, contractRef, collectionAcc,
+		contact, contractRef, collectionAcc, "", "",
 	)
 	if err != nil {
 		t.Fatalf("seed receivable: %v", err)
@@ -600,7 +644,7 @@ func TestSyncAllDebts(t *testing.T) {
 		tenant, uuid.New(), "A", 0.0, domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
-		1_000_00, domain.BorrowedIn, "", "", "", nil,
+		1_000_00, domain.BorrowedIn, "", "", "", nil, "", "",
 	)
 	dA.Schedule = []domain.PaymentScheduleEntry{
 		mkEntry(time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), 100_00, 0, true),
@@ -617,7 +661,7 @@ func TestSyncAllDebts(t *testing.T) {
 		tenant, uuid.New(), "B", 0.0, domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
-		500_00, domain.BorrowedOut, "", "", "", nil,
+		500_00, domain.BorrowedOut, "", "", "", nil, "", "",
 	)
 	dB.GenerateSchedule()
 	repo.byID[dB.ID] = dB
@@ -673,7 +717,7 @@ func TestSyncAllDebts_BestEffortSkipOnSaveError(t *testing.T) {
 		tenant, uuid.New(), "A", 0.0, domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
-		1_000_00, domain.BorrowedIn, "", "", "", nil,
+		1_000_00, domain.BorrowedIn, "", "", "", nil, "", "",
 	)
 	dA.GenerateSchedule()
 	repo.byID[dA.ID] = dA
@@ -682,7 +726,7 @@ func TestSyncAllDebts_BestEffortSkipOnSaveError(t *testing.T) {
 		tenant, uuid.New(), "B", 0.0, domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
-		500_00, domain.BorrowedOut, "", "", "", nil,
+		500_00, domain.BorrowedOut, "", "", "", nil, "", "",
 	)
 	dB.GenerateSchedule()
 	repo.byID[dB.ID] = dB
@@ -707,7 +751,7 @@ func TestSyncAllDebts_NilSnapshotRepoIsNoop(t *testing.T) {
 		tenant, uuid.New(), "A", 0.0, domain.AmortizationLumpSum,
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
-		1_000_00, domain.BorrowedIn, "", "", "", nil,
+		1_000_00, domain.BorrowedIn, "", "", "", nil, "", "",
 	)
 	dA.GenerateSchedule()
 	repo.byID[dA.ID] = dA
@@ -810,5 +854,283 @@ func TestCreateDebt_BorrowedInWithoutCollectionAccountOK(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("BorrowedIn without collection account should succeed, got %v", err)
+	}
+}
+
+func TestCreateDebt_WeeklyRuleGeneratesWeeklySchedule(t *testing.T) {
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+
+	resp, err := svc.CreateDebt(context.Background(), CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Bank",
+		InterestRate:        0.10,
+		AmortizationMethod:  domain.AmortizationEqualPrincipal,
+		StartDate:           time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC), // Monday
+		DueDate:             time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC), // ignored (term mode)
+		TotalPrincipalCents: 1200_00,
+		Cycle:               weeklyCycle(),
+		WeekdayMask:         1 << 0,
+		TermPeriods:         4,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt: %v", err)
+	}
+	d := repo.byID[resp.ID]
+	if len(d.Schedule) != 4 {
+		t.Fatalf("expected 4 weekly entries, got %d", len(d.Schedule))
+	}
+	wantDates := []string{"2026-01-12", "2026-01-19", "2026-01-26", "2026-02-02"}
+	for i, w := range wantDates {
+		if got := d.Schedule[i].PaymentDate.Format("2006-01-02"); got != w {
+			t.Errorf("entry[%d] date = %s, want %s", i, got, w)
+		}
+	}
+	if got := d.DueDate.Format("2006-01-02"); got != "2026-02-02" {
+		t.Errorf("term mode due = %s, want 2026-02-02", got)
+	}
+	// 每期本金 300 元,总额守恒。
+	var principal int64
+	for _, e := range d.Schedule {
+		principal += e.PrincipalCents
+	}
+	if principal != 1200_00 {
+		t.Errorf("principal total = %d, want 120000", principal)
+	}
+}
+
+func TestUpdateDebt_RuleChangeFreezesRecordedEntries(t *testing.T) {
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+
+	created, err := svc.CreateDebt(context.Background(), CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Bank",
+		InterestRate:        0,
+		AmortizationMethod:  domain.AmortizationEqualPrincipal,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 600_00,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt: %v", err)
+	}
+	d := repo.byID[created.ID]
+	if len(d.Schedule) != 6 {
+		t.Fatalf("expected 6 monthly entries, got %d", len(d.Schedule))
+	}
+
+	// 冻结前两期(已还款)。
+	txn := uuid.New()
+	for i := 0; i < 2; i++ {
+		d.Schedule[i].Paid = true
+		d.Schedule[i].PaidCents = d.Schedule[i].TotalCents
+		d.Schedule[i].TransactionID = &txn
+	}
+
+	resp, err := svc.UpdateDebt(context.Background(), UpdateDebtRequest{
+		TenantID:     d.TenantID,
+		ID:           d.ID,
+		Counterparty: d.Counterparty,
+		InterestRate: 0,
+		Version:      d.Version,
+		Cycle:        weeklyCycle(),
+		WeekdayMask:  1 << 0,
+		TermPeriods:  3,
+	})
+	if err != nil {
+		t.Fatalf("UpdateDebt: %v", err)
+	}
+
+	// 未来重排:3 期、剩余本金 400 元、锚点在最后冻结期(2026-03-01)之后。
+	future := repo.replacedFuture
+	if len(future) != 3 {
+		t.Fatalf("expected 3 future entries, got %d", len(future))
+	}
+	if got := future[0].PaymentDate.Format("2006-01-02"); got != "2026-03-02" {
+		t.Errorf("first future date = %s, want 2026-03-02 (first Monday after 2026-03-01)", got)
+	}
+	var principal int64
+	for _, e := range future {
+		principal += e.PrincipalCents
+	}
+	if principal != 400_00 {
+		t.Errorf("future principal total = %d, want 40000 (remaining after 2 frozen)", principal)
+	}
+
+	// 版本推进(冻结 + 重排是同一原子更新)。
+	if resp.Version != created.Version+1 {
+		t.Errorf("version = %d, want %d", resp.Version, created.Version+1)
+	}
+}
+
+func weeklyCycle() recurrence.Cycle {
+	return recurrence.CycleWeekly
+}
+
+func TestSetPaymentDate_MovesUnpaidEntry(t *testing.T) {
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+	created, err := svc.CreateDebt(context.Background(), CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Bank",
+		AmortizationMethod:  domain.AmortizationEqualPrincipal,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 400_00,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt: %v", err)
+	}
+	d := repo.byID[created.ID]
+	entry := d.Schedule[1] // 2026-02-01
+
+	got, err := svc.SetPaymentDate(context.Background(), SetPaymentDateRequest{
+		TenantID:    d.TenantID,
+		DebtID:      d.ID,
+		EntryID:     entry.ID,
+		PaymentDate: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("SetPaymentDate: %v", err)
+	}
+	if got.PaymentDate.Format("2006-01-02") != "2026-02-10" {
+		t.Errorf("date = %s, want 2026-02-10", got.PaymentDate.Format("2006-01-02"))
+	}
+	if repo.byID[d.ID].Schedule[1].PaymentDate.Format("2006-01-02") != "2026-02-10" {
+		t.Error("persisted entry date should be updated")
+	}
+}
+
+func TestSetPaymentDate_RejectsFrozenAndCollision(t *testing.T) {
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+	created, _ := svc.CreateDebt(context.Background(), CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Bank",
+		AmortizationMethod:  domain.AmortizationEqualPrincipal,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 400_00,
+	})
+	d := repo.byID[created.ID]
+	// 冻结第 1 期(已还款)。
+	txn := uuid.New()
+	d.Schedule[0].Paid = true
+	d.Schedule[0].PaidCents = d.Schedule[0].TotalCents
+	d.Schedule[0].TransactionID = &txn
+
+	// 已还期次不可改。
+	if _, err := svc.SetPaymentDate(context.Background(), SetPaymentDateRequest{
+		TenantID: d.TenantID, DebtID: d.ID, EntryID: d.Schedule[0].ID,
+		PaymentDate: time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC),
+	}); err == nil {
+		t.Error("frozen entry must be rejected")
+	}
+	// 目标日期撞已占用的日期:第 2 期(2026-03-01)改到第 1 期的 2026-02-01。
+	if _, err := svc.SetPaymentDate(context.Background(), SetPaymentDateRequest{
+		TenantID: d.TenantID, DebtID: d.ID, EntryID: d.Schedule[1].ID,
+		PaymentDate: time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+	}); err == nil {
+		t.Error("collision with another entry must be rejected")
+	}
+	// 不晚于起始日。
+	if _, err := svc.SetPaymentDate(context.Background(), SetPaymentDateRequest{
+		TenantID: d.TenantID, DebtID: d.ID, EntryID: d.Schedule[1].ID,
+		PaymentDate: time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC),
+	}); err == nil {
+		t.Error("date before start must be rejected")
+	}
+}
+
+func TestCreateDebt_InterestWaiverApplied(t *testing.T) {
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+	resp, err := svc.CreateDebt(context.Background(), CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Bank",
+		InterestRate:        0.06,
+		AmortizationMethod:  domain.AmortizationEqualPrincipalInterest,
+		StartDate:           time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2027, 1, 15, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 100_000_00,
+		InterestWaivedCents: 500_00,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt: %v", err)
+	}
+	d := repo.byID[resp.ID]
+	// 100000 元 · 6% · 12 期等额本息:原首期利息恰 500 元,原总利息 3279.73 元。
+	// 减免 500 元 → 首期利息清零,总利息 2779.73 元。
+	if got := d.Schedule[0].InterestCents; got != 0 {
+		t.Errorf("first interest = %d, want 0 (waiver exactly covers it)", got)
+	}
+	if got := domain.TotalInterest(d.Schedule); got != 277973 {
+		t.Errorf("total interest = %d, want 277973 (original 327973 - waiver 50000)", got)
+	}
+	// 每期 total = 本金 + 利息(守恒)。
+	for i, e := range d.Schedule {
+		if e.TotalCents != e.PrincipalCents+e.InterestCents {
+			t.Errorf("entry[%d] total mismatch", i)
+		}
+	}
+}
+
+func TestCreateDebt_WaiverExceedsTotalInterestRejected(t *testing.T) {
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+	_, err := svc.CreateDebt(context.Background(), CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Bank",
+		InterestRate:        0.01,
+		AmortizationMethod:  domain.AmortizationEqualPrincipalInterest,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 100_00,
+		InterestWaivedCents: 999_999_00,
+	})
+	if err == nil {
+		t.Error("waiver beyond total interest must be rejected")
+	}
+}
+
+func TestMarkEntryPaid_FreezeWithoutTransaction(t *testing.T) {
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+	created, _ := svc.CreateDebt(context.Background(), CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Bank",
+		AmortizationMethod:  domain.AmortizationEqualPrincipal,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 400_00,
+	})
+	d := repo.byID[created.ID]
+	entry := d.Schedule[0]
+
+	got, err := svc.MarkEntryPaid(context.Background(), MarkEntryPaidRequest{
+		TenantID: d.TenantID, DebtID: d.ID, EntryID: entry.ID,
+	})
+	if err != nil {
+		t.Fatalf("MarkEntryPaid: %v", err)
+	}
+	if !got.Paid || got.PaidCents != got.TotalCents {
+		t.Errorf("entry should be fully paid, got %+v", got)
+	}
+	if got.TransactionID != nil {
+		t.Error("marked-paid entry must NOT carry a transaction (no cash booking)")
+	}
+	// 再标记 → 冻结拒绝。
+	if _, err := svc.MarkEntryPaid(context.Background(), MarkEntryPaidRequest{
+		TenantID: d.TenantID, DebtID: d.ID, EntryID: entry.ID,
+	}); err == nil {
+		t.Error("re-mark must be rejected")
 	}
 }

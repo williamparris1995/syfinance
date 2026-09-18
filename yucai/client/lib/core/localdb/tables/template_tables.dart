@@ -15,6 +15,10 @@ class TransactionTemplates extends Table {
   IntColumn get cycle => integer()();
   IntColumn get cycleDays => integer()();
   IntColumn get billingDay => integer()();
+  IntColumn get interval => integer().withDefault(const Constant(1))();
+  IntColumn get weekdayMask => integer().withDefault(const Constant(0))();
+  IntColumn get monthlyMode => integer().withDefault(const Constant(0))();
+  IntColumn get nth => integer().withDefault(const Constant(0))();
   DateTimeColumn get nextDate => dateTime()();
   DateTimeColumn get startDate => dateTime()();
   DateTimeColumn get endDate => dateTime().nullable()();

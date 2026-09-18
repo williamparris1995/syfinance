@@ -4264,6 +4264,73 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _cycleMeta = const VerificationMeta('cycle');
+  @override
+  late final GeneratedColumn<int> cycle = GeneratedColumn<int>(
+    'cycle',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(2),
+  );
+  static const VerificationMeta _intervalMeta = const VerificationMeta(
+    'interval',
+  );
+  @override
+  late final GeneratedColumn<int> interval = GeneratedColumn<int>(
+    'interval',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _weekdayMaskMeta = const VerificationMeta(
+    'weekdayMask',
+  );
+  @override
+  late final GeneratedColumn<int> weekdayMask = GeneratedColumn<int>(
+    'weekday_mask',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _monthlyModeMeta = const VerificationMeta(
+    'monthlyMode',
+  );
+  @override
+  late final GeneratedColumn<int> monthlyMode = GeneratedColumn<int>(
+    'monthly_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _nthMeta = const VerificationMeta('nth');
+  @override
+  late final GeneratedColumn<int> nth = GeneratedColumn<int>(
+    'nth',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _interestWaivedCentsMeta =
+      const VerificationMeta('interestWaivedCents');
+  @override
+  late final GeneratedColumn<int> interestWaivedCents = GeneratedColumn<int>(
+    'interest_waived_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _startDateMeta = const VerificationMeta(
     'startDate',
   );
@@ -4340,6 +4407,30 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _guarantorNameMeta = const VerificationMeta(
+    'guarantorName',
+  );
+  @override
+  late final GeneratedColumn<String> guarantorName = GeneratedColumn<String>(
+    'guarantor_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _guarantorContactMeta = const VerificationMeta(
+    'guarantorContact',
+  );
+  @override
+  late final GeneratedColumn<String> guarantorContact = GeneratedColumn<String>(
+    'guarantor_contact',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _collectionAccountIdMeta =
       const VerificationMeta('collectionAccountId');
   @override
@@ -4403,6 +4494,12 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     counterparty,
     interestRate,
     amortizationMethod,
+    cycle,
+    interval,
+    weekdayMask,
+    monthlyMode,
+    nth,
+    interestWaivedCents,
     startDate,
     dueDate,
     totalPrincipalCents,
@@ -4410,6 +4507,8 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     subtype,
     contact,
     contractRef,
+    guarantorName,
+    guarantorContact,
     collectionAccountId,
     version,
     createdAt,
@@ -4474,6 +4573,51 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     } else if (isInserting) {
       context.missing(_amortizationMethodMeta);
     }
+    if (data.containsKey('cycle')) {
+      context.handle(
+        _cycleMeta,
+        cycle.isAcceptableOrUnknown(data['cycle']!, _cycleMeta),
+      );
+    }
+    if (data.containsKey('interval')) {
+      context.handle(
+        _intervalMeta,
+        interval.isAcceptableOrUnknown(data['interval']!, _intervalMeta),
+      );
+    }
+    if (data.containsKey('weekday_mask')) {
+      context.handle(
+        _weekdayMaskMeta,
+        weekdayMask.isAcceptableOrUnknown(
+          data['weekday_mask']!,
+          _weekdayMaskMeta,
+        ),
+      );
+    }
+    if (data.containsKey('monthly_mode')) {
+      context.handle(
+        _monthlyModeMeta,
+        monthlyMode.isAcceptableOrUnknown(
+          data['monthly_mode']!,
+          _monthlyModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nth')) {
+      context.handle(
+        _nthMeta,
+        nth.isAcceptableOrUnknown(data['nth']!, _nthMeta),
+      );
+    }
+    if (data.containsKey('interest_waived_cents')) {
+      context.handle(
+        _interestWaivedCentsMeta,
+        interestWaivedCents.isAcceptableOrUnknown(
+          data['interest_waived_cents']!,
+          _interestWaivedCentsMeta,
+        ),
+      );
+    }
     if (data.containsKey('start_date')) {
       context.handle(
         _startDateMeta,
@@ -4535,6 +4679,24 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       );
     } else if (isInserting) {
       context.missing(_contractRefMeta);
+    }
+    if (data.containsKey('guarantor_name')) {
+      context.handle(
+        _guarantorNameMeta,
+        guarantorName.isAcceptableOrUnknown(
+          data['guarantor_name']!,
+          _guarantorNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('guarantor_contact')) {
+      context.handle(
+        _guarantorContactMeta,
+        guarantorContact.isAcceptableOrUnknown(
+          data['guarantor_contact']!,
+          _guarantorContactMeta,
+        ),
+      );
     }
     if (data.containsKey('collection_account_id')) {
       context.handle(
@@ -4604,6 +4766,30 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         DriftSqlType.int,
         data['${effectivePrefix}amortization_method'],
       )!,
+      cycle: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cycle'],
+      )!,
+      interval: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interval'],
+      )!,
+      weekdayMask: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weekday_mask'],
+      )!,
+      monthlyMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}monthly_mode'],
+      )!,
+      nth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nth'],
+      )!,
+      interestWaivedCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interest_waived_cents'],
+      )!,
       startDate: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}start_date'],
@@ -4631,6 +4817,14 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       contractRef: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}contract_ref'],
+      )!,
+      guarantorName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}guarantor_name'],
+      )!,
+      guarantorContact: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}guarantor_contact'],
       )!,
       collectionAccountId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -4667,6 +4861,12 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String counterparty;
   final double interestRate;
   final int amortizationMethod;
+  final int cycle;
+  final int interval;
+  final int weekdayMask;
+  final int monthlyMode;
+  final int nth;
+  final int interestWaivedCents;
   final DateTime startDate;
   final DateTime dueDate;
   final int totalPrincipalCents;
@@ -4674,6 +4874,8 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String subtype;
   final String contact;
   final String contractRef;
+  final String guarantorName;
+  final String guarantorContact;
   final String? collectionAccountId;
   final int version;
   final DateTime createdAt;
@@ -4687,6 +4889,12 @@ class Debt extends DataClass implements Insertable<Debt> {
     required this.counterparty,
     required this.interestRate,
     required this.amortizationMethod,
+    required this.cycle,
+    required this.interval,
+    required this.weekdayMask,
+    required this.monthlyMode,
+    required this.nth,
+    required this.interestWaivedCents,
     required this.startDate,
     required this.dueDate,
     required this.totalPrincipalCents,
@@ -4694,6 +4902,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     required this.subtype,
     required this.contact,
     required this.contractRef,
+    required this.guarantorName,
+    required this.guarantorContact,
     this.collectionAccountId,
     required this.version,
     required this.createdAt,
@@ -4708,6 +4918,12 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['counterparty'] = Variable<String>(counterparty);
     map['interest_rate'] = Variable<double>(interestRate);
     map['amortization_method'] = Variable<int>(amortizationMethod);
+    map['cycle'] = Variable<int>(cycle);
+    map['interval'] = Variable<int>(interval);
+    map['weekday_mask'] = Variable<int>(weekdayMask);
+    map['monthly_mode'] = Variable<int>(monthlyMode);
+    map['nth'] = Variable<int>(nth);
+    map['interest_waived_cents'] = Variable<int>(interestWaivedCents);
     map['start_date'] = Variable<DateTime>(startDate);
     map['due_date'] = Variable<DateTime>(dueDate);
     map['total_principal_cents'] = Variable<int>(totalPrincipalCents);
@@ -4715,6 +4931,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['subtype'] = Variable<String>(subtype);
     map['contact'] = Variable<String>(contact);
     map['contract_ref'] = Variable<String>(contractRef);
+    map['guarantor_name'] = Variable<String>(guarantorName);
+    map['guarantor_contact'] = Variable<String>(guarantorContact);
     if (!nullToAbsent || collectionAccountId != null) {
       map['collection_account_id'] = Variable<String>(collectionAccountId);
     }
@@ -4732,6 +4950,12 @@ class Debt extends DataClass implements Insertable<Debt> {
       counterparty: Value(counterparty),
       interestRate: Value(interestRate),
       amortizationMethod: Value(amortizationMethod),
+      cycle: Value(cycle),
+      interval: Value(interval),
+      weekdayMask: Value(weekdayMask),
+      monthlyMode: Value(monthlyMode),
+      nth: Value(nth),
+      interestWaivedCents: Value(interestWaivedCents),
       startDate: Value(startDate),
       dueDate: Value(dueDate),
       totalPrincipalCents: Value(totalPrincipalCents),
@@ -4739,6 +4963,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       subtype: Value(subtype),
       contact: Value(contact),
       contractRef: Value(contractRef),
+      guarantorName: Value(guarantorName),
+      guarantorContact: Value(guarantorContact),
       collectionAccountId: collectionAccountId == null && nullToAbsent
           ? const Value.absent()
           : Value(collectionAccountId),
@@ -4760,6 +4986,14 @@ class Debt extends DataClass implements Insertable<Debt> {
       counterparty: serializer.fromJson<String>(json['counterparty']),
       interestRate: serializer.fromJson<double>(json['interestRate']),
       amortizationMethod: serializer.fromJson<int>(json['amortizationMethod']),
+      cycle: serializer.fromJson<int>(json['cycle']),
+      interval: serializer.fromJson<int>(json['interval']),
+      weekdayMask: serializer.fromJson<int>(json['weekdayMask']),
+      monthlyMode: serializer.fromJson<int>(json['monthlyMode']),
+      nth: serializer.fromJson<int>(json['nth']),
+      interestWaivedCents: serializer.fromJson<int>(
+        json['interestWaivedCents'],
+      ),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
       dueDate: serializer.fromJson<DateTime>(json['dueDate']),
       totalPrincipalCents: serializer.fromJson<int>(
@@ -4769,6 +5003,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       subtype: serializer.fromJson<String>(json['subtype']),
       contact: serializer.fromJson<String>(json['contact']),
       contractRef: serializer.fromJson<String>(json['contractRef']),
+      guarantorName: serializer.fromJson<String>(json['guarantorName']),
+      guarantorContact: serializer.fromJson<String>(json['guarantorContact']),
       collectionAccountId: serializer.fromJson<String?>(
         json['collectionAccountId'],
       ),
@@ -4787,6 +5023,12 @@ class Debt extends DataClass implements Insertable<Debt> {
       'counterparty': serializer.toJson<String>(counterparty),
       'interestRate': serializer.toJson<double>(interestRate),
       'amortizationMethod': serializer.toJson<int>(amortizationMethod),
+      'cycle': serializer.toJson<int>(cycle),
+      'interval': serializer.toJson<int>(interval),
+      'weekdayMask': serializer.toJson<int>(weekdayMask),
+      'monthlyMode': serializer.toJson<int>(monthlyMode),
+      'nth': serializer.toJson<int>(nth),
+      'interestWaivedCents': serializer.toJson<int>(interestWaivedCents),
       'startDate': serializer.toJson<DateTime>(startDate),
       'dueDate': serializer.toJson<DateTime>(dueDate),
       'totalPrincipalCents': serializer.toJson<int>(totalPrincipalCents),
@@ -4794,6 +5036,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       'subtype': serializer.toJson<String>(subtype),
       'contact': serializer.toJson<String>(contact),
       'contractRef': serializer.toJson<String>(contractRef),
+      'guarantorName': serializer.toJson<String>(guarantorName),
+      'guarantorContact': serializer.toJson<String>(guarantorContact),
       'collectionAccountId': serializer.toJson<String?>(collectionAccountId),
       'version': serializer.toJson<int>(version),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -4808,6 +5052,12 @@ class Debt extends DataClass implements Insertable<Debt> {
     String? counterparty,
     double? interestRate,
     int? amortizationMethod,
+    int? cycle,
+    int? interval,
+    int? weekdayMask,
+    int? monthlyMode,
+    int? nth,
+    int? interestWaivedCents,
     DateTime? startDate,
     DateTime? dueDate,
     int? totalPrincipalCents,
@@ -4815,6 +5065,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     String? subtype,
     String? contact,
     String? contractRef,
+    String? guarantorName,
+    String? guarantorContact,
     Value<String?> collectionAccountId = const Value.absent(),
     int? version,
     DateTime? createdAt,
@@ -4826,6 +5078,12 @@ class Debt extends DataClass implements Insertable<Debt> {
     counterparty: counterparty ?? this.counterparty,
     interestRate: interestRate ?? this.interestRate,
     amortizationMethod: amortizationMethod ?? this.amortizationMethod,
+    cycle: cycle ?? this.cycle,
+    interval: interval ?? this.interval,
+    weekdayMask: weekdayMask ?? this.weekdayMask,
+    monthlyMode: monthlyMode ?? this.monthlyMode,
+    nth: nth ?? this.nth,
+    interestWaivedCents: interestWaivedCents ?? this.interestWaivedCents,
     startDate: startDate ?? this.startDate,
     dueDate: dueDate ?? this.dueDate,
     totalPrincipalCents: totalPrincipalCents ?? this.totalPrincipalCents,
@@ -4833,6 +5091,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     subtype: subtype ?? this.subtype,
     contact: contact ?? this.contact,
     contractRef: contractRef ?? this.contractRef,
+    guarantorName: guarantorName ?? this.guarantorName,
+    guarantorContact: guarantorContact ?? this.guarantorContact,
     collectionAccountId: collectionAccountId.present
         ? collectionAccountId.value
         : this.collectionAccountId,
@@ -4854,6 +5114,18 @@ class Debt extends DataClass implements Insertable<Debt> {
       amortizationMethod: data.amortizationMethod.present
           ? data.amortizationMethod.value
           : this.amortizationMethod,
+      cycle: data.cycle.present ? data.cycle.value : this.cycle,
+      interval: data.interval.present ? data.interval.value : this.interval,
+      weekdayMask: data.weekdayMask.present
+          ? data.weekdayMask.value
+          : this.weekdayMask,
+      monthlyMode: data.monthlyMode.present
+          ? data.monthlyMode.value
+          : this.monthlyMode,
+      nth: data.nth.present ? data.nth.value : this.nth,
+      interestWaivedCents: data.interestWaivedCents.present
+          ? data.interestWaivedCents.value
+          : this.interestWaivedCents,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       totalPrincipalCents: data.totalPrincipalCents.present
@@ -4865,6 +5137,12 @@ class Debt extends DataClass implements Insertable<Debt> {
       contractRef: data.contractRef.present
           ? data.contractRef.value
           : this.contractRef,
+      guarantorName: data.guarantorName.present
+          ? data.guarantorName.value
+          : this.guarantorName,
+      guarantorContact: data.guarantorContact.present
+          ? data.guarantorContact.value
+          : this.guarantorContact,
       collectionAccountId: data.collectionAccountId.present
           ? data.collectionAccountId.value
           : this.collectionAccountId,
@@ -4883,6 +5161,12 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('counterparty: $counterparty, ')
           ..write('interestRate: $interestRate, ')
           ..write('amortizationMethod: $amortizationMethod, ')
+          ..write('cycle: $cycle, ')
+          ..write('interval: $interval, ')
+          ..write('weekdayMask: $weekdayMask, ')
+          ..write('monthlyMode: $monthlyMode, ')
+          ..write('nth: $nth, ')
+          ..write('interestWaivedCents: $interestWaivedCents, ')
           ..write('startDate: $startDate, ')
           ..write('dueDate: $dueDate, ')
           ..write('totalPrincipalCents: $totalPrincipalCents, ')
@@ -4890,6 +5174,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('subtype: $subtype, ')
           ..write('contact: $contact, ')
           ..write('contractRef: $contractRef, ')
+          ..write('guarantorName: $guarantorName, ')
+          ..write('guarantorContact: $guarantorContact, ')
           ..write('collectionAccountId: $collectionAccountId, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
@@ -4900,12 +5186,18 @@ class Debt extends DataClass implements Insertable<Debt> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     accountId,
     counterparty,
     interestRate,
     amortizationMethod,
+    cycle,
+    interval,
+    weekdayMask,
+    monthlyMode,
+    nth,
+    interestWaivedCents,
     startDate,
     dueDate,
     totalPrincipalCents,
@@ -4913,12 +5205,14 @@ class Debt extends DataClass implements Insertable<Debt> {
     subtype,
     contact,
     contractRef,
+    guarantorName,
+    guarantorContact,
     collectionAccountId,
     version,
     createdAt,
     updatedAt,
     syncState,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4928,6 +5222,12 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.counterparty == this.counterparty &&
           other.interestRate == this.interestRate &&
           other.amortizationMethod == this.amortizationMethod &&
+          other.cycle == this.cycle &&
+          other.interval == this.interval &&
+          other.weekdayMask == this.weekdayMask &&
+          other.monthlyMode == this.monthlyMode &&
+          other.nth == this.nth &&
+          other.interestWaivedCents == this.interestWaivedCents &&
           other.startDate == this.startDate &&
           other.dueDate == this.dueDate &&
           other.totalPrincipalCents == this.totalPrincipalCents &&
@@ -4935,6 +5235,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.subtype == this.subtype &&
           other.contact == this.contact &&
           other.contractRef == this.contractRef &&
+          other.guarantorName == this.guarantorName &&
+          other.guarantorContact == this.guarantorContact &&
           other.collectionAccountId == this.collectionAccountId &&
           other.version == this.version &&
           other.createdAt == this.createdAt &&
@@ -4948,6 +5250,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<String> counterparty;
   final Value<double> interestRate;
   final Value<int> amortizationMethod;
+  final Value<int> cycle;
+  final Value<int> interval;
+  final Value<int> weekdayMask;
+  final Value<int> monthlyMode;
+  final Value<int> nth;
+  final Value<int> interestWaivedCents;
   final Value<DateTime> startDate;
   final Value<DateTime> dueDate;
   final Value<int> totalPrincipalCents;
@@ -4955,6 +5263,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<String> subtype;
   final Value<String> contact;
   final Value<String> contractRef;
+  final Value<String> guarantorName;
+  final Value<String> guarantorContact;
   final Value<String?> collectionAccountId;
   final Value<int> version;
   final Value<DateTime> createdAt;
@@ -4967,6 +5277,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.counterparty = const Value.absent(),
     this.interestRate = const Value.absent(),
     this.amortizationMethod = const Value.absent(),
+    this.cycle = const Value.absent(),
+    this.interval = const Value.absent(),
+    this.weekdayMask = const Value.absent(),
+    this.monthlyMode = const Value.absent(),
+    this.nth = const Value.absent(),
+    this.interestWaivedCents = const Value.absent(),
     this.startDate = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.totalPrincipalCents = const Value.absent(),
@@ -4974,6 +5290,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.subtype = const Value.absent(),
     this.contact = const Value.absent(),
     this.contractRef = const Value.absent(),
+    this.guarantorName = const Value.absent(),
+    this.guarantorContact = const Value.absent(),
     this.collectionAccountId = const Value.absent(),
     this.version = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -4987,6 +5305,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     required String counterparty,
     required double interestRate,
     required int amortizationMethod,
+    this.cycle = const Value.absent(),
+    this.interval = const Value.absent(),
+    this.weekdayMask = const Value.absent(),
+    this.monthlyMode = const Value.absent(),
+    this.nth = const Value.absent(),
+    this.interestWaivedCents = const Value.absent(),
     required DateTime startDate,
     required DateTime dueDate,
     required int totalPrincipalCents,
@@ -4994,6 +5318,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     required String subtype,
     required String contact,
     required String contractRef,
+    this.guarantorName = const Value.absent(),
+    this.guarantorContact = const Value.absent(),
     this.collectionAccountId = const Value.absent(),
     required int version,
     required DateTime createdAt,
@@ -5021,6 +5347,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<String>? counterparty,
     Expression<double>? interestRate,
     Expression<int>? amortizationMethod,
+    Expression<int>? cycle,
+    Expression<int>? interval,
+    Expression<int>? weekdayMask,
+    Expression<int>? monthlyMode,
+    Expression<int>? nth,
+    Expression<int>? interestWaivedCents,
     Expression<DateTime>? startDate,
     Expression<DateTime>? dueDate,
     Expression<int>? totalPrincipalCents,
@@ -5028,6 +5360,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<String>? subtype,
     Expression<String>? contact,
     Expression<String>? contractRef,
+    Expression<String>? guarantorName,
+    Expression<String>? guarantorContact,
     Expression<String>? collectionAccountId,
     Expression<int>? version,
     Expression<DateTime>? createdAt,
@@ -5041,6 +5375,13 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (counterparty != null) 'counterparty': counterparty,
       if (interestRate != null) 'interest_rate': interestRate,
       if (amortizationMethod != null) 'amortization_method': amortizationMethod,
+      if (cycle != null) 'cycle': cycle,
+      if (interval != null) 'interval': interval,
+      if (weekdayMask != null) 'weekday_mask': weekdayMask,
+      if (monthlyMode != null) 'monthly_mode': monthlyMode,
+      if (nth != null) 'nth': nth,
+      if (interestWaivedCents != null)
+        'interest_waived_cents': interestWaivedCents,
       if (startDate != null) 'start_date': startDate,
       if (dueDate != null) 'due_date': dueDate,
       if (totalPrincipalCents != null)
@@ -5049,6 +5390,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (subtype != null) 'subtype': subtype,
       if (contact != null) 'contact': contact,
       if (contractRef != null) 'contract_ref': contractRef,
+      if (guarantorName != null) 'guarantor_name': guarantorName,
+      if (guarantorContact != null) 'guarantor_contact': guarantorContact,
       if (collectionAccountId != null)
         'collection_account_id': collectionAccountId,
       if (version != null) 'version': version,
@@ -5065,6 +5408,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<String>? counterparty,
     Value<double>? interestRate,
     Value<int>? amortizationMethod,
+    Value<int>? cycle,
+    Value<int>? interval,
+    Value<int>? weekdayMask,
+    Value<int>? monthlyMode,
+    Value<int>? nth,
+    Value<int>? interestWaivedCents,
     Value<DateTime>? startDate,
     Value<DateTime>? dueDate,
     Value<int>? totalPrincipalCents,
@@ -5072,6 +5421,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<String>? subtype,
     Value<String>? contact,
     Value<String>? contractRef,
+    Value<String>? guarantorName,
+    Value<String>? guarantorContact,
     Value<String?>? collectionAccountId,
     Value<int>? version,
     Value<DateTime>? createdAt,
@@ -5085,6 +5436,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       counterparty: counterparty ?? this.counterparty,
       interestRate: interestRate ?? this.interestRate,
       amortizationMethod: amortizationMethod ?? this.amortizationMethod,
+      cycle: cycle ?? this.cycle,
+      interval: interval ?? this.interval,
+      weekdayMask: weekdayMask ?? this.weekdayMask,
+      monthlyMode: monthlyMode ?? this.monthlyMode,
+      nth: nth ?? this.nth,
+      interestWaivedCents: interestWaivedCents ?? this.interestWaivedCents,
       startDate: startDate ?? this.startDate,
       dueDate: dueDate ?? this.dueDate,
       totalPrincipalCents: totalPrincipalCents ?? this.totalPrincipalCents,
@@ -5092,6 +5449,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       subtype: subtype ?? this.subtype,
       contact: contact ?? this.contact,
       contractRef: contractRef ?? this.contractRef,
+      guarantorName: guarantorName ?? this.guarantorName,
+      guarantorContact: guarantorContact ?? this.guarantorContact,
       collectionAccountId: collectionAccountId ?? this.collectionAccountId,
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
@@ -5119,6 +5478,24 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     if (amortizationMethod.present) {
       map['amortization_method'] = Variable<int>(amortizationMethod.value);
     }
+    if (cycle.present) {
+      map['cycle'] = Variable<int>(cycle.value);
+    }
+    if (interval.present) {
+      map['interval'] = Variable<int>(interval.value);
+    }
+    if (weekdayMask.present) {
+      map['weekday_mask'] = Variable<int>(weekdayMask.value);
+    }
+    if (monthlyMode.present) {
+      map['monthly_mode'] = Variable<int>(monthlyMode.value);
+    }
+    if (nth.present) {
+      map['nth'] = Variable<int>(nth.value);
+    }
+    if (interestWaivedCents.present) {
+      map['interest_waived_cents'] = Variable<int>(interestWaivedCents.value);
+    }
     if (startDate.present) {
       map['start_date'] = Variable<DateTime>(startDate.value);
     }
@@ -5139,6 +5516,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     }
     if (contractRef.present) {
       map['contract_ref'] = Variable<String>(contractRef.value);
+    }
+    if (guarantorName.present) {
+      map['guarantor_name'] = Variable<String>(guarantorName.value);
+    }
+    if (guarantorContact.present) {
+      map['guarantor_contact'] = Variable<String>(guarantorContact.value);
     }
     if (collectionAccountId.present) {
       map['collection_account_id'] = Variable<String>(
@@ -5171,6 +5554,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('counterparty: $counterparty, ')
           ..write('interestRate: $interestRate, ')
           ..write('amortizationMethod: $amortizationMethod, ')
+          ..write('cycle: $cycle, ')
+          ..write('interval: $interval, ')
+          ..write('weekdayMask: $weekdayMask, ')
+          ..write('monthlyMode: $monthlyMode, ')
+          ..write('nth: $nth, ')
+          ..write('interestWaivedCents: $interestWaivedCents, ')
           ..write('startDate: $startDate, ')
           ..write('dueDate: $dueDate, ')
           ..write('totalPrincipalCents: $totalPrincipalCents, ')
@@ -5178,6 +5567,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('subtype: $subtype, ')
           ..write('contact: $contact, ')
           ..write('contractRef: $contractRef, ')
+          ..write('guarantorName: $guarantorName, ')
+          ..write('guarantorContact: $guarantorContact, ')
           ..write('collectionAccountId: $collectionAccountId, ')
           ..write('version: $version, ')
           ..write('createdAt: $createdAt, ')
@@ -5772,6 +6163,424 @@ class PaymentScheduleEntriesCompanion
           ..write('paidCents: $paidCents, ')
           ..write('paid: $paid, ')
           ..write('transactionId: $transactionId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ContractAttachmentsTable extends ContractAttachments
+    with TableInfo<$ContractAttachmentsTable, ContractAttachment> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ContractAttachmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _debtIdMeta = const VerificationMeta('debtId');
+  @override
+  late final GeneratedColumn<String> debtId = GeneratedColumn<String>(
+    'debt_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _originalNameMeta = const VerificationMeta(
+    'originalName',
+  );
+  @override
+  late final GeneratedColumn<String> originalName = GeneratedColumn<String>(
+    'original_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _storedNameMeta = const VerificationMeta(
+    'storedName',
+  );
+  @override
+  late final GeneratedColumn<String> storedName = GeneratedColumn<String>(
+    'stored_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sizeBytesMeta = const VerificationMeta(
+    'sizeBytes',
+  );
+  @override
+  late final GeneratedColumn<int> sizeBytes = GeneratedColumn<int>(
+    'size_bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _attachedAtMeta = const VerificationMeta(
+    'attachedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> attachedAt = GeneratedColumn<DateTime>(
+    'attached_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    debtId,
+    originalName,
+    storedName,
+    sizeBytes,
+    attachedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'contract_attachments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ContractAttachment> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('debt_id')) {
+      context.handle(
+        _debtIdMeta,
+        debtId.isAcceptableOrUnknown(data['debt_id']!, _debtIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_debtIdMeta);
+    }
+    if (data.containsKey('original_name')) {
+      context.handle(
+        _originalNameMeta,
+        originalName.isAcceptableOrUnknown(
+          data['original_name']!,
+          _originalNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_originalNameMeta);
+    }
+    if (data.containsKey('stored_name')) {
+      context.handle(
+        _storedNameMeta,
+        storedName.isAcceptableOrUnknown(data['stored_name']!, _storedNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_storedNameMeta);
+    }
+    if (data.containsKey('size_bytes')) {
+      context.handle(
+        _sizeBytesMeta,
+        sizeBytes.isAcceptableOrUnknown(data['size_bytes']!, _sizeBytesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sizeBytesMeta);
+    }
+    if (data.containsKey('attached_at')) {
+      context.handle(
+        _attachedAtMeta,
+        attachedAt.isAcceptableOrUnknown(data['attached_at']!, _attachedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_attachedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ContractAttachment map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ContractAttachment(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      debtId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}debt_id'],
+      )!,
+      originalName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_name'],
+      )!,
+      storedName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stored_name'],
+      )!,
+      sizeBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}size_bytes'],
+      )!,
+      attachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}attached_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ContractAttachmentsTable createAlias(String alias) {
+    return $ContractAttachmentsTable(attachedDatabase, alias);
+  }
+}
+
+class ContractAttachment extends DataClass
+    implements Insertable<ContractAttachment> {
+  final String id;
+  final String debtId;
+  final String originalName;
+  final String storedName;
+  final int sizeBytes;
+  final DateTime attachedAt;
+  const ContractAttachment({
+    required this.id,
+    required this.debtId,
+    required this.originalName,
+    required this.storedName,
+    required this.sizeBytes,
+    required this.attachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['debt_id'] = Variable<String>(debtId);
+    map['original_name'] = Variable<String>(originalName);
+    map['stored_name'] = Variable<String>(storedName);
+    map['size_bytes'] = Variable<int>(sizeBytes);
+    map['attached_at'] = Variable<DateTime>(attachedAt);
+    return map;
+  }
+
+  ContractAttachmentsCompanion toCompanion(bool nullToAbsent) {
+    return ContractAttachmentsCompanion(
+      id: Value(id),
+      debtId: Value(debtId),
+      originalName: Value(originalName),
+      storedName: Value(storedName),
+      sizeBytes: Value(sizeBytes),
+      attachedAt: Value(attachedAt),
+    );
+  }
+
+  factory ContractAttachment.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ContractAttachment(
+      id: serializer.fromJson<String>(json['id']),
+      debtId: serializer.fromJson<String>(json['debtId']),
+      originalName: serializer.fromJson<String>(json['originalName']),
+      storedName: serializer.fromJson<String>(json['storedName']),
+      sizeBytes: serializer.fromJson<int>(json['sizeBytes']),
+      attachedAt: serializer.fromJson<DateTime>(json['attachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'debtId': serializer.toJson<String>(debtId),
+      'originalName': serializer.toJson<String>(originalName),
+      'storedName': serializer.toJson<String>(storedName),
+      'sizeBytes': serializer.toJson<int>(sizeBytes),
+      'attachedAt': serializer.toJson<DateTime>(attachedAt),
+    };
+  }
+
+  ContractAttachment copyWith({
+    String? id,
+    String? debtId,
+    String? originalName,
+    String? storedName,
+    int? sizeBytes,
+    DateTime? attachedAt,
+  }) => ContractAttachment(
+    id: id ?? this.id,
+    debtId: debtId ?? this.debtId,
+    originalName: originalName ?? this.originalName,
+    storedName: storedName ?? this.storedName,
+    sizeBytes: sizeBytes ?? this.sizeBytes,
+    attachedAt: attachedAt ?? this.attachedAt,
+  );
+  ContractAttachment copyWithCompanion(ContractAttachmentsCompanion data) {
+    return ContractAttachment(
+      id: data.id.present ? data.id.value : this.id,
+      debtId: data.debtId.present ? data.debtId.value : this.debtId,
+      originalName: data.originalName.present
+          ? data.originalName.value
+          : this.originalName,
+      storedName: data.storedName.present
+          ? data.storedName.value
+          : this.storedName,
+      sizeBytes: data.sizeBytes.present ? data.sizeBytes.value : this.sizeBytes,
+      attachedAt: data.attachedAt.present
+          ? data.attachedAt.value
+          : this.attachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ContractAttachment(')
+          ..write('id: $id, ')
+          ..write('debtId: $debtId, ')
+          ..write('originalName: $originalName, ')
+          ..write('storedName: $storedName, ')
+          ..write('sizeBytes: $sizeBytes, ')
+          ..write('attachedAt: $attachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, debtId, originalName, storedName, sizeBytes, attachedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ContractAttachment &&
+          other.id == this.id &&
+          other.debtId == this.debtId &&
+          other.originalName == this.originalName &&
+          other.storedName == this.storedName &&
+          other.sizeBytes == this.sizeBytes &&
+          other.attachedAt == this.attachedAt);
+}
+
+class ContractAttachmentsCompanion extends UpdateCompanion<ContractAttachment> {
+  final Value<String> id;
+  final Value<String> debtId;
+  final Value<String> originalName;
+  final Value<String> storedName;
+  final Value<int> sizeBytes;
+  final Value<DateTime> attachedAt;
+  final Value<int> rowid;
+  const ContractAttachmentsCompanion({
+    this.id = const Value.absent(),
+    this.debtId = const Value.absent(),
+    this.originalName = const Value.absent(),
+    this.storedName = const Value.absent(),
+    this.sizeBytes = const Value.absent(),
+    this.attachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ContractAttachmentsCompanion.insert({
+    required String id,
+    required String debtId,
+    required String originalName,
+    required String storedName,
+    required int sizeBytes,
+    required DateTime attachedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       debtId = Value(debtId),
+       originalName = Value(originalName),
+       storedName = Value(storedName),
+       sizeBytes = Value(sizeBytes),
+       attachedAt = Value(attachedAt);
+  static Insertable<ContractAttachment> custom({
+    Expression<String>? id,
+    Expression<String>? debtId,
+    Expression<String>? originalName,
+    Expression<String>? storedName,
+    Expression<int>? sizeBytes,
+    Expression<DateTime>? attachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (debtId != null) 'debt_id': debtId,
+      if (originalName != null) 'original_name': originalName,
+      if (storedName != null) 'stored_name': storedName,
+      if (sizeBytes != null) 'size_bytes': sizeBytes,
+      if (attachedAt != null) 'attached_at': attachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ContractAttachmentsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? debtId,
+    Value<String>? originalName,
+    Value<String>? storedName,
+    Value<int>? sizeBytes,
+    Value<DateTime>? attachedAt,
+    Value<int>? rowid,
+  }) {
+    return ContractAttachmentsCompanion(
+      id: id ?? this.id,
+      debtId: debtId ?? this.debtId,
+      originalName: originalName ?? this.originalName,
+      storedName: storedName ?? this.storedName,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
+      attachedAt: attachedAt ?? this.attachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (debtId.present) {
+      map['debt_id'] = Variable<String>(debtId.value);
+    }
+    if (originalName.present) {
+      map['original_name'] = Variable<String>(originalName.value);
+    }
+    if (storedName.present) {
+      map['stored_name'] = Variable<String>(storedName.value);
+    }
+    if (sizeBytes.present) {
+      map['size_bytes'] = Variable<int>(sizeBytes.value);
+    }
+    if (attachedAt.present) {
+      map['attached_at'] = Variable<DateTime>(attachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ContractAttachmentsCompanion(')
+          ..write('id: $id, ')
+          ..write('debtId: $debtId, ')
+          ..write('originalName: $originalName, ')
+          ..write('storedName: $storedName, ')
+          ..write('sizeBytes: $sizeBytes, ')
+          ..write('attachedAt: $attachedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9174,6 +9983,52 @@ class $TransactionTemplatesTable extends TransactionTemplates
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _intervalMeta = const VerificationMeta(
+    'interval',
+  );
+  @override
+  late final GeneratedColumn<int> interval = GeneratedColumn<int>(
+    'interval',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _weekdayMaskMeta = const VerificationMeta(
+    'weekdayMask',
+  );
+  @override
+  late final GeneratedColumn<int> weekdayMask = GeneratedColumn<int>(
+    'weekday_mask',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _monthlyModeMeta = const VerificationMeta(
+    'monthlyMode',
+  );
+  @override
+  late final GeneratedColumn<int> monthlyMode = GeneratedColumn<int>(
+    'monthly_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _nthMeta = const VerificationMeta('nth');
+  @override
+  late final GeneratedColumn<int> nth = GeneratedColumn<int>(
+    'nth',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _nextDateMeta = const VerificationMeta(
     'nextDate',
   );
@@ -9313,6 +10168,10 @@ class $TransactionTemplatesTable extends TransactionTemplates
     cycle,
     cycleDays,
     billingDay,
+    interval,
+    weekdayMask,
+    monthlyMode,
+    nth,
     nextDate,
     startDate,
     endDate,
@@ -9423,6 +10282,36 @@ class $TransactionTemplatesTable extends TransactionTemplates
       );
     } else if (isInserting) {
       context.missing(_billingDayMeta);
+    }
+    if (data.containsKey('interval')) {
+      context.handle(
+        _intervalMeta,
+        interval.isAcceptableOrUnknown(data['interval']!, _intervalMeta),
+      );
+    }
+    if (data.containsKey('weekday_mask')) {
+      context.handle(
+        _weekdayMaskMeta,
+        weekdayMask.isAcceptableOrUnknown(
+          data['weekday_mask']!,
+          _weekdayMaskMeta,
+        ),
+      );
+    }
+    if (data.containsKey('monthly_mode')) {
+      context.handle(
+        _monthlyModeMeta,
+        monthlyMode.isAcceptableOrUnknown(
+          data['monthly_mode']!,
+          _monthlyModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nth')) {
+      context.handle(
+        _nthMeta,
+        nth.isAcceptableOrUnknown(data['nth']!, _nthMeta),
+      );
     }
     if (data.containsKey('next_date')) {
       context.handle(
@@ -9558,6 +10447,22 @@ class $TransactionTemplatesTable extends TransactionTemplates
         DriftSqlType.int,
         data['${effectivePrefix}billing_day'],
       )!,
+      interval: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interval'],
+      )!,
+      weekdayMask: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weekday_mask'],
+      )!,
+      monthlyMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}monthly_mode'],
+      )!,
+      nth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nth'],
+      )!,
       nextDate: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}next_date'],
@@ -9623,6 +10528,10 @@ class TransactionTemplate extends DataClass
   final int cycle;
   final int cycleDays;
   final int billingDay;
+  final int interval;
+  final int weekdayMask;
+  final int monthlyMode;
+  final int nth;
   final DateTime nextDate;
   final DateTime startDate;
   final DateTime? endDate;
@@ -9648,6 +10557,10 @@ class TransactionTemplate extends DataClass
     required this.cycle,
     required this.cycleDays,
     required this.billingDay,
+    required this.interval,
+    required this.weekdayMask,
+    required this.monthlyMode,
+    required this.nth,
     required this.nextDate,
     required this.startDate,
     this.endDate,
@@ -9675,6 +10588,10 @@ class TransactionTemplate extends DataClass
     map['cycle'] = Variable<int>(cycle);
     map['cycle_days'] = Variable<int>(cycleDays);
     map['billing_day'] = Variable<int>(billingDay);
+    map['interval'] = Variable<int>(interval);
+    map['weekday_mask'] = Variable<int>(weekdayMask);
+    map['monthly_mode'] = Variable<int>(monthlyMode);
+    map['nth'] = Variable<int>(nth);
     map['next_date'] = Variable<DateTime>(nextDate);
     map['start_date'] = Variable<DateTime>(startDate);
     if (!nullToAbsent || endDate != null) {
@@ -9707,6 +10624,10 @@ class TransactionTemplate extends DataClass
       cycle: Value(cycle),
       cycleDays: Value(cycleDays),
       billingDay: Value(billingDay),
+      interval: Value(interval),
+      weekdayMask: Value(weekdayMask),
+      monthlyMode: Value(monthlyMode),
+      nth: Value(nth),
       nextDate: Value(nextDate),
       startDate: Value(startDate),
       endDate: endDate == null && nullToAbsent
@@ -9743,6 +10664,10 @@ class TransactionTemplate extends DataClass
       cycle: serializer.fromJson<int>(json['cycle']),
       cycleDays: serializer.fromJson<int>(json['cycleDays']),
       billingDay: serializer.fromJson<int>(json['billingDay']),
+      interval: serializer.fromJson<int>(json['interval']),
+      weekdayMask: serializer.fromJson<int>(json['weekdayMask']),
+      monthlyMode: serializer.fromJson<int>(json['monthlyMode']),
+      nth: serializer.fromJson<int>(json['nth']),
       nextDate: serializer.fromJson<DateTime>(json['nextDate']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
@@ -9772,6 +10697,10 @@ class TransactionTemplate extends DataClass
       'cycle': serializer.toJson<int>(cycle),
       'cycleDays': serializer.toJson<int>(cycleDays),
       'billingDay': serializer.toJson<int>(billingDay),
+      'interval': serializer.toJson<int>(interval),
+      'weekdayMask': serializer.toJson<int>(weekdayMask),
+      'monthlyMode': serializer.toJson<int>(monthlyMode),
+      'nth': serializer.toJson<int>(nth),
       'nextDate': serializer.toJson<DateTime>(nextDate),
       'startDate': serializer.toJson<DateTime>(startDate),
       'endDate': serializer.toJson<DateTime?>(endDate),
@@ -9797,6 +10726,10 @@ class TransactionTemplate extends DataClass
     int? cycle,
     int? cycleDays,
     int? billingDay,
+    int? interval,
+    int? weekdayMask,
+    int? monthlyMode,
+    int? nth,
     DateTime? nextDate,
     DateTime? startDate,
     Value<DateTime?> endDate = const Value.absent(),
@@ -9821,6 +10754,10 @@ class TransactionTemplate extends DataClass
     cycle: cycle ?? this.cycle,
     cycleDays: cycleDays ?? this.cycleDays,
     billingDay: billingDay ?? this.billingDay,
+    interval: interval ?? this.interval,
+    weekdayMask: weekdayMask ?? this.weekdayMask,
+    monthlyMode: monthlyMode ?? this.monthlyMode,
+    nth: nth ?? this.nth,
     nextDate: nextDate ?? this.nextDate,
     startDate: startDate ?? this.startDate,
     endDate: endDate.present ? endDate.value : this.endDate,
@@ -9857,6 +10794,14 @@ class TransactionTemplate extends DataClass
       billingDay: data.billingDay.present
           ? data.billingDay.value
           : this.billingDay,
+      interval: data.interval.present ? data.interval.value : this.interval,
+      weekdayMask: data.weekdayMask.present
+          ? data.weekdayMask.value
+          : this.weekdayMask,
+      monthlyMode: data.monthlyMode.present
+          ? data.monthlyMode.value
+          : this.monthlyMode,
+      nth: data.nth.present ? data.nth.value : this.nth,
       nextDate: data.nextDate.present ? data.nextDate.value : this.nextDate,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
@@ -9888,6 +10833,10 @@ class TransactionTemplate extends DataClass
           ..write('cycle: $cycle, ')
           ..write('cycleDays: $cycleDays, ')
           ..write('billingDay: $billingDay, ')
+          ..write('interval: $interval, ')
+          ..write('weekdayMask: $weekdayMask, ')
+          ..write('monthlyMode: $monthlyMode, ')
+          ..write('nth: $nth, ')
           ..write('nextDate: $nextDate, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
@@ -9915,6 +10864,10 @@ class TransactionTemplate extends DataClass
     cycle,
     cycleDays,
     billingDay,
+    interval,
+    weekdayMask,
+    monthlyMode,
+    nth,
     nextDate,
     startDate,
     endDate,
@@ -9941,6 +10894,10 @@ class TransactionTemplate extends DataClass
           other.cycle == this.cycle &&
           other.cycleDays == this.cycleDays &&
           other.billingDay == this.billingDay &&
+          other.interval == this.interval &&
+          other.weekdayMask == this.weekdayMask &&
+          other.monthlyMode == this.monthlyMode &&
+          other.nth == this.nth &&
           other.nextDate == this.nextDate &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
@@ -9966,6 +10923,10 @@ class TransactionTemplatesCompanion
   final Value<int> cycle;
   final Value<int> cycleDays;
   final Value<int> billingDay;
+  final Value<int> interval;
+  final Value<int> weekdayMask;
+  final Value<int> monthlyMode;
+  final Value<int> nth;
   final Value<DateTime> nextDate;
   final Value<DateTime> startDate;
   final Value<DateTime?> endDate;
@@ -9989,6 +10950,10 @@ class TransactionTemplatesCompanion
     this.cycle = const Value.absent(),
     this.cycleDays = const Value.absent(),
     this.billingDay = const Value.absent(),
+    this.interval = const Value.absent(),
+    this.weekdayMask = const Value.absent(),
+    this.monthlyMode = const Value.absent(),
+    this.nth = const Value.absent(),
     this.nextDate = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
@@ -10013,6 +10978,10 @@ class TransactionTemplatesCompanion
     required int cycle,
     required int cycleDays,
     required int billingDay,
+    this.interval = const Value.absent(),
+    this.weekdayMask = const Value.absent(),
+    this.monthlyMode = const Value.absent(),
+    this.nth = const Value.absent(),
     required DateTime nextDate,
     required DateTime startDate,
     this.endDate = const Value.absent(),
@@ -10053,6 +11022,10 @@ class TransactionTemplatesCompanion
     Expression<int>? cycle,
     Expression<int>? cycleDays,
     Expression<int>? billingDay,
+    Expression<int>? interval,
+    Expression<int>? weekdayMask,
+    Expression<int>? monthlyMode,
+    Expression<int>? nth,
     Expression<DateTime>? nextDate,
     Expression<DateTime>? startDate,
     Expression<DateTime>? endDate,
@@ -10078,6 +11051,10 @@ class TransactionTemplatesCompanion
       if (cycle != null) 'cycle': cycle,
       if (cycleDays != null) 'cycle_days': cycleDays,
       if (billingDay != null) 'billing_day': billingDay,
+      if (interval != null) 'interval': interval,
+      if (weekdayMask != null) 'weekday_mask': weekdayMask,
+      if (monthlyMode != null) 'monthly_mode': monthlyMode,
+      if (nth != null) 'nth': nth,
       if (nextDate != null) 'next_date': nextDate,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
@@ -10104,6 +11081,10 @@ class TransactionTemplatesCompanion
     Value<int>? cycle,
     Value<int>? cycleDays,
     Value<int>? billingDay,
+    Value<int>? interval,
+    Value<int>? weekdayMask,
+    Value<int>? monthlyMode,
+    Value<int>? nth,
     Value<DateTime>? nextDate,
     Value<DateTime>? startDate,
     Value<DateTime?>? endDate,
@@ -10128,6 +11109,10 @@ class TransactionTemplatesCompanion
       cycle: cycle ?? this.cycle,
       cycleDays: cycleDays ?? this.cycleDays,
       billingDay: billingDay ?? this.billingDay,
+      interval: interval ?? this.interval,
+      weekdayMask: weekdayMask ?? this.weekdayMask,
+      monthlyMode: monthlyMode ?? this.monthlyMode,
+      nth: nth ?? this.nth,
       nextDate: nextDate ?? this.nextDate,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
@@ -10177,6 +11162,18 @@ class TransactionTemplatesCompanion
     }
     if (billingDay.present) {
       map['billing_day'] = Variable<int>(billingDay.value);
+    }
+    if (interval.present) {
+      map['interval'] = Variable<int>(interval.value);
+    }
+    if (weekdayMask.present) {
+      map['weekday_mask'] = Variable<int>(weekdayMask.value);
+    }
+    if (monthlyMode.present) {
+      map['monthly_mode'] = Variable<int>(monthlyMode.value);
+    }
+    if (nth.present) {
+      map['nth'] = Variable<int>(nth.value);
     }
     if (nextDate.present) {
       map['next_date'] = Variable<DateTime>(nextDate.value);
@@ -10230,6 +11227,10 @@ class TransactionTemplatesCompanion
           ..write('cycle: $cycle, ')
           ..write('cycleDays: $cycleDays, ')
           ..write('billingDay: $billingDay, ')
+          ..write('interval: $interval, ')
+          ..write('weekdayMask: $weekdayMask, ')
+          ..write('monthlyMode: $monthlyMode, ')
+          ..write('nth: $nth, ')
           ..write('nextDate: $nextDate, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
@@ -10241,6 +11242,213 @@ class TransactionTemplatesCompanion
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncState: $syncState, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AppMetaTable extends AppMeta with TableInfo<$AppMetaTable, AppMetaData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppMetaTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_meta';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppMetaData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  AppMetaData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppMetaData(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+    );
+  }
+
+  @override
+  $AppMetaTable createAlias(String alias) {
+    return $AppMetaTable(attachedDatabase, alias);
+  }
+}
+
+class AppMetaData extends DataClass implements Insertable<AppMetaData> {
+  final String key;
+  final String value;
+  const AppMetaData({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  AppMetaCompanion toCompanion(bool nullToAbsent) {
+    return AppMetaCompanion(key: Value(key), value: Value(value));
+  }
+
+  factory AppMetaData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppMetaData(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  AppMetaData copyWith({String? key, String? value}) =>
+      AppMetaData(key: key ?? this.key, value: value ?? this.value);
+  AppMetaData copyWithCompanion(AppMetaCompanion data) {
+    return AppMetaData(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppMetaData(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppMetaData &&
+          other.key == this.key &&
+          other.value == this.value);
+}
+
+class AppMetaCompanion extends UpdateCompanion<AppMetaData> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const AppMetaCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AppMetaCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value);
+  static Insertable<AppMetaData> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AppMetaCompanion copyWith({
+    Value<String>? key,
+    Value<String>? value,
+    Value<int>? rowid,
+  }) {
+    return AppMetaCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppMetaCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15812,6 +17020,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DebtsTable debts = $DebtsTable(this);
   late final $PaymentScheduleEntriesTable paymentScheduleEntries =
       $PaymentScheduleEntriesTable(this);
+  late final $ContractAttachmentsTable contractAttachments =
+      $ContractAttachmentsTable(this);
   late final $ReminderLogsTable reminderLogs = $ReminderLogsTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $BudgetItemsTable budgetItems = $BudgetItemsTable(this);
@@ -15826,6 +17036,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $TransactionTemplatesTable transactionTemplates =
       $TransactionTemplatesTable(this);
+  late final $AppMetaTable appMeta = $AppMetaTable(this);
   late final $HoldingsTable holdings = $HoldingsTable(this);
   late final $HoldingTransactionsTable holdingTransactions =
       $HoldingTransactionsTable(this);
@@ -15871,6 +17082,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     transactionEntries,
     debts,
     paymentScheduleEntries,
+    contractAttachments,
     reminderLogs,
     budgets,
     budgetItems,
@@ -15880,6 +17092,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     tags,
     transactionTags,
     transactionTemplates,
+    appMeta,
     holdings,
     holdingTransactions,
     currencies,
@@ -18141,6 +19354,12 @@ typedef $$DebtsTableCreateCompanionBuilder =
       required String counterparty,
       required double interestRate,
       required int amortizationMethod,
+      Value<int> cycle,
+      Value<int> interval,
+      Value<int> weekdayMask,
+      Value<int> monthlyMode,
+      Value<int> nth,
+      Value<int> interestWaivedCents,
       required DateTime startDate,
       required DateTime dueDate,
       required int totalPrincipalCents,
@@ -18148,6 +19367,8 @@ typedef $$DebtsTableCreateCompanionBuilder =
       required String subtype,
       required String contact,
       required String contractRef,
+      Value<String> guarantorName,
+      Value<String> guarantorContact,
       Value<String?> collectionAccountId,
       required int version,
       required DateTime createdAt,
@@ -18162,6 +19383,12 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<String> counterparty,
       Value<double> interestRate,
       Value<int> amortizationMethod,
+      Value<int> cycle,
+      Value<int> interval,
+      Value<int> weekdayMask,
+      Value<int> monthlyMode,
+      Value<int> nth,
+      Value<int> interestWaivedCents,
       Value<DateTime> startDate,
       Value<DateTime> dueDate,
       Value<int> totalPrincipalCents,
@@ -18169,6 +19396,8 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<String> subtype,
       Value<String> contact,
       Value<String> contractRef,
+      Value<String> guarantorName,
+      Value<String> guarantorContact,
       Value<String?> collectionAccountId,
       Value<int> version,
       Value<DateTime> createdAt,
@@ -18243,6 +19472,36 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get cycle => $composableBuilder(
+    column: $table.cycle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get interval => $composableBuilder(
+    column: $table.interval,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get weekdayMask => $composableBuilder(
+    column: $table.weekdayMask,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get monthlyMode => $composableBuilder(
+    column: $table.monthlyMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nth => $composableBuilder(
+    column: $table.nth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get interestWaivedCents => $composableBuilder(
+    column: $table.interestWaivedCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get startDate => $composableBuilder(
     column: $table.startDate,
     builder: (column) => ColumnFilters(column),
@@ -18275,6 +19534,16 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
 
   ColumnFilters<String> get contractRef => $composableBuilder(
     column: $table.contractRef,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get guarantorName => $composableBuilder(
+    column: $table.guarantorName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get guarantorContact => $composableBuilder(
+    column: $table.guarantorContact,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -18364,6 +19633,36 @@ class $$DebtsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get cycle => $composableBuilder(
+    column: $table.cycle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get interval => $composableBuilder(
+    column: $table.interval,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get weekdayMask => $composableBuilder(
+    column: $table.weekdayMask,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get monthlyMode => $composableBuilder(
+    column: $table.monthlyMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nth => $composableBuilder(
+    column: $table.nth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get interestWaivedCents => $composableBuilder(
+    column: $table.interestWaivedCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get startDate => $composableBuilder(
     column: $table.startDate,
     builder: (column) => ColumnOrderings(column),
@@ -18396,6 +19695,16 @@ class $$DebtsTableOrderingComposer
 
   ColumnOrderings<String> get contractRef => $composableBuilder(
     column: $table.contractRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get guarantorName => $composableBuilder(
+    column: $table.guarantorName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get guarantorContact => $composableBuilder(
+    column: $table.guarantorContact,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -18455,6 +19764,30 @@ class $$DebtsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get cycle =>
+      $composableBuilder(column: $table.cycle, builder: (column) => column);
+
+  GeneratedColumn<int> get interval =>
+      $composableBuilder(column: $table.interval, builder: (column) => column);
+
+  GeneratedColumn<int> get weekdayMask => $composableBuilder(
+    column: $table.weekdayMask,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get monthlyMode => $composableBuilder(
+    column: $table.monthlyMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get nth =>
+      $composableBuilder(column: $table.nth, builder: (column) => column);
+
+  GeneratedColumn<int> get interestWaivedCents => $composableBuilder(
+    column: $table.interestWaivedCents,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get startDate =>
       $composableBuilder(column: $table.startDate, builder: (column) => column);
 
@@ -18477,6 +19810,16 @@ class $$DebtsTableAnnotationComposer
 
   GeneratedColumn<String> get contractRef => $composableBuilder(
     column: $table.contractRef,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get guarantorName => $composableBuilder(
+    column: $table.guarantorName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get guarantorContact => $composableBuilder(
+    column: $table.guarantorContact,
     builder: (column) => column,
   );
 
@@ -18557,6 +19900,12 @@ class $$DebtsTableTableManager
                 Value<String> counterparty = const Value.absent(),
                 Value<double> interestRate = const Value.absent(),
                 Value<int> amortizationMethod = const Value.absent(),
+                Value<int> cycle = const Value.absent(),
+                Value<int> interval = const Value.absent(),
+                Value<int> weekdayMask = const Value.absent(),
+                Value<int> monthlyMode = const Value.absent(),
+                Value<int> nth = const Value.absent(),
+                Value<int> interestWaivedCents = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime> dueDate = const Value.absent(),
                 Value<int> totalPrincipalCents = const Value.absent(),
@@ -18564,6 +19913,8 @@ class $$DebtsTableTableManager
                 Value<String> subtype = const Value.absent(),
                 Value<String> contact = const Value.absent(),
                 Value<String> contractRef = const Value.absent(),
+                Value<String> guarantorName = const Value.absent(),
+                Value<String> guarantorContact = const Value.absent(),
                 Value<String?> collectionAccountId = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -18576,6 +19927,12 @@ class $$DebtsTableTableManager
                 counterparty: counterparty,
                 interestRate: interestRate,
                 amortizationMethod: amortizationMethod,
+                cycle: cycle,
+                interval: interval,
+                weekdayMask: weekdayMask,
+                monthlyMode: monthlyMode,
+                nth: nth,
+                interestWaivedCents: interestWaivedCents,
                 startDate: startDate,
                 dueDate: dueDate,
                 totalPrincipalCents: totalPrincipalCents,
@@ -18583,6 +19940,8 @@ class $$DebtsTableTableManager
                 subtype: subtype,
                 contact: contact,
                 contractRef: contractRef,
+                guarantorName: guarantorName,
+                guarantorContact: guarantorContact,
                 collectionAccountId: collectionAccountId,
                 version: version,
                 createdAt: createdAt,
@@ -18597,6 +19956,12 @@ class $$DebtsTableTableManager
                 required String counterparty,
                 required double interestRate,
                 required int amortizationMethod,
+                Value<int> cycle = const Value.absent(),
+                Value<int> interval = const Value.absent(),
+                Value<int> weekdayMask = const Value.absent(),
+                Value<int> monthlyMode = const Value.absent(),
+                Value<int> nth = const Value.absent(),
+                Value<int> interestWaivedCents = const Value.absent(),
                 required DateTime startDate,
                 required DateTime dueDate,
                 required int totalPrincipalCents,
@@ -18604,6 +19969,8 @@ class $$DebtsTableTableManager
                 required String subtype,
                 required String contact,
                 required String contractRef,
+                Value<String> guarantorName = const Value.absent(),
+                Value<String> guarantorContact = const Value.absent(),
                 Value<String?> collectionAccountId = const Value.absent(),
                 required int version,
                 required DateTime createdAt,
@@ -18616,6 +19983,12 @@ class $$DebtsTableTableManager
                 counterparty: counterparty,
                 interestRate: interestRate,
                 amortizationMethod: amortizationMethod,
+                cycle: cycle,
+                interval: interval,
+                weekdayMask: weekdayMask,
+                monthlyMode: monthlyMode,
+                nth: nth,
+                interestWaivedCents: interestWaivedCents,
                 startDate: startDate,
                 dueDate: dueDate,
                 totalPrincipalCents: totalPrincipalCents,
@@ -18623,6 +19996,8 @@ class $$DebtsTableTableManager
                 subtype: subtype,
                 contact: contact,
                 contractRef: contractRef,
+                guarantorName: guarantorName,
+                guarantorContact: guarantorContact,
                 collectionAccountId: collectionAccountId,
                 version: version,
                 createdAt: createdAt,
@@ -19110,6 +20485,247 @@ typedef $$PaymentScheduleEntriesTableProcessedTableManager =
       (PaymentScheduleEntry, $$PaymentScheduleEntriesTableReferences),
       PaymentScheduleEntry,
       PrefetchHooks Function({bool debtId})
+    >;
+typedef $$ContractAttachmentsTableCreateCompanionBuilder =
+    ContractAttachmentsCompanion Function({
+      required String id,
+      required String debtId,
+      required String originalName,
+      required String storedName,
+      required int sizeBytes,
+      required DateTime attachedAt,
+      Value<int> rowid,
+    });
+typedef $$ContractAttachmentsTableUpdateCompanionBuilder =
+    ContractAttachmentsCompanion Function({
+      Value<String> id,
+      Value<String> debtId,
+      Value<String> originalName,
+      Value<String> storedName,
+      Value<int> sizeBytes,
+      Value<DateTime> attachedAt,
+      Value<int> rowid,
+    });
+
+class $$ContractAttachmentsTableFilterComposer
+    extends Composer<_$AppDatabase, $ContractAttachmentsTable> {
+  $$ContractAttachmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get debtId => $composableBuilder(
+    column: $table.debtId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalName => $composableBuilder(
+    column: $table.originalName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get storedName => $composableBuilder(
+    column: $table.storedName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sizeBytes => $composableBuilder(
+    column: $table.sizeBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get attachedAt => $composableBuilder(
+    column: $table.attachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ContractAttachmentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ContractAttachmentsTable> {
+  $$ContractAttachmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get debtId => $composableBuilder(
+    column: $table.debtId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originalName => $composableBuilder(
+    column: $table.originalName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get storedName => $composableBuilder(
+    column: $table.storedName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sizeBytes => $composableBuilder(
+    column: $table.sizeBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get attachedAt => $composableBuilder(
+    column: $table.attachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ContractAttachmentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ContractAttachmentsTable> {
+  $$ContractAttachmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get debtId =>
+      $composableBuilder(column: $table.debtId, builder: (column) => column);
+
+  GeneratedColumn<String> get originalName => $composableBuilder(
+    column: $table.originalName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get storedName => $composableBuilder(
+    column: $table.storedName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sizeBytes =>
+      $composableBuilder(column: $table.sizeBytes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get attachedAt => $composableBuilder(
+    column: $table.attachedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$ContractAttachmentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ContractAttachmentsTable,
+          ContractAttachment,
+          $$ContractAttachmentsTableFilterComposer,
+          $$ContractAttachmentsTableOrderingComposer,
+          $$ContractAttachmentsTableAnnotationComposer,
+          $$ContractAttachmentsTableCreateCompanionBuilder,
+          $$ContractAttachmentsTableUpdateCompanionBuilder,
+          (
+            ContractAttachment,
+            BaseReferences<
+              _$AppDatabase,
+              $ContractAttachmentsTable,
+              ContractAttachment
+            >,
+          ),
+          ContractAttachment,
+          PrefetchHooks Function()
+        > {
+  $$ContractAttachmentsTableTableManager(
+    _$AppDatabase db,
+    $ContractAttachmentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ContractAttachmentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ContractAttachmentsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ContractAttachmentsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> debtId = const Value.absent(),
+                Value<String> originalName = const Value.absent(),
+                Value<String> storedName = const Value.absent(),
+                Value<int> sizeBytes = const Value.absent(),
+                Value<DateTime> attachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ContractAttachmentsCompanion(
+                id: id,
+                debtId: debtId,
+                originalName: originalName,
+                storedName: storedName,
+                sizeBytes: sizeBytes,
+                attachedAt: attachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String debtId,
+                required String originalName,
+                required String storedName,
+                required int sizeBytes,
+                required DateTime attachedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ContractAttachmentsCompanion.insert(
+                id: id,
+                debtId: debtId,
+                originalName: originalName,
+                storedName: storedName,
+                sizeBytes: sizeBytes,
+                attachedAt: attachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ContractAttachmentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ContractAttachmentsTable,
+      ContractAttachment,
+      $$ContractAttachmentsTableFilterComposer,
+      $$ContractAttachmentsTableOrderingComposer,
+      $$ContractAttachmentsTableAnnotationComposer,
+      $$ContractAttachmentsTableCreateCompanionBuilder,
+      $$ContractAttachmentsTableUpdateCompanionBuilder,
+      (
+        ContractAttachment,
+        BaseReferences<
+          _$AppDatabase,
+          $ContractAttachmentsTable,
+          ContractAttachment
+        >,
+      ),
+      ContractAttachment,
+      PrefetchHooks Function()
     >;
 typedef $$ReminderLogsTableCreateCompanionBuilder =
     ReminderLogsCompanion Function({
@@ -21853,6 +23469,10 @@ typedef $$TransactionTemplatesTableCreateCompanionBuilder =
       required int cycle,
       required int cycleDays,
       required int billingDay,
+      Value<int> interval,
+      Value<int> weekdayMask,
+      Value<int> monthlyMode,
+      Value<int> nth,
       required DateTime nextDate,
       required DateTime startDate,
       Value<DateTime?> endDate,
@@ -21878,6 +23498,10 @@ typedef $$TransactionTemplatesTableUpdateCompanionBuilder =
       Value<int> cycle,
       Value<int> cycleDays,
       Value<int> billingDay,
+      Value<int> interval,
+      Value<int> weekdayMask,
+      Value<int> monthlyMode,
+      Value<int> nth,
       Value<DateTime> nextDate,
       Value<DateTime> startDate,
       Value<DateTime?> endDate,
@@ -21948,6 +23572,26 @@ class $$TransactionTemplatesTableFilterComposer
 
   ColumnFilters<int> get billingDay => $composableBuilder(
     column: $table.billingDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get interval => $composableBuilder(
+    column: $table.interval,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get weekdayMask => $composableBuilder(
+    column: $table.weekdayMask,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get monthlyMode => $composableBuilder(
+    column: $table.monthlyMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nth => $composableBuilder(
+    column: $table.nth,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22066,6 +23710,26 @@ class $$TransactionTemplatesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get interval => $composableBuilder(
+    column: $table.interval,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get weekdayMask => $composableBuilder(
+    column: $table.weekdayMask,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get monthlyMode => $composableBuilder(
+    column: $table.monthlyMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nth => $composableBuilder(
+    column: $table.nth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get nextDate => $composableBuilder(
     column: $table.nextDate,
     builder: (column) => ColumnOrderings(column),
@@ -22171,6 +23835,22 @@ class $$TransactionTemplatesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get interval =>
+      $composableBuilder(column: $table.interval, builder: (column) => column);
+
+  GeneratedColumn<int> get weekdayMask => $composableBuilder(
+    column: $table.weekdayMask,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get monthlyMode => $composableBuilder(
+    column: $table.monthlyMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get nth =>
+      $composableBuilder(column: $table.nth, builder: (column) => column);
+
   GeneratedColumn<DateTime> get nextDate =>
       $composableBuilder(column: $table.nextDate, builder: (column) => column);
 
@@ -22262,6 +23942,10 @@ class $$TransactionTemplatesTableTableManager
                 Value<int> cycle = const Value.absent(),
                 Value<int> cycleDays = const Value.absent(),
                 Value<int> billingDay = const Value.absent(),
+                Value<int> interval = const Value.absent(),
+                Value<int> weekdayMask = const Value.absent(),
+                Value<int> monthlyMode = const Value.absent(),
+                Value<int> nth = const Value.absent(),
                 Value<DateTime> nextDate = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime?> endDate = const Value.absent(),
@@ -22285,6 +23969,10 @@ class $$TransactionTemplatesTableTableManager
                 cycle: cycle,
                 cycleDays: cycleDays,
                 billingDay: billingDay,
+                interval: interval,
+                weekdayMask: weekdayMask,
+                monthlyMode: monthlyMode,
+                nth: nth,
                 nextDate: nextDate,
                 startDate: startDate,
                 endDate: endDate,
@@ -22310,6 +23998,10 @@ class $$TransactionTemplatesTableTableManager
                 required int cycle,
                 required int cycleDays,
                 required int billingDay,
+                Value<int> interval = const Value.absent(),
+                Value<int> weekdayMask = const Value.absent(),
+                Value<int> monthlyMode = const Value.absent(),
+                Value<int> nth = const Value.absent(),
                 required DateTime nextDate,
                 required DateTime startDate,
                 Value<DateTime?> endDate = const Value.absent(),
@@ -22333,6 +24025,10 @@ class $$TransactionTemplatesTableTableManager
                 cycle: cycle,
                 cycleDays: cycleDays,
                 billingDay: billingDay,
+                interval: interval,
+                weekdayMask: weekdayMask,
+                monthlyMode: monthlyMode,
+                nth: nth,
                 nextDate: nextDate,
                 startDate: startDate,
                 endDate: endDate,
@@ -22373,6 +24069,139 @@ typedef $$TransactionTemplatesTableProcessedTableManager =
         >,
       ),
       TransactionTemplate,
+      PrefetchHooks Function()
+    >;
+typedef $$AppMetaTableCreateCompanionBuilder =
+    AppMetaCompanion Function({
+      required String key,
+      required String value,
+      Value<int> rowid,
+    });
+typedef $$AppMetaTableUpdateCompanionBuilder =
+    AppMetaCompanion Function({
+      Value<String> key,
+      Value<String> value,
+      Value<int> rowid,
+    });
+
+class $$AppMetaTableFilterComposer
+    extends Composer<_$AppDatabase, $AppMetaTable> {
+  $$AppMetaTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppMetaTableOrderingComposer
+    extends Composer<_$AppDatabase, $AppMetaTable> {
+  $$AppMetaTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppMetaTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AppMetaTable> {
+  $$AppMetaTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$AppMetaTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppMetaTable,
+          AppMetaData,
+          $$AppMetaTableFilterComposer,
+          $$AppMetaTableOrderingComposer,
+          $$AppMetaTableAnnotationComposer,
+          $$AppMetaTableCreateCompanionBuilder,
+          $$AppMetaTableUpdateCompanionBuilder,
+          (
+            AppMetaData,
+            BaseReferences<_$AppDatabase, $AppMetaTable, AppMetaData>,
+          ),
+          AppMetaData,
+          PrefetchHooks Function()
+        > {
+  $$AppMetaTableTableManager(_$AppDatabase db, $AppMetaTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppMetaTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppMetaTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppMetaTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AppMetaCompanion(key: key, value: value, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String value,
+                Value<int> rowid = const Value.absent(),
+              }) =>
+                  AppMetaCompanion.insert(key: key, value: value, rowid: rowid),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppMetaTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppMetaTable,
+      AppMetaData,
+      $$AppMetaTableFilterComposer,
+      $$AppMetaTableOrderingComposer,
+      $$AppMetaTableAnnotationComposer,
+      $$AppMetaTableCreateCompanionBuilder,
+      $$AppMetaTableUpdateCompanionBuilder,
+      (AppMetaData, BaseReferences<_$AppDatabase, $AppMetaTable, AppMetaData>),
+      AppMetaData,
       PrefetchHooks Function()
     >;
 typedef $$HoldingsTableCreateCompanionBuilder =
@@ -25322,6 +27151,8 @@ class $AppDatabaseManager {
         _db,
         _db.paymentScheduleEntries,
       );
+  $$ContractAttachmentsTableTableManager get contractAttachments =>
+      $$ContractAttachmentsTableTableManager(_db, _db.contractAttachments);
   $$ReminderLogsTableTableManager get reminderLogs =>
       $$ReminderLogsTableTableManager(_db, _db.reminderLogs);
   $$BudgetsTableTableManager get budgets =>
@@ -25339,6 +27170,8 @@ class $AppDatabaseManager {
       $$TransactionTagsTableTableManager(_db, _db.transactionTags);
   $$TransactionTemplatesTableTableManager get transactionTemplates =>
       $$TransactionTemplatesTableTableManager(_db, _db.transactionTemplates);
+  $$AppMetaTableTableManager get appMeta =>
+      $$AppMetaTableTableManager(_db, _db.appMeta);
   $$HoldingsTableTableManager get holdings =>
       $$HoldingsTableTableManager(_db, _db.holdings);
   $$HoldingTransactionsTableTableManager get holdingTransactions =>

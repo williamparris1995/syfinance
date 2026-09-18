@@ -31,6 +31,10 @@ class DebtDao extends DatabaseAccessor<AppDatabase> with _$DebtDaoMixin {
   Future<void> insertScheduleEntry(PaymentScheduleEntriesCompanion entry) =>
       into(paymentScheduleEntries).insert(entry);
 
+  /// 删除单个期次行(周期规则编辑重排:未冻结期次逐条删除)。
+  Future<int> deleteScheduleEntry(String id) =>
+      (delete(paymentScheduleEntries)..where((t) => t.id.equals(id))).go();
+
   Stream<List<PaymentScheduleEntry>> watchScheduleByDebt(String debtId) =>
       (select(paymentScheduleEntries)
             ..where((t) => t.debtId.equals(debtId)))

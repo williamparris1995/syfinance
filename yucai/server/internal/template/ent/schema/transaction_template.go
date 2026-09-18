@@ -54,6 +54,22 @@ func (TransactionTemplate) Fields() []ent.Field {
 		field.Int32("billing_day").
 			Optional().
 			Default(0),
+		field.Int32("interval").
+			Optional().
+			Default(1).
+			Comment("every N weeks/months/years; 1 = legacy"),
+		field.Int32("weekday_mask").
+			Optional().
+			Default(0).
+			Comment("bit0=Monday..bit6=Sunday; 0 = start-date weekday"),
+		field.Int32("monthly_mode").
+			Optional().
+			Default(0).
+			Comment("0 = by billing day, 1 = by nth weekday"),
+		field.Int32("nth").
+			Optional().
+			Default(0).
+			Comment("1-4 = the Nth, 5 = the last (nth-weekday mode)"),
 		field.Time("next_date"),
 		field.Time("start_date"),
 		field.Time("end_date").

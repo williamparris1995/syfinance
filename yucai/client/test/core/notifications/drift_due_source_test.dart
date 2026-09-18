@@ -53,12 +53,15 @@ void main() {
   }
 
   test('source:窗口内未付期次含债务名;已付/窗口外过滤', () async {
-    final today = DateTime(2026, 8, 29);
+    // 相对真实今天播种(unpaidDueCandidates 用真实时钟,固定日期会随日历
+    // 漂移误报 —— 2026-09-17 曾因 9/20 滑入窗口而炸)。
+    final n = DateTime.now();
+    final today = DateTime(n.year, n.month, n.day);
     await seedDebtWithEntries('d1', rows: [
-      (DateTime(2026, 9, 1), 100000, false), // t3 窗口内
-      (DateTime(2026, 8, 25), 200000, false), // 逾期
-      (DateTime(2026, 9, 20), 300000, false), // 窗口外(>today+3)
-      (DateTime(2026, 8, 29), 400000, true), // 已付
+      (today.add(const Duration(days: 2)), 100000, false), // t3 窗口内
+      (today.subtract(const Duration(days: 4)), 200000, false), // 逾期
+      (today.add(const Duration(days: 5)), 300000, false), // 窗口外(>today+3)
+      (today, 400000, true), // 已付
     ]);
     final source = DriftDueSource(db, windowDays: 3);
     final out = await source.unpaidDueCandidates();

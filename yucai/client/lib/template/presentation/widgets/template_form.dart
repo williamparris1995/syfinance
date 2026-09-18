@@ -5,6 +5,9 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule_editor.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule_text.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/utils/date_format.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
@@ -21,6 +24,10 @@ class TemplateFormResult {
     required this.cycle,
     required this.cycleDays,
     required this.billingDay,
+    this.interval = 0,
+    this.weekdayMask = 0,
+    this.monthlyMode = 0,
+    this.nth = 0,
     required this.startDate,
     required this.endDate,
     required this.autoRecord,
@@ -36,6 +43,10 @@ class TemplateFormResult {
   final TemplateCycle cycle;
   final int cycleDays;
   final int billingDay;
+  final int interval; // 每 N 周/月/年
+  final int weekdayMask; // bit0=周一…bit6=周日
+  final int monthlyMode; // 0=按日期 / 1=按第 N 个星期几
+  final int nth; // 1-4=第 N 个;5=最后一个
   final DateTime? startDate;
   final DateTime? endDate;
   final bool autoRecord;
@@ -66,13 +77,11 @@ class _TemplateFormState extends State<TemplateForm> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
   late final TextEditingController _amountCtrl;
-  late final TextEditingController _cycleDaysCtrl;
 
   late TemplateDirection _direction;
   String? _sourceAccountId;
   String? _destinationAccountId;
-  late TemplateCycle _cycle;
-  late int _billingDay;
+  late RecurrenceRule _rule;
   DateTime? _startDate;
   DateTime? _endDate;
   late bool _autoRecord;
@@ -93,14 +102,20 @@ class _TemplateFormState extends State<TemplateForm> {
     _amountCtrl = TextEditingController(
       text: e == null ? '' : (e.amountCents / 100).toStringAsFixed(2),
     );
-    _cycleDaysCtrl = TextEditingController(
-      text: (e == null ? 30 : (e.cycleDays > 0 ? e.cycleDays : 30)).toString(),
-    );
     _direction = e?.direction ?? TemplateDirection.expense;
     _sourceAccountId = e?.sourceAccountId;
     _destinationAccountId = e?.destinationAccountId;
-    _cycle = e?.cycle ?? TemplateCycle.monthly;
-    _billingDay = (e == null || e.billingDay <= 0) ? 1 : e.billingDay;
+    _rule = e == null
+        ? const RecurrenceRule()
+        : RecurrenceRule.fromInts(
+            cycle: e.cycle.index,
+            cycleDays: e.cycleDays,
+            billingDay: e.billingDay,
+            interval: e.interval,
+            weekdayMask: e.weekdayMask,
+            monthlyMode: e.monthlyMode == TemplateMonthlyMode.byNthWeekday ? 1 : 0,
+            nth: e.nth,
+          );
     _startDate = _parseDate(e?.startDate);
     _endDate = _parseDate(e?.endDate);
     _autoRecord = e?.autoRecord ?? false;
@@ -113,7 +128,6 @@ class _TemplateFormState extends State<TemplateForm> {
     _nameCtrl.dispose();
     _descCtrl.dispose();
     _amountCtrl.dispose();
-    _cycleDaysCtrl.dispose();
     super.dispose();
   }
 
@@ -138,9 +152,6 @@ class _TemplateFormState extends State<TemplateForm> {
   int get _amountCents =>
       ((double.tryParse(_amountCtrl.text.replaceAll(',', '')) ?? 0) * 100)
           .round();
-
-  int get _cycleDays =>
-      int.tryParse(_cycleDaysCtrl.text.trim()) ?? 0;
 
   List<Account> get _assetAccounts =>
       _accounts.where((a) => a.accountType == AccountType.asset).toList();
@@ -170,11 +181,17 @@ class _TemplateFormState extends State<TemplateForm> {
         _toast('请选择不同的转入账户');
         return;
       }
-      if (_cycle == TemplateCycle.custom && _cycleDays <= 0) {
+      if (_rule.cycle == RecurrenceCycle.custom && _rule.cycleDays < 1) {
         _toast('自定义周期天数必须大于 0');
         return;
       }
     }
+    final cycle = switch (_rule.cycle) {
+      RecurrenceCycle.weekly => TemplateCycle.weekly,
+      RecurrenceCycle.yearly => TemplateCycle.yearly,
+      RecurrenceCycle.custom => TemplateCycle.custom,
+      _ => TemplateCycle.monthly,
+    };
     widget.onSubmit(TemplateFormResult(
       name: name,
       description: _descCtrl.text.trim(),
@@ -182,9 +199,13 @@ class _TemplateFormState extends State<TemplateForm> {
       direction: _effectiveDirection,
       sourceAccountId: _sourceAccountId,
       destinationAccountId: _destinationAccountId,
-      cycle: _cycle,
-      cycleDays: _cycle == TemplateCycle.custom ? _cycleDays : 0,
-      billingDay: _cycle == TemplateCycle.monthly ? _billingDay : 0,
+      cycle: cycle,
+      cycleDays: cycle == TemplateCycle.custom ? _rule.cycleDays : 0,
+      billingDay: cycle == TemplateCycle.monthly ? _rule.billingDay : 0,
+      interval: _rule.interval,
+      weekdayMask: _rule.weekdayMask,
+      monthlyMode: _rule.monthlyModeInt,
+      nth: _rule.nth,
       startDate: _startDate,
       endDate: _endDate,
       autoRecord: _autoRecord,
@@ -194,6 +215,16 @@ class _TemplateFormState extends State<TemplateForm> {
 
   void _toast(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// 周期规则入口:弹共享编辑器(类 Google Calendar;创建与编辑均可改)。
+  Future<void> _pickRule() async {
+    final rule = await showRecurrenceRuleEditor(
+      context,
+      initial: _rule,
+      anchor: RecurrenceAnchor.billingDay,
+    );
+    if (rule != null) setState(() => _rule = rule);
   }
 
   Future<void> _pickDate(bool isStart) async {
@@ -290,43 +321,22 @@ class _TemplateFormState extends State<TemplateForm> {
               const SizedBox(height: AppSpacing.sm),
               _labeledField(
                 label: '周期',
-                child: _dropdown<TemplateCycle>(
-                  value: _cycle,
-                  enabled: true,
-                  items: const [
-                    (TemplateCycle.weekly, '每周'),
-                    (TemplateCycle.monthly, '每月'),
-                    (TemplateCycle.yearly, '每年'),
-                    (TemplateCycle.custom, '自定义'),
-                  ],
-                  onChanged: (v) => setState(() => _cycle = v),
+                child: InkWell(
+                  key: const ValueKey('recurrenceEntry'),
+                  onTap: _pickRule,
+                  child: InputDecorator(
+                    decoration: _inputDeco(
+                      suffix: Icon(LucideIcons.chevronRight,
+                          size: 16, color: context.yucai.muted),
+                    ),
+                    child: Text(
+                      recurrenceRuleText(_rule),
+                      style: TextStyle(
+                          color: context.yucai.fg, fontSize: 13.5),
+                    ),
+                  ),
                 ),
               ),
-              if (_cycle == TemplateCycle.monthly) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _labeledField(
-                  label: '账单日(1-28)',
-                  child: _dropdown<int>(
-                    value: _billingDay,
-                    enabled: !_isEdit,
-                    items: [
-                      for (var d = 1; d <= 28; d++) (d, '$d 日'),
-                    ],
-                    onChanged: (v) => setState(() => _billingDay = v),
-                  ),
-                ),
-              ],
-              if (_cycle == TemplateCycle.custom) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _labeledField(
-                  label: '周期天数',
-                  child: TextField(
-                    controller: _cycleDaysCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: _inputDeco(hint: '例如：30'),
-                  ),
-                ),
-              ],
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [

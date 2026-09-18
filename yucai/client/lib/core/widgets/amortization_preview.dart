@@ -349,7 +349,7 @@ class AmortizationPreview extends StatelessWidget {
                 style: TextStyle(
                     color: context.yucai.muted, fontSize: 11.5)),
           ),
-          Text('年化 ${p == null ? '—' : '${p.annualRate.toStringAsFixed(1)}%'}',
+          Text('年化 ${p == null ? '—' : '${p.annualRate.toStringAsFixed(2)}%'}',
               style: const TextStyle(
                   color: Color(0xFFE8C894),
                   fontSize: 11.5,

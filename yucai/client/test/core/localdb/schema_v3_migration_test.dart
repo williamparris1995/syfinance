@@ -56,6 +56,28 @@ void main() {
         await db.customStatement('ALTER TABLE $table DROP COLUMN sync_state');
       }
       await db.customStatement('DROP TABLE sync_tombstones');
+      // v5 增量(担保人两列)也一并剥离:重开触发的是 2→最新 的完整
+      // onUpgrade 链,旧库不得残留任何后续版本列(否则 addColumn 撞重名)。
+      await db.customStatement(
+          'ALTER TABLE debts DROP COLUMN guarantor_name');
+      await db.customStatement(
+          'ALTER TABLE debts DROP COLUMN guarantor_contact');
+      // v6 增量(周期规则统一列)一并剥离:重开的 onUpgrade 链会一路补到
+      // 最新版本,旧库不得残留任何后续版本列(否则 addColumn 撞重名)。
+      for (final stmt in [
+        'ALTER TABLE debts DROP COLUMN cycle',
+        'ALTER TABLE debts DROP COLUMN interval',
+        'ALTER TABLE debts DROP COLUMN weekday_mask',
+        'ALTER TABLE debts DROP COLUMN monthly_mode',
+        'ALTER TABLE debts DROP COLUMN nth',
+        'ALTER TABLE debts DROP COLUMN interest_waived_cents',
+        'ALTER TABLE transaction_templates DROP COLUMN interval',
+        'ALTER TABLE transaction_templates DROP COLUMN weekday_mask',
+        'ALTER TABLE transaction_templates DROP COLUMN monthly_mode',
+        'ALTER TABLE transaction_templates DROP COLUMN nth',
+      ]) {
+        await db.customStatement(stmt);
+      }
       await db.customStatement('PRAGMA user_version = 2');
       await db.close();
     }

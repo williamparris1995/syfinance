@@ -381,9 +381,17 @@ class TrayController with TrayListener, WindowListener {
     // 验收热修(2026-09-16 D-5):tray_manager 0.5.3 原生侧 WM_RBUTTONUP 只发
     // 事件**不弹菜单**(windows/tray_manager_plugin.cpp:204 仅 InvokeMethod),
     // 必须由 Dart 侧主动弹——自 R7 起右键从未真正工作,真机验收暴露。
+    // bringAppToFront 必开(2026-09-16 验收:点空白菜单不消失):插件仅在
+    // 此标志下先 SetForegroundWindow 再 TrackPopupMenu(plugin cpp:359-363),
+    // 非前台窗口弹的菜单点击外部不关闭(Win32 经典坑);隐藏到托盘时窗口
+    // 本就不可见,无可见副作用。
     if (!trayReady) return;
     try {
-      await trayManager.popUpContextMenu();
+      // 0.5.3 无替代 API;本 flag 是唯一能触发原生 SetForegroundWindow 的
+      // 把手(点空白关菜单所必需),且本应用仅发 Windows 包。上游若移除,
+      // 须 fork 插件补 SetForegroundWindow。
+      // ignore: deprecated_member_use
+      await trayManager.popUpContextMenu(bringAppToFront: true);
     } catch (_) {
       // 弹出失败静默(附属功能降级;图标/事件不受影响)。
     }

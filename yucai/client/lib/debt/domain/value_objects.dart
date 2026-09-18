@@ -3,6 +3,7 @@ enum AmortizationMethod {
   equalPrincipalInterest, // 等额本息
   equalPrincipal, // 等额本金
   lumpSum, // 一次性
+  interestFirst, // 先息后本:每期付息,到期一次还本
 }
 
 enum PaymentStatus { paid, pending, overdue }

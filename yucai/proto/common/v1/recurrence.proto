@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package yucai.common.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/common/v1";
+
+// Calendar-style recurrence cycle shared by template (subscription) and
+// debt (installment schedule). Values 1-4 align with TemplateCycle.
+enum RecurrenceCycle {
+  RECURRENCE_CYCLE_UNSPECIFIED = 0;
+  RECURRENCE_CYCLE_WEEKLY = 1;
+  RECURRENCE_CYCLE_MONTHLY = 2;
+  RECURRENCE_CYCLE_YEARLY = 3;
+  RECURRENCE_CYCLE_CUSTOM = 4; // every N days via cycle_days
+}
+
+// How a monthly recurrence picks its day of the month.
+enum RecurrenceMonthlyMode {
+  // Anchor a fixed day (billing_day for templates / the start date for
+  // debts), clamped to the target month's last day.
+  MONTHLY_MODE_BY_DATE = 0;
+  // Anchor the Nth weekday of the month (nth=5 means the last one).
+  MONTHLY_MODE_BY_NTH_WEEKDAY = 1;
+}

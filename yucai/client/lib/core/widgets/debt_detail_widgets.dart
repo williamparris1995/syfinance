@@ -376,7 +376,7 @@ class DebtDetailHero extends StatelessWidget {
       mainAxisExtent: 72,
       childAspectRatio: 1.55,
       children: [
-        _heroTile(context, '年利率', '${debt.interestRate.toStringAsFixed(2)}%'),
+        _heroTile(context, '年利率', '${(debt.interestRate * 100).toStringAsFixed(2)}%'),
         _heroTile(context, '月供', sharedFmtSymbol(_approxMonthly(debt), preferred)),
         _heroTile(context, '到期日', sharedFmtDate(debt.dueDate)),
         _heroTile(context, sem.isReceivable ? '已收期数' : '已还期数',
@@ -540,7 +540,7 @@ List<DebtStatCardData> buildDebtDetailStats(
       label: sem.statInterestLabel,
       icon: LucideIcons.trendingUp,
       value: sharedFmtSymbol(paidInterest, preferred),
-      sub: '年化 ${debt.interestRate.toStringAsFixed(2)}%',
+      sub: '年化 ${(debt.interestRate * 100).toStringAsFixed(2)}%',
       valueColor: paidInterest > 0
           ? sem.interestIncomeColor.resolve(context)
           : null,
@@ -660,6 +660,12 @@ class DebtDetailSchedule extends StatefulWidget {
     required this.collectionAccountId,
     required this.onConfirmInline,
     required this.onOpenDialog,
+    // 单期改日(Google-Calendar 式):非空时未还期次的日期可点改。已还期次冻结。
+    this.onEditDate,
+    // 标记已还(历史还款,不记账):非空时未还期次显示「标记已还」副动作。
+    this.onMarkPaid,
+    // 批量标记已还:非空时显示「多选」入口(仅可选过去未还期次)。
+    this.onMarkPaidBatch,
   });
 
   final DebtViewSemantics sem;
@@ -670,6 +676,9 @@ class DebtDetailSchedule extends StatefulWidget {
   final String? collectionAccountId;
   final void Function(PaymentEntry entry) onConfirmInline;
   final void Function(PaymentEntry entry) onOpenDialog;
+  final ValueChanged<PaymentEntry>? onEditDate;
+  final ValueChanged<PaymentEntry>? onMarkPaid;
+  final ValueChanged<List<PaymentEntry>>? onMarkPaidBatch;
 
   @override
   State<DebtDetailSchedule> createState() => _DebtDetailScheduleState();
@@ -677,6 +686,91 @@ class DebtDetailSchedule extends StatefulWidget {
 
 class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
   DebtScheduleFilter _filter = DebtScheduleFilter.all;
+  bool _selecting = false; // 多选模式(批量标记已还)
+  final Set<String> _selectedIds = <String>{};
+
+  /// 多选/批量标记操作行:进入多选 → 勾选过去未还期次 → 批量标记。
+  Widget _batchBar(BuildContext context) {
+    final markableAll = _filtered.where(_markable).toList();
+    final selectedEntries = widget.schedule
+        .where((e) => _selectedIds.contains(e.id))
+        .toList();
+    return Row(
+      children: [
+        TextButton.icon(
+          key: const ValueKey('batchSelectToggle'),
+          onPressed: () => setState(() {
+            _selecting = !_selecting;
+            _selectedIds.clear();
+          }),
+          icon: Icon(_selecting ? LucideIcons.x : LucideIcons.listChecks,
+              size: 13, color: context.yucai.muted),
+          label: Text(_selecting ? '取消多选' : '多选标记'),
+          style: TextButton.styleFrom(
+            foregroundColor: context.yucai.muted,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            minimumSize: const Size(0, 26),
+            textStyle: const TextStyle(fontSize: 11.5),
+          ),
+        ),
+        if (_selecting) ...[
+          TextButton(
+            onPressed: markableAll.isEmpty
+                ? null
+                : () => setState(() => _selectedIds
+                    ..clear()
+                    ..addAll(markableAll.map((e) => e.id))),
+            child: Text('全选可标(${markableAll.length})'),
+            style: TextButton.styleFrom(
+              foregroundColor: context.yucai.accentDeep,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              minimumSize: const Size(0, 26),
+              textStyle: const TextStyle(fontSize: 11.5),
+            ),
+          ),
+          const Spacer(),
+          FilledButton.icon(
+            key: const ValueKey('batchMarkPaidButton'),
+            onPressed: selectedEntries.isEmpty || widget.onMarkPaidBatch == null
+                ? null
+                : () {
+                    widget.onMarkPaidBatch!(selectedEntries);
+                    setState(() {
+                      _selecting = false;
+                      _selectedIds.clear();
+                    });
+                  },
+            icon: const Icon(LucideIcons.flag, size: 13),
+            label: Text('标记已还(${selectedEntries.length})'),
+            style: FilledButton.styleFrom(
+              backgroundColor: context.yucai.accent,
+              foregroundColor: context.yucai.onAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: const Size(0, 28),
+              textStyle: const TextStyle(fontSize: 11.5),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _toggleSelect(PaymentEntry e) => setState(() {
+        _selectedIds.contains(e.id)
+            ? _selectedIds.remove(e.id)
+            : _selectedIds.add(e.id);
+      });
+
+  /// 「过去时间」判定:严格早于今天零点(未来期次不可标已还)。
+  bool _isPast(PaymentEntry e) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return e.paymentDate.isBefore(today);
+  }
+
+  /// 可批量标记的期次:未还 且 已过去。
+  bool _markable(PaymentEntry e) =>
+      !e.paid && _isPast(e);
 
   List<PaymentEntry> get _filtered => switch (_filter) {
         DebtScheduleFilter.all => widget.schedule,
@@ -730,7 +824,9 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
                     _filterSegmented(sem),
                   ],
                 ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
+          if (widget.onMarkPaidBatch != null) _batchBar(context),
+          const SizedBox(height: 6),
           if (_filtered.isEmpty)
             Padding(
               padding: EdgeInsets.all(24),
@@ -959,6 +1055,38 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     );
   }
 
+  /// 期次日期单元格:未还且 onEditDate 非空 → 可点改日(带小铅笔);
+  /// 已还/回调为空 → 纯文本。
+  Widget _dateCell(PaymentEntry e, DebtViewSemantics sem,
+      {String? label, double fontSize = 12}) {
+    final text = label ?? sharedFmtDate(e.paymentDate);
+    final editable = widget.onEditDate != null && !e.paid;
+    final style = TextStyle(
+        fontSize: fontSize,
+        color: context.yucai.muted,
+        fontFeatures: AppTypography.tabularFigures);
+    if (!editable) return Text(text, overflow: TextOverflow.ellipsis, style: style);
+    return InkWell(
+      key: ValueKey('editDate-${e.id}'),
+      onTap: () => widget.onEditDate!(e),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+                child: Text(text,
+                    overflow: TextOverflow.ellipsis, style: style)),
+            const SizedBox(width: 3),
+            Icon(LucideIcons.pencilLine,
+                size: 12, color: context.yucai.accent),
+          ],
+        ),
+      ),
+    );
+  }
+
   TableRow _scheduleRow(PaymentEntry e, int idx, int total) {
     final isLast = idx == total;
     final isOverdue = e.status == PaymentStatus.overdue && !e.paid;
@@ -987,11 +1115,8 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
                       color: isOverdue ? context.yucai.negative : cellFg,
                       fontFeatures: AppTypography.tabularFigures)),
               const SizedBox(width: 6),
-              Text(sharedFmtDate(e.paymentDate),
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: context.yucai.muted,
-                      fontFeatures: AppTypography.tabularFigures)),
+              // Flexible:窄列(平板)下日期文本省略而非溢出(铅笔图标占位)。
+              Flexible(child: _dateCell(e, sem)),
             ],
           ),
         ),
@@ -1067,12 +1192,9 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('第 $idx 期 · ${sharedFmtDate(e.paymentDate)}',
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        fontFeatures: AppTypography.tabularFigures)),
+                child: _dateCell(e, sem,
+                    label: '第 $idx 期 · ${sharedFmtDate(e.paymentDate)}',
+                    fontSize: 13),
               ),
               _statusBadge(e, sem),
             ],
@@ -1166,6 +1288,15 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
   /// 已配置)或 dialog fallback。
   Widget _scheduleAction(PaymentEntry e) {
     final sem = widget.sem;
+    // 多选模式:可标(过去未还)期次显示复选框,其余占位。
+    if (_selecting) {
+      if (!_markable(e)) return const SizedBox.shrink();
+      return Checkbox(
+        key: ValueKey('select-${e.id}'),
+        value: _selectedIds.contains(e.id),
+        onChanged: (_) => setState(() => _toggleSelect(e)),
+      );
+    }
     if (e.paid) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -1184,7 +1315,14 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     final onPressed = hasCollection
         ? () => widget.onConfirmInline(e)
         : () => widget.onOpenDialog(e);
-    return TextButton.icon(
+    // Wrap(非 Row):主/副按钮在窄列(平板 table cell)自动换行,避免溢出。
+    return Wrap(
+      spacing: 4,
+      runSpacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      alignment: WrapAlignment.end,
+      children: [
+        TextButton.icon(
       onPressed: onPressed,
       // F27 FR-1② 豁免:逾期确认按钮底为 negative 状态身份彩底 —— 图标/前景
       // 固定白(双板可辨识);非逾期档走 accentDeep 语义。
@@ -1205,6 +1343,22 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
               minimumSize: const Size(0, 26),
               textStyle: const TextStyle(fontSize: 11),
             ),
+        ),
+        if (widget.onMarkPaid != null && _markable(e))
+          TextButton.icon(
+            key: ValueKey('markPaid-${e.id}'),
+            onPressed: () => widget.onMarkPaid!(e),
+            icon: Icon(LucideIcons.flag,
+                size: 12, color: context.yucai.muted),
+            label: const Text('标记已还'),
+            style: TextButton.styleFrom(
+              foregroundColor: context.yucai.muted,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              minimumSize: const Size(0, 26),
+              textStyle: const TextStyle(fontSize: 11),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1238,6 +1392,8 @@ class DebtDetailSidePanel extends StatelessWidget {
     required this.collectionName,
     required this.collectionTail,
     required this.receivableName,
+    this.attachmentName,
+    this.onOpenAttachment,
   });
 
   final DebtViewSemantics sem;
@@ -1249,6 +1405,10 @@ class DebtDetailSidePanel extends StatelessWidget {
   final String? collectionTail;
   /// 应收·负债账户名;null → 「—」。
   final String? receivableName;
+  /// 合同文件名(本地附件 v1;null = 无附件,不显「合同文件」行)。
+  final String? attachmentName;
+  /// 打开合同文件(详情页提供:store 绝对路径 + url_launcher)。
+  final VoidCallback? onOpenAttachment;
 
   @override
   Widget build(BuildContext context) {
@@ -1275,6 +1435,16 @@ class DebtDetailSidePanel extends StatelessWidget {
           v: hasContact ? debt.contact : '—',
           mono: true,
           onTap: hasContact ? () => _launchTel(context, debt.contact) : null),
+      // 担保人(2026-09 用户需求):可选字段,空 → 「—」占位行保持面板
+      // 信息密度一致;联系方式非空时可点拨号(与上联系方式行同语义)。
+      DebtSideRowData(k: '担保人', v: debt.guarantorName.isEmpty ? '—' : debt.guarantorName),
+      DebtSideRowData(
+          k: '担保人联系方式',
+          v: debt.guarantorContact.isEmpty ? '—' : debt.guarantorContact,
+          mono: true,
+          onTap: debt.guarantorContact.isNotEmpty
+              ? () => _launchTel(context, debt.guarantorContact)
+              : null),
       DebtSideRowData(k: sem.sideLentDateLabel, v: sharedFmtDate(debt.startDate), mono: true),
       DebtSideRowData(k: '到期日期', v: sharedFmtDate(debt.dueDate), mono: true),
       DebtSideRowData(k: '摊还方法', v: sharedAmortLabel(debt.amortization)),
@@ -1284,6 +1454,14 @@ class DebtDetailSidePanel extends StatelessWidget {
         valueColor: hasContract ? context.yucai.accentDeep : null,
         onTap: hasContract ? () => _viewContract(context, contractRef) : null,
       ),
+      // 合同文件(本地附件 v1):有附件才显示;点击由页面回调打开落盘文件。
+      if (attachmentName != null)
+        DebtSideRowData(
+          k: '合同文件',
+          v: attachmentName!,
+          valueColor: context.yucai.accentDeep,
+          onTap: onOpenAttachment,
+        ),
     ];
 
     return Column(

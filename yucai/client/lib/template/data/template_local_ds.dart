@@ -1,4 +1,5 @@
-import 'package:yucai_client/template/data/advance_next_date.dart';
+import 'package:yucai_client/core/recurrence/next_after.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
@@ -54,6 +55,10 @@ class TemplateLocalDataSource {
     TemplateCycle cycle = TemplateCycle.unspecified,
     int cycleDays = 0,
     int billingDay = 0,
+    int interval = 0,
+    int weekdayMask = 0,
+    int monthlyMode = 0,
+    int nth = 0,
     String? startDate,
     String? endDate,
     bool autoRecord = false,
@@ -74,7 +79,16 @@ class TemplateLocalDataSource {
     // billingDay, 1): first occurrence one period after the start date
     // (custom = daily default server-side).
     final start = _parseDate(startDate);
-    final next = _calculateNextDate(start, cycle, billingDay);
+    // 共享内核推进(FR-5 统一):首个发生日 = 严格晚于起始日的第一个命中。
+    final rule = RecurrenceRule.fromInts(
+        cycle: cycle.index,
+        cycleDays: cycleDays,
+        billingDay: billingDay,
+        interval: interval,
+        weekdayMask: weekdayMask,
+        monthlyMode: monthlyMode,
+        nth: nth);
+    final next = nextAfter(start, rule);
     await _dao.insertTemplate(db.TransactionTemplatesCompanion.insert(
       id: id,
       name: name,
@@ -86,6 +100,10 @@ class TemplateLocalDataSource {
       cycle: cycle.index,
       cycleDays: cycleDays,
       billingDay: billingDay,
+      interval: Value(interval),
+      weekdayMask: Value(weekdayMask),
+      monthlyMode: Value(monthlyMode),
+      nth: Value(nth),
       nextDate: next,
       startDate: start,
       // F14 疑点 #2:null/空 endDate = 永续(语义 null 落库),不再兜底今天
@@ -113,6 +131,11 @@ class TemplateLocalDataSource {
     int? amountCents,
     TemplateCycle? cycle,
     int? cycleDays,
+    int? billingDay,
+    int? interval,
+    int? weekdayMask,
+    int? monthlyMode,
+    int? nth,
     String? endDate,
     bool? autoRecord,
     bool markPending = false,
@@ -122,13 +145,53 @@ class TemplateLocalDataSource {
     if (row.version != version) {
       throw const ServerFailure('数据已过期，请刷新后重试');
     }
+    final newCycle = cycle == null ? row.cycle : cycle.index;
+    final newCycleDays = cycleDays ?? row.cycleDays;
+    final newBillingDay = billingDay ?? row.billingDay;
+    final newInterval = interval ?? row.interval;
+    final newWeekdayMask = weekdayMask ?? row.weekdayMask;
+    final newMonthlyMode = monthlyMode ?? row.monthlyMode;
+    final newNth = nth ?? row.nth;
+    final newRule = RecurrenceRule.fromInts(
+        cycle: newCycle,
+        cycleDays: newCycleDays,
+        billingDay: newBillingDay,
+        interval: newInterval,
+        weekdayMask: newWeekdayMask,
+        monthlyMode: newMonthlyMode,
+        nth: newNth);
+    // 规则变化 → nextDate = 新规则下 ≥ max(起始日, 今天) 的首个发生日
+    // (镜像 server UpdateTemplate;guest 单写者无并发重复)。
+    Value<DateTime> nextDate = const Value.absent();
+    if (newRule !=
+        RecurrenceRule.fromInts(
+            cycle: row.cycle,
+            cycleDays: row.cycleDays,
+            billingDay: row.billingDay,
+            interval: row.interval,
+            weekdayMask: row.weekdayMask,
+            monthlyMode: row.monthlyMode,
+            nth: row.nth)) {
+      var base = _nowDate();
+      final start =
+          DateTime.utc(row.startDate.year, row.startDate.month, row.startDate.day);
+      if (start.isAfter(base)) base = start;
+      nextDate = Value(nextAfter(
+          DateTime.utc(base.year, base.month, base.day - 1), newRule));
+    }
     await _dao.updateTemplate(db.TransactionTemplatesCompanion(
       id: Value(id),
       name: Value(name ?? row.name),
       description: Value(description ?? row.description),
       amountCents: Value(amountCents ?? row.amountCents),
-      cycle: Value(cycle == null ? row.cycle : cycle.index),
-      cycleDays: Value(cycleDays ?? row.cycleDays),
+      cycle: Value(newCycle),
+      cycleDays: Value(newCycleDays),
+      billingDay: Value(newBillingDay),
+      interval: Value(newInterval),
+      weekdayMask: Value(newWeekdayMask),
+      monthlyMode: Value(newMonthlyMode),
+      nth: Value(newNth),
+      nextDate: nextDate,
       // F14 疑点 #2:update 的 endDate 统一走永续语义解析:null/空串 → 清空
       // (Value(null) = 落库 NULL)。对齐 server:update 空串 → handler 跳过
       // 解析 → service 置 nil → repo ClearEndDate;本地旧实现「null = 保留
@@ -201,7 +264,16 @@ class TemplateLocalDataSource {
       txnId = await _createTxnForRow(row, next, markPending: markPending);
       await _dao.updateTemplate(db.TransactionTemplatesCompanion(
         id: Value(templateId),
-        nextDate: Value(_advance(next, row.cycle, row.cycleDays, row.billingDay)),
+        nextDate: Value(nextAfter(
+            next,
+            RecurrenceRule.fromInts(
+                cycle: row.cycle,
+                cycleDays: row.cycleDays,
+                billingDay: row.billingDay,
+                interval: row.interval,
+                weekdayMask: row.weekdayMask,
+                monthlyMode: row.monthlyMode,
+                nth: row.nth))),
         lastTransactionId: Value(txnId),
         version: Value(row.version + 1),
         updatedAt: Value(DateTime.now().toUtc()),
@@ -225,7 +297,7 @@ class TemplateLocalDataSource {
       {bool markPending = false}) async {
     final isExpense = row.direction == 1;
     final wantType = isExpense ? 5 : 4; // contract: 4 income / 5 expense
-    final id = row.category ?? '';
+    final id = row.category;
     if (id.isNotEmpty) {
       final acc = await _database.accountDao.getAccountById(id);
       if (acc != null) return id;
@@ -308,42 +380,6 @@ class TemplateLocalDataSource {
     return txn.id;
   }
 
-  /// CalculateNextDate copied from the server (entity.go): first occurrence
-  /// one period after base — weekly +7d / monthly clamped (billingDay wins) /
-  /// yearly +1y / custom defaults to DAILY server-side / unspecified +1m.
-  DateTime _calculateNextDate(
-      DateTime base, TemplateCycle cycle, int billingDay) {
-    switch (cycle) {
-      case TemplateCycle.weekly:
-        return base.add(const Duration(days: 7));
-      case TemplateCycle.monthly:
-        return _addMonthsClamped(base, 1, billingDay);
-      case TemplateCycle.yearly:
-        return DateTime.utc(base.year + 1, base.month, base.day);
-      case TemplateCycle.custom:
-        return base.add(const Duration(days: 1));
-      default:
-        return _addMonthsClamped(base, 1, billingDay);
-    }
-  }
-
-  DateTime _addMonthsClamped(DateTime base, int months, int billingDay) {
-    final targetMonth = base.month + months;
-    final targetYear = base.year + (targetMonth - 1) ~/ 12;
-    final m = (targetMonth - 1) % 12 + 1;
-    var day = billingDay <= 0 ? base.day : billingDay;
-    final lastDay = DateTime.utc(targetYear, m + 1, 0).day;
-    if (day > lastDay) day = lastDay;
-    return DateTime.utc(targetYear, m, day);
-  }
-
-  /// 推进算法委托 advance_next_date(R7-C FR-5):月度从「构造器滚动」修正为
-  /// server 的月末钳制+billingDay(旧实现 1/31 会滚到 3/1+ 漂移);oracle 测试
-  /// 见 test/template/data/advance_next_date_test.dart。
-  DateTime _advance(DateTime current, int cycle, int cycleDays, int billingDay) =>
-      advanceNextDate(
-          current, cycle: cycle, cycleDays: cycleDays, billingDay: billingDay);
-
   Template? _toEntityOrNull(db.TransactionTemplate? row) =>
       row == null ? null : _toEntity(row);
 
@@ -358,6 +394,12 @@ class TemplateLocalDataSource {
         cycle: TemplateCycle.values[r.cycle],
         cycleDays: r.cycleDays,
         billingDay: r.billingDay,
+        interval: r.interval,
+        weekdayMask: r.weekdayMask,
+        monthlyMode: r.monthlyMode == 1
+            ? TemplateMonthlyMode.byNthWeekday
+            : TemplateMonthlyMode.byDate,
+        nth: r.nth,
         nextDate: _formatDate(r.nextDate),
         startDate: _formatDate(r.startDate),
         endDate: _formatDate(r.endDate),

@@ -1,14 +1,26 @@
 # protoc-gen-go 版本以目标 pb.go 头部注释为准(当前 v1.36.12);plugin 经 PATH 解析。
+# 定向 regen(与 holding/sync 同惯例:paths 手工列出目标 proto)。
 version: v2
 inputs:
   - directory: .
     paths:
-      - holding/v1/holding.proto
-      - sync/v1/sync.proto # F16: targeted regen (same convention as holding — paths listed manually)
+      - common/v1/recurrence.proto
+      - template/v1/template.proto
+      - debt/v1/debt.proto
 plugins:
   - local: protoc-gen-go
     out: ../server/internal/proto
     opt:
       - paths=source_relative
-      - "Mholding/v1/holding.proto=github.com/yucai/server/internal/proto/holding/v1;holdingv1"
-      - "Msync/v1/sync.proto=github.com/yucai/server/internal/proto/sync/v1;syncv1"
+      - "Mcommon/v1/recurrence.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
+      - "Mcommon/v1/pagination.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
+      - "Mtemplate/v1/template.proto=github.com/yucai/server/internal/proto/template/v1;templatev1"
+      - "Mdebt/v1/debt.proto=github.com/yucai/server/internal/proto/debt/v1;debtv1"
+  - local: protoc-gen-go-grpc
+    out: ../server/internal/proto
+    opt:
+      - paths=source_relative
+      - "Mcommon/v1/recurrence.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
+      - "Mcommon/v1/pagination.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
+      - "Mtemplate/v1/template.proto=github.com/yucai/server/internal/proto/template/v1;templatev1"
+      - "Mdebt/v1/debt.proto=github.com/yucai/server/internal/proto/debt/v1;debtv1"

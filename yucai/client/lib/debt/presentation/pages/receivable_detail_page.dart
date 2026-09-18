@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -13,6 +16,7 @@ import 'package:yucai_client/core/widgets/debt_detail_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/debt/data/contract_attachment_store.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
@@ -40,6 +44,36 @@ class ReceivableDetailPage extends StatefulWidget {
 class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
   List<Account> _accounts = const [];
   bool _recordPending = false;
+  // 合同文件附件(本地 v1):进页读取,编辑页替换后返回经 didPopNext 重读。
+  ContractAttachment? _attachment;
+
+  Future<void> _loadAttachment() async {
+    // 测试 harness 可能不注册 GetIt;缺注册 = 无附件,吞错保持页面可用。
+    try {
+      final a = await getIt<ContractAttachmentStore>().forDebt(widget.id);
+      if (mounted) setState(() => _attachment = a);
+    } catch (_) {}
+  }
+
+  Future<void> _openAttachment() async {
+    final a = _attachment;
+    if (a == null) return;
+    final path = await getIt<ContractAttachmentStore>().absolutePath(a);
+    if (!await File(path).exists()) {
+      if (mounted) {
+        AppToast.show(context, '合同文件不存在(本设备未上传该附件)',
+            type: ToastType.warning);
+      }
+      return;
+    }
+    try {
+      await launchUrl(Uri.file(path));
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(context, '无法打开文件', type: ToastType.warning);
+      }
+    }
+  }
 
   static const _sem = DebtViewSemantics.receivable;
 
@@ -48,6 +82,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     super.initState();
     context.read<DebtBloc>().add(LoadDebtRequested(widget.id));
     _loadAccounts();
+    _loadAttachment();
   }
 
   Future<void> _loadAccounts() async {
@@ -229,6 +264,8 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       collectionName: _lookupAccountName(debt.collectionAccountId),
       collectionTail: _lookupAccountTail(debt.collectionAccountId),
       receivableName: _lookupAccountName(debt.accountId),
+      attachmentName: _attachment?.originalName,
+      onOpenAttachment: _attachment == null ? null : _openAttachment,
     );
 
     return ListView(

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/sqltx"
 	"github.com/yucai/server/internal/template/domain"
 )
@@ -69,10 +70,19 @@ func (s *Service) SetLogRepo(logRepo domain.TemplateRecordLogRepository) {
 
 // CreateTemplate validates and persists a new template.
 func (s *Service) CreateTemplate(ctx context.Context, req CreateTemplateRequest) (*TemplateDTO, error) {
+	rule := recurrence.Rule{
+		Cycle:       recurrence.Cycle(req.Cycle),
+		Interval:    req.Interval,
+		CycleDays:   req.CycleDays,
+		BillingDay:  req.BillingDay,
+		WeekdayMask: req.WeekdayMask,
+		MonthlyMode: req.MonthlyMode,
+		Nth:         req.Nth,
+	}
 	tmpl, err := domain.NewTransactionTemplate(
 		req.TenantID, req.Name, req.AmountCents,
 		req.Direction, req.SourceAccountID,
-		req.Cycle, req.BillingDay, req.StartDate,
+		rule, req.StartDate,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create template: %w", err)
@@ -80,7 +90,6 @@ func (s *Service) CreateTemplate(ctx context.Context, req CreateTemplateRequest)
 
 	tmpl.Description = req.Description
 	tmpl.DestinationAccountID = req.DestinationAccountID
-	tmpl.CycleDays = req.CycleDays
 	tmpl.EndDate = req.EndDate
 	tmpl.AutoRecord = req.AutoRecord
 	tmpl.Category = req.Category
@@ -103,7 +112,11 @@ func (s *Service) GetTemplate(ctx context.Context, tenantID, id uuid.UUID) (*Tem
 	return &dto, nil
 }
 
-// UpdateTemplate updates a template's mutable fields.
+// UpdateTemplate updates a template's mutable fields. Rule fields are
+// editable: when the recurrence rule changes, NextDate is recomputed as the
+// first occurrence >= max(start_date, today) under the new rule (the
+// template_record_log idempotency key prevents double-recording a date that
+// was already recorded under the old rule).
 func (s *Service) UpdateTemplate(ctx context.Context, req UpdateTemplateRequest) (*TemplateDTO, error) {
 	tmpl, err := s.repo.FindByID(ctx, req.TenantID, req.ID)
 	if err != nil {
@@ -114,13 +127,47 @@ func (s *Service) UpdateTemplate(ctx context.Context, req UpdateTemplateRequest)
 		return nil, fmt.Errorf("optimistic lock conflict: expected version %d, got %d", req.Version, tmpl.Version)
 	}
 
+	// Cycle 0 = keep the current rule (legacy callers that update
+	// name/amount only); a non-zero cycle replaces the whole rule.
+	newRule := tmpl.Rule()
+	if req.Cycle != 0 {
+		newRule = recurrence.Rule{
+			Cycle:       recurrence.Cycle(req.Cycle),
+			Interval:    req.Interval,
+			CycleDays:   req.CycleDays,
+			BillingDay:  req.BillingDay,
+			WeekdayMask: req.WeekdayMask,
+			MonthlyMode: req.MonthlyMode,
+			Nth:         req.Nth,
+		}
+		if err := newRule.Validate(); err != nil {
+			return nil, fmt.Errorf("update template: %w", err)
+		}
+	}
+
 	tmpl.Name = req.Name
 	tmpl.Description = req.Description
 	tmpl.AmountCents = req.AmountCents
-	tmpl.Cycle = req.Cycle
-	tmpl.CycleDays = req.CycleDays
+	ruleChanged := tmpl.Rule() != newRule
+	tmpl.Cycle = domain.TemplateCycle(newRule.Cycle)
+	tmpl.CycleDays = newRule.CycleDays
+	tmpl.BillingDay = newRule.BillingDay
+	tmpl.Interval = newRule.Interval
+	tmpl.WeekdayMask = newRule.WeekdayMask
+	tmpl.MonthlyMode = newRule.MonthlyMode
+	tmpl.Nth = newRule.Nth
 	tmpl.EndDate = req.EndDate
 	tmpl.AutoRecord = req.AutoRecord
+
+	if ruleChanged {
+		base := time.Now().UTC().Truncate(24 * time.Hour)
+		if tmpl.StartDate.After(base) {
+			base = tmpl.StartDate
+		}
+		// First occurrence >= base == NextAfter(base - 1 day).
+		tmpl.NextDate = newRule.NextAfter(base.AddDate(0, 0, -1))
+	}
+
 	tmpl.IncrementVersion()
 
 	if err := s.repo.Update(ctx, tmpl); err != nil {
@@ -354,7 +401,7 @@ func (s *Service) autoRecord(ctx context.Context, tenantID, templateID uuid.UUID
 	}
 
 	tmpl.LastTransactionID = &txnID
-	tmpl.NextDate = domain.AdvanceNextDate(tmpl.NextDate, tmpl.Cycle, tmpl.CycleDays)
+	tmpl.NextDate = tmpl.Rule().NextAfter(tmpl.NextDate)
 	tmpl.IncrementVersion()
 	tmpl.UpdatedAt = time.Now()
 

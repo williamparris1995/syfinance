@@ -53,6 +53,90 @@ func (ddc *DebtDetailsCreate) SetAmortizationMethod(s string) *DebtDetailsCreate
 	return ddc
 }
 
+// SetCycle sets the "cycle" field.
+func (ddc *DebtDetailsCreate) SetCycle(s string) *DebtDetailsCreate {
+	ddc.mutation.SetCycle(s)
+	return ddc
+}
+
+// SetNillableCycle sets the "cycle" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableCycle(s *string) *DebtDetailsCreate {
+	if s != nil {
+		ddc.SetCycle(*s)
+	}
+	return ddc
+}
+
+// SetInterval sets the "interval" field.
+func (ddc *DebtDetailsCreate) SetInterval(i int32) *DebtDetailsCreate {
+	ddc.mutation.SetInterval(i)
+	return ddc
+}
+
+// SetNillableInterval sets the "interval" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableInterval(i *int32) *DebtDetailsCreate {
+	if i != nil {
+		ddc.SetInterval(*i)
+	}
+	return ddc
+}
+
+// SetWeekdayMask sets the "weekday_mask" field.
+func (ddc *DebtDetailsCreate) SetWeekdayMask(i int32) *DebtDetailsCreate {
+	ddc.mutation.SetWeekdayMask(i)
+	return ddc
+}
+
+// SetNillableWeekdayMask sets the "weekday_mask" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableWeekdayMask(i *int32) *DebtDetailsCreate {
+	if i != nil {
+		ddc.SetWeekdayMask(*i)
+	}
+	return ddc
+}
+
+// SetMonthlyMode sets the "monthly_mode" field.
+func (ddc *DebtDetailsCreate) SetMonthlyMode(i int32) *DebtDetailsCreate {
+	ddc.mutation.SetMonthlyMode(i)
+	return ddc
+}
+
+// SetNillableMonthlyMode sets the "monthly_mode" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableMonthlyMode(i *int32) *DebtDetailsCreate {
+	if i != nil {
+		ddc.SetMonthlyMode(*i)
+	}
+	return ddc
+}
+
+// SetNth sets the "nth" field.
+func (ddc *DebtDetailsCreate) SetNth(i int32) *DebtDetailsCreate {
+	ddc.mutation.SetNth(i)
+	return ddc
+}
+
+// SetNillableNth sets the "nth" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableNth(i *int32) *DebtDetailsCreate {
+	if i != nil {
+		ddc.SetNth(*i)
+	}
+	return ddc
+}
+
+// SetInterestWaivedCents sets the "interest_waived_cents" field.
+func (ddc *DebtDetailsCreate) SetInterestWaivedCents(i int64) *DebtDetailsCreate {
+	ddc.mutation.SetInterestWaivedCents(i)
+	return ddc
+}
+
+// SetNillableInterestWaivedCents sets the "interest_waived_cents" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableInterestWaivedCents(i *int64) *DebtDetailsCreate {
+	if i != nil {
+		ddc.SetInterestWaivedCents(*i)
+	}
+	return ddc
+}
+
 // SetStartDate sets the "start_date" field.
 func (ddc *DebtDetailsCreate) SetStartDate(t time.Time) *DebtDetailsCreate {
 	ddc.mutation.SetStartDate(t)
@@ -151,6 +235,34 @@ func (ddc *DebtDetailsCreate) SetCollectionAccountID(u uuid.UUID) *DebtDetailsCr
 func (ddc *DebtDetailsCreate) SetNillableCollectionAccountID(u *uuid.UUID) *DebtDetailsCreate {
 	if u != nil {
 		ddc.SetCollectionAccountID(*u)
+	}
+	return ddc
+}
+
+// SetGuarantorName sets the "guarantor_name" field.
+func (ddc *DebtDetailsCreate) SetGuarantorName(s string) *DebtDetailsCreate {
+	ddc.mutation.SetGuarantorName(s)
+	return ddc
+}
+
+// SetNillableGuarantorName sets the "guarantor_name" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableGuarantorName(s *string) *DebtDetailsCreate {
+	if s != nil {
+		ddc.SetGuarantorName(*s)
+	}
+	return ddc
+}
+
+// SetGuarantorContact sets the "guarantor_contact" field.
+func (ddc *DebtDetailsCreate) SetGuarantorContact(s string) *DebtDetailsCreate {
+	ddc.mutation.SetGuarantorContact(s)
+	return ddc
+}
+
+// SetNillableGuarantorContact sets the "guarantor_contact" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableGuarantorContact(s *string) *DebtDetailsCreate {
+	if s != nil {
+		ddc.SetGuarantorContact(*s)
 	}
 	return ddc
 }
@@ -262,6 +374,30 @@ func (ddc *DebtDetailsCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (ddc *DebtDetailsCreate) defaults() {
+	if _, ok := ddc.mutation.Cycle(); !ok {
+		v := debtdetails.DefaultCycle
+		ddc.mutation.SetCycle(v)
+	}
+	if _, ok := ddc.mutation.Interval(); !ok {
+		v := debtdetails.DefaultInterval
+		ddc.mutation.SetInterval(v)
+	}
+	if _, ok := ddc.mutation.WeekdayMask(); !ok {
+		v := debtdetails.DefaultWeekdayMask
+		ddc.mutation.SetWeekdayMask(v)
+	}
+	if _, ok := ddc.mutation.MonthlyMode(); !ok {
+		v := debtdetails.DefaultMonthlyMode
+		ddc.mutation.SetMonthlyMode(v)
+	}
+	if _, ok := ddc.mutation.Nth(); !ok {
+		v := debtdetails.DefaultNth
+		ddc.mutation.SetNth(v)
+	}
+	if _, ok := ddc.mutation.InterestWaivedCents(); !ok {
+		v := debtdetails.DefaultInterestWaivedCents
+		ddc.mutation.SetInterestWaivedCents(v)
+	}
 	if _, ok := ddc.mutation.DebtType(); !ok {
 		v := debtdetails.DefaultDebtType
 		ddc.mutation.SetDebtType(v)
@@ -281,6 +417,14 @@ func (ddc *DebtDetailsCreate) defaults() {
 	if _, ok := ddc.mutation.ContractRef(); !ok {
 		v := debtdetails.DefaultContractRef
 		ddc.mutation.SetContractRef(v)
+	}
+	if _, ok := ddc.mutation.GuarantorName(); !ok {
+		v := debtdetails.DefaultGuarantorName
+		ddc.mutation.SetGuarantorName(v)
+	}
+	if _, ok := ddc.mutation.GuarantorContact(); !ok {
+		v := debtdetails.DefaultGuarantorContact
+		ddc.mutation.SetGuarantorContact(v)
 	}
 	if _, ok := ddc.mutation.CreatedAt(); !ok {
 		v := debtdetails.DefaultCreatedAt()
@@ -313,6 +457,9 @@ func (ddc *DebtDetailsCreate) check() error {
 	if _, ok := ddc.mutation.AmortizationMethod(); !ok {
 		return &ValidationError{Name: "amortization_method", err: errors.New(`ent: missing required field "DebtDetails.amortization_method"`)}
 	}
+	if _, ok := ddc.mutation.Cycle(); !ok {
+		return &ValidationError{Name: "cycle", err: errors.New(`ent: missing required field "DebtDetails.cycle"`)}
+	}
 	if _, ok := ddc.mutation.StartDate(); !ok {
 		return &ValidationError{Name: "start_date", err: errors.New(`ent: missing required field "DebtDetails.start_date"`)}
 	}
@@ -341,6 +488,12 @@ func (ddc *DebtDetailsCreate) check() error {
 	}
 	if _, ok := ddc.mutation.ContractRef(); !ok {
 		return &ValidationError{Name: "contract_ref", err: errors.New(`ent: missing required field "DebtDetails.contract_ref"`)}
+	}
+	if _, ok := ddc.mutation.GuarantorName(); !ok {
+		return &ValidationError{Name: "guarantor_name", err: errors.New(`ent: missing required field "DebtDetails.guarantor_name"`)}
+	}
+	if _, ok := ddc.mutation.GuarantorContact(); !ok {
+		return &ValidationError{Name: "guarantor_contact", err: errors.New(`ent: missing required field "DebtDetails.guarantor_contact"`)}
 	}
 	if _, ok := ddc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "DebtDetails.created_at"`)}
@@ -403,6 +556,30 @@ func (ddc *DebtDetailsCreate) createSpec() (*DebtDetails, *sqlgraph.CreateSpec) 
 		_spec.SetField(debtdetails.FieldAmortizationMethod, field.TypeString, value)
 		_node.AmortizationMethod = value
 	}
+	if value, ok := ddc.mutation.Cycle(); ok {
+		_spec.SetField(debtdetails.FieldCycle, field.TypeString, value)
+		_node.Cycle = value
+	}
+	if value, ok := ddc.mutation.Interval(); ok {
+		_spec.SetField(debtdetails.FieldInterval, field.TypeInt32, value)
+		_node.Interval = value
+	}
+	if value, ok := ddc.mutation.WeekdayMask(); ok {
+		_spec.SetField(debtdetails.FieldWeekdayMask, field.TypeInt32, value)
+		_node.WeekdayMask = value
+	}
+	if value, ok := ddc.mutation.MonthlyMode(); ok {
+		_spec.SetField(debtdetails.FieldMonthlyMode, field.TypeInt32, value)
+		_node.MonthlyMode = value
+	}
+	if value, ok := ddc.mutation.Nth(); ok {
+		_spec.SetField(debtdetails.FieldNth, field.TypeInt32, value)
+		_node.Nth = value
+	}
+	if value, ok := ddc.mutation.InterestWaivedCents(); ok {
+		_spec.SetField(debtdetails.FieldInterestWaivedCents, field.TypeInt64, value)
+		_node.InterestWaivedCents = value
+	}
 	if value, ok := ddc.mutation.StartDate(); ok {
 		_spec.SetField(debtdetails.FieldStartDate, field.TypeTime, value)
 		_node.StartDate = value
@@ -438,6 +615,14 @@ func (ddc *DebtDetailsCreate) createSpec() (*DebtDetails, *sqlgraph.CreateSpec) 
 	if value, ok := ddc.mutation.CollectionAccountID(); ok {
 		_spec.SetField(debtdetails.FieldCollectionAccountID, field.TypeUUID, value)
 		_node.CollectionAccountID = &value
+	}
+	if value, ok := ddc.mutation.GuarantorName(); ok {
+		_spec.SetField(debtdetails.FieldGuarantorName, field.TypeString, value)
+		_node.GuarantorName = value
+	}
+	if value, ok := ddc.mutation.GuarantorContact(); ok {
+		_spec.SetField(debtdetails.FieldGuarantorContact, field.TypeString, value)
+		_node.GuarantorContact = value
 	}
 	if value, ok := ddc.mutation.CreatedAt(); ok {
 		_spec.SetField(debtdetails.FieldCreatedAt, field.TypeTime, value)

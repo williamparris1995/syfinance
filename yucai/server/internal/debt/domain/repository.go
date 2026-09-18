@@ -26,6 +26,11 @@ type DebtRepository interface {
 	FindByID(ctx context.Context, tenantID, id uuid.UUID) (*DebtDetails, error)
 	FindAll(ctx context.Context, tenantID uuid.UUID, page PageRequest, typeFilter *DebtType) (*PaginatedResult[DebtDetails], error)
 	Update(ctx context.Context, debt *DebtDetails) error
+	// ReplaceFutureSchedule deletes every not-yet-recorded schedule entry
+	// (paid=false AND paid_cents=0 AND transaction_id IS NULL) and inserts
+	// the given future entries. Used by the Google-Calendar-style rule edit:
+	// frozen (already-recorded) rows stay untouched.
+	ReplaceFutureSchedule(ctx context.Context, debtID uuid.UUID, future []PaymentScheduleEntry) error
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 	FindUpcomingPayments(ctx context.Context, tenantID uuid.UUID, daysAhead int) ([]PaymentScheduleEntry, error)
 	// FindAllForBackup returns every debt for a tenant with its payment schedule

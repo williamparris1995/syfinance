@@ -18,8 +18,15 @@ import 'package:yucai_client/core/theme/app_design.dart';
 /// Branch 元数据:面包屑(section › page)+ list 页创建按钮(label + route)。
 /// [_TopBar] 按 branchIndex 取 meta,按 location 区分 list(显创建按钮)vs
 /// detail/form/new/edit(不显)。对齐 OD .topbar(面包屑 .crumbs + 创建 .btn-primary)。
+///
+/// [location] 参与 meta 解析:branch 子路由的面包屑可能偏离 branch 元数据
+/// (如 /accounts/templates 在 accounts branch,但入口在侧栏「交易」组,
+/// 面包屑须显「交易 › 订阅管理」,否则残留上一模块的「财务 › 账户管理」)。
 ({String section, String page, String rootPath, String? createLabel, String? createRoute})
-    _branchMetaOf(int index) {
+    _branchMetaOf(int index, String location) {
+  if (_isSubscriptionManagement(location)) {
+    return (section: '交易', page: '订阅管理', rootPath: '/accounts/templates', createLabel: null, createRoute: null);
+  }
   switch (index) {
     case 0:
       return (section: '', page: '仪表盘', rootPath: '/home', createLabel: null, createRoute: null);
@@ -78,6 +85,14 @@ bool _isReceivableDetail(String location) {
 /// transactions branch 内,但 branch 元数据为「交易管理」,面包屑会失真;且 OD
 /// topbar 富含操作按钮(导入模板/新建),非 shell topbar 可表达。
 bool _isCategoryManagement(String location) => location == '/categories';
+
+/// 订阅管理页(/accounts/templates):accounts branch 子路由,与 /categories
+/// 同为 branch 内自定义路由,但页面自带 header 只是「周期模板」+ 返回的轻条,
+/// 全局 _TopBar 保留(离线/同步徽章与顶栏搜索不丢)—— 面包屑按 location
+/// 覆盖 branch 元数据(见 _branchMetaOf),否则顶部残留「财务 › 账户管理」。
+bool _isSubscriptionManagement(String location) =>
+    location == '/accounts/templates' ||
+    location.startsWith('/accounts/templates/');
 
 /// 应用外壳（侧边栏 + 顶栏 + 内容区）。
 /// 由 [StatefulShellRoute] 驱动：[navigationShell] 切换各功能分支，
@@ -255,6 +270,17 @@ const _navGroups = <_NavGroup>[
   ]),
 ];
 
+/// route-only 导航项(branchIndex 为 null,自定义 route:分类管理 /reports 等)
+/// 声称的路径前缀下,branch 索引项不高亮(route 项自身按 startsWith 高亮)——
+/// 否则同屏双高亮:/accounts/templates 在 accounts branch,「账户管理」与
+/// 「订阅管理」会同时亮;/categories 同理(原 /categories 特判的泛化)。
+bool _claimedByRouteOnlyNav(String location) => _navGroups
+    .expand((g) => g.items)
+    .any((i) =>
+        i.branchIndex == null &&
+        i.route != null &&
+        location.startsWith(i.route!));
+
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.currentIndex,
@@ -344,15 +370,15 @@ class _Sidebar extends StatelessWidget {
                   for (final item in g.items)
                     _NavItemTile(
                       item: item,
-                      // route 项：当前路径在 /categories 下时高亮（非 branch index）。
+                      // route 项:当前路径在其前缀下时高亮(非 branch index);
+                      // branch 项在 route-only 项声称的路径下让位(防双高亮)。
                       selected: item.route != null
                           ? GoRouterState.of(context)
                               .matchedLocation
                               .startsWith(item.route!)
                           : item.branchIndex == currentIndex &&
-                              !GoRouterState.of(context)
-                                  .matchedLocation
-                                  .startsWith('/categories'),
+                              !_claimedByRouteOnlyNav(
+                                  GoRouterState.of(context).matchedLocation),
                       onTap: item.branchIndex == null && item.route == null
                           ? null
                           : () {
@@ -523,7 +549,7 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final meta = _branchMetaOf(branchIndex);
+    final meta = _branchMetaOf(branchIndex, location);
     final t = context.yucai;
     // 创建按钮仅 list 页显(location == rootPath;detail/form/new/edit 不显)。
     final showCreate = meta.createLabel != null && location == meta.rootPath;

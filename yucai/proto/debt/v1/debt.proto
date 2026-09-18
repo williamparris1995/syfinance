@@ -5,6 +5,7 @@ package yucai.debt.v1;
 option go_package = "github.com/yucai/server/internal/proto/debt/v1";
 
 import "common/v1/pagination.proto";
+import "common/v1/recurrence.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -13,6 +14,14 @@ service DebtService {
   rpc UpdateDebt(UpdateDebtRequest) returns (DebtResponse);
   rpc DeleteDebt(DeleteDebtRequest) returns (google.protobuf.Empty);
   rpc RecordPayment(RecordPaymentRequest) returns (RecordPaymentResponse);
+  // Google-Calendar-style per-occurrence edit: move ONE unpaid installment to
+  // a new date (paid / partially paid / transaction-linked entries are
+  // frozen). Server rejects collisions on the target date.
+  rpc SetPaymentDate(SetPaymentDateRequest) returns (PaymentEntryResponse);
+  // Mark an unpaid installment as already repaid WITHOUT booking a cash
+  // transaction — for loans whose early installments were settled before the
+  // debt was entered into the app. The entry becomes frozen.
+  rpc MarkEntryPaid(MarkEntryPaidRequest) returns (PaymentEntryResponse);
   rpc GetDebt(GetDebtRequest) returns (DebtDetailResponse);
   rpc ListDebts(ListDebtsRequest) returns (ListDebtsResponse);
   rpc GetUpcomingPayments(GetUpcomingPaymentsRequest) returns (ListDebtsResponse);
@@ -24,6 +33,8 @@ enum AmortizationMethod {
   AMORTIZATION_EQUAL_PRINCIPAL_INTEREST = 1;
   AMORTIZATION_EQUAL_PRINCIPAL = 2;
   AMORTIZATION_LUMP_SUM = 3;
+  // 先息后本:每期付息,到期一次还本。
+  AMORTIZATION_INTEREST_FIRST = 4;
 }
 
 enum DebtType {
@@ -54,6 +65,22 @@ message DebtDTO {
   int64 next_payment_amount_cents = 19;
   int32 next_payment_period_no = 20;
   int64 remaining_trend_cents = 21;
+  // Recurrence rule (zero values = legacy monthly). billing_day is not
+  // used by debt: by-date months anchor the start date.
+  yucai.common.v1.RecurrenceCycle cycle = 22;
+  int32 interval = 23;     // every N weeks/months/years; <=0 treated as 1
+  int32 weekday_mask = 24; // bit0=Monday ... bit6=Sunday; 0 = start-date weekday
+  yucai.common.v1.RecurrenceMonthlyMode monthly_mode = 25;
+  int32 nth = 26;          // 1-4 = the Nth, 5 = the last (nth-weekday mode)
+  // Guarantor (2026-09 user request; both directions, optional free text).
+  // Field numbers 27/28 allocated after the recurrence block (22-26).
+  string guarantor_name = 27;
+  string guarantor_contact = 28; // phone / wechat / ...
+  // One-off interest waiver (cents), deducted from the earliest installments'
+  // interest at schedule generation; 0 = none.
+  int64 interest_waived_cents = 29;
+  // Σ unpaid schedule interest (本息口径统计用).
+  int64 remaining_interest_cents = 30;
 }
 
 message PaymentEntryDTO {
@@ -88,6 +115,20 @@ message CreateDebtRequest {
   string contact = 11;
   string contract_ref = 12;
   string collection_account_id = 13;
+  // Recurrence rule (zero values = legacy monthly; ignored by lump_sum).
+  yucai.common.v1.RecurrenceCycle cycle = 14;
+  int32 interval = 15;
+  int32 weekday_mask = 16;
+  yucai.common.v1.RecurrenceMonthlyMode monthly_mode = 17;
+  int32 nth = 18;
+  // Term input dual mode: >0 = by periods (N periods, due_date derived);
+  // ==0 = by due date (default; period count derived from rule + dates).
+  int32 term_periods = 19;
+  // Guarantor (optional; empty = none). Numbers after recurrence 14-19.
+  string guarantor_name = 20;
+  string guarantor_contact = 21;
+  // One-off interest waiver (cents); must not exceed total interest.
+  int64 interest_waived_cents = 22;
 }
 
 message UpdateDebtRequest {
@@ -98,6 +139,23 @@ message UpdateDebtRequest {
   string contact = 5;
   string contract_ref = 6;
   string collection_account_id = 7;
+  // Schedule-affecting edits (Google-Calendar style): already-recorded
+  // entries (paid / paid_cents>0 / transaction set) are frozen; the future
+  // schedule is regenerated from the remaining principal.
+  AmortizationMethod amortization_method = 8;
+  string due_date = 9;     // ignored when term_periods > 0
+  int32 term_periods = 10; // >0 = by periods; ==0 = by due date
+  yucai.common.v1.RecurrenceCycle cycle = 11;
+  int32 interval = 12;
+  int32 weekday_mask = 13;
+  yucai.common.v1.RecurrenceMonthlyMode monthly_mode = 14;
+  int32 nth = 15;
+  // Guarantor (optional; empty string clears, same semantics as contact).
+  string guarantor_name = 16;
+  string guarantor_contact = 17;
+  // optional = presence-aware: unset keeps the current waiver, set replaces
+  // (0 clears the waiver).
+  optional int64 interest_waived_cents = 18;
 }
 
 message DeleteDebtRequest { string id = 1; }
@@ -111,6 +169,20 @@ message RecordPaymentRequest {
 message RecordPaymentResponse {
   string transaction_id = 1;
   PaymentEntryDTO entry = 2;
+}
+
+message SetPaymentDateRequest {
+  string debt_id = 1;
+  string entry_id = 2;
+  // yyyy-MM-dd; must be after the debt start date and free of collision.
+  string payment_date = 3;
+}
+
+message PaymentEntryResponse { PaymentEntryDTO entry = 1; }
+
+message MarkEntryPaidRequest {
+  string debt_id = 1;
+  string entry_id = 2;
 }
 
 message GetDebtRequest { string id = 1; }

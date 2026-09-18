@@ -16,6 +16,7 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -28,6 +29,7 @@ import 'package:yucai_client/account/domain/usecases/update_account_usecase.dart
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
@@ -211,6 +213,16 @@ void main() {
   // 真实布局单卡最小 280px；副信息为单行，窄视口会触发省略号。
   // 用宽视口确保单行完整渲染，匹配实际桌面网格。
   const size = Size(1400, 900);
+
+  setUp(() {
+    // 本页 initState 订阅 DataRefreshNotifier(交易跨 branch 变更后重拉)。
+    GetIt.instance.registerLazySingleton<DataRefreshNotifier>(
+        DataRefreshNotifier.new);
+  });
+
+  tearDown(() {
+    GetIt.instance.reset();
+  });
 
   testWidgets('savings card shows 利率 and no progress bar', (t) async {
     t.view.physicalSize = size;

@@ -7,7 +7,9 @@
 //
 // 夹具:内存 drift 库 + DS.create 建 5 笔(4 笔 borrowedIn + 1 笔
 // borrowedOut),其中 1 笔经 recordPayment 还清(lumpSum 单期)做「已结清」。
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:yucai_client/core/error/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
@@ -185,6 +187,195 @@ void main() {
         sortDir: DebtSortDir.desc,
       );
       expect(ids(r2), ['Zhang San']);
+    });
+  });
+
+// ───────── 周期规则(类 Google Calendar)用例 ─────────
+
+  group('recurrence rule', () {
+    test('create 每周 4 期 → 期次日期按周分布,due 取末位', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '周供贷',
+        interestRate: 0.12,
+        amortizationIndex: 0, // annuity
+        startDate: DateTime.utc(2026, 1, 5), // 周一
+        dueDate: DateTime.utc(2026, 1, 5), // term 模式忽略
+        totalPrincipalCents: 400000,
+        type: DebtType.borrowedIn,
+        cycle: 1, // weekly
+        weekdayMask: 1, // 周一
+        termPeriods: 4,
+      );
+      final detail = await debts.get(d.id);
+      expect(detail.schedule, hasLength(4));
+      expect(
+        detail.schedule
+            .map((e) => e.paymentDate.toIso8601String().substring(0, 10)),
+        ['2026-01-12', '2026-01-19', '2026-01-26', '2026-02-02'],
+      );
+      expect(d.dueDate.toIso8601String().substring(0, 10), '2026-02-02');
+      final principal =
+          detail.schedule.fold(0, (a, e) => a + e.principalCents);
+      expect(principal, 400000);
+    });
+
+    test('markEntryPaid 产生结转分录,债务账户余额同步下降', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '历史贷',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 4, 1),
+        totalPrincipalCents: 300000,
+        type: DebtType.borrowedIn,
+        sourceAccountId: 'acc-cash', // 到账 → 债务户入账
+      );
+      final before = await database.accountDao.getAccountById('acc-loan');
+      final detail = await debts.get(d.id);
+
+      final got = await debts.markEntryPaid(
+        debtId: d.id,
+        entryId: detail.schedule.first.id,
+      );
+      expect(got.paid, isTrue);
+      expect(got.transactionId, ''); // 不关联真实记账交易
+
+      // 结转分录存在(描述 + 两腿平衡)。
+      final txns = await database.select(database.transactions).get();
+      final settle = txns
+          .firstWhere((t) => t.description == '标记已还 历史贷');
+      // 债务账户余额下降(负债减少)。
+      final after = await database.accountDao.getAccountById('acc-loan');
+      expect(after!.currentBalanceCents,
+          before!.currentBalanceCents - detail.schedule.first.totalCents);
+      // 期次冻结。
+      final afterDetail = await debts.get(d.id);
+      expect(afterDetail.schedule.first.paid, isTrue);
+    });
+
+    test('setPaymentDate 单期改日 + 冻结/撞日拒绝', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '改日贷',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 4, 1),
+        totalPrincipalCents: 400000,
+        type: DebtType.borrowedIn,
+      );
+      final detail = await debts.get(d.id);
+      final entry = detail.schedule[1]; // 2026-02-01
+
+      // 正常改日:02-01 → 02-10。
+      final got = await debts.setPaymentDate(
+        debtId: d.id,
+        entryId: entry.id,
+        paymentDate: DateTime.utc(2026, 2, 10),
+      );
+      expect(got.paymentDate.toIso8601String().substring(0, 10), '2026-02-10');
+      final after = await debts.get(d.id);
+      expect(after.schedule[1].paymentDate.toIso8601String().substring(0, 10),
+          '2026-02-10');
+
+      // 冻结:第 1 期已还 → 拒绝。
+      await (database.update(database.paymentScheduleEntries)
+            ..where((t) => t.id.equals(detail.schedule[0].id)))
+          .write(db.PaymentScheduleEntriesCompanion(paid: const Value(true)));
+      expect(
+        () => debts.setPaymentDate(
+            debtId: d.id,
+            entryId: detail.schedule[0].id,
+            paymentDate: DateTime.utc(2026, 3, 15)),
+        throwsA(isA<ServerFailure>()),
+      );
+
+      // 撞日:改到第 2 期已占用的 02-10 → 拒绝。
+      expect(
+        () => debts.setPaymentDate(
+            debtId: d.id,
+            entryId: detail.schedule[2].id,
+            paymentDate: DateTime.utc(2026, 2, 10)),
+        throwsA(isA<ValidationFailure>()),
+      );
+    });
+
+    test('recordPayment 描述包含对手方名称(非 Closure 残渣)', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '招商银行',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 4, 1),
+        totalPrincipalCents: 300000,
+        type: DebtType.borrowedIn,
+      );
+      final detail = await debts.get(d.id);
+      final got = await debts.recordPayment(
+        debtId: d.id,
+        scheduleEntryId: detail.schedule.first.id,
+        fromAccountId: 'acc-cash',
+      );
+      expect(got.id, isNotEmpty);
+      final txns = await database.select(database.transactions).get();
+      final desc = txns
+          .firstWhere((t) => t.id == got.transactionId)
+          .description;
+      expect(desc, '还款 招商银行');
+      expect(desc.contains('Closure'), isFalse);
+    });
+
+    test('update 规则变化 → 已还期次冻结,未来按剩余本金重排', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '月供贷',
+        interestRate: 0,
+        amortizationIndex: 1, // equalPrincipal
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 7, 1),
+        totalPrincipalCents: 600000,
+        type: DebtType.borrowedIn,
+      );
+      final created = await debts.get(d.id);
+      expect(created.schedule, hasLength(6)); // legacy 月差期数
+
+      // 冻结前两期(直接落 paid 标记,模拟已还款)。
+      for (var i = 0; i < 2; i++) {
+        await (database.update(database.paymentScheduleEntries)
+              ..where((t) => t.id.equals(created.schedule[i].id)))
+            .write(db.PaymentScheduleEntriesCompanion(
+          paid: const Value(true),
+          paidCents: Value(created.schedule[i].totalCents),
+          transactionId: const Value('txn-frozen'),
+        ));
+      }
+
+      await debts.update(
+        id: d.id,
+        counterparty: '月供贷',
+        interestRate: 0,
+        version: d.version,
+        cycle: 1, // 改为每周
+        weekdayMask: 1, // 周一
+        termPeriods: 3, // 剩余 3 期
+      );
+
+      final detail = await debts.get(d.id);
+      // 冻结两期原样保留(日期不变、paid 保持)。
+      final frozen = detail.schedule.take(2).toList();
+      expect(frozen[0].paymentDate.toIso8601String().substring(0, 10),
+          '2026-02-01');
+      expect(frozen[0].paid, isTrue);
+      // 未来 3 期:锚点 2026-03-01 之后的首个周一是 03-02;剩余本金 40 万。
+      final future = detail.schedule.skip(2).toList();
+      expect(future, hasLength(3));
+      expect(future[0].paymentDate.toIso8601String().substring(0, 10),
+          '2026-03-02');
+      final futurePrincipal = future.fold(0, (a, e) => a + e.principalCents);
+      expect(futurePrincipal, 400000);
     });
   });
 }

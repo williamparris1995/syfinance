@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule_text.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
 
 /// 单条周期模板 card:名称 + 金额 + 周期 + 下次日期 + 自动/暂停 chip +
@@ -266,18 +267,8 @@ String templateAmountDisplay(int cents) {
   return '¥$grouped.$frac';
 }
 
-/// 周期展示文案。
+/// 周期展示文案(规则感知,共享文案函数;未设置周期兜底)。
 String templateCycleDisplay(Template t) {
-  switch (t.cycle) {
-    case TemplateCycle.weekly:
-      return '每周';
-    case TemplateCycle.monthly:
-      return t.billingDay > 0 ? '每月 ${t.billingDay} 日' : '每月';
-    case TemplateCycle.yearly:
-      return '每年';
-    case TemplateCycle.custom:
-      return t.cycleDays > 0 ? '每 ${t.cycleDays} 天' : '自定义周期';
-    case TemplateCycle.unspecified:
-      return '未设置周期';
-  }
+  if (t.cycle == TemplateCycle.unspecified) return '未设置周期';
+  return recurrenceRuleText(t.rule);
 }

@@ -331,11 +331,12 @@ void main() {
     expect: () => [DebtLoading(), DebtDetailLoaded(detail)],
   );
 
-  // Finding 2 regression: refresh paths (create/update/delete) must re-apply
-  // the last typeFilter, so an inline op in receivables_page (borrowedOut)
-  // does not reload the unfiltered list and leak the other direction in.
+  // 回归(2026-09 混淆缺陷):写后刷新必须**全量**(不带 typeFilter)。本 bloc
+  // 是 debts/receivables 两 branch 共享单例,按「最后一次过滤」重放会让先访
+  // 债权页再回债务页创建的刷新加载 borrowedOut 列表 —— 债务页看不到新建
+  // 债务、两页互串数据。页面各自在表现层按方向切片(_debtsOf)。
   blocTest<DebtBloc, DebtState>(
-    'Create refresh re-applies last typeFilter (borrowedOut)',
+    'Create refresh reloads the full list (unfiltered) + exposes lastCreated',
     build: () {
       when(() => repo.create(
             accountId: any(named: 'accountId'),
@@ -350,9 +351,13 @@ void main() {
             sourceAccountId: any(named: 'sourceAccountId'),
             contact: any(named: 'contact'),
             contractRef: any(named: 'contractRef'),
+            guarantorName: any(named: 'guarantorName'),
+            guarantorContact: any(named: 'guarantorContact'),
             collectionAccountId: any(named: 'collectionAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: DebtType.borrowedOut))
+          .thenAnswer((_) async => Right([sample]));
+      when(() => repo.list(typeFilter: null))
           .thenAnswer((_) async => Right([sample]));
       return DebtBloc(repo);
     },
@@ -370,14 +375,16 @@ void main() {
       ))),
     wait: const Duration(milliseconds: 200),
     verify: (b) {
-      // Refresh after create must reuse borrowedOut, never null.
-      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(greaterThanOrEqualTo(2));
-      verifyNever(() => repo.list(typeFilter: null));
+      // 初始过滤加载 1 次;写后刷新必须是不带过滤的全量(新行为)。
+      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(1);
+      verify(() => repo.list(typeFilter: null)).called(1);
+      // 创建成功后 lastCreated 暴露新实体(表单绑定本地合同附件用)。
+      expect(b.lastCreated?.id, sample.id);
     },
   );
 
   blocTest<DebtBloc, DebtState>(
-    'Update refresh re-applies last typeFilter (borrowedOut)',
+    'Update refresh reloads the full list (unfiltered)',
     build: () {
       when(() => repo.update(
             id: any(named: 'id'),
@@ -386,9 +393,13 @@ void main() {
             version: any(named: 'version'),
             contact: any(named: 'contact'),
             contractRef: any(named: 'contractRef'),
+            guarantorName: any(named: 'guarantorName'),
+            guarantorContact: any(named: 'guarantorContact'),
             collectionAccountId: any(named: 'collectionAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: DebtType.borrowedOut))
+          .thenAnswer((_) async => Right([sample]));
+      when(() => repo.list(typeFilter: null))
           .thenAnswer((_) async => Right([sample]));
       return DebtBloc(repo);
     },
@@ -400,17 +411,19 @@ void main() {
       )),
     wait: const Duration(milliseconds: 200),
     verify: (b) {
-      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(greaterThanOrEqualTo(2));
-      verifyNever(() => repo.list(typeFilter: null));
+      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(1);
+      verify(() => repo.list(typeFilter: null)).called(1);
     },
   );
 
   blocTest<DebtBloc, DebtState>(
-    'Delete refresh re-applies last typeFilter (borrowedOut)',
+    'Delete refresh reloads the full list (unfiltered)',
     build: () {
       when(() => repo.delete('d1')).thenAnswer((_) async => const Right(null));
       when(() => repo.list(typeFilter: DebtType.borrowedOut))
           .thenAnswer((_) async => Right([sample]));
+      when(() => repo.list(typeFilter: null))
+          .thenAnswer((_) async => Right(const <Debt>[]));
       return DebtBloc(repo);
     },
     act: (b) => b
@@ -418,8 +431,8 @@ void main() {
       ..add(const DeleteDebtRequested('d1')),
     wait: const Duration(milliseconds: 200),
     verify: (b) {
-      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(greaterThanOrEqualTo(2));
-      verifyNever(() => repo.list(typeFilter: null));
+      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(1);
+      verify(() => repo.list(typeFilter: null)).called(1);
     },
   );
 }

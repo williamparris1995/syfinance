@@ -7,6 +7,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/date_picker_input.dart';
@@ -50,12 +51,16 @@ class TransactionFormPage extends StatelessWidget {
     this.initialAccountId,
     this.initialType,
     this.existing,
+    this.isCopy = false,
   });
 
   final TransactionFormBloc? bloc;
   final String? initialAccountId;
   final TxnType? initialType;
   final Transaction? existing;
+
+  /// 复制模式(true):existing 仅用于预填,提交走创建。
+  final bool isCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +72,7 @@ class TransactionFormPage extends StatelessWidget {
           initialAccountId: initialAccountId,
           initialType: initialType,
           existing: existing,
+          isCopy: isCopy,
         ),
       );
     }
@@ -83,6 +89,7 @@ class TransactionFormPage extends StatelessWidget {
         initialAccountId: initialAccountId,
         initialType: initialType,
         existing: existing,
+        isCopy: isCopy,
       ),
     );
   }
@@ -109,11 +116,15 @@ class _TransactionFormView extends StatefulWidget {
     this.initialAccountId,
     this.initialType,
     this.existing,
+    this.isCopy = false,
   });
 
   final String? initialAccountId;
   final TxnType? initialType;
   final Transaction? existing;
+
+  /// 复制模式(true):existing 仅用于预填,提交走创建。
+  final bool isCopy;
 
   @override
   State<_TransactionFormView> createState() => _TransactionFormViewState();
@@ -151,7 +162,8 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     _loadTags();
     final ex = widget.existing;
     if (ex != null) {
-      _existingId = ex.id;
+      // 复制模式:预填字段但 _existingId 留空 → _isEdit=false → 提交走创建。
+      if (!widget.isCopy) _existingId = ex.id;
       _existingVersion = ex.version;
       _amountCtrl.text = (ex.totalDebitCents / 100).toStringAsFixed(2);
       _payeeCtrl.text = ex.description;
@@ -356,6 +368,11 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     _formKey.currentState!.save();
 
     final bloc = context.read<TransactionFormBloc>();
+    final s = bloc.state;
+    final accounts = s is TransactionFormReady
+        ? s.accounts
+        : (s is TransactionFormSubmitting ? s.accounts : const <Account>[]);
+    final description = _resolveDescription(accounts);
     final transactionTime = _transactionTimeRfc3339();
     if (_isEdit) {
       switch (_type) {
@@ -373,7 +390,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
         id: _existingId!,
         version: _existingVersion,
         transactionDate: _date,
-        description: _payeeCtrl.text.trim(),
+        description: description,
         entries: _buildEntries(),
       ));
       return;
@@ -386,7 +403,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           assetAccountId: _assetAccountId!,
           expenseAccountId: _categoryAccountId!,
           amountCents: _amountCents,
-          description: _payeeCtrl.text.trim(),
+          description: description,
           note: _noteCtrl.text.trim(),
           transactionTime: transactionTime,
         ));
@@ -398,7 +415,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           assetAccountId: _assetAccountId!,
           incomeAccountId: _categoryAccountId!,
           amountCents: _amountCents,
-          description: _payeeCtrl.text.trim(),
+          description: description,
           note: _noteCtrl.text.trim(),
           transactionTime: transactionTime,
         ));
@@ -410,11 +427,35 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           fromAccountId: _assetAccountId!,
           toAccountId: _toAccountId!,
           amountCents: _amountCents,
-          description: _payeeCtrl.text.trim(),
+          description: description,
           note: _noteCtrl.text.trim(),
           transactionTime: transactionTime,
         ));
         break;
+    }
+  }
+
+  /// 商户留空 → 自动以分类账户名作为描述(用户拍板方案 2):描述即列表行/
+  /// 详情页的标题,补全后不再出现「(无描述)」;编辑模式对旧空描述同样生效
+  /// (下次保存时补写)。转账无分类账户 → 「转账」字面;账户名解析不到
+  /// (下拉未选中走不到提交,理论兜底)→ 退回类型文案,保证描述永不为空。
+  String _resolveDescription(List<Account> accounts) {
+    final text = _payeeCtrl.text.trim();
+    if (text.isNotEmpty) return text;
+    String nameOf(String? id) {
+      for (final a in accounts) {
+        if (a.id == id) return a.name;
+      }
+      return '';
+    }
+
+    switch (_type) {
+      case TxnType.expense:
+      case TxnType.income:
+        final name = nameOf(_categoryAccountId);
+        return name.isNotEmpty ? name : _type.label;
+      case TxnType.transfer:
+        return '转账';
     }
   }
 
@@ -492,6 +533,10 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
             // transaction 已持久化 → 同步 tag diff(AddTag/RemoveTag)后再 pop。
             // 新建:_originalTagIds 为空(全部选中为新增);编辑:_originalTagIds
             // 为加载时快照。txnId 来自 bloc success(create 拿新 id / update 用 e.id)。
+            // 跨页刷新:本页可能从任意 branch push而来,仪表盘/账户列表等
+            // 驻留页(IndexedStack 分支,不重建不 didPopNext)依赖全局通知器
+            // 重拉页面级缓存 —— 照设置页导入存档 bump 先例。
+            getIt<DataRefreshNotifier>().bump();
             final navigator = Navigator.of(context);
             final txnId = state.transactionId;
             if (txnId != null) {

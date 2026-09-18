@@ -80,6 +80,155 @@ func (ddu *DebtDetailsUpdate) SetNillableAmortizationMethod(s *string) *DebtDeta
 	return ddu
 }
 
+// SetCycle sets the "cycle" field.
+func (ddu *DebtDetailsUpdate) SetCycle(s string) *DebtDetailsUpdate {
+	ddu.mutation.SetCycle(s)
+	return ddu
+}
+
+// SetNillableCycle sets the "cycle" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableCycle(s *string) *DebtDetailsUpdate {
+	if s != nil {
+		ddu.SetCycle(*s)
+	}
+	return ddu
+}
+
+// SetInterval sets the "interval" field.
+func (ddu *DebtDetailsUpdate) SetInterval(i int32) *DebtDetailsUpdate {
+	ddu.mutation.ResetInterval()
+	ddu.mutation.SetInterval(i)
+	return ddu
+}
+
+// SetNillableInterval sets the "interval" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableInterval(i *int32) *DebtDetailsUpdate {
+	if i != nil {
+		ddu.SetInterval(*i)
+	}
+	return ddu
+}
+
+// AddInterval adds i to the "interval" field.
+func (ddu *DebtDetailsUpdate) AddInterval(i int32) *DebtDetailsUpdate {
+	ddu.mutation.AddInterval(i)
+	return ddu
+}
+
+// ClearInterval clears the value of the "interval" field.
+func (ddu *DebtDetailsUpdate) ClearInterval() *DebtDetailsUpdate {
+	ddu.mutation.ClearInterval()
+	return ddu
+}
+
+// SetWeekdayMask sets the "weekday_mask" field.
+func (ddu *DebtDetailsUpdate) SetWeekdayMask(i int32) *DebtDetailsUpdate {
+	ddu.mutation.ResetWeekdayMask()
+	ddu.mutation.SetWeekdayMask(i)
+	return ddu
+}
+
+// SetNillableWeekdayMask sets the "weekday_mask" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableWeekdayMask(i *int32) *DebtDetailsUpdate {
+	if i != nil {
+		ddu.SetWeekdayMask(*i)
+	}
+	return ddu
+}
+
+// AddWeekdayMask adds i to the "weekday_mask" field.
+func (ddu *DebtDetailsUpdate) AddWeekdayMask(i int32) *DebtDetailsUpdate {
+	ddu.mutation.AddWeekdayMask(i)
+	return ddu
+}
+
+// ClearWeekdayMask clears the value of the "weekday_mask" field.
+func (ddu *DebtDetailsUpdate) ClearWeekdayMask() *DebtDetailsUpdate {
+	ddu.mutation.ClearWeekdayMask()
+	return ddu
+}
+
+// SetMonthlyMode sets the "monthly_mode" field.
+func (ddu *DebtDetailsUpdate) SetMonthlyMode(i int32) *DebtDetailsUpdate {
+	ddu.mutation.ResetMonthlyMode()
+	ddu.mutation.SetMonthlyMode(i)
+	return ddu
+}
+
+// SetNillableMonthlyMode sets the "monthly_mode" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableMonthlyMode(i *int32) *DebtDetailsUpdate {
+	if i != nil {
+		ddu.SetMonthlyMode(*i)
+	}
+	return ddu
+}
+
+// AddMonthlyMode adds i to the "monthly_mode" field.
+func (ddu *DebtDetailsUpdate) AddMonthlyMode(i int32) *DebtDetailsUpdate {
+	ddu.mutation.AddMonthlyMode(i)
+	return ddu
+}
+
+// ClearMonthlyMode clears the value of the "monthly_mode" field.
+func (ddu *DebtDetailsUpdate) ClearMonthlyMode() *DebtDetailsUpdate {
+	ddu.mutation.ClearMonthlyMode()
+	return ddu
+}
+
+// SetNth sets the "nth" field.
+func (ddu *DebtDetailsUpdate) SetNth(i int32) *DebtDetailsUpdate {
+	ddu.mutation.ResetNth()
+	ddu.mutation.SetNth(i)
+	return ddu
+}
+
+// SetNillableNth sets the "nth" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableNth(i *int32) *DebtDetailsUpdate {
+	if i != nil {
+		ddu.SetNth(*i)
+	}
+	return ddu
+}
+
+// AddNth adds i to the "nth" field.
+func (ddu *DebtDetailsUpdate) AddNth(i int32) *DebtDetailsUpdate {
+	ddu.mutation.AddNth(i)
+	return ddu
+}
+
+// ClearNth clears the value of the "nth" field.
+func (ddu *DebtDetailsUpdate) ClearNth() *DebtDetailsUpdate {
+	ddu.mutation.ClearNth()
+	return ddu
+}
+
+// SetInterestWaivedCents sets the "interest_waived_cents" field.
+func (ddu *DebtDetailsUpdate) SetInterestWaivedCents(i int64) *DebtDetailsUpdate {
+	ddu.mutation.ResetInterestWaivedCents()
+	ddu.mutation.SetInterestWaivedCents(i)
+	return ddu
+}
+
+// SetNillableInterestWaivedCents sets the "interest_waived_cents" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableInterestWaivedCents(i *int64) *DebtDetailsUpdate {
+	if i != nil {
+		ddu.SetInterestWaivedCents(*i)
+	}
+	return ddu
+}
+
+// AddInterestWaivedCents adds i to the "interest_waived_cents" field.
+func (ddu *DebtDetailsUpdate) AddInterestWaivedCents(i int64) *DebtDetailsUpdate {
+	ddu.mutation.AddInterestWaivedCents(i)
+	return ddu
+}
+
+// ClearInterestWaivedCents clears the value of the "interest_waived_cents" field.
+func (ddu *DebtDetailsUpdate) ClearInterestWaivedCents() *DebtDetailsUpdate {
+	ddu.mutation.ClearInterestWaivedCents()
+	return ddu
+}
+
 // SetStartDate sets the "start_date" field.
 func (ddu *DebtDetailsUpdate) SetStartDate(t time.Time) *DebtDetailsUpdate {
 	ddu.mutation.SetStartDate(t)
@@ -223,6 +372,34 @@ func (ddu *DebtDetailsUpdate) SetNillableCollectionAccountID(u *uuid.UUID) *Debt
 // ClearCollectionAccountID clears the value of the "collection_account_id" field.
 func (ddu *DebtDetailsUpdate) ClearCollectionAccountID() *DebtDetailsUpdate {
 	ddu.mutation.ClearCollectionAccountID()
+	return ddu
+}
+
+// SetGuarantorName sets the "guarantor_name" field.
+func (ddu *DebtDetailsUpdate) SetGuarantorName(s string) *DebtDetailsUpdate {
+	ddu.mutation.SetGuarantorName(s)
+	return ddu
+}
+
+// SetNillableGuarantorName sets the "guarantor_name" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableGuarantorName(s *string) *DebtDetailsUpdate {
+	if s != nil {
+		ddu.SetGuarantorName(*s)
+	}
+	return ddu
+}
+
+// SetGuarantorContact sets the "guarantor_contact" field.
+func (ddu *DebtDetailsUpdate) SetGuarantorContact(s string) *DebtDetailsUpdate {
+	ddu.mutation.SetGuarantorContact(s)
+	return ddu
+}
+
+// SetNillableGuarantorContact sets the "guarantor_contact" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableGuarantorContact(s *string) *DebtDetailsUpdate {
+	if s != nil {
+		ddu.SetGuarantorContact(*s)
+	}
 	return ddu
 }
 
@@ -379,6 +556,54 @@ func (ddu *DebtDetailsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := ddu.mutation.AmortizationMethod(); ok {
 		_spec.SetField(debtdetails.FieldAmortizationMethod, field.TypeString, value)
 	}
+	if value, ok := ddu.mutation.Cycle(); ok {
+		_spec.SetField(debtdetails.FieldCycle, field.TypeString, value)
+	}
+	if value, ok := ddu.mutation.Interval(); ok {
+		_spec.SetField(debtdetails.FieldInterval, field.TypeInt32, value)
+	}
+	if value, ok := ddu.mutation.AddedInterval(); ok {
+		_spec.AddField(debtdetails.FieldInterval, field.TypeInt32, value)
+	}
+	if ddu.mutation.IntervalCleared() {
+		_spec.ClearField(debtdetails.FieldInterval, field.TypeInt32)
+	}
+	if value, ok := ddu.mutation.WeekdayMask(); ok {
+		_spec.SetField(debtdetails.FieldWeekdayMask, field.TypeInt32, value)
+	}
+	if value, ok := ddu.mutation.AddedWeekdayMask(); ok {
+		_spec.AddField(debtdetails.FieldWeekdayMask, field.TypeInt32, value)
+	}
+	if ddu.mutation.WeekdayMaskCleared() {
+		_spec.ClearField(debtdetails.FieldWeekdayMask, field.TypeInt32)
+	}
+	if value, ok := ddu.mutation.MonthlyMode(); ok {
+		_spec.SetField(debtdetails.FieldMonthlyMode, field.TypeInt32, value)
+	}
+	if value, ok := ddu.mutation.AddedMonthlyMode(); ok {
+		_spec.AddField(debtdetails.FieldMonthlyMode, field.TypeInt32, value)
+	}
+	if ddu.mutation.MonthlyModeCleared() {
+		_spec.ClearField(debtdetails.FieldMonthlyMode, field.TypeInt32)
+	}
+	if value, ok := ddu.mutation.Nth(); ok {
+		_spec.SetField(debtdetails.FieldNth, field.TypeInt32, value)
+	}
+	if value, ok := ddu.mutation.AddedNth(); ok {
+		_spec.AddField(debtdetails.FieldNth, field.TypeInt32, value)
+	}
+	if ddu.mutation.NthCleared() {
+		_spec.ClearField(debtdetails.FieldNth, field.TypeInt32)
+	}
+	if value, ok := ddu.mutation.InterestWaivedCents(); ok {
+		_spec.SetField(debtdetails.FieldInterestWaivedCents, field.TypeInt64, value)
+	}
+	if value, ok := ddu.mutation.AddedInterestWaivedCents(); ok {
+		_spec.AddField(debtdetails.FieldInterestWaivedCents, field.TypeInt64, value)
+	}
+	if ddu.mutation.InterestWaivedCentsCleared() {
+		_spec.ClearField(debtdetails.FieldInterestWaivedCents, field.TypeInt64)
+	}
 	if value, ok := ddu.mutation.StartDate(); ok {
 		_spec.SetField(debtdetails.FieldStartDate, field.TypeTime, value)
 	}
@@ -414,6 +639,12 @@ func (ddu *DebtDetailsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if ddu.mutation.CollectionAccountIDCleared() {
 		_spec.ClearField(debtdetails.FieldCollectionAccountID, field.TypeUUID)
+	}
+	if value, ok := ddu.mutation.GuarantorName(); ok {
+		_spec.SetField(debtdetails.FieldGuarantorName, field.TypeString, value)
+	}
+	if value, ok := ddu.mutation.GuarantorContact(); ok {
+		_spec.SetField(debtdetails.FieldGuarantorContact, field.TypeString, value)
 	}
 	if value, ok := ddu.mutation.UpdatedAt(); ok {
 		_spec.SetField(debtdetails.FieldUpdatedAt, field.TypeTime, value)
@@ -577,6 +808,155 @@ func (dduo *DebtDetailsUpdateOne) SetNillableAmortizationMethod(s *string) *Debt
 	return dduo
 }
 
+// SetCycle sets the "cycle" field.
+func (dduo *DebtDetailsUpdateOne) SetCycle(s string) *DebtDetailsUpdateOne {
+	dduo.mutation.SetCycle(s)
+	return dduo
+}
+
+// SetNillableCycle sets the "cycle" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableCycle(s *string) *DebtDetailsUpdateOne {
+	if s != nil {
+		dduo.SetCycle(*s)
+	}
+	return dduo
+}
+
+// SetInterval sets the "interval" field.
+func (dduo *DebtDetailsUpdateOne) SetInterval(i int32) *DebtDetailsUpdateOne {
+	dduo.mutation.ResetInterval()
+	dduo.mutation.SetInterval(i)
+	return dduo
+}
+
+// SetNillableInterval sets the "interval" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableInterval(i *int32) *DebtDetailsUpdateOne {
+	if i != nil {
+		dduo.SetInterval(*i)
+	}
+	return dduo
+}
+
+// AddInterval adds i to the "interval" field.
+func (dduo *DebtDetailsUpdateOne) AddInterval(i int32) *DebtDetailsUpdateOne {
+	dduo.mutation.AddInterval(i)
+	return dduo
+}
+
+// ClearInterval clears the value of the "interval" field.
+func (dduo *DebtDetailsUpdateOne) ClearInterval() *DebtDetailsUpdateOne {
+	dduo.mutation.ClearInterval()
+	return dduo
+}
+
+// SetWeekdayMask sets the "weekday_mask" field.
+func (dduo *DebtDetailsUpdateOne) SetWeekdayMask(i int32) *DebtDetailsUpdateOne {
+	dduo.mutation.ResetWeekdayMask()
+	dduo.mutation.SetWeekdayMask(i)
+	return dduo
+}
+
+// SetNillableWeekdayMask sets the "weekday_mask" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableWeekdayMask(i *int32) *DebtDetailsUpdateOne {
+	if i != nil {
+		dduo.SetWeekdayMask(*i)
+	}
+	return dduo
+}
+
+// AddWeekdayMask adds i to the "weekday_mask" field.
+func (dduo *DebtDetailsUpdateOne) AddWeekdayMask(i int32) *DebtDetailsUpdateOne {
+	dduo.mutation.AddWeekdayMask(i)
+	return dduo
+}
+
+// ClearWeekdayMask clears the value of the "weekday_mask" field.
+func (dduo *DebtDetailsUpdateOne) ClearWeekdayMask() *DebtDetailsUpdateOne {
+	dduo.mutation.ClearWeekdayMask()
+	return dduo
+}
+
+// SetMonthlyMode sets the "monthly_mode" field.
+func (dduo *DebtDetailsUpdateOne) SetMonthlyMode(i int32) *DebtDetailsUpdateOne {
+	dduo.mutation.ResetMonthlyMode()
+	dduo.mutation.SetMonthlyMode(i)
+	return dduo
+}
+
+// SetNillableMonthlyMode sets the "monthly_mode" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableMonthlyMode(i *int32) *DebtDetailsUpdateOne {
+	if i != nil {
+		dduo.SetMonthlyMode(*i)
+	}
+	return dduo
+}
+
+// AddMonthlyMode adds i to the "monthly_mode" field.
+func (dduo *DebtDetailsUpdateOne) AddMonthlyMode(i int32) *DebtDetailsUpdateOne {
+	dduo.mutation.AddMonthlyMode(i)
+	return dduo
+}
+
+// ClearMonthlyMode clears the value of the "monthly_mode" field.
+func (dduo *DebtDetailsUpdateOne) ClearMonthlyMode() *DebtDetailsUpdateOne {
+	dduo.mutation.ClearMonthlyMode()
+	return dduo
+}
+
+// SetNth sets the "nth" field.
+func (dduo *DebtDetailsUpdateOne) SetNth(i int32) *DebtDetailsUpdateOne {
+	dduo.mutation.ResetNth()
+	dduo.mutation.SetNth(i)
+	return dduo
+}
+
+// SetNillableNth sets the "nth" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableNth(i *int32) *DebtDetailsUpdateOne {
+	if i != nil {
+		dduo.SetNth(*i)
+	}
+	return dduo
+}
+
+// AddNth adds i to the "nth" field.
+func (dduo *DebtDetailsUpdateOne) AddNth(i int32) *DebtDetailsUpdateOne {
+	dduo.mutation.AddNth(i)
+	return dduo
+}
+
+// ClearNth clears the value of the "nth" field.
+func (dduo *DebtDetailsUpdateOne) ClearNth() *DebtDetailsUpdateOne {
+	dduo.mutation.ClearNth()
+	return dduo
+}
+
+// SetInterestWaivedCents sets the "interest_waived_cents" field.
+func (dduo *DebtDetailsUpdateOne) SetInterestWaivedCents(i int64) *DebtDetailsUpdateOne {
+	dduo.mutation.ResetInterestWaivedCents()
+	dduo.mutation.SetInterestWaivedCents(i)
+	return dduo
+}
+
+// SetNillableInterestWaivedCents sets the "interest_waived_cents" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableInterestWaivedCents(i *int64) *DebtDetailsUpdateOne {
+	if i != nil {
+		dduo.SetInterestWaivedCents(*i)
+	}
+	return dduo
+}
+
+// AddInterestWaivedCents adds i to the "interest_waived_cents" field.
+func (dduo *DebtDetailsUpdateOne) AddInterestWaivedCents(i int64) *DebtDetailsUpdateOne {
+	dduo.mutation.AddInterestWaivedCents(i)
+	return dduo
+}
+
+// ClearInterestWaivedCents clears the value of the "interest_waived_cents" field.
+func (dduo *DebtDetailsUpdateOne) ClearInterestWaivedCents() *DebtDetailsUpdateOne {
+	dduo.mutation.ClearInterestWaivedCents()
+	return dduo
+}
+
 // SetStartDate sets the "start_date" field.
 func (dduo *DebtDetailsUpdateOne) SetStartDate(t time.Time) *DebtDetailsUpdateOne {
 	dduo.mutation.SetStartDate(t)
@@ -720,6 +1100,34 @@ func (dduo *DebtDetailsUpdateOne) SetNillableCollectionAccountID(u *uuid.UUID) *
 // ClearCollectionAccountID clears the value of the "collection_account_id" field.
 func (dduo *DebtDetailsUpdateOne) ClearCollectionAccountID() *DebtDetailsUpdateOne {
 	dduo.mutation.ClearCollectionAccountID()
+	return dduo
+}
+
+// SetGuarantorName sets the "guarantor_name" field.
+func (dduo *DebtDetailsUpdateOne) SetGuarantorName(s string) *DebtDetailsUpdateOne {
+	dduo.mutation.SetGuarantorName(s)
+	return dduo
+}
+
+// SetNillableGuarantorName sets the "guarantor_name" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableGuarantorName(s *string) *DebtDetailsUpdateOne {
+	if s != nil {
+		dduo.SetGuarantorName(*s)
+	}
+	return dduo
+}
+
+// SetGuarantorContact sets the "guarantor_contact" field.
+func (dduo *DebtDetailsUpdateOne) SetGuarantorContact(s string) *DebtDetailsUpdateOne {
+	dduo.mutation.SetGuarantorContact(s)
+	return dduo
+}
+
+// SetNillableGuarantorContact sets the "guarantor_contact" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableGuarantorContact(s *string) *DebtDetailsUpdateOne {
+	if s != nil {
+		dduo.SetGuarantorContact(*s)
+	}
 	return dduo
 }
 
@@ -906,6 +1314,54 @@ func (dduo *DebtDetailsUpdateOne) sqlSave(ctx context.Context) (_node *DebtDetai
 	if value, ok := dduo.mutation.AmortizationMethod(); ok {
 		_spec.SetField(debtdetails.FieldAmortizationMethod, field.TypeString, value)
 	}
+	if value, ok := dduo.mutation.Cycle(); ok {
+		_spec.SetField(debtdetails.FieldCycle, field.TypeString, value)
+	}
+	if value, ok := dduo.mutation.Interval(); ok {
+		_spec.SetField(debtdetails.FieldInterval, field.TypeInt32, value)
+	}
+	if value, ok := dduo.mutation.AddedInterval(); ok {
+		_spec.AddField(debtdetails.FieldInterval, field.TypeInt32, value)
+	}
+	if dduo.mutation.IntervalCleared() {
+		_spec.ClearField(debtdetails.FieldInterval, field.TypeInt32)
+	}
+	if value, ok := dduo.mutation.WeekdayMask(); ok {
+		_spec.SetField(debtdetails.FieldWeekdayMask, field.TypeInt32, value)
+	}
+	if value, ok := dduo.mutation.AddedWeekdayMask(); ok {
+		_spec.AddField(debtdetails.FieldWeekdayMask, field.TypeInt32, value)
+	}
+	if dduo.mutation.WeekdayMaskCleared() {
+		_spec.ClearField(debtdetails.FieldWeekdayMask, field.TypeInt32)
+	}
+	if value, ok := dduo.mutation.MonthlyMode(); ok {
+		_spec.SetField(debtdetails.FieldMonthlyMode, field.TypeInt32, value)
+	}
+	if value, ok := dduo.mutation.AddedMonthlyMode(); ok {
+		_spec.AddField(debtdetails.FieldMonthlyMode, field.TypeInt32, value)
+	}
+	if dduo.mutation.MonthlyModeCleared() {
+		_spec.ClearField(debtdetails.FieldMonthlyMode, field.TypeInt32)
+	}
+	if value, ok := dduo.mutation.Nth(); ok {
+		_spec.SetField(debtdetails.FieldNth, field.TypeInt32, value)
+	}
+	if value, ok := dduo.mutation.AddedNth(); ok {
+		_spec.AddField(debtdetails.FieldNth, field.TypeInt32, value)
+	}
+	if dduo.mutation.NthCleared() {
+		_spec.ClearField(debtdetails.FieldNth, field.TypeInt32)
+	}
+	if value, ok := dduo.mutation.InterestWaivedCents(); ok {
+		_spec.SetField(debtdetails.FieldInterestWaivedCents, field.TypeInt64, value)
+	}
+	if value, ok := dduo.mutation.AddedInterestWaivedCents(); ok {
+		_spec.AddField(debtdetails.FieldInterestWaivedCents, field.TypeInt64, value)
+	}
+	if dduo.mutation.InterestWaivedCentsCleared() {
+		_spec.ClearField(debtdetails.FieldInterestWaivedCents, field.TypeInt64)
+	}
 	if value, ok := dduo.mutation.StartDate(); ok {
 		_spec.SetField(debtdetails.FieldStartDate, field.TypeTime, value)
 	}
@@ -941,6 +1397,12 @@ func (dduo *DebtDetailsUpdateOne) sqlSave(ctx context.Context) (_node *DebtDetai
 	}
 	if dduo.mutation.CollectionAccountIDCleared() {
 		_spec.ClearField(debtdetails.FieldCollectionAccountID, field.TypeUUID)
+	}
+	if value, ok := dduo.mutation.GuarantorName(); ok {
+		_spec.SetField(debtdetails.FieldGuarantorName, field.TypeString, value)
+	}
+	if value, ok := dduo.mutation.GuarantorContact(); ok {
+		_spec.SetField(debtdetails.FieldGuarantorContact, field.TypeString, value)
 	}
 	if value, ok := dduo.mutation.UpdatedAt(); ok {
 		_spec.SetField(debtdetails.FieldUpdatedAt, field.TypeTime, value)

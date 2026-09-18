@@ -43,28 +43,44 @@ func init() {
 	transactiontemplateDescBillingDay := transactiontemplateFields[9].Descriptor()
 	// transactiontemplate.DefaultBillingDay holds the default value on creation for the billing_day field.
 	transactiontemplate.DefaultBillingDay = transactiontemplateDescBillingDay.Default.(int32)
+	// transactiontemplateDescInterval is the schema descriptor for interval field.
+	transactiontemplateDescInterval := transactiontemplateFields[10].Descriptor()
+	// transactiontemplate.DefaultInterval holds the default value on creation for the interval field.
+	transactiontemplate.DefaultInterval = transactiontemplateDescInterval.Default.(int32)
+	// transactiontemplateDescWeekdayMask is the schema descriptor for weekday_mask field.
+	transactiontemplateDescWeekdayMask := transactiontemplateFields[11].Descriptor()
+	// transactiontemplate.DefaultWeekdayMask holds the default value on creation for the weekday_mask field.
+	transactiontemplate.DefaultWeekdayMask = transactiontemplateDescWeekdayMask.Default.(int32)
+	// transactiontemplateDescMonthlyMode is the schema descriptor for monthly_mode field.
+	transactiontemplateDescMonthlyMode := transactiontemplateFields[12].Descriptor()
+	// transactiontemplate.DefaultMonthlyMode holds the default value on creation for the monthly_mode field.
+	transactiontemplate.DefaultMonthlyMode = transactiontemplateDescMonthlyMode.Default.(int32)
+	// transactiontemplateDescNth is the schema descriptor for nth field.
+	transactiontemplateDescNth := transactiontemplateFields[13].Descriptor()
+	// transactiontemplate.DefaultNth holds the default value on creation for the nth field.
+	transactiontemplate.DefaultNth = transactiontemplateDescNth.Default.(int32)
 	// transactiontemplateDescAutoRecord is the schema descriptor for auto_record field.
-	transactiontemplateDescAutoRecord := transactiontemplateFields[13].Descriptor()
+	transactiontemplateDescAutoRecord := transactiontemplateFields[17].Descriptor()
 	// transactiontemplate.DefaultAutoRecord holds the default value on creation for the auto_record field.
 	transactiontemplate.DefaultAutoRecord = transactiontemplateDescAutoRecord.Default.(bool)
 	// transactiontemplateDescPaused is the schema descriptor for paused field.
-	transactiontemplateDescPaused := transactiontemplateFields[14].Descriptor()
+	transactiontemplateDescPaused := transactiontemplateFields[18].Descriptor()
 	// transactiontemplate.DefaultPaused holds the default value on creation for the paused field.
 	transactiontemplate.DefaultPaused = transactiontemplateDescPaused.Default.(bool)
 	// transactiontemplateDescCategory is the schema descriptor for category field.
-	transactiontemplateDescCategory := transactiontemplateFields[16].Descriptor()
+	transactiontemplateDescCategory := transactiontemplateFields[20].Descriptor()
 	// transactiontemplate.DefaultCategory holds the default value on creation for the category field.
 	transactiontemplate.DefaultCategory = transactiontemplateDescCategory.Default.(string)
 	// transactiontemplateDescVersion is the schema descriptor for version field.
-	transactiontemplateDescVersion := transactiontemplateFields[17].Descriptor()
+	transactiontemplateDescVersion := transactiontemplateFields[21].Descriptor()
 	// transactiontemplate.DefaultVersion holds the default value on creation for the version field.
 	transactiontemplate.DefaultVersion = transactiontemplateDescVersion.Default.(int64)
 	// transactiontemplateDescCreatedAt is the schema descriptor for created_at field.
-	transactiontemplateDescCreatedAt := transactiontemplateFields[18].Descriptor()
+	transactiontemplateDescCreatedAt := transactiontemplateFields[22].Descriptor()
 	// transactiontemplate.DefaultCreatedAt holds the default value on creation for the created_at field.
 	transactiontemplate.DefaultCreatedAt = transactiontemplateDescCreatedAt.Default.(func() time.Time)
 	// transactiontemplateDescUpdatedAt is the schema descriptor for updated_at field.
-	transactiontemplateDescUpdatedAt := transactiontemplateFields[19].Descriptor()
+	transactiontemplateDescUpdatedAt := transactiontemplateFields[23].Descriptor()
 	// transactiontemplate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	transactiontemplate.DefaultUpdatedAt = transactiontemplateDescUpdatedAt.Default.(func() time.Time)
 	// transactiontemplate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

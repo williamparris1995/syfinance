@@ -10,6 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/template/domain"
 	tmplrepo "github.com/yucai/server/internal/template/adapter/driven/repository"
 	"github.com/yucai/server/internal/template/application"
@@ -210,8 +211,10 @@ func TestTemplateAdvanceToNext(t *testing.T) {
 }
 
 func TestTemplateMonthEndClamping(t *testing.T) {
+	// 共享内核规则推进:billingDay=31 + 月末钳制 = 每月末语义。
+	rule := recurrence.Rule{Cycle: recurrence.CycleMonthly, BillingDay: 31}
 	base := time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC)
-	next := domain.CalculateNextDate(base, domain.CycleMonthly, 31, 1)
+	next := rule.NextAfter(base)
 	if next.Month() != time.February {
 		t.Errorf("expected February, got %v", next.Month())
 	}
@@ -219,7 +222,7 @@ func TestTemplateMonthEndClamping(t *testing.T) {
 		t.Errorf("expected day 28 for Feb, got %d", next.Day())
 	}
 
-	next2 := domain.CalculateNextDate(base, domain.CycleMonthly, 31, 2)
+	next2 := rule.NextAfter(next)
 	if next2.Month() != time.March {
 		t.Errorf("expected March, got %v", next2.Month())
 	}

@@ -40,7 +40,16 @@ class CreateDebtParams extends Equatable {
     this.sourceAccountId,
     this.contact = '',
     this.contractRef = '',
+    this.guarantorName = '',
+    this.guarantorContact = '',
     this.collectionAccountId,
+    this.cycle = 2,
+    this.interval = 1,
+    this.weekdayMask = 0,
+    this.monthlyMode = 0,
+    this.nth = 0,
+    this.termPeriods = 0,
+    this.interestWaivedCents = 0,
   });
   final String accountId;
   final String counterparty;
@@ -63,7 +72,20 @@ class CreateDebtParams extends Equatable {
   /// 关联账户(borrowedOut 必填,服务端 application 层强制)。
   final String contact;
   final String contractRef;
+  /// 担保人字段(2026-09 用户需求):可选自由文本,'' = 无。
+  final String guarantorName;
+  final String guarantorContact;
   final String? collectionAccountId;
+  /// 周期规则(0 值 = 旧「按月」;cycle proto 序号 1-4,默认 2=monthly)。
+  final int cycle;
+  final int interval;
+  final int weekdayMask;
+  final int monthlyMode;
+  final int nth;
+  /// >0 = 按期数模式(N 期,due 由末个发生日推导);0 = 按到期日(默认)。
+  final int termPeriods;
+  /// 一次性利息减免(分,银行优惠;0 = 无)。
+  final int interestWaivedCents;
 
   @override
   List<Object?> get props => [
@@ -79,7 +101,16 @@ class CreateDebtParams extends Equatable {
         sourceAccountId,
         contact,
         contractRef,
+        guarantorName,
+        guarantorContact,
         collectionAccountId,
+        cycle,
+        interval,
+        weekdayMask,
+        monthlyMode,
+        nth,
+        termPeriods,
+        interestWaivedCents,
       ];
 }
 
@@ -98,7 +129,18 @@ class UpdateDebtParams extends Equatable {
     required this.version,
     this.contact = '',
     this.contractRef = '',
+    this.guarantorName = '',
+    this.guarantorContact = '',
     this.collectionAccountId,
+    this.amortizationIndex,
+    this.dueDate,
+    this.termPeriods = 0,
+    this.cycle,
+    this.interval,
+    this.weekdayMask,
+    this.monthlyMode,
+    this.nth,
+    this.interestWaivedCents,
   });
   final String id;
   final String counterparty;
@@ -110,11 +152,26 @@ class UpdateDebtParams extends Equatable {
   /// nil CollectionAccountID 解除关联。
   final String contact;
   final String contractRef;
+  /// 担保人字段(2026-09 用户需求):与服务端 UpdateDebt 同语义,空串清字段。
+  final String guarantorName;
+  final String guarantorContact;
   final String? collectionAccountId;
+  /// 影响期次的编辑(Google-Calendar 式:已发生期次冻结,未来重排)。
+  /// null/0 = 保持现状(旧调用方行为不变)。
+  final int? amortizationIndex;
+  final DateTime? dueDate;
+  final int termPeriods;
+  final int? cycle;
+  final int? interval;
+  final int? weekdayMask;
+  final int? monthlyMode;
+  final int? nth;
+  /// 一次性利息减免(分):null = 保持现状;set = 替换(0 清零)。
+  final int? interestWaivedCents;
 
   @override
   List<Object?> get props =>
-      [id, counterparty, interestRate, version, contact, contractRef, collectionAccountId];
+      [id, counterparty, interestRate, version, contact, contractRef, guarantorName, guarantorContact, collectionAccountId, amortizationIndex, dueDate, termPeriods, cycle, interval, weekdayMask, monthlyMode, nth, interestWaivedCents];
 }
 
 class UpdateDebtRequested extends DebtEvent {
@@ -129,6 +186,29 @@ class DeleteDebtRequested extends DebtEvent {
   final String id;
   @override
   List<Object?> get props => [id];
+}
+
+class MarkEntryPaidRequested extends DebtEvent {
+  const MarkEntryPaidRequested({required this.debtId, required this.entryId});
+  final String debtId;
+  final String entryId;
+
+  @override
+  List<Object?> get props => [debtId, entryId];
+}
+
+class SetPaymentDateRequested extends DebtEvent {
+  const SetPaymentDateRequested({
+    required this.debtId,
+    required this.entryId,
+    required this.paymentDate,
+  });
+  final String debtId;
+  final String entryId;
+  final DateTime paymentDate;
+
+  @override
+  List<Object?> get props => [debtId, entryId, paymentDate];
 }
 
 class RecordPaymentRequested extends DebtEvent {

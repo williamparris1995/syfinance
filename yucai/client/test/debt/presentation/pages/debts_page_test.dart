@@ -9,8 +9,11 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
@@ -83,6 +86,8 @@ Widget _harness(List<Debt> debts) {
 }
 
 void main() {
+  GetIt.instance.registerLazySingleton<DataRefreshNotifier>(DataRefreshNotifier.new);
+
   // desktop 宽视口，确保完整布局（概览三栏 + 卡片 dc-mid）。
   const desktop = Size(1400, 900);
   const tablet = Size(900, 1200);
@@ -92,7 +97,7 @@ void main() {
     _debt(
       id: 'd1',
       counterparty: '招商银行',
-      interestRate: 4.10,
+      interestRate: 0.041,
       amortization: AmortizationMethod.equalPrincipalInterest,
       dueDate: DateTime(2051, 6, 1),
       totalPrincipalCents: 280000000, // 280 万
@@ -101,13 +106,47 @@ void main() {
     _debt(
       id: 'd2',
       counterparty: '建设银行',
-      interestRate: 5.20,
+      interestRate: 0.052,
       amortization: AmortizationMethod.equalPrincipal,
       dueDate: DateTime(2027, 3, 1),
       totalPrincipalCents: 15000000,
       remainingPrincipalCents: 8000000,
     ),
   ];
+
+  // 回归(2026-09 混淆缺陷):共享 DebtBloc 的状态可能含 borrowedOut(债权),
+  // 债务页必须只渲染 borrowedIn 切片 —— 否则两页互串数据。
+  testWidgets('direction slicing: borrowedOut rows never render on DebtsPage',
+      (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    final mixed = [
+      ...debts,
+      Debt(
+        id: 'r1',
+        accountId: 'a-r1',
+        counterparty: '张三(借出)',
+        interestRate: 0,
+        amortization: AmortizationMethod.lumpSum,
+        startDate: DateTime(2026, 1, 1),
+        dueDate: DateTime(2027, 1, 1),
+        totalPrincipalCents: 5000000,
+        remainingPrincipalCents: 5000000,
+        version: 1,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        type: DebtType.borrowedOut,
+      ),
+    ];
+    await t.pumpWidget(_harness(mixed));
+    await t.pumpAndSettle();
+    expect(find.text('张三(借出)'), findsNothing);
+    expect(find.text('招商银行'), findsOneWidget);
+    expect(find.text('建设银行'), findsOneWidget);
+    // 概览总额也只按 borrowedIn 切片计(不含借出 5 万):
+    expect(find.textContaining('¥2,180,000.00'), findsWidgets);
+  });
 
   testWidgets('overview: 总借款本金 + 剩余待还 + progress bar', (t) async {
     t.view.physicalSize = desktop;
@@ -238,10 +277,12 @@ void main() {
     expect(find.textContaining('还没有债务'), findsOneWidget);
   });
 
-  // 回归测试(Finding 1):debts_page 必须以 borrowedIn 过滤拉取,
-  // 确保 borrowedOut(债权/应收)不会泄漏进债务列表 + 总债务概览。
+  // 回归(2026-09 混淆缺陷定案):debts_page 派发**不带过滤**的
+  // LoadDebtsRequested(共享 bloc 全量状态),borrowedOut(债权/应收)的
+  // 排除由本页 _debtsOf 表现层切片承担 —— 见下方切片回归与 bloc 写后
+  // 全量刷新回归(debt_bloc_test)。
   testWidgets(
-      'regression: dispatches LoadDebtsRequested(typeFilter: borrowedIn)',
+      'regression: dispatches unfiltered LoadDebtsRequested (slicing is view-side)',
       (t) async {
     final repo = _MockRepo();
     registerFallbackValue(const CreateDebtParams(
@@ -271,12 +312,12 @@ void main() {
     ));
     await t.pumpAndSettle();
     expect(calls, isNotEmpty);
-    expect(calls.last, DebtType.borrowedIn);
+    // 全量拉取(typeFilter null);防泄漏由 _debtsOf 切片保证。
+    expect(calls.last, isNull);
   });
 
-  // 回归测试(Finding 1,负向断言):即便 repo 返回 borrowedOut(债权)的债务,
-  // debts_page 也不应将其当作债务渲染。锁定制表单的负向测试模式:
-  // mock 仅对 borrowedIn 返回空 → borrowedOut 的「张三」绝不出现在债务页。
+  // 回归(负向断言):repo 全量返回 borrowedOut(债权)行时,debts_page 的
+  // _debtsOf 切片也不将其当作债务渲染(债权方向绝不出现在债务页)。
   testWidgets(
       'regression: borrowedOut receivable does NOT appear in debts page',
       (t) async {
@@ -290,20 +331,22 @@ void main() {
       dueDateOption: null,
       totalPrincipalCents: 0,
     ));
-    // borrowedIn(债务)返回空;其他方向(债权)即便有数据也不入此页。
-    when(() => repo.list(typeFilter: DebtType.borrowedIn))
-        .thenAnswer((_) async => const dartz.Right([]));
-    when(() => repo.list(typeFilter: any(
-            named: 'typeFilter', that: isNot(equals(DebtType.borrowedIn)))))
+    when(() => repo.list(typeFilter: any(named: 'typeFilter')))
         .thenAnswer((_) async => dartz.Right([
-              _debt(
+              Debt(
                 id: 'recv-leak',
+                accountId: 'a-recv-leak',
                 counterparty: '张三-不应泄漏',
                 interestRate: 0.0,
                 amortization: AmortizationMethod.equalPrincipal,
+                startDate: DateTime(2026, 1, 15),
                 dueDate: DateTime(2026, 8, 15),
                 totalPrincipalCents: 5000000,
                 remainingPrincipalCents: 3000000,
+                version: 1,
+                createdAt: DateTime(2026, 1, 1),
+                updatedAt: DateTime(2026, 1, 1),
+                type: DebtType.borrowedOut,
               ),
             ]));
     t.view.physicalSize = desktop;

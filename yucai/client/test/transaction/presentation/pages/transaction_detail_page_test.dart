@@ -25,6 +25,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
@@ -123,6 +124,8 @@ void main() {
     acctRepo = _FakeAcctRepo();
     tagRepo = _FakeTagRepo();
     getIt.registerSingleton<TagRepository>(tagRepo);
+    // 删除成功 listener bump DataRefreshNotifier(跨页刷新广播)。
+    getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
     registerFallbackValue(ListTransactionsParams());
     registerFallbackValue('');
     when(() => txnRepo.getById(any()))

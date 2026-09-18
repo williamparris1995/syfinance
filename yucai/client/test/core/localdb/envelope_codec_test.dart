@@ -154,6 +154,12 @@ void main() {
         counterparty: '银行',
         interestRate: 0.03,
         amortizationMethod: 2,
+        cycle: 2,
+        interval: 1,
+        weekdayMask: 0,
+        monthlyMode: 0,
+        nth: 0,
+        interestWaivedCents: 0,
         startDate: DateTime.utc(2026, 9, 1),
         dueDate: DateTime.utc(2026, 10, 1),
         totalPrincipalCents: 10000,
@@ -161,6 +167,8 @@ void main() {
         subtype: '',
         contact: '',
         contractRef: '',
+        guarantorName: '王担保',
+        guarantorContact: '13800000000',
         collectionAccountId: null,
         version: 1,
         createdAt: DateTime.utc(2026, 9, 1),
@@ -186,6 +194,9 @@ void main() {
       expect(out['ID'], 'debt-1');
       expect(out['DebtType'], 1); // int 枚举直传
       expect(out['CollectionAccountID'], isNull);
+      // 担保人字段(2026-09):上行 envelope 逐字携带(PascalCase 直传)。
+      expect(out['GuarantorName'], '王担保');
+      expect(out['GuarantorContact'], '13800000000');
       final nested = out['Schedule'] as List;
       expect(nested.single.keys, [
         'ID', 'DebtID', 'PaymentDate', 'PrincipalCents', 'InterestCents',
@@ -356,6 +367,10 @@ void main() {
         cycle: 2,
         cycleDays: 0,
         billingDay: 1,
+        interval: 1,
+        weekdayMask: 0,
+        monthlyMode: 0,
+        nth: 0,
         nextDate: DateTime.utc(2026, 10, 1),
         startDate: DateTime.utc(2026, 8, 1),
         endDate: null,

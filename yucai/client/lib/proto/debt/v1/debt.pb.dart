@@ -18,6 +18,7 @@ import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
     as $2;
 
 import '../../common/v1/pagination.pb.dart' as $3;
+import '../../common/v1/recurrence.pbenum.dart' as $4;
 import 'debt.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -47,6 +48,15 @@ class DebtDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? nextPaymentAmountCents,
     $core.int? nextPaymentPeriodNo,
     $fixnum.Int64? remainingTrendCents,
+    $4.RecurrenceCycle? cycle,
+    $core.int? interval,
+    $core.int? weekdayMask,
+    $4.RecurrenceMonthlyMode? monthlyMode,
+    $core.int? nth,
+    $core.String? guarantorName,
+    $core.String? guarantorContact,
+    $fixnum.Int64? interestWaivedCents,
+    $fixnum.Int64? remainingInterestCents,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -77,6 +87,17 @@ class DebtDTO extends $pb.GeneratedMessage {
       result.nextPaymentPeriodNo = nextPaymentPeriodNo;
     if (remainingTrendCents != null)
       result.remainingTrendCents = remainingTrendCents;
+    if (cycle != null) result.cycle = cycle;
+    if (interval != null) result.interval = interval;
+    if (weekdayMask != null) result.weekdayMask = weekdayMask;
+    if (monthlyMode != null) result.monthlyMode = monthlyMode;
+    if (nth != null) result.nth = nth;
+    if (guarantorName != null) result.guarantorName = guarantorName;
+    if (guarantorContact != null) result.guarantorContact = guarantorContact;
+    if (interestWaivedCents != null)
+      result.interestWaivedCents = interestWaivedCents;
+    if (remainingInterestCents != null)
+      result.remainingInterestCents = remainingInterestCents;
     return result;
   }
 
@@ -118,6 +139,17 @@ class DebtDTO extends $pb.GeneratedMessage {
     ..aInt64(19, _omitFieldNames ? '' : 'nextPaymentAmountCents')
     ..aI(20, _omitFieldNames ? '' : 'nextPaymentPeriodNo')
     ..aInt64(21, _omitFieldNames ? '' : 'remainingTrendCents')
+    ..aE<$4.RecurrenceCycle>(22, _omitFieldNames ? '' : 'cycle',
+        enumValues: $4.RecurrenceCycle.values)
+    ..aI(23, _omitFieldNames ? '' : 'interval')
+    ..aI(24, _omitFieldNames ? '' : 'weekdayMask')
+    ..aE<$4.RecurrenceMonthlyMode>(25, _omitFieldNames ? '' : 'monthlyMode',
+        enumValues: $4.RecurrenceMonthlyMode.values)
+    ..aI(26, _omitFieldNames ? '' : 'nth')
+    ..aOS(27, _omitFieldNames ? '' : 'guarantorName')
+    ..aOS(28, _omitFieldNames ? '' : 'guarantorContact')
+    ..aInt64(29, _omitFieldNames ? '' : 'interestWaivedCents')
+    ..aInt64(30, _omitFieldNames ? '' : 'remainingInterestCents')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -330,6 +362,94 @@ class DebtDTO extends $pb.GeneratedMessage {
   $core.bool hasRemainingTrendCents() => $_has(20);
   @$pb.TagNumber(21)
   void clearRemainingTrendCents() => $_clearField(21);
+
+  /// Recurrence rule (zero values = legacy monthly). billing_day is not
+  /// used by debt: by-date months anchor the start date.
+  @$pb.TagNumber(22)
+  $4.RecurrenceCycle get cycle => $_getN(21);
+  @$pb.TagNumber(22)
+  set cycle($4.RecurrenceCycle value) => $_setField(22, value);
+  @$pb.TagNumber(22)
+  $core.bool hasCycle() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearCycle() => $_clearField(22);
+
+  @$pb.TagNumber(23)
+  $core.int get interval => $_getIZ(22);
+  @$pb.TagNumber(23)
+  set interval($core.int value) => $_setSignedInt32(22, value);
+  @$pb.TagNumber(23)
+  $core.bool hasInterval() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearInterval() => $_clearField(23);
+
+  @$pb.TagNumber(24)
+  $core.int get weekdayMask => $_getIZ(23);
+  @$pb.TagNumber(24)
+  set weekdayMask($core.int value) => $_setSignedInt32(23, value);
+  @$pb.TagNumber(24)
+  $core.bool hasWeekdayMask() => $_has(23);
+  @$pb.TagNumber(24)
+  void clearWeekdayMask() => $_clearField(24);
+
+  @$pb.TagNumber(25)
+  $4.RecurrenceMonthlyMode get monthlyMode => $_getN(24);
+  @$pb.TagNumber(25)
+  set monthlyMode($4.RecurrenceMonthlyMode value) => $_setField(25, value);
+  @$pb.TagNumber(25)
+  $core.bool hasMonthlyMode() => $_has(24);
+  @$pb.TagNumber(25)
+  void clearMonthlyMode() => $_clearField(25);
+
+  @$pb.TagNumber(26)
+  $core.int get nth => $_getIZ(25);
+  @$pb.TagNumber(26)
+  set nth($core.int value) => $_setSignedInt32(25, value);
+  @$pb.TagNumber(26)
+  $core.bool hasNth() => $_has(25);
+  @$pb.TagNumber(26)
+  void clearNth() => $_clearField(26);
+
+  /// Guarantor (2026-09 user request; both directions, optional free text).
+  /// Field numbers 27/28 allocated after the recurrence block (22-26).
+  @$pb.TagNumber(27)
+  $core.String get guarantorName => $_getSZ(26);
+  @$pb.TagNumber(27)
+  set guarantorName($core.String value) => $_setString(26, value);
+  @$pb.TagNumber(27)
+  $core.bool hasGuarantorName() => $_has(26);
+  @$pb.TagNumber(27)
+  void clearGuarantorName() => $_clearField(27);
+
+  @$pb.TagNumber(28)
+  $core.String get guarantorContact => $_getSZ(27);
+  @$pb.TagNumber(28)
+  set guarantorContact($core.String value) => $_setString(27, value);
+  @$pb.TagNumber(28)
+  $core.bool hasGuarantorContact() => $_has(27);
+  @$pb.TagNumber(28)
+  void clearGuarantorContact() => $_clearField(28);
+
+  /// One-off interest waiver (cents), deducted from the earliest installments'
+  /// interest at schedule generation; 0 = none.
+  @$pb.TagNumber(29)
+  $fixnum.Int64 get interestWaivedCents => $_getI64(28);
+  @$pb.TagNumber(29)
+  set interestWaivedCents($fixnum.Int64 value) => $_setInt64(28, value);
+  @$pb.TagNumber(29)
+  $core.bool hasInterestWaivedCents() => $_has(28);
+  @$pb.TagNumber(29)
+  void clearInterestWaivedCents() => $_clearField(29);
+
+  /// Σ unpaid schedule interest (本息口径统计用).
+  @$pb.TagNumber(30)
+  $fixnum.Int64 get remainingInterestCents => $_getI64(29);
+  @$pb.TagNumber(30)
+  set remainingInterestCents($fixnum.Int64 value) => $_setInt64(29, value);
+  @$pb.TagNumber(30)
+  $core.bool hasRemainingInterestCents() => $_has(29);
+  @$pb.TagNumber(30)
+  void clearRemainingInterestCents() => $_clearField(30);
 }
 
 class PaymentEntryDTO extends $pb.GeneratedMessage {
@@ -548,6 +668,15 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     $core.String? contact,
     $core.String? contractRef,
     $core.String? collectionAccountId,
+    $4.RecurrenceCycle? cycle,
+    $core.int? interval,
+    $core.int? weekdayMask,
+    $4.RecurrenceMonthlyMode? monthlyMode,
+    $core.int? nth,
+    $core.int? termPeriods,
+    $core.String? guarantorName,
+    $core.String? guarantorContact,
+    $fixnum.Int64? interestWaivedCents,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -566,6 +695,16 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     if (contractRef != null) result.contractRef = contractRef;
     if (collectionAccountId != null)
       result.collectionAccountId = collectionAccountId;
+    if (cycle != null) result.cycle = cycle;
+    if (interval != null) result.interval = interval;
+    if (weekdayMask != null) result.weekdayMask = weekdayMask;
+    if (monthlyMode != null) result.monthlyMode = monthlyMode;
+    if (nth != null) result.nth = nth;
+    if (termPeriods != null) result.termPeriods = termPeriods;
+    if (guarantorName != null) result.guarantorName = guarantorName;
+    if (guarantorContact != null) result.guarantorContact = guarantorContact;
+    if (interestWaivedCents != null)
+      result.interestWaivedCents = interestWaivedCents;
     return result;
   }
 
@@ -597,6 +736,17 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     ..aOS(11, _omitFieldNames ? '' : 'contact')
     ..aOS(12, _omitFieldNames ? '' : 'contractRef')
     ..aOS(13, _omitFieldNames ? '' : 'collectionAccountId')
+    ..aE<$4.RecurrenceCycle>(14, _omitFieldNames ? '' : 'cycle',
+        enumValues: $4.RecurrenceCycle.values)
+    ..aI(15, _omitFieldNames ? '' : 'interval')
+    ..aI(16, _omitFieldNames ? '' : 'weekdayMask')
+    ..aE<$4.RecurrenceMonthlyMode>(17, _omitFieldNames ? '' : 'monthlyMode',
+        enumValues: $4.RecurrenceMonthlyMode.values)
+    ..aI(18, _omitFieldNames ? '' : 'nth')
+    ..aI(19, _omitFieldNames ? '' : 'termPeriods')
+    ..aOS(20, _omitFieldNames ? '' : 'guarantorName')
+    ..aOS(21, _omitFieldNames ? '' : 'guarantorContact')
+    ..aInt64(22, _omitFieldNames ? '' : 'interestWaivedCents')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -736,6 +886,92 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasCollectionAccountId() => $_has(12);
   @$pb.TagNumber(13)
   void clearCollectionAccountId() => $_clearField(13);
+
+  /// Recurrence rule (zero values = legacy monthly; ignored by lump_sum).
+  @$pb.TagNumber(14)
+  $4.RecurrenceCycle get cycle => $_getN(13);
+  @$pb.TagNumber(14)
+  set cycle($4.RecurrenceCycle value) => $_setField(14, value);
+  @$pb.TagNumber(14)
+  $core.bool hasCycle() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearCycle() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get interval => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set interval($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasInterval() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearInterval() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.int get weekdayMask => $_getIZ(15);
+  @$pb.TagNumber(16)
+  set weekdayMask($core.int value) => $_setSignedInt32(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasWeekdayMask() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearWeekdayMask() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $4.RecurrenceMonthlyMode get monthlyMode => $_getN(16);
+  @$pb.TagNumber(17)
+  set monthlyMode($4.RecurrenceMonthlyMode value) => $_setField(17, value);
+  @$pb.TagNumber(17)
+  $core.bool hasMonthlyMode() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearMonthlyMode() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $core.int get nth => $_getIZ(17);
+  @$pb.TagNumber(18)
+  set nth($core.int value) => $_setSignedInt32(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasNth() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearNth() => $_clearField(18);
+
+  /// Term input dual mode: >0 = by periods (N periods, due_date derived);
+  /// ==0 = by due date (default; period count derived from rule + dates).
+  @$pb.TagNumber(19)
+  $core.int get termPeriods => $_getIZ(18);
+  @$pb.TagNumber(19)
+  set termPeriods($core.int value) => $_setSignedInt32(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasTermPeriods() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearTermPeriods() => $_clearField(19);
+
+  /// Guarantor (optional; empty = none). Numbers after recurrence 14-19.
+  @$pb.TagNumber(20)
+  $core.String get guarantorName => $_getSZ(19);
+  @$pb.TagNumber(20)
+  set guarantorName($core.String value) => $_setString(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasGuarantorName() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearGuarantorName() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $core.String get guarantorContact => $_getSZ(20);
+  @$pb.TagNumber(21)
+  set guarantorContact($core.String value) => $_setString(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasGuarantorContact() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearGuarantorContact() => $_clearField(21);
+
+  /// One-off interest waiver (cents); must not exceed total interest.
+  @$pb.TagNumber(22)
+  $fixnum.Int64 get interestWaivedCents => $_getI64(21);
+  @$pb.TagNumber(22)
+  set interestWaivedCents($fixnum.Int64 value) => $_setInt64(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasInterestWaivedCents() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearInterestWaivedCents() => $_clearField(22);
 }
 
 class UpdateDebtRequest extends $pb.GeneratedMessage {
@@ -747,6 +983,17 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
     $core.String? contact,
     $core.String? contractRef,
     $core.String? collectionAccountId,
+    AmortizationMethod? amortizationMethod,
+    $core.String? dueDate,
+    $core.int? termPeriods,
+    $4.RecurrenceCycle? cycle,
+    $core.int? interval,
+    $core.int? weekdayMask,
+    $4.RecurrenceMonthlyMode? monthlyMode,
+    $core.int? nth,
+    $core.String? guarantorName,
+    $core.String? guarantorContact,
+    $fixnum.Int64? interestWaivedCents,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -757,6 +1004,19 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
     if (contractRef != null) result.contractRef = contractRef;
     if (collectionAccountId != null)
       result.collectionAccountId = collectionAccountId;
+    if (amortizationMethod != null)
+      result.amortizationMethod = amortizationMethod;
+    if (dueDate != null) result.dueDate = dueDate;
+    if (termPeriods != null) result.termPeriods = termPeriods;
+    if (cycle != null) result.cycle = cycle;
+    if (interval != null) result.interval = interval;
+    if (weekdayMask != null) result.weekdayMask = weekdayMask;
+    if (monthlyMode != null) result.monthlyMode = monthlyMode;
+    if (nth != null) result.nth = nth;
+    if (guarantorName != null) result.guarantorName = guarantorName;
+    if (guarantorContact != null) result.guarantorContact = guarantorContact;
+    if (interestWaivedCents != null)
+      result.interestWaivedCents = interestWaivedCents;
     return result;
   }
 
@@ -780,6 +1040,20 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'contact')
     ..aOS(6, _omitFieldNames ? '' : 'contractRef')
     ..aOS(7, _omitFieldNames ? '' : 'collectionAccountId')
+    ..aE<AmortizationMethod>(8, _omitFieldNames ? '' : 'amortizationMethod',
+        enumValues: AmortizationMethod.values)
+    ..aOS(9, _omitFieldNames ? '' : 'dueDate')
+    ..aI(10, _omitFieldNames ? '' : 'termPeriods')
+    ..aE<$4.RecurrenceCycle>(11, _omitFieldNames ? '' : 'cycle',
+        enumValues: $4.RecurrenceCycle.values)
+    ..aI(12, _omitFieldNames ? '' : 'interval')
+    ..aI(13, _omitFieldNames ? '' : 'weekdayMask')
+    ..aE<$4.RecurrenceMonthlyMode>(14, _omitFieldNames ? '' : 'monthlyMode',
+        enumValues: $4.RecurrenceMonthlyMode.values)
+    ..aI(15, _omitFieldNames ? '' : 'nth')
+    ..aOS(16, _omitFieldNames ? '' : 'guarantorName')
+    ..aOS(17, _omitFieldNames ? '' : 'guarantorContact')
+    ..aInt64(18, _omitFieldNames ? '' : 'interestWaivedCents')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -863,6 +1137,111 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasCollectionAccountId() => $_has(6);
   @$pb.TagNumber(7)
   void clearCollectionAccountId() => $_clearField(7);
+
+  /// Schedule-affecting edits (Google-Calendar style): already-recorded
+  /// entries (paid / paid_cents>0 / transaction set) are frozen; the future
+  /// schedule is regenerated from the remaining principal.
+  @$pb.TagNumber(8)
+  AmortizationMethod get amortizationMethod => $_getN(7);
+  @$pb.TagNumber(8)
+  set amortizationMethod(AmortizationMethod value) => $_setField(8, value);
+  @$pb.TagNumber(8)
+  $core.bool hasAmortizationMethod() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearAmortizationMethod() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get dueDate => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set dueDate($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasDueDate() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearDueDate() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.int get termPeriods => $_getIZ(9);
+  @$pb.TagNumber(10)
+  set termPeriods($core.int value) => $_setSignedInt32(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasTermPeriods() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearTermPeriods() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $4.RecurrenceCycle get cycle => $_getN(10);
+  @$pb.TagNumber(11)
+  set cycle($4.RecurrenceCycle value) => $_setField(11, value);
+  @$pb.TagNumber(11)
+  $core.bool hasCycle() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearCycle() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get interval => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set interval($core.int value) => $_setSignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasInterval() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearInterval() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.int get weekdayMask => $_getIZ(12);
+  @$pb.TagNumber(13)
+  set weekdayMask($core.int value) => $_setSignedInt32(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasWeekdayMask() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearWeekdayMask() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $4.RecurrenceMonthlyMode get monthlyMode => $_getN(13);
+  @$pb.TagNumber(14)
+  set monthlyMode($4.RecurrenceMonthlyMode value) => $_setField(14, value);
+  @$pb.TagNumber(14)
+  $core.bool hasMonthlyMode() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearMonthlyMode() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get nth => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set nth($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasNth() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearNth() => $_clearField(15);
+
+  /// Guarantor (optional; empty string clears, same semantics as contact).
+  @$pb.TagNumber(16)
+  $core.String get guarantorName => $_getSZ(15);
+  @$pb.TagNumber(16)
+  set guarantorName($core.String value) => $_setString(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasGuarantorName() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearGuarantorName() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.String get guarantorContact => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set guarantorContact($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasGuarantorContact() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearGuarantorContact() => $_clearField(17);
+
+  /// optional = presence-aware: unset keeps the current waiver, set replaces
+  /// (0 clears the waiver).
+  @$pb.TagNumber(18)
+  $fixnum.Int64 get interestWaivedCents => $_getI64(17);
+  @$pb.TagNumber(18)
+  set interestWaivedCents($fixnum.Int64 value) => $_setInt64(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasInterestWaivedCents() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearInterestWaivedCents() => $_clearField(18);
 }
 
 class DeleteDebtRequest extends $pb.GeneratedMessage {
@@ -1065,6 +1444,209 @@ class RecordPaymentResponse extends $pb.GeneratedMessage {
   void clearEntry() => $_clearField(2);
   @$pb.TagNumber(2)
   PaymentEntryDTO ensureEntry() => $_ensure(1);
+}
+
+class SetPaymentDateRequest extends $pb.GeneratedMessage {
+  factory SetPaymentDateRequest({
+    $core.String? debtId,
+    $core.String? entryId,
+    $core.String? paymentDate,
+  }) {
+    final result = create();
+    if (debtId != null) result.debtId = debtId;
+    if (entryId != null) result.entryId = entryId;
+    if (paymentDate != null) result.paymentDate = paymentDate;
+    return result;
+  }
+
+  SetPaymentDateRequest._();
+
+  factory SetPaymentDateRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SetPaymentDateRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SetPaymentDateRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.debt.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'debtId')
+    ..aOS(2, _omitFieldNames ? '' : 'entryId')
+    ..aOS(3, _omitFieldNames ? '' : 'paymentDate')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SetPaymentDateRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SetPaymentDateRequest copyWith(
+          void Function(SetPaymentDateRequest) updates) =>
+      super.copyWith((message) => updates(message as SetPaymentDateRequest))
+          as SetPaymentDateRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SetPaymentDateRequest create() => SetPaymentDateRequest._();
+  @$core.override
+  SetPaymentDateRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SetPaymentDateRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SetPaymentDateRequest>(create);
+  static SetPaymentDateRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get debtId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set debtId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDebtId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDebtId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get entryId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set entryId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasEntryId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearEntryId() => $_clearField(2);
+
+  /// yyyy-MM-dd; must be after the debt start date and free of collision.
+  @$pb.TagNumber(3)
+  $core.String get paymentDate => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set paymentDate($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPaymentDate() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPaymentDate() => $_clearField(3);
+}
+
+class PaymentEntryResponse extends $pb.GeneratedMessage {
+  factory PaymentEntryResponse({
+    PaymentEntryDTO? entry,
+  }) {
+    final result = create();
+    if (entry != null) result.entry = entry;
+    return result;
+  }
+
+  PaymentEntryResponse._();
+
+  factory PaymentEntryResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory PaymentEntryResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PaymentEntryResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.debt.v1'),
+      createEmptyInstance: create)
+    ..aOM<PaymentEntryDTO>(1, _omitFieldNames ? '' : 'entry',
+        subBuilder: PaymentEntryDTO.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PaymentEntryResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PaymentEntryResponse copyWith(void Function(PaymentEntryResponse) updates) =>
+      super.copyWith((message) => updates(message as PaymentEntryResponse))
+          as PaymentEntryResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static PaymentEntryResponse create() => PaymentEntryResponse._();
+  @$core.override
+  PaymentEntryResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static PaymentEntryResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<PaymentEntryResponse>(create);
+  static PaymentEntryResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  PaymentEntryDTO get entry => $_getN(0);
+  @$pb.TagNumber(1)
+  set entry(PaymentEntryDTO value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasEntry() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearEntry() => $_clearField(1);
+  @$pb.TagNumber(1)
+  PaymentEntryDTO ensureEntry() => $_ensure(0);
+}
+
+class MarkEntryPaidRequest extends $pb.GeneratedMessage {
+  factory MarkEntryPaidRequest({
+    $core.String? debtId,
+    $core.String? entryId,
+  }) {
+    final result = create();
+    if (debtId != null) result.debtId = debtId;
+    if (entryId != null) result.entryId = entryId;
+    return result;
+  }
+
+  MarkEntryPaidRequest._();
+
+  factory MarkEntryPaidRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory MarkEntryPaidRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'MarkEntryPaidRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.debt.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'debtId')
+    ..aOS(2, _omitFieldNames ? '' : 'entryId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MarkEntryPaidRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MarkEntryPaidRequest copyWith(void Function(MarkEntryPaidRequest) updates) =>
+      super.copyWith((message) => updates(message as MarkEntryPaidRequest))
+          as MarkEntryPaidRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static MarkEntryPaidRequest create() => MarkEntryPaidRequest._();
+  @$core.override
+  MarkEntryPaidRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static MarkEntryPaidRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<MarkEntryPaidRequest>(create);
+  static MarkEntryPaidRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get debtId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set debtId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDebtId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDebtId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get entryId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set entryId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasEntryId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearEntryId() => $_clearField(2);
 }
 
 class GetDebtRequest extends $pb.GeneratedMessage {

@@ -37,6 +37,7 @@ import 'package:yucai_client/core/theme/app_theme.dart';
 import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
@@ -133,6 +134,9 @@ void main() {
     // _recordTxn) can resolve them when building its own bloc.
     GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
     GetIt.instance.registerSingleton<TransactionRepository>(txnRepo);
+    // 本页 initState 订阅 DataRefreshNotifier(交易跨 branch 变更后重拉)。
+    GetIt.instance.registerLazySingleton<DataRefreshNotifier>(
+        DataRefreshNotifier.new);
 
     // Account detail page emits GetAccountRequested on initState.
     when(() => accountRepo.getById(any()))

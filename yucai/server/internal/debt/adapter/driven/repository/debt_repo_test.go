@@ -27,7 +27,8 @@ func TestDebtRepo_SaveFind_ContactContractCollection(t *testing.T) {
 		0.05, domain.AmortizationEqualPrincipalInterest,
 		time.Now(), time.Now().AddDate(1, 0, 0), 1_000_00,
 		domain.BorrowedOut, "personal",
-		"138-6677", "BO-2026-0215.pdf", &collection,
+		"138-6677", "BO-2026-0215.pdf", &collection,"", "",
+
 	)
 	if err != nil {
 		t.Fatalf("NewDebtDetails populated: %v", err)
@@ -58,7 +59,8 @@ func TestDebtRepo_SaveFind_ContactContractCollection(t *testing.T) {
 		0.03, domain.AmortizationLumpSum,
 		time.Now(), time.Now().AddDate(2, 0, 0), 500_00,
 		domain.BorrowedIn, "family",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err != nil {
 		t.Fatalf("NewDebtDetails empty: %v", err)

@@ -103,6 +103,9 @@ class _ExitSpy {
 class _ChannelLog {
   final calls = <String>[];
   final menus = <String>[];
+
+  /// popUpContextMenu 的 bringAppToFront 实参(点空白可关闭菜单的契约面)。
+  final popUpBringToFront = <bool?>[];
 }
 
 void main() {
@@ -139,6 +142,10 @@ void main() {
         trayLog.calls.add(call.method);
         if (call.method == 'setContextMenu') {
           trayLog.menus.add(jsonEncode(call.arguments['menu']));
+        }
+        if (call.method == 'popUpContextMenu') {
+          trayLog.popUpBringToFront
+              .add(call.arguments['bringAppToFront'] as bool?);
         }
         return null;
       },
@@ -955,11 +962,14 @@ group('trayIconNeedsWrite (F23 P1)', () {
 /// 验收热修(2026-09-16):右键托盘 → Dart 侧主动 popUpContextMenu
 /// (tray_manager 0.5.3 原生只发事件不弹菜单,自 R7 起右键从未工作)。
 group('onTrayIconRightMouseDown (验收热修)', () {
-  test('trayReady → popUpContextMenu 恰一次', () async {
+  test('trayReady → popUpContextMenu 恰一次,且 bringAppToFront:true', () async {
     final tray = mk();
     tray.onTrayIconRightMouseDown();
     await pump();
     expect(trayLog.calls.where((m) => m == 'popUpContextMenu'), hasLength(1));
+    // 缺 SetForegroundWindow → TrackPopupMenu 点外部不消失(Win32 经典坑,
+    // 2026-09-16 验收修复;插件仅在此标志下才前置)。
+    expect(trayLog.popUpBringToFront, [true]);
   });
 
   test('托盘未就绪 → 不弹', () async {

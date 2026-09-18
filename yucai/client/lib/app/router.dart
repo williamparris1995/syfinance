@@ -73,6 +73,7 @@ import 'package:yucai_client/tag/presentation/pages/tag_page.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
 import 'package:yucai_client/template/presentation/pages/template_page.dart';
 import 'package:yucai_client/report/presentation/pages/report_page.dart';
+import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -168,6 +169,12 @@ GoRouter buildRouter(
             ],
           ),
           StatefulShellBranch(
+            // F14 #3 补遗:accounts 分支此前未挂观察者,accounts_page 订阅的
+            // 顶层 routeObserver 看不到本分支嵌套 Navigator 的 push/pop →
+            // didPopNext(详情页返回回拉)从未触发。挂 accountsRouteObserver
+            // (见 route_observer.dart 头注释);跨 branch 的数据变更(交易
+            // 记/改/删)不走这里,走 DataRefreshNotifier 广播。
+            observers: [accountsRouteObserver],
             routes: [
               GoRoute(
                 path: '/accounts',
@@ -290,7 +297,12 @@ GoRouter buildRouter(
                   GoRoute(
                     path: 'new',
                     // TransactionFormPage 内部自建 BlocProvider<TransactionFormBloc>。
-                    builder: (_, __) => const TransactionFormPage(),
+                    // extra = Transaction(可选):复制模式 —— 全字段预填,提交走创建。
+                    builder: (_, state) => TransactionFormPage(
+                      existing:
+                          state.extra is Transaction ? state.extra as Transaction : null,
+                      isCopy: state.extra is Transaction,
+                    ),
                   ),
                   GoRoute(
                     path: ':id',
@@ -372,6 +384,12 @@ GoRouter buildRouter(
             ],
           ),
           StatefulShellBranch(
+            // 同 accounts 分支(见上 observers 注释):debts 分支挂独立观察者,
+            // 否则 DebtsPage 订阅的顶层 routeObserver 看不到本分支嵌套
+            // Navigator 的 /debts/new、/debts/:id push/pop → didPopNext
+            // 从未触发,创建/编辑后列表靠共享 bloc 的写后刷新兜底、删除
+            // (详情页独立 bloc)后列表完全不刷新。
+            observers: [debtsRouteObserver],
             routes: [
               GoRoute(
                 path: '/debts',
@@ -481,6 +499,11 @@ GoRouter buildRouter(
             ],
           ),
           StatefulShellBranch(
+            // 同 debts 分支(见上 observers 注释):receivables 分支挂独立
+            // 观察者,ReceivablesPage 的 didPopNext(表单/详情 pop 回来)由此
+            // 触发列表 + ReceivablesSummary 回拉 —— 汇总(债权笔数等)此前
+            // 只在 initState 拉一次,创建首笔债权后永远停在 0。
+            observers: [receivablesRouteObserver],
             routes: [
               GoRoute(
                 path: '/receivables',

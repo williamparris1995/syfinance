@@ -53,7 +53,16 @@ class DebtRepositoryImpl implements DebtRepository {
     String? sourceAccountId,
     String contact = '',
     String contractRef = '',
+    String guarantorName = '',
+    String guarantorContact = '',
     String? collectionAccountId,
+    int cycle = 2,
+    int interval = 1,
+    int weekdayMask = 0,
+    int monthlyMode = 0,
+    int nth = 0,
+    int termPeriods = 0,
+    int interestWaivedCents = 0,
   }) =>
       _routedWrite(MirrorModule.debt,
           () => _remote.create(
@@ -69,7 +78,16 @@ class DebtRepositoryImpl implements DebtRepository {
             sourceAccountId: sourceAccountId,
             contact: contact,
             contractRef: contractRef,
+            guarantorName: guarantorName,
+            guarantorContact: guarantorContact,
             collectionAccountId: collectionAccountId,
+            cycle: cycle,
+            interval: interval,
+            weekdayMask: weekdayMask,
+            monthlyMode: monthlyMode,
+            nth: nth,
+            termPeriods: termPeriods,
+            interestWaivedCents: interestWaivedCents,
           ),
           (markPending) => _local.create(
             markPending: markPending,
@@ -85,7 +103,16 @@ class DebtRepositoryImpl implements DebtRepository {
             sourceAccountId: sourceAccountId,
             contact: contact,
             contractRef: contractRef,
+            guarantorName: guarantorName,
+            guarantorContact: guarantorContact,
             collectionAccountId: collectionAccountId,
+            cycle: cycle,
+            interval: interval,
+            weekdayMask: weekdayMask,
+            monthlyMode: monthlyMode,
+            nth: nth,
+            termPeriods: termPeriods,
+            interestWaivedCents: interestWaivedCents,
           ));
 
   @override
@@ -96,7 +123,18 @@ class DebtRepositoryImpl implements DebtRepository {
     required int version,
     String contact = '',
     String contractRef = '',
+    String guarantorName = '',
+    String guarantorContact = '',
     String? collectionAccountId,
+    int? amortizationIndex,
+    DateTime? dueDate,
+    int termPeriods = 0,
+    int? cycle,
+    int? interval,
+    int? weekdayMask,
+    int? monthlyMode,
+    int? nth,
+    int? interestWaivedCents,
   }) =>
       _routedWrite(MirrorModule.debt,
           () => _remote.update(
@@ -106,7 +144,18 @@ class DebtRepositoryImpl implements DebtRepository {
             version: version,
             contact: contact,
             contractRef: contractRef,
+            guarantorName: guarantorName,
+            guarantorContact: guarantorContact,
             collectionAccountId: collectionAccountId,
+            amortizationIndex: amortizationIndex,
+            dueDate: dueDate,
+            termPeriods: termPeriods,
+            cycle: cycle,
+            interval: interval,
+            weekdayMask: weekdayMask,
+            monthlyMode: monthlyMode,
+            nth: nth,
+            interestWaivedCents: interestWaivedCents,
           ),
           (markPending) => _local.update(
             markPending: markPending,
@@ -116,7 +165,18 @@ class DebtRepositoryImpl implements DebtRepository {
             version: version,
             contact: contact,
             contractRef: contractRef,
+            guarantorName: guarantorName,
+            guarantorContact: guarantorContact,
             collectionAccountId: collectionAccountId,
+            amortizationIndex: amortizationIndex,
+            dueDate: dueDate,
+            termPeriods: termPeriods,
+            cycle: cycle,
+            interval: interval,
+            weekdayMask: weekdayMask,
+            monthlyMode: monthlyMode,
+            nth: nth,
+            interestWaivedCents: interestWaivedCents,
           ));
 
   @override
@@ -125,6 +185,36 @@ class DebtRepositoryImpl implements DebtRepository {
           (markPending) => _local.delete(id, writeTombstone: markPending));
 
   @override
+  Future<Either<Failure, PaymentEntry>> markEntryPaid({
+    required String debtId,
+    required String entryId,
+  }) =>
+      _routedWrite(MirrorModule.debt,
+          () => _remote.markEntryPaid(debtId: debtId, entryId: entryId),
+          (markPending) => _local.markEntryPaid(
+            debtId: debtId,
+            entryId: entryId,
+            markPending: markPending,
+          ));
+
+  Future<Either<Failure, PaymentEntry>> setPaymentDate({
+    required String debtId,
+    required String entryId,
+    required DateTime paymentDate,
+  }) =>
+      _routedWrite(MirrorModule.debt,
+          () => _remote.setPaymentDate(
+            debtId: debtId,
+            entryId: entryId,
+            paymentDate: paymentDate,
+          ),
+          (markPending) => _local.setPaymentDate(
+            debtId: debtId,
+            entryId: entryId,
+            paymentDate: paymentDate,
+            markPending: markPending,
+          ));
+
   Future<Either<Failure, PaymentEntry>> recordPayment({
     required String debtId,
     required String scheduleEntryId,

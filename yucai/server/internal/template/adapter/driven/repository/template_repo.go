@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/sqltx"
 	"github.com/yucai/server/internal/template/domain"
 	tmplent "github.com/yucai/server/internal/template/ent"
@@ -53,6 +54,11 @@ func (r *TemplateRepository) Save(ctx context.Context, t *domain.TransactionTemp
 		SetCycle(t.Cycle.String()).
 		SetCycleDays(t.CycleDays).
 		SetBillingDay(t.BillingDay).
+		SetBillingDay(t.BillingDay).
+		SetInterval(t.Interval).
+		SetWeekdayMask(t.WeekdayMask).
+		SetMonthlyMode(int32(t.MonthlyMode)).
+		SetNth(t.Nth).
 		SetNextDate(t.NextDate).
 		SetStartDate(t.StartDate).
 		SetAutoRecord(t.AutoRecord).
@@ -169,6 +175,11 @@ func (r *TemplateRepository) Update(ctx context.Context, t *domain.TransactionTe
 		SetAmountCents(t.AmountCents).
 		SetCycle(t.Cycle.String()).
 		SetCycleDays(t.CycleDays).
+		SetBillingDay(t.BillingDay).
+		SetInterval(t.Interval).
+		SetWeekdayMask(t.WeekdayMask).
+		SetMonthlyMode(int32(t.MonthlyMode)).
+		SetNth(t.Nth).
 		SetNextDate(t.NextDate).
 		SetAutoRecord(t.AutoRecord).
 		SetPaused(t.Paused).
@@ -222,6 +233,10 @@ func toDomainTemplate(t *tmplent.TransactionTemplate) *domain.TransactionTemplat
 		Cycle:                domain.ParseTemplateCycle(t.Cycle),
 		CycleDays:            t.CycleDays,
 		BillingDay:           t.BillingDay,
+		Interval:             t.Interval,
+		WeekdayMask:          t.WeekdayMask,
+		MonthlyMode:          recurrence.MonthlyMode(t.MonthlyMode),
+		Nth:                  t.Nth,
 		NextDate:             t.NextDate,
 		StartDate:            t.StartDate,
 		EndDate:              t.EndDate,
@@ -281,6 +296,10 @@ func (r *TemplateRepository) UpsertForSync(ctx context.Context, t *domain.Transa
 			SetCycle(t.Cycle.String()).
 			SetCycleDays(t.CycleDays).
 			SetBillingDay(t.BillingDay).
+			SetInterval(t.Interval).
+			SetWeekdayMask(t.WeekdayMask).
+			SetMonthlyMode(int32(t.MonthlyMode)).
+			SetNth(t.Nth).
 			SetNextDate(t.NextDate).
 			SetStartDate(t.StartDate).
 			SetAutoRecord(t.AutoRecord).

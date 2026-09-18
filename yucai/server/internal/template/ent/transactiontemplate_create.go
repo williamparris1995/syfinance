@@ -114,6 +114,62 @@ func (ttc *TransactionTemplateCreate) SetNillableBillingDay(i *int32) *Transacti
 	return ttc
 }
 
+// SetInterval sets the "interval" field.
+func (ttc *TransactionTemplateCreate) SetInterval(i int32) *TransactionTemplateCreate {
+	ttc.mutation.SetInterval(i)
+	return ttc
+}
+
+// SetNillableInterval sets the "interval" field if the given value is not nil.
+func (ttc *TransactionTemplateCreate) SetNillableInterval(i *int32) *TransactionTemplateCreate {
+	if i != nil {
+		ttc.SetInterval(*i)
+	}
+	return ttc
+}
+
+// SetWeekdayMask sets the "weekday_mask" field.
+func (ttc *TransactionTemplateCreate) SetWeekdayMask(i int32) *TransactionTemplateCreate {
+	ttc.mutation.SetWeekdayMask(i)
+	return ttc
+}
+
+// SetNillableWeekdayMask sets the "weekday_mask" field if the given value is not nil.
+func (ttc *TransactionTemplateCreate) SetNillableWeekdayMask(i *int32) *TransactionTemplateCreate {
+	if i != nil {
+		ttc.SetWeekdayMask(*i)
+	}
+	return ttc
+}
+
+// SetMonthlyMode sets the "monthly_mode" field.
+func (ttc *TransactionTemplateCreate) SetMonthlyMode(i int32) *TransactionTemplateCreate {
+	ttc.mutation.SetMonthlyMode(i)
+	return ttc
+}
+
+// SetNillableMonthlyMode sets the "monthly_mode" field if the given value is not nil.
+func (ttc *TransactionTemplateCreate) SetNillableMonthlyMode(i *int32) *TransactionTemplateCreate {
+	if i != nil {
+		ttc.SetMonthlyMode(*i)
+	}
+	return ttc
+}
+
+// SetNth sets the "nth" field.
+func (ttc *TransactionTemplateCreate) SetNth(i int32) *TransactionTemplateCreate {
+	ttc.mutation.SetNth(i)
+	return ttc
+}
+
+// SetNillableNth sets the "nth" field if the given value is not nil.
+func (ttc *TransactionTemplateCreate) SetNillableNth(i *int32) *TransactionTemplateCreate {
+	if i != nil {
+		ttc.SetNth(*i)
+	}
+	return ttc
+}
+
 // SetNextDate sets the "next_date" field.
 func (ttc *TransactionTemplateCreate) SetNextDate(t time.Time) *TransactionTemplateCreate {
 	ttc.mutation.SetNextDate(t)
@@ -314,6 +370,22 @@ func (ttc *TransactionTemplateCreate) defaults() {
 		v := transactiontemplate.DefaultBillingDay
 		ttc.mutation.SetBillingDay(v)
 	}
+	if _, ok := ttc.mutation.Interval(); !ok {
+		v := transactiontemplate.DefaultInterval
+		ttc.mutation.SetInterval(v)
+	}
+	if _, ok := ttc.mutation.WeekdayMask(); !ok {
+		v := transactiontemplate.DefaultWeekdayMask
+		ttc.mutation.SetWeekdayMask(v)
+	}
+	if _, ok := ttc.mutation.MonthlyMode(); !ok {
+		v := transactiontemplate.DefaultMonthlyMode
+		ttc.mutation.SetMonthlyMode(v)
+	}
+	if _, ok := ttc.mutation.Nth(); !ok {
+		v := transactiontemplate.DefaultNth
+		ttc.mutation.SetNth(v)
+	}
 	if _, ok := ttc.mutation.AutoRecord(); !ok {
 		v := transactiontemplate.DefaultAutoRecord
 		ttc.mutation.SetAutoRecord(v)
@@ -464,6 +536,22 @@ func (ttc *TransactionTemplateCreate) createSpec() (*TransactionTemplate, *sqlgr
 	if value, ok := ttc.mutation.BillingDay(); ok {
 		_spec.SetField(transactiontemplate.FieldBillingDay, field.TypeInt32, value)
 		_node.BillingDay = value
+	}
+	if value, ok := ttc.mutation.Interval(); ok {
+		_spec.SetField(transactiontemplate.FieldInterval, field.TypeInt32, value)
+		_node.Interval = value
+	}
+	if value, ok := ttc.mutation.WeekdayMask(); ok {
+		_spec.SetField(transactiontemplate.FieldWeekdayMask, field.TypeInt32, value)
+		_node.WeekdayMask = value
+	}
+	if value, ok := ttc.mutation.MonthlyMode(); ok {
+		_spec.SetField(transactiontemplate.FieldMonthlyMode, field.TypeInt32, value)
+		_node.MonthlyMode = value
+	}
+	if value, ok := ttc.mutation.Nth(); ok {
+		_spec.SetField(transactiontemplate.FieldNth, field.TypeInt32, value)
+		_node.Nth = value
 	}
 	if value, ok := ttc.mutation.NextDate(); ok {
 		_spec.SetField(transactiontemplate.FieldNextDate, field.TypeTime, value)

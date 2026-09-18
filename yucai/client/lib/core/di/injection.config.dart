@@ -46,9 +46,6 @@ import '../../backup/domain/repositories/backup_repository.dart' as _i335;
 import '../../backup/presentation/bloc/backup_bloc.dart' as _i852;
 import '../../backup/presentation/bloc/backup_settings_bloc.dart' as _i86;
 import '../../binding/data/bound_mirror.dart' as _i507;
-// F19-T1: binding_bloc.dart + offline_sync_port.dart imports removed —
-// BindingBloc is hand-registered in injection.dart (PendingCollector is not
-// in the injectable graph; OfflineSyncPort likewise hand-registered, see 1h).
 import '../../budget/data/budget_local_ds.dart' as _i15;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
 import '../../budget/data/budget_repository_impl.dart' as _i364;
@@ -60,6 +57,7 @@ import '../../currency/data/currency_settings.dart' as _i61;
 import '../../currency/data/mappers/currency_mapper.dart' as _i380;
 import '../../currency/domain/repositories/currency_repository.dart' as _i108;
 import '../../currency/presentation/bloc/currency_bloc.dart' as _i284;
+import '../../debt/data/contract_attachment_store.dart' as _i99;
 import '../../debt/data/debt_local_ds.dart' as _i464;
 import '../../debt/data/debt_remote_ds.dart' as _i243;
 import '../../debt/data/debt_repository_impl.dart' as _i1060;
@@ -120,6 +118,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i667.TransactionMapper>(() => const _i667.TransactionMapper());
     gh.lazySingleton<_i697.AccountLocalDataSource>(
       () => _i697.AccountLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        uuid: gh<_i706.Uuid>(),
+      ),
+    );
+    gh.lazySingleton<_i99.ContractAttachmentStore>(
+      () => _i99.ContractAttachmentStore(
         gh<_i581.AppDatabase>(),
         uuid: gh<_i706.Uuid>(),
       ),
@@ -294,6 +298,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i726.UpdateAccountUseCase>(
       () => _i726.UpdateAccountUseCase(gh<_i270.AccountRepository>()),
     );
+    gh.lazySingleton<_i464.DebtLocalDataSource>(
+      () => _i464.DebtLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        gh<_i991.TransactionLocalDataSource>(),
+        uuid: gh<_i706.Uuid>(),
+        accounts: gh<_i697.AccountLocalDataSource>(),
+      ),
+    );
     gh.factory<_i990.OidcLoginUseCase>(
       () => _i990.OidcLoginUseCase(
         gh<_i937.AuthRepository>(),
@@ -345,13 +357,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i536.ReceivablesSummaryDataSource>(),
         gh<_i581.AppDatabase>(),
         gh<_i781.SessionModeTracker>(),
-      ),
-    );
-    gh.lazySingleton<_i464.DebtLocalDataSource>(
-      () => _i464.DebtLocalDataSource(
-        gh<_i581.AppDatabase>(),
-        gh<_i991.TransactionLocalDataSource>(),
-        uuid: gh<_i706.Uuid>(),
       ),
     );
     gh.lazySingleton<_i898.HoldingLocalDataSource>(
@@ -421,9 +426,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i726.UpdateAccountUseCase>(),
       ),
     );
-    // F19-T1: BindingBloc moved to manual registration in injection.dart
-    // (constructor now takes the hand-registered PendingCollector; see the
-    // 1h/ConflictListBloc precedent — source annotation removed accordingly).
     gh.factory<_i255.HoldingBloc>(
       () => _i255.HoldingBloc(gh<_i255.HoldingRepository>()),
     );

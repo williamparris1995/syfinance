@@ -44,6 +44,17 @@ type DebtDetailsMutation struct {
 	interest_rate             *float64
 	addinterest_rate          *float64
 	amortization_method       *string
+	cycle                     *string
+	interval                  *int32
+	addinterval               *int32
+	weekday_mask              *int32
+	addweekday_mask           *int32
+	monthly_mode              *int32
+	addmonthly_mode           *int32
+	nth                       *int32
+	addnth                    *int32
+	interest_waived_cents     *int64
+	addinterest_waived_cents  *int64
 	start_date                *time.Time
 	due_date                  *time.Time
 	total_principal_cents     *int64
@@ -55,6 +66,8 @@ type DebtDetailsMutation struct {
 	contact                   *string
 	contract_ref              *string
 	collection_account_id     *uuid.UUID
+	guarantor_name            *string
+	guarantor_contact         *string
 	created_at                *time.Time
 	updated_at                *time.Time
 	clearedFields             map[string]struct{}
@@ -371,6 +384,392 @@ func (m *DebtDetailsMutation) OldAmortizationMethod(ctx context.Context) (v stri
 // ResetAmortizationMethod resets all changes to the "amortization_method" field.
 func (m *DebtDetailsMutation) ResetAmortizationMethod() {
 	m.amortization_method = nil
+}
+
+// SetCycle sets the "cycle" field.
+func (m *DebtDetailsMutation) SetCycle(s string) {
+	m.cycle = &s
+}
+
+// Cycle returns the value of the "cycle" field in the mutation.
+func (m *DebtDetailsMutation) Cycle() (r string, exists bool) {
+	v := m.cycle
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCycle returns the old "cycle" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldCycle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCycle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCycle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCycle: %w", err)
+	}
+	return oldValue.Cycle, nil
+}
+
+// ResetCycle resets all changes to the "cycle" field.
+func (m *DebtDetailsMutation) ResetCycle() {
+	m.cycle = nil
+}
+
+// SetInterval sets the "interval" field.
+func (m *DebtDetailsMutation) SetInterval(i int32) {
+	m.interval = &i
+	m.addinterval = nil
+}
+
+// Interval returns the value of the "interval" field in the mutation.
+func (m *DebtDetailsMutation) Interval() (r int32, exists bool) {
+	v := m.interval
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInterval returns the old "interval" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldInterval(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInterval is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInterval requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInterval: %w", err)
+	}
+	return oldValue.Interval, nil
+}
+
+// AddInterval adds i to the "interval" field.
+func (m *DebtDetailsMutation) AddInterval(i int32) {
+	if m.addinterval != nil {
+		*m.addinterval += i
+	} else {
+		m.addinterval = &i
+	}
+}
+
+// AddedInterval returns the value that was added to the "interval" field in this mutation.
+func (m *DebtDetailsMutation) AddedInterval() (r int32, exists bool) {
+	v := m.addinterval
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInterval clears the value of the "interval" field.
+func (m *DebtDetailsMutation) ClearInterval() {
+	m.interval = nil
+	m.addinterval = nil
+	m.clearedFields[debtdetails.FieldInterval] = struct{}{}
+}
+
+// IntervalCleared returns if the "interval" field was cleared in this mutation.
+func (m *DebtDetailsMutation) IntervalCleared() bool {
+	_, ok := m.clearedFields[debtdetails.FieldInterval]
+	return ok
+}
+
+// ResetInterval resets all changes to the "interval" field.
+func (m *DebtDetailsMutation) ResetInterval() {
+	m.interval = nil
+	m.addinterval = nil
+	delete(m.clearedFields, debtdetails.FieldInterval)
+}
+
+// SetWeekdayMask sets the "weekday_mask" field.
+func (m *DebtDetailsMutation) SetWeekdayMask(i int32) {
+	m.weekday_mask = &i
+	m.addweekday_mask = nil
+}
+
+// WeekdayMask returns the value of the "weekday_mask" field in the mutation.
+func (m *DebtDetailsMutation) WeekdayMask() (r int32, exists bool) {
+	v := m.weekday_mask
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWeekdayMask returns the old "weekday_mask" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldWeekdayMask(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWeekdayMask is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWeekdayMask requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWeekdayMask: %w", err)
+	}
+	return oldValue.WeekdayMask, nil
+}
+
+// AddWeekdayMask adds i to the "weekday_mask" field.
+func (m *DebtDetailsMutation) AddWeekdayMask(i int32) {
+	if m.addweekday_mask != nil {
+		*m.addweekday_mask += i
+	} else {
+		m.addweekday_mask = &i
+	}
+}
+
+// AddedWeekdayMask returns the value that was added to the "weekday_mask" field in this mutation.
+func (m *DebtDetailsMutation) AddedWeekdayMask() (r int32, exists bool) {
+	v := m.addweekday_mask
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearWeekdayMask clears the value of the "weekday_mask" field.
+func (m *DebtDetailsMutation) ClearWeekdayMask() {
+	m.weekday_mask = nil
+	m.addweekday_mask = nil
+	m.clearedFields[debtdetails.FieldWeekdayMask] = struct{}{}
+}
+
+// WeekdayMaskCleared returns if the "weekday_mask" field was cleared in this mutation.
+func (m *DebtDetailsMutation) WeekdayMaskCleared() bool {
+	_, ok := m.clearedFields[debtdetails.FieldWeekdayMask]
+	return ok
+}
+
+// ResetWeekdayMask resets all changes to the "weekday_mask" field.
+func (m *DebtDetailsMutation) ResetWeekdayMask() {
+	m.weekday_mask = nil
+	m.addweekday_mask = nil
+	delete(m.clearedFields, debtdetails.FieldWeekdayMask)
+}
+
+// SetMonthlyMode sets the "monthly_mode" field.
+func (m *DebtDetailsMutation) SetMonthlyMode(i int32) {
+	m.monthly_mode = &i
+	m.addmonthly_mode = nil
+}
+
+// MonthlyMode returns the value of the "monthly_mode" field in the mutation.
+func (m *DebtDetailsMutation) MonthlyMode() (r int32, exists bool) {
+	v := m.monthly_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMonthlyMode returns the old "monthly_mode" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldMonthlyMode(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMonthlyMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMonthlyMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMonthlyMode: %w", err)
+	}
+	return oldValue.MonthlyMode, nil
+}
+
+// AddMonthlyMode adds i to the "monthly_mode" field.
+func (m *DebtDetailsMutation) AddMonthlyMode(i int32) {
+	if m.addmonthly_mode != nil {
+		*m.addmonthly_mode += i
+	} else {
+		m.addmonthly_mode = &i
+	}
+}
+
+// AddedMonthlyMode returns the value that was added to the "monthly_mode" field in this mutation.
+func (m *DebtDetailsMutation) AddedMonthlyMode() (r int32, exists bool) {
+	v := m.addmonthly_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMonthlyMode clears the value of the "monthly_mode" field.
+func (m *DebtDetailsMutation) ClearMonthlyMode() {
+	m.monthly_mode = nil
+	m.addmonthly_mode = nil
+	m.clearedFields[debtdetails.FieldMonthlyMode] = struct{}{}
+}
+
+// MonthlyModeCleared returns if the "monthly_mode" field was cleared in this mutation.
+func (m *DebtDetailsMutation) MonthlyModeCleared() bool {
+	_, ok := m.clearedFields[debtdetails.FieldMonthlyMode]
+	return ok
+}
+
+// ResetMonthlyMode resets all changes to the "monthly_mode" field.
+func (m *DebtDetailsMutation) ResetMonthlyMode() {
+	m.monthly_mode = nil
+	m.addmonthly_mode = nil
+	delete(m.clearedFields, debtdetails.FieldMonthlyMode)
+}
+
+// SetNth sets the "nth" field.
+func (m *DebtDetailsMutation) SetNth(i int32) {
+	m.nth = &i
+	m.addnth = nil
+}
+
+// Nth returns the value of the "nth" field in the mutation.
+func (m *DebtDetailsMutation) Nth() (r int32, exists bool) {
+	v := m.nth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNth returns the old "nth" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldNth(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNth is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNth requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNth: %w", err)
+	}
+	return oldValue.Nth, nil
+}
+
+// AddNth adds i to the "nth" field.
+func (m *DebtDetailsMutation) AddNth(i int32) {
+	if m.addnth != nil {
+		*m.addnth += i
+	} else {
+		m.addnth = &i
+	}
+}
+
+// AddedNth returns the value that was added to the "nth" field in this mutation.
+func (m *DebtDetailsMutation) AddedNth() (r int32, exists bool) {
+	v := m.addnth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearNth clears the value of the "nth" field.
+func (m *DebtDetailsMutation) ClearNth() {
+	m.nth = nil
+	m.addnth = nil
+	m.clearedFields[debtdetails.FieldNth] = struct{}{}
+}
+
+// NthCleared returns if the "nth" field was cleared in this mutation.
+func (m *DebtDetailsMutation) NthCleared() bool {
+	_, ok := m.clearedFields[debtdetails.FieldNth]
+	return ok
+}
+
+// ResetNth resets all changes to the "nth" field.
+func (m *DebtDetailsMutation) ResetNth() {
+	m.nth = nil
+	m.addnth = nil
+	delete(m.clearedFields, debtdetails.FieldNth)
+}
+
+// SetInterestWaivedCents sets the "interest_waived_cents" field.
+func (m *DebtDetailsMutation) SetInterestWaivedCents(i int64) {
+	m.interest_waived_cents = &i
+	m.addinterest_waived_cents = nil
+}
+
+// InterestWaivedCents returns the value of the "interest_waived_cents" field in the mutation.
+func (m *DebtDetailsMutation) InterestWaivedCents() (r int64, exists bool) {
+	v := m.interest_waived_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInterestWaivedCents returns the old "interest_waived_cents" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldInterestWaivedCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInterestWaivedCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInterestWaivedCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInterestWaivedCents: %w", err)
+	}
+	return oldValue.InterestWaivedCents, nil
+}
+
+// AddInterestWaivedCents adds i to the "interest_waived_cents" field.
+func (m *DebtDetailsMutation) AddInterestWaivedCents(i int64) {
+	if m.addinterest_waived_cents != nil {
+		*m.addinterest_waived_cents += i
+	} else {
+		m.addinterest_waived_cents = &i
+	}
+}
+
+// AddedInterestWaivedCents returns the value that was added to the "interest_waived_cents" field in this mutation.
+func (m *DebtDetailsMutation) AddedInterestWaivedCents() (r int64, exists bool) {
+	v := m.addinterest_waived_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInterestWaivedCents clears the value of the "interest_waived_cents" field.
+func (m *DebtDetailsMutation) ClearInterestWaivedCents() {
+	m.interest_waived_cents = nil
+	m.addinterest_waived_cents = nil
+	m.clearedFields[debtdetails.FieldInterestWaivedCents] = struct{}{}
+}
+
+// InterestWaivedCentsCleared returns if the "interest_waived_cents" field was cleared in this mutation.
+func (m *DebtDetailsMutation) InterestWaivedCentsCleared() bool {
+	_, ok := m.clearedFields[debtdetails.FieldInterestWaivedCents]
+	return ok
+}
+
+// ResetInterestWaivedCents resets all changes to the "interest_waived_cents" field.
+func (m *DebtDetailsMutation) ResetInterestWaivedCents() {
+	m.interest_waived_cents = nil
+	m.addinterest_waived_cents = nil
+	delete(m.clearedFields, debtdetails.FieldInterestWaivedCents)
 }
 
 // SetStartDate sets the "start_date" field.
@@ -750,6 +1149,78 @@ func (m *DebtDetailsMutation) ResetCollectionAccountID() {
 	delete(m.clearedFields, debtdetails.FieldCollectionAccountID)
 }
 
+// SetGuarantorName sets the "guarantor_name" field.
+func (m *DebtDetailsMutation) SetGuarantorName(s string) {
+	m.guarantor_name = &s
+}
+
+// GuarantorName returns the value of the "guarantor_name" field in the mutation.
+func (m *DebtDetailsMutation) GuarantorName() (r string, exists bool) {
+	v := m.guarantor_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuarantorName returns the old "guarantor_name" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldGuarantorName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuarantorName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuarantorName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuarantorName: %w", err)
+	}
+	return oldValue.GuarantorName, nil
+}
+
+// ResetGuarantorName resets all changes to the "guarantor_name" field.
+func (m *DebtDetailsMutation) ResetGuarantorName() {
+	m.guarantor_name = nil
+}
+
+// SetGuarantorContact sets the "guarantor_contact" field.
+func (m *DebtDetailsMutation) SetGuarantorContact(s string) {
+	m.guarantor_contact = &s
+}
+
+// GuarantorContact returns the value of the "guarantor_contact" field in the mutation.
+func (m *DebtDetailsMutation) GuarantorContact() (r string, exists bool) {
+	v := m.guarantor_contact
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuarantorContact returns the old "guarantor_contact" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldGuarantorContact(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuarantorContact is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuarantorContact requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuarantorContact: %w", err)
+	}
+	return oldValue.GuarantorContact, nil
+}
+
+// ResetGuarantorContact resets all changes to the "guarantor_contact" field.
+func (m *DebtDetailsMutation) ResetGuarantorContact() {
+	m.guarantor_contact = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *DebtDetailsMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -964,7 +1435,7 @@ func (m *DebtDetailsMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DebtDetailsMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 24)
 	if m.tenant_id != nil {
 		fields = append(fields, debtdetails.FieldTenantID)
 	}
@@ -979,6 +1450,24 @@ func (m *DebtDetailsMutation) Fields() []string {
 	}
 	if m.amortization_method != nil {
 		fields = append(fields, debtdetails.FieldAmortizationMethod)
+	}
+	if m.cycle != nil {
+		fields = append(fields, debtdetails.FieldCycle)
+	}
+	if m.interval != nil {
+		fields = append(fields, debtdetails.FieldInterval)
+	}
+	if m.weekday_mask != nil {
+		fields = append(fields, debtdetails.FieldWeekdayMask)
+	}
+	if m.monthly_mode != nil {
+		fields = append(fields, debtdetails.FieldMonthlyMode)
+	}
+	if m.nth != nil {
+		fields = append(fields, debtdetails.FieldNth)
+	}
+	if m.interest_waived_cents != nil {
+		fields = append(fields, debtdetails.FieldInterestWaivedCents)
 	}
 	if m.start_date != nil {
 		fields = append(fields, debtdetails.FieldStartDate)
@@ -1007,6 +1496,12 @@ func (m *DebtDetailsMutation) Fields() []string {
 	if m.collection_account_id != nil {
 		fields = append(fields, debtdetails.FieldCollectionAccountID)
 	}
+	if m.guarantor_name != nil {
+		fields = append(fields, debtdetails.FieldGuarantorName)
+	}
+	if m.guarantor_contact != nil {
+		fields = append(fields, debtdetails.FieldGuarantorContact)
+	}
 	if m.created_at != nil {
 		fields = append(fields, debtdetails.FieldCreatedAt)
 	}
@@ -1031,6 +1526,18 @@ func (m *DebtDetailsMutation) Field(name string) (ent.Value, bool) {
 		return m.InterestRate()
 	case debtdetails.FieldAmortizationMethod:
 		return m.AmortizationMethod()
+	case debtdetails.FieldCycle:
+		return m.Cycle()
+	case debtdetails.FieldInterval:
+		return m.Interval()
+	case debtdetails.FieldWeekdayMask:
+		return m.WeekdayMask()
+	case debtdetails.FieldMonthlyMode:
+		return m.MonthlyMode()
+	case debtdetails.FieldNth:
+		return m.Nth()
+	case debtdetails.FieldInterestWaivedCents:
+		return m.InterestWaivedCents()
 	case debtdetails.FieldStartDate:
 		return m.StartDate()
 	case debtdetails.FieldDueDate:
@@ -1049,6 +1556,10 @@ func (m *DebtDetailsMutation) Field(name string) (ent.Value, bool) {
 		return m.ContractRef()
 	case debtdetails.FieldCollectionAccountID:
 		return m.CollectionAccountID()
+	case debtdetails.FieldGuarantorName:
+		return m.GuarantorName()
+	case debtdetails.FieldGuarantorContact:
+		return m.GuarantorContact()
 	case debtdetails.FieldCreatedAt:
 		return m.CreatedAt()
 	case debtdetails.FieldUpdatedAt:
@@ -1072,6 +1583,18 @@ func (m *DebtDetailsMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldInterestRate(ctx)
 	case debtdetails.FieldAmortizationMethod:
 		return m.OldAmortizationMethod(ctx)
+	case debtdetails.FieldCycle:
+		return m.OldCycle(ctx)
+	case debtdetails.FieldInterval:
+		return m.OldInterval(ctx)
+	case debtdetails.FieldWeekdayMask:
+		return m.OldWeekdayMask(ctx)
+	case debtdetails.FieldMonthlyMode:
+		return m.OldMonthlyMode(ctx)
+	case debtdetails.FieldNth:
+		return m.OldNth(ctx)
+	case debtdetails.FieldInterestWaivedCents:
+		return m.OldInterestWaivedCents(ctx)
 	case debtdetails.FieldStartDate:
 		return m.OldStartDate(ctx)
 	case debtdetails.FieldDueDate:
@@ -1090,6 +1613,10 @@ func (m *DebtDetailsMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldContractRef(ctx)
 	case debtdetails.FieldCollectionAccountID:
 		return m.OldCollectionAccountID(ctx)
+	case debtdetails.FieldGuarantorName:
+		return m.OldGuarantorName(ctx)
+	case debtdetails.FieldGuarantorContact:
+		return m.OldGuarantorContact(ctx)
 	case debtdetails.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case debtdetails.FieldUpdatedAt:
@@ -1137,6 +1664,48 @@ func (m *DebtDetailsMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAmortizationMethod(v)
+		return nil
+	case debtdetails.FieldCycle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCycle(v)
+		return nil
+	case debtdetails.FieldInterval:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInterval(v)
+		return nil
+	case debtdetails.FieldWeekdayMask:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWeekdayMask(v)
+		return nil
+	case debtdetails.FieldMonthlyMode:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMonthlyMode(v)
+		return nil
+	case debtdetails.FieldNth:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNth(v)
+		return nil
+	case debtdetails.FieldInterestWaivedCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInterestWaivedCents(v)
 		return nil
 	case debtdetails.FieldStartDate:
 		v, ok := value.(time.Time)
@@ -1201,6 +1770,20 @@ func (m *DebtDetailsMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCollectionAccountID(v)
 		return nil
+	case debtdetails.FieldGuarantorName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuarantorName(v)
+		return nil
+	case debtdetails.FieldGuarantorContact:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuarantorContact(v)
+		return nil
 	case debtdetails.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -1226,6 +1809,21 @@ func (m *DebtDetailsMutation) AddedFields() []string {
 	if m.addinterest_rate != nil {
 		fields = append(fields, debtdetails.FieldInterestRate)
 	}
+	if m.addinterval != nil {
+		fields = append(fields, debtdetails.FieldInterval)
+	}
+	if m.addweekday_mask != nil {
+		fields = append(fields, debtdetails.FieldWeekdayMask)
+	}
+	if m.addmonthly_mode != nil {
+		fields = append(fields, debtdetails.FieldMonthlyMode)
+	}
+	if m.addnth != nil {
+		fields = append(fields, debtdetails.FieldNth)
+	}
+	if m.addinterest_waived_cents != nil {
+		fields = append(fields, debtdetails.FieldInterestWaivedCents)
+	}
 	if m.addtotal_principal_cents != nil {
 		fields = append(fields, debtdetails.FieldTotalPrincipalCents)
 	}
@@ -1242,6 +1840,16 @@ func (m *DebtDetailsMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case debtdetails.FieldInterestRate:
 		return m.AddedInterestRate()
+	case debtdetails.FieldInterval:
+		return m.AddedInterval()
+	case debtdetails.FieldWeekdayMask:
+		return m.AddedWeekdayMask()
+	case debtdetails.FieldMonthlyMode:
+		return m.AddedMonthlyMode()
+	case debtdetails.FieldNth:
+		return m.AddedNth()
+	case debtdetails.FieldInterestWaivedCents:
+		return m.AddedInterestWaivedCents()
 	case debtdetails.FieldTotalPrincipalCents:
 		return m.AddedTotalPrincipalCents()
 	case debtdetails.FieldVersion:
@@ -1261,6 +1869,41 @@ func (m *DebtDetailsMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddInterestRate(v)
+		return nil
+	case debtdetails.FieldInterval:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInterval(v)
+		return nil
+	case debtdetails.FieldWeekdayMask:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWeekdayMask(v)
+		return nil
+	case debtdetails.FieldMonthlyMode:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMonthlyMode(v)
+		return nil
+	case debtdetails.FieldNth:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddNth(v)
+		return nil
+	case debtdetails.FieldInterestWaivedCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInterestWaivedCents(v)
 		return nil
 	case debtdetails.FieldTotalPrincipalCents:
 		v, ok := value.(int64)
@@ -1284,6 +1927,21 @@ func (m *DebtDetailsMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *DebtDetailsMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(debtdetails.FieldInterval) {
+		fields = append(fields, debtdetails.FieldInterval)
+	}
+	if m.FieldCleared(debtdetails.FieldWeekdayMask) {
+		fields = append(fields, debtdetails.FieldWeekdayMask)
+	}
+	if m.FieldCleared(debtdetails.FieldMonthlyMode) {
+		fields = append(fields, debtdetails.FieldMonthlyMode)
+	}
+	if m.FieldCleared(debtdetails.FieldNth) {
+		fields = append(fields, debtdetails.FieldNth)
+	}
+	if m.FieldCleared(debtdetails.FieldInterestWaivedCents) {
+		fields = append(fields, debtdetails.FieldInterestWaivedCents)
+	}
 	if m.FieldCleared(debtdetails.FieldCollectionAccountID) {
 		fields = append(fields, debtdetails.FieldCollectionAccountID)
 	}
@@ -1301,6 +1959,21 @@ func (m *DebtDetailsMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *DebtDetailsMutation) ClearField(name string) error {
 	switch name {
+	case debtdetails.FieldInterval:
+		m.ClearInterval()
+		return nil
+	case debtdetails.FieldWeekdayMask:
+		m.ClearWeekdayMask()
+		return nil
+	case debtdetails.FieldMonthlyMode:
+		m.ClearMonthlyMode()
+		return nil
+	case debtdetails.FieldNth:
+		m.ClearNth()
+		return nil
+	case debtdetails.FieldInterestWaivedCents:
+		m.ClearInterestWaivedCents()
+		return nil
 	case debtdetails.FieldCollectionAccountID:
 		m.ClearCollectionAccountID()
 		return nil
@@ -1326,6 +1999,24 @@ func (m *DebtDetailsMutation) ResetField(name string) error {
 		return nil
 	case debtdetails.FieldAmortizationMethod:
 		m.ResetAmortizationMethod()
+		return nil
+	case debtdetails.FieldCycle:
+		m.ResetCycle()
+		return nil
+	case debtdetails.FieldInterval:
+		m.ResetInterval()
+		return nil
+	case debtdetails.FieldWeekdayMask:
+		m.ResetWeekdayMask()
+		return nil
+	case debtdetails.FieldMonthlyMode:
+		m.ResetMonthlyMode()
+		return nil
+	case debtdetails.FieldNth:
+		m.ResetNth()
+		return nil
+	case debtdetails.FieldInterestWaivedCents:
+		m.ResetInterestWaivedCents()
 		return nil
 	case debtdetails.FieldStartDate:
 		m.ResetStartDate()
@@ -1353,6 +2044,12 @@ func (m *DebtDetailsMutation) ResetField(name string) error {
 		return nil
 	case debtdetails.FieldCollectionAccountID:
 		m.ResetCollectionAccountID()
+		return nil
+	case debtdetails.FieldGuarantorName:
+		m.ResetGuarantorName()
+		return nil
+	case debtdetails.FieldGuarantorContact:
+		m.ResetGuarantorContact()
 		return nil
 	case debtdetails.FieldCreatedAt:
 		m.ResetCreatedAt()

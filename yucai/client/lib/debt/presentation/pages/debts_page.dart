@@ -9,6 +9,8 @@ import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
@@ -35,7 +37,11 @@ class DebtsPage extends StatefulWidget {
 }
 
 class _DebtsPageState extends State<DebtsPage> with RouteAware {
-  DebtListFilter _filter = DebtListFilter.active;
+  // 默认「全部」(2026-09-17 用户反馈:默认「进行中」会把已结清债务藏起来,
+  // 总览总额与账户页负债口径对不上 —— 两页账目必须同口径可见)。
+  DebtListFilter _filter = DebtListFilter.all;
+  // 分类(subtype)筛选:null/空 = 全部(DebtSubtypes.* key)。
+  String? _subtype;
 
   // F9 FR-4 查询态(页面 Stateful 管理,与 _filter 同管道,不动 bloc/repo 契约
   // —— 列表已全量在 bloc 状态里,前端 in-memory 过滤/排序即 NFR-3 口径,与
@@ -51,37 +57,53 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
   @override
   void initState() {
     super.initState();
-    // borrowedIn 过滤:只列借入方向(负债),排除借出方向(债权/应收)。
-    context
-        .read<DebtBloc>()
-        .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedIn));
+    // 不带 typeFilter 全量拉取,bloc 状态对 debts/receivables 两页共享;
+    // 本页在 _debtsOf 表现层切片 borrowedIn(仅借入/负债),债权/借出归
+    // ReceivablesPage。避免共享状态下两页互相串数据(混淆缺陷根因)。
+    context.read<DebtBloc>().add(const LoadDebtsRequested());
+    // 跨 branch/表单变更广播(账户余额、总览数字随之变):债务保存/还款/
+    // 标记已还等都会 bump,本页监听后重拉 —— 路由观察者只覆盖本分支 push/pop。
+    _dataRefresh.addListener(_onDataRefresh);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+    // 订阅 debts 分支观察者(router.dart branch observers):顶层 routeObserver
+    // 挂根 Navigator,看不到本分支嵌套 Navigator 的 /debts/new、/debts/:id
+    // push/pop → didPopNext 从未触发(创建/编辑/删除后列表不回拉)。
+    debtsRouteObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  late final DataRefreshNotifier _dataRefresh = getIt<DataRefreshNotifier>();
+
+  void _onDataRefresh() {
+    if (mounted) {
+      context.read<DebtBloc>().add(const LoadDebtsRequested());
+    }
   }
 
   @override
   void dispose() {
-    routeObserver.unsubscribe(this);
+    debtsRouteObserver.unsubscribe(this);
+    _dataRefresh.removeListener(_onDataRefresh);
     super.dispose();
   }
 
   @override
   void didPopNext() {
     if (mounted) {
-      context
-          .read<DebtBloc>()
-          .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedIn));
+      context.read<DebtBloc>().add(const LoadDebtsRequested());
     }
   }
 
   List<Debt> _debtsOf(DebtState state) {
-    if (state is DebtsLoaded) return state.debts;
-    if (state is DebtSubmitting) return state.last;
-    if (state is DebtError) return state.last;
+    // 共享 bloc 状态可能含 borrowedOut(债权)—— 本页只取 borrowedIn 切片。
+    List<Debt> slice(List<Debt> all) =>
+        all.where((d) => d.type == DebtType.borrowedIn).toList();
+    if (state is DebtsLoaded) return slice(state.debts);
+    if (state is DebtSubmitting) return slice(state.last);
+    if (state is DebtError) return slice(state.last);
     return const [];
   }
 
@@ -143,33 +165,38 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
     int toPreferred(int cents) =>
         toPreferredCents(cents, 'CNY', cstate.rates, preferred);
 
-    final totalRemaining = debts.fold<int>(
-        0, (s, d) => s + toPreferred(d.remainingPrincipalCents));
-    final totalPrincipal = debts.fold<int>(
-        0, (s, d) => s + toPreferred(d.totalPrincipalCents));
-    final totalRepaid = totalPrincipal - totalRemaining;
-    final overallRatio = totalPrincipal > 0
-        ? (totalRepaid / totalPrincipal).clamp(0.0, 1.0)
-        : 0.0;
-    final nextPaymentDate = debts.isEmpty
-        ? null
-        : debts.map((d) => d.dueDate).reduce((a, b) => a.isBefore(b) ? a : b);
-
-    final overdueCount = debts
-        .where((d) =>
-            d.remainingPrincipalCents > 0 && d.dueDate.isBefore(DateTime.now()))
-        .length;
-
     // F9 FR-4 前端查询管道(与 DS list 参数同口径,复用 domain 纯函数):
-    // 搜索(counterparty contains 忽略大小写)→ 四态排序 → segmented 筛选。
-    // 默认态(空搜索 + dueDate/asc)与改造前逐位一致(NFR-2)。总览/统计条仍按
-    // 全量 debts 计算 —— 搜索只作用于列表,不改合计口径。
+    // 搜索 → 排序 → 状态筛选 → 分类筛选。
     final searched =
         debts.where((d) => debtSearchMatches(d, _search)).toList();
     final filtered = ([...searched]
           ..sort((a, b) => debtCompareQuery(a, b, _sortKey, _sortDir)))
         .where((d) => debtMatchesListFilter(d, _filter))
+        .where((d) => debtMatchesSubtype(d, _subtype))
         .toList();
+
+    // 总览/统计条按**筛选后**集合计算(2026-09-17 用户裁决:选分类后总览要
+    // 跟着变),让统计与所见的列表一致。
+    // 本金口径(与总借款本金/进度同基数,保证已还+待还=总本金)。
+    final totalRemaining = filtered.fold<int>(
+        0, (s, d) => s + toPreferred(d.remainingPrincipalCents));
+    // 未付利息单独成卡展示(不与本金混合,避免已还出现负数)。
+    final totalUnpaidInterest = filtered.fold<int>(
+        0, (s, d) => s + toPreferred(d.unpaidInterestCents));
+    final totalPrincipal = filtered.fold<int>(
+        0, (s, d) => s + toPreferred(d.totalPrincipalCents));
+    final totalRepaid = totalPrincipal - totalRemaining;
+    final overallRatio = totalPrincipal > 0
+        ? (totalRepaid / totalPrincipal).clamp(0.0, 1.0)
+        : 0.0;
+    final nextPaymentDate = filtered.isEmpty
+        ? null
+        : filtered.map((d) => d.dueDate).reduce((a, b) => a.isBefore(b) ? a : b);
+
+    final overdueCount = filtered
+        .where((d) =>
+            d.remainingPrincipalCents > 0 && d.dueDate.isBefore(DateTime.now()))
+        .length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
@@ -186,15 +213,20 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
                 totalPrincipal: totalPrincipal,
                 totalRemaining: totalRemaining,
                 totalCollected: totalRepaid,
-                count: debts.length,
+                count: filtered.length,
                 overallRatio: overallRatio,
                 nextCollectDate: nextPaymentDate,
-                // debt 无 server summary:trend/精确下次还款留空 → fallback foot。
+                // CTA 目标 = 筛选后首笔(排序已按未结清+最早到期在前),
+                // 与 foot 显示的「下次还款」日期一致。
+                firstId: filtered.isEmpty ? null : filtered.first.id,
+                // 大字剩余待还 = 本息;底部已还/待还保持本金口径。
+                unpaidInterestCents: totalUnpaidInterest,
                 ),
               const SizedBox(height: AppSpacing.md),
               DebtListStatStrip(
-                  cards: _statCards(debts, totalPrincipal, totalRepaid,
-                      totalRemaining, overdueCount, preferred)),
+                  cards: _statCards(filtered, totalPrincipal, totalRepaid,
+                      totalRemaining, overdueCount, preferred,
+                      totalUnpaidInterest)),
               const SizedBox(height: AppSpacing.lg),
               // F9 FR-4 共享查询控件条(搜索 + 排序;无分页条 —— 矩阵定案)。
               DebtSearchSortBar(
@@ -207,6 +239,9 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
                   _sortDir = d;
                 }),
               ),
+              const SizedBox(height: AppSpacing.md),
+              // 分类筛选 chips(全部 + DebtSubtypes;选中单选,再点取消)。
+              _subtypeChips(),
               const SizedBox(height: AppSpacing.md),
               _sectionHeadWithFilter(searched.length),
               const SizedBox(height: AppSpacing.sm),
@@ -248,7 +283,8 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
 
   /// L2 stat strip 4 卡(本地算):债务笔数 / 总借款本金 / 累计已还本息(绿)/ 待还本金(逾期红)。
   List<DebtListStatCardData> _statCards(List<Debt> debts, int totalPrincipal,
-      int totalRepaid, int totalRemaining, int overdueCount, String preferred) {
+      int totalRepaid, int totalRemaining, int overdueCount, String preferred,
+      int totalUnpaidInterest) {
     return [
       DebtListStatCardData(
           label: _sem.statCountLabel,
@@ -274,8 +310,20 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
           icon: LucideIcons.clock,
           color: overdueCount > 0 ? context.yucai.negative : null,
           sub: overdueCount > 0 ? '含 $overdueCount 笔逾期' : '${debts.length} 笔待还'),
+      DebtListStatCardData(
+          label: '未付利息',
+          value: sharedFmtSymbol(totalUnpaidInterest, preferred),
+          icon: LucideIcons.percent,
+          color: context.yucai.warn,
+          sub: '未还期次利息合计(本息口径另计)'),
     ];
   }
+
+  Widget _subtypeChips() => DebtSubtypeChips(
+        labels: DebtSubtypes.labels,
+        selected: _subtype,
+        onChanged: (v) => setState(() => _subtype = v),
+      );
 
   Widget _sectionHeadWithFilter(int count) {
     final segmented = DebtListFilterSegmented(
@@ -429,7 +477,7 @@ class _AvalancheBanner extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.w500)),
                   TextSpan(
                       text:
-                          '${top.counterparty}(${top.interestRate.toStringAsFixed(2)}%)',
+                          '${top.counterparty}(${(top.interestRate * 100).toStringAsFixed(2)}%)',
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                   const TextSpan(
                       text: ',可在相同月供下节省更多利息。',

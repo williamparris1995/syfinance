@@ -18,6 +18,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -100,6 +101,8 @@ void main() {
     // The form's initState reads TagRepository from getIt (ListTags +, on edit,
     // GetTransactionTags). Register a mock so the chip-row loads real tags.
     getIt.registerSingleton<TagRepository>(tagRepo);
+    // 保存成功 listener bump DataRefreshNotifier(跨页刷新广播)。
+    getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
     when(() => accountRepo.list()).thenAnswer(
         (_) async => dartz.Right([_assetAccount, _assetAccount2, _expenseAccount]));
     when(() => tagRepo.list()).thenAnswer((_) async => dartz.Right(_allTags));
@@ -338,6 +341,53 @@ void main() {
     verifyNever(() => tagRepo.removeTagFromTransaction(
         tagId: any(named: 'tagId'),
         transactionId: any(named: 'transactionId')));
+  });
+
+  testWidgets(
+      '商户留空提交 → 描述自动填分类账户名(方案 2:列表不再出现「(无描述)」)',
+      (tester) async {
+    await pumpPage(tester, 1440);
+    when(() => txnRepo.recordExpense(any())).thenAnswer((_) async =>
+        dartz.Right(
+            Transaction(id: 'new-2', transactionDate: _date, entries: const [])));
+    await tester.tap(find.text('+50'));
+    await tester.pumpAndSettle();
+    await _openDropdownAndPick(tester, '例如：招商银行、现金', '现金');
+    await _openDropdownAndPick(tester, '例如：餐饮、交通', '餐饮');
+    // 商户(描述)留空不动,直接提交。
+    await tester.ensureVisible(find.text('保存'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    final captured = verify(() => txnRepo.recordExpense(captureAny()))
+        .captured
+        .single as RecordExpenseParams;
+    expect(captured.description, '餐饮',
+        reason: '空商户 → 分类账户名兜底,描述永不为空');
+  });
+
+  testWidgets('转账商户留空提交 → 描述=「转账」字面(无分类账户可兜底)',
+      (tester) async {
+    await pumpPage(tester, 1440);
+    when(() => txnRepo.recordTransfer(any())).thenAnswer((_) async =>
+        dartz.Right(
+            Transaction(id: 'new-3', transactionDate: _date, entries: const [])));
+    await tester.tap(find.text('转账').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('+50'));
+    await tester.pumpAndSettle();
+    await _openDropdownAndPick(tester, '钱从哪来', '现金');
+    await _openDropdownAndPick(tester, '钱到哪去', '招行储蓄卡');
+    await tester.ensureVisible(find.text('保存'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    final captured = verify(() => txnRepo.recordTransfer(captureAny()))
+        .captured
+        .single as RecordTransferParams;
+    expect(captured.description, '转账');
   });
 
   testWidgets('preview is live：amount 改 → preview 借/贷金额同步刷新',

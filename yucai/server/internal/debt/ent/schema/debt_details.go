@@ -42,6 +42,29 @@ func (DebtDetails) Fields() []ent.Field {
 			Comment("Annual rate, e.g. 0.05 = 5%"),
 		field.String("amortization_method").
 			Comment("equal_principal_interest, equal_principal, lump_sum"),
+		field.String("cycle").
+			Default("monthly").
+			Comment("recurrence cycle: weekly, monthly, yearly, custom"),
+		field.Int32("interval").
+			Optional().
+			Default(1).
+			Comment("every N weeks/months/years; 1 = legacy"),
+		field.Int32("weekday_mask").
+			Optional().
+			Default(0).
+			Comment("bit0=Monday..bit6=Sunday; 0 = start-date weekday"),
+		field.Int32("monthly_mode").
+			Optional().
+			Default(0).
+			Comment("0 = by date (start-date anchor), 1 = by nth weekday"),
+		field.Int32("nth").
+			Optional().
+			Default(0).
+			Comment("1-4 = the Nth, 5 = the last (nth-weekday mode)"),
+		field.Int64("interest_waived_cents").
+			Optional().
+			Default(0).
+			Comment("one-off interest waiver, deducted from earliest installments"),
 		field.Time("start_date"),
 		field.Time("due_date"),
 		field.Int64("total_principal_cents").Min(0),
@@ -67,6 +90,15 @@ func (DebtDetails) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("FK to Account — collection account for receivables (borrowed_out)"),
+		// Guarantor (2026-09 user request): optional free-text guarantor name +
+		// contact (phone/wechat/...). Same shape as contact/contract_ref — empty
+		// string default, persisted verbatim, both debt directions.
+		field.String("guarantor_name").
+			Default("").
+			Comment("Guarantor name (optional)"),
+		field.String("guarantor_contact").
+			Default("").
+			Comment("Guarantor contact: phone/wechat/... (optional)"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

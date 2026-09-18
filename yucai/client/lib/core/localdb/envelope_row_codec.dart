@@ -111,6 +111,12 @@ db.DebtsCompanion debtRowFromEnvelope(Map<dynamic, dynamic> d) =>
       counterparty: d['Counterparty'] as String? ?? '',
       interestRate: (d['InterestRate'] as num?)?.toDouble() ?? 0,
       amortizationMethod: d['AmortizationMethod'] as int? ?? 1,
+      cycle: Value(d['Cycle'] as int? ?? 2),
+      interval: Value(d['Interval'] as int? ?? 1),
+      weekdayMask: Value(d['WeekdayMask'] as int? ?? 0),
+      monthlyMode: Value(d['MonthlyMode'] as int? ?? 0),
+      nth: Value(d['Nth'] as int? ?? 0),
+      interestWaivedCents: Value(d['InterestWaivedCents'] as int? ?? 0),
       startDate: envelopeTimestampOf(d['StartDate']) ?? DateTime.now().toUtc(),
       dueDate: envelopeTimestampOf(d['DueDate']) ?? DateTime.now().toUtc(),
       totalPrincipalCents: d['TotalPrincipalCents'] as int? ?? 0,
@@ -212,6 +218,10 @@ db.TransactionTemplatesCompanion templateRowFromEnvelope(
       cycle: t['Cycle'] as int? ?? 0,
       cycleDays: t['CycleDays'] as int? ?? 0,
       billingDay: t['BillingDay'] as int? ?? 0,
+      interval: Value(t['Interval'] as int? ?? 1),
+      weekdayMask: Value(t['WeekdayMask'] as int? ?? 0),
+      monthlyMode: Value(t['MonthlyMode'] as int? ?? 0),
+      nth: Value(t['Nth'] as int? ?? 0),
       nextDate:
           envelopeTimestampOf(t['NextDate']) ?? DateTime.now().toUtc(),
       startDate:

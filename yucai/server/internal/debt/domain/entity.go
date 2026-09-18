@@ -5,28 +5,44 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 )
 
 // DebtDetails is the aggregate root for debt/loan tracking.
 type DebtDetails struct {
-	ID                   uuid.UUID
-	TenantID             uuid.UUID
-	AccountID            uuid.UUID
-	Counterparty         string
-	InterestRate         float64
-	AmortizationMethod   AmortizationMethod
-	StartDate            time.Time
-	DueDate              time.Time
-	TotalPrincipalCents  int64
-	DebtType             DebtType
-	Subtype              string
-	Contact              string
-	ContractRef          string
-	CollectionAccountID  *uuid.UUID
-	Schedule             []PaymentScheduleEntry
-	Version              int64
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	ID                  uuid.UUID
+	TenantID            uuid.UUID
+	AccountID           uuid.UUID
+	Counterparty        string
+	InterestRate        float64
+	AmortizationMethod  AmortizationMethod
+	StartDate           time.Time
+	DueDate             time.Time
+	TotalPrincipalCents int64
+	DebtType            DebtType
+	Subtype             string
+	Contact             string
+	ContractRef         string
+	CollectionAccountID *uuid.UUID
+	// GuarantorName / GuarantorContact: optional free-text guarantor metadata
+	// (2026-09 user request). Empty string = no guarantor; persisted verbatim,
+	// no validation — same semantics as Contact/ContractRef.
+	GuarantorName    string
+	GuarantorContact string
+	// Recurrence rule (zero values = legacy monthly; by-date months anchor
+	// the start date — debt never uses a billing day).
+	Cycle       recurrence.Cycle
+	Interval    int32
+	WeekdayMask int32
+	MonthlyMode recurrence.MonthlyMode
+	Nth         int32
+	// InterestWaivedCents: one-off interest discount (bank promotion),
+	// deducted from the earliest installments' interest at generation.
+	InterestWaivedCents int64
+	Schedule            []PaymentScheduleEntry
+	Version     int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // PaymentScheduleEntry represents a single payment in the amortization schedule.
@@ -49,7 +65,9 @@ type PaymentScheduleEntry struct {
 // pass "" when unspecified. collectionAccountID is the asset account a
 // receivable's repayments land in; pass nil for borrowed-in debts (the
 // receivable-required check lives in application CreateDebt, not here, so the
-// domain constructor stays valid for both debt shapes).
+// domain constructor stays valid for both debt shapes). guarantorName /
+// guarantorContact are optional free-form guarantor metadata; pass "" when
+// unspecified.
 func NewDebtDetails(
 	tenantID, accountID uuid.UUID,
 	counterparty string,
@@ -62,6 +80,8 @@ func NewDebtDetails(
 	contact string,
 	contractRef string,
 	collectionAccountID *uuid.UUID,
+	guarantorName string,
+	guarantorContact string,
 ) (*DebtDetails, error) {
 	counterparty = trimSpace(counterparty)
 	if counterparty == "" {
@@ -98,21 +118,94 @@ func NewDebtDetails(
 		Contact:             contact,
 		ContractRef:         contractRef,
 		CollectionAccountID: collectionAccountID,
+		GuarantorName:       guarantorName,
+		GuarantorContact:    guarantorContact,
 		Version:             1,
 		CreatedAt:           now,
 		UpdatedAt:           now,
 	}, nil
 }
 
-// GenerateSchedule creates payment schedule entries using the AmortizationCalculator.
+// Rule returns the recurrence.Rule view of the debt's cycle fields.
+// Cycle 0 (legacy rows) normalizes to monthly.
+func (d *DebtDetails) Rule() recurrence.Rule {
+	cycle := d.Cycle
+	if cycle == 0 {
+		cycle = recurrence.CycleMonthly
+	}
+	return recurrence.Rule{
+		Cycle:       cycle,
+		Interval:    d.Interval,
+		WeekdayMask: d.WeekdayMask,
+		MonthlyMode: d.MonthlyMode,
+		Nth:         d.Nth,
+	}
+}
+
+// ScheduleDates returns the installment payment dates: monthly rules keep
+// the legacy month-diff count (byte-exact legacy parity, including odd
+// start/due pairs like Jan 31 → Jul 15); other cycles take every occurrence
+// in (start, due] (at least one).
+func (d *DebtDetails) ScheduleDates() []time.Time {
+	return ScheduleDatesFrom(d.Rule(), d.StartDate, d.DueDate, 0)
+}
+
+// FrozenEntries returns the already-recorded entries (paid, partially paid,
+// or tied to a transaction). These survive a rule edit untouched.
+func (d *DebtDetails) FrozenEntries() []PaymentScheduleEntry {
+	var out []PaymentScheduleEntry
+	for _, e := range d.Schedule {
+		if e.Paid || e.PaidCents > 0 || e.TransactionID != nil {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// GenerateSchedule creates payment schedule entries using the AmortizationCalculator,
+// then applies the one-off interest waiver (earliest installments first).
 func (d *DebtDetails) GenerateSchedule() []PaymentScheduleEntry {
 	calc := AmortizationCalculator{}
 	entries := calc.GenerateSchedule(d)
+	ApplyInterestWaiver(entries, d.InterestWaivedCents)
 	for i := range entries {
 		entries[i].DebtID = d.ID
 	}
 	d.Schedule = entries
 	return entries
+}
+
+// ApplyInterestWaiver deducts a one-off waiver from the entries' interest,
+// earliest installment first, flooring each at 0 and carrying the remainder
+// forward. Entries' TotalCents are re-derived to keep principal+interest
+// consistent. Excess waiver beyond total interest is silently clamped
+// (application layer validates the limit for a friendly error).
+func ApplyInterestWaiver(entries []PaymentScheduleEntry, waiver int64) {
+	if waiver <= 0 {
+		return
+	}
+	left := waiver
+	for i := range entries {
+		if left <= 0 {
+			break
+		}
+		take := entries[i].InterestCents
+		if take > left {
+			take = left
+		}
+		entries[i].InterestCents -= take
+		entries[i].TotalCents = entries[i].PrincipalCents + entries[i].InterestCents
+		left -= take
+	}
+}
+
+// TotalInterest sums the schedule's interest.
+func TotalInterest(entries []PaymentScheduleEntry) int64 {
+	var sum int64
+	for _, e := range entries {
+		sum += e.InterestCents
+	}
+	return sum
 }
 
 // MarkPaid marks a schedule entry as paid with the given transaction ID.
@@ -128,6 +221,18 @@ func (d *DebtDetails) MarkPaid(entryID uuid.UUID, transactionID uuid.UUID) error
 		}
 	}
 	return fmt.Errorf("schedule entry %s not found", entryID)
+}
+
+// RemainingInterest sums the interest of unpaid schedule entries — the
+// accrued-but-unpaid portion of the obligation (本息口径的本金+利息).
+func (d *DebtDetails) RemainingInterest() int64 {
+	var sum int64
+	for _, e := range d.Schedule {
+		if !e.Paid {
+			sum += e.InterestCents
+		}
+	}
+	return sum
 }
 
 // RemainingPrincipal calculates how much principal is still unpaid.

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/template/domain"
 )
 
@@ -19,6 +20,10 @@ type CreateTemplateRequest struct {
 	Cycle               domain.TemplateCycle
 	CycleDays           int32
 	BillingDay          int32
+	Interval            int32
+	WeekdayMask         int32
+	MonthlyMode         recurrence.MonthlyMode
+	Nth                 int32
 	StartDate           time.Time
 	EndDate             *time.Time
 	AutoRecord          bool
@@ -34,6 +39,11 @@ type UpdateTemplateRequest struct {
 	AmountCents int64
 	Cycle       domain.TemplateCycle
 	CycleDays   int32
+	BillingDay  int32
+	Interval    int32
+	WeekdayMask int32
+	MonthlyMode recurrence.MonthlyMode
+	Nth         int32
 	EndDate     *time.Time
 	AutoRecord  bool
 	Version     int64
@@ -59,6 +69,10 @@ type TemplateDTO struct {
 	Cycle               domain.TemplateCycle
 	CycleDays           int32
 	BillingDay          int32
+	Interval            int32
+	WeekdayMask         int32
+	MonthlyMode         recurrence.MonthlyMode
+	Nth                 int32
 	NextDate            time.Time
 	StartDate           time.Time
 	EndDate             *time.Time
@@ -92,6 +106,10 @@ func TemplateToDTO(t *domain.TransactionTemplate) TemplateDTO {
 		Cycle:               t.Cycle,
 		CycleDays:           t.CycleDays,
 		BillingDay:          t.BillingDay,
+		Interval:            t.Interval,
+		WeekdayMask:         t.WeekdayMask,
+		MonthlyMode:         t.MonthlyMode,
+		Nth:                 t.Nth,
 		NextDate:            t.NextDate,
 		StartDate:           t.StartDate,
 		EndDate:             t.EndDate,

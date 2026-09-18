@@ -94,7 +94,8 @@ func TestGetDebtsPaid_FullyPaidDebt(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC),
 		4000, domain.BorrowedIn, "",
-		"", "", nil,
+		"", "", nil,"", "",
+
 	)
 	if err != nil {
 		t.Fatalf("new debt: %v", err)

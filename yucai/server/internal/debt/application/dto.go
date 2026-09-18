@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/domain"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 )
 
 // CreateDebtRequest holds input for creating a debt.
@@ -28,6 +29,34 @@ type CreateDebtRequest struct {
 	Contact             string
 	ContractRef         string
 	CollectionAccountID *uuid.UUID
+	// GuarantorName / GuarantorContact: optional free-form guarantor metadata
+	// (2026-09 user request). Empty = no guarantor; persisted verbatim.
+	GuarantorName    string
+	GuarantorContact string
+	// Recurrence rule (zero values = legacy monthly; by-date months anchor
+	// the start date). Ignored by lump_sum.
+	Cycle       recurrence.Cycle
+	Interval    int32
+	WeekdayMask int32
+	MonthlyMode recurrence.MonthlyMode
+	Nth         int32
+	// TermPeriods > 0 = by-periods mode (N periods; DueDate derived from the
+	// last occurrence and ignored). 0 = by-due-date mode (default).
+	TermPeriods int32
+	// InterestWaivedCents: one-off interest discount; must not exceed the
+	// schedule's total interest.
+	InterestWaivedCents int64
+}
+
+// Rule returns the recurrence.Rule view of the create request's cycle fields.
+func (r CreateDebtRequest) Rule() recurrence.Rule {
+	return recurrence.Rule{
+		Cycle:       r.Cycle,
+		Interval:    r.Interval,
+		WeekdayMask: r.WeekdayMask,
+		MonthlyMode: r.MonthlyMode,
+		Nth:         r.Nth,
+	}
 }
 
 // UpdateDebtRequest holds input for updating a debt.
@@ -44,6 +73,22 @@ type UpdateDebtRequest struct {
 	Contact             string
 	ContractRef         string
 	CollectionAccountID *uuid.UUID
+	GuarantorName       string
+	GuarantorContact    string
+	// Schedule-affecting edit (Google-Calendar style): already-recorded
+	// entries are frozen; the future schedule regenerates from the remaining
+	// principal. Zero values keep the current value (old clients unchanged).
+	AmortizationMethod domain.AmortizationMethod
+	DueDate            *time.Time // nil = keep
+	TermPeriods        int32      // >0 = by periods (overrides DueDate)
+	Cycle              recurrence.Cycle
+	Interval           int32
+	WeekdayMask        int32
+	MonthlyMode        recurrence.MonthlyMode
+	Nth                int32
+	// nil = keep current waiver (presence-aware proto optional); set = replace
+	// (0 clears).
+	InterestWaivedCents *int64
 }
 
 // RecordPaymentRequest holds input for recording a payment.
@@ -88,6 +133,14 @@ type DebtDTO struct {
 	Counterparty          string
 	InterestRate          float64
 	AmortizationMethod    domain.AmortizationMethod
+	Cycle                 recurrence.Cycle
+	Interval              int32
+	WeekdayMask           int32
+	MonthlyMode           recurrence.MonthlyMode
+	Nth                   int32
+	InterestWaivedCents   int64
+	// 剩余未付利息 = 未还期次的利息合计(本息口径统计用)。
+	RemainingInterestCents int64
 	StartDate             time.Time
 	DueDate               time.Time
 	TotalPrincipalCents   int64
@@ -96,6 +149,8 @@ type DebtDTO struct {
 	Contact               string
 	ContractRef           string
 	CollectionAccountID   *uuid.UUID
+	GuarantorName         string
+	GuarantorContact      string
 	NextPaymentDate       string // "2006-01-02" of earliest unpaid entry; "" when none
 	NextPaymentAmountCents int64
 	NextPaymentPeriodNo   int32 // 1-based schedule index of earliest unpaid entry; 0 when none
@@ -190,6 +245,13 @@ func DebtToDTO(d *domain.DebtDetails) DebtDTO {
 		Counterparty:         d.Counterparty,
 		InterestRate:         d.InterestRate,
 		AmortizationMethod:   d.AmortizationMethod,
+		Cycle:                d.Rule().Cycle,
+		Interval:             d.Interval,
+		WeekdayMask:          d.WeekdayMask,
+		MonthlyMode:          d.MonthlyMode,
+		Nth:                  d.Nth,
+		InterestWaivedCents:  d.InterestWaivedCents,
+		RemainingInterestCents: d.RemainingInterest(),
 		StartDate:            d.StartDate,
 		DueDate:              d.DueDate,
 		TotalPrincipalCents:  d.TotalPrincipalCents,
@@ -198,6 +260,8 @@ func DebtToDTO(d *domain.DebtDetails) DebtDTO {
 		Contact:              d.Contact,
 		ContractRef:          d.ContractRef,
 		CollectionAccountID:  d.CollectionAccountID,
+		GuarantorName:        d.GuarantorName,
+		GuarantorContact:     d.GuarantorContact,
 		RemainingPrincipal:   d.RemainingPrincipal(),
 		Version:              d.Version,
 		CreatedAt:            d.CreatedAt,

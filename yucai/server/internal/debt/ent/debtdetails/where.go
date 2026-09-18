@@ -81,6 +81,36 @@ func AmortizationMethod(v string) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldAmortizationMethod, v))
 }
 
+// Cycle applies equality check predicate on the "cycle" field. It's identical to CycleEQ.
+func Cycle(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldCycle, v))
+}
+
+// Interval applies equality check predicate on the "interval" field. It's identical to IntervalEQ.
+func Interval(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldInterval, v))
+}
+
+// WeekdayMask applies equality check predicate on the "weekday_mask" field. It's identical to WeekdayMaskEQ.
+func WeekdayMask(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldWeekdayMask, v))
+}
+
+// MonthlyMode applies equality check predicate on the "monthly_mode" field. It's identical to MonthlyModeEQ.
+func MonthlyMode(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldMonthlyMode, v))
+}
+
+// Nth applies equality check predicate on the "nth" field. It's identical to NthEQ.
+func Nth(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldNth, v))
+}
+
+// InterestWaivedCents applies equality check predicate on the "interest_waived_cents" field. It's identical to InterestWaivedCentsEQ.
+func InterestWaivedCents(v int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldInterestWaivedCents, v))
+}
+
 // StartDate applies equality check predicate on the "start_date" field. It's identical to StartDateEQ.
 func StartDate(v time.Time) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldStartDate, v))
@@ -124,6 +154,16 @@ func ContractRef(v string) predicate.DebtDetails {
 // CollectionAccountID applies equality check predicate on the "collection_account_id" field. It's identical to CollectionAccountIDEQ.
 func CollectionAccountID(v uuid.UUID) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldCollectionAccountID, v))
+}
+
+// GuarantorName applies equality check predicate on the "guarantor_name" field. It's identical to GuarantorNameEQ.
+func GuarantorName(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldGuarantorName, v))
+}
+
+// GuarantorContact applies equality check predicate on the "guarantor_contact" field. It's identical to GuarantorContactEQ.
+func GuarantorContact(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldGuarantorContact, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -384,6 +424,321 @@ func AmortizationMethodEqualFold(v string) predicate.DebtDetails {
 // AmortizationMethodContainsFold applies the ContainsFold predicate on the "amortization_method" field.
 func AmortizationMethodContainsFold(v string) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldContainsFold(FieldAmortizationMethod, v))
+}
+
+// CycleEQ applies the EQ predicate on the "cycle" field.
+func CycleEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldCycle, v))
+}
+
+// CycleNEQ applies the NEQ predicate on the "cycle" field.
+func CycleNEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldCycle, v))
+}
+
+// CycleIn applies the In predicate on the "cycle" field.
+func CycleIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldCycle, vs...))
+}
+
+// CycleNotIn applies the NotIn predicate on the "cycle" field.
+func CycleNotIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldCycle, vs...))
+}
+
+// CycleGT applies the GT predicate on the "cycle" field.
+func CycleGT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldCycle, v))
+}
+
+// CycleGTE applies the GTE predicate on the "cycle" field.
+func CycleGTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldCycle, v))
+}
+
+// CycleLT applies the LT predicate on the "cycle" field.
+func CycleLT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldCycle, v))
+}
+
+// CycleLTE applies the LTE predicate on the "cycle" field.
+func CycleLTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldCycle, v))
+}
+
+// CycleContains applies the Contains predicate on the "cycle" field.
+func CycleContains(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContains(FieldCycle, v))
+}
+
+// CycleHasPrefix applies the HasPrefix predicate on the "cycle" field.
+func CycleHasPrefix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasPrefix(FieldCycle, v))
+}
+
+// CycleHasSuffix applies the HasSuffix predicate on the "cycle" field.
+func CycleHasSuffix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasSuffix(FieldCycle, v))
+}
+
+// CycleEqualFold applies the EqualFold predicate on the "cycle" field.
+func CycleEqualFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEqualFold(FieldCycle, v))
+}
+
+// CycleContainsFold applies the ContainsFold predicate on the "cycle" field.
+func CycleContainsFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContainsFold(FieldCycle, v))
+}
+
+// IntervalEQ applies the EQ predicate on the "interval" field.
+func IntervalEQ(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldInterval, v))
+}
+
+// IntervalNEQ applies the NEQ predicate on the "interval" field.
+func IntervalNEQ(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldInterval, v))
+}
+
+// IntervalIn applies the In predicate on the "interval" field.
+func IntervalIn(vs ...int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldInterval, vs...))
+}
+
+// IntervalNotIn applies the NotIn predicate on the "interval" field.
+func IntervalNotIn(vs ...int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldInterval, vs...))
+}
+
+// IntervalGT applies the GT predicate on the "interval" field.
+func IntervalGT(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldInterval, v))
+}
+
+// IntervalGTE applies the GTE predicate on the "interval" field.
+func IntervalGTE(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldInterval, v))
+}
+
+// IntervalLT applies the LT predicate on the "interval" field.
+func IntervalLT(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldInterval, v))
+}
+
+// IntervalLTE applies the LTE predicate on the "interval" field.
+func IntervalLTE(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldInterval, v))
+}
+
+// IntervalIsNil applies the IsNil predicate on the "interval" field.
+func IntervalIsNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIsNull(FieldInterval))
+}
+
+// IntervalNotNil applies the NotNil predicate on the "interval" field.
+func IntervalNotNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotNull(FieldInterval))
+}
+
+// WeekdayMaskEQ applies the EQ predicate on the "weekday_mask" field.
+func WeekdayMaskEQ(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskNEQ applies the NEQ predicate on the "weekday_mask" field.
+func WeekdayMaskNEQ(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskIn applies the In predicate on the "weekday_mask" field.
+func WeekdayMaskIn(vs ...int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldWeekdayMask, vs...))
+}
+
+// WeekdayMaskNotIn applies the NotIn predicate on the "weekday_mask" field.
+func WeekdayMaskNotIn(vs ...int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldWeekdayMask, vs...))
+}
+
+// WeekdayMaskGT applies the GT predicate on the "weekday_mask" field.
+func WeekdayMaskGT(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskGTE applies the GTE predicate on the "weekday_mask" field.
+func WeekdayMaskGTE(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskLT applies the LT predicate on the "weekday_mask" field.
+func WeekdayMaskLT(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskLTE applies the LTE predicate on the "weekday_mask" field.
+func WeekdayMaskLTE(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldWeekdayMask, v))
+}
+
+// WeekdayMaskIsNil applies the IsNil predicate on the "weekday_mask" field.
+func WeekdayMaskIsNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIsNull(FieldWeekdayMask))
+}
+
+// WeekdayMaskNotNil applies the NotNil predicate on the "weekday_mask" field.
+func WeekdayMaskNotNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotNull(FieldWeekdayMask))
+}
+
+// MonthlyModeEQ applies the EQ predicate on the "monthly_mode" field.
+func MonthlyModeEQ(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldMonthlyMode, v))
+}
+
+// MonthlyModeNEQ applies the NEQ predicate on the "monthly_mode" field.
+func MonthlyModeNEQ(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldMonthlyMode, v))
+}
+
+// MonthlyModeIn applies the In predicate on the "monthly_mode" field.
+func MonthlyModeIn(vs ...int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldMonthlyMode, vs...))
+}
+
+// MonthlyModeNotIn applies the NotIn predicate on the "monthly_mode" field.
+func MonthlyModeNotIn(vs ...int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldMonthlyMode, vs...))
+}
+
+// MonthlyModeGT applies the GT predicate on the "monthly_mode" field.
+func MonthlyModeGT(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldMonthlyMode, v))
+}
+
+// MonthlyModeGTE applies the GTE predicate on the "monthly_mode" field.
+func MonthlyModeGTE(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldMonthlyMode, v))
+}
+
+// MonthlyModeLT applies the LT predicate on the "monthly_mode" field.
+func MonthlyModeLT(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldMonthlyMode, v))
+}
+
+// MonthlyModeLTE applies the LTE predicate on the "monthly_mode" field.
+func MonthlyModeLTE(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldMonthlyMode, v))
+}
+
+// MonthlyModeIsNil applies the IsNil predicate on the "monthly_mode" field.
+func MonthlyModeIsNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIsNull(FieldMonthlyMode))
+}
+
+// MonthlyModeNotNil applies the NotNil predicate on the "monthly_mode" field.
+func MonthlyModeNotNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotNull(FieldMonthlyMode))
+}
+
+// NthEQ applies the EQ predicate on the "nth" field.
+func NthEQ(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldNth, v))
+}
+
+// NthNEQ applies the NEQ predicate on the "nth" field.
+func NthNEQ(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldNth, v))
+}
+
+// NthIn applies the In predicate on the "nth" field.
+func NthIn(vs ...int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldNth, vs...))
+}
+
+// NthNotIn applies the NotIn predicate on the "nth" field.
+func NthNotIn(vs ...int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldNth, vs...))
+}
+
+// NthGT applies the GT predicate on the "nth" field.
+func NthGT(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldNth, v))
+}
+
+// NthGTE applies the GTE predicate on the "nth" field.
+func NthGTE(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldNth, v))
+}
+
+// NthLT applies the LT predicate on the "nth" field.
+func NthLT(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldNth, v))
+}
+
+// NthLTE applies the LTE predicate on the "nth" field.
+func NthLTE(v int32) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldNth, v))
+}
+
+// NthIsNil applies the IsNil predicate on the "nth" field.
+func NthIsNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIsNull(FieldNth))
+}
+
+// NthNotNil applies the NotNil predicate on the "nth" field.
+func NthNotNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotNull(FieldNth))
+}
+
+// InterestWaivedCentsEQ applies the EQ predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsEQ(v int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldInterestWaivedCents, v))
+}
+
+// InterestWaivedCentsNEQ applies the NEQ predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsNEQ(v int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldInterestWaivedCents, v))
+}
+
+// InterestWaivedCentsIn applies the In predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsIn(vs ...int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldInterestWaivedCents, vs...))
+}
+
+// InterestWaivedCentsNotIn applies the NotIn predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsNotIn(vs ...int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldInterestWaivedCents, vs...))
+}
+
+// InterestWaivedCentsGT applies the GT predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsGT(v int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldInterestWaivedCents, v))
+}
+
+// InterestWaivedCentsGTE applies the GTE predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsGTE(v int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldInterestWaivedCents, v))
+}
+
+// InterestWaivedCentsLT applies the LT predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsLT(v int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldInterestWaivedCents, v))
+}
+
+// InterestWaivedCentsLTE applies the LTE predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsLTE(v int64) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldInterestWaivedCents, v))
+}
+
+// InterestWaivedCentsIsNil applies the IsNil predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsIsNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIsNull(FieldInterestWaivedCents))
+}
+
+// InterestWaivedCentsNotNil applies the NotNil predicate on the "interest_waived_cents" field.
+func InterestWaivedCentsNotNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotNull(FieldInterestWaivedCents))
 }
 
 // StartDateEQ applies the EQ predicate on the "start_date" field.
@@ -854,6 +1209,136 @@ func CollectionAccountIDIsNil() predicate.DebtDetails {
 // CollectionAccountIDNotNil applies the NotNil predicate on the "collection_account_id" field.
 func CollectionAccountIDNotNil() predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldNotNull(FieldCollectionAccountID))
+}
+
+// GuarantorNameEQ applies the EQ predicate on the "guarantor_name" field.
+func GuarantorNameEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldGuarantorName, v))
+}
+
+// GuarantorNameNEQ applies the NEQ predicate on the "guarantor_name" field.
+func GuarantorNameNEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldGuarantorName, v))
+}
+
+// GuarantorNameIn applies the In predicate on the "guarantor_name" field.
+func GuarantorNameIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldGuarantorName, vs...))
+}
+
+// GuarantorNameNotIn applies the NotIn predicate on the "guarantor_name" field.
+func GuarantorNameNotIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldGuarantorName, vs...))
+}
+
+// GuarantorNameGT applies the GT predicate on the "guarantor_name" field.
+func GuarantorNameGT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldGuarantorName, v))
+}
+
+// GuarantorNameGTE applies the GTE predicate on the "guarantor_name" field.
+func GuarantorNameGTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldGuarantorName, v))
+}
+
+// GuarantorNameLT applies the LT predicate on the "guarantor_name" field.
+func GuarantorNameLT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldGuarantorName, v))
+}
+
+// GuarantorNameLTE applies the LTE predicate on the "guarantor_name" field.
+func GuarantorNameLTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldGuarantorName, v))
+}
+
+// GuarantorNameContains applies the Contains predicate on the "guarantor_name" field.
+func GuarantorNameContains(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContains(FieldGuarantorName, v))
+}
+
+// GuarantorNameHasPrefix applies the HasPrefix predicate on the "guarantor_name" field.
+func GuarantorNameHasPrefix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasPrefix(FieldGuarantorName, v))
+}
+
+// GuarantorNameHasSuffix applies the HasSuffix predicate on the "guarantor_name" field.
+func GuarantorNameHasSuffix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasSuffix(FieldGuarantorName, v))
+}
+
+// GuarantorNameEqualFold applies the EqualFold predicate on the "guarantor_name" field.
+func GuarantorNameEqualFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEqualFold(FieldGuarantorName, v))
+}
+
+// GuarantorNameContainsFold applies the ContainsFold predicate on the "guarantor_name" field.
+func GuarantorNameContainsFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContainsFold(FieldGuarantorName, v))
+}
+
+// GuarantorContactEQ applies the EQ predicate on the "guarantor_contact" field.
+func GuarantorContactEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldGuarantorContact, v))
+}
+
+// GuarantorContactNEQ applies the NEQ predicate on the "guarantor_contact" field.
+func GuarantorContactNEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldGuarantorContact, v))
+}
+
+// GuarantorContactIn applies the In predicate on the "guarantor_contact" field.
+func GuarantorContactIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldGuarantorContact, vs...))
+}
+
+// GuarantorContactNotIn applies the NotIn predicate on the "guarantor_contact" field.
+func GuarantorContactNotIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldGuarantorContact, vs...))
+}
+
+// GuarantorContactGT applies the GT predicate on the "guarantor_contact" field.
+func GuarantorContactGT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldGuarantorContact, v))
+}
+
+// GuarantorContactGTE applies the GTE predicate on the "guarantor_contact" field.
+func GuarantorContactGTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldGuarantorContact, v))
+}
+
+// GuarantorContactLT applies the LT predicate on the "guarantor_contact" field.
+func GuarantorContactLT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldGuarantorContact, v))
+}
+
+// GuarantorContactLTE applies the LTE predicate on the "guarantor_contact" field.
+func GuarantorContactLTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldGuarantorContact, v))
+}
+
+// GuarantorContactContains applies the Contains predicate on the "guarantor_contact" field.
+func GuarantorContactContains(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContains(FieldGuarantorContact, v))
+}
+
+// GuarantorContactHasPrefix applies the HasPrefix predicate on the "guarantor_contact" field.
+func GuarantorContactHasPrefix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasPrefix(FieldGuarantorContact, v))
+}
+
+// GuarantorContactHasSuffix applies the HasSuffix predicate on the "guarantor_contact" field.
+func GuarantorContactHasSuffix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasSuffix(FieldGuarantorContact, v))
+}
+
+// GuarantorContactEqualFold applies the EqualFold predicate on the "guarantor_contact" field.
+func GuarantorContactEqualFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEqualFold(FieldGuarantorContact, v))
+}
+
+// GuarantorContactContainsFold applies the ContainsFold predicate on the "guarantor_contact" field.
+func GuarantorContactContainsFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContainsFold(FieldGuarantorContact, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

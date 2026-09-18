@@ -7,6 +7,9 @@ const (
 	AmortizationEqualPrincipalInterest AmortizationMethod = iota + 1
 	AmortizationEqualPrincipal
 	AmortizationLumpSum
+	// AmortizationInterestFirst: pay interest each period, principal in a
+	// single payment at maturity (先息后本).
+	AmortizationInterestFirst
 )
 
 // String returns the string representation stored in the database.
@@ -18,6 +21,8 @@ func (m AmortizationMethod) String() string {
 		return "equal_principal"
 	case AmortizationLumpSum:
 		return "lump_sum"
+	case AmortizationInterestFirst:
+		return "interest_first"
 	default:
 		return "unknown"
 	}
@@ -32,6 +37,8 @@ func ParseAmortizationMethod(s string) AmortizationMethod {
 		return AmortizationEqualPrincipal
 	case "lump_sum":
 		return AmortizationLumpSum
+	case "interest_first":
+		return AmortizationInterestFirst
 	default:
 		return 0
 	}

@@ -148,7 +148,7 @@ class DebtViewSemantics {
   /// ov-top 右侧 meta 前缀字:「截至 ... · N 笔在追/在途」的「在追/在途」。
   final String overviewHeading;
   final String principalLabel;       // 总借出本金 / 总借款本金
-  final String remainingLabel;       // 剩余应收（本金） / 剩余待还（本金）
+  final String remainingLabel;       // 剩余应收（本息） / 剩余待还（本息）
   /// 卡片/概览里短形态的剩余标签(用于卡 col2 / 移动端),无括号。
   final String remainingShortLabel;  // 剩余应收 / 剩余本金
   /// ov cell2 breakdown 前缀:「含待收利息 / 含待还利息」。
@@ -270,7 +270,7 @@ class DebtViewSemantics {
     overviewIcon: LucideIcons.handshake,
     overviewHeading: '在追',
     principalLabel: '总借出本金',
-    remainingLabel: '剩余应收（本金）',
+    remainingLabel: '剩余应收（本息）',
     remainingShortLabel: '剩余应收',
     breakdownInterestLabel: '含待收利息',
     progressLabel: '本金收回进度',
@@ -350,7 +350,7 @@ class DebtViewSemantics {
     overviewIcon: LucideIcons.landmark,
     overviewHeading: '在途',
     principalLabel: '总借款本金',
-    remainingLabel: '剩余待还（本金）',
+    remainingLabel: '剩余待还（本息）',
     remainingShortLabel: '剩余本金',
     breakdownInterestLabel: '含待还利息',
     progressLabel: '本金还清进度',
@@ -428,6 +428,8 @@ String sharedAmortLabel(AmortizationMethod m) {
       return '等额本金';
     case AmortizationMethod.lumpSum:
       return '一次性归还';
+    case AmortizationMethod.interestFirst:
+      return '先息后本';
   }
 }
 

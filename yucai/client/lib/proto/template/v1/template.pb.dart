@@ -18,6 +18,7 @@ import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
     as $2;
 
 import '../../common/v1/pagination.pb.dart' as $3;
+import '../../common/v1/recurrence.pbenum.dart' as $4;
 import 'template.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -46,6 +47,10 @@ class TemplateDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? version,
     $2.Timestamp? createdAt,
     $2.Timestamp? updatedAt,
+    $core.int? interval,
+    $core.int? weekdayMask,
+    $4.RecurrenceMonthlyMode? monthlyMode,
+    $core.int? nth,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -69,6 +74,10 @@ class TemplateDTO extends $pb.GeneratedMessage {
     if (version != null) result.version = version;
     if (createdAt != null) result.createdAt = createdAt;
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (interval != null) result.interval = interval;
+    if (weekdayMask != null) result.weekdayMask = weekdayMask;
+    if (monthlyMode != null) result.monthlyMode = monthlyMode;
+    if (nth != null) result.nth = nth;
     return result;
   }
 
@@ -110,6 +119,11 @@ class TemplateDTO extends $pb.GeneratedMessage {
         subBuilder: $2.Timestamp.create)
     ..aOM<$2.Timestamp>(20, _omitFieldNames ? '' : 'updatedAt',
         subBuilder: $2.Timestamp.create)
+    ..aI(21, _omitFieldNames ? '' : 'interval')
+    ..aI(22, _omitFieldNames ? '' : 'weekdayMask')
+    ..aE<$4.RecurrenceMonthlyMode>(23, _omitFieldNames ? '' : 'monthlyMode',
+        enumValues: $4.RecurrenceMonthlyMode.values)
+    ..aI(24, _omitFieldNames ? '' : 'nth')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -314,6 +328,43 @@ class TemplateDTO extends $pb.GeneratedMessage {
   void clearUpdatedAt() => $_clearField(20);
   @$pb.TagNumber(20)
   $2.Timestamp ensureUpdatedAt() => $_ensure(19);
+
+  /// Recurrence rule extensions (zero values = legacy behavior).
+  @$pb.TagNumber(21)
+  $core.int get interval => $_getIZ(20);
+  @$pb.TagNumber(21)
+  set interval($core.int value) => $_setSignedInt32(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasInterval() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearInterval() => $_clearField(21);
+
+  @$pb.TagNumber(22)
+  $core.int get weekdayMask => $_getIZ(21);
+  @$pb.TagNumber(22)
+  set weekdayMask($core.int value) => $_setSignedInt32(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasWeekdayMask() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearWeekdayMask() => $_clearField(22);
+
+  @$pb.TagNumber(23)
+  $4.RecurrenceMonthlyMode get monthlyMode => $_getN(22);
+  @$pb.TagNumber(23)
+  set monthlyMode($4.RecurrenceMonthlyMode value) => $_setField(23, value);
+  @$pb.TagNumber(23)
+  $core.bool hasMonthlyMode() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearMonthlyMode() => $_clearField(23);
+
+  @$pb.TagNumber(24)
+  $core.int get nth => $_getIZ(23);
+  @$pb.TagNumber(24)
+  set nth($core.int value) => $_setSignedInt32(23, value);
+  @$pb.TagNumber(24)
+  $core.bool hasNth() => $_has(23);
+  @$pb.TagNumber(24)
+  void clearNth() => $_clearField(24);
 }
 
 class CreateTemplateRequest extends $pb.GeneratedMessage {
@@ -331,6 +382,10 @@ class CreateTemplateRequest extends $pb.GeneratedMessage {
     $core.String? endDate,
     $core.bool? autoRecord,
     $core.String? category,
+    $core.int? interval,
+    $core.int? weekdayMask,
+    $4.RecurrenceMonthlyMode? monthlyMode,
+    $core.int? nth,
   }) {
     final result = create();
     if (name != null) result.name = name;
@@ -347,6 +402,10 @@ class CreateTemplateRequest extends $pb.GeneratedMessage {
     if (endDate != null) result.endDate = endDate;
     if (autoRecord != null) result.autoRecord = autoRecord;
     if (category != null) result.category = category;
+    if (interval != null) result.interval = interval;
+    if (weekdayMask != null) result.weekdayMask = weekdayMask;
+    if (monthlyMode != null) result.monthlyMode = monthlyMode;
+    if (nth != null) result.nth = nth;
     return result;
   }
 
@@ -379,6 +438,11 @@ class CreateTemplateRequest extends $pb.GeneratedMessage {
     ..aOS(11, _omitFieldNames ? '' : 'endDate')
     ..aOB(12, _omitFieldNames ? '' : 'autoRecord')
     ..aOS(13, _omitFieldNames ? '' : 'category')
+    ..aI(14, _omitFieldNames ? '' : 'interval')
+    ..aI(15, _omitFieldNames ? '' : 'weekdayMask')
+    ..aE<$4.RecurrenceMonthlyMode>(16, _omitFieldNames ? '' : 'monthlyMode',
+        enumValues: $4.RecurrenceMonthlyMode.values)
+    ..aI(17, _omitFieldNames ? '' : 'nth')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -517,6 +581,42 @@ class CreateTemplateRequest extends $pb.GeneratedMessage {
   $core.bool hasCategory() => $_has(12);
   @$pb.TagNumber(13)
   void clearCategory() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.int get interval => $_getIZ(13);
+  @$pb.TagNumber(14)
+  set interval($core.int value) => $_setSignedInt32(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasInterval() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearInterval() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get weekdayMask => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set weekdayMask($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasWeekdayMask() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearWeekdayMask() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $4.RecurrenceMonthlyMode get monthlyMode => $_getN(15);
+  @$pb.TagNumber(16)
+  set monthlyMode($4.RecurrenceMonthlyMode value) => $_setField(16, value);
+  @$pb.TagNumber(16)
+  $core.bool hasMonthlyMode() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearMonthlyMode() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.int get nth => $_getIZ(16);
+  @$pb.TagNumber(17)
+  set nth($core.int value) => $_setSignedInt32(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasNth() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearNth() => $_clearField(17);
 }
 
 class UpdateTemplateRequest extends $pb.GeneratedMessage {
@@ -530,6 +630,11 @@ class UpdateTemplateRequest extends $pb.GeneratedMessage {
     $core.String? endDate,
     $core.bool? autoRecord,
     $fixnum.Int64? version,
+    $core.int? billingDay,
+    $core.int? interval,
+    $core.int? weekdayMask,
+    $4.RecurrenceMonthlyMode? monthlyMode,
+    $core.int? nth,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -541,6 +646,11 @@ class UpdateTemplateRequest extends $pb.GeneratedMessage {
     if (endDate != null) result.endDate = endDate;
     if (autoRecord != null) result.autoRecord = autoRecord;
     if (version != null) result.version = version;
+    if (billingDay != null) result.billingDay = billingDay;
+    if (interval != null) result.interval = interval;
+    if (weekdayMask != null) result.weekdayMask = weekdayMask;
+    if (monthlyMode != null) result.monthlyMode = monthlyMode;
+    if (nth != null) result.nth = nth;
     return result;
   }
 
@@ -568,6 +678,12 @@ class UpdateTemplateRequest extends $pb.GeneratedMessage {
     ..aOS(7, _omitFieldNames ? '' : 'endDate')
     ..aOB(8, _omitFieldNames ? '' : 'autoRecord')
     ..aInt64(9, _omitFieldNames ? '' : 'version')
+    ..aI(10, _omitFieldNames ? '' : 'billingDay')
+    ..aI(11, _omitFieldNames ? '' : 'interval')
+    ..aI(12, _omitFieldNames ? '' : 'weekdayMask')
+    ..aE<$4.RecurrenceMonthlyMode>(13, _omitFieldNames ? '' : 'monthlyMode',
+        enumValues: $4.RecurrenceMonthlyMode.values)
+    ..aI(14, _omitFieldNames ? '' : 'nth')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -670,6 +786,53 @@ class UpdateTemplateRequest extends $pb.GeneratedMessage {
   $core.bool hasVersion() => $_has(8);
   @$pb.TagNumber(9)
   void clearVersion() => $_clearField(9);
+
+  /// Rule fields are editable on update; a rule change recomputes next_date
+  /// as the first occurrence >= max(start_date, today).
+  @$pb.TagNumber(10)
+  $core.int get billingDay => $_getIZ(9);
+  @$pb.TagNumber(10)
+  set billingDay($core.int value) => $_setSignedInt32(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasBillingDay() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearBillingDay() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.int get interval => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set interval($core.int value) => $_setSignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasInterval() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearInterval() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get weekdayMask => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set weekdayMask($core.int value) => $_setSignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasWeekdayMask() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearWeekdayMask() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $4.RecurrenceMonthlyMode get monthlyMode => $_getN(12);
+  @$pb.TagNumber(13)
+  set monthlyMode($4.RecurrenceMonthlyMode value) => $_setField(13, value);
+  @$pb.TagNumber(13)
+  $core.bool hasMonthlyMode() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearMonthlyMode() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.int get nth => $_getIZ(13);
+  @$pb.TagNumber(14)
+  set nth($core.int value) => $_setSignedInt32(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasNth() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearNth() => $_clearField(14);
 }
 
 class DeleteTemplateRequest extends $pb.GeneratedMessage {
