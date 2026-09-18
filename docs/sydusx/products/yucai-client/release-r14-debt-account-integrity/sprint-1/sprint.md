@@ -8,7 +8,7 @@
 
 ## Feature roster
 
-- [ ] **feature F33** debt-subtype — subtype 全链路可编辑 + 9 类扩展(proto `UpdateDebtRequest` 加 `subtype`;server handler/params 接线;client UpdateDebtParams/repo/DS/表单 chips 解禁;sync envelope 补字段) — claimed: zcode-r14 2026-09-18(worktree .claude/worktrees/r14-f33)
+- [x] **feature F33** debt-subtype — subtype 全链路可编辑 + 9 类扩展(proto `UpdateDebtRequest` 加 `subtype`;server handler/params 接线;client UpdateDebtParams/repo/DS/表单 chips 解禁;sync envelope 补字段) ✅ done(2026-09-18,合并 `fd3be313`;grill 三轮+spec 四 FR 两 NFR+prototype v3 用户定稿;T1-T7 全绿:go 全绿/flutter 1849/analyze 437≤439/client-e2e 14/14;ledger 勘误 3 条:服务端 update DTO 原无字段、gRPC 更新链原缺 SetSubtype、update 镜像本已有 Subtype)
 - [ ] **feature F34** credit-card-payment — 支出支付方式放开信用卡/负债账户(transaction_form 账户选择器现硬过滤 asset-only)
 - [ ] **feature F35** repayment-plan-panel — 贷款账户详情页接入还款计划面板(现「待 payment_schedule 模块接入」占位;按 accountId 关联债务复用 schedule 数据源)
 - [ ] **feature F36** liability-posting — 负债记账治本方案 A(借入创建即入账/还款全额过账/余额=−未还本金不变式 + 存量 debt 关联账户余额修复)

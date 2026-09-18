@@ -55,3 +55,10 @@
 - 新增 integration_test/link_debt_subtype_test.dart(照 link_* 惯例:真实本地管道/自包含夹具/独立文件;①编辑改 subtype 落库读回 ②空串保持 NFR-2 端到端);Makefile E2E_FILES 注册(13→14)。
 - 全量门:go build ✓ + go test 全绿(67 包,0 fail)+ flutter test **1849 全绿**(基线 1825+24)+ analyze **437 ≤ 基线 439** + 单文件 e2e 2/2。
 - fix-rounds:1(自查:CreateAccountParams 缺 import 致 loading 失败,补 account_repository import 后过)。
+
+## sydusx-test 行为门 — ✅ pass(2026-09-18)
+
+- 策略:unit/contract 归 execute(24 新测);integration=server TestUpdateDebtSubtype(handler→service→repo→ent→sqlite)+client local DS 真 drift;e2e=link_debt_subtype(2 场景)+14 套回归管道;NFR=NFR-1 grep 门(静态)+NFR-2 三层空串保持(server 集成/local 单测/e2e②)。
+- 需求覆盖:FR-1(e2e①+widget+server 集成)/FR-2(13 测+9 卡渲染)/FR-3(归位 4 条+序列)/FR-4(5 条含否向)/NFR-1(grep 门)/NFR-2(server 断言+absent 单测+e2e②)= **6/6**。
+- 证据:go build+test 67 包 0 fail;flutter test **1849 全绿**;analyze **437≤439**;client-e2e **14/14**(PIPE_EXIT=0);link_debt_subtype 2/2。
+- 裁决:**pass** → sydusx-finish(Option 1 本地合并,merged 结果复验 1849/go 全绿)。
