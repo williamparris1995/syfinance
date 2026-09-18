@@ -378,4 +378,44 @@ void main() {
       expect(futurePrincipal, 400000);
     });
   });
+
+  // ───────── F33-T4:update 链透传 subtype(空串 = 不修改) ─────────
+
+  group('F33-T4 update subtype', () {
+    test('非空 subtype 变更行内列;空串不修改(守卫在 DS 层)', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '子类型贷',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 4, 1),
+        totalPrincipalCents: 300000,
+        type: DebtType.borrowedIn,
+        subtype: 'mortgage',
+      );
+
+      // 非空 → 行内 subtype 变更。
+      final changed = await debts.update(
+        id: d.id,
+        counterparty: '子类型贷',
+        interestRate: 0,
+        version: d.version,
+        subtype: 'credit_card',
+      );
+      expect(changed.subtype, 'credit_card');
+      final row = await database.debtDao.getDebtById(d.id);
+      expect(row!.subtype, 'credit_card');
+
+      // 空串 → 不修改(保持 credit_card,不清洗为 '')。
+      final kept = await debts.update(
+        id: d.id,
+        counterparty: '子类型贷',
+        interestRate: 0,
+        version: changed.version,
+        subtype: '',
+      );
+      expect(kept.subtype, 'credit_card');
+    });
+  });
 }

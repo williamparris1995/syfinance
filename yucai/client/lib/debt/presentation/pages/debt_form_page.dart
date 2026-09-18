@@ -936,7 +936,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
                 icon: _debtTypeIcon(key),
                 label: DebtSubtypes.labels[key]!,
                 selected: _subtypeKey == key,
-                // 编辑模式:UpdateDebtParams 不携带 subtype,chips 只读显示。
+                // 编辑模式:UpdateDebtParams 不传 subtype(空串 = 不修改,
+                // F33-T4),chips 只读显示。
                 onTap: _isEdit
                     ? null
                     : () => setState(() {

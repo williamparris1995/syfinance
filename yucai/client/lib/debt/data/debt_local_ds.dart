@@ -242,6 +242,9 @@ class DebtLocalDataSource {
     required String counterparty,
     required double interestRate,
     required int version,
+    // F33-T4:空串 = 不修改(新旧 client 兼容),守卫在本 DS 层落
+    // Value.absent;非空才替换行内 subtype 列。
+    String subtype = '',
     String contact = '',
     String contractRef = '',
     String guarantorName = '',
@@ -352,6 +355,8 @@ class DebtLocalDataSource {
         nth: Value(newNth),
         interestWaivedCents: Value(newWaiver),
         dueDate: Value(effectiveDue),
+        // F33-T4:空串 = 不修改(Value.absent 不触碰该列)。
+        subtype: subtype.isEmpty ? const Value<String>.absent() : Value(subtype),
         contact: Value(contact),
         contractRef: Value(contractRef),
         guarantorName: Value(guarantorName),

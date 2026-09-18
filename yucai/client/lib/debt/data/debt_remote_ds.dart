@@ -139,6 +139,9 @@ class DebtRemoteDataSource {
     required String counterparty,
     required double interestRate,
     required int version,
+    // F33-T4:空串 = 不修改(新旧 client 兼容;proto3 string 无 presence,
+    // '' 即服务端 UpdateDebt 的「保持现状」信号,与本地守卫同语义)。
+    String subtype = '',
     String contact = '',
     String contractRef = '',
     String guarantorName = '',
@@ -160,6 +163,8 @@ class DebtRemoteDataSource {
         counterparty: counterparty,
         interestRate: interestRate,
         version: Int64(version),
+        // F33-T4:subtype 字段 19(regen 已有),空串 = 不修改。
+        subtype: subtype,
         // receivables 对齐字段(Task 11):空字符串清字段,collection_account_id
         // 空串 = 解除关联(对齐服务端 UpdateDebt 语义)。担保人字段同语义
         //(2026-09):空串清字段。

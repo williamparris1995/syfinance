@@ -127,6 +127,7 @@ class UpdateDebtParams extends Equatable {
     required this.counterparty,
     required this.interestRate,
     required this.version,
+    this.subtype = '',
     this.contact = '',
     this.contractRef = '',
     this.guarantorName = '',
@@ -146,6 +147,10 @@ class UpdateDebtParams extends Equatable {
   final String counterparty;
   final double interestRate;
   final int version;
+  /// 债务子类型(F33-T4)。与 create 的「创建时定死」语义不同:update 侧
+  /// **空串 = 不修改**(新旧 client 兼容),守卫在 DS 层(local 落
+  /// Value.absent;远端直传由服务端按同语义处理)。
+  final String subtype;
   /// 应收/负债追踪字段(receivables 对齐,Task 11)。全部带默认值,
   /// 既有 debts_page/debt_form_page 编辑调用点不传也编译过。
   /// 与服务端 UpdateDebt 语义一致:空 Contact/ContractRef 清字段,
@@ -171,7 +176,7 @@ class UpdateDebtParams extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, counterparty, interestRate, version, contact, contractRef, guarantorName, guarantorContact, collectionAccountId, amortizationIndex, dueDate, termPeriods, cycle, interval, weekdayMask, monthlyMode, nth, interestWaivedCents];
+      [id, counterparty, interestRate, version, subtype, contact, contractRef, guarantorName, guarantorContact, collectionAccountId, amortizationIndex, dueDate, termPeriods, cycle, interval, weekdayMask, monthlyMode, nth, interestWaivedCents];
 }
 
 class UpdateDebtRequested extends DebtEvent {

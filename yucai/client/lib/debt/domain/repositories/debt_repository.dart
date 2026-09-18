@@ -36,6 +36,8 @@ abstract class DebtRepository {
     required String counterparty,
     required double interestRate,
     required int version,
+    // F33-T4:空串 = 不修改(新旧 client 兼容),守卫在 DS 层。
+    String subtype = '',
     String contact = '',
     String contractRef = '',
     String guarantorName = '',

@@ -164,7 +164,7 @@ void main() {
         dueDate: DateTime.utc(2026, 10, 1),
         totalPrincipalCents: 10000,
         debtType: 1,
-        subtype: '',
+        subtype: 'credit_card',
         contact: '',
         contractRef: '',
         guarantorName: '王担保',
@@ -194,6 +194,8 @@ void main() {
       expect(out['ID'], 'debt-1');
       expect(out['DebtType'], 1); // int 枚举直传
       expect(out['CollectionAccountID'], isNull);
+      // F33-T4:上行(update 方向)envelope 逐字携带 subtype(PascalCase 直传)。
+      expect(out['Subtype'], 'credit_card');
       // 担保人字段(2026-09):上行 envelope 逐字携带(PascalCase 直传)。
       expect(out['GuarantorName'], '王担保');
       expect(out['GuarantorContact'], '13800000000');

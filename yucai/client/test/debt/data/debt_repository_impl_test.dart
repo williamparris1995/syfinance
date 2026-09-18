@@ -81,6 +81,45 @@ void main() {
     expect(result, Right<Failure, DebtDetail>(detail));
   });
 
+  test('update forwards subtype to remote DS(F33-T4 透传)', () async {
+    when(() => remote.update(
+          id: any(named: 'id'),
+          counterparty: any(named: 'counterparty'),
+          interestRate: any(named: 'interestRate'),
+          version: any(named: 'version'),
+          contact: any(named: 'contact'),
+          contractRef: any(named: 'contractRef'),
+          guarantorName: any(named: 'guarantorName'),
+          guarantorContact: any(named: 'guarantorContact'),
+          collectionAccountId: any(named: 'collectionAccountId'),
+          amortizationIndex: any(named: 'amortizationIndex'),
+          dueDate: any(named: 'dueDate'),
+          termPeriods: any(named: 'termPeriods'),
+          cycle: any(named: 'cycle'),
+          interval: any(named: 'interval'),
+          weekdayMask: any(named: 'weekdayMask'),
+          monthlyMode: any(named: 'monthlyMode'),
+          nth: any(named: 'nth'),
+          interestWaivedCents: any(named: 'interestWaivedCents'),
+          subtype: any(named: 'subtype'),
+        )).thenAnswer((_) async => sample);
+    final result = await repo.update(
+      id: 'd1',
+      counterparty: 'Bank',
+      interestRate: 5.0,
+      version: 1,
+      subtype: 'credit_card',
+    );
+    expect(result.isRight(), isTrue);
+    verify(() => remote.update(
+          id: 'd1',
+          counterparty: 'Bank',
+          interestRate: 5.0,
+          version: 1,
+          subtype: 'credit_card',
+        )).called(1);
+  });
+
   test('delete success returns Right(null)', () async {
     when(() => remote.delete('d1')).thenAnswer((_) async {});
     final result = await repo.delete('d1');

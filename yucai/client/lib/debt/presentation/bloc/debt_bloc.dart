@@ -121,6 +121,7 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       counterparty: p.counterparty,
       interestRate: p.interestRate,
       version: p.version,
+      subtype: p.subtype,
       contact: p.contact,
       contractRef: p.contractRef,
       guarantorName: p.guarantorName,
