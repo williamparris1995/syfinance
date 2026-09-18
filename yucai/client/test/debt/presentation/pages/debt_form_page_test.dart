@@ -1126,6 +1126,193 @@ void main() {
       expect(find.text('重复规则'), findsOneWidget,
           reason: '点开入口应弹出共享规则编辑器');
     });
+
+  // F33-T6 —— subtype × 账户类别冲突非阻断警示条(FR-4,prototype v3 callout.warn
+  // 定稿)+ 9 类 subtype 图标 key。警示条判定走 DebtSubtypeAffinity.isConflict
+  // (category null / other 恒 false);非阻断 = _submit 校验零改动,conflict 态
+  // 照常 dispatch CreateDebtRequested。
+  group('F33-T6 冲突警示条 + 9 类图标', () {
+    Future<void> pickAccount(WidgetTester t, String name) async {
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text(name).last);
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('conflict: loan account + 亲友借款 → warn callout shows',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'l1', name: '招行房贷')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 选贷款账户(自动归位 credit_loan,兼容态)→ 再点「亲友借款」→ 冲突。
+      await pickAccount(t, '招行房贷');
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.family}')));
+      await t.pumpAndSettle();
+      expect(find.textContaining('分类与关联账户'), findsOneWidget);
+      expect(find.text('可照常保存'), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('subtypeConflictCallout')), findsOneWidget);
+      // 正文带分类名 + 特殊情况豁免说明。
+      expect(find.textContaining('亲友借款」一般不挂在'), findsOneWidget);
+    });
+
+    testWidgets('compatible: loan account + 信用贷款 → no callout', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'l1', name: '招行房贷')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      await pickAccount(t, '招行房贷');
+      await t.tap(
+          find.byKey(const ValueKey('debtType-${DebtSubtypes.creditLoan}')));
+      await t.pumpAndSettle();
+      expect(find.textContaining('分类与关联账户'), findsNothing);
+    });
+
+    testWidgets('other never conflicts: otherLiability account + 其他 → no callout',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_otherLiabilityAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // otherLiability 自动归位 family(兼容);点「其他」→ other 特判永不提示
+      // (若非特判,otherLiability × other 本应冲突 —— 钉住特判路径)。
+      await pickAccount(t, '个人待还款');
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.other}')));
+      await t.pumpAndSettle();
+      expect(find.textContaining('分类与关联账户'), findsNothing);
+    });
+
+    testWidgets(
+        'non-blocking: conflict state still submits (create called with family)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const CreateDebtParams(
+        accountId: '',
+        counterparty: '',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDateOption: null,
+        dueDateOption: null,
+        totalPrincipalCents: 0,
+      ));
+      String? capturedSubtype;
+      var created = false;
+      when(() => debtRepo.create(
+              accountId: any(named: 'accountId'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              startDate: any(named: 'startDate'),
+              dueDate: any(named: 'dueDate'),
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods'))).thenAnswer((inv) {
+        capturedSubtype = inv.namedArguments[#subtype] as String?;
+        created = true;
+        return Future.value(dartz.Right(_emptyDetail().debt));
+      });
+      when(() => accountRepo.list()).thenAnswer((_) async =>
+          dartz.Right([_loanAccount(), _cashAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 7, 1),
+        dueDate: DateTime(2030, 7, 1),
+        accountId: 'loan-1',
+        disbursementAccountId: 'cash-1',
+      ));
+      await t.pumpAndSettle();
+
+      // 制造 conflict 态:loan 账户 + 亲友借款 → 警示条出现。
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.family}')));
+      await t.pumpAndSettle();
+      expect(
+          find.byKey(const ValueKey('subtypeConflictCallout')), findsOneWidget);
+
+      // 照常填写提交 → 校验零阻断,create 携带 family subtype。
+      await t.enterText(
+          find.byKey(const ValueKey('counterpartyField')), '招商银行');
+      await t.enterText(find.byKey(const ValueKey('principalField')), '200000');
+      await t.enterText(find.byKey(const ValueKey('rateField')), '5.0');
+      final submitFinder = find.byKey(const ValueKey('submitButton'));
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 10 && !created; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(created, isTrue);
+      expect(capturedSubtype, DebtSubtypes.family);
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('9 debt-type cards each render a keyed icon', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+      // 9 张 subtype 卡各自有带 key 的 icon(debtTypeIcon-<key>),防漏项回归
+      // (5→9 扩容时 icon switch 漏 case 只会落到 default 兜底)。
+      for (final key in DebtSubtypes.all) {
+        expect(find.byKey(ValueKey('debtTypeIcon-$key')), findsOneWidget,
+            reason: 'debtTypeIcon-$key 缺失');
+      }
+    });
+  });
 }
 
 /// 复用 _emptyDetail 的 Debt 结构,counterparty/version/subtype 可指定。

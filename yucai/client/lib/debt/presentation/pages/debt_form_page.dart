@@ -228,6 +228,76 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _ccDirty = false;
   }
 
+  /// F33-T6 FR-4:当前选择是否构成 subtype × 账户类别不一致。
+  /// 判定收敛在 [DebtSubtypeAffinity.isConflict](category null / other 恒 false)。
+  bool get _showSubtypeConflict => DebtSubtypeAffinity.isConflict(
+      _selectedAccount?.category.name, _subtypeKey);
+
+  /// 冲突非阻断警示条。形态复用 design-v2「callout.warn 提示卡」
+  /// (prototype/v3 ui/subtype-affinity.html 定稿):warn 10% 混 surface 软底 +
+  /// warn 30% 描边 + warn 图标 + 标题(可照常保存 pill)+ 正文。
+  /// 色值全走 context.yucai 令牌 alpha 组合,无新 hex;纯提示,不参与校验。
+  Widget _subtypeConflictCallout() {
+    final warn = context.yucai.warn;
+    return Container(
+      key: const ValueKey('subtypeConflictCallout'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        // color-mix(in srgb, warn 10%, surface) 语义:surface 基底叠 warn alpha。
+        color:
+            Color.alphaBlend(warn.withValues(alpha: 0.10), context.yucai.surface),
+        border: Border.all(color: warn.withValues(alpha: 0.30)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(LucideIcons.helpCircle, size: 18, color: warn),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text('分类与关联账户通常不一致',
+                          style: TextStyle(
+                              color: context.yucai.fg,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 1),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: context.yucai.border),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text('可照常保存',
+                          style: TextStyle(
+                              color: context.yucai.muted, fontSize: 11)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '「${DebtSubtypes.labels[_subtypeKey] ?? _subtypeKey}」一般不挂在'
+                  '当前类型的账户下。如属特殊情况(如房抵消费贷),忽略本提示继续即可。',
+                  style: TextStyle(
+                      color: context.yucai.muted,
+                      fontSize: 12.5,
+                      height: 1.7),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onAccountChanged(String? v) {
     setState(() {
       _accountId = v;
@@ -943,6 +1013,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
             for (final key in DebtSubtypes.all)
               _RadioCard(
                 key: ValueKey('debtType-$key'),
+                iconKey: ValueKey('debtTypeIcon-$key'),
                 icon: _debtTypeIcon(key),
                 label: DebtSubtypes.labels[key]!,
                 selected: _subtypeKey == key,
@@ -964,6 +1035,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ],
         ),
       ),
+      // F33-T6 FR-4:subtype × 账户类别不一致 → 非阻断警示条(callout.warn,
+      // 判定 isConflict:category null / other 恒 false → 永不显示)。
+      if (_showSubtypeConflict) ...[
+        const SizedBox(height: AppSpacing.sm),
+        _subtypeConflictCallout(),
+      ],
       // 信用卡子类型 + 无 credit_card 账户 → 提示去账户管理创建。
       if (_isCreditCard && _visibleAccounts.isEmpty && !_accountsLoading)
         Padding(
@@ -1301,6 +1378,7 @@ class _StepIndicator extends StatelessWidget {
 class _RadioCard extends StatelessWidget {
   const _RadioCard({
     super.key,
+    this.iconKey,
     required this.icon,
     required this.label,
     this.desc,
@@ -1308,6 +1386,7 @@ class _RadioCard extends StatelessWidget {
     required this.onTap,
   });
 
+  final Key? iconKey; // F33-T6:icon key(测试断言 9 类 subtype 图标不漏项)。
   final IconData icon;
   final String label;
   final String? desc;
@@ -1356,7 +1435,7 @@ class _RadioCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(9),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, size: 17, color: tileFg),
+              child: Icon(icon, key: iconKey, size: 17, color: tileFg),
             ),
             const SizedBox(height: 7),
             Text(label,
@@ -1719,13 +1798,23 @@ String _amortizationDesc(AmortizationMethod m) {
   }
 }
 
-/// 债务类型 icon(对齐 OD debt-form.html .radio svg:home/car/creditCard/users/help)。
+/// 债务类型 icon(对齐 OD debt-form.html .radio svg:home/car/creditCard/users/help;
+/// F33-T6 补 4 新类:handCoins/calendarClock/shoppingBag/briefcase,
+/// 均已核对 lucide_icons_flutter 3.1.14+2 包内 static const 命名)。
 IconData _debtTypeIcon(String key) {
   switch (key) {
     case DebtSubtypes.mortgage:
       return LucideIcons.home;
     case DebtSubtypes.autoLoan:
       return LucideIcons.car;
+    case DebtSubtypes.creditLoan:
+      return LucideIcons.handCoins;
+    case DebtSubtypes.cashInstallment:
+      return LucideIcons.calendarClock;
+    case DebtSubtypes.consumptionLoan:
+      return LucideIcons.shoppingBag;
+    case DebtSubtypes.businessLoan:
+      return LucideIcons.briefcase;
     case DebtSubtypes.creditCard:
       return LucideIcons.creditCard;
     case DebtSubtypes.family:
