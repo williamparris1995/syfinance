@@ -9,10 +9,10 @@ import (
 	accountdomain "github.com/yucai/server/internal/account/domain"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	"github.com/yucai/server/internal/debt/application"
-	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/debt/domain"
 	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	pb "github.com/yucai/server/internal/proto/debt/v1"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	transactionApp "github.com/yucai/server/internal/transaction/application"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -272,11 +272,14 @@ func (h *DebtHandler) UpdateDebt(ctx context.Context, req *pb.UpdateDebtRequest)
 		dueDate = &parsed
 	}
 	resp, err := h.service.UpdateDebt(ctx, application.UpdateDebtRequest{
-		TenantID:            tenantID,
-		ID:                  id,
-		Counterparty:        req.Counterparty,
-		InterestRate:        req.InterestRate,
-		Version:             req.Version,
+		TenantID:     tenantID,
+		ID:           id,
+		Counterparty: req.Counterparty,
+		InterestRate: req.InterestRate,
+		Version:      req.Version,
+		// Pass through verbatim; the application layer treats empty as
+		// "keep current" so legacy clients that omit subtype are unaffected.
+		Subtype:             req.GetSubtype(),
 		Contact:             req.Contact,
 		ContractRef:         req.ContractRef,
 		CollectionAccountID: collectionAccountID,

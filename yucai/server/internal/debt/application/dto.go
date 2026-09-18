@@ -64,12 +64,16 @@ func (r CreateDebtRequest) Rule() recurrence.Rule {
 // (Task 5 receivables alignment). They mirror CreateDebtRequest semantics: an
 // empty Contact/ContractRef clears the field, and a nil CollectionAccountID
 // clears it.
+// Subtype is the exception: an empty Subtype keeps the current value (legacy
+// clients never send the field, so empty must not wipe it); a non-empty value
+// replaces it verbatim.
 type UpdateDebtRequest struct {
 	TenantID            uuid.UUID
 	ID                  uuid.UUID
 	Counterparty        string
 	InterestRate        float64
 	Version             int64
+	Subtype             string
 	Contact             string
 	ContractRef         string
 	CollectionAccountID *uuid.UUID
@@ -127,37 +131,37 @@ type ListDebtsRequest struct {
 // (1-based schedule index). When every entry is paid (or the schedule is empty)
 // these fields are zero-valued.
 type DebtDTO struct {
-	ID                    uuid.UUID
-	TenantID              uuid.UUID
-	AccountID             uuid.UUID
-	Counterparty          string
-	InterestRate          float64
-	AmortizationMethod    domain.AmortizationMethod
-	Cycle                 recurrence.Cycle
-	Interval              int32
-	WeekdayMask           int32
-	MonthlyMode           recurrence.MonthlyMode
-	Nth                   int32
-	InterestWaivedCents   int64
+	ID                  uuid.UUID
+	TenantID            uuid.UUID
+	AccountID           uuid.UUID
+	Counterparty        string
+	InterestRate        float64
+	AmortizationMethod  domain.AmortizationMethod
+	Cycle               recurrence.Cycle
+	Interval            int32
+	WeekdayMask         int32
+	MonthlyMode         recurrence.MonthlyMode
+	Nth                 int32
+	InterestWaivedCents int64
 	// 剩余未付利息 = 未还期次的利息合计(本息口径统计用)。
 	RemainingInterestCents int64
-	StartDate             time.Time
-	DueDate               time.Time
-	TotalPrincipalCents   int64
-	DebtType              domain.DebtType
-	Subtype               string
-	Contact               string
-	ContractRef           string
-	CollectionAccountID   *uuid.UUID
-	GuarantorName         string
-	GuarantorContact      string
-	NextPaymentDate       string // "2006-01-02" of earliest unpaid entry; "" when none
+	StartDate              time.Time
+	DueDate                time.Time
+	TotalPrincipalCents    int64
+	DebtType               domain.DebtType
+	Subtype                string
+	Contact                string
+	ContractRef            string
+	CollectionAccountID    *uuid.UUID
+	GuarantorName          string
+	GuarantorContact       string
+	NextPaymentDate        string // "2006-01-02" of earliest unpaid entry; "" when none
 	NextPaymentAmountCents int64
-	NextPaymentPeriodNo   int32 // 1-based schedule index of earliest unpaid entry; 0 when none
-	RemainingPrincipal    int64
-	Version               int64
-	CreatedAt             time.Time
-	UpdatedAt             time.Time
+	NextPaymentPeriodNo    int32 // 1-based schedule index of earliest unpaid entry; 0 when none
+	RemainingPrincipal     int64
+	Version                int64
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
 }
 
 // PaymentEntryDTO is the DTO for a payment schedule entry.
@@ -219,53 +223,53 @@ type UpcomingPaymentsResult struct {
 // debt missing either month's snapshot contributes nothing (no valid baseline,
 // we do not fabricate a delta by treating the missing side as 0).
 type ReceivablesSummaryDTO struct {
-	TotalPrincipalCents   int64
-	TotalRemainingCents   int64
-	TotalCollectedCents   int64
-	PendingInterestCents  int64
-	Count                 int32
-	OverdueCount          int32
-	OverdueAmountCents    int64
-	PrincipalTrendCents   int64
-	RemainingTrendCents   int64
-	NextPaymentDate       string // "2006-01-02" of globally earliest unpaid entry; "" when none
-	NextPaymentAmountCents int64
+	TotalPrincipalCents     int64
+	TotalRemainingCents     int64
+	TotalCollectedCents     int64
+	PendingInterestCents    int64
+	Count                   int32
+	OverdueCount            int32
+	OverdueAmountCents      int64
+	PrincipalTrendCents     int64
+	RemainingTrendCents     int64
+	NextPaymentDate         string // "2006-01-02" of globally earliest unpaid entry; "" when none
+	NextPaymentAmountCents  int64
 	NextPaymentCounterparty string
-	NextPaymentPeriodNo   int32
-	NewCountThisMonth     int32
+	NextPaymentPeriodNo     int32
+	NewCountThisMonth       int32
 }
 
 // DebtToDTO converts domain DebtDetails to DTO. Populates NextPayment* fields
 // from the earliest unpaid schedule entry (sorted by PaymentDate ascending).
 func DebtToDTO(d *domain.DebtDetails) DebtDTO {
 	dto := DebtDTO{
-		ID:                   d.ID,
-		TenantID:             d.TenantID,
-		AccountID:            d.AccountID,
-		Counterparty:         d.Counterparty,
-		InterestRate:         d.InterestRate,
-		AmortizationMethod:   d.AmortizationMethod,
-		Cycle:                d.Rule().Cycle,
-		Interval:             d.Interval,
-		WeekdayMask:          d.WeekdayMask,
-		MonthlyMode:          d.MonthlyMode,
-		Nth:                  d.Nth,
-		InterestWaivedCents:  d.InterestWaivedCents,
+		ID:                     d.ID,
+		TenantID:               d.TenantID,
+		AccountID:              d.AccountID,
+		Counterparty:           d.Counterparty,
+		InterestRate:           d.InterestRate,
+		AmortizationMethod:     d.AmortizationMethod,
+		Cycle:                  d.Rule().Cycle,
+		Interval:               d.Interval,
+		WeekdayMask:            d.WeekdayMask,
+		MonthlyMode:            d.MonthlyMode,
+		Nth:                    d.Nth,
+		InterestWaivedCents:    d.InterestWaivedCents,
 		RemainingInterestCents: d.RemainingInterest(),
-		StartDate:            d.StartDate,
-		DueDate:              d.DueDate,
-		TotalPrincipalCents:  d.TotalPrincipalCents,
-		DebtType:             d.DebtType,
-		Subtype:              d.Subtype,
-		Contact:              d.Contact,
-		ContractRef:          d.ContractRef,
-		CollectionAccountID:  d.CollectionAccountID,
-		GuarantorName:        d.GuarantorName,
-		GuarantorContact:     d.GuarantorContact,
-		RemainingPrincipal:   d.RemainingPrincipal(),
-		Version:              d.Version,
-		CreatedAt:            d.CreatedAt,
-		UpdatedAt:            d.UpdatedAt,
+		StartDate:              d.StartDate,
+		DueDate:                d.DueDate,
+		TotalPrincipalCents:    d.TotalPrincipalCents,
+		DebtType:               d.DebtType,
+		Subtype:                d.Subtype,
+		Contact:                d.Contact,
+		ContractRef:            d.ContractRef,
+		CollectionAccountID:    d.CollectionAccountID,
+		GuarantorName:          d.GuarantorName,
+		GuarantorContact:       d.GuarantorContact,
+		RemainingPrincipal:     d.RemainingPrincipal(),
+		Version:                d.Version,
+		CreatedAt:              d.CreatedAt,
+		UpdatedAt:              d.UpdatedAt,
 	}
 
 	// Find earliest unpaid entry by PaymentDate. The amortization calculator

@@ -27,11 +27,11 @@ type AccountLookup interface {
 // Service orchestrates debt operations.
 type Service struct {
 	repo          domain.DebtRepository
-	accountLookup AccountLookup // optional: resolves per-debt currency; nil = default CNY
+	accountLookup AccountLookup                 // optional: resolves per-debt currency; nil = default CNY
 	snapshotRepo  domain.DebtSnapshotRepository // optional: progress snapshots; nil = SyncAllDebts is a noop
 	cashRecorder  domain.RepaymentCashRecorder  // D3: cash-side repayment double-write port (nil = skip)
-	db            *sql.DB                        // D3: shared *sql.DB backing the debt ent client
-	now           func() time.Time               // injectable clock; defaults to time.Now
+	db            *sql.DB                       // D3: shared *sql.DB backing the debt ent client
+	now           func() time.Time              // injectable clock; defaults to time.Now
 }
 
 // NewService creates a new debt application service.
@@ -205,6 +205,12 @@ func (s *Service) UpdateDebt(ctx context.Context, req UpdateDebtRequest) (*DebtD
 	debt.CollectionAccountID = req.CollectionAccountID
 	debt.GuarantorName = req.GuarantorName
 	debt.GuarantorContact = req.GuarantorContact
+	// Subtype: empty keeps the current value (legacy clients never send the
+	// field, so empty must not wipe it); non-empty replaces verbatim. Unlike
+	// Contact/ContractRef, empty does NOT clear.
+	if req.Subtype != "" {
+		debt.Subtype = req.Subtype
+	}
 	debt.InterestRate = rate
 	debt.AmortizationMethod = method
 	debt.Cycle = rule.Cycle

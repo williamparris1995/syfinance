@@ -8,9 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/domain"
 	debtent "github.com/yucai/server/internal/debt/ent"
-	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
+	"github.com/yucai/server/internal/shared/domain/recurrence"
 	"github.com/yucai/server/internal/sqltx"
 )
 
@@ -210,6 +210,7 @@ func (r *DebtRepository) Update(ctx context.Context, d *domain.DebtDetails) erro
 		SetNth(d.Nth).
 		SetInterestWaivedCents(d.InterestWaivedCents).
 		SetDueDate(d.DueDate).
+		SetSubtype(d.Subtype).
 		SetContact(d.Contact).
 		SetContractRef(d.ContractRef).
 		SetNillableCollectionAccountID(d.CollectionAccountID).

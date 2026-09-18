@@ -5,15 +5,15 @@ import (
 	"testing"
 	"time"
 
+	"database/sql"
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
-	"database/sql"
 	_ "modernc.org/sqlite"
 
 	"github.com/google/uuid"
-	"github.com/yucai/server/internal/debt/domain"
 	debtrepo "github.com/yucai/server/internal/debt/adapter/driven/repository"
 	"github.com/yucai/server/internal/debt/application"
+	"github.com/yucai/server/internal/debt/domain"
 	debtent "github.com/yucai/server/internal/debt/ent"
 )
 
@@ -246,6 +246,88 @@ func TestRecordPayment(t *testing.T) {
 	updated, _ := svc.GetDebt(ctx, resp.TenantID, resp.ID)
 	if updated.Debt.RemainingPrincipal >= 900000 {
 		t.Errorf("remaining should have decreased, got %d", updated.Debt.RemainingPrincipal)
+	}
+}
+
+func TestUpdateDebtSubtype(t *testing.T) {
+	client := setupDebtTestDB(t)
+	repo := debtrepo.NewDebtRepository(client)
+	svc := application.NewService(repo)
+	ctx := context.Background()
+	tenantID := uuid.New()
+	accountID := uuid.New()
+
+	// Create with subtype A.
+	resp, err := svc.CreateDebt(ctx, application.CreateDebtRequest{
+		TenantID:            tenantID,
+		AccountID:           accountID,
+		Counterparty:        "ICBC",
+		InterestRate:        0.05,
+		AmortizationMethod:  domain.AmortizationLumpSum,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 12000000,
+		DebtType:            domain.BorrowedIn,
+		Subtype:             domain.DebtSubtypeMortgage,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt failed: %v", err)
+	}
+	if resp.Subtype != domain.DebtSubtypeMortgage {
+		t.Fatalf("expected subtype %q at create, got %q", domain.DebtSubtypeMortgage, resp.Subtype)
+	}
+
+	// Update with subtype B: non-empty replaces.
+	updated, err := svc.UpdateDebt(ctx, application.UpdateDebtRequest{
+		TenantID:     tenantID,
+		ID:           resp.ID,
+		Counterparty: "ICBC",
+		InterestRate: 0.05,
+		Version:      1,
+		Subtype:      domain.DebtSubtypeAutoLoan,
+	})
+	if err != nil {
+		t.Fatalf("UpdateDebt with subtype failed: %v", err)
+	}
+	if updated.Subtype != domain.DebtSubtypeAutoLoan {
+		t.Errorf("expected subtype %q after update, got %q", domain.DebtSubtypeAutoLoan, updated.Subtype)
+	}
+
+	// Read back: the new subtype must persist.
+	detail, err := svc.GetDebt(ctx, tenantID, resp.ID)
+	if err != nil {
+		t.Fatalf("GetDebt failed: %v", err)
+	}
+	if detail.Debt.Subtype != domain.DebtSubtypeAutoLoan {
+		t.Errorf("expected persisted subtype %q, got %q", domain.DebtSubtypeAutoLoan, detail.Debt.Subtype)
+	}
+
+	// Update without subtype (empty string): keeps the current value
+	// (legacy clients never send the field — NFR-2).
+	kept, err := svc.UpdateDebt(ctx, application.UpdateDebtRequest{
+		TenantID:     tenantID,
+		ID:           resp.ID,
+		Counterparty: "Bank of China",
+		InterestRate: 0.05,
+		Version:      2,
+	})
+	if err != nil {
+		t.Fatalf("UpdateDebt without subtype failed: %v", err)
+	}
+	if kept.Subtype != domain.DebtSubtypeAutoLoan {
+		t.Errorf("empty subtype must keep current value: expected %q, got %q", domain.DebtSubtypeAutoLoan, kept.Subtype)
+	}
+
+	// Read back again: still unchanged after the empty-subtype update.
+	detail2, err := svc.GetDebt(ctx, tenantID, resp.ID)
+	if err != nil {
+		t.Fatalf("GetDebt after empty-subtype update failed: %v", err)
+	}
+	if detail2.Debt.Subtype != domain.DebtSubtypeAutoLoan {
+		t.Errorf("expected subtype to stay %q after empty update, got %q", domain.DebtSubtypeAutoLoan, detail2.Debt.Subtype)
+	}
+	if detail2.Debt.Counterparty != "Bank of China" {
+		t.Errorf("expected counterparty updated to %q, got %q", "Bank of China", detail2.Debt.Counterparty)
 	}
 }
 
