@@ -55,6 +55,17 @@ final _assetAccount2 = Account(
   ownership: Ownership.personal,
   status: AccountStatus.active,
 );
+final _cardAccount = Account(
+  id: 'card',
+  name: '招商信用卡',
+  accountType: AccountType.liability,
+  category: AccountCategory.creditCard,
+  currencyCode: 'CNY',
+  initialBalanceCents: 0,
+  currentBalanceCents: 0,
+  ownership: Ownership.personal,
+  status: AccountStatus.active,
+);
 final _expenseAccount = Account(
   id: 'food',
   name: '餐饮',
@@ -104,7 +115,7 @@ void main() {
     // 保存成功 listener bump DataRefreshNotifier(跨页刷新广播)。
     getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
     when(() => accountRepo.list()).thenAnswer(
-        (_) async => dartz.Right([_assetAccount, _assetAccount2, _expenseAccount]));
+        (_) async => dartz.Right([_assetAccount, _assetAccount2, _expenseAccount, _cardAccount]));
     when(() => tagRepo.list()).thenAnswer((_) async => dartz.Right(_allTags));
     registerFallbackValue(
       RecordExpenseParams(
@@ -141,7 +152,8 @@ void main() {
 
   /// Pumps the page inside a BlocProvider at a fixed viewport width. Also
   /// awaits the async account load so the form is rendered.
-  Future<void> pumpPage(WidgetTester tester, double width) async {
+  Future<void> pumpPage(WidgetTester tester, double width,
+      {String? initialAccountId}) async {
     await tester.binding.setSurfaceSize(Size(width, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final bloc = TransactionFormBloc(txnRepo, accountRepo)
@@ -150,7 +162,8 @@ void main() {
       MediaQuery(
         data: MediaQueryData(size: Size(width, 1000)),
         child: MaterialApp(
-          home: TransactionFormPage(bloc: bloc),
+          home: TransactionFormPage(
+              bloc: bloc, initialAccountId: initialAccountId),
         ),
       ),
     );
@@ -414,5 +427,51 @@ void main() {
         .toList();
     expect(hhMmText, isNotEmpty,
         reason: 'time field should display an HH:MM value');
+  });
+
+
+  group('F34 信用卡支付', () {
+    testWidgets('支出转出账户下拉含信用卡且可选', (tester) async {
+      await pumpPage(tester, 1440);
+      await _openDropdownAndPick(tester, '例如：招商银行、现金', '招商信用卡');
+      expect(find.text('招商信用卡'), findsWidgets);
+    });
+
+    testWidgets('信用卡详情记一笔:initialAccountId 带卡预选', (tester) async {
+      await pumpPage(tester, 1440, initialAccountId: 'card');
+      expect(find.text('招商信用卡'), findsWidgets);
+    });
+
+    testWidgets('刷卡提交:assetAccountId=卡(dr 支出/cr 信用卡)', (tester) async {
+      await pumpPage(tester, 1440);
+      when(() => txnRepo.recordExpense(any())).thenAnswer((_) async =>
+          dartz.Right(
+              Transaction(id: 'new-1', transactionDate: _date, entries: const [])));
+      await tester.tap(find.text('+50'));
+      await tester.pumpAndSettle();
+      await _openDropdownAndPick(tester, '例如：招商银行、现金', '招商信用卡');
+      await _openDropdownAndPick(tester, '例如：餐饮、交通', '餐饮');
+      await tester.ensureVisible(find.text('保存'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+      final captured =
+          verify(() => txnRepo.recordExpense(captureAny())).captured;
+      final params = captured.last as RecordExpenseParams;
+      expect(params.assetAccountId, 'card');
+      expect(params.expenseAccountId, 'food');
+    });
+
+    testWidgets('卡选中切转账:转出清空不崩溃,转账选项仍无信用卡', (tester) async {
+      await pumpPage(tester, 1440);
+      await _openDropdownAndPick(tester, '例如：招商银行、现金', '招商信用卡');
+      expect(find.text('招商信用卡'), findsWidgets);
+      await tester.tap(find.text('转账').last);
+      await tester.pumpAndSettle(); // 守卫:不得触发下拉 value∉items 断言
+      // 转出下拉重开,不含信用卡(asset-only 保持)
+      await tester.tap(find.text('钱从哪来').first, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('招商信用卡'), findsNothing);
+    });
   });
 }

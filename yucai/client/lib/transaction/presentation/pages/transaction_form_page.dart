@@ -676,6 +676,15 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   Widget _buildForm(List<Account> accounts, String? inlineError) {
     final assetAccounts =
         accounts.where((a) => a.accountType == AccountType.asset).toList();
+    // F34:支出支付方式放开信用卡——支付账户 = asset ∪ 信用卡类负债
+    // (刷卡消费 = 借:支出 / 贷:信用卡,余额更新器 liability=credit−debit
+    // 既有语义,余额向欠款方向累积)。转账/收入维持 asset-only。
+    final paymentAccounts = [
+      ...assetAccounts,
+      ...accounts.where((a) =>
+          a.accountType == AccountType.liability &&
+          a.category == AccountCategory.creditCard),
+    ];
     final expenseAccounts =
         accounts.where((a) => a.accountType == AccountType.expense).toList();
     final incomeAccounts =
@@ -693,6 +702,15 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
               _type = v;
               _categoryAccountId = null;
               _toAccountId = null;
+              // F34:支付账户选项集随类型变化(支出=asset∪信用卡,其余
+              // asset-only)。已选 id 不在新选项集则清空,保下拉
+              // value ⊆ items(T5 同款守卫,防 Dropdown 断言崩溃)。
+              final paymentOptions =
+                  v == TxnType.expense ? paymentAccounts : assetAccounts;
+              if (_assetAccountId != null &&
+                  !paymentOptions.any((a) => a.id == _assetAccountId)) {
+                _assetAccountId = null;
+              }
             }),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -717,7 +735,11 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
               number: 1,
               title: '账户与分类',
               child: _accountCategoryGrid(
-                  assetAccounts, expenseAccounts, incomeAccounts, accounts),
+                assetAccounts,
+                paymentAccounts,
+                expenseAccounts,
+                incomeAccounts,
+                accounts),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -744,6 +766,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   /// card1 字段 —— 按 type 切换 3 mode（互斥），每 mode = 2-col field-grid。
   Widget _accountCategoryGrid(
     List<Account> assetAccounts,
+    List<Account> paymentAccounts,
     List<Account> expenseAccounts,
     List<Account> incomeAccounts,
     List<Account> allAccounts,
@@ -752,7 +775,9 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     switch (_type) {
       case TxnType.expense:
         fields = [
-          _accountField('转出账户', '例如：招商银行、现金', assetAccounts,
+          // F34:转出账户(支付方式)= asset ∪ 信用卡,刷卡消费落
+          // 借:支出 / 贷:信用卡。
+          _accountField('转出账户', '例如：招商银行、现金', paymentAccounts,
               _assetAccountId, (v) => setState(() => _assetAccountId = v),
               allAccounts: allAccounts),
           _accountField('支出分类', '例如：餐饮、交通', expenseAccounts,
