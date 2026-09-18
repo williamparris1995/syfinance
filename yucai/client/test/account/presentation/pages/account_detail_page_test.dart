@@ -35,6 +35,9 @@ import 'package:yucai_client/account/presentation/pages/account_detail_page.dart
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/theme/app_theme.dart';
 import 'package:yucai_client/core/widgets/pager_bar.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/core/data_refresh.dart';
@@ -46,6 +49,8 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
 class _FakeTxnRepo extends Mock implements TransactionRepository {}
+// F35:贷款账户还款计划面板 —— 详情页经 GetIt 直取 DebtRepository(list/get)。
+class _MockDebtRepo extends Mock implements DebtRepository {}
 
 class _MockList extends Mock implements ListAccountsUseCase {}
 class _MockCreate extends Mock implements CreateAccountUseCase {}
@@ -117,6 +122,7 @@ Widget _harness({required Widget child, ThemeData? theme}) {
 void main() {
   late _MockAccountRepo accountRepo;
   late _FakeTxnRepo txnRepo;
+  late _MockDebtRepo debtRepo;
 
   tearDown(() {
     GetIt.instance.reset();
@@ -125,15 +131,27 @@ void main() {
   setUp(() {
     accountRepo = _MockAccountRepo();
     txnRepo = _FakeTxnRepo();
+    debtRepo = _MockDebtRepo();
     registerFallbackValue(ListTransactionsParams());
     registerFallbackValue(
       const UpdateAccountParams(id: 'a1', version: 1),
     );
     registerFallbackValue(SummaryScope.month);
+    // F35:list(typeFilter:) 的枚举实参需要 mocktail fallback。
+    registerFallbackValue(DebtType.borrowedIn);
     // Register both repos in getIt so TransactionFormPage (pushed by
     // _recordTxn) can resolve them when building its own bloc.
     GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
     GetIt.instance.registerSingleton<TransactionRepository>(txnRepo);
+    // F35:详情页 _loadLinkedDebt/_loadRepaymentPlans 直取 DebtRepository。
+    // 默认空债务列表(储蓄等非贷款测试不受影响);loan 用例按需覆盖。
+    GetIt.instance.registerSingleton<DebtRepository>(debtRepo);
+    // _loadLinkedDebt 用无参 list();_loadRepaymentPlans 用 typeFilter 版,
+    // mocktail 视两个签名为不同 invocation,分别 stub。
+    when(() => debtRepo.list())
+        .thenAnswer((_) async => dartz.Right(<Debt>[]));
+    when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+        .thenAnswer((_) async => dartz.Right(<Debt>[]));
     // 本页 initState 订阅 DataRefreshNotifier(交易跨 branch 变更后重拉)。
     GetIt.instance.registerLazySingleton<DataRefreshNotifier>(
         DataRefreshNotifier.new);
@@ -178,6 +196,8 @@ void main() {
     MonthlySummary? summary,
     List<Account>? accounts,
     ThemeData? theme,
+    List<Debt>? debts,
+    Map<String, List<PaymentEntry>> debtSchedules = const {},
   }) async {
     final a = account ?? _account();
     final net = netCents ?? 44556;
@@ -194,6 +214,17 @@ void main() {
     // Task 8：传入 summary 时直接用（含 byDay 供饼图聚合）。
     when(() => accountRepo.getById(any()))
         .thenAnswer((_) async => dartz.Right(a));
+    // F35:传入 debts 时覆盖 list(typeFilter:) + 逐笔 get 的 stub
+    //（schedule 缺省空表;_loadRepaymentPlans 经此管道取未还期次）。
+    if (debts != null) {
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => dartz.Right(debts));
+      for (final d in debts) {
+        final s = debtSchedules[d.id] ?? const <PaymentEntry>[];
+        when(() => debtRepo.get(d.id)).thenAnswer(
+            (_) async => dartz.Right(DebtDetail(debt: d, schedule: s)));
+      }
+    }
     when(() => txnRepo.summary(any(), any(),
             accountId: any(named: 'accountId'),
             scope: any(named: 'scope'),
@@ -1679,5 +1710,137 @@ void main() {
     await pumpPage(t);
     await t.pumpAndSettle();
     expect(find.text('编辑'), findsOneWidget, reason: 'desktop topbar icon+文字');
+  });
+
+  // ───── F35: 贷款账户详情「还款计划」只读面板 ─────
+  //
+  // FR-1 loan 账户名下有借入债务 → 渲染「还款计划」面板(每笔债一节:
+  // counterparty + 剩余本金 badge + 未来未还期次前 3 条 + 「查看完整还款计划 →」)。
+  // FR-2 名下无债 → 整个面板不渲染(隐藏优于空占位,旧「待 payment_schedule
+  // 模块接入」占位退役)。数据管道:mock DebtRepository.list(typeFilter:
+  // borrowedIn) → accountId 过滤 → get(id) 取 schedule(未还升序取 3)。
+
+  /// 借入债务夹具(mortgage,关联 a1)。
+  Debt _debtFixture({
+    String id = 'd1',
+    String counterparty = '工商银行',
+    String subtype = DebtSubtypes.mortgage,
+    int remainingPrincipalCents = 120000000,
+  }) =>
+      Debt(
+        id: id,
+        accountId: 'a1',
+        counterparty: counterparty,
+        interestRate: 3.9,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2024, 1, 1),
+        dueDate: DateTime(2054, 12, 1),
+        totalPrincipalCents: 200000000,
+        remainingPrincipalCents: remainingPrincipalCents,
+        version: 1,
+        createdAt: DateTime(2024, 1, 1),
+        updatedAt: DateTime(2024, 1, 1),
+        subtype: subtype,
+      );
+
+  PaymentEntry _entryFixture(
+    String id,
+    DateTime date, {
+    bool paid = false,
+    int totalCents = 900000,
+  }) =>
+      PaymentEntry(
+        id: id,
+        paymentDate: date,
+        principalCents: totalCents - 200000,
+        interestCents: 200000,
+        totalCents: totalCents,
+        paid: paid,
+        paidCents: paid ? totalCents : 0,
+        transactionId: '',
+      );
+
+  testWidgets(
+      'F35: loan 账户挂债 → 面板含 counterparty + 未还期次日期 + 查看完整还款计划',
+      (tester) async {
+    // list → 1 笔 mortgage 债;get → 乱序 3 条期次(1 条已还,应被过滤,
+    // 未还按日期升序渲染)。日期固定 2026(渲染是纯文本,不随时钟腐烂)。
+    final debt = _debtFixture();
+    await pumpPage(
+      tester,
+      account: _loanAccount(),
+      debts: [debt],
+      debtSchedules: {
+        'd1': [
+          _entryFixture('e2', DateTime(2026, 11, 1)),
+          _entryFixture('e1', DateTime(2026, 10, 1)),
+          _entryFixture('e0', DateTime(2026, 9, 1), paid: true),
+        ],
+      },
+    );
+
+    // 面板在 ListView 尾部(hero/stats/双栏/信息卡之下),滚入视口。
+    await tester.scrollUntilVisible(
+      find.text('还款计划'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // counterparty 文本。
+    expect(find.text('工商银行'), findsOneWidget);
+    // 2 条未来未还期次(yyyy-MM-dd);已还 2026-09-01 不渲染。
+    expect(find.text('2026-10-01'), findsOneWidget);
+    expect(find.text('2026-11-01'), findsOneWidget);
+    expect(find.text('2026-09-01'), findsNothing);
+    // 尾部「查看完整还款计划 →」入口。
+    expect(find.text('查看完整还款计划 →'), findsOneWidget);
+  });
+
+  testWidgets('F35: loan 账户名下无债 → 不渲染还款计划面板(旧占位退役)',
+      (tester) async {
+    await pumpPage(tester, account: _loanAccount());
+
+    // 滚到底部,让原占位区域(若仍存在)进入 ListView 构建范围。
+    await tester.scrollUntilVisible(
+      find.textContaining('账户信息'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.drag(find.byType(ListView).first, const Offset(0, -1200));
+    await tester.pumpAndSettle();
+
+    expect(find.text('还款计划'), findsNothing,
+        reason: 'FR-2 无债贷款账户不应渲染还款计划面板');
+    expect(find.textContaining('待 payment_schedule'), findsNothing,
+        reason: '旧「待 payment_schedule 模块接入」占位应退役');
+  });
+
+  testWidgets('F35: 面板 badge 显示剩余本金千分位', (tester) async {
+    final debt = _debtFixture(remainingPrincipalCents: 120000000);
+    await pumpPage(
+      tester,
+      account: _loanAccount(),
+      debts: [debt],
+      debtSchedules: {
+        'd1': [_entryFixture('e1', DateTime(2026, 10, 1))],
+      },
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('还款计划'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // badge:剩余本金 ¥1,200,000.00(千分位)。限定面板内查找,避开
+    // hero/信息卡的同名 label 与 1,800,000 系数值。
+    final panel = find.byKey(const ValueKey('repaymentPlanPanel'));
+    expect(
+      find.descendant(
+        of: panel,
+        matching: find.textContaining('¥1,200,000.00'),
+      ),
+      findsOneWidget,
+    );
   });
 }

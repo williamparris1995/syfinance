@@ -13,13 +13,16 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/repayment_plan_panel.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/hero_shell.dart';
@@ -38,7 +41,7 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 /// 结构：AppBar（编辑 / 🔒记一笔 / 🔒转账 / 更多菜单）→
 /// Hero（类型图标 + 名称 / 机构·币种·类型 / 余额 / category 专属 chip）→
 /// 统计行占位（待 Transaction）→ 双栏（近期交易 / 收支统计占位）→
-/// 类型专属面板（投资 → 持仓列表 / 贷款 → 还款计划，待后续模块接入）。
+/// 类型专属面板（投资 → 持仓列表占位 / 贷款 → 还款计划只读面板 F35）。
 class AccountDetailPage extends StatefulWidget {
   const AccountDetailPage({super.key, required this.id});
 
@@ -48,7 +51,7 @@ class AccountDetailPage extends StatefulWidget {
   State<AccountDetailPage> createState() => _AccountDetailPageState();
 }
 
-class _AccountDetailPageState extends State<AccountDetailPage> {
+class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// 关闭账户写操作进行中。_close dispatch 后置 true，BlocListener 收到
   /// AccountsLoaded（成功）/AccountError（失败）后清零 + toast + pop。
   /// 仿 accounts_page._pendingIds 的 listener 模式，避免 dispatch 即 toast
@@ -98,6 +101,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// 关联债务(该账户名下全部借入债务,一户可多笔):贷款字段的实时数据源。
   List<Debt> _linkedDebts = const [];
 
+  /// F35:贷款账户「还款计划」面板数据(每笔债一节:债务 + 未来未还期次
+  /// 前 3 条)。空 = 名下无借入债务,面板不渲染(FR-2 隐藏优于空占位)。
+  List<({Debt debt, List<PaymentEntry> upcoming})> _debtPlans = const [];
+
   /// 当前 scope 的中文前缀（Task 11）。用于 summary-based 的 label：
   /// 储蓄/其他类 4 卡（收入/支出/净流入/交易）+ hero-bal-sub「{scope}收支」+
   /// fixed/gold/realEstate 的 summary 4th 卡。类型专属字段 label（额度/市值/
@@ -113,6 +120,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     super.initState();
     context.read<AccountBloc>().add(GetAccountRequested(widget.id));
     _loadLinkedDebt();
+    _loadRepaymentPlans();
     _dataRefresh.addListener(_onDataRefresh);
     // 加载全量账户列表，供近期交易行解析 entries（分类/资产账户名）。
     // 直接走 repository（不经 AccountBloc —— 其 _onGet 的 AccountDetailLoaded
@@ -130,7 +138,24 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // F35 FR-3:订阅 accounts 分支观察者(照 debt_detail_page 模式)——
+    // 从编辑/记一笔/交易详情等表单 pop 回本页时 didPopNext 重拉。
+    accountsRouteObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void didPopNext() {
+    // 从编辑/其他表单返回:详情 + 还款计划一并重拉(FR-3)。
+    if (!mounted) return;
+    context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+    _loadRepaymentPlans();
+  }
+
+  @override
   void dispose() {
+    accountsRouteObserver.unsubscribe(this);
     _dataRefresh.removeListener(_onDataRefresh);
     super.dispose();
   }
@@ -144,6 +169,28 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             list.where((d) => d.accountId == widget.id).toList();
         if (mounted) setState(() => _linkedDebts = linked);
       });
+    } catch (_) {}
+  }
+
+  /// F35:「还款计划」面板数据管道 —— 借入债务 list(typeFilter: borrowedIn)
+  /// → 本账户 accountId 过滤 → 逐笔 repo.get(id) 取 schedule → 未还期次按
+  /// paymentDate 升序取前 3。失败/未注册(测试 harness)静默保持空面板。
+  Future<void> _loadRepaymentPlans() async {
+    try {
+      final repo = getIt<DebtRepository>();
+      final r = await repo.list(typeFilter: DebtType.borrowedIn);
+      final linked =
+          r.fold((_) => <Debt>[], (l) => l.where((d) => d.accountId == widget.id).toList());
+      final plans = <({Debt debt, List<PaymentEntry> upcoming})>[];
+      for (final d in linked) {
+        final det = await repo.get(d.id);
+        det.fold((_) {}, (detail) {
+          final unpaid = detail.schedule.where((e) => !e.paid).toList()
+            ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+          plans.add((debt: detail.debt, upcoming: unpaid.take(3).toList()));
+        });
+      }
+      if (mounted) setState(() => _debtPlans = plans);
     } catch (_) {}
   }
 
@@ -347,7 +394,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         if (a.category == AccountCategory.investment)
           _panel('持仓列表', '待 Holding 模块接入')
         else if (a.category == AccountCategory.loan)
-          _panel('还款计划', '待 payment_schedule 模块接入')
+          // F35:还款计划只读面板(名下有借入债务才渲染,FR-2 隐藏优于空占位);
+          // 「查看完整还款计划 →」跳债务详情页(完整交互计划所在处)。
+          if (_debtPlans.isNotEmpty)
+            AccountRepaymentPlanPanel(
+              key: const ValueKey('repaymentPlanPanel'),
+              plans: _debtPlans,
+              preferred: a.currencyCode,
+              onOpenDebt: (id) => context.push('/debts/$id'),
+            )
+          else
+            const SizedBox.shrink()
         else
           const SizedBox.shrink(),
       ],
