@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F33 债务分类 9 类 + 冲突警示条 — prototype v3</title>
+<link rel="stylesheet" href="../../../../../../design-output-v2/ab/assets/theme.css">
+<style>
+  /* 布局骨架(视觉值全部引用 theme.css 令牌) */
+  body{background:var(--bg);color:var(--fg);font-family:'Segoe UI','Microsoft YaHei','PingFang SC',system-ui,sans-serif;margin:0;padding:28px 32px;font-size:14px}
+  .demo{max-width:860px;margin:0 auto}
+  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .page-head h1{font-size:20px;font-weight:700;margin:0}
+  .theme-toggle{border:1px solid var(--border);background:var(--surface);color:var(--fg);border-radius:999px;padding:6px 14px;cursor:pointer;font-size:12.5px}
+  .card{background:var(--surface);border-radius:16px;padding:24px;margin-bottom:18px}
+  .card h2{font-size:15px;font-weight:700;margin:0 0 4px}
+  .card .sub{font-size:12.5px;color:var(--muted);margin-bottom:16px}
+  .field-label{font-size:12.5px;font-weight:600;margin:14px 0 8px}
+  .field-label .req{color:var(--neg)}
+  /* 模拟账户下拉(chip 形态,演示用) */
+  .acct-row{display:flex;gap:10px;flex-wrap:wrap}
+  .acct-chip{border:1px solid var(--border);background:var(--surface-2);color:var(--fg);border-radius:10px;padding:9px 14px;cursor:pointer;font-size:13px}
+  .acct-chip.on{border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 9%,transparent)}
+  /* subtype radio 行(沿 OD debt-form .radio 形态;选中态 accent) */
+  .radio-row{display:flex;gap:10px;flex-wrap:wrap}
+  .radio-card{flex:1 1 0;min-width:96px;display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 8px 12px;border:1.5px solid var(--border);border-radius:12px;background:var(--surface-2);cursor:pointer;transition:border-color .15s,background .15s}
+  .radio-card svg{width:22px;height:22px;stroke:var(--muted)}
+  .radio-card span{font-size:12.5px;color:var(--fg)}
+  .radio-card .new-tag{font-size:10px;color:var(--cyan);letter-spacing:.5px}
+  .radio-card.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 9%,transparent)}
+  .radio-card.on svg{stroke:var(--acc)}
+  .radio-card.on span{color:var(--acc);font-weight:600}
+  /* 冲突警示条 = theme.css .callout.warn 复用(design-v2 §4 提示卡 warn 变体) */
+  .banner-slot{margin-top:14px;min-height:10px}
+  .callout{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:12px}
+  .callout.warn{background:color-mix(in srgb,var(--warn) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 30%,transparent)}
+  .callout .c-ic{color:var(--warn)}
+  .callout .c-title{font-weight:700;font-size:13.5px;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+  .callout .c-body{font-size:12.5px;color:var(--muted);line-height:1.7}
+  .pill-ok{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:1px 8px;white-space:nowrap}
+  .note{font-size:12.5px;color:var(--muted);line-height:1.8}
+  .note b{color:var(--fg)}
+  svg{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
+<body>
+<div class="demo">
+  <div class="page-head">
+    <h1>F33 · 债务类型选择(9 类)+ 冲突警示</h1>
+    <button class="theme-toggle" onclick="toggleTheme()">☀ / ☾ 切换主题</button>
+  </div>
+
+  <div class="card">
+    <h2>债务表单 · 创建模式(可交互演示)</h2>
+    <div class="sub">点账户 chip 切换关联账户 → 未碰分类时自动归位;点分类卡 = 「用户已触碰」;组合落白名单外出现警示条(非阻断)。</div>
+
+    <div class="field-label">关联账户 <span class="req">*</span>(演示三类:贷款账户 / 信用卡账户 / 个人待还款)</div>
+    <div class="acct-row" id="accts">
+      <button class="acct-chip on" data-cat="loan">平安现金分期(贷款账户)</button>
+      <button class="acct-chip" data-cat="creditCard">招商银行信用卡(信用卡账户)</button>
+      <button class="acct-chip" data-cat="otherLiability">个人待还款(待还款账户)</button>
+    </div>
+
+    <div class="field-label" style="margin-top:18px">债务类型 <span class="req">*</span><span style="font-weight:400;color:var(--muted)">( Cyan=本次新增 4 类 )</span></div>
+    <div class="radio-row" id="radios"></div>
+
+    <div class="banner-slot" id="banner"></div>
+  </div>
+
+  <div class="card">
+    <h2>白名单(与 spec FR-4 一致)</h2>
+    <div class="note">
+      <b>loan 贷款账户</b> ↔ 房贷 / 车贷 / 信用贷款 / 现金分期 / 消费贷 / 经营贷<br>
+      <b>creditCard 信用卡账户</b> ↔ 信用卡　·　<b>otherLiability 个人待还款</b> ↔ 亲友借款<br>
+      <b>other 其他</b> 永不提示;其余组合 → <b>非阻断</b>警示条,可照常保存。
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---- 主题切换(同 12 页原型 app.js 机制:data-theme + localStorage) ---- */
+function toggleTheme(){
+  const h=document.documentElement,next=h.dataset.theme==='dark'?'light':'dark';
+  h.dataset.theme=next;try{localStorage.setItem('yc2-theme',next)}catch(e){}
+}
+try{const s=localStorage.getItem('yc2-theme');if(s)document.documentElement.dataset.theme=s}catch(e){}
+
+/* ---- 数据(spec FR-2/FR-4 常量镜像) ---- */
+const SUBTYPES=[
+  {key:'mortgage',label:'房贷',icon:'home',isNew:false},
+  {key:'auto_loan',label:'车贷',icon:'car',isNew:false},
+  {key:'credit_loan',label:'信用贷款',icon:'hand-coins',isNew:true},
+  {key:'cash_installment',label:'现金分期',icon:'calendar-clock',isNew:true},
+  {key:'consumption_loan',label:'消费贷',icon:'shopping-bag',isNew:true},
+  {key:'business_loan',label:'经营贷',icon:'briefcase',isNew:true},
+  {key:'credit_card',label:'信用卡',icon:'credit-card',isNew:false},
+  {key:'family',label:'亲友借款',icon:'users',isNew:false},
+  {key:'other',label:'其他',icon:'help-circle',isNew:false},
+];
+const COMPAT={
+  loan:['mortgage','auto_loan','credit_loan','cash_installment','consumption_loan','business_loan'],
+  creditCard:['credit_card'],
+  otherLiability:['family'],
+};
+const DEFAULTS={loan:'credit_loan',creditCard:'credit_card',otherLiability:'family'};
+const PATHS={
+  'home':'M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5','car':'M5 16l1.5-5.5A2 2 0 0 1 8.4 9h7.2a2 2 0 0 1 1.9 1.5L19 16M5 16h14M6.5 16a1.5 1.5 0 1 0 3 0m5 0a1.5 1.5 0 1 0 3 0',
+  'hand-coins':'M11 15h2a2 2 0 1 0 0-4h-3a2 2 0 1 1 0-4h3M13 5v2M13 17v2M3 11h.01M21 11c-3 0-5.5 1.5-8 3.5L9 18',
+  'calendar-clock':'M21 7.5V13m-6 -8h-8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6M16 2v4M8 2v4M4 10h10M17 17l2 2 3-3M17 21a4 4 0 1 1 0-8 4 4 0 0 1 0 8z',
+  'shopping-bag':'M6 7h12l1 13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1L6 7zM9 10V6a3 3 0 0 1 6 0v4',
+  'briefcase':'M4 8h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18',
+  'credit-card':'M2 5h20v14H2zM2 10h20M6 15h4','users':'M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+  'help-circle':'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5M12 18h.01',
+};
+
+/* ---- 状态(镜像 design.md LLD ② 状态机) ---- */
+let cat='loan', subtype='credit_loan', touched=false;
+
+function icon(k){
+  return '<svg viewBox="0 0 24 24" stroke="currentColor">'+(PATHS[k]||PATHS['help-circle']).split('M').filter(Boolean).map(d=>'<path d="M'+d+'"/>').join('')+'</svg>';
+}
+function render(){
+  document.getElementById('radios').innerHTML=SUBTYPES.map(s=>
+    '<div class="radio-card'+(s.key===subtype?' on':'')+'" data-key="'+s.key+'">'+
+    icon(s.icon)+'<span>'+s.label+'</span>'+(s.isNew?'<span class="new-tag">NEW</span>':'')+'</div>').join('');
+  document.querySelectorAll('#radios .radio-card').forEach(el=>el.onclick=()=>{
+    subtype=el.dataset.key;touched=true;render();});
+  document.querySelectorAll('#accts .acct-chip').forEach(el=>el.classList.toggle('on',el.dataset.cat===cat));
+  const b=document.getElementById('banner');
+  const conflict = subtype!=='other' && !(COMPAT[cat]||[]).includes(subtype);
+  b.innerHTML = conflict
+    ? '<div class="callout warn"><span class="c-ic">'+icon('help-circle')+'</span><div><div class="c-title">分类与关联账户通常不一致 <span class="pill-ok">可照常保存</span></div><div class="c-body">「'+SUBTYPES.find(s=>s.key===subtype).label+'」一般不挂在当前类型的账户下。如属特殊情况(如房抵消费贷),忽略本提示继续即可。</div></div></div>'
+    : '';
+}
+document.querySelectorAll('#accts .acct-chip').forEach(el=>el.onclick=()=>{
+  cat=el.dataset.cat;
+  if(!touched && DEFAULTS[cat]) subtype=DEFAULTS[cat];   // FR-3 未触碰才联动
+  render();
+});
+render();
+</script>
+</body>
+</html>
