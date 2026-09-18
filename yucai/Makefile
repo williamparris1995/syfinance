@@ -64,7 +64,7 @@ validate: lint test flutter-test ## Run all checks
 # F6 双入口(ADR-1):E2E_FILES = 管道链路默认回归;E2E_UI_FILES = UI 链手动按需(T4 填充)。
 # 新链路文件按追加顺序排列(串行执行序),后续任务持续在此列表尾部追加。
 # F19-T2 尾追加 link_bind_merge_e2e —— 绑定合并全链四场景(纯上传/并集/残留冲突/断点续传),= 13。
-E2E_FILES := integration_test/app_pages_test.dart integration_test/linked_transactions_test.dart integration_test/full_audit_test.dart integration_test/link_receivable_collect_test.dart integration_test/link_subscription_template_test.dart integration_test/link_budget_goal_test.dart integration_test/link_tag_report_test.dart integration_test/link_holding_buy_test.dart integration_test/link_mutation_cascade_test.dart integration_test/link_backup_roundtrip_test.dart integration_test/link_list_unify_test.dart integration_test/link_offline_sync_e2e_test.dart integration_test/link_bind_merge_e2e_test.dart
+E2E_FILES := integration_test/app_pages_test.dart integration_test/linked_transactions_test.dart integration_test/link_debt_subtype_test.dart integration_test/full_audit_test.dart integration_test/link_receivable_collect_test.dart integration_test/link_subscription_template_test.dart integration_test/link_budget_goal_test.dart integration_test/link_tag_report_test.dart integration_test/link_holding_buy_test.dart integration_test/link_mutation_cascade_test.dart integration_test/link_backup_roundtrip_test.dart integration_test/link_list_unify_test.dart integration_test/link_offline_sync_e2e_test.dart integration_test/link_bind_merge_e2e_test.dart
 
 # UI 链文件(一链一文件,不进默认回归;T4 十文件 + review round-1 补 ui_template_record = 11;
 # fix round 1 尾追加 ui_template_record —— FR-12「手动触发记一笔」枚举项补齐;
