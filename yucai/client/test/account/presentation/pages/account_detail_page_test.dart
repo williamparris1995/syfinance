@@ -149,9 +149,9 @@ void main() {
     // _loadLinkedDebt 用无参 list();_loadRepaymentPlans 用 typeFilter 版,
     // mocktail 视两个签名为不同 invocation,分别 stub。
     when(() => debtRepo.list())
-        .thenAnswer((_) async => dartz.Right(<Debt>[]));
+        .thenAnswer((_) async => const dartz.Right(<Debt>[]));
     when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
-        .thenAnswer((_) async => dartz.Right(<Debt>[]));
+        .thenAnswer((_) async => const dartz.Right(<Debt>[]));
     // 本页 initState 订阅 DataRefreshNotifier(交易跨 branch 变更后重拉)。
     GetIt.instance.registerLazySingleton<DataRefreshNotifier>(
         DataRefreshNotifier.new);
@@ -1721,7 +1721,7 @@ void main() {
   // borrowedIn) → accountId 过滤 → get(id) 取 schedule(未还升序取 3)。
 
   /// 借入债务夹具(mortgage,关联 a1)。
-  Debt _debtFixture({
+  Debt debtFixture({
     String id = 'd1',
     String counterparty = '工商银行',
     String subtype = DebtSubtypes.mortgage,
@@ -1743,7 +1743,7 @@ void main() {
         subtype: subtype,
       );
 
-  PaymentEntry _entryFixture(
+  PaymentEntry entryFixture(
     String id,
     DateTime date, {
     bool paid = false,
@@ -1765,16 +1765,16 @@ void main() {
       (tester) async {
     // list → 1 笔 mortgage 债;get → 乱序 3 条期次(1 条已还,应被过滤,
     // 未还按日期升序渲染)。日期固定 2026(渲染是纯文本,不随时钟腐烂)。
-    final debt = _debtFixture();
+    final debt = debtFixture();
     await pumpPage(
       tester,
       account: _loanAccount(),
       debts: [debt],
       debtSchedules: {
         'd1': [
-          _entryFixture('e2', DateTime(2026, 11, 1)),
-          _entryFixture('e1', DateTime(2026, 10, 1)),
-          _entryFixture('e0', DateTime(2026, 9, 1), paid: true),
+          entryFixture('e2', DateTime(2026, 11, 1)),
+          entryFixture('e1', DateTime(2026, 10, 1)),
+          entryFixture('e0', DateTime(2026, 9, 1), paid: true),
         ],
       },
     );
@@ -1816,13 +1816,13 @@ void main() {
   });
 
   testWidgets('F35: 面板 badge 显示剩余本金千分位', (tester) async {
-    final debt = _debtFixture(remainingPrincipalCents: 120000000);
+    final debt = debtFixture(remainingPrincipalCents: 120000000);
     await pumpPage(
       tester,
       account: _loanAccount(),
       debts: [debt],
       debtSchedules: {
-        'd1': [_entryFixture('e1', DateTime(2026, 10, 1))],
+        'd1': [entryFixture('e1', DateTime(2026, 10, 1))],
       },
     );
 
