@@ -7,3 +7,18 @@
 - 排序结论:默认序已是「未结清在前+到期升序」(F9 NFR-2),本票以显性测试钉死+视觉紧迫度补足用户感知。
 - 评审:两轴 pass(存储口径零改动;色值全令牌;两页镜像自动同待遇)。
 - 门:1884 全绿+analyze 437<438(顺修存量重复 import)。
+
+## 用户追问扩展 — 下一期还款日紧迫度 ✅(2026-09-19)
+
+- 用户问:着色只看合同到期日,下一期分期有没有特殊显示?→ 此前没有(仅已逾期红字),本扩展补齐。
+- 改动:DebtCardFootCallout hasNext 分支——下一期 ≤15 天追加「 · N天内」着色 span(≤7 negative/8-15 warn),已逾期维持既有红字;债务+债权共享组件自动同待遇。
+- TDD 2 新测(3 天内提示/20 天无);1886 全绿+analyze 438=基线+e2e 14/14。
+
+## F38 附加修复 — 模板改周期后 next_date 锚定漂移 ✅(2026-09-19)
+
+- 用户报告:房租模板(每 3 个月/第一天/start 8-01)下一次显示 12-01,应为 11-01。
+- 取证:本地模板表实际存储 cycle=monthly/interval=3/billing_day=1/start=8-01/next_date=12-01;真函数穷举确认 interval=3 恒出 11-1,12-1 只能来自「从今天(9-19)重锚」。
+- 根因(client+server 镜像同bug):模板 update 规则变化时 nextDate = NextAfter(max(start,today)-1) —— today 重锚使 interval>1 系列永久漂移(8/1+3k 系列丢失)。
+- 修复:firstOnSeriesAfter(start, rule, after)(从 start 走锚定系列,首个 ≥ max(start,今天)),client next_after.dart/template_local_ds + server recurrence/template service 镜像同修;F38 测试 RED(12/1)→GREEN(11/1)。
+- 用户数据校正:本地模板 next_date 12-01→11-01(直接 UPDATE,前后取证;与代码修复后的重算值一致)。
+- 门:1888 全绿+go 全绿+vet 净。
