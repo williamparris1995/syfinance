@@ -1456,6 +1456,17 @@ class DebtCardFootCallout extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final overdueDays = isOverdue ? now.difference(debt.dueDate).inDays : 0;
+    // F37 扩展:下一期还款日紧迫度(≤7 红/≤15 黄;已逾期走下方专用红字,
+    // 不重复)。null = 无下一期或 >15 天,不加提示。
+    int? nextDays;
+    if (hasNext && !isOverdue && debt.nextPaymentDate != null) {
+      final due = DateTime(debt.nextPaymentDate!.year,
+          debt.nextPaymentDate!.month, debt.nextPaymentDate!.day);
+      nextDays = due
+          .difference(DateTime(now.year, now.month, now.day))
+          .inDays;
+      if (nextDays > 15) nextDays = null;
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
       decoration: BoxDecoration(
@@ -1497,6 +1508,18 @@ class DebtCardFootCallout extends StatelessWidget {
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: context.yucai.accentDeep)),
+                    // F37 扩展:下一期临近着色(≤7 红/≤15 黄,非阻断提示)。
+                    if (nextDays != null && !isOverdue)
+                      TextSpan(
+                          text: nextDays < 0
+                              ? ' · 已逾期 ${-nextDays} 天'
+                              : nextDays == 0
+                                  ? ' · 今天到期'
+                                  : ' · ${nextDays}天内',
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: context.yucai.negative)),
                     if (isOverdue)
                       TextSpan(
                           text: ' · 含逾期 $overdueDays 天',

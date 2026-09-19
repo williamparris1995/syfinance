@@ -9,7 +9,12 @@ import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 
-Debt _debt(DateTime due, {int remaining = 1000}) => Debt(
+Debt _debt(DateTime due,
+    {int remaining = 1000,
+    DateTime? nextPaymentDate,
+    int nextPaymentPeriodNo = 0,
+    int nextPaymentAmountCents = 0}) =>
+    Debt(
       id: 'd1',
       accountId: 'a1',
       counterparty: '测试债',
@@ -23,6 +28,9 @@ Debt _debt(DateTime due, {int remaining = 1000}) => Debt(
       createdAt: DateTime(2026, 1, 1),
       updatedAt: DateTime(2026, 1, 1),
       subtype: DebtSubtypes.other,
+      nextPaymentDate: nextPaymentDate,
+      nextPaymentPeriodNo: nextPaymentPeriodNo,
+      nextPaymentAmountCents: nextPaymentAmountCents,
     );
 
 Widget _harness(Debt debt, double width) => MediaQuery(
@@ -81,5 +89,31 @@ void main() {
         1440));
     await t.pumpAndSettle();
     expect(find.textContaining('天内'), findsNothing);
+  });
+
+  group('F37 扩展:下一期还款日紧迫度(卡片底部 callout)', () {
+    testWidgets('下一期 3 天内 → 「（3天内）」着色提示', (t) async {
+      await t.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      final d = _debt(DateTime(2027, 6, 1),
+          nextPaymentDate: DateTime.now().add(const Duration(days: 3)),
+          nextPaymentPeriodNo: 4,
+          nextPaymentAmountCents: 50000);
+      await t.pumpWidget(_harness(d, 1440));
+      await t.pumpAndSettle();
+      expect(find.textContaining('3天内'), findsOneWidget);
+    });
+
+    testWidgets('下一期 20 天后 → 无提示', (t) async {
+      await t.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      final d = _debt(DateTime(2027, 6, 1),
+          nextPaymentDate: DateTime.now().add(const Duration(days: 20)),
+          nextPaymentPeriodNo: 4,
+          nextPaymentAmountCents: 50000);
+      await t.pumpWidget(_harness(d, 1440));
+      await t.pumpAndSettle();
+      expect(find.textContaining('天内）'), findsNothing);
+    });
   });
 }
