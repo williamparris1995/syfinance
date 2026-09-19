@@ -163,6 +163,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// 按账户 id 收集名下全部借入债务(loan 字段聚合的数据源)。
   /// typeFilter: borrowedIn —— 与 _loadRepaymentPlans 同语义(borrowedOut
   /// 归应收模块,不进负债聚合)。
+
+  /// F35 扩展:loan 与 otherLiability(个人待还款)挂借入债时,hero/信息卡/
+  /// 还款计划面板均以债务实时数据呈现(单一数据源)。
+  bool _isDebtDerivedLiability(Account a) =>
+      (a.category == AccountCategory.loan ||
+          a.category == AccountCategory.otherLiability) &&
+      _linkedDebts.isNotEmpty;
   Future<void> _loadLinkedDebt() async {
     try {
       final r = await GetIt.instance<DebtRepository>()
@@ -396,9 +403,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         const SizedBox(height: AppSpacing.lg),
         if (a.category == AccountCategory.investment)
           _panel('持仓列表', '待 Holding 模块接入')
-        else if (a.category == AccountCategory.loan)
+        else if (_isDebtDerivedLiability(a))
           // F35:还款计划只读面板(名下有借入债务才渲染,FR-2 隐藏优于空占位);
           // 「查看完整还款计划 →」跳债务详情页(完整交互计划所在处)。
+          // F35 扩展:otherLiability(个人待还款)与 loan 同待遇。
           if (_debtPlans.isNotEmpty)
             AccountRepaymentPlanPanel(
               key: const ValueKey('repaymentPlanPanel'),
@@ -445,8 +453,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
             a.creditRepaymentDay == null ? null : '${a.creditRepaymentDay}日');
         addNum('年费', a.creditAnnualFeeCents);
       case AccountCategory.loan:
+      case AccountCategory.otherLiability:
         // 贷款字段以债务模块实时数据为准(一户多笔:原始/剩余/利息 = 合计,
         // 月供/下次 = 最早到期那笔);无关联债务时回退账户静态字段。
+        // F35 扩展:otherLiability(个人待还款)同待遇。
         if (_linkedDebts.isNotEmpty) {
           final first1 = _linkedDebts.reduce((x, y) =>
               (x.nextPaymentDate ?? DateTime(9999))
@@ -504,7 +514,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
             a.estateDepreciationRate == null ? null : '${a.estateDepreciationRate!.toStringAsFixed(2)}%');
       case AccountCategory.savings:
       case AccountCategory.otherAsset:
-      case AccountCategory.otherLiability:
+        // otherLiability 已由上方 loan 债务行分支覆盖(F35 扩展)。
         break;
     }
     return DataCard(
@@ -673,10 +683,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               // F35 验收:挂债贷款账户改显「剩余应还」= 债务实时剩余本金
               // 合计 —— currentBalance 是流水残值(如 -¥6,795.20),用户无法
               // 理解;余额本身的重算治本在 F36,此处先做展示语义纠正。
+              // F35 扩展:otherLiability(个人待还款)与 loan 同待遇。
               Text(
-                a.category == AccountCategory.loan && _linkedDebts.isNotEmpty
-                    ? '剩余应还'
-                    : '可用余额',
+                _isDebtDerivedLiability(a) ? '剩余应还' : '可用余额',
                 style: TextStyle(
                   fontSize: 12,
                   color: context.yucai.muted,
@@ -690,8 +699,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                 child: Text(
                   key: const ValueKey('heroBalance'),
                   _fmt(
-                      a.category == AccountCategory.loan &&
-                              _linkedDebts.isNotEmpty
+                      _isDebtDerivedLiability(a)
                           ? _linkedDebts.fold<int>(0,
                               (s, d) => s + d.remainingPrincipalCents)
                           : a.currentBalanceCents,
@@ -862,6 +870,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         addDay('还款日', a.creditRepaymentDay);
         addNum('年费', a.creditAnnualFeeCents);
       case AccountCategory.loan:
+      case AccountCategory.otherLiability:
+        // F35 扩展:otherLiability(个人待还款)同待遇。
         if (_linkedDebts.isNotEmpty) {
           final first2 = _linkedDebts.reduce((x, y) =>
               (x.nextPaymentDate ?? DateTime(9999))
@@ -910,7 +920,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         }
       case AccountCategory.savings:
       case AccountCategory.otherAsset:
-      case AccountCategory.otherLiability:
+        // otherLiability 已由上方 loan 债务行分支覆盖(F35 扩展)。
         // 对齐 OD .hero-fields 储蓄分支 4 字段：
         // 年化利率 / 开户日期 / 账户类型 ·活期·定期 / 币种（code + 中文名）。
         addRate('年化利率', a.interestRate);

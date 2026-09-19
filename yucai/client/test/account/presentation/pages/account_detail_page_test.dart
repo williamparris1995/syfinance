@@ -1878,4 +1878,39 @@ void main() {
       expect(find.text('40.0%'), findsOneWidget);
     });
   });
+
+  group('F35 扩展:otherLiability(个人待还款)同待遇', () {
+    Account olAccount() => _account(
+        category: AccountCategory.otherLiability,
+        accountType: AccountType.liability,
+        currentBalanceCents: 30000000,
+        name: '个人待还款');
+
+    testWidgets('otherLiability 挂债:还款计划面板渲染', (t) async {
+      await pumpPage(t, account: olAccount(), debts: [debtFixture()]);
+      await t.pumpAndSettle();
+      // 面板在 ListView 折叠线下(otherLiability 的 stats 条不隐藏),滚到可见。
+      await t.scrollUntilVisible(
+          find.textContaining('查看完整还款计划'), 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.textContaining('工商银行'), findsWidgets);
+      expect(find.textContaining('查看完整还款计划'), findsOneWidget);
+    });
+
+    testWidgets('otherLiability 挂债:hero 显「剩余应还」', (t) async {
+      await pumpPage(t, account: olAccount(), debts: [debtFixture()]);
+      await t.pumpAndSettle();
+      expect(find.text('剩余应还'), findsOneWidget);
+      expect(find.textContaining('1200000.00'), findsWidgets);
+    });
+
+    testWidgets('otherLiability 挂债:信息卡债务行+已还比例', (t) async {
+      await pumpPage(t, account: olAccount(), debts: [debtFixture()]);
+      await t.pumpAndSettle();
+      await t.scrollUntilVisible(find.text('已还比例'), 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text('40.0%'), findsOneWidget);
+      expect(find.textContaining('原始本金'), findsWidgets);
+    });
+  });
 }
