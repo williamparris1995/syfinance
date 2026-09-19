@@ -215,3 +215,22 @@ DateTime _nthWeekdayOfMonth(int year, int month, int nth, int weekday) {
   }
   return DateTime.utc(d.year, d.month, d.day + 7 * (nth - 1));
 }
+
+/// start 锚定发生日系列上,首个 ≥ [after] 的发生日。
+///
+/// 系列语义与创建一致:从 NextAfter(start) 起步(不含 start 本身),逐次
+/// NextAfter 推进 —— interval>1 时该系列锚定于 start(8/1 + 3k 月),
+/// **不能**从 after/today 链式推进(会重锚换系列:9/1 + 3k ≠ 8/1 + 3k)。
+/// 用于「改规则后下一期」重算(F38):规则变化 → 从 start 按新规则重走
+/// 锚定系列,取首个 ≥ max(start, 今天) 者。
+/// [maxSteps] 防御上界(daily 间隔跨多年也在数千步内)。
+DateTime firstOnSeriesAfter(
+    DateTime start, RecurrenceRule rule, DateTime after,
+    {int maxSteps = 5000}) {
+  var d = DateTime.utc(start.year, start.month, start.day);
+  for (var i = 0; i < maxSteps; i++) {
+    d = nextAfter(d, rule);
+    if (!d.isBefore(after)) return d;
+  }
+  return d;
+}

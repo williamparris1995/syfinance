@@ -160,8 +160,10 @@ class TemplateLocalDataSource {
         weekdayMask: newWeekdayMask,
         monthlyMode: newMonthlyMode,
         nth: newNth);
-    // 规则变化 → nextDate = 新规则下 ≥ max(起始日, 今天) 的首个发生日
-    // (镜像 server UpdateTemplate;guest 单写者无并发重复)。
+    // 规则变化 → nextDate = start 锚定系列(NextAfter(start) 起步)上首个
+    // ≥ max(起始日, 今天) 的发生日。F38:此前从 today 链式 nextAfter,
+    // interval>1 时会重锚换系列(8/1 起每 3 个月被推成 12/1 起),锚定
+    // 序列永久漂移 —— 改为从 start 走锚定系列(镜像 server UpdateTemplate)。
     Value<DateTime> nextDate = const Value.absent();
     if (newRule !=
         RecurrenceRule.fromInts(
@@ -172,12 +174,12 @@ class TemplateLocalDataSource {
             weekdayMask: row.weekdayMask,
             monthlyMode: row.monthlyMode,
             nth: row.nth)) {
-      var base = _nowDate();
       final start =
           DateTime.utc(row.startDate.year, row.startDate.month, row.startDate.day);
-      if (start.isAfter(base)) base = start;
-      nextDate = Value(nextAfter(
-          DateTime.utc(base.year, base.month, base.day - 1), newRule));
+      final base = _nowDate();
+      final after = start.isAfter(base) ? start : base;
+      nextDate = Value(
+          firstOnSeriesAfter(start, newRule, after));
     }
     await _dao.updateTemplate(db.TransactionTemplatesCompanion(
       id: Value(id),

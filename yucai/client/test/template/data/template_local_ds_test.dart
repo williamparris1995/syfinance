@@ -290,4 +290,42 @@ void main() {
           reason: 'null endDate = 永续:次日调度仍补齐到期各期,不截断到创建日');
     });
   });
+
+  group('F38: 改周期后 next_date 按 start 锚定系列重算(不从今天重锚)', () {
+    test('monthly interval 1→3:start=2026-08-01 → 下一期=2026-11-01', () async {
+      final cash = await seedAccount('cash', 1);
+      final food = await seedAccount('food', 5);
+      final t = await ds.create(
+        name: 'rent',
+        amountCents: 300000,
+        direction: TemplateDirection.expense,
+        sourceAccountId: cash,
+        cycle: TemplateCycle.monthly,
+        billingDay: 1,
+        interval: 1,
+        startDate: '2026-08-01',
+        category: food,
+      );
+      // 创建语义:首个发生日严格晚于 start → 2026-09-01。
+      final row = await dao.getTemplateById(t.id);
+      expect(row!.nextDate, DateTime.utc(2026, 9, 1));
+
+      // 编辑:interval 1→3(规则变化)。
+      final updated = await ds.update(
+          id: t.id, version: row.version, interval: 3);
+      // 期望:start 锚定系列(8/1+3k 月,日=billing_day=1)上首个 ≥ 今天。
+      // 独立枚举锚定系列(与实现的 nextAfter 链式推进不同算法)。
+      final today = DateTime.now().toUtc();
+      var expected = DateTime.utc(2026, 12, 31);
+      for (var k = 1; k <= 48; k++) {
+        final total = 7 + 3 * k; // 8/1 起每 3 个月(8-1+3k)
+        final d = DateTime.utc(2026 + total ~/ 12, total % 12 + 1, 1);
+        if (!d.isBefore(today)) {
+          expected = d;
+          break;
+        }
+      }
+      expect(updated.nextDate, expected.toIso8601String().substring(0, 10));
+    });
+  });
 }

@@ -160,12 +160,15 @@ func (s *Service) UpdateTemplate(ctx context.Context, req UpdateTemplateRequest)
 	tmpl.AutoRecord = req.AutoRecord
 
 	if ruleChanged {
-		base := time.Now().UTC().Truncate(24 * time.Hour)
-		if tmpl.StartDate.After(base) {
-			base = tmpl.StartDate
+		after := time.Now().UTC().Truncate(24 * time.Hour)
+		if tmpl.StartDate.After(after) {
+			after = tmpl.StartDate
 		}
-		// First occurrence >= base == NextAfter(base - 1 day).
-		tmpl.NextDate = newRule.NextAfter(base.AddDate(0, 0, -1))
+		// F38: first occurrence >= after on the ANCHORED series from
+		// start_date (NextAfter(start) and onwards). Chaining from today
+		// re-anchors the series and permanently drifts interval>1 rules
+		// (rent every 3 months from Aug 1: Nov 1 became Dec 1).
+		tmpl.NextDate = recurrence.FirstOnSeriesAfter(tmpl.StartDate, newRule, after)
 	}
 
 	tmpl.IncrementVersion()

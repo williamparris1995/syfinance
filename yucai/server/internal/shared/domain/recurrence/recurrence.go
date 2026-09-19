@@ -346,3 +346,20 @@ func nthWeekdayOfMonth(year int, month time.Month, nth int, weekday time.Weekday
 func lastDayOfMonth(year int, month time.Month) int {
 	return time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day()
 }
+
+// FirstOnSeriesAfter returns the first occurrence >= after on the anchored
+// occurrence series that starts strictly after start (NextAfter(start) and
+// onwards). Rule edits must re-anchor on this series instead of chaining
+// from today: with interval > 1, chaining from today re-anchors the whole
+// series (a rent due on the 1st every 3 months starting Aug 1 would drift
+// from Nov 1 to Dec 1). Mirrors client next_after.firstOnSeriesAfter (F38).
+func FirstOnSeriesAfter(start time.Time, rule Rule, after time.Time) time.Time {
+	d := midnight(start)
+	for i := 0; i < 5000; i++ {
+		d = rule.NextAfter(d)
+		if !d.Before(midnight(after)) {
+			return d
+		}
+	}
+	return d
+}

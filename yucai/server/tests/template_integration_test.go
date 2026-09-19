@@ -258,3 +258,63 @@ func TestTemplateTenantIsolation(t *testing.T) {
 		t.Errorf("tenant B should see 0 templates, got %d", len(result.Templates))
 	}
 }
+
+// F38: editing the recurrence rule must re-anchor on the anchored series
+// from start_date (NextAfter(start) and onwards), not chain from today —
+// with interval > 1, chaining from today re-anchors the series (rent every
+// 3 months from Aug 1: Nov 1 wrongly became Dec 1). Mirrors client
+// next_after.firstOnSeriesAfter.
+func TestUpdateTemplateAnchoredSeries(t *testing.T) {
+	client := setupTemplateTestDB(t)
+	repo := tmplrepo.NewTemplateRepository(client)
+	svc := application.NewService(repo, nil)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	// Create: monthly, interval 1, billing day 1, start Aug 1 → NextDate =
+	// Sep 1 (first occurrence strictly after start).
+	resp, err := svc.CreateTemplate(ctx, application.CreateTemplateRequest{
+		TenantID:        tenantID,
+		Name:            "Rent",
+		AmountCents:     300000,
+		Direction:       domain.DirectionExpense,
+		SourceAccountID: uuid.New(),
+		Cycle:           domain.CycleMonthly,
+		BillingDay:      1,
+		Interval:        1,
+		StartDate:       time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("CreateTemplate failed: %v", err)
+	}
+	wantInitial := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	if !resp.NextDate.Equal(wantInitial) {
+		t.Fatalf("initial NextDate = %v, want %v", resp.NextDate, wantInitial)
+	}
+
+	// Edit: interval 1 → 3. The anchored series from Aug 1 (day 1) is
+	// Nov 1, Feb 1, May 1...; the first date >= today is expected.
+	updated, err := svc.UpdateTemplate(ctx, application.UpdateTemplateRequest{
+		TenantID:    tenantID,
+		ID:          resp.ID,
+		Name:        "Rent",
+		AmountCents: 300000,
+		Version:     resp.Version,
+		Cycle:       domain.CycleMonthly,
+		Interval:    3,
+		BillingDay:  1,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTemplate failed: %v", err)
+	}
+	// Date-proof expectation: first quarter-step date >= today.
+	want := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
+	for want.Before(now) {
+		want = want.AddDate(0, 3, 0)
+	}
+	if !updated.NextDate.Equal(want) {
+		t.Fatalf("NextDate after rule edit = %v, want %v (anchored series)",
+			updated.NextDate, want)
+	}
+}
