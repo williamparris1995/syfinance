@@ -90,3 +90,21 @@ int debtCompareQuery(Debt a, Debt b, DebtSortKey key, DebtSortDir dir) {
   if (primary != 0) return primary;
   return debtCompareList(a, b);
 }
+
+/// F37 到期紧迫度(未结清债的到期日分桶;已结清 = none)。
+enum DebtDueUrgency { none, within15, within7, overdue }
+
+/// [d] 的到期紧迫度,[now] 为「今天」(测试可注入)。
+/// 按日期差分桶(当日 0 点对齐,剔除时刻噪声):
+/// 已结清 → none;due < today → overdue;0..7 天 → within7;
+/// 8..15 天 → within15;>15 天 → none。
+DebtDueUrgency debtDueUrgency(Debt d, DateTime now) {
+  if (d.remainingPrincipalCents <= 0) return DebtDueUrgency.none;
+  final due = DateTime(d.dueDate.year, d.dueDate.month, d.dueDate.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final days = due.difference(today).inDays;
+  if (days < 0) return DebtDueUrgency.overdue;
+  if (days <= 7) return DebtDueUrgency.within7;
+  if (days <= 15) return DebtDueUrgency.within15;
+  return DebtDueUrgency.none;
+}
