@@ -25,7 +25,7 @@
 4. 负债账户余额不变式成立,存量 debt 关联账户余额修复;账户页总负债与负债页「待还本金」恒等。
 5. `flutter test` 全绿 + analyze 基线 + `make client-e2e` 门 + `go test ./...` 绿(proto 变更过 server 门)。
 
-## status: done(功能面;release gate 达成——F33-F36 全 done+done-criteria 1-5 达成;`sydusx-deploy` 发版步待用户触发)
+## status: done (deploy: released)——**v1.0.6+7 已发布**(2026-09-19:tag `v1.0.6` 推送→Actions release 流水线绿[run 35432382581,~7min]→Release 双资产[yucai-setup-1.0.6.exe 14.8MB+DSA 签名 appcast];稳定订阅地址已供 1.0.6,WinSparkle 自动更新链路生效)
 
 ## 验收取证(2026-09-19)
 
