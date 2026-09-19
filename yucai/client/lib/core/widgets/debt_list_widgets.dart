@@ -1515,7 +1515,7 @@ class DebtCardFootCallout extends StatelessWidget {
                               ? ' · 已逾期 ${-nextDays} 天'
                               : nextDays == 0
                                   ? ' · 今天到期'
-                                  : ' · ${nextDays}天内',
+                                  : ' · $nextDays天内',
                           style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
