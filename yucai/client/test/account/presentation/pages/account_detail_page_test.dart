@@ -214,9 +214,11 @@ void main() {
     // Task 8：传入 summary 时直接用（含 byDay 供饼图聚合）。
     when(() => accountRepo.getById(any()))
         .thenAnswer((_) async => dartz.Right(a));
-    // F35:传入 debts 时覆盖 list(typeFilter:) + 逐笔 get 的 stub
+    // F35:传入 debts 时覆盖两条 list 签名(_loadLinkedDebt 裸 list/
+    // _loadRepaymentPlans 带 typeFilter)+ 逐笔 get 的 stub
     //（schedule 缺省空表;_loadRepaymentPlans 经此管道取未还期次）。
     if (debts != null) {
+      when(() => debtRepo.list()).thenAnswer((_) async => dartz.Right(debts));
       when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => dartz.Right(debts));
       for (final d in debts) {
@@ -1842,5 +1844,38 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  group('F35 验收:loan 详情去重与 hero 语义', () {
+    Account loanAccount() => _account(
+        category: AccountCategory.loan,
+        accountType: AccountType.liability,
+        currentBalanceCents: -679520,
+        name: '融e借');
+
+    testWidgets('loan 挂债:stats 条隐藏(与债务实时信息卡重合,读静态字段恒 0)',
+        (t) async {
+      await pumpPage(t, account: loanAccount(), debts: [debtFixture()]);
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('statsRow')), findsNothing);
+    });
+
+    testWidgets('loan 挂债:hero 显「剩余应还」= 债务实时剩余本金', (t) async {
+      await pumpPage(t, account: loanAccount(), debts: [debtFixture()]);
+      await t.pumpAndSettle();
+      expect(find.text('剩余应还'), findsOneWidget);
+      expect(find.text('可用余额'), findsNothing);
+      // _fmt 无千分位:'¥ 1200000.00'。
+      expect(find.textContaining('1200000.00'), findsWidgets);
+    });
+
+    testWidgets('loan 挂债:信息卡补「已还比例」', (t) async {
+      await pumpPage(t, account: loanAccount(), debts: [debtFixture()]);
+      await t.pumpAndSettle();
+      // (2,000,000 − 1,200,000) / 2,000,000 = 40.0%(信息卡在折叠线下,滚到可见)
+      await t.scrollUntilVisible(find.text('已还比例'), 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text('40.0%'), findsOneWidget);
+    });
   });
 }

@@ -161,9 +161,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   }
 
   /// 按账户 id 收集名下全部借入债务(loan 字段聚合的数据源)。
+  /// typeFilter: borrowedIn —— 与 _loadRepaymentPlans 同语义(borrowedOut
+  /// 归应收模块,不进负债聚合)。
   Future<void> _loadLinkedDebt() async {
     try {
-      final r = await GetIt.instance<DebtRepository>().list();
+      final r = await GetIt.instance<DebtRepository>()
+          .list(typeFilter: DebtType.borrowedIn);
       r.fold((_) {}, (list) {
         final linked =
             list.where((d) => d.accountId == widget.id).toList();
@@ -450,13 +453,20 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       .isBefore(y.nextPaymentDate ?? DateTime(9999))
                   ? x
                   : y);
-          addNum('原始本金',
-              _linkedDebts.fold<int>(0, (s, d) => s + d.totalPrincipalCents));
-          addNum('剩余本金',
-              _linkedDebts.fold<int>(0, (s, d) => s + d.remainingPrincipalCents));
+          final totalPrincipal = _linkedDebts
+              .fold<int>(0, (s, d) => s + d.totalPrincipalCents);
+          final remainPrincipal = _linkedDebts
+              .fold<int>(0, (s, d) => s + d.remainingPrincipalCents);
+          addNum('原始本金', totalPrincipal);
+          addNum('剩余本金', remainPrincipal);
           addNum('剩余利息',
               _linkedDebts.fold<int>(0, (s, d) => s + d.unpaidInterestCents));
           addNum('月供', first1.nextPaymentAmountCents);
+          // F35 验收:已还比例自 stats 条挪入(原 stats 读静态字段恒 0)。
+          if (totalPrincipal > 0) {
+            add('已还比例',
+                '${((totalPrincipal - remainPrincipal) / totalPrincipal * 100).toStringAsFixed(1)}%');
+          }
           final npd1 = first1.nextPaymentDate;
           if (npd1 != null) add('下次还款', _fmtDate(npd1));
         } else {
@@ -660,8 +670,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               ),
               const SizedBox(height: AppSpacing.lg),
               // hero-bal-label「可用余额」（对齐 OD .hero-bal-label）。
+              // F35 验收:挂债贷款账户改显「剩余应还」= 债务实时剩余本金
+              // 合计 —— currentBalance 是流水残值(如 -¥6,795.20),用户无法
+              // 理解;余额本身的重算治本在 F36,此处先做展示语义纠正。
               Text(
-                '可用余额',
+                a.category == AccountCategory.loan && _linkedDebts.isNotEmpty
+                    ? '剩余应还'
+                    : '可用余额',
                 style: TextStyle(
                   fontSize: 12,
                   color: context.yucai.muted,
@@ -674,7 +689,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               HeroGradientText(
                 child: Text(
                   key: const ValueKey('heroBalance'),
-                  _fmt(a.currentBalanceCents, a.currencyCode),
+                  _fmt(
+                      a.category == AccountCategory.loan &&
+                              _linkedDebts.isNotEmpty
+                          ? _linkedDebts.fold<int>(0,
+                              (s, d) => s + d.remainingPrincipalCents)
+                          : a.currentBalanceCents,
+                      a.currencyCode),
                   style: TextStyle(
                     fontSize: isMobile ? 32 : 40,
                     fontWeight: FontWeight.w600,
@@ -964,6 +985,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// MonthlySummary；交易数取已加载列表长度。
   Widget _statsRow(
       Account a, List<Transaction> txns, MonthlySummary? summary) {
+    // F35 验收:loan 账户挂债时隐藏 stats 条——4 卡读账户静态贷款字段
+    // (loanOriginalCents 等从未回填,恒 0),且标签与上方债务实时信息卡
+    // 完全重合;已还比例已挪入信息卡债务行。
+    if (a.category == AccountCategory.loan && _linkedDebts.isNotEmpty) {
+      return const SizedBox.shrink();
+    }
     final stats = _statsFor(a: a, txns: txns, summary: summary);
     // 4 卡按位置映射 colored icon square（OD .stat-ico 24×24 r6，icon ico-sm 15px）：
     //   card1 收入 → bg #e1efe8 + income-green LucideIcons.trendingUp
