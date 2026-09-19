@@ -5,7 +5,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/core/widgets/search_field.dart';
@@ -156,21 +155,27 @@ class DebtTypeAvatar extends StatelessWidget {
 // ───────────────────────── 卡内小件 ─────────────────────────
 
 class DebtCardMetaItem extends StatelessWidget {
-  const DebtCardMetaItem({super.key, required this.icon, required this.text});
+  const DebtCardMetaItem(
+      {super.key, required this.icon, required this.text, this.color});
   final IconData icon;
   final String text;
+
+  /// F37:文字与图标着色,null = 常规 muted。
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: context.yucai.muted),
+        Icon(icon, size: 13, color: color ?? context.yucai.muted),
         const SizedBox(width: 5),
         Text(text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
                 fontSize: 12.5,
-                color: context.yucai.muted,
+                color: color ?? context.yucai.muted,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );
@@ -178,10 +183,33 @@ class DebtCardMetaItem extends StatelessWidget {
 }
 
 /// OD .rcv-meta2:label + value space-between(10.5px,label muted / value fg w600)。
+/// F37:到期日紧迫度后缀与着色(逾期/7天内=negative,15天内=warn)。
+(String, Color?) _dueUrgencyDecor(Debt debt, BuildContext context) {
+  final now = DateTime.now();
+  final due = DateTime(
+      debt.dueDate.year, debt.dueDate.month, debt.dueDate.day);
+  final days = due
+      .difference(DateTime(now.year, now.month, now.day))
+      .inDays;
+  switch (debtDueUrgency(debt, now)) {
+    case DebtDueUrgency.overdue:
+      return ('（逾期${-days}天）', context.yucai.negative);
+    case DebtDueUrgency.within7:
+      return ('（$days天内）', context.yucai.negative);
+    case DebtDueUrgency.within15:
+      return ('（$days天内）', context.yucai.warn);
+    case DebtDueUrgency.none:
+      return ('', null);
+  }
+}
+
 class DebtCardMetaKv extends StatelessWidget {
-  const DebtCardMetaKv(this.label, this.value, {super.key});
+  const DebtCardMetaKv(this.label, this.value, {super.key, this.valueColor});
   final String label;
   final String value;
+
+  /// F37:值文字着色(如到期紧迫度),null = 常规 fg。
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +222,7 @@ class DebtCardMetaKv extends StatelessWidget {
             style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: context.yucai.fg,
+                color: valueColor ?? context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );
@@ -1698,7 +1726,14 @@ class DebtListCard extends StatelessWidget {
                       DebtCardMetaKv(
                           '年利率', '${(debt.interestRate * 100).toStringAsFixed(2)}%'),
                       const SizedBox(height: 5),
-                      DebtCardMetaKv('到期日', sharedFmtDate(debt.dueDate)),
+                      () {
+                        final (suffix, color) =
+                            _dueUrgencyDecor(debt, context);
+                        return DebtCardMetaKv(
+                            '到期日',
+                            '${sharedFmtDate(debt.dueDate)}$suffix',
+                            valueColor: color);
+                      }(),
                     ],
                   ),
                 ),
@@ -1797,9 +1832,13 @@ class DebtListCard extends StatelessWidget {
               DebtCardMetaItem(
                   icon: LucideIcons.percent,
                   text: '${(debt.interestRate * 100).toStringAsFixed(2)}%'),
-              DebtCardMetaItem(
-                  icon: LucideIcons.calendar,
-                  text: '到期 ${sharedFmtDate(debt.dueDate)}'),
+              () {
+                final (suffix, color) = _dueUrgencyDecor(debt, context);
+                return DebtCardMetaItem(
+                    icon: LucideIcons.calendar,
+                    text: '到期 ${sharedFmtDate(debt.dueDate)}$suffix',
+                    color: color);
+              }(),
               DebtCardMetaItem(
                   icon: LucideIcons.lineChart,
                   text: sharedAmortLabel(debt.amortization)),
@@ -1906,9 +1945,13 @@ class DebtListCard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              DebtCardMetaItem(
-                  icon: LucideIcons.calendar,
-                  text: '到期 ${sharedFmtDate(debt.dueDate)}'),
+              () {
+                final (suffix, color) = _dueUrgencyDecor(debt, context);
+                return DebtCardMetaItem(
+                    icon: LucideIcons.calendar,
+                    text: '到期 ${sharedFmtDate(debt.dueDate)}$suffix',
+                    color: color);
+              }(),
             ],
           ),
           if (hasNext || isOverdue && !isSettled) ...[

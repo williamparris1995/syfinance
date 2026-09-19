@@ -116,4 +116,46 @@ void main() {
       expect(sorted.map((d) => d.id).toList(), ['active', 'settled']);
     });
   });
+
+  group('F37 到期紧迫度', () {
+    final today = DateTime(2026, 9, 19, 14, 30); // 带时刻,验证按日归零
+    Debt due(String id, DateTime dueDate, {int remaining = 100}) =>
+        _d(id, '债务$id', dueDate, 1000, remainingPrincipalCents: remaining);
+
+    test('已结清 → none', () {
+      expect(debtDueUrgency(due('x', DateTime(2026, 1, 1), remaining: 0), today),
+          DebtDueUrgency.none);
+    });
+    test('昨日到期 → overdue', () {
+      expect(debtDueUrgency(due('x', DateTime(2026, 9, 18)), today),
+          DebtDueUrgency.overdue);
+    });
+    test('当天/7 天内 → within7', () {
+      expect(debtDueUrgency(due('x', DateTime(2026, 9, 19)), today),
+          DebtDueUrgency.within7);
+      expect(debtDueUrgency(due('x', DateTime(2026, 9, 26)), today),
+          DebtDueUrgency.within7);
+    });
+    test('8..15 天 → within15', () {
+      expect(debtDueUrgency(due('x', DateTime(2026, 9, 27)), today),
+          DebtDueUrgency.within15);
+      expect(debtDueUrgency(due('x', DateTime(2026, 10, 4)), today),
+          DebtDueUrgency.within15);
+    });
+    test('16 天以上 → none', () {
+      expect(debtDueUrgency(due('x', DateTime(2026, 10, 5)), today),
+          DebtDueUrgency.none);
+    });
+    test('默认序:最近到期未结清置顶,已结清沉底', () {
+      final list = [
+        _d('far', '远期', DateTime(2027, 1, 1), 100),
+        _d('settled', '已结清', DateTime(2026, 1, 1), 100,
+            remainingPrincipalCents: 0),
+        _d('soon', '最近到期', DateTime(2026, 9, 25), 100),
+      ]..sort(debtCompareList);
+      expect(list.first.id, 'soon');
+      expect(list[1].id, 'far');
+      expect(list.last.id, 'settled');
+    });
+  });
 }
