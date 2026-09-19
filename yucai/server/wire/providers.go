@@ -976,16 +976,18 @@ func provideDebtScheduler(svc *debtapp.Service, tenantRepo *authrepo.TenantRepos
 }
 
 // provideBackupScheduler builds the auto-backup scheduler (P1). *backupapp.Service
-// structurally satisfies both backupscheduler.BackupCreator (CreateBackup —
-// creates one auto=true backup for a tenant) and backupscheduler.AutoBackupSource
-// (AutoBackupSettings — reads the tenant's AutoBackup flag + interval with
-// scheduler-safe defaults applied), so the same *Service is passed for both
-// ports. The *authrepo.TenantRepository structurally satisfies
+// structurally satisfies all three scheduler ports: backupscheduler.BackupCreator
+// (CreateBackup — creates one auto=true backup for a tenant),
+// backupscheduler.AutoBackupSource (AutoBackupSettings — reads the tenant's
+// AutoBackup flag + interval with scheduler-safe defaults applied), and
+// backupscheduler.BackupRetainer (EnforceAutoBackupRetention — F40 per-pass
+// trim of provider=auto backups to the newest 30), so the same *Service is
+// passed for all three. The *authrepo.TenantRepository structurally satisfies
 // backupscheduler.TenantLister (FindAllIDs), reusing the same port the goal/
 // debt schedulers consume. tick is 1h in prod (the per-tenant AutoBackupInterval
 // Hours gate is enforced inside doSync, not via a global IntervalSource).
 func provideBackupScheduler(svc *backupapp.Service, tenantRepo *authrepo.TenantRepository, freeze *backupapp.RestoreFreeze) *backupscheduler.Scheduler {
-	return backupscheduler.NewScheduler(svc, tenantRepo, svc, 1*time.Hour, nil, freeze)
+	return backupscheduler.NewScheduler(svc, tenantRepo, svc, svc, 1*time.Hour, nil, freeze)
 }
 
 // Networth providers

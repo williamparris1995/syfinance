@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -152,6 +153,23 @@ func (r *fakeRepo) FindAll(_ context.Context, _ uuid.UUID, _ *domain.BackupProvi
 		items = append(items, *b)
 	}
 	return &domain.PaginatedResult[domain.Backup]{Items: items}, nil
+}
+
+// FindByAuto mirrors the real repo contract: only rows matching the auto
+// flag, ordered by CreatedAt ascending (oldest first).
+func (r *fakeRepo) FindByAuto(_ context.Context, tenantID uuid.UUID, auto bool) ([]domain.Backup, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	items := make([]domain.Backup, 0, len(r.store))
+	for _, b := range r.store {
+		if b.TenantID == tenantID && b.Auto == auto {
+			items = append(items, *b)
+		}
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt.Before(items[j].CreatedAt)
+	})
+	return items, nil
 }
 func (r *fakeRepo) Update(_ context.Context, b *domain.Backup) error {
 	r.mu.Lock()

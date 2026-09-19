@@ -87,6 +87,43 @@ func (m *mockAutoBackupSource) AutoBackupSettings(_ context.Context, tenantID uu
 	return cfg.autoBackup, cfg.intervalHours, cfg.readErr
 }
 
+// mockBackupRetainer captures EnforceAutoBackupRetention invocations so the
+// tests can assert the pass fans the retention trim out per tenant (and skips
+// frozen tenants / tolerates per-tenant errors like every other step).
+type mockBackupRetainer struct {
+	mu      sync.Mutex
+	calls   []uuid.UUID
+	errOn   map[uuid.UUID]error // optional: per-tenant error simulation
+	deleted int                 // value returned per successful call
+}
+
+func (m *mockBackupRetainer) EnforceAutoBackupRetention(_ context.Context, tenantID uuid.UUID) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls = append(m.calls, tenantID)
+	if e, ok := m.errOn[tenantID]; ok {
+		return 0, e
+	}
+	return m.deleted, nil
+}
+
+func (m *mockBackupRetainer) tenantCalled(tid uuid.UUID) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, c := range m.calls {
+		if c == tid {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *mockBackupRetainer) callCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.calls)
+}
+
 // --- Tests ---
 
 // TestSyncNowAutoBackupElapsedCreatesBackup: AutoBackup=true && interval
@@ -99,7 +136,7 @@ func TestSyncNowAutoBackupElapsedCreatesBackup(t *testing.T) {
 	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
 		tid: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -132,7 +169,7 @@ func TestSyncNowAutoBackupDisabledSkips(t *testing.T) {
 	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
 		tid: {autoBackup: false, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -156,7 +193,7 @@ func TestSyncNowIntervalNotElapsedSkips(t *testing.T) {
 	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
 		tid: {autoBackup: true, intervalHours: 24},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, time.Hour, nil, nil)
 
 	// Simulate a backup that just ran: preset last[tid] to now.
 	s.mu.Lock()
@@ -187,7 +224,7 @@ func TestSyncNowFansOutPerTenantIndependently(t *testing.T) {
 		t1: {autoBackup: true, intervalHours: 1},
 		t2: {autoBackup: false, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -221,7 +258,7 @@ func TestSyncNowAutoBackupSourceErrContinues(t *testing.T) {
 		t1: {autoBackup: true, intervalHours: 1, readErr: errors.New("settings repo unavailable")},
 		t2: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -256,7 +293,7 @@ func TestSyncNowCreateBackupErrContinues(t *testing.T) {
 		t1: {autoBackup: true, intervalHours: 1},
 		t2: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, time.Hour, nil, nil)
 
 	count, err := s.SyncNow(context.Background())
 	if err != nil {
@@ -279,7 +316,7 @@ func TestSyncNowCtxCancelledShortCircuits(t *testing.T) {
 	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
 		tid: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, time.Hour, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -308,7 +345,7 @@ func TestStartRunsOnceImmediately(t *testing.T) {
 		t1: {autoBackup: true, intervalHours: 1},
 		t2: {autoBackup: true, intervalHours: 1},
 	}}
-	s := NewScheduler(creator, lister, src, time.Hour, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, time.Hour, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -330,7 +367,7 @@ func TestCtxCancelStopsGoroutine(t *testing.T) {
 		tid: {autoBackup: true, intervalHours: 0},
 	}}
 	// Short tick so multiple passes fire before cancel.
-	s := NewScheduler(creator, lister, src, 5*time.Millisecond, nil, nil)
+	s := NewScheduler(creator, lister, src, nil, 5*time.Millisecond, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -354,6 +391,99 @@ func TestCtxCancelStopsGoroutine(t *testing.T) {
 	time.Sleep(30 * time.Millisecond)
 	if got := creator.callCount(); got > beforeCancel+1 {
 		t.Fatalf("goroutine backed up after cancel; before=%d after=%d", beforeCancel, got)
+	}
+}
+
+// --- F40 retention trim wiring ---
+
+// TestSyncNowRetentionRunsPerTenant: the pass invokes the retainer once per
+// non-frozen tenant — including a tenant whose auto-backup is OFF (turning
+// auto off must not strand >30 stale auto backups; the trim is per tenant,
+// not gated on the creation path).
+func TestSyncNowRetentionRunsPerTenant(t *testing.T) {
+	t1 := uuid.New()
+	t2 := uuid.New()
+	lister := &mockTenantLister{ids: []uuid.UUID{t1, t2}}
+	creator := &mockBackupCreator{}
+	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
+		t1: {autoBackup: true, intervalHours: 1},
+		t2: {autoBackup: false, intervalHours: 1},
+	}}
+	retainer := &mockBackupRetainer{}
+	s := NewScheduler(creator, lister, src, retainer, time.Hour, nil, nil)
+
+	if _, err := s.SyncNow(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := retainer.callCount(); got != 2 {
+		t.Fatalf("EnforceAutoBackupRetention calls = %d, want 2 (one per tenant)", got)
+	}
+	for _, tid := range []uuid.UUID{t1, t2} {
+		if !retainer.tenantCalled(tid) {
+			t.Fatalf("retention not invoked for tenant %s", tid)
+		}
+	}
+}
+
+// TestSyncNowRetentionSkipsFrozenTenant: a tenant holding a restore freeze
+// (D12) is skipped wholesale — no creation AND no retention trim while the
+// freeze is held.
+func TestSyncNowRetentionSkipsFrozenTenant(t *testing.T) {
+	t1 := uuid.New()
+	t2 := uuid.New()
+	lister := &mockTenantLister{ids: []uuid.UUID{t1, t2}}
+	creator := &mockBackupCreator{}
+	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
+		t1: {autoBackup: true, intervalHours: 1},
+		t2: {autoBackup: true, intervalHours: 1},
+	}}
+	retainer := &mockBackupRetainer{}
+	freeze := backupapp.NewRestoreFreeze()
+	release := freeze.Acquire(t1)
+	defer release()
+	s := NewScheduler(creator, lister, src, retainer, time.Hour, nil, freeze)
+
+	if _, err := s.SyncNow(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if retainer.tenantCalled(t1) {
+		t.Fatal("retention ran for frozen tenant t1; must skip while restore freeze is held")
+	}
+	if !retainer.tenantCalled(t2) {
+		t.Fatal("retention not invoked for unfrozen tenant t2")
+	}
+	for _, c := range creator.snapshot() {
+		if c.tenantID == t1 {
+			t.Fatal("CreateBackup ran for frozen tenant t1; must skip while restore freeze is held")
+		}
+	}
+}
+
+// TestSyncNowRetentionErrContinues: a per-tenant retention error is logged +
+// skipped (same contract as creation/settings errors) — t2's trim still runs
+// and the error does not propagate out of SyncNow.
+func TestSyncNowRetentionErrContinues(t *testing.T) {
+	t1 := uuid.New()
+	t2 := uuid.New()
+	lister := &mockTenantLister{ids: []uuid.UUID{t1, t2}}
+	creator := &mockBackupCreator{}
+	src := &mockAutoBackupSource{perTenant: map[uuid.UUID]tenantSettings{
+		t1: {autoBackup: true, intervalHours: 1},
+		t2: {autoBackup: true, intervalHours: 1},
+	}}
+	retainer := &mockBackupRetainer{errOn: map[uuid.UUID]error{
+		t1: errors.New("retention injected failure"),
+	}}
+	s := NewScheduler(creator, lister, src, retainer, time.Hour, nil, nil)
+
+	if _, err := s.SyncNow(context.Background()); err != nil {
+		t.Fatalf("per-tenant retention error must not propagate; got %v", err)
+	}
+	if !retainer.tenantCalled(t2) {
+		t.Fatal("retention not invoked for healthy tenant t2 after t1's error")
+	}
+	if got := creator.callCount(); got != 2 {
+		t.Fatalf("CreateBackup calls = %d, want 2 (retention error must not disturb creation)", got)
 	}
 }
 
