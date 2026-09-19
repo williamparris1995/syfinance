@@ -8,6 +8,6 @@
 
 ## Feature roster
 
-- [ ] **feature F37** due-urgency — 到期紧迫度着色(≤7 红/≤15 黄/逾期红)+默认序显性验证(债务+债权两页同待遇,共享卡片组件一次实现) — claimed: zcode-r14 2026-09-19(worktree .claude/worktrees/r14-f37)
+- [x] **feature F37** due-urgency — 到期紧迫度着色(≤7 红/≤15 黄/逾期红)+默认序显性验证(债务+债权两页同待遇,共享卡片组件一次实现) ✅ done(2026-09-19,合并 `333e450c`;domain 分桶纯函数+MetaKv/MetaItem 色参+三渲染点;13 新测;1884 全绿+analyze 437<438+e2e 14/14) — worktree 已清,分支已删
 
-## status: pending
+## status: done(F37 done,随 v1.0.7+ 发布)
