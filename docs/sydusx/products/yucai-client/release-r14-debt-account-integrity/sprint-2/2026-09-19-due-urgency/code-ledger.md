@@ -22,3 +22,11 @@
 - 修复:firstOnSeriesAfter(start, rule, after)(从 start 走锚定系列,首个 ≥ max(start,今天)),client next_after.dart/template_local_ds + server recurrence/template service 镜像同修;F38 测试 RED(12/1)→GREEN(11/1)。
 - 用户数据校正:本地模板 next_date 12-01→11-01(直接 UPDATE,前后取证;与代码修复后的重算值一致)。
 - 门:1888 全绿+go 全绿+vet 净。
+
+## F38 附加修复 — 日期字段时区归一化 ✅(2026-09-19)
+
+- 用户报告:编辑/复制时日期有 8 小时偏移(UTC+8 环境)。
+- 诊断:日期字段三条链路混用 —— 选择器产「本地零点」、drift 文本存「UTC 零点(Z)」或「本地零点(无 Z)」、显示取 civil 日 —— 均不显示时刻,但入库/出库转换时同一 civil 日会横跨 8 小时。
+- 修复(约定统一):日期字段选择器统一产出 **UTC 零点**(civil 日期不变,epoch 全链一致):DatePickerInput(账户表单,复制/编辑共用)/债务表单 _ODDateField/债务详情单期改日/债权表单/模板表单 _pickDate 五处;既有 server 同步值本就是 UTC 零点 ✓。
+- 测试:date_picker_input_test 2 条(UTC 零点 epoch 判别/civil 显示)。
+- 门:1890 全绿+analyze 基线持平(改动文件零新增)+e2e 14/14。
