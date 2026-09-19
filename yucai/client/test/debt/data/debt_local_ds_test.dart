@@ -418,4 +418,302 @@ void main() {
       expect(kept.subtype, 'credit_card');
     });
   });
+
+  // ───────── F36-T1 负债记账不变式(北极星,TDD) ─────────
+  //
+  // 不变式:任意操作序列后,负债账户 currentBalanceCents ==
+  // −Σ(该户名下 borrowedIn 债 remaining)(显示口径:欠款为负)。
+  // 本系统存储口径为「负债贷正」(BalanceLocalUpdater 镜像 server
+  // ApplyEntryDelta:liability → credit − debit),故真实余额断言取
+  // 贷正号:balance == Σ remaining,remaining =
+  // totalPrincipalCents − Σ(entry.paidCents)(与 _toEntity 同式)。
+  // 助手经真实记账管道(BalanceLocalUpdater)后读 accounts 表断言。
+
+  Future<int> paidSumOf(String debtId) async {
+    final schedule = await database.debtDao.getScheduleByDebt(debtId);
+    return schedule.fold<int>(0, (a, e) => a + e.paidCents);
+  }
+
+  Future<void> expectLiabilityInvariant() async {
+    final rows = await database.debtDao.watchAllDebts().first;
+    final remainingByAccount = <String, int>{};
+    for (final r in rows) {
+      if (r.debtType != DebtType.borrowedIn.index + 1) continue;
+      final remaining = r.totalPrincipalCents - await paidSumOf(r.id);
+      remainingByAccount.update(r.accountId, (v) => v + remaining,
+          ifAbsent: () => remaining);
+    }
+    for (final e in remainingByAccount.entries) {
+      final acc = await database.accountDao.getAccountById(e.key);
+      expect(acc, isNotNull, reason: 'liability account ${e.key} missing');
+      // 贷正存储口径:欠款 = +Σremaining(显示口径 −Σremaining 的镜像)。
+      expect(acc!.currentBalanceCents, e.value,
+          reason: 'INVARIANT VIOLATED [account=${acc.name} id=${acc.id}] '
+              'balance=${acc.currentBalanceCents} '
+              'expected=+Σremaining=${e.value} '
+              '(display convention: -${e.value})');
+    }
+  }
+
+  /// 系统权益户「历史还款结转」(type=3 equity,幂等兜底户)。
+  Future<db.Account> settlementAccount() async {
+    final all = await database.select(database.accounts).get();
+    return all
+        .firstWhere((a) => a.name == '历史还款结转' && a.accountType == 3);
+  }
+
+  Future<List<db.TransactionEntry>> legsOf(String txnId) =>
+      (database.select(database.transactionEntries)
+            ..where((t) => t.transactionId.equals(txnId)))
+          .get();
+
+  group('F36-T1 负债分录缺口(不变式 TDD)', () {
+    test('序列①:无到账创建 → 借权益/贷负债入账,不变式成立', () async {
+      final loanBefore =
+          (await database.accountDao.getAccountById('acc-loan'))!;
+      // 权益户相对值(setUp 的无到账种子已先产生结转余额)。
+      final settlementEarly = await settlementAccount();
+      final equityBefore =
+          (await database.accountDao.getAccountById(settlementEarly.id))!;
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '无到账贷',
+        interestRate: 0,
+        amortizationIndex: 2,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2027, 1, 1),
+        totalPrincipalCents: 250000,
+        type: DebtType.borrowedIn,
+        // sourceAccountId 缺省 = 缺口场景(ADR-4:债「从历史而来」)。
+      );
+      expect(d.id, isNotEmpty);
+
+      // 北极星不变式(先断言 → RED 时输出余额 vs −Σremaining)。
+      await expectLiabilityInvariant();
+
+      // 权益结转分录存在:借 权益 +P / 贷 债务户 +P。
+      final settlement = await settlementAccount();
+      final txns = await database.select(database.transactions).get();
+      final post = txns
+          .firstWhere((t) => t.description == '借入 无到账贷(无到账)');
+      final legs = await legsOf(post.id);
+      expect(
+          legs.any((e) =>
+              e.accountId == settlement.id && e.debitCents == 250000),
+          isTrue,
+          reason: 'equity leg missing: debit settlement +P');
+      expect(
+          legs.any(
+              (e) => e.accountId == 'acc-loan' && e.creditCents == 250000),
+          isTrue,
+          reason: 'liability leg missing: credit debt +P');
+
+      // 余额联动(贷正存储口径):债务户 +P,权益户 −P(相对值)。
+      final loanAfter =
+          (await database.accountDao.getAccountById('acc-loan'))!;
+      expect(loanAfter.currentBalanceCents,
+          loanBefore.currentBalanceCents + 250000);
+      final equity =
+          await database.accountDao.getAccountById(settlement.id);
+      expect(equity!.currentBalanceCents,
+          equityBefore.currentBalanceCents - 250000);
+    });
+
+    test('序列②:创建(有到账)→ 还一期 → 改总额 ±Δ 调整分录,不变式成立',
+        () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '改额贷',
+        interestRate: 0,
+        amortizationIndex: 1, // equalPrincipal 6 期
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 7, 1),
+        totalPrincipalCents: 1000000,
+        type: DebtType.borrowedIn,
+        sourceAccountId: 'acc-cash', // 有到账 → 借 到账/贷 负债(既有行为)
+      );
+      final detail = await debts.get(d.id);
+      await debts.recordPayment(
+        debtId: d.id,
+        scheduleEntryId: detail.schedule.first.id,
+        fromAccountId: 'acc-cash',
+      );
+
+      // 改总额 Δ=+5,000,000 → 同事务调整分录:贷 负债 Δ / 借 权益 Δ。
+      final grown = await debts.update(
+        id: d.id,
+        counterparty: '改额贷',
+        interestRate: 0,
+        version: d.version,
+        totalPrincipalCents: 6000000,
+      );
+      expect(grown.totalPrincipalCents, 6000000);
+      final settlement = await settlementAccount();
+      var txns = await database.select(database.transactions).get();
+      final growPosts =
+          txns.where((t) => t.description == '调整本金 改额贷').toList();
+      expect(growPosts, hasLength(1));
+      final growLegs = await legsOf(growPosts.single.id);
+      expect(
+          growLegs.any(
+              (e) => e.accountId == 'acc-loan' && e.creditCents == 5000000),
+          isTrue,
+          reason: 'Δ>0 must credit debt account');
+      expect(
+          growLegs.any((e) =>
+              e.accountId == settlement.id && e.debitCents == 5000000),
+          isTrue,
+          reason: 'Δ>0 must debit settlement equity');
+      await expectLiabilityInvariant();
+
+      // 改总额 Δ=−2,000,000 → 反向调整分录:借 负债 |Δ| / 贷 权益 |Δ|。
+      final shrunk = await debts.update(
+        id: d.id,
+        counterparty: '改额贷',
+        interestRate: 0,
+        version: grown.version,
+        totalPrincipalCents: 4000000,
+      );
+      expect(shrunk.totalPrincipalCents, 4000000);
+      txns = await database.select(database.transactions).get();
+      final shrinkPosts =
+          txns.where((t) => t.description == '调整本金 改额贷').toList();
+      expect(shrinkPosts, hasLength(2));
+      final shrinkLegs = await legsOf(shrinkPosts[1].id);
+      expect(
+          shrinkLegs.any(
+              (e) => e.accountId == 'acc-loan' && e.debitCents == 2000000),
+          isTrue,
+          reason: 'Δ<0 must debit debt account');
+      expect(
+          shrinkLegs.any((e) =>
+              e.accountId == settlement.id && e.creditCents == 2000000),
+          isTrue,
+          reason: 'Δ<0 must credit settlement equity');
+      await expectLiabilityInvariant();
+    });
+
+    test('序列③:部分还款后删除 → 清账分录,历史现金流不动,不变式成立',
+        () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '删债贷',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 7, 1),
+        totalPrincipalCents: 600000,
+        type: DebtType.borrowedIn,
+      );
+      final detail = await debts.get(d.id);
+      final payTxnId = (await debts.recordPayment(
+        debtId: d.id,
+        scheduleEntryId: detail.schedule.first.id,
+        fromAccountId: 'acc-cash',
+      ))
+          .transactionId;
+
+      await debts.delete(d.id);
+      expect(await database.debtDao.getDebtById(d.id), isNull);
+
+      // 北极星不变式(删除后其余债不受影响)。
+      await expectLiabilityInvariant();
+
+      // 清账分录:借 债务户 剩余(600,000−100,000)/ 贷 权益。
+      final settlement = await settlementAccount();
+      final txns = await database.select(database.transactions).get();
+      final clear =
+          txns.firstWhere((t) => t.description == '删除清账 删债贷');
+      final legs = await legsOf(clear.id);
+      expect(
+          legs.any(
+              (e) => e.accountId == 'acc-loan' && e.debitCents == 500000),
+          isTrue,
+          reason: 'clearing debit leg missing: debit debt remaining');
+      expect(
+          legs.any((e) =>
+              e.accountId == settlement.id && e.creditCents == 500000),
+          isTrue,
+          reason: 'clearing credit leg missing: credit settlement');
+
+      // 历史现金流分录不冲回(还款交易仍在)。
+      expect(txns.any((t) => t.id == payTxnId), isTrue,
+          reason: 'historical cashflow entries must survive delete');
+    });
+
+    test('剩余为 0 删除 → 无清账分录', () async {
+      // setUp 里 Settled Bank 已全额还清(rate 0 → remaining = 0)。
+      final settled = (await debts.list(searchText: 'Settled Bank')).single;
+      final before = await database.select(database.transactions).get();
+      await debts.delete(settled.id);
+      final after = await database.select(database.transactions).get();
+      expect(after.length, before.length,
+          reason: 'fully-paid delete must not post a clearing entry');
+    });
+
+    test('borrowedOut 删除维持现状(无清账分录,应收余额不动)', () async {
+      final out = await debts.create(
+        accountId: 'acc-recv',
+        counterparty: '删债权',
+        interestRate: 0,
+        amortizationIndex: 2,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2027, 1, 1),
+        totalPrincipalCents: 300000,
+        type: DebtType.borrowedOut,
+        sourceAccountId: 'acc-cash',
+      );
+      final recvBefore =
+          (await database.accountDao.getAccountById('acc-recv'))!;
+
+      await debts.delete(out.id);
+
+      final recvAfter =
+          (await database.accountDao.getAccountById('acc-recv'))!;
+      expect(recvAfter.currentBalanceCents, recvBefore.currentBalanceCents);
+      final txns = await database.select(database.transactions).get();
+      expect(txns.where((t) => t.description == '删除清账 删债权'), isEmpty);
+    });
+
+    test('含息全额还清后删除(remaining<0)→ 反向清账,不变式成立', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '含息贷',
+        interestRate: 0.12,
+        amortizationIndex: 2, // lumpSum 单期
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2027, 1, 1),
+        totalPrincipalCents: 200000,
+        type: DebtType.borrowedIn,
+      );
+      final entry = (await database.debtDao.getScheduleByDebt(d.id)).single;
+      expect(entry.totalCents, 224000); // 本金 200,000 + 利息 24,000
+      await debts.recordPayment(
+          debtId: d.id, scheduleEntryId: entry.id, fromAccountId: 'acc-cash');
+
+      // 删除前不变式已成立(含息超还 → 账户贷差 = 利息)。
+      await expectLiabilityInvariant();
+
+      await debts.delete(d.id);
+      expect(await database.debtDao.getDebtById(d.id), isNull);
+
+      // 反向清账:贷 债务户 |remaining|=24,000 / 借 权益 24,000。
+      final settlement = await settlementAccount();
+      final txns = await database.select(database.transactions).get();
+      final clear =
+          txns.firstWhere((t) => t.description == '删除清账 含息贷');
+      final legs = await legsOf(clear.id);
+      expect(
+          legs.any(
+              (e) => e.accountId == 'acc-loan' && e.creditCents == 24000),
+          isTrue,
+          reason: 'negative-remaining must credit the debt account');
+      expect(
+          legs.any((e) =>
+              e.accountId == settlement.id && e.debitCents == 24000),
+          isTrue,
+          reason: 'negative-remaining must debit settlement');
+      await expectLiabilityInvariant();
+    });
+  });
 }

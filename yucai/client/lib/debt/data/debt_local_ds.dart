@@ -187,17 +187,30 @@ class DebtLocalDataSource {
       // 现状借入创建不入账 → 净资产误降,经济学上缺现金侧 —— 本地先对齐
       // 用户语义,server 侧跟随为后续 ticket):
       //   debit 到账账户(资产 +本金)/ credit 关联债务账户(负债 +本金)。
-      if (type == DebtType.borrowedIn && (sourceAccountId ?? '').isNotEmpty) {
-        final dst = await _database.accountDao.getAccountById(sourceAccountId!);
-        if (dst == null) throw const ServerFailure('到账账户不存在');
+      // F36 FR-2/ADR-4:无到账账户(API 边角)不再零分录 —— 债「从历史
+      // 而来」语义,debit 权益户「历史还款结转」+P / credit 债务户 +P,
+      // 使负债余额自创建起即满足北极星不变式(== −剩余)。
+      if (type == DebtType.borrowedIn) {
+        final hasSource = (sourceAccountId ?? '').isNotEmpty;
+        String debitAccountId;
+        if (hasSource) {
+          final dst = await _database.accountDao.getAccountById(sourceAccountId!);
+          if (dst == null) throw const ServerFailure('到账账户不存在');
+          debitAccountId = sourceAccountId;
+        } else {
+          debitAccountId =
+              await _ensureSettlementAccount(markPending: markPending);
+        }
         await _txns.recordTransaction(
             RecordTransactionParams(
           transactionDate:
               DateTime.utc(startDate.year, startDate.month, startDate.day),
-          description: '借入 $counterparty 到账',
+          description: hasSource
+              ? '借入 $counterparty 到账'
+              : '借入 $counterparty(无到账)',
           entries: [
             TransactionEntry(
-                accountId: sourceAccountId,
+                accountId: debitAccountId,
                 debitCents: totalPrincipalCents,
                 creditCents: 0),
             TransactionEntry(
@@ -259,6 +272,9 @@ class DebtLocalDataSource {
     int? monthlyMode,
     int? nth,
     int? interestWaivedCents,
+    // F36 FR-2/ADR-5:改总额(null = 不修改,既有调用方零变化)。变化
+    // Δ≠0 → 同事务调整分录(仅 borrowedIn;borrowedOut 维持现状)。
+    int? totalPrincipalCents,
     bool markPending = false,
   }) async {
     final row = await _require(id);
@@ -294,6 +310,10 @@ class DebtLocalDataSource {
         newWaiver != row.interestWaivedCents;
 
     var effectiveDue = newDue;
+    // F36 FR-2:capture 旧 totalPrincipalCents(row 于 update 前);Δ = 新−旧。
+    final oldTotal = row.totalPrincipalCents;
+    final newTotal = totalPrincipalCents ?? oldTotal;
+    final deltaP = newTotal - oldTotal;
     await _database.transaction(() async {
       if (scheduleChanged) {
         // 一次性读(勿用 watch().first:流式查询在事务占用的单连接上会死锁)。
@@ -355,6 +375,10 @@ class DebtLocalDataSource {
         nth: Value(newNth),
         interestWaivedCents: Value(newWaiver),
         dueDate: Value(effectiveDue),
+        // F36 FR-2:仅变化时触碰该列(不变则 Value.absent,与现状逐位一致)。
+        totalPrincipalCents: deltaP != 0
+            ? Value(newTotal)
+            : const Value<int>.absent(),
         // F33-T4:空串 = 不修改(Value.absent 不触碰该列)。
         subtype: subtype.isEmpty ? const Value<String>.absent() : Value(subtype),
         contact: Value(contact),
@@ -368,6 +392,30 @@ class DebtLocalDataSource {
             ? const Value(SyncState.pending)
             : const Value.absent(),
       ));
+      // F36 FR-2/ADR-5:改总额同事务调整分录(与 schedule 重生成同
+      // _database.transaction,失败整体回滚)。仅 borrowedIn 入账,
+      // borrowedOut 更新维持现状。ΔP>0 → 贷 负债 ΔP / 借 权益;
+      // ΔP<0 → 借 负债 |ΔP| / 贷 权益。
+      if (deltaP != 0 && row.debtType == DebtType.borrowedIn.index + 1) {
+        final settlement =
+            await _ensureSettlementAccount(markPending: markPending);
+        final isGrowth = deltaP > 0;
+        await _txns.recordTransaction(
+            RecordTransactionParams(
+          transactionDate: DateTime.now().toUtc(),
+          description: '调整本金 $counterparty',
+          entries: [
+            TransactionEntry(
+                accountId: isGrowth ? settlement : row.accountId,
+                debitCents: deltaP.abs(),
+                creditCents: 0),
+            TransactionEntry(
+                accountId: isGrowth ? row.accountId : settlement,
+                debitCents: 0,
+                creditCents: deltaP.abs()),
+          ],
+        ), markPending: markPending);
+      }
     });
     return _toEntity(await _require(id));
   }
@@ -499,9 +547,41 @@ class DebtLocalDataSource {
 
   /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4);guest 删除不写
   /// 墓碑(绑定走全量首传)。
+  ///
+  /// F36 FR-2/ADR-1(终止清账):borrowedIn 删除时剩余
+  /// remaining = totalPrincipalCents − Σ(entry.paidCents)(与 _toEntity
+  /// 同式)≠ 0 → 清账分录,使负债账户余额归零贡献、北极星不变式在删除后
+  /// 仍成立;历史现金流分录不冲回。remaining>0 → 借 债务户 remaining /
+  /// 贷 权益;remaining<0(含息超还)→ 反向。borrowedOut 维持现状。
   Future<void> delete(String id, {bool writeTombstone = false}) async {
-    if (await _dao.getDebtById(id) == null) throw const ServerFailure('债务不存在');
+    final row = await _dao.getDebtById(id);
+    if (row == null) throw const ServerFailure('债务不存在');
     await _database.transaction(() async {
+      if (row.debtType == DebtType.borrowedIn.index + 1) {
+        final schedule = await _dao.getScheduleByDebt(id);
+        final paid = schedule.fold(0, (a, e) => a + e.paidCents);
+        final remaining = row.totalPrincipalCents - paid;
+        if (remaining != 0) {
+          final settlement = await _ensureSettlementAccount();
+          final isLiabilityLeft = remaining > 0;
+          await _txns.recordTransaction(RecordTransactionParams(
+            transactionDate: DateTime.now().toUtc(),
+            description: '删除清账 ${row.counterparty}',
+            entries: [
+              TransactionEntry(
+                  accountId:
+                      isLiabilityLeft ? row.accountId : settlement,
+                  debitCents: remaining.abs(),
+                  creditCents: 0),
+              TransactionEntry(
+                  accountId:
+                      isLiabilityLeft ? settlement : row.accountId,
+                  debitCents: 0,
+                  creditCents: remaining.abs()),
+            ],
+          ));
+        }
+      }
       await _dao.deleteDebtById(id); // schedule cascades
       if (writeTombstone) {
         await _database.syncTombstoneDao.upsertTombstone(

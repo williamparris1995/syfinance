@@ -25,9 +25,34 @@ void main() {
   late DebtLocalDataSource local;
   late DebtRepositoryImpl repo;
 
-  setUp(() {
+  setUp(() async {
     remote = _MockRemote();
     database = AppDatabase(NativeDatabase.memory());
+    // F36 T1:create(无到账)不再跳过双写 —— 必入账(借 权益结转/贷 债务户),
+    // 债务账户须真实存在,否则 BalanceLocalUpdater 设计内回滚。补种 acc-debt。
+    await database.accountDao.insertAccount(AccountsCompanion.insert(
+      id: 'acc-debt',
+      name: 'loan',
+      accountType: 2, // liability
+      category: 9, // otherLiability
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: 1,
+      icon: '',
+      color: '',
+      chartCode: '',
+      isSystem: false,
+      sortOrder: 0,
+      institution: '',
+      cardNumberTail: '',
+      notes: '',
+      goldProductType: '',
+      status: 1,
+      version: 1,
+      createdAt: DateTime.now().toUtc(),
+      updatedAt: DateTime.now().toUtc(),
+    ));
     local = DebtLocalDataSource(
         database, TransactionLocalDataSource(database, BalanceLocalUpdater(database)));
     tracker = SessionModeTracker();
@@ -38,7 +63,7 @@ void main() {
 
   tearDown(() => database.close());
 
-  // 无 sourceAccountId:跳过到账双写,空库即可建债务。
+  // 无 sourceAccountId:F36 起入权益结转分录(setUp 已种 acc-debt 供入账)。
   Future<void> createOne() async {
     final result = await repo.create(
       accountId: 'acc-debt',
