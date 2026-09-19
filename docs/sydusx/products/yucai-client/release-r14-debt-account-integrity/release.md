@@ -15,7 +15,7 @@
 
 ## Sprint roster
 
-- [ ] [sprint-1](sprint-1/sprint.md) — F33/F34/F35/F36 四件(status: pending)
+- [x] [sprint-1](sprint-1/sprint.md) — F33/F34/F35/F36 四件 ✅(2026-09-19 收官:F33 `fd3be313`/F34 `c45127bb`/F35 `e9b6d94a`/F36 `d81a3539`;验收热修 F33 ×2)
 
 ## Done criteria
 
@@ -25,4 +25,9 @@
 4. 负债账户余额不变式成立,存量 debt 关联账户余额修复;账户页总负债与负债页「待还本金」恒等。
 5. `flutter test` 全绿 + analyze 基线 + `make client-e2e` 门 + `go test ./...` 绿(proto 变更过 server 门)。
 
-## status: pending
+## status: done(功能面;release gate 达成——F33-F36 全 done+done-criteria 1-5 达成;`sydusx-deploy` 发版步待用户触发)
+
+## 验收取证(2026-09-19)
+
+- F36 真库修复:dev 库 5 贷款账户启动管道修复后 balance==+Σ剩余(取证见 progress)。
+- 原始对账问题闭环:账户页贷款分组=负债页对应分类(用户改分类后口径一致,¥5,753.26 差异归零)。
