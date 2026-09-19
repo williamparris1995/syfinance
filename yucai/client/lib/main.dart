@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,7 @@ import 'package:yucai_client/core/demo/demo_seed.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/notifications_bootstrap.dart';
 import 'package:yucai_client/core/notifications/window_state.dart';
+import 'package:yucai_client/settings/data/local_snapshot_service.dart';
 
 /// 全局错误落盘(用户验收辅助):release 无控制台,报错写
 /// AppData/com.yucai/yucai_client/error.log(单文件追加,cap 64KB 截断)。
@@ -88,6 +90,11 @@ Future<void> main() async {
   }
   // 托盘常驻 + 到期提醒 + 自启(仅 Windows;R7-B)。
   await bootstrapNotifications(getIt<AppDatabase>());
+  // F39 guest 本地快照:每日一次自动快照(app_meta 标记门控,服务内部
+  // try/catch 静默,照 repairs 惯例)。置于 bootstrap 之后 runApp 之前:
+  // configureDependencies 已完成、演示种子等 await 副作用已落库,不与之
+  // 竞争;unawaited fire-and-forget,不阻塞首屏。
+  unawaited(getIt<LocalSnapshotService>().runDailyIfDue());
   // F30 挂窗口几何保存监听(组合根接线;挂 main 而非 bootstrapNotifications
   // —— 后者仅 Windows 生效,而 main 的 windowManager 用法是无平台门的):
   // move/resize/maximize/unmaximize → 防抖 500ms 落盘 secure_storage。

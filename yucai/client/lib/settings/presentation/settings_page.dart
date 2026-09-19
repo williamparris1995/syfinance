@@ -29,6 +29,7 @@ import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/settings/data/data_reset_controller.dart';
+import 'package:yucai_client/settings/data/local_snapshot_service.dart';
 
 /// 设置页 —— 偏好货币 + 本位币 + 汇率同步频率。
 ///
@@ -52,6 +53,7 @@ class SettingsPage extends StatelessWidget {
     TraySettings? traySettings,
     BoundMarker? boundMarker,
     DataResetController? resetController,
+    LocalSnapshotService? snapshotService,
   })  : _authRemote = authRemote,
         _currencySettings = currencySettings,
         _themeSettings = themeSettings,
@@ -59,7 +61,9 @@ class SettingsPage extends StatelessWidget {
         // 与上方三行同款形态:命名参数无法用 this._x 初始化私有字段。
         _boundMarker = boundMarker, // ignore: prefer_initializing_formals
         _resetController = // ignore: prefer_initializing_formals
-            resetController;
+            resetController,
+        _snapshotService = // ignore: prefer_initializing_formals
+            snapshotService;
 
   final AuthRemoteDataSource? _authRemote;
   final CurrencySettings? _currencySettings;
@@ -67,6 +71,7 @@ class SettingsPage extends StatelessWidget {
   final TraySettings? _traySettings;
   final BoundMarker? _boundMarker;
   final DataResetController? _resetController;
+  final LocalSnapshotService? _snapshotService;
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +88,12 @@ class SettingsPage extends StatelessWidget {
     // 挂页无 DI 图 / T4 合入前)不 resolve,按钮隐藏而非 build 即炸。
     final exitPort =
         getIt.isRegistered<AppExitPort>() ? getIt<AppExitPort>() : null;
+    // F39 本地快照:同款 isRegistered 守卫(测试挂页无 DI 图时整个
+    // section 隐藏);显式注入优先,供 widget 测试用假服务。
+    final snapshots = _snapshotService ??
+        (getIt.isRegistered<LocalSnapshotService>()
+            ? getIt<LocalSnapshotService>()
+            : null);
     return Scaffold(
       backgroundColor: context.yucai.bg,
       // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
@@ -230,6 +241,24 @@ class SettingsPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    // F39 本地快照(与导出/导入存档并列,独立卡片):仅
+                    // guest 本地模式显示 —— 判定源与登录/清空卡片同为
+                    // BoundMarker;绑定态数据主体在服务端,本机快照恢复会
+                    // 覆盖镜像,语义不同,故绑定态整卡隐藏。
+                    if (snapshots != null)
+                      FutureBuilder<bool>(
+                        future: marker.isBound(),
+                        builder: (context, snap) {
+                          if (!snap.hasData || snap.data!) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding:
+                                const EdgeInsets.only(top: AppSpacing.md),
+                            child: _LocalSnapshotCard(service: snapshots),
+                          );
+                        },
+                      ),
                     const SizedBox(height: AppSpacing.md),
                     // F22 窗口与提醒(置于「数据」区之后,原型
                     // ui/settings-window-reminders.html):关闭按钮行为 +
@@ -1179,6 +1208,234 @@ class _NavRow extends StatelessWidget {
           ),
           Icon(LucideIcons.chevronRight,
               color: context.yucai.muted, size: 20),
+        ],
+      ),
+    );
+  }
+}
+
+/// F39 「本地快照」卡(guest):快照列表(文件名+大小+修改时间)+
+/// 「立即快照」+ 每行「恢复」「删除」。恢复必经确认对话框(覆盖当前全部
+/// 数据,不可逆),成功后 DataRefreshNotifier.bump()(照导入存档 hotfix
+/// 模式,让 IndexedStack 驻留页重拉缓存)+ toast。数据面全在
+/// [LocalSnapshotService],本卡只做编排与确认。
+class _LocalSnapshotCard extends StatefulWidget {
+  const _LocalSnapshotCard({required this.service});
+
+  final LocalSnapshotService service;
+
+  @override
+  State<_LocalSnapshotCard> createState() => _LocalSnapshotCardState();
+}
+
+class _LocalSnapshotCardState extends State<_LocalSnapshotCard> {
+  /// null = 首次加载中;空列表 = 暂无快照。
+  List<({String fileName, int sizeBytes, DateTime modified})>? _items;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    final items = await widget.service.listSnapshots();
+    if (mounted) setState(() => _items = items);
+  }
+
+  Future<void> _runNow() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.service.runNow();
+      await _reload();
+      if (mounted) _toast(context, '已生成本地快照');
+    } catch (e) {
+      if (mounted) _toast(context, '快照失败：$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _restore(String fileName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('恢复此快照？'),
+        content: const Text('恢复将覆盖当前所有数据（账户、交易、资产等），'
+            '并回到该快照的状态。此操作不可逆。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('覆盖恢复'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.service.restoreFrom(fileName);
+      // Hotfix 模式(同导入存档):整批替换本地库后广播刷新,IndexedStack
+      // 驻留页(首页等)重拉缓存,否则展示停留在恢复前的旧数据。
+      getIt<DataRefreshNotifier>().bump();
+      await _reload();
+      if (mounted) _toast(context, '快照已恢复');
+    } on ValidationFailure catch (e) {
+      if (mounted) _toast(context, e.message);
+    } catch (e) {
+      if (mounted) _toast(context, '恢复失败：$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _delete(String fileName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除此快照？'),
+        content: const Text('删除后无法找回。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: context.yucai.negative,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.service.deleteSnapshot(fileName);
+      await _reload();
+      if (mounted) _toast(context, '快照已删除');
+    } catch (e) {
+      if (mounted) _toast(context, '删除失败：$e');
+    }
+  }
+
+  void _toast(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  static String _fmtSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    final kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    return '${(kb / 1024).toStringAsFixed(1)} MB';
+  }
+
+  static String _fmtTime(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${t.year}-${two(t.month)}-${two(t.day)} '
+        '${two(t.hour)}:${two(t.minute)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _items;
+    return _SettingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('本地快照',
+                        style: TextStyle(
+                            color: context.yucai.fg,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '本机数据每日自动快照，保留最近 '
+                          '${LocalSnapshotService.keepCount} 份',
+                      style: TextStyle(
+                          color: context.yucai.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              TextButton.icon(
+                onPressed: _busy ? null : _runNow,
+                icon: const Icon(LucideIcons.camera, size: 16),
+                label: const Text('立即快照'),
+              ),
+            ],
+          ),
+          if (items == null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Text('加载中…',
+                  style: TextStyle(color: context.yucai.muted, fontSize: 12)),
+            )
+          else if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Text('暂无快照，点击「立即快照」生成第一份',
+                  style: TextStyle(color: context.yucai.muted, fontSize: 12)),
+            )
+          else
+            for (final item in items) ...[
+              Divider(height: 1, color: context.yucai.border),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.fileName,
+                              style: TextStyle(
+                                  color: context.yucai.fg, fontSize: 13),
+                              overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${_fmtSize(item.sizeBytes)} · '
+                            '${_fmtTime(item.modified)}',
+                            style: TextStyle(
+                                color: context.yucai.muted, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    TextButton(
+                      onPressed:
+                          _busy ? null : () => _restore(item.fileName),
+                      child: const Text('恢复'),
+                    ),
+                    IconButton(
+                      tooltip: '删除',
+                      onPressed:
+                          _busy ? null : () => _delete(item.fileName),
+                      icon: Icon(LucideIcons.trash2,
+                          size: 18, color: context.yucai.negative),
+                    ),
+                  ],
+                ),
+              ),
+            ],
         ],
       ),
     );

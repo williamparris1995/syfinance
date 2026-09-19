@@ -8,6 +8,7 @@ import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/oidc_authenticator.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
+import 'package:yucai_client/backup/data/archive_importer.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/binding/data/grpc_offline_sync_port.dart';
 import 'package:yucai_client/binding/data/pending_collector.dart';
@@ -32,6 +33,7 @@ import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/settings/data/data_reset_controller.dart';
+import 'package:yucai_client/settings/data/local_snapshot_service.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
 final getIt = GetIt.instance;
@@ -160,6 +162,18 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton<DataResetController>(() => DataResetController(
         database: getIt<AppDatabase>(),
         exporter: getIt<LocalSnapshotExporter>(),
+      ));
+
+  // F39 (2026-09-19): guest local snapshot loop — manual registration per the
+  // 1h/F21 precedent (avoids a build_runner regen; see local_snapshot_service
+  // class doc for the file-home rationale). Dependencies are all registered
+  // above: AppDatabase (1c) + LocalSnapshotExporter / ArchiveImporter
+  // (injectable graph). Consumed by the startup daily hook in main.dart and
+  // the settings page "本地快照" section.
+  getIt.registerLazySingleton<LocalSnapshotService>(() => LocalSnapshotService(
+        database: getIt<AppDatabase>(),
+        exporter: getIt<LocalSnapshotExporter>(),
+        importer: getIt<ArchiveImporter>(),
       ));
 
   // 1i. Hotfix(导入存档后 dashboard 全零):数据整批替换后的全局刷新通知器
