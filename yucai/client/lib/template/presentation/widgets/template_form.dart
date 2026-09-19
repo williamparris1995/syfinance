@@ -237,10 +237,13 @@ class _TemplateFormState extends State<TemplateForm> {
     );
     if (picked != null) {
       setState(() {
+        // F38:归一化 UTC 零点(日期字段全链一致)。
+        final normalized =
+            DateTime.utc(picked.year, picked.month, picked.day);
         if (isStart) {
-          _startDate = picked;
+          _startDate = normalized;
         } else {
-          _endDate = picked;
+          _endDate = normalized;
         }
       });
     }

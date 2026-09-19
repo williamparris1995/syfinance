@@ -436,7 +436,8 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
     context.read<DebtBloc>().add(SetPaymentDateRequested(
       debtId: widget.id,
       entryId: e.id,
-      paymentDate: picked,
+      // F38:归一化 UTC 零点(日期字段全链一致)。
+      paymentDate: DateTime.utc(picked.year, picked.month, picked.day),
     ));
   }
 

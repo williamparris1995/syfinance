@@ -29,7 +29,12 @@ class DatePickerInput extends FormField<DateTime> {
                     firstDate: DateTime(2000),
                     lastDate: DateTime(2100),
                   );
-                  if (picked != null) state.didChange(picked);
+                  // F38:日期字段统一归一化 UTC 零点(消除本地/UTC 混用的
+                  // 8 小时偏移;civil 日期全链一致)。
+                  if (picked != null) {
+                    state.didChange(DateTime.utc(
+                        picked.year, picked.month, picked.day));
+                  }
                 },
                 child: Text(
                   state.value == null

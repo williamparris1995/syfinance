@@ -1435,7 +1435,10 @@ class _ODDateField extends StatelessWidget {
             firstDate: DateTime(2000),
             lastDate: DateTime(2100),
           );
-          if (picked != null) onChanged(picked);
+          // F38:归一化 UTC 零点(同 date_picker_input 惯例)。
+          if (picked != null) {
+            onChanged(DateTime.utc(picked.year, picked.month, picked.day));
+          }
         },
         borderRadius: BorderRadius.circular(10),
         child: Container(
