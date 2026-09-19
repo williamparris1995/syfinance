@@ -2,6 +2,105 @@ import 'package:drift/drift.dart';
 
 import 'app_database.dart';
 import 'sync_state.dart' show SyncState;
+import 'package:yucai_client/transaction/data/balance_updater.dart';
+import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
+import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart'
+    as txn_entity show TransactionEntry;
+import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart'
+    show RecordTransactionParams;
+
+/// 启动 repair 管道(app_database.beforeOpen 挂点):串跑各一次性修复,
+/// 每个修复以自己的 AppMeta 标记门控 —— 旧库升级路径下标记互不牵连
+/// (repay 标记已置的库仍能触发 f36 修复,反之亦然),执行失败静默重试。
+Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
+  await _repaymentHistorySettlementOnce(db);
+  await runF36LiabilityBalanceRepair(db);
+}
+
+/// F36 存量迁移(2026-09-18,design ADR-3/6):负债账户余额漂移修复。
+///
+/// 北极星不变式(存储口径):负债账户 current_balance_cents ==
+/// +Σ(名下 borrowedIn 债 remainingPrincipalCents),其中 remaining =
+/// totalPrincipalCents − Σ(entry.paidCents)(与 debt_local_ds._toEntity
+/// 同式)。历史数据(如旧「标记已还」结转只插分录未联动余额)常使两者
+/// 漂移 —— 本修复逐**持有 borrowedIn 债的负债账户**(account_type=2)
+/// 计算 delta = target − currentBalance:
+///   delta>0 → credit 负债 delta / debit 权益;
+///   delta<0 → debit 负债 |delta| / credit 权益。
+/// borrowedOut 应收账户(asset 侧)本票不动。对方科目 = 权益户
+/// 「历史还款结转」(期初调整的会计惯例,不存在则兜底建户);分录经交易
+/// 管道落账(BalanceLocalUpdater 联动余额),置 pending 随 sync 上行,
+/// 多设备下 server 余额自然收敛(ADR-7)。
+///
+/// 恰好执行一次:AppMeta 标记 'f36_liability_balance_repair_v1';delta
+/// 按当前余额重算,分录落账原子(头行+分录+余额同一 drift 事务),故中断
+/// 重跑对已修复账户 delta=0 自然跳过,不会重复生成。
+Future<void> runF36LiabilityBalanceRepair(AppDatabase db) async {
+  const markerKey = 'f36_liability_balance_repair_v1';
+  final done = await (db.select(db.appMeta)
+        ..where((t) => t.key.equals(markerKey)))
+      .getSingleOrNull();
+  if (done != null) return;
+
+  // 逐负债账户聚合名下 borrowedIn 债的剩余本金(无借入债的负债户不动)。
+  final rows = await db.customSelect('''
+    SELECT a.id AS acc_id, a.name AS acc_name,
+           a.current_balance_cents AS bal,
+           COALESCE((SELECT SUM(d.total_principal_cents - COALESCE(pp.paid, 0))
+             FROM debts d
+             LEFT JOIN (SELECT debt_id, SUM(paid_cents) AS paid
+                        FROM payment_schedule_entries GROUP BY debt_id) pp
+               ON pp.debt_id = d.id
+            WHERE d.account_id = a.id AND d.debt_type = 1), 0) AS target
+    FROM accounts a
+    WHERE a.account_type = 2
+      AND EXISTS (SELECT 1 FROM debts d2
+                  WHERE d2.account_id = a.id AND d2.debt_type = 1)
+  ''').get();
+
+  final txns = TransactionLocalDataSource(db, BalanceLocalUpdater(db));
+  for (final r in rows) {
+    final target = r.read<int>('target');
+    final delta = target - r.read<int>('bal');
+    if (delta == 0) continue;
+    final accId = r.read<String>('acc_id');
+    final settlement = await _f36SettlementAccountId(db);
+    final equityIsDebit = delta > 0;
+    await txns.recordTransaction(
+        RecordTransactionParams(
+      transactionDate: DateTime.now().toUtc(),
+      description: 'F36 余额修复 ${r.read<String>('acc_name')}',
+      entries: [
+        txn_entity.TransactionEntry(
+            accountId: equityIsDebit ? settlement : accId,
+            debitCents: delta.abs(),
+            creditCents: 0),
+        txn_entity.TransactionEntry(
+            accountId: equityIsDebit ? accId : settlement,
+            debitCents: 0,
+            creditCents: delta.abs()),
+      ],
+    ), markPending: true);
+  }
+
+  await db.into(db.appMeta).insert(
+        AppMetaCompanion.insert(key: markerKey, value: 'done'),
+        mode: InsertMode.insertOrIgnore,
+      );
+}
+
+/// 权益户「历史还款结转」兜底(照 debt_local_ds._ensureSettlementAccount
+/// 惯例:同名+同类型(equity)复用既有户;该私有助手不可跨文件,此处
+/// 复用本文件既有 raw 兜底 [ _settlementAccountId ] 建户)。
+Future<String> _f36SettlementAccountId(AppDatabase db) async {
+  const name = '历史还款结转';
+  const equityType = 3;
+  final existing = await db.select(db.accounts).get();
+  for (final a in existing) {
+    if (a.name == name && a.accountType == equityType) return a.id;
+  }
+  return _settlementAccountId(db);
+}
 
 /// 历史数据一次性修复(2026-09-17 用户指令):
 /// 「个人待还款/待收款」等债务账户与债务模块的记录不一致 —— 旧还款交易
@@ -17,7 +116,7 @@ import 'sync_state.dart' show SyncState;
 /// 恰好执行一次:靠 AppMeta 标记 'repay_history_settlement_v1'(每条转换
 /// 自身亦幂等 —— 结转交易用确定性 id 'settle-<entryId>' + INSERT OR IGNORE,
 /// 中断重跑不会重复)。今日及以后的还款交易不受影响。
-Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
+Future<void> _repaymentHistorySettlementOnce(AppDatabase db) async {
   const markerKey = 'repay_history_settlement_v1';
   final done = await (db.select(db.appMeta)
         ..where((t) => t.key.equals(markerKey)))

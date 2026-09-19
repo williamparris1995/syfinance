@@ -120,6 +120,66 @@ void main() {
         )).called(1);
   });
 
+  test('F36:update 透传 totalPrincipalCents 到本地 DS(remote 无该字段不透传)',
+      () async {
+    tracker.isGuest = true; // guest → 本地路由,零远端调用。
+    await db.accountDao.insertAccount(AccountsCompanion.insert(
+      id: 'a1',
+      name: 'loan',
+      accountType: 2, // liability
+      category: 9,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: 1,
+      icon: '',
+      color: '',
+      chartCode: '',
+      isSystem: false,
+      sortOrder: 0,
+      institution: '',
+      cardNumberTail: '',
+      notes: '',
+      goldProductType: '',
+      status: 1,
+      version: 1,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+    ));
+    final created = await repo.create(
+      accountId: 'a1',
+      counterparty: 'Bank',
+      interestRate: 5.0,
+      amortizationIndex: 0,
+      startDate: DateTime(2026, 1, 1),
+      dueDate: DateTime(2026, 12, 31),
+      totalPrincipalCents: 100000,
+      type: DebtType.borrowedIn,
+    );
+    // 本地 DS 自生成 uuid 头行 id(镜像协调语义),取 Right 的 id 供后续断言。
+    final debtId = created.fold((_) => '', (d) => d.id);
+    expect(created.isRight(), isTrue);
+    verifyNoMoreInteractions(remote);
+
+    final result = await repo.update(
+      id: debtId,
+      counterparty: 'Bank',
+      interestRate: 5.0,
+      version: 1,
+      totalPrincipalCents: 150000,
+    );
+    expect(result.isRight(), isTrue);
+    // 本地头行落新总额。
+    final row = await db.debtDao.getDebtById(debtId);
+    expect(row!.totalPrincipalCents, 150000);
+    // 同事务调整分录(Δ=+50000 → 贷负债)→ 负债余额 == +remaining(存储口径)。
+    final acc = await db.accountDao.getAccountById('a1');
+    expect(acc!.currentBalanceCents, 150000);
+    // remote 不透传:bound 路由改总额本就不经 RPC(proto UpdateDebtRequest
+    // 无该字段);guest 路由本测断言零远端交互。
+    verifyNoMoreInteractions(remote);
+  });
+
   test('delete success returns Right(null)', () async {
     when(() => remote.delete('d1')).thenAnswer((_) async {});
     final result = await repo.delete('d1');

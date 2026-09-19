@@ -136,6 +136,11 @@ class DebtRepositoryImpl implements DebtRepository {
     int? monthlyMode,
     int? nth,
     int? interestWaivedCents,
+    // F36 FR-2/ADR-5:改总额透传本地 DS(null = 不修改)。**remote 不透传**:
+    // proto UpdateDebtRequest 无该字段,bound 模式改总额本就不经 RPC;
+    // proto 加字段后在此接入。当前编辑表单(UpdateDebtParams/debt_form_page)
+    // 未携带金额 → 暂无调用方,参数 dormant(T1 的 DS 侧已就绪)。
+    int? totalPrincipalCents,
   }) =>
       _routedWrite(MirrorModule.debt,
           () => _remote.update(
@@ -180,6 +185,7 @@ class DebtRepositoryImpl implements DebtRepository {
             monthlyMode: monthlyMode,
             nth: nth,
             interestWaivedCents: interestWaivedCents,
+            totalPrincipalCents: totalPrincipalCents,
           ));
 
   @override
