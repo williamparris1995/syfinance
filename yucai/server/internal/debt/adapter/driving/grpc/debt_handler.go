@@ -137,6 +137,21 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		appReq.CollectionAccountID = &coll
 	}
 
+	// F36 liability posting: borrowedIn honors source_account_id (the asset
+	// account the borrowed principal lands in). The service posts debit source
+	// +P / credit liability +P in the same tx as the debt persist (validating
+	// the account there — exists/asset/same-currency, no balance-cover check
+	// since the principal arrives). Empty stays nil → the service posts the
+	// equity-side pair instead (ADR-4). BorrowedOut's handler-side double-write
+	// above is untouched.
+	if debtType == domain.BorrowedIn && req.SourceAccountId != "" {
+		sourceID, perr := uuid.Parse(req.SourceAccountId)
+		if perr != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid source_account_id")
+		}
+		appReq.SourceAccountID = &sourceID
+	}
+
 	resp, err := h.service.CreateDebt(ctx, appReq)
 	if err != nil {
 		return nil, mapError(err)

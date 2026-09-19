@@ -155,6 +155,13 @@ func (f *fakeAccountLookup) FindByID(_ context.Context, _ uuid.UUID, id uuid.UUI
 	return nil, fmt.Errorf("account not found")
 }
 
+// FindByAccountType satisfies the F36-extended debt AccountLookup port; the
+// currency-resolution tests never resolve the equity carryover, so it returns
+// an empty list.
+func (f *fakeAccountLookup) FindByAccountType(_ context.Context, _ uuid.UUID, _ accountdomain.AccountType) ([]accountdomain.Account, error) {
+	return nil, nil
+}
+
 // seedDebt builds a DebtDetails with a 2-entry schedule where entry[0] is paid,
 // so RemainingPrincipal = totalPrincipal - entry[0].PrincipalCents.
 func seedDebt(t *testing.T, tenantID, accountID uuid.UUID, total, principalPaid int64) *domain.DebtDetails {

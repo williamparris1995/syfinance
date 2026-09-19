@@ -16,12 +16,20 @@ import (
 
 // AccountLookup is the account-reading port used by the debt service to resolve
 // a debt's currency (DebtDetails has no CurrencyCode field — currency lives on
-// the parent account). Only the read method needed for currency lookup is
-// exposed; the concrete account domain.AccountRepository satisfies this.
-// Defined locally (mirrors transaction/application.AccountLookup) so debt
-// application does not import transaction.
+// the parent account) and, since F36, the tenant's equity carryover account for
+// liability postings. Only the read methods needed by the debt service are
+// exposed; the concrete account domain.AccountRepository satisfies this
+// unchanged. Defined locally (mirrors transaction/application.AccountLookup) so
+// debt application does not import transaction.
 type AccountLookup interface {
 	FindByID(ctx context.Context, tenantID, id uuid.UUID) (*accountdomain.Account, error)
+	// FindByAccountType returns all non-deleted accounts of one type. F36 uses
+	// it to list the tenant's equity accounts when resolving the carryover
+	// account ("historical repayment carryover") as the counterpart of every
+	// liability opening/adjustment/settlement posting. Minimal port extension
+	// per ADR-4/5/7: the method already exists on the concrete repo, so wire
+	// keeps passing the same accountRepo with no provider change.
+	FindByAccountType(ctx context.Context, tenantID uuid.UUID, accountType accountdomain.AccountType) ([]accountdomain.Account, error)
 }
 
 // Service orchestrates debt operations.
@@ -134,12 +142,155 @@ func (s *Service) CreateDebt(ctx context.Context, req CreateDebtRequest) (*DebtD
 		return nil, fmt.Errorf("create debt: interest waiver must not exceed total interest")
 	}
 
-	if err := s.repo.Save(ctx, debt); err != nil {
-		return nil, fmt.Errorf("save debt: %w", err)
+	// F36 liability posting (BorrowedIn only; the BorrowedOut creation
+	// double-write stays handler-side best-effort, untouched): the debt persist
+	// and its ledger move share one sqltx.WithTx — same pipeline as the
+	// repayment path (runWriteTx + the cashRecorder port; the transaction
+	// service's join-existing-tx semantics enlists the posting in this tx).
+	// With a source account → debit source +P / credit liability +P (a lookup
+	// failure fails the create: the caller explicitly named the account);
+	// without → debit equity carryover +P / credit liability +P (ADR-4).
+	posting, err := s.buildCreatePosting(ctx, debt, req.SourceAccountID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.runWriteTx(ctx, func(ctxT context.Context) error {
+		if err := s.repo.Save(ctxT, debt); err != nil {
+			return fmt.Errorf("save debt: %w", err)
+		}
+		if posting != nil {
+			if _, err := s.cashRecorder.Record(ctxT, *posting); err != nil {
+				return fmt.Errorf("record debt creation posting: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	dto := DebtToDTO(debt)
 	return &dto, nil
+}
+
+// equityCarryoverAccountName is the well-known name of the system equity
+// account used as the counterpart of every liability opening/adjustment/
+// settlement posting. It matches the client's _ensureSettlementAccount
+// constant; the value itself is the product-defined account NAME (Chinese) and
+// syncs up from clients as data — comments and log strings stay English.
+const equityCarryoverAccountName = "历史还款结转"
+
+// ledgerRecord wraps a balanced leg pair in the debt-owned
+// RepaymentCashRecordRequest — the generic double-entry carrier of the
+// cross-module cashRecorder port (the transaction application's adapter maps
+// each leg to its EntryInput and enlists in the caller's sqltx.WithTx).
+func (s *Service) ledgerRecord(tenantID uuid.UUID, description string, legs []domain.RepaymentCashEntry) *domain.RepaymentCashRecordRequest {
+	return &domain.RepaymentCashRecordRequest{
+		TenantID:        tenantID,
+		TransactionDate: s.now(),
+		Description:     description,
+		Entries:         legs,
+	}
+}
+
+// resolveEquityCarryover finds the tenant's equity carryover account (ADR-4/5/7
+// counterpart account). Resolution convention: equity-type accounts via the
+// AccountLookup port, filtered by the client's well-known name. Returns
+// (nil, nil) when the tenant has no such account yet — callers degrade to a
+// warning + skipped posting: a bound-remote tenant may not have synced the
+// carryover account yet, and hard-failing would break debt operations for
+// exactly those tenants. The F36 client-side repair (T3) converges the balance
+// later by syncing its adjustment entries up as normal transactions.
+func (s *Service) resolveEquityCarryover(ctx context.Context, tenantID uuid.UUID) (*accountdomain.Account, error) {
+	if s.accountLookup == nil {
+		return nil, nil
+	}
+	accounts, err := s.accountLookup.FindByAccountType(ctx, tenantID, accountdomain.AccountTypeEquity)
+	if err != nil {
+		return nil, fmt.Errorf("resolve equity carryover: %w", err)
+	}
+	for i := range accounts {
+		if accounts[i].Name == equityCarryoverAccountName {
+			return &accounts[i], nil
+		}
+	}
+	return nil, nil
+}
+
+// buildCreatePosting assembles the F36 creation posting for a BorrowedIn debt:
+//
+//	with source account:      debit source +P / credit liability +P
+//	without (ADR-4):          debit equity carryover +P / credit liability +P
+//
+// The with-source path validates the explicit input like the handler's
+// borrowedOut create validation (exists, asset, not the debt account, same
+// currency — no balance-cover check: the principal ARRIVES on the source).
+// Returns nil when no posting applies: BorrowedOut debts, no recorder wired
+// (test/seed path), or — on the no-source path — the counterpart accounts
+// being unresolvable (warn + skip; see resolveEquityCarryover).
+func (s *Service) buildCreatePosting(ctx context.Context, debt *domain.DebtDetails, sourceAccountID *uuid.UUID) (*domain.RepaymentCashRecordRequest, error) {
+	if debt.DebtType != domain.BorrowedIn || s.cashRecorder == nil || s.accountLookup == nil {
+		return nil, nil
+	}
+
+	if sourceAccountID != nil {
+		sourceAcc, err := s.accountLookup.FindByID(ctx, debt.TenantID, *sourceAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("create debt: source account lookup: %w", err)
+		}
+		if sourceAcc == nil {
+			return nil, fmt.Errorf("create debt: source account not found")
+		}
+		if sourceAcc.AccountType != accountdomain.AccountTypeAsset {
+			return nil, fmt.Errorf("create debt: source_account must be asset")
+		}
+		if *sourceAccountID == debt.AccountID {
+			return nil, fmt.Errorf("create debt: source_account must differ from the debt account")
+		}
+		debtAcc, err := s.accountLookup.FindByID(ctx, debt.TenantID, debt.AccountID)
+		if err != nil {
+			return nil, fmt.Errorf("create debt: debt account lookup: %w", err)
+		}
+		if debtAcc == nil {
+			return nil, fmt.Errorf("create debt: debt account not found")
+		}
+		if sourceAcc.CurrencyCode != debtAcc.CurrencyCode {
+			return nil, fmt.Errorf("create debt: cross-currency, manual handling required")
+		}
+		return s.ledgerRecord(debt.TenantID, "CreateDebt liability posting", []domain.RepaymentCashEntry{
+			{AccountID: sourceAcc.ID, ChartOfAccountCode: sourceAcc.ChartCode, DebitCents: debt.TotalPrincipalCents},
+			{AccountID: debtAcc.ID, ChartOfAccountCode: debtAcc.ChartCode, CreditCents: debt.TotalPrincipalCents},
+		}), nil
+	}
+
+	// No source: the equity-side pair. Best-effort counterpart resolution —
+	// an unresolvable account degrades to warn + skip (documented drift the
+	// F36 repair converges), never a failed create.
+	equityAcc, err := s.resolveEquityCarryover(ctx, debt.TenantID)
+	if err != nil {
+		slog.Warn("debt create posting: equity carryover lookup failed, skip",
+			slog.String("tenant_id", debt.TenantID.String()),
+			slog.String("error", err.Error()),
+			slog.String("operation", "buildCreatePosting"))
+		return nil, nil
+	}
+	debtAcc, err := s.accountLookup.FindByID(ctx, debt.TenantID, debt.AccountID)
+	if err != nil || debtAcc == nil {
+		slog.Warn("debt create posting: liability account lookup failed, skip",
+			slog.String("tenant_id", debt.TenantID.String()),
+			slog.String("account_id", debt.AccountID.String()),
+			slog.String("operation", "buildCreatePosting"))
+		return nil, nil
+	}
+	if equityAcc == nil {
+		slog.Warn("debt create posting: equity carryover account not found, skip",
+			slog.String("tenant_id", debt.TenantID.String()),
+			slog.String("operation", "buildCreatePosting"))
+		return nil, nil
+	}
+	return s.ledgerRecord(debt.TenantID, "CreateDebt equity posting", []domain.RepaymentCashEntry{
+		{AccountID: equityAcc.ID, ChartOfAccountCode: equityAcc.ChartCode, DebitCents: debt.TotalPrincipalCents},
+		{AccountID: debtAcc.ID, ChartOfAccountCode: debtAcc.ChartCode, CreditCents: debt.TotalPrincipalCents},
+	}), nil
 }
 
 // UpdateDebt updates a debt's mutable fields. Schedule-affecting fields
@@ -223,6 +374,19 @@ func (s *Service) UpdateDebt(ctx context.Context, req UpdateDebtRequest) (*DebtD
 		debt.DueDate = due
 	}
 
+	// F36 balance adjustment input: nil = keep the current total (legacy
+	// callers unchanged). Applied BEFORE the schedule regeneration so the
+	// regenerated future schedule is built from the new total (mirrors the
+	// client's edit-total flow); the regeneration logic itself is unchanged.
+	oldTotal := debt.TotalPrincipalCents
+	if req.TotalPrincipalCents != nil {
+		if *req.TotalPrincipalCents <= 0 {
+			return nil, fmt.Errorf("update debt: total principal must be positive")
+		}
+		debt.TotalPrincipalCents = *req.TotalPrincipalCents
+	}
+	totalDelta := debt.TotalPrincipalCents - oldTotal
+
 	var future []domain.PaymentScheduleEntry
 	if scheduleChanged {
 		future, err = s.regenerateFuture(debt, rule, req.TermPeriods)
@@ -231,24 +395,37 @@ func (s *Service) UpdateDebt(ctx context.Context, req UpdateDebtRequest) (*DebtD
 		}
 	}
 
+	// F36 adjustment posting (BorrowedIn, Δ ≠ 0): credit liability ±Δ with the
+	// equity account as counterpart (ADR-5). nil = nothing to post.
+	adjustment := s.buildPrincipalAdjustment(ctx, debt, totalDelta)
+
 	debt.IncrementVersion()
 
-	if scheduleChanged {
+	if scheduleChanged || adjustment != nil {
 		// debt.Schedule holds only the frozen entries here so repo.Update's
 		// per-entry loop touches existing rows only; the future rows are
 		// inserted by ReplaceFutureSchedule in the same tx.
 		if err := s.runWriteTx(ctx, func(ctxT context.Context) error {
-			if err := s.repo.ReplaceFutureSchedule(ctxT, debt.ID, future); err != nil {
-				return fmt.Errorf("replace future schedule: %w", err)
+			if scheduleChanged {
+				if err := s.repo.ReplaceFutureSchedule(ctxT, debt.ID, future); err != nil {
+					return fmt.Errorf("replace future schedule: %w", err)
+				}
 			}
 			if err := s.repo.Update(ctxT, debt); err != nil {
 				return fmt.Errorf("update debt: %w", err)
+			}
+			if adjustment != nil {
+				if _, err := s.cashRecorder.Record(ctxT, *adjustment); err != nil {
+					return fmt.Errorf("record debt principal adjustment: %w", err)
+				}
 			}
 			return nil
 		}); err != nil {
 			return nil, err
 		}
-		debt.Schedule = append(debt.Schedule, future...)
+		if scheduleChanged {
+			debt.Schedule = append(debt.Schedule, future...)
+		}
 	} else {
 		if err := s.repo.Update(ctx, debt); err != nil {
 			return nil, fmt.Errorf("update debt: %w", err)
@@ -257,6 +434,53 @@ func (s *Service) UpdateDebt(ctx context.Context, req UpdateDebtRequest) (*DebtD
 
 	dto := DebtToDTO(debt)
 	return &dto, nil
+}
+
+// buildPrincipalAdjustment assembles the F36 same-tx adjustment posting for a
+// BorrowedIn debt whose total principal changed by Δ ≠ 0 (ADR-5):
+//
+//	Δ > 0: credit liability Δ  / debit equity carryover Δ
+//	Δ < 0: debit liability |Δ| / credit equity carryover |Δ|
+//
+// Returns nil when no posting applies: not BorrowedIn (BorrowedOut updates
+// keep their current no-posting behavior), Δ == 0, no recorder wired, or the
+// counterpart accounts being unresolvable (warn + skip; see
+// resolveEquityCarryover — the F36 repair converges the drift later).
+func (s *Service) buildPrincipalAdjustment(ctx context.Context, debt *domain.DebtDetails, delta int64) *domain.RepaymentCashRecordRequest {
+	if debt.DebtType != domain.BorrowedIn || delta == 0 || s.cashRecorder == nil || s.accountLookup == nil {
+		return nil
+	}
+	debtAcc, err := s.accountLookup.FindByID(ctx, debt.TenantID, debt.AccountID)
+	if err != nil || debtAcc == nil {
+		slog.Warn("debt adjustment posting: liability account lookup failed, skip",
+			slog.String("tenant_id", debt.TenantID.String()),
+			slog.String("account_id", debt.AccountID.String()),
+			slog.String("operation", "buildPrincipalAdjustment"))
+		return nil
+	}
+	equityAcc, err := s.resolveEquityCarryover(ctx, debt.TenantID)
+	if err != nil || equityAcc == nil {
+		slog.Warn("debt adjustment posting: equity carryover unresolvable, skip",
+			slog.String("tenant_id", debt.TenantID.String()),
+			slog.String("operation", "buildPrincipalAdjustment"))
+		return nil
+	}
+	amount := delta
+	if amount < 0 {
+		amount = -amount
+	}
+	if delta > 0 {
+		// Total grew: the liability increases (credit) against equity.
+		return s.ledgerRecord(debt.TenantID, "UpdateDebt principal adjustment", []domain.RepaymentCashEntry{
+			{AccountID: debtAcc.ID, ChartOfAccountCode: debtAcc.ChartCode, CreditCents: amount},
+			{AccountID: equityAcc.ID, ChartOfAccountCode: equityAcc.ChartCode, DebitCents: amount},
+		})
+	}
+	// Total shrank: the liability decreases (debit) back into equity.
+	return s.ledgerRecord(debt.TenantID, "UpdateDebt principal adjustment", []domain.RepaymentCashEntry{
+		{AccountID: debtAcc.ID, ChartOfAccountCode: debtAcc.ChartCode, DebitCents: amount},
+		{AccountID: equityAcc.ID, ChartOfAccountCode: equityAcc.ChartCode, CreditCents: amount},
+	})
 }
 
 // regenerateFuture rebuilds the post-frozen schedule on the debt aggregate:
@@ -313,9 +537,74 @@ func (s *Service) runWriteTx(ctx context.Context, fn func(ctx context.Context) e
 	})
 }
 
-// DeleteDebt deletes a debt by ID.
+// DeleteDebt deletes a debt by ID. F36 settlement (ADR-1, BorrowedIn with
+// remaining > 0): the deletion and its clearing posting share one sqltx.WithTx
+// — debit liability −remaining / credit equity carryover. remaining =
+// totalPrincipalCents − Σ entry.paidCents (the client's convention; paid totals
+// include interest per ADR-2). A fully-paid debt (remaining == 0) deletes
+// without a posting — the liability side is already zero. BorrowedOut
+// deletions keep their current no-posting behavior (out of F36 T2 scope).
 func (s *Service) DeleteDebt(ctx context.Context, tenantID, id uuid.UUID) error {
-	return s.repo.Delete(ctx, tenantID, id)
+	debt, err := s.repo.FindByID(ctx, tenantID, id)
+	if err != nil {
+		return fmt.Errorf("delete debt: %w", err)
+	}
+	settlement := s.buildDeleteSettlement(ctx, debt)
+	if err := s.runWriteTx(ctx, func(ctxT context.Context) error {
+		if err := s.repo.Delete(ctxT, tenantID, id); err != nil {
+			return fmt.Errorf("delete debt: %w", err)
+		}
+		if settlement != nil {
+			if _, err := s.cashRecorder.Record(ctxT, *settlement); err != nil {
+				return fmt.Errorf("record debt delete settlement: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// buildDeleteSettlement assembles the F36 clearing posting for a BorrowedIn
+// debt deleted with remaining > 0: debit liability −remaining / credit equity
+// carryover (terminal settlement — historical cash-flow entries stay put,
+// ADR-1). Returns nil when no posting applies: not BorrowedIn, remaining == 0,
+// no recorder wired, or the counterpart accounts being unresolvable (warn +
+// skip; see resolveEquityCarryover).
+func (s *Service) buildDeleteSettlement(ctx context.Context, debt *domain.DebtDetails) *domain.RepaymentCashRecordRequest {
+	if debt.DebtType != domain.BorrowedIn || s.cashRecorder == nil || s.accountLookup == nil {
+		return nil
+	}
+	var paidCents int64
+	for _, e := range debt.Schedule {
+		if e.Paid {
+			paidCents += e.PaidCents
+		}
+	}
+	remaining := debt.TotalPrincipalCents - paidCents
+	if remaining <= 0 {
+		return nil
+	}
+	debtAcc, err := s.accountLookup.FindByID(ctx, debt.TenantID, debt.AccountID)
+	if err != nil || debtAcc == nil {
+		slog.Warn("debt delete settlement: liability account lookup failed, skip",
+			slog.String("tenant_id", debt.TenantID.String()),
+			slog.String("account_id", debt.AccountID.String()),
+			slog.String("operation", "buildDeleteSettlement"))
+		return nil
+	}
+	equityAcc, err := s.resolveEquityCarryover(ctx, debt.TenantID)
+	if err != nil || equityAcc == nil {
+		slog.Warn("debt delete settlement: equity carryover unresolvable, skip",
+			slog.String("tenant_id", debt.TenantID.String()),
+			slog.String("operation", "buildDeleteSettlement"))
+		return nil
+	}
+	return s.ledgerRecord(debt.TenantID, "DeleteDebt settlement", []domain.RepaymentCashEntry{
+		{AccountID: debtAcc.ID, ChartOfAccountCode: debtAcc.ChartCode, DebitCents: remaining},
+		{AccountID: equityAcc.ID, ChartOfAccountCode: equityAcc.ChartCode, CreditCents: remaining},
+	})
 }
 
 // MarkEntryPaidRequest is the input for MarkEntryPaid.

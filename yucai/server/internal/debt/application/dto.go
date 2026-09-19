@@ -33,6 +33,13 @@ type CreateDebtRequest struct {
 	// (2026-09 user request). Empty = no guarantor; persisted verbatim.
 	GuarantorName    string
 	GuarantorContact string
+	// SourceAccountID (F36 liability posting): for BorrowedIn debts, the asset
+	// account the borrowed principal lands in. Non-nil → the service posts
+	// debit source +P / credit liability +P in the same tx as the debt persist;
+	// nil → the equity-side pair is posted instead (debit equity carryover +P /
+	// credit liability +P). Ignored for BorrowedOut (its creation double-write
+	// stays handler-side best-effort). Mirrors the proto source_account_id.
+	SourceAccountID *uuid.UUID
 	// Recurrence rule (zero values = legacy monthly; by-date months anchor
 	// the start date). Ignored by lump_sum.
 	Cycle       recurrence.Cycle
@@ -93,6 +100,15 @@ type UpdateDebtRequest struct {
 	// nil = keep current waiver (presence-aware proto optional); set = replace
 	// (0 clears).
 	InterestWaivedCents *int64
+	// TotalPrincipalCents (F36 balance adjustment): nil = keep the current
+	// total (legacy callers unchanged). A set value that differs from the
+	// current total (Δ ≠ 0) posts the same-tx adjustment pair for BorrowedIn
+	// debts — Δ>0: credit liability Δ / debit equity Δ; Δ<0: debit liability
+	// |Δ| / credit equity |Δ|. BorrowedOut updates never post (out of F36 T2
+	// scope). NOTE: not yet reachable over gRPC (UpdateDebtRequest proto has no
+	// total_principal_cents field; regen toolchain unavailable) — application-
+	// level capability only until the proto grows the field.
+	TotalPrincipalCents *int64
 }
 
 // RecordPaymentRequest holds input for recording a payment.
