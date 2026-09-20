@@ -62,3 +62,9 @@
 - 需求覆盖:FR-1(e2e①+widget+server 集成)/FR-2(13 测+9 卡渲染)/FR-3(归位 4 条+序列)/FR-4(5 条含否向)/NFR-1(grep 门)/NFR-2(server 断言+absent 单测+e2e②)= **6/6**。
 - 证据:go build+test 67 包 0 fail;flutter test **1849 全绿**;analyze **437≤439**;client-e2e **14/14**(PIPE_EXIT=0);link_debt_subtype 2/2。
 - 裁决:**pass** → sydusx-finish(Option 1 本地合并,merged 结果复验 1849/go 全绿)。
+
+## 验收热修(合并后) — 详情页编辑返回不刷新 ✅(2026-09-18)
+
+- 现象:用户 dev 版编辑 subtype 提示「无法正确保存」;DB 取证**已落库**(f47c78a1 → cash_installment,synced,19:16:46)。根因=详情页无 RouteAware 订阅:保存成功路径 LoadDebtsRequested 把共享 bloc 状态切到列表态,详情 builder 拿不到 DebtDetailLoaded → 停旧快照/空态。
+- 修复:debt+receivable 两详情页订阅分支观察者+didPopNext 重拉(LoadDebtRequested+附件);镜像双页同修。TDD:2 新测(didPopNext dynamic 调用;应收以 counterparty 断言)。
+- 门:pages 128 全绿;两改文件 analyze 零 issue。
