@@ -46,16 +46,28 @@ type AutoBackupSource interface {
 	AutoBackupSettings(ctx context.Context, tenantID uuid.UUID) (autoBackup bool, intervalHours int32, err error)
 }
 
+// BackupRetainer enforces the auto-backup retention policy for one tenant:
+// keep the AutoBackupRetentionKeep most recent provider=auto backups, delete
+// the oldest overflow (manual backups untouched). Implemented by
+// backup/application.Service (structural — EnforceAutoBackupRetention); a nil
+// retainer disables the trim (tests that don't exercise retention).
+type BackupRetainer interface {
+	EnforceAutoBackupRetention(ctx context.Context, tenantID uuid.UUID) (deleted int, err error)
+}
+
 // Scheduler periodically fans out BackupCreator across all tenants, gated
 // per-tenant by AutoBackupSource. Mirrors goal/debt scheduler shape + tenant
 // fan-out; the interval gate is per-tenant (not global) because each tenant
-// owns its own AutoBackup + AutoBackupIntervalHours settings.
+// owns its own AutoBackup + AutoBackupIntervalHours settings. Each pass also
+// runs the per-tenant retention trim (BackupRetainer) after the creation
+// logic, under the same restore-freeze gate.
 type Scheduler struct {
-	creator BackupCreator
-	lister  TenantLister
-	src     AutoBackupSource
-	tick    time.Duration
-	log     *slog.Logger
+	creator  BackupCreator
+	lister   TenantLister
+	src      AutoBackupSource
+	retainer BackupRetainer // nil = retention trim disabled
+	tick     time.Duration
+	log      *slog.Logger
 
 	mu   sync.Mutex
 	last map[uuid.UUID]time.Time
@@ -63,18 +75,21 @@ type Scheduler struct {
 }
 
 // NewScheduler builds a Scheduler. tick is the polling cadence (prod 1h; tests
-// use ~10ms). A nil log falls back to slog.Default().
-func NewScheduler(creator BackupCreator, lister TenantLister, src AutoBackupSource, tick time.Duration, log *slog.Logger, freeze *backupapp.RestoreFreeze) *Scheduler {
+// use ~10ms). retainer may be nil to skip the retention trim. A nil log falls
+// back to slog.Default().
+func NewScheduler(creator BackupCreator, lister TenantLister, src AutoBackupSource, retainer BackupRetainer, tick time.Duration, log *slog.Logger, freeze *backupapp.RestoreFreeze) *Scheduler {
 	if log == nil {
 		log = slog.Default()
 	}
 	return &Scheduler{
-		creator: creator,
-		lister:  lister,
-		src:     src,
-		tick:    tick,
-		log:     log,
-		last:    make(map[uuid.UUID]time.Time),
+		creator:  creator,
+		lister:   lister,
+		src:      src,
+		retainer: retainer,
+		tick:     tick,
+		log:      log,
+		last:     make(map[uuid.UUID]time.Time),
+		freeze:   freeze,
 	}
 }
 
@@ -112,9 +127,14 @@ func (s *Scheduler) SyncNow(ctx context.Context) (int, error) {
 // doSync runs one backup pass: fan out across tenants, and per tenant read its
 // AutoBackupSettings; if AutoBackup is on and at least AutoBackupIntervalHours
 // have elapsed since that tenant's last backup (or it has never backed up),
-// create one auto=true backup. Per-tenant errors (settings read or CreateBackup)
-// are logged and the loop continues. ctx cancel short-circuits between tenants.
-// Returns the count of backups created this pass.
+// create one auto=true backup. After the creation logic, every non-frozen
+// tenant gets the retention trim (F40): provider=auto backups are pruned to
+// the AutoBackupRetentionKeep most recent — including tenants with auto-backup
+// off, so switching auto off cannot strand stale overflow. Per-tenant errors
+// (settings read, CreateBackup, retention) are logged and the loop continues.
+// Frozen tenants (restore in progress, D12) are skipped wholesale — no
+// creation AND no trim. ctx cancel short-circuits between tenants. Returns
+// the count of backups created this pass.
 func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
@@ -125,6 +145,7 @@ func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	created := 0
+	deleted := 0
 	for _, tid := range tenants {
 		if s.freeze != nil && s.freeze.IsFrozen(tid) {
 			s.log.Debug("skip: restore in progress", "tenant_id", tid.String(), "operation", "AutoBackupScheduler")
@@ -139,27 +160,37 @@ func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 				"tenant_id", tid.String(), "error", err, "operation", "BackupScheduler")
 			continue
 		}
-		if !autoBackup {
-			continue
+		if autoBackup {
+			interval := time.Duration(intervalHours) * time.Hour
+			s.mu.Lock()
+			last, ok := s.last[tid]
+			s.mu.Unlock()
+			if !ok || time.Since(last) >= interval {
+				if _, err := s.creator.CreateBackup(ctx, tid, false, "", true); err != nil {
+					s.log.Error("auto backup: create failed, continue",
+						"tenant_id", tid.String(), "error", err, "operation", "BackupScheduler")
+				} else {
+					s.mu.Lock()
+					s.last[tid] = time.Now()
+					s.mu.Unlock()
+					created++
+				}
+			}
 		}
-		interval := time.Duration(intervalHours) * time.Hour
-		s.mu.Lock()
-		last, ok := s.last[tid]
-		s.mu.Unlock()
-		if ok && time.Since(last) < interval {
-			continue
+		// F40 retention trim — after the creation logic, for every non-frozen
+		// tenant (auto-backup off included). Best-effort: a per-tenant error is
+		// logged and the pass moves on.
+		if s.retainer != nil {
+			n, err := s.retainer.EnforceAutoBackupRetention(ctx, tid)
+			if err != nil {
+				s.log.Error("auto backup: retention failed, continue",
+					"tenant_id", tid.String(), "error", err, "operation", "BackupScheduler")
+				continue
+			}
+			deleted += n
 		}
-		if _, err := s.creator.CreateBackup(ctx, tid, false, "", true); err != nil {
-			s.log.Error("auto backup: create failed, continue",
-				"tenant_id", tid.String(), "error", err, "operation", "BackupScheduler")
-			continue
-		}
-		s.mu.Lock()
-		s.last[tid] = time.Now()
-		s.mu.Unlock()
-		created++
 	}
 	s.log.Info("auto backup pass completed",
-		"created", created, "tenants", len(tenants), "operation", "BackupScheduler")
+		"created", created, "deleted", deleted, "tenants", len(tenants), "operation", "BackupScheduler")
 	return created, nil
 }

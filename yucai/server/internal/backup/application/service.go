@@ -369,6 +369,60 @@ func (s *Service) DeleteBackup(ctx context.Context, tenantID, backupID uuid.UUID
 	return nil
 }
 
+// AutoBackupRetentionKeep is the number of most-recent auto backups retained
+// per tenant by EnforceAutoBackupRetention (F40). Named constant so the policy
+// has a single source of truth; promote it to a per-tenant settings field if
+// retention ever becomes user-configurable.
+const AutoBackupRetentionKeep = 30
+
+// EnforceAutoBackupRetention trims a tenant's auto backups (provider=auto)
+// down to the AutoBackupRetentionKeep most recent, deleting the OLDEST first
+// via the same DeleteBackup pipeline manual deletes use (file + record).
+// Manual backups are never touched — the keep budget scopes to auto only.
+// Returns the number of backups deleted. Per-victim delete errors are logged
+// and skipped (best-effort trim must not wedge the scheduler pass).
+//
+// Restore-freeze (D12): a tenant with a restore in progress is skipped
+// entirely — deleting backup files while a restore may be reading them is a
+// race; the trim is retried on the next scheduler pass. The scheduler pass
+// already gates frozen tenants upstream; this check makes the invariant hold
+// for any caller.
+func (s *Service) EnforceAutoBackupRetention(ctx context.Context, tenantID uuid.UUID) (int, error) {
+	if s.freeze != nil && s.freeze.IsFrozen(tenantID) {
+		slog.Debug("retention skipped: restore in progress",
+			"tenant_id", tenantID.String(), "operation", "BackupRetention")
+		return 0, nil
+	}
+	autos, err := s.repo.FindByAuto(ctx, tenantID, true) // oldest first
+	if err != nil {
+		return 0, fmt.Errorf("list auto backups: %w", err)
+	}
+	if len(autos) <= AutoBackupRetentionKeep {
+		return 0, nil
+	}
+	victims := autos[:len(autos)-AutoBackupRetentionKeep]
+	deleted := 0
+	for _, b := range victims {
+		if err := s.DeleteBackup(ctx, tenantID, b.ID); err != nil {
+			slog.Error("retention delete failed, continue",
+				"tenant_id", tenantID.String(),
+				"backup_id", b.ID.String(),
+				"error", err,
+				"operation", "BackupRetention")
+			continue
+		}
+		deleted++
+	}
+	if deleted > 0 {
+		slog.Info("auto backup retention trimmed",
+			"tenant_id", tenantID.String(),
+			"deleted", deleted,
+			"kept", AutoBackupRetentionKeep,
+			"operation", "BackupRetention")
+	}
+	return deleted, nil
+}
+
 // CloudSettings represents per-tenant auto-backup configuration. Despite the
 // legacy "Cloud" name (kept to minimize churn), only auto-backup fields remain
 // after cloud-backup removal (2026-07-25).

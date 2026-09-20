@@ -10,6 +10,6 @@ guest 模式本地快照闭环(每日自动+应用内列表恢复);server 自动
 ## Feature roster
 
 - [ ] **feature F39** local-snapshot — guest 本地快照闭环(每日启动快照+保留 7 份+设置页列表恢复/删除/立即快照) — claimed: zcode-r14 2026-09-19(worktree .claude/worktrees/r14-f39)
-- [ ] **feature F40** backup-retention — server 自动备份保留策略(每租户自动备份保留最近 30 份,调度 pass 内清理)
+- [ ] **feature F40** backup-retention — server 自动备份保留策略(每租户自动备份保留最近 30 份,调度 pass 内清理) — claimed: zcode-r14 2026-09-19(worktree .claude/worktrees/r14-f40)
 
 ## status: pending

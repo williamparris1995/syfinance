@@ -98,6 +98,24 @@ func (r *BackupRepository) FindAll(ctx context.Context, tenantID uuid.UUID, prov
 	}, nil
 }
 
+// FindByAuto returns all backups for a tenant carrying the given auto flag,
+// ordered by created_at ascending (oldest first) — the deterministic
+// enumeration the auto-backup retention policy trims from (F40).
+func (r *BackupRepository) FindByAuto(ctx context.Context, tenantID uuid.UUID, auto bool) ([]domain.Backup, error) {
+	rows, err := r.client.Backup.Query().
+		Where(backup.TenantID(tenantID), backup.Auto(auto)).
+		Order(backup.ByCreatedAt()).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find backups by auto: %w", err)
+	}
+	items := make([]domain.Backup, len(rows))
+	for i, b := range rows {
+		items[i] = *toDomain(b)
+	}
+	return items, nil
+}
+
 // Update updates an existing backup record.
 func (r *BackupRepository) Update(ctx context.Context, b *domain.Backup) error {
 	_, err := r.client.Backup.UpdateOneID(b.ID).
