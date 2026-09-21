@@ -15,12 +15,21 @@
 ## Sprint roster
 
 - [x] [sprint-1](sprint-1/sprint.md) — F41 应用内反馈入口(邮件预填通道 + 双入口) ✅(2026-09-20 收官,ff 合并 `a040c663`)
+- [x] [sprint-2](sprint-2/sprint.md) — F42 反馈双通道(统一表单+在线 server 匿名直传/离线邮件) ✅(2026-09-21 收官,ff 合并 `1d9673ce`)
 
-## Done criteria
+## Done criteria(sprint-1)
 
 1. 设置页与侧栏底部均有可见反馈入口,点击唤起系统邮件客户端(mailto 预填主题+正文诊断头),guest 模式同样可用。✅(FR-2 按用户 fix-2 裁决微调:侧栏入口=导航列表尾部整行,720p 下保主导航全部可见;验收证据 e2e)
 2. 诊断头仅含技术元数据(app 版本/平台等),**不含任何财务数据**(隐私红线)。✅(白名单测试+禁词表钉死)
 3. 收件邮箱等常量单点收敛(一处定义,双入口复用,无硬编码散落)。✅(FEEDBACK_EMAIL=String.fromEnvironment 全仓单点,release.yml Secret 注入)
 4. `flutter test` 全绿 + analyze 基线 + `make client-e2e` 门(纯客户端票,不动 proto,免 go 门)。✅(1907 全绿/analyze 437≤439/client-e2e 5 套件 21 测全过)
 
-## status: done(功能 done;**发版待用户**:①GitHub 仓库 Secrets 配置 FEEDBACK_EMAIL ②tag 推送走 release.yml 流水线 —— 配置 Secret 前发版,入口将全走「反馈邮箱未配置」降级)
+## Done criteria(sprint-2 追加)
+
+1. 统一反馈表单(类型/正文限长/联系方式/只读诊断头),三入口共用,提交时按在线状态路由。✅(原型 v4 契约;dialog 7 测)
+2. 在线(绑定或 guest)→ server 匿名 SubmitFeedback 直传落库;离线 → mailto(表单内容并入正文,超限截断+剪贴板)。✅(集成测 5 件+service 10 测)
+3. 失败降级链:重试/改用邮件,表单内容不丢。✅(重试原样重发+forceMail 不触 gRPC 钉测)
+4. 防滥用:per-IP 限流 5/min+域校验;隐私白名单延续。✅(跨 IP 限流测+白名单构造排他)
+5. 全门:go 全绿+flutter 全绿+analyze+client-e2e(proto 变更过 server 门)。✅(67 包/1935/436/14 套件)
+
+## status: done(R15 两 sprint 收官=release 功能 done;**发版待用户**:①server 先部署[F42 新端点+feedback 表迁移自动] ②GitHub Secrets 配置 FEEDBACK_EMAIL ③tag 推送走 release.yml 流水线 —— 离线邮件通道在 Secret 配置前走「未配置」降级,在线通道不受影响)

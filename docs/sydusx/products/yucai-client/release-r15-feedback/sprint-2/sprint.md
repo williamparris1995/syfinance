@@ -9,6 +9,6 @@
 
 ## Feature roster
 
-- [ ] **feature F42** feedback-dual-channel — 反馈双通道:统一表单+在线 server 上传/离线邮件(server feedback 模块+ent 落库+匿名 SubmitFeedback+client 表单与路由) `claimed: zcode-main 2026-09-21`
+- [x] **feature F42** feedback-dual-channel — 反馈双通道:统一表单+在线 server 上传/离线邮件(server feedback 模块+ent 落库+匿名 SubmitFeedback+client 表单与路由) ✅ done(2026-09-21,ff 合并 `1d9673ce`:server proto feedback/v1+四层+匿名放行[anonymousMethods]+限流 5/min+域校验;client 表单[原型 v4]+双通道路由+mailto 截断降级+三入口改唤表单;两轴评审 PASS[1 MEDIUM+4 LOW 全修];go 67 包+flutter 1935+analyze 436+client-e2e 14/14 全绿;full_audit 瞬态失败经 main+worktree 双点复跑排除因果)—— worktree 已清,分支已删
 
-## status: pending
+## status: done(F42 done;发版待用户:server 先部署[新端点+ent 表迁移],client 随后;FEEDBACK_EMAIL Secret 仍待配)
