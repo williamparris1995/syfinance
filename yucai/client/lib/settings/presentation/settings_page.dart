@@ -18,6 +18,7 @@ import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide Currency;
+import 'package:yucai_client/core/feedback/feedback_launcher.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
@@ -900,6 +901,15 @@ class _AboutUpdateCardState extends State<_AboutUpdateCard> {
             label: '检查更新',
             description: '手动检查新版本(每天也会自动检查)',
             onTap: () => AppUpdater.checkForUpdates(),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // F41 意见反馈:mailto 入口,与侧栏/底栏共用 FeedbackEntry.launch
+          // (诊断头组装 + 三态 SnackBar 映射都在 core/feedback 单点)。
+          _NavRow(
+            icon: LucideIcons.messageSquareHeart,
+            label: '意见反馈',
+            description: '通过邮件向我们反馈问题或建议',
+            onTap: () => FeedbackEntry.launch(context),
           ),
         ],
       ),

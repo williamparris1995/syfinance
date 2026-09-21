@@ -12,6 +12,7 @@ import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dar
 import 'package:yucai_client/binding/presentation/widgets/sync_status_badge.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/feedback/feedback_launcher.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
@@ -125,6 +126,9 @@ class AppShell extends StatelessWidget {
                   userName: userName,
                   onSelect: (i) => navigationShell.goBranch(i,
                       initialLocation: i == navigationShell.currentIndex),
+                  // F41 feedback entry: same shared launcher as the
+                  // bottom-nav destination and the settings row.
+                  onFeedback: () => FeedbackEntry.launch(context),
                   onLogout: () =>
                       context.read<AuthBloc>().add(LogoutRequested()),
                 ),
@@ -177,6 +181,8 @@ class AppShell extends StatelessWidget {
             currentIndex: navigationShell.currentIndex,
             onSelect: (i) => navigationShell.goBranch(i,
                 initialLocation: i == navigationShell.currentIndex),
+            // F41 feedback entry (8th destination, not a branch slot).
+            onFeedback: () => FeedbackEntry.launch(context),
             onLogout: () =>
                 context.read<AuthBloc>().add(LogoutRequested()),
           ),
@@ -286,12 +292,16 @@ class _Sidebar extends StatelessWidget {
     required this.currentIndex,
     required this.userName,
     required this.onSelect,
+    required this.onFeedback,
     required this.onLogout,
   });
 
   final int currentIndex;
   final String userName;
   final ValueChanged<int> onSelect;
+
+  /// F41 feedback entry (row above the user area).
+  final VoidCallback onFeedback;
   final VoidCallback onLogout;
 
   @override
@@ -390,6 +400,11 @@ class _Sidebar extends StatelessWidget {
                             },
                     ),
                 ],
+                // F41 反馈行(fix-2):导航列表尾部,随列表滚动 —— 固定区增高
+                // 会把债务/债权等导航项挤出 720p 视口;入列表尾后固定区零
+                // 增高,1080p+ 全列表可见即常驻。与最后一组以小顶距分隔。
+                const SizedBox(height: AppSpacing.xs),
+                _SidebarFeedbackRow(onTap: onFeedback),
               ],
             ),
           ),
@@ -535,6 +550,59 @@ class _NavItemTileState extends State<_NavItemTile> {
 }
 
 // ───────────────────────── 顶栏 ─────────────────────────
+
+/// F41 反馈行(侧栏导航列表尾部整行,fix-2):随列表滚动、与登录态无关
+/// (1080p+ 常见桌面全列表可见即常驻)。视觉复用 [_NavItemTile] 样式语言
+/// (leading icon + 13px label + hover 面色/圆角),但无 selected 态、无
+/// badge —— 反馈不是导航目标。
+class _SidebarFeedbackRow extends StatefulWidget {
+  const _SidebarFeedbackRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_SidebarFeedbackRow> createState() => _SidebarFeedbackRowState();
+}
+
+class _SidebarFeedbackRowState extends State<_SidebarFeedbackRow> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.yucai;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: _hover ? t.sidebarHover : Colors.transparent,
+              borderRadius: AppRadius.smBorder,
+            ),
+            child: Row(children: [
+              Icon(LucideIcons.messageSquareHeart,
+                  size: 20, color: _hover ? t.fg : t.sidebarFg),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('意见反馈',
+                    style: TextStyle(
+                        color: _hover ? t.fg : t.sidebarFg,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500)),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _TopBar extends StatelessWidget {
   const _TopBar({
@@ -706,17 +774,22 @@ class _BottomNav extends StatelessWidget {
   const _BottomNav({
     required this.currentIndex,
     required this.onSelect,
+    required this.onFeedback,
     required this.onLogout,
   });
 
   final int currentIndex;
   final ValueChanged<int> onSelect;
+
+  /// F41 feedback entry (8th destination, right after the branch slots —
+  /// not part of [_branchSlots], handled before the trailing logout).
+  final VoidCallback onFeedback;
   final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
-    // 底栏映射已实现的分支：仪表盘(0) / 交易(2) / 账户(1) / 债务(3) / 债权(4) / 退出
-    // 五个分支索引 0/2/1/3/4 + 退出（末位），用 _branchSlots 把底栏位序 → 分支索引。
+    // 底栏映射已实现的分支：仪表盘(0) / 交易(2) / 账户(1) / 债务(3) / 债权(4) /
+    // 持仓(5) 六个分支索引 + 反馈(F41,非 branch) + 退出（末位）。
     final t = context.yucai;
     return NavigationBar(
       backgroundColor: t.surface,
@@ -725,6 +798,9 @@ class _BottomNav extends StatelessWidget {
       onDestinationSelected: (i) {
         if (i < _branchSlots.length) {
           onSelect(_branchSlots[i]);
+        } else if (i == _branchSlots.length) {
+          // F41 反馈位:branch 槽之后、退出之前的固定第 7 位。
+          onFeedback();
         } else {
           onLogout();
         }
@@ -743,13 +819,19 @@ class _BottomNav extends StatelessWidget {
             icon: Icon(LucideIcons.arrowUpRight), label: '债权'),
         NavigationDestination(
             icon: Icon(LucideIcons.lineChart), label: '持仓'),
+        // F41 反馈:icon 与宽屏侧栏同源(未选 messageSquare,选中爱心款)。
+        NavigationDestination(
+            icon: Icon(LucideIcons.messageSquare),
+            selectedIcon: Icon(LucideIcons.messageSquareHeart),
+            label: '反馈'),
         NavigationDestination(icon: Icon(LucideIcons.logOut), label: '退出'),
       ],
     );
   }
 
-  /// 底栏位序 → 分支索引。底栏顺序为 仪表盘/交易/账户/债务/债权/持仓/退出，
-  /// 对应分支 0/2/1/3/4/5，退出单独处理。未匹配的分支（如未来新增）回退到 0。
+  /// 底栏位序 → 分支索引。底栏分支顺序为 仪表盘/交易/账户/债务/债权/持仓,
+  /// 对应分支 0/2/1/3/4/5;反馈(F41)与退出不在此表(反馈=第 7 位,退出=末位)。
+  /// 未匹配的分支（如未来新增）回退到 0。
   static const _branchSlots = [0, 2, 1, 3, 4, 5];
 
   static int _slotIndexOf(int branchIndex) {

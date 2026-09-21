@@ -85,9 +85,11 @@ jobs:
         shell: bash
         run: |
           # 与 yucai/Makefile windows-installer 的构建步一致;CI 冷环境补 pub get。
+          # F41:反馈收件邮箱经 dart-define 注入(源码零邮箱明文);secret 缺省
+          # 时编译为空串,客户端 launchFeedback 走 emailMissing 提示降级。
           cd yucai/client
           flutter pub get
-          flutter build windows --release
+          flutter build windows --release --dart-define=FEEDBACK_EMAIL=${{ secrets.FEEDBACK_EMAIL }}
 
       - name: Install Inno Setup 6
         shell: pwsh
