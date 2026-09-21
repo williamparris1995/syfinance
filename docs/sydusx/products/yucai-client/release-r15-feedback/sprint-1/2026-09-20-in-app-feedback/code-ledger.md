@@ -31,4 +31,5 @@
 - flutter analyze:437 ≤ 439 基线(全程持平,feedback_launcher.dart 零命中)
 - make client-e2e:**全套件 exit 0**;app_pages 单套件 +5 全绿(验收点「债务管理」tap 找到 1 widget —— fix-2 主导航回位实证)
 - 环境注记:①worktree 初名 r15-f41-in-app-feedback 过长致 MSVC C1083(MAX_PATH),已 `git worktree move` 至短名 r15-f41(照 F39 worktree 命名先例);②fix-2 子代理 shell 通道损坏(bash ENOENT),门禁由控制器代跑复证,数字如上,不采信子代理估计值
-- 轮 3 定向门(app_shell_test + analyze):子代理 shell 通道仍损坏(同注记②)**待控制器代跑**——命令:`flutter test test/app/widgets/app_shell_test.dart` + `flutter analyze`(预期:7 绿含 scrollUntilVisible 路径;437 持平)
+- 轮 3 定向门(控制器代跑):app_shell_test **+7 全绿**(含 scrollUntilVisible 路径)+ analyze **437** 持平
+- **test 门终态(HEAD 2fe6401b,轮 3 后全量重跑)**:flutter test **1907 全绿** / analyze **437 ≤ 439** / make client-e2e **5 套件 21 测全过**(app_pages 7 含债务导航回位验收)。需求覆盖 9/9:FR-1 launcher 测×7 / FR-2 宽屏测+e2e / FR-3 窄屏测+设置行测 / FR-4 两降级逐字 SnackBar 测 / FR-5 白名单测(4 行+禁词表) / FR-6 本门 / NFR-1 白名单+剪贴板断言 / NFR-2 单点 grep(review 证) / NFR-3 workflow 静态核(Actions 真 tag 验证随发版人工项,照 R11 D-5 先例)。**Gate: PASS**
