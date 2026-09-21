@@ -126,7 +126,7 @@ class AppShell extends StatelessWidget {
                   userName: userName,
                   onSelect: (i) => navigationShell.goBranch(i,
                       initialLocation: i == navigationShell.currentIndex),
-                  // F41 feedback entry: same shared launcher as the
+                  // F42: the shared entry now opens the FeedbackFormDialog (dual
                   // bottom-nav destination and the settings row.
                   onFeedback: () => FeedbackEntry.launch(context),
                   onLogout: () =>
@@ -181,7 +181,7 @@ class AppShell extends StatelessWidget {
             currentIndex: navigationShell.currentIndex,
             onSelect: (i) => navigationShell.goBranch(i,
                 initialLocation: i == navigationShell.currentIndex),
-            // F41 feedback entry (8th destination, not a branch slot).
+            // F42 feedback entry (8th destination, not a branch slot) → form dialog.
             onFeedback: () => FeedbackEntry.launch(context),
             onLogout: () =>
                 context.read<AuthBloc>().add(LogoutRequested()),

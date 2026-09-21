@@ -23,6 +23,8 @@ server 的 `sydusx-design` 在 proto 破坏性改动时:写新 `vN` + 移动 CUR
 
 ## 变更记录
 
+**2026-09-21(R15 F42,向后兼容)**:新增 `feedback/v1` 服务——`FeedbackService` 单方法 `SubmitFeedback(SubmitFeedbackRequest) returns (SubmitFeedbackResponse)`(message:`SubmitFeedbackRequest{FeedbackType type; string body; string contact; FeedbackDiagnostics diagnostics}`;`FeedbackDiagnostics{string app_version/platform/account_mode/theme_mode}`;enum `FeedbackType{UNSPECIFIED=0; ISSUE=1; IDEA=2; OTHER=3}`;响应仅 `int64 id`)。**纯新增**(新包 yucai.feedback.v1,零既有字段/服务改动),CURRENT 不动仍 `v1`。特殊性:该端点**匿名可达**(`pkg/middleware/auth.go` `anonymousMethods` exact-match 放行 `/yucai.feedback.v1.FeedbackService/SubmitFeedback`,唯一成员),server 侧 per-IP 限流(RESOURCE_EXHAUSTED)+ 域校验(type∈{issue,idea,other}/body 1..1000 rune/contact≤100/diagnostics 4 字段各≤64 rune,违例 InvalidArgument)防滥用。**消费方**:yucai-client F42 起消费(表单直传,离线 mailto 降级不涉 API)。
+
 **2026-09-06(R10 F18,向后兼容)**:sync/v1 冲突全链语义升级——①ConflictDTO 加 `created_at = 8`(Timestamp);②**PushChanges 检测语义反转**:任意 CREATE/UPDATE 均做存在性检测(F16 条目「CREATE/DELETE 不检测」对 upsert 类不再成立;DELETE 仍不检测)——同 payload(canonical 规范形比对)短路(幂等重推不再追加 sync_log),不同且版本落后记冲突,版本超前落库;③**ResolveConflict 落库**:server=仅标记;client=Upsert 冲突行 client_payload+写 sync_log(frontier+1);merged=Upsert 透传 payload(空→InvalidArgument)+写 log;④ListConflicts 排序 `created_at DESC, id DESC`+keyset 分页 token(`"<time.String()形态>|<uuid>"`)。**消费方**:yucai-client F18 起消费全部(panel/badge/解决);F16 检测行为变化对 F17 及更早 client 向后兼容(旧 client 恒 CREATE——检测现同样适用,同 payload 重推仍短路)。
 
 

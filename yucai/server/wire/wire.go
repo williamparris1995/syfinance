@@ -90,6 +90,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideBackupService,
 		provideBackupHandler,
 
+		// Feedback module (anonymous SubmitFeedback; service registration on
+		// the gRPC server is done manually inside wire_gen.go)
+		provideFeedbackEntClient,
+		provideFeedbackRepo,
+		provideFeedbackService,
+		provideFeedbackRateLimiter,
+		provideFeedbackHandler,
+
 		// Sync module
 		provideSyncEntClient,
 		provideSyncLogRepo,

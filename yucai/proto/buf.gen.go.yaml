@@ -4,9 +4,7 @@ version: v2
 inputs:
   - directory: .
     paths:
-      - common/v1/recurrence.proto
-      - template/v1/template.proto
-      - debt/v1/debt.proto
+      - feedback/v1/feedback.proto
 plugins:
   - local: protoc-gen-go
     out: ../server/internal/proto
@@ -16,6 +14,7 @@ plugins:
       - "Mcommon/v1/pagination.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
       - "Mtemplate/v1/template.proto=github.com/yucai/server/internal/proto/template/v1;templatev1"
       - "Mdebt/v1/debt.proto=github.com/yucai/server/internal/proto/debt/v1;debtv1"
+      - "Mfeedback/v1/feedback.proto=github.com/yucai/server/internal/proto/feedback/v1;feedbackv1"
   - local: protoc-gen-go-grpc
     out: ../server/internal/proto
     opt:
@@ -24,3 +23,4 @@ plugins:
       - "Mcommon/v1/pagination.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
       - "Mtemplate/v1/template.proto=github.com/yucai/server/internal/proto/template/v1;templatev1"
       - "Mdebt/v1/debt.proto=github.com/yucai/server/internal/proto/debt/v1;debtv1"
+      - "Mfeedback/v1/feedback.proto=github.com/yucai/server/internal/proto/feedback/v1;feedbackv1"

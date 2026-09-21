@@ -31,6 +31,10 @@ import (
 	"github.com/yucai/server/internal/backup/domain"
 	backupent "github.com/yucai/server/internal/backup/ent"
 	backupscheduler "github.com/yucai/server/internal/backup/scheduler"
+	feedbackrepo "github.com/yucai/server/internal/feedback/adapter/driven/repository"
+	feedbackgrpc "github.com/yucai/server/internal/feedback/adapter/driving/grpc"
+	feedbackapp "github.com/yucai/server/internal/feedback/application"
+	feedbackent "github.com/yucai/server/internal/feedback/ent"
 	budgetrepo "github.com/yucai/server/internal/budget/adapter/driven/repository"
 	budgetgrpc "github.com/yucai/server/internal/budget/adapter/driving/grpc"
 	budgetapp "github.com/yucai/server/internal/budget/application"
@@ -706,6 +710,31 @@ func provideTagExporter(repo *tagrepo.TagRepository) *exporter.TagExporter {
 }
 func provideBackupHandler(svc *backupapp.Service) *backupgrpc.BackupHandler {
 	return backupgrpc.NewBackupHandler(svc)
+}
+
+// Feedback providers. The module backs the anonymous SubmitFeedback RPC:
+// ent-backed repo + application service + gRPC handler guarded by the
+// hand-written per-IP rate limiter. Mirrors the backup wiring shape minus the
+// scheduler/cloud pieces feedback does not have.
+func provideFeedbackEntClient(cfg *config.Config, db *sql.DB) (*feedbackent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
+	client := feedbackent.NewClient(feedbackent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate feedback schema: %w", err)
+	}
+	return client, nil
+}
+func provideFeedbackRepo(client *feedbackent.Client) *feedbackrepo.FeedbackRepository {
+	return feedbackrepo.NewFeedbackRepository(client)
+}
+func provideFeedbackService(repo *feedbackrepo.FeedbackRepository) *feedbackapp.Service {
+	return feedbackapp.NewService(repo)
+}
+func provideFeedbackRateLimiter() *feedbackgrpc.FeedbackRateLimiter {
+	return feedbackgrpc.NewFeedbackRateLimiter()
+}
+func provideFeedbackHandler(svc *feedbackapp.Service, limiter *feedbackgrpc.FeedbackRateLimiter) *feedbackgrpc.FeedbackHandler {
+	return feedbackgrpc.NewFeedbackHandler(svc, limiter)
 }
 
 // Sync providers

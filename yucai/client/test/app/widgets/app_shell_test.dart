@@ -15,7 +15,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
@@ -31,7 +30,6 @@ import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/has_stored_credentials_usecase.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
 import 'package:yucai_client/core/data_refresh.dart';
-import 'package:yucai_client/core/feedback/feedback_launcher.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
@@ -47,7 +45,6 @@ import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
-import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
@@ -309,42 +306,20 @@ void main() {
     expect(find.text('待同步 2'), findsOneWidget);
   });
 
-  // ── F41 T2:应用内反馈入口(宽屏侧栏行 + 窄屏底栏 destination) ─────────
-  // AppShell is router-constructed, so constructor seams cannot reach the
-  // feedback action from widget tests; the fake launch seam is swapped in
-  // via the ambient FeedbackEntry statics and restored on teardown. Note
-  // the DEFAULT test surface (800x600 logical) is below the 1100px wide
-  // breakpoint — the wide case must enlarge the view explicitly.
+  // ── F41→F42 T2:应用内反馈入口(宽屏侧栏行 + 窄屏底栏 destination) ─────
+  // Entries now open the FeedbackFormDialog (F42 dual-channel form) instead
+  // of jumping straight to mailto; the F41 launcher seams still back the
+  // dialog's mail channel. Note the DEFAULT test surface (800x600 logical)
+  // is below the 1100px wide breakpoint — the wide case must enlarge the
+  // view explicitly.
 
-  /// F41 harness: pump the shell (same shape as [pumpShell]) with the
-  /// FeedbackEntry seams swapped for a recording fake launcher; returns
-  /// the recorded launched URIs (empty recipient → emailMissing would
-  /// never record, hence the fake email source too).
-  Future<List<Uri>> pumpShellWithFeedbackSeam(WidgetTester tester) async {
-    final launched = <Uri>[];
-    final origEmail = FeedbackEntry.emailSource;
-    final origLaunch = FeedbackEntry.launchUrlFn;
-    FeedbackEntry.emailSource = () => 'feedback@example.com';
-    FeedbackEntry.launchUrlFn =
-        (url, {LaunchMode mode = LaunchMode.externalApplication}) async {
-      launched.add(url);
-      return true;
-    };
-    addTearDown(() {
-      FeedbackEntry.emailSource = origEmail;
-      FeedbackEntry.launchUrlFn = origLaunch;
-    });
-    await pumpShell(tester);
-    return launched;
-  }
-
-  testWidgets('F41 wide (≥1100): sidebar 意见反馈 row invokes launch seam',
+  testWidgets('F42 wide (≥1100): sidebar 意见反馈 row opens the form dialog',
       (tester) async {
     tester.view.physicalSize = const Size(2400, 1800); // logical 1200x900
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final launched = await pumpShellWithFeedbackSeam(tester);
+    await pumpShell(tester);
 
     // fix-2 acceptance: the feedback row moved into the LIST TAIL, so the
     // fixed area grew zero pixels — the main nav (e.g. 债务管理) stays in
@@ -364,23 +339,23 @@ void main() {
     await tester.tap(find.text('意见反馈'));
     await tester.pump();
     // Pump past the 500ms package_info timeout guard (plugin-less test
-    // env never answers; FeedbackEntry degrades to an empty version).
+    // env never answers; the entry degrades to an empty version).
     await tester.pump(const Duration(seconds: 1));
 
-    expect(launched, hasLength(1));
-    expect(launched.single.scheme, 'mailto');
-    // launched → silent success, no snackbar prompt.
-    expect(find.byType(SnackBar), findsNothing);
+    // The form dialog replaced the direct mailto jump (find the 意见反馈
+    // title INSIDE the AlertDialog — the sidebar row text also exists).
+    expect(find.widgetWithText(AlertDialog, '意见反馈'), findsOneWidget);
+    expect(find.text('提交反馈'), findsOneWidget);
   });
 
   testWidgets(
-      'F41 narrow (<1100): bottom nav 反馈 destination invokes launch seam',
+      'F42 narrow (<1100): bottom nav 反馈 destination opens the form dialog',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1600); // logical 800x1600
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final launched = await pumpShellWithFeedbackSeam(tester);
+    await pumpShell(tester);
 
     // 8th destination: after the 6 branch slots, before 退出.
     expect(find.text('反馈'), findsOneWidget);
@@ -390,8 +365,8 @@ void main() {
     // Same 500ms version-timeout guard as the wide case.
     await tester.pump(const Duration(seconds: 1));
 
-    expect(launched, hasLength(1));
-    expect(launched.single.scheme, 'mailto');
+    expect(find.widgetWithText(AlertDialog, '意见反馈'), findsOneWidget);
+    expect(find.text('提交反馈'), findsOneWidget);
   });
 }
 

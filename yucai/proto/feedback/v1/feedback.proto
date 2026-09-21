@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package yucai.feedback.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/feedback/v1";
+
+// FeedbackService collects in-app user feedback (issue / idea / other).
+// SubmitFeedback is an ANONYMOUS endpoint: no authorization metadata is
+// required (guest mode must be able to report problems), so the server's
+// auth interceptor explicitly allowlists this method. Abuse is bounded by a
+// per-IP rate limit enforced in the handler.
+service FeedbackService {
+  rpc SubmitFeedback(SubmitFeedbackRequest) returns (SubmitFeedbackResponse);
+}
+
+enum FeedbackType {
+  FEEDBACK_TYPE_UNSPECIFIED = 0;
+  ISSUE = 1;
+  IDEA = 2;
+  OTHER = 3;
+}
+
+// FeedbackDiagnostics carries the client environment snapshot that makes a
+// report actionable without a back-and-forth. All fields are optional free
+// strings supplied by the client.
+message FeedbackDiagnostics {
+  string app_version = 1;
+  string platform = 2;
+  string account_mode = 3;
+  string theme_mode = 4;
+}
+
+message SubmitFeedbackRequest {
+  FeedbackType type = 1;
+  string body = 2;
+  string contact = 3;
+  FeedbackDiagnostics diagnostics = 4;
+}
+
+message SubmitFeedbackResponse {
+  int64 id = 1;
+}

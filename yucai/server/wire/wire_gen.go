@@ -8,6 +8,7 @@ package wire
 import (
 	"fmt"
 
+	feedbackpb "github.com/yucai/server/internal/proto/feedback/v1"
 	"github.com/yucai/server/pkg/config"
 )
 
@@ -316,6 +317,20 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts, tokenBlacklist)
+
+	// Feedback module (F42): anonymous in-app feedback. Registered HERE in
+	// wire_gen (not in cmd/server/main.go with the other services) because the
+	// handler needs no App field — nothing outside wiring references it. The
+	// service must be registered before Serve below.
+	feedbackClient, err := provideFeedbackEntClient(cfg, db)
+	if err != nil {
+		return nil, err
+	}
+	feedbackRepo := provideFeedbackRepo(feedbackClient)
+	feedbackService := provideFeedbackService(feedbackRepo)
+	feedbackLimiter := provideFeedbackRateLimiter()
+	feedbackHandler := provideFeedbackHandler(feedbackService, feedbackLimiter)
+	feedbackpb.RegisterFeedbackServiceServer(grpcSrv, feedbackHandler)
 
 	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler, goalScheduler, debtScheduler, templateScheduler, backupScheduler, networthHandler)
 	return app, nil

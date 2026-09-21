@@ -25,10 +25,24 @@ var TokenService *authjwt.TokenService
 // don't care about revocation leave it nil and AuthInterceptor skips the check.
 var TokenBlacklist command.TokenBlacklist
 
+// anonymousMethods lists business RPC FullMethods that are reachable WITHOUT
+// any authentication — the anonymous counterpart to the AuthService prefix
+// rule below. Unlike that service-wide prefix, membership here is per-method
+// and exact-match so the exemption surface stays minimal. Anonymous methods
+// must bound abuse handler-side (e.g. per-IP rate limiting).
+var anonymousMethods = map[string]struct{}{
+	"/yucai.feedback.v1.FeedbackService/SubmitFeedback": {},
+}
+
 // AuthInterceptor validates JWT tokens in gRPC metadata.
-// Skip auth for AuthService methods (Register, Login) — they don't require tokens.
+// Skip auth for auth service public methods (Register, Login) — they don't require tokens.
 // All other methods require a valid access token that extracts user_id and tenant_id into context.
 func AuthInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	// Anonymous business RPCs (exact-match allowlist above): skip auth.
+	if _, ok := anonymousMethods[info.FullMethod]; ok {
+		return handler(ctx, req)
+	}
+
 	// Skip auth for auth service public methods (Register, Login)
 	if strings.HasPrefix(info.FullMethod, "/yucai.auth.v1.AuthService/") &&
 		!strings.Contains(info.FullMethod, "GetProfile") &&

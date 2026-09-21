@@ -23,6 +23,7 @@ import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/feedback/feedback_launcher.dart';
+import 'package:yucai_client/core/feedback/feedback_submit_service.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
@@ -656,10 +657,11 @@ group('关于与更新卡 (验收补充)', () {
   });
 });
 
-/// F41 T2:「意见反馈」行(关于与更新卡,与侧栏/底栏共用 FeedbackEntry)。
-/// 假 launch 缝经 FeedbackEntry 环境静态缝注入(tearDown 恢复)。
+/// F41→F42 T2:「意见反馈」行(关于与更新卡,与侧栏/底栏共用 FeedbackEntry)。
+/// F42 起点击唤起 FeedbackFormDialog;提交通道经 FeedbackEntry.
+/// submitServiceFactory 环境静态缝注入假服务(tearDown 恢复)。
 group('F41 意见反馈行', () {
-  testWidgets('渲染意见反馈行;点击 → 假 launch 缝被调', (t) async {
+  testWidgets('渲染意见反馈行;点击 → FeedbackFormDialog 出现', (t) async {
     // 行在页面底部(关于与更新卡):拉高视口(F25 先例)让可直接 tap。
     t.view.physicalSize = const Size(800, 1800);
     t.view.devicePixelRatio = 1.0;
@@ -672,25 +674,11 @@ group('F41 意见反馈行', () {
       status: CurrencyStatus.loaded,
     );
 
-    final launched = <Uri>[];
-    final origEmail = FeedbackEntry.emailSource;
-    final origLaunch = FeedbackEntry.launchUrlFn;
-    FeedbackEntry.emailSource = () => 'feedback@example.com';
-    FeedbackEntry.launchUrlFn =
-        (url, {LaunchMode mode = LaunchMode.externalApplication}) async {
-      launched.add(url);
-      return true;
-    };
-    addTearDown(() {
-      FeedbackEntry.emailSource = origEmail;
-      FeedbackEntry.launchUrlFn = origLaunch;
-    });
-
     await t.pumpWidget(_harness(state, authRemote, currencySettings));
     await t.pumpAndSettle();
 
     expect(find.text('意见反馈'), findsOneWidget);
-    expect(find.text('通过邮件向我们反馈问题或建议'), findsOneWidget);
+    expect(find.text('问题或建议直达开发者'), findsOneWidget);
 
     await t.tap(find.text('意见反馈'));
     await t.pump();
@@ -698,16 +686,14 @@ group('F41 意见反馈行', () {
     // env never answers; the entry degrades to an empty version).
     await t.pump(const Duration(seconds: 1));
 
-    expect(launched, hasLength(1));
-    expect(launched.single.scheme, 'mailto');
-    // launched → silent success, no snackbar prompt.
-    expect(find.byType(SnackBar), findsNothing);
+    expect(find.widgetWithText(AlertDialog, '意见反馈'), findsOneWidget);
+    expect(find.text('提交反馈'), findsOneWidget);
   });
 
-  // P-2 review fix: FR-4 两条缺省态 SnackBar 文案的逐字契约(此前零
-  // widget 级覆盖)。缝注入手法同上;行为已实现,测试为契约钉子。
+  // P-2 review fix (F42 形态): FR-4 两条缺省态文案的逐字契约,经表单提交
+  // 的离线通道触达(缝注入手法:submitServiceFactory + 假 launch/clip)。
 
-  testWidgets('P-2: emailMissing → 「反馈邮箱未配置」SnackBar(逐字),launch 缝未被调',
+  testWidgets('P-2: 离线+邮箱缺省提交 → 「反馈邮箱未配置」提示(逐字),launch 缝未被调',
       (t) async {
     t.view.physicalSize = const Size(800, 1800);
     t.view.devicePixelRatio = 1.0;
@@ -720,36 +706,41 @@ group('F41 意见反馈行', () {
       status: CurrencyStatus.loaded,
     );
 
-    final launched = <Uri>[];
-    final origEmail = FeedbackEntry.emailSource;
-    final origLaunch = FeedbackEntry.launchUrlFn;
-    FeedbackEntry.emailSource = () => '';
-    FeedbackEntry.launchUrlFn =
-        (url, {LaunchMode mode = LaunchMode.externalApplication}) async {
-      launched.add(url);
-      return true;
-    };
+    var launchCalls = 0;
+    final origFactory = FeedbackEntry.submitServiceFactory;
+    FeedbackEntry.submitServiceFactory = () => FeedbackSubmitService(
+          deps: FeedbackSubmitDeps(
+            online: () => false,
+            emailSource: () => '',
+            launch: (url,
+                    {LaunchMode mode = LaunchMode.externalApplication}) async {
+              launchCalls++;
+              return true;
+            },
+          ),
+        );
     addTearDown(() {
-      FeedbackEntry.emailSource = origEmail;
-      FeedbackEntry.launchUrlFn = origLaunch;
+      FeedbackEntry.submitServiceFactory = origFactory;
     });
 
     await t.pumpWidget(_harness(state, authRemote, currencySettings));
     await t.pumpAndSettle();
 
     await t.tap(find.text('意见反馈'));
-    await t.pump();
-    // Pump past the 500ms package_info timeout guard.
     await t.pump(const Duration(seconds: 1));
+    await _fillAndSubmitFeedbackForm(t);
 
-    // Verbatim FR-4 copy for the missing-email state; nothing launched.
+    // Verbatim FR-4 copy for the missing-email state (inline info strip);
+    // nothing launched.
     expect(
         find.text('反馈邮箱未配置(需 --dart-define=FEEDBACK_EMAIL)'),
         findsOneWidget);
-    expect(launched, isEmpty);
+    expect(launchCalls, isZero);
+    // Dialog stays open (content preserved for manual copy).
+    expect(find.widgetWithText(AlertDialog, '意见反馈'), findsOneWidget);
   });
 
-  testWidgets('P-2: launch false + clip 降级 → 「未检测到邮件客户端…已复制」SnackBar(逐字)',
+  testWidgets('P-2: 离线提交 + launch false + clip 降级 → 「未检测到邮件客户端…已复制」(逐字)',
       (t) async {
     t.view.physicalSize = const Size(800, 1800);
     t.view.devicePixelRatio = 1.0;
@@ -763,37 +754,52 @@ group('F41 意见反馈行', () {
     );
 
     final clipped = <String>[];
-    final origEmail = FeedbackEntry.emailSource;
-    final origLaunch = FeedbackEntry.launchUrlFn;
-    final origClip = FeedbackEntry.clipboardWriter;
-    FeedbackEntry.emailSource = () => 'feedback@example.com';
-    FeedbackEntry.launchUrlFn =
-        (url, {LaunchMode mode = LaunchMode.externalApplication}) async =>
-            false;
-    FeedbackEntry.clipboardWriter = (text) async => clipped.add(text);
+    final origFactory = FeedbackEntry.submitServiceFactory;
+    FeedbackEntry.submitServiceFactory = () => FeedbackSubmitService(
+          deps: FeedbackSubmitDeps(
+            online: () => false,
+            emailSource: () => 'feedback@example.com',
+            launch: (url,
+                    {LaunchMode mode = LaunchMode.externalApplication}) async =>
+                false,
+            clip: (text) async => clipped.add(text),
+          ),
+        );
     addTearDown(() {
-      FeedbackEntry.emailSource = origEmail;
-      FeedbackEntry.launchUrlFn = origLaunch;
-      FeedbackEntry.clipboardWriter = origClip;
+      FeedbackEntry.submitServiceFactory = origFactory;
     });
 
     await t.pumpWidget(_harness(state, authRemote, currencySettings));
     await t.pumpAndSettle();
 
     await t.tap(find.text('意见反馈'));
-    await t.pump();
-    // Pump past the 500ms package_info timeout guard.
     await t.pump(const Duration(seconds: 1));
+    await _fillAndSubmitFeedbackForm(t);
 
-    // Verbatim FR-4 copy for the no-mail-client state; clipboard fallback
-    // carries recipient + subject + the 4-line diagnostic header.
+    // Verbatim FR-4 copy for the no-mail-client state (post-close toast);
+    // clipboard fallback carries recipient + TYPED subject + full body.
     expect(
         find.text('未检测到邮件客户端,反馈内容已复制,可粘贴到网页邮箱发送'),
         findsOneWidget);
     expect(clipped, hasLength(1));
     expect(clipped.single, contains('收件人:feedback@example.com'));
-    expect(clipped.single, contains('主题:御财反馈'));
+    expect(clipped.single, contains('主题:御财反馈-问题'));
     expect(clipped.single, contains('版本:'));
+    // Mail channel done → dialog closed.
+    expect(find.widgetWithText(AlertDialog, '意见反馈'), findsNothing);
   });
 });
+} // main
+
+/// Fills the feedback form (type 问题 + body) and taps 提交反馈.
+Future<void> _fillAndSubmitFeedbackForm(WidgetTester t) async {
+  await t.tap(find.text('问题'));
+  await t.pump();
+  await t.enterText(
+      find.widgetWithText(TextField, '请描述你遇到的问题或建议…'), '同步后列表偶发空白');
+  await t.pump();
+  await t.tap(find.text('提交反馈'));
+  await t.pump(const Duration(seconds: 1));
+  await t.pumpAndSettle();
 }
+

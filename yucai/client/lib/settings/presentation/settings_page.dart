@@ -903,12 +903,13 @@ class _AboutUpdateCardState extends State<_AboutUpdateCard> {
             onTap: () => AppUpdater.checkForUpdates(),
           ),
           const SizedBox(height: AppSpacing.sm),
-          // F41 意见反馈:mailto 入口,与侧栏/底栏共用 FeedbackEntry.launch
-          // (诊断头组装 + 三态 SnackBar 映射都在 core/feedback 单点)。
+          // F41→F42 意见反馈:点击唤起 FeedbackFormDialog(在线直传/离线
+          // 邮件双通道),与侧栏/底栏共用 FeedbackEntry.launch(core/feedback
+          // 单点;诊断头组装 + 双通道提交都在那里)。
           _NavRow(
             icon: LucideIcons.messageSquareHeart,
             label: '意见反馈',
-            description: '通过邮件向我们反馈问题或建议',
+            description: '问题或建议直达开发者',
             onTap: () => FeedbackEntry.launch(context),
           ),
         ],
