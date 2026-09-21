@@ -10,7 +10,7 @@ keywords: [反馈, 意见反馈, feedback, mailto, 邮件, 侧栏, 设置, in-ap
 
 ## Description
 
-现状:用户有问题/建议只能线下找开发者,app 内无通道。目标:mailto 直跳通道——三入口(宽屏侧栏用户区上方整行「意见反馈」/窄屏底栏「反馈」项/设置页行)共用单一 FeedbackLauncher,点击唤起系统邮件客户端,预填收件人(dart-define 注入,源码零明文)+主题+诊断头(版本/平台/账户模式/主题 4 字段白名单,零财务数据);FEEDBACK_EMAIL 缺省或无邮件客户端时 SnackBar 降级(后者附剪贴板复制)。guest 可用,零 server/proto 改动。
+现状:用户有问题/建议只能线下找开发者,app 内无通道。目标:mailto 直跳通道——三入口(宽屏侧栏导航列表尾部整行「意见反馈」/窄屏底栏「反馈」项/设置页行)共用单一 FeedbackLauncher,点击唤起系统邮件客户端,预填收件人(dart-define 注入,源码零明文)+主题+诊断头(版本/平台/账户模式/主题 4 字段白名单,零财务数据);FEEDBACK_EMAIL 缺省或无邮件客户端时 SnackBar 降级(后者附剪贴板复制)。guest 可用,零 server/proto 改动。
 
 ## Stories
 

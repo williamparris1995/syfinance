@@ -43,7 +43,7 @@ settings/presentation/settings_page.dart(设置页图标行)
 - `Future<FeedbackLaunchResult> launchFeedback(FeedbackDiagnostics d, {LaunchUrlFn? launch, ClipboardWriter? clip})` —— 缝默认接 `launchUrl(externalApplication)`/`Clipboard.setData`;emailMissing→SnackBar 文案由 UI 层展示;launchFailed→缝写入剪贴板「邮箱+主题+诊断头」文本再返回 `launchFailedCopied`。
 
 **app_shell.dart(两入口)**
-- 宽屏 `_Sidebar`:导航组 ListView 尾部追加整行反馈条(fix-2:原设计用户区上方常驻行,720p 实测把债务/债权导航项挤出视口,移入列表尾随列表滚动、固定区零增高,1080p+ 全列表可见即常驻;新私有 widget `_SidebarFeedbackRow`,视觉复用 `_NavItemTile` 样式:leading icon 20px + label 13px,Lucide `messageSquareHeart` 或 `messageSquare`);onTap → 组装 diagnostics(async 采集)→ `launchFeedback`,结果按 enum 出 SnackBar。
+- 宽屏 `_Sidebar`:导航组 ListView 尾部追加整行反馈条(fix-2:原设计用户区上方常驻行,720p 实测把债务/债权导航项挤出视口,移入列表尾随列表滚动、固定区零增高,1080p+ 全列表可见即常驻;新私有 widget `_SidebarFeedbackRow`,视觉复用 `_NavItemTile` 样式:leading icon 18px + label 13px(P-F1b:与 tile 图标同尺寸,「20px」系对 tile 的错误转述),Lucide `messageSquareHeart` 或 `messageSquare`,水平内缩零(列表 padding 已含 12px,胶囊与 tile 左缘对齐));onTap → 组装 diagnostics(async 采集)→ `launchFeedback`,结果按 enum 出 SnackBar。
 - 窄屏 `_BottomNav`:destinations 增第 8 项(icon Lucide `messageSquare`,label「反馈」);`onDestinationSelected` i==反馈位 → 新增 `onFeedback` 回调参数(AppShell 传入同一 launch 逻辑);不参与 branch 切换与 `_branchSlots`。
 
 **settings_page.dart(一入口)**

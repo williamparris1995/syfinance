@@ -300,7 +300,7 @@ class _Sidebar extends StatelessWidget {
   final String userName;
   final ValueChanged<int> onSelect;
 
-  /// F41 feedback entry (row above the user area).
+  /// F41 feedback entry (nav list tail row, fix-2).
   final VoidCallback onFeedback;
   final VoidCallback onLogout;
 
@@ -571,7 +571,10 @@ class _SidebarFeedbackRowState extends State<_SidebarFeedbackRow> {
   Widget build(BuildContext context) {
     final t = context.yucai;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      // fix-2/P-F1: no horizontal inset — the ListView itself already
+      // pads horizontal 12, so the capsule aligns with the _NavItemTile
+      // above (left edge 12px, not 24px). Vertical spacing kept.
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hover = true),
@@ -586,8 +589,10 @@ class _SidebarFeedbackRowState extends State<_SidebarFeedbackRow> {
               borderRadius: AppRadius.smBorder,
             ),
             child: Row(children: [
+              // P-F1b: 18px matches _NavItemTile's icon — adjacent rows
+              // must not differ in icon size.
               Icon(LucideIcons.messageSquareHeart,
-                  size: 20, color: _hover ? t.fg : t.sidebarFg),
+                  size: 18, color: _hover ? t.fg : t.sidebarFg),
               const SizedBox(width: 10),
               Expanded(
                 child: Text('意见反馈',
