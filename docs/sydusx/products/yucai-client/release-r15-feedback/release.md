@@ -14,13 +14,13 @@
 
 ## Sprint roster
 
-- [ ] [sprint-1](sprint-1/sprint.md) — F41 应用内反馈入口(邮件预填通道 + 双入口)
+- [x] [sprint-1](sprint-1/sprint.md) — F41 应用内反馈入口(邮件预填通道 + 双入口) ✅(2026-09-20 收官,ff 合并 `a040c663`)
 
 ## Done criteria
 
-1. 设置页与侧栏底部均有可见反馈入口,点击唤起系统邮件客户端(mailto 预填主题+正文诊断头),guest 模式同样可用。
-2. 诊断头仅含技术元数据(app 版本/平台等),**不含任何财务数据**(隐私红线)。
-3. 收件邮箱等常量单点收敛(一处定义,双入口复用,无硬编码散落)。
-4. `flutter test` 全绿 + analyze 基线 + `make client-e2e` 门(纯客户端票,不动 proto,免 go 门)。
+1. 设置页与侧栏底部均有可见反馈入口,点击唤起系统邮件客户端(mailto 预填主题+正文诊断头),guest 模式同样可用。✅(FR-2 按用户 fix-2 裁决微调:侧栏入口=导航列表尾部整行,720p 下保主导航全部可见;验收证据 e2e)
+2. 诊断头仅含技术元数据(app 版本/平台等),**不含任何财务数据**(隐私红线)。✅(白名单测试+禁词表钉死)
+3. 收件邮箱等常量单点收敛(一处定义,双入口复用,无硬编码散落)。✅(FEEDBACK_EMAIL=String.fromEnvironment 全仓单点,release.yml Secret 注入)
+4. `flutter test` 全绿 + analyze 基线 + `make client-e2e` 门(纯客户端票,不动 proto,免 go 门)。✅(1907 全绿/analyze 437≤439/client-e2e 5 套件 21 测全过)
 
-## status: pending
+## status: done(功能 done;**发版待用户**:①GitHub 仓库 Secrets 配置 FEEDBACK_EMAIL ②tag 推送走 release.yml 流水线 —— 配置 Secret 前发版,入口将全走「反馈邮箱未配置」降级)
