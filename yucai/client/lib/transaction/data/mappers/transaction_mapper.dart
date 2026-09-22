@@ -104,9 +104,15 @@ DateTime _parseDate(String s) {
 /// server omits the field or sends an empty string, so the UI can fall back to
 /// `transactionDate`. An unparseable value also yields `null` rather than
 /// throwing — a single malformed row must not poison the list view.
+///
+/// RFC3339 strings carry an explicit offset, so `DateTime.tryParse` returns a
+/// UTC [DateTime]. Every consumer (list HH:MM, detail line, copy-form
+/// `TimeOfDay.fromDateTime`) reads civil `.hour`/`.minute`, which on a UTC
+/// instance is 8h off the wall clock in UTC+8. Normalize to local here — the
+/// entity invariant is "wall-clock time in the device zone".
 DateTime? _parseTransactionTime(String s) {
   if (s.isEmpty) return null;
-  return DateTime.tryParse(s);
+  return DateTime.tryParse(s)?.toLocal();
 }
 
 Int64 _i64(int v) => Int64(v);

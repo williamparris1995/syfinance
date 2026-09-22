@@ -70,13 +70,19 @@ void main() {
   });
 
   group('transactionTime (Task 4)', () {
-    test('maps RFC3339 transactionTime to domain DateTime', () {
+    test('maps RFC3339 transactionTime to local wall-clock DateTime', () {
       final dto = pb.TransactionDTO()
         ..id = 't3'
         ..transactionDate = '2026-06-19'
         ..transactionTime = '2026-06-19T13:45:30Z';
       final t = mapper.toDomain(dto);
-      expect(t.transactionTime, DateTime.utc(2026, 6, 19, 13, 45, 30));
+      // Wall-clock invariant: entity is local (civil .hour is what the UI
+      // shows), same instant as the wire UTC timestamp.
+      expect(t.transactionTime,
+          DateTime.utc(2026, 6, 19, 13, 45, 30).toLocal());
+      expect(t.transactionTime!.isUtc, isFalse);
+      expect(
+          t.transactionTime!.toUtc(), DateTime.utc(2026, 6, 19, 13, 45, 30));
     });
 
     test('missing transactionTime maps to null', () {
@@ -102,10 +108,28 @@ void main() {
         ..transactionDate = '2026-06-19'
         ..transactionTime = '2026-06-19T21:30:00+08:00';
       final t = mapper.toDomain(dto);
-      expect(t.transactionTime, DateTime.parse('2026-06-19T21:30:00+08:00'));
+      expect(t.transactionTime,
+          DateTime.parse('2026-06-19T21:30:00+08:00').toLocal());
       // Equivalent UTC instant.
       expect(t.transactionTime!.toUtc(),
           DateTime.utc(2026, 6, 19, 13, 30, 0));
+    });
+
+    // Regression (copy-transaction 8h skew): the wall clock the UI shows must
+    // survive a full round trip — encode wall → UTC RFC3339 (form submit),
+    // parse back (mapper) → same wall hour, regardless of the device zone.
+    test('wall-clock round trip is zone-stable (copy 8h regression)', () {
+      final wall = DateTime(2026, 6, 19, 21, 30);
+      final wire = wall.toUtc().toIso8601String();
+      final back = mapper
+          .toDomain(pb.TransactionDTO()
+            ..id = 't7'
+            ..transactionDate = '2026-06-19'
+            ..transactionTime = wire)
+          .transactionTime!;
+      expect(back.hour, wall.hour,
+          reason: 'copy prefill / list HH:MM must show the wall hour');
+      expect(back.minute, wall.minute);
     });
   });
 

@@ -62,6 +62,11 @@ class TransactionEntry extends Equatable {
 /// (proto `string` RFC3339, field 8). When absent the domain holds `null`;
 /// the UI falls back to [transactionDate]. This is distinct from
 /// [transactionDate] (the accounting date) and from [createdAt] (audit).
+///
+/// Invariant: [transactionTime] is **local wall-clock time** (device zone).
+/// The wire format is UTC RFC3339; both read boundaries (proto mapper, drift
+/// `_toEntity`) normalize with `toLocal()` so civil `.hour`/`.minute` reads
+/// (list HH:MM, detail line, copy-form prefill) show the wall time.
 class Transaction extends Equatable {
   const Transaction({
     required this.transactionDate,
@@ -80,7 +85,7 @@ class Transaction extends Equatable {
   final List<TransactionEntry> entries;
   final int version;
 
-  /// Optional wall-clock time (RFC3339). `null` when the server omits it.
+  /// Optional wall-clock time, local device zone (`null` when unset).
   final DateTime? transactionTime;
   final DateTime? createdAt;
   final DateTime? updatedAt;

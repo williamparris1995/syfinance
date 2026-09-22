@@ -524,11 +524,18 @@ class TransactionLocalDataSource {
         description: head.description,
         entries: entries,
         version: head.version,
-        transactionTime: head.transactionTime,
+        // Wall-clock invariant: rows written before the timezone fix carry
+        // `Z`-suffixed drift text, which drift reads back as UTC; rows written
+        // after carry a `+hh:mm` offset and already come back local. `toLocal`
+        // is a no-op for the latter and repairs the former.
+        transactionTime: head.transactionTime?.toLocal(),
         createdAt: head.createdAt,
         updatedAt: head.updatedAt,
       );
 
-  DateTime? _parseTime(String rfc3339) =>
-      rfc3339.isEmpty ? null : DateTime.tryParse(rfc3339);
+  DateTime? _parseTime(String rfc3339) => rfc3339.isEmpty
+      ? null
+      // toLocal: keep the entity on wall-clock time (drift stores the local
+      // offset alongside, so the drift round trip is zone-stable).
+      : DateTime.tryParse(rfc3339)?.toLocal();
 }

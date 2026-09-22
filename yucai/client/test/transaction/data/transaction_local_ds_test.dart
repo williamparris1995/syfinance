@@ -238,4 +238,47 @@ void main() {
       'expense',
     );
   });
+
+  // Regression (copy-transaction 8h skew): the form encodes the wall clock as
+  // UTC RFC3339; the local DS must read it back on the wall clock so list
+  // HH:MM, the detail line and the copy-form prefill all show what the user
+  // entered. `DateTime.tryParse` on a `Z` string yields a UTC instance whose
+  // civil .hour is 8h off in UTC+8 — this group pins the toLocal invariant.
+  group('transactionTime wall-clock round trip (8h skew regression)', () {
+    test('recordExpense → read back preserves the wall hour/minute', () async {
+      final cash = await seedAccount('cash', 1);
+      final food = await seedAccount('food', 5);
+      final wall = DateTime(2026, 8, 21, 21, 30);
+      final t = await ds.recordExpense(RecordExpenseParams(
+        transactionDate: DateTime(2026, 8, 21),
+        expenseAccountId: food,
+        assetAccountId: cash,
+        amountCents: 5000,
+        transactionTime: wall.toUtc().toIso8601String(), // form encoding
+      ));
+      expect(t.transactionTime, isNotNull);
+      expect(t.transactionTime!.hour, wall.hour);
+      expect(t.transactionTime!.minute, wall.minute);
+      expect(t.transactionTime!.toUtc(), wall.toUtc()); // instant preserved
+
+      // getById goes through the drift round trip (write text → read text).
+      final reloaded = await ds.getById(t.id);
+      expect(reloaded.transactionTime!.hour, wall.hour,
+          reason: 'drift round trip must stay on the wall clock');
+      expect(reloaded.transactionTime!.minute, wall.minute);
+    });
+
+    test('empty transactionTime stays null', () async {
+      final cash = await seedAccount('cash', 1);
+      final food = await seedAccount('food', 5);
+      final t = await ds.recordExpense(RecordExpenseParams(
+        transactionDate: DateTime(2026, 8, 21),
+        expenseAccountId: food,
+        assetAccountId: cash,
+        amountCents: 100,
+      ));
+      expect(t.transactionTime, isNull);
+      expect((await ds.getById(t.id)).transactionTime, isNull);
+    });
+  });
 }
