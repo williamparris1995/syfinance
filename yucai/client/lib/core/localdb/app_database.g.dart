@@ -6889,6 +6889,230 @@ class ReminderLogsCompanion extends UpdateCompanion<ReminderLog> {
   }
 }
 
+class $ReminderDismissalsTable extends ReminderDismissals
+    with TableInfo<$ReminderDismissalsTable, ReminderDismissal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReminderDismissalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _entryIdMeta = const VerificationMeta(
+    'entryId',
+  );
+  @override
+  late final GeneratedColumn<String> entryId = GeneratedColumn<String>(
+    'entry_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dismissedAtMeta = const VerificationMeta(
+    'dismissedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> dismissedAt = GeneratedColumn<DateTime>(
+    'dismissed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [entryId, dismissedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reminder_dismissals';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReminderDismissal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('entry_id')) {
+      context.handle(
+        _entryIdMeta,
+        entryId.isAcceptableOrUnknown(data['entry_id']!, _entryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entryIdMeta);
+    }
+    if (data.containsKey('dismissed_at')) {
+      context.handle(
+        _dismissedAtMeta,
+        dismissedAt.isAcceptableOrUnknown(
+          data['dismissed_at']!,
+          _dismissedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_dismissedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {entryId};
+  @override
+  ReminderDismissal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReminderDismissal(
+      entryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entry_id'],
+      )!,
+      dismissedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}dismissed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ReminderDismissalsTable createAlias(String alias) {
+    return $ReminderDismissalsTable(attachedDatabase, alias);
+  }
+}
+
+class ReminderDismissal extends DataClass
+    implements Insertable<ReminderDismissal> {
+  final String entryId;
+  final DateTime dismissedAt;
+  const ReminderDismissal({required this.entryId, required this.dismissedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['entry_id'] = Variable<String>(entryId);
+    map['dismissed_at'] = Variable<DateTime>(dismissedAt);
+    return map;
+  }
+
+  ReminderDismissalsCompanion toCompanion(bool nullToAbsent) {
+    return ReminderDismissalsCompanion(
+      entryId: Value(entryId),
+      dismissedAt: Value(dismissedAt),
+    );
+  }
+
+  factory ReminderDismissal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReminderDismissal(
+      entryId: serializer.fromJson<String>(json['entryId']),
+      dismissedAt: serializer.fromJson<DateTime>(json['dismissedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'entryId': serializer.toJson<String>(entryId),
+      'dismissedAt': serializer.toJson<DateTime>(dismissedAt),
+    };
+  }
+
+  ReminderDismissal copyWith({String? entryId, DateTime? dismissedAt}) =>
+      ReminderDismissal(
+        entryId: entryId ?? this.entryId,
+        dismissedAt: dismissedAt ?? this.dismissedAt,
+      );
+  ReminderDismissal copyWithCompanion(ReminderDismissalsCompanion data) {
+    return ReminderDismissal(
+      entryId: data.entryId.present ? data.entryId.value : this.entryId,
+      dismissedAt: data.dismissedAt.present
+          ? data.dismissedAt.value
+          : this.dismissedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderDismissal(')
+          ..write('entryId: $entryId, ')
+          ..write('dismissedAt: $dismissedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(entryId, dismissedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReminderDismissal &&
+          other.entryId == this.entryId &&
+          other.dismissedAt == this.dismissedAt);
+}
+
+class ReminderDismissalsCompanion extends UpdateCompanion<ReminderDismissal> {
+  final Value<String> entryId;
+  final Value<DateTime> dismissedAt;
+  final Value<int> rowid;
+  const ReminderDismissalsCompanion({
+    this.entryId = const Value.absent(),
+    this.dismissedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReminderDismissalsCompanion.insert({
+    required String entryId,
+    required DateTime dismissedAt,
+    this.rowid = const Value.absent(),
+  }) : entryId = Value(entryId),
+       dismissedAt = Value(dismissedAt);
+  static Insertable<ReminderDismissal> custom({
+    Expression<String>? entryId,
+    Expression<DateTime>? dismissedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (entryId != null) 'entry_id': entryId,
+      if (dismissedAt != null) 'dismissed_at': dismissedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReminderDismissalsCompanion copyWith({
+    Value<String>? entryId,
+    Value<DateTime>? dismissedAt,
+    Value<int>? rowid,
+  }) {
+    return ReminderDismissalsCompanion(
+      entryId: entryId ?? this.entryId,
+      dismissedAt: dismissedAt ?? this.dismissedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (entryId.present) {
+      map['entry_id'] = Variable<String>(entryId.value);
+    }
+    if (dismissedAt.present) {
+      map['dismissed_at'] = Variable<DateTime>(dismissedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderDismissalsCompanion(')
+          ..write('entryId: $entryId, ')
+          ..write('dismissedAt: $dismissedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -17023,6 +17247,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ContractAttachmentsTable contractAttachments =
       $ContractAttachmentsTable(this);
   late final $ReminderLogsTable reminderLogs = $ReminderLogsTable(this);
+  late final $ReminderDismissalsTable reminderDismissals =
+      $ReminderDismissalsTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $BudgetItemsTable budgetItems = $BudgetItemsTable(this);
   late final $GoalsTable goals = $GoalsTable(this);
@@ -17084,6 +17310,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     paymentScheduleEntries,
     contractAttachments,
     reminderLogs,
+    reminderDismissals,
     budgets,
     budgetItems,
     goals,
@@ -20900,6 +21127,164 @@ typedef $$ReminderLogsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $ReminderLogsTable, ReminderLog>,
       ),
       ReminderLog,
+      PrefetchHooks Function()
+    >;
+typedef $$ReminderDismissalsTableCreateCompanionBuilder =
+    ReminderDismissalsCompanion Function({
+      required String entryId,
+      required DateTime dismissedAt,
+      Value<int> rowid,
+    });
+typedef $$ReminderDismissalsTableUpdateCompanionBuilder =
+    ReminderDismissalsCompanion Function({
+      Value<String> entryId,
+      Value<DateTime> dismissedAt,
+      Value<int> rowid,
+    });
+
+class $$ReminderDismissalsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReminderDismissalsTable> {
+  $$ReminderDismissalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get entryId => $composableBuilder(
+    column: $table.entryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dismissedAt => $composableBuilder(
+    column: $table.dismissedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReminderDismissalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReminderDismissalsTable> {
+  $$ReminderDismissalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get entryId => $composableBuilder(
+    column: $table.entryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get dismissedAt => $composableBuilder(
+    column: $table.dismissedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReminderDismissalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReminderDismissalsTable> {
+  $$ReminderDismissalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get entryId =>
+      $composableBuilder(column: $table.entryId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dismissedAt => $composableBuilder(
+    column: $table.dismissedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$ReminderDismissalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReminderDismissalsTable,
+          ReminderDismissal,
+          $$ReminderDismissalsTableFilterComposer,
+          $$ReminderDismissalsTableOrderingComposer,
+          $$ReminderDismissalsTableAnnotationComposer,
+          $$ReminderDismissalsTableCreateCompanionBuilder,
+          $$ReminderDismissalsTableUpdateCompanionBuilder,
+          (
+            ReminderDismissal,
+            BaseReferences<
+              _$AppDatabase,
+              $ReminderDismissalsTable,
+              ReminderDismissal
+            >,
+          ),
+          ReminderDismissal,
+          PrefetchHooks Function()
+        > {
+  $$ReminderDismissalsTableTableManager(
+    _$AppDatabase db,
+    $ReminderDismissalsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReminderDismissalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReminderDismissalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReminderDismissalsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> entryId = const Value.absent(),
+                Value<DateTime> dismissedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReminderDismissalsCompanion(
+                entryId: entryId,
+                dismissedAt: dismissedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String entryId,
+                required DateTime dismissedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ReminderDismissalsCompanion.insert(
+                entryId: entryId,
+                dismissedAt: dismissedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReminderDismissalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReminderDismissalsTable,
+      ReminderDismissal,
+      $$ReminderDismissalsTableFilterComposer,
+      $$ReminderDismissalsTableOrderingComposer,
+      $$ReminderDismissalsTableAnnotationComposer,
+      $$ReminderDismissalsTableCreateCompanionBuilder,
+      $$ReminderDismissalsTableUpdateCompanionBuilder,
+      (
+        ReminderDismissal,
+        BaseReferences<
+          _$AppDatabase,
+          $ReminderDismissalsTable,
+          ReminderDismissal
+        >,
+      ),
+      ReminderDismissal,
       PrefetchHooks Function()
     >;
 typedef $$BudgetsTableCreateCompanionBuilder =
@@ -27155,6 +27540,8 @@ class $AppDatabaseManager {
       $$ContractAttachmentsTableTableManager(_db, _db.contractAttachments);
   $$ReminderLogsTableTableManager get reminderLogs =>
       $$ReminderLogsTableTableManager(_db, _db.reminderLogs);
+  $$ReminderDismissalsTableTableManager get reminderDismissals =>
+      $$ReminderDismissalsTableTableManager(_db, _db.reminderDismissals);
   $$BudgetsTableTableManager get budgets =>
       $$BudgetsTableTableManager(_db, _db.budgets);
   $$BudgetItemsTableTableManager get budgetItems =>

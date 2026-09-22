@@ -48,6 +48,7 @@ part 'app_database.g.dart';
     PaymentScheduleEntries,
     ContractAttachments,
     ReminderLogs,
+    ReminderDismissals,
     Budgets,
     BudgetItems,
     Goals,
@@ -139,7 +140,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   /// 幂等加列:先查 PRAGMA table_info,列已存在则跳过。
   /// 背景:库文件可能被不同版本的 App 触碰(安装版/调试版/手工恢复备份),
@@ -235,6 +236,11 @@ class AppDatabase extends _$AppDatabase {
           // v8→v9:AppMeta 键值元数据表(一次性修复标记等)。
           if (from < 9) {
             await m.createTable(appMeta);
+          }
+          // v9→v10(2026-09 信用卡还款催办):增 ReminderDismissals
+          // 「不再提醒」挂失表。仅建表,无损。
+          if (from < 10) {
+            await m.createTable(reminderDismissals);
           }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)

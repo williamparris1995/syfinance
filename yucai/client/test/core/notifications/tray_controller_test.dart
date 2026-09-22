@@ -56,8 +56,32 @@ class _FakeTraySettings implements TraySettings {
   @override
   ValueListenable<bool> get showTrayAmountsListenable => _amounts;
 
+  final ValueNotifier<int> _advanceDays = ValueNotifier<int>(3);
+  final ValueNotifier<ReminderRepeatInterval> _repeat =
+      ValueNotifier<ReminderRepeatInterval>(ReminderRepeatInterval.hours6);
+
+  @override
+  int get reminderAdvanceDays => _advanceDays.value;
+
+  @override
+  ValueListenable<int> get reminderAdvanceDaysListenable => _advanceDays;
+
+  @override
+  ReminderRepeatInterval get reminderRepeatInterval => _repeat.value;
+
+  @override
+  ValueListenable<ReminderRepeatInterval> get reminderRepeatIntervalListenable =>
+      _repeat;
+
+
   @override
   Future<void> load() async {}
+
+  @override
+  Future<void> setReminderAdvanceDays(int days) async {}
+
+  @override
+  Future<void> setReminderRepeatInterval(ReminderRepeatInterval interval) async {}
 
   @override
   Future<void> setCloseBehavior(TrayCloseBehavior behavior) async {

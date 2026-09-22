@@ -12,6 +12,8 @@ import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' show AppDatabase;
+import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -298,6 +300,8 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
       onEditDate: (e) => _editPaymentDate(e),
       onMarkPaid: (e) => _markEntryPaid(e),
       onMarkPaidBatch: (entries) => _markEntryPaidBatch(entries),
+      // 未还清也可停掉本期催办(挂失=本地 ReminderDismissals,按期次 id)。
+      onDismissReminder: (e) => _dismissEntryReminder(e),
     );
     final side = DebtDetailSidePanel(
       sem: _sem,
@@ -439,6 +443,14 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
       // F38:归一化 UTC 零点(日期字段全链一致)。
       paymentDate: DateTime.utc(picked.year, picked.month, picked.day),
     ));
+  }
+
+  /// 本期不再提醒:挂失到期催办(不改动任何账务数据)。
+  Future<void> _dismissEntryReminder(PaymentEntry e) async {
+    await ReminderDismissalStore(GetIt.instance<AppDatabase>())
+        .dismiss(e.id);
+    if (!mounted) return;
+    AppToast.show(context, '本期已不再提醒', type: ToastType.success);
   }
 
   void _openRecordPayment(PaymentEntry e) {

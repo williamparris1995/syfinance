@@ -115,6 +115,31 @@ class _FakeTraySettings extends Fake implements TraySettings {
   @override
   ValueListenable<bool> get showTrayAmountsListenable => _amounts;
 
+  final ValueNotifier<int> _advanceDays = ValueNotifier<int>(3);
+  final ValueNotifier<ReminderRepeatInterval> _repeatInterval =
+      ValueNotifier<ReminderRepeatInterval>(ReminderRepeatInterval.hours6);
+
+  @override
+  int get reminderAdvanceDays => _advanceDays.value;
+
+  @override
+  ValueListenable<int> get reminderAdvanceDaysListenable => _advanceDays;
+
+  @override
+  ReminderRepeatInterval get reminderRepeatInterval =>
+      _repeatInterval.value;
+
+  @override
+  ValueListenable<ReminderRepeatInterval> get reminderRepeatIntervalListenable =>
+      _repeatInterval;
+
+  @override
+  Future<void> setReminderAdvanceDays(int days) async {}
+
+  @override
+  Future<void> setReminderRepeatInterval(
+      ReminderRepeatInterval interval) async {}
+
   @override
   Future<void> setCloseBehavior(TrayCloseBehavior behavior) async {
     closeCalls.add(behavior);
@@ -564,6 +589,9 @@ void main() {
     expect(find.byIcon(LucideIcons.logOut), findsOneWidget);
 
     // 点击 → 即时无确认:直接触发 exitApp,不弹 AlertDialog。
+    // (催办两行新增后退出按钮落到视口外,先滚入再点。)
+    await t.ensureVisible(find.text('退出御财'));
+    await t.pumpAndSettle();
     await t.tap(find.text('退出御财'));
     await t.pump();
     expect(exitPort.exitCalls, 1);

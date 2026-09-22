@@ -21,6 +21,20 @@ enum TrayScanInterval {
   final int minutes;
 }
 
+/// 到期催办重复间隔(2026-09 用户需求「每次提醒最长间隔 6 小时」):
+/// hours1/2/3/6(默认 6 = 上限,最低频的合法催办)。
+enum ReminderRepeatInterval {
+  hours1(1),
+  hours2(2),
+  hours3(3),
+  hours6(6);
+
+  const ReminderRepeatInterval(this.hours);
+
+  /// 间隔小时数。
+  final int hours;
+}
+
 /// 托盘/关闭行为用户偏好(F22),持久化到 OS keychain
 /// (镜像 [ThemeSettings] 的 flutter_secure_storage + ValueNotifier 模式)。
 ///
@@ -45,6 +59,8 @@ class TraySettings {
   static const _kScanInterval = 'tray_scan_interval';
   static const _kFirstClosePrompted = 'tray_first_close_prompted';
   static const _kShowTrayAmounts = 'tray_show_amounts';
+  static const _kReminderAdvanceDays = 'reminder_advance_days';
+  static const _kReminderRepeatInterval = 'reminder_repeat_interval';
 
   final ValueNotifier<TrayCloseBehavior> _closeBehavior =
       ValueNotifier<TrayCloseBehavior>(TrayCloseBehavior.hide);
@@ -52,6 +68,9 @@ class TraySettings {
       ValueNotifier<TrayScanInterval>(TrayScanInterval.minutes30);
   final ValueNotifier<bool> _firstClosePrompted = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _showTrayAmounts = ValueNotifier<bool>(true);
+  final ValueNotifier<int> _reminderAdvanceDays = ValueNotifier<int>(3);
+  final ValueNotifier<ReminderRepeatInterval> _reminderRepeatInterval =
+      ValueNotifier<ReminderRepeatInterval>(ReminderRepeatInterval.hours6);
   bool _loaded = false;
 
   /// 当前关闭行为(同步)。[load] 完成前为 hide。
@@ -80,6 +99,21 @@ class TraySettings {
   /// 托盘金额开关 listenable;controller 据此即时重设托盘菜单。
   ValueListenable<bool> get showTrayAmountsListenable => _showTrayAmounts;
 
+  /// 到期催办提前天数(默认 3,选项 1/3/7/15)。催办模式:进入窗口后
+  /// 每 [reminderRepeatInterval] 小时重复提醒直到处理完。
+  int get reminderAdvanceDays => _reminderAdvanceDays.value;
+
+  /// 提前天数 listenable;scanner 每次 scan 实时读取。
+  ValueListenable<int> get reminderAdvanceDaysListenable => _reminderAdvanceDays;
+
+  /// 催办重复间隔(默认 6 小时 = 需求上限)。
+  ReminderRepeatInterval get reminderRepeatInterval =>
+      _reminderRepeatInterval.value;
+
+  /// 重复间隔 listenable。
+  ValueListenable<ReminderRepeatInterval> get reminderRepeatIntervalListenable =>
+      _reminderRepeatInterval;
+
   /// 读取持久化的四项偏好。幂等;bootstrap 调用一次。
   Future<void> load() async {
     if (_loaded) return;
@@ -92,6 +126,10 @@ class TraySettings {
         _decodeBool(await _storage.read(key: _kFirstClosePrompted));
     _showTrayAmounts.value =
         _decodeShowAmounts(await _storage.read(key: _kShowTrayAmounts));
+    _reminderAdvanceDays.value =
+        _decodeAdvanceDays(await _storage.read(key: _kReminderAdvanceDays));
+    _reminderRepeatInterval.value = _decodeRepeatInterval(
+        await _storage.read(key: _kReminderRepeatInterval));
   }
 
   /// 持久化并立即应用关闭行为。
@@ -130,6 +168,24 @@ class TraySettings {
     _showTrayAmounts.value = show;
   }
 
+  /// 持久化并立即应用催办提前天数(scanner 实时读取,无需重接线)。
+  Future<void> setReminderAdvanceDays(int days) async {
+    await _storage.write(
+      key: _kReminderAdvanceDays,
+      value: days.toString(),
+    );
+    _reminderAdvanceDays.value = days;
+  }
+
+  /// 持久化并立即应用催办重复间隔。
+  Future<void> setReminderRepeatInterval(ReminderRepeatInterval interval) async {
+    await _storage.write(
+      key: _kReminderRepeatInterval,
+      value: interval.hours.toString(),
+    );
+    _reminderRepeatInterval.value = interval;
+  }
+
   static String _encodeCloseBehavior(TrayCloseBehavior behavior) =>
       switch (behavior) {
         TrayCloseBehavior.hide => 'hide',
@@ -160,6 +216,22 @@ class TraySettings {
       switch (raw) {
         'true' => true,
         _ => false, // null/空/未知值回落未提示
+      };
+
+  /// 提前天数回落:仅认 1/3/7/15 选项,其余回落 3(旧默认)。
+  static int _decodeAdvanceDays(String? raw) =>
+      switch (int.tryParse(raw ?? '')) {
+        1 || 3 || 7 || 15 => int.parse(raw!),
+        _ => 3,
+      };
+
+  static ReminderRepeatInterval _decodeRepeatInterval(String? raw) =>
+      switch (int.tryParse(raw ?? '')) {
+        1 => ReminderRepeatInterval.hours1,
+        2 => ReminderRepeatInterval.hours2,
+        3 => ReminderRepeatInterval.hours3,
+        6 => ReminderRepeatInterval.hours6,
+        _ => ReminderRepeatInterval.hours6, // null/空/未知回落上限 6h
       };
 
   /// F25:默认值方向与其余三字段相反 —— 未存储/未知回落**显示**(true),

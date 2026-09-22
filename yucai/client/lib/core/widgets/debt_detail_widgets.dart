@@ -664,6 +664,9 @@ class DebtDetailSchedule extends StatefulWidget {
     this.onEditDate,
     // 标记已还(历史还款,不记账):非空时未还期次显示「标记已还」副动作。
     this.onMarkPaid,
+    // 不再提醒(催办挂失):非空时未还期次显示「不再提醒」副动作,
+    // 未还清也可停掉本期催办(2026-09 催办模式)。
+    this.onDismissReminder,
     // 批量标记已还:非空时显示「多选」入口(仅可选过去未还期次)。
     this.onMarkPaidBatch,
   });
@@ -679,6 +682,7 @@ class DebtDetailSchedule extends StatefulWidget {
   final ValueChanged<PaymentEntry>? onEditDate;
   final ValueChanged<PaymentEntry>? onMarkPaid;
   final ValueChanged<List<PaymentEntry>>? onMarkPaidBatch;
+  final ValueChanged<PaymentEntry>? onDismissReminder;
 
   @override
   State<DebtDetailSchedule> createState() => _DebtDetailScheduleState();
@@ -1351,6 +1355,20 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
             icon: Icon(LucideIcons.flag,
                 size: 12, color: context.yucai.muted),
             label: const Text('标记已还'),
+            style: TextButton.styleFrom(
+              foregroundColor: context.yucai.muted,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              minimumSize: const Size(0, 26),
+              textStyle: const TextStyle(fontSize: 11),
+            ),
+          ),
+        if (widget.onDismissReminder != null && !e.paid)
+          TextButton.icon(
+            key: ValueKey('dismissReminder-${e.id}'),
+            onPressed: () => widget.onDismissReminder!(e),
+            icon: Icon(LucideIcons.bellOff,
+                size: 12, color: context.yucai.muted),
+            label: const Text('不再提醒'),
             style: TextButton.styleFrom(
               foregroundColor: context.yucai.muted,
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),

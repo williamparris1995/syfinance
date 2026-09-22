@@ -327,6 +327,59 @@ class SettingsPage extends StatelessWidget {
                           ),
                           Divider(height: 1, color: context.yucai.border),
                           const SizedBox(height: AppSpacing.md),
+                          // 2026-09 催办模式:提前 N 天进入提醒窗口,此后每
+                          // 1/2/3/6 小时重复提醒,直到欠款还清/期次已付。
+                          ValueListenableBuilder<int>(
+                            valueListenable: tray.reminderAdvanceDaysListenable,
+                            builder: (context, days, _) => _PreferenceRow(
+                              label: '到期提前提醒天数',
+                              description: '信用卡还款日与债务期次到期前 N 天开始催办',
+                              control: SegmentedButton<int>(
+                                segments: const [
+                                  ButtonSegment(value: 1, label: Text('1 天')),
+                                  ButtonSegment(value: 3, label: Text('3 天')),
+                                  ButtonSegment(value: 7, label: Text('7 天')),
+                                  ButtonSegment(value: 15, label: Text('15 天')),
+                                ],
+                                selected: {days},
+                                showSelectedIcon: false,
+                                onSelectionChanged: (selection) =>
+                                    tray.setReminderAdvanceDays(selection.first),
+                              ),
+                            ),
+                          ),
+                          Divider(height: 1, color: context.yucai.border),
+                          const SizedBox(height: AppSpacing.md),
+                          ValueListenableBuilder<ReminderRepeatInterval>(
+                            valueListenable:
+                                tray.reminderRepeatIntervalListenable,
+                            builder: (context, interval, _) => _PreferenceRow(
+                              label: '重复提醒间隔',
+                              description: '未处理事项的催办节奏,最长间隔 6 小时',
+                              control: SegmentedButton<ReminderRepeatInterval>(
+                                segments: const [
+                                  ButtonSegment(
+                                      value: ReminderRepeatInterval.hours1,
+                                      label: Text('1 时')),
+                                  ButtonSegment(
+                                      value: ReminderRepeatInterval.hours2,
+                                      label: Text('2 时')),
+                                  ButtonSegment(
+                                      value: ReminderRepeatInterval.hours3,
+                                      label: Text('3 时')),
+                                  ButtonSegment(
+                                      value: ReminderRepeatInterval.hours6,
+                                      label: Text('6 时')),
+                                ],
+                                selected: {interval},
+                                showSelectedIcon: false,
+                                onSelectionChanged: (selection) => tray
+                                    .setReminderRepeatInterval(selection.first),
+                              ),
+                            ),
+                          ),
+                          Divider(height: 1, color: context.yucai.border),
+                          const SizedBox(height: AppSpacing.md),
                           // F25 托盘显示金额(FR-3 隐私开关):金额在托盘是
                           // 肩窥隐私面,默认显示,关闭即数据头变「金额已隐藏」;
                           // Switch 行照 backup_settings_page._SwitchRow 同款

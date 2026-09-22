@@ -19,3 +19,15 @@ class ReminderLogs extends Table {
         {entryId, tier, sentDate}
       ];
 }
+
+/// 「不再提醒」挂失记录(2026-09 信用卡还款催办):按提醒条目 id 挂失,
+/// 未还清也可手动/自动(最低还款、分期后)停掉本期催办。本地表(提醒
+/// 本就是客户端本地行为,服务端无 reminder 域,不上行同步)。下一个
+/// 周期月生成新 entryId,挂失自然过期。
+class ReminderDismissals extends Table {
+  TextColumn get entryId => text()();
+  DateTimeColumn get dismissedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {entryId};
+}

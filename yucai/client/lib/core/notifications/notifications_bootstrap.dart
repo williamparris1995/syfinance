@@ -11,8 +11,11 @@ import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart';
 import 'package:yucai_client/core/notifications/app_updater.dart';
+import 'package:yucai_client/core/notifications/credit_card_due_source.dart';
+import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/drift_due_source.dart';
+import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 import 'package:yucai_client/core/notifications/auto_record_scheduler.dart';
 import 'package:yucai_client/core/notifications/local_notifier_adapter.dart';
 import 'package:yucai_client/core/notifications/single_instance_guard.dart';
@@ -43,8 +46,21 @@ Future<void> bootstrapNotifications(AppDatabase db) async {
 }
 
 Future<void> _bootstrap(AppDatabase db) async {
-  final source = DriftDueSource(db);
+  // 催办配置 provider:每次扫描实时读 TraySettings —— 设置页改提前天数/
+  // 重复间隔即时生效,不重建接线(2026-09 催办模式)。
+  final settings = getIt<TraySettings>();
+  DueReminderConfig reminderConfig() => DueReminderConfig(
+        advanceDays: settings.reminderAdvanceDays,
+        repeatHours: settings.reminderRepeatInterval.hours,
+      );
+
+  // 双源:债务期次(既有)+ 信用卡还款日(有欠款才提醒)。
+  final source = MultiDueSource([
+    DriftDueSource(db, configProvider: reminderConfig),
+    CreditCardDueSource(db, configProvider: reminderConfig),
+  ]);
   final logStore = DriftReminderLogStore(db);
+  final dismissalStore = ReminderDismissalStore(db);
 
   void focusMainWindow() {
     // fire-and-forget:void 回调内不 await(通知点击的聚焦不阻塞发送)。
@@ -61,7 +77,13 @@ Future<void> _bootstrap(AppDatabase db) async {
     // ignore: avoid_print
     print('notifications: adapter init degraded: $e');
   }
-  final scanner = DueScanner(source: source, notifier: adapter, logStore: logStore);
+  final scanner = DueScanner(
+    source: source,
+    notifier: adapter,
+    logStore: logStore,
+    policyProvider: () => DueReminderPolicy(reminderConfig()),
+    dismissalStore: dismissalStore,
+  );
 
   // autoRecord 调度(R7-C):双模式常跑,经模板双源 repo 写穿透。
   final autoScheduler = AutoRecordScheduler(
@@ -132,6 +154,9 @@ Future<void> _bootstrap(AppDatabase db) async {
       db.select(db.paymentScheduleEntries).watch().map((_) {}),
       db.select(db.transactionTemplates).watch().map((_) {}),
       db.select(db.transactions).watch().map((_) {}),
+      // 信用卡余额/还款日变更与「不再提醒」挂失即扫(催办停得及时)。
+      db.select(db.accounts).watch().map((_) {}),
+      db.select(db.reminderDismissals).watch().map((_) {}),
     ],
     closePrompt: (context) async {
       final result = await showFirstCloseDialog(context);

@@ -70,18 +70,22 @@ void main() {
     expect(out.map((e) => e.totalCents), containsAll([100000, 200000]));
   });
 
-  test('log store:markSent 后 wasSentToday 真;跨日/跨档互不影响', () async {
+  test('log store:markSent 后 wasSent 真;跨桶/跨档互不影响', () async {
     final store = DriftReminderLogStore(db);
-    final today = DateTime(2026, 8, 29);
-    final yesterday = DateTime(2026, 8, 28);
-    expect(await store.wasSentToday('e1', DueTier.t3, today), isFalse);
-    await store.markSent('e1', DueTier.t3, today);
-    expect(await store.wasSentToday('e1', DueTier.t3, today), isTrue);
-    // 同日同档重复 mark 幂等
-    await store.markSent('e1', DueTier.t3, today);
-    // 跨档
-    expect(await store.wasSentToday('e1', DueTier.overdue, today), isFalse);
-    // 跨日
-    expect(await store.wasSentToday('e1', DueTier.t3, yesterday), isFalse);
+    const tokenA = '602311';
+    const tokenB = '602312';
+    expect(await store.wasSent('e1', DueTier.advance, tokenA), isFalse);
+    await store.markSent('e1', DueTier.advance, tokenA);
+    expect(await store.wasSent('e1', DueTier.advance, tokenA), isTrue);
+    // 同桶同档重复 mark 幂等
+    await store.markSent('e1', DueTier.advance, tokenA);
+    // 跨档:advance 与 overdue 各自独立
+    expect(await store.wasSent('e1', DueTier.overdue, tokenA), isFalse);
+    // 跨桶:下一桶再发(催办节奏)
+    expect(await store.wasSent('e1', DueTier.advance, tokenB), isFalse);
+    // 旧版 yyyy-MM-dd 日粒度行与桶 token 不共键(迁移兼容)
+    await store.markSent('e1', DueTier.advance, '2026-08-29');
+    expect(await store.wasSent('e1', DueTier.advance, '2026-08-29'), isTrue);
+    expect(await store.wasSent('e1', DueTier.advance, tokenA), isTrue);
   });
 }
