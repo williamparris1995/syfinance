@@ -595,8 +595,14 @@ type CreateDebtRequest struct {
 	GuarantorContact string `protobuf:"bytes,21,opt,name=guarantor_contact,json=guarantorContact,proto3" json:"guarantor_contact,omitempty"`
 	// One-off interest waiver (cents); must not exceed total interest.
 	InterestWaivedCents int64 `protobuf:"varint,22,opt,name=interest_waived_cents,json=interestWaivedCents,proto3" json:"interest_waived_cents,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Credit-card installment restructure: the liability account's balance
+	// ALREADY includes this principal (existing card debt converted into an
+	// installment plan), so the F36 opening posting (debit source/equity +
+	// credit liability) must be skipped — posting it would double-count the
+	// debt. BorrowedIn only; mutually exclusive with source_account_id.
+	RestructureOnly bool `protobuf:"varint,23,opt,name=restructure_only,json=restructureOnly,proto3" json:"restructure_only,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CreateDebtRequest) Reset() {
@@ -781,6 +787,13 @@ func (x *CreateDebtRequest) GetInterestWaivedCents() int64 {
 		return x.InterestWaivedCents
 	}
 	return 0
+}
+
+func (x *CreateDebtRequest) GetRestructureOnly() bool {
+	if x != nil {
+		return x.RestructureOnly
+	}
+	return false
 }
 
 type UpdateDebtRequest struct {
@@ -1859,7 +1872,7 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\b \x01(\tR\rtransactionId\"w\n" +
 	"\rDebtDetailDTO\x12*\n" +
 	"\x04debt\x18\x01 \x01(\v2\x16.yucai.debt.v1.DebtDTOR\x04debt\x12:\n" +
-	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\xa9\a\n" +
+	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\xd4\a\n" +
 	"\x11CreateDebtRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\"\n" +
@@ -1885,7 +1898,8 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\fterm_periods\x18\x13 \x01(\x05R\vtermPeriods\x12%\n" +
 	"\x0eguarantor_name\x18\x14 \x01(\tR\rguarantorName\x12+\n" +
 	"\x11guarantor_contact\x18\x15 \x01(\tR\x10guarantorContact\x122\n" +
-	"\x15interest_waived_cents\x18\x16 \x01(\x03R\x13interestWaivedCents\"\x9e\x06\n" +
+	"\x15interest_waived_cents\x18\x16 \x01(\x03R\x13interestWaivedCents\x12)\n" +
+	"\x10restructure_only\x18\x17 \x01(\bR\x0frestructureOnly\"\x9e\x06\n" +
 	"\x11UpdateDebtRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fcounterparty\x18\x02 \x01(\tR\fcounterparty\x12#\n" +

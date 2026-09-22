@@ -519,6 +519,59 @@ void main() {
           equityBefore.currentBalanceCents - 250000);
     });
 
+    test('序列①b:信用卡分期重构(restructureOnly)→ 跳过开账双写,余额不动',
+        () async {
+      // 卡余额已含分期本金(贷正 +5000),建分期债 3000:双写会让欠款翻倍,
+      // restructureOnly 必须跳过 —— 余额保持 5000,无任何「借入」分录。
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: 'acc-card',
+        name: 'card',
+        accountType: 2,
+        category: 3, // creditCard
+        currencyCode: 'CNY',
+        initialBalanceCents: 500000,
+        currentBalanceCents: 500000,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+      final d = await debts.create(
+        accountId: 'acc-card',
+        counterparty: '招行信用卡分期',
+        interestRate: 0.06,
+        amortizationIndex: 0, // 等额本息
+        startDate: DateTime.utc(2026, 9, 22),
+        dueDate: DateTime.utc(2026, 12, 22),
+        totalPrincipalCents: 300000,
+        type: DebtType.borrowedIn,
+        subtype: DebtSubtypes.creditCard,
+        termPeriods: 3,
+        restructureOnly: true,
+      );
+      final card = (await database.accountDao.getAccountById('acc-card'))!;
+      expect(card.currentBalanceCents, 500000,
+          reason: '分期重构不得改卡余额(否则欠款翻倍)');
+      // 无开账分录:不存在任何分录涉及该卡(setUp 种子的其它借入不受影响)。
+      final cardLegs = await (database.select(database.transactionEntries)
+            ..where((t) => t.accountId.equals('acc-card')))
+          .get();
+      expect(cardLegs, isEmpty, reason: 'restructure-only create must not post');
+      // 计划已生成:3 期,供期次提醒与 RecordPayment 消费。
+      final detail = await debts.get(d.id);
+      expect(detail.schedule, hasLength(3));
+    });
+
     test('序列②:创建(有到账)→ 还一期 → 改总额 ±Δ 调整分录,不变式成立',
         () async {
       final d = await debts.create(

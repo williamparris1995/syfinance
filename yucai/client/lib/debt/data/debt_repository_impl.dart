@@ -63,6 +63,7 @@ class DebtRepositoryImpl implements DebtRepository {
     int nth = 0,
     int termPeriods = 0,
     int interestWaivedCents = 0,
+    bool restructureOnly = false,
   }) =>
       _routedWrite(MirrorModule.debt,
           () => _remote.create(
@@ -88,6 +89,7 @@ class DebtRepositoryImpl implements DebtRepository {
             nth: nth,
             termPeriods: termPeriods,
             interestWaivedCents: interestWaivedCents,
+            restructureOnly: restructureOnly,
           ),
           (markPending) => _local.create(
             markPending: markPending,
@@ -113,6 +115,7 @@ class DebtRepositoryImpl implements DebtRepository {
             nth: nth,
             termPeriods: termPeriods,
             interestWaivedCents: interestWaivedCents,
+            restructureOnly: restructureOnly,
           ));
 
   @override

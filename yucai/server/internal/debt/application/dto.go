@@ -53,6 +53,12 @@ type CreateDebtRequest struct {
 	// InterestWaivedCents: one-off interest discount; must not exceed the
 	// schedule's total interest.
 	InterestWaivedCents int64
+	// RestructureOnly (credit-card installment): the liability account's
+	// balance already includes this principal, so the F36 opening posting is
+	// skipped (posting would double-count the card debt). BorrowedIn only;
+	// mutually exclusive with SourceAccountID. Mirrors the proto
+	// restructure_only.
+	RestructureOnly bool
 }
 
 // Rule returns the recurrence.Rule view of the create request's cycle fields.

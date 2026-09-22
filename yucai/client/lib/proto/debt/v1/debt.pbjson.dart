@@ -352,6 +352,7 @@ const CreateDebtRequest$json = {
       '5': 3,
       '10': 'interestWaivedCents'
     },
+    {'1': 'restructure_only', '3': 23, '4': 1, '5': 8, '10': 'restructureOnly'},
   ],
 };
 
@@ -373,7 +374,8 @@ final $typed_data.Uint8List createDebtRequestDescriptor = $convert.base64Decode(
     '5jZU1vbnRobHlNb2RlUgttb250aGx5TW9kZRIQCgNudGgYEiABKAVSA250aBIhCgx0ZXJtX3Bl'
     'cmlvZHMYEyABKAVSC3Rlcm1QZXJpb2RzEiUKDmd1YXJhbnRvcl9uYW1lGBQgASgJUg1ndWFyYW'
     '50b3JOYW1lEisKEWd1YXJhbnRvcl9jb250YWN0GBUgASgJUhBndWFyYW50b3JDb250YWN0EjIK'
-    'FWludGVyZXN0X3dhaXZlZF9jZW50cxgWIAEoA1ITaW50ZXJlc3RXYWl2ZWRDZW50cw==');
+    'FWludGVyZXN0X3dhaXZlZF9jZW50cxgWIAEoA1ITaW50ZXJlc3RXYWl2ZWRDZW50cxIpChByZX'
+    'N0cnVjdHVyZV9vbmx5GBcgASgIUg9yZXN0cnVjdHVyZU9ubHk=');
 
 @$core.Deprecated('Use updateDebtRequestDescriptor instead')
 const UpdateDebtRequest$json = {

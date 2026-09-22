@@ -121,6 +121,7 @@ class DebtLocalDataSource {
     int termPeriods = 0,
     int interestWaivedCents = 0,
     bool markPending = false,
+    bool restructureOnly = false,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -190,7 +191,8 @@ class DebtLocalDataSource {
       // F36 FR-2/ADR-4:无到账账户(API 边角)不再零分录 —— 债「从历史
       // 而来」语义,debit 权益户「历史还款结转」+P / credit 债务户 +P,
       // 使负债余额自创建起即满足北极星不变式(== −剩余)。
-      if (type == DebtType.borrowedIn) {
+      // 信用卡分期重构:余额已含本金,跳过开账双写(镜像 server RestructureOnly)。
+      if (type == DebtType.borrowedIn && !restructureOnly) {
         final hasSource = (sourceAccountId ?? '').isNotEmpty;
         String debitAccountId;
         if (hasSource) {

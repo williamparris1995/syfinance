@@ -142,6 +142,18 @@ func (s *Service) CreateDebt(ctx context.Context, req CreateDebtRequest) (*DebtD
 		return nil, fmt.Errorf("create debt: interest waiver must not exceed total interest")
 	}
 
+	// RestructureOnly (credit-card installment): the liability balance already
+	// carries this principal, so any opening posting would double-count the
+	// card debt. Validated here rather than silently ignored.
+	if req.RestructureOnly {
+		if req.DebtType != domain.BorrowedIn {
+			return nil, fmt.Errorf("create debt: restructure_only requires a borrowed-in debt")
+		}
+		if req.SourceAccountID != nil {
+			return nil, fmt.Errorf("create debt: restructure_only is mutually exclusive with source_account_id")
+		}
+	}
+
 	// F36 liability posting (BorrowedIn only; the BorrowedOut creation
 	// double-write stays handler-side best-effort, untouched): the debt persist
 	// and its ledger move share one sqltx.WithTx — same pipeline as the
@@ -149,10 +161,14 @@ func (s *Service) CreateDebt(ctx context.Context, req CreateDebtRequest) (*DebtD
 	// service's join-existing-tx semantics enlists the posting in this tx).
 	// With a source account → debit source +P / credit liability +P (a lookup
 	// failure fails the create: the caller explicitly named the account);
-	// without → debit equity carryover +P / credit liability +P (ADR-4).
-	posting, err := s.buildCreatePosting(ctx, debt, req.SourceAccountID)
-	if err != nil {
-		return nil, err
+	// without → debit equity carryover +P / credit liability +P (ADR-4);
+	// RestructureOnly → no posting at all (see above).
+	var posting *domain.RepaymentCashRecordRequest
+	if !req.RestructureOnly {
+		posting, err = s.buildCreatePosting(ctx, debt, req.SourceAccountID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if err := s.runWriteTx(ctx, func(ctxT context.Context) error {
 		if err := s.repo.Save(ctxT, debt); err != nil {

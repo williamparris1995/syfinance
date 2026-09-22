@@ -30,6 +30,9 @@ abstract class DebtRepository {
     int nth = 0,
     int termPeriods = 0,
     int interestWaivedCents = 0,
+    // 信用卡分期重构:负债余额已含本金,跳过开账双写(否则欠款翻倍)。
+    // 仅 borrowedIn;与 sourceAccountId 互斥。
+    bool restructureOnly = false,
   });
   Future<Either<Failure, Debt>> update({
     required String id,

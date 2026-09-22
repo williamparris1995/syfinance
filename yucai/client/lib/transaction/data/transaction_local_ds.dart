@@ -67,14 +67,22 @@ class TransactionLocalDataSource {
       );
 
   Future<Transaction> recordTransfer(RecordTransferParams p,
-          {bool markPending = false}) =>
-      _insertWithEntries(
-        p.transactionDate,
-        p.description,
-        p.transactionTime,
-        _pair(p.toAccountId, p.fromAccountId, p.amountCents, p.note),
-        markPending: markPending,
-      );
+          {bool markPending = false}) async {
+    // 余额不足守卫（镜像 server SimpleTransfer；holding buy 同款）:
+    // 转出账户余额须足额，信用卡还款"储蓄卡余额不足不能支付"的本地路径。
+    final from = await _accounts.getAccountById(p.fromAccountId);
+    if (from == null) throw const ServerFailure('转出账户不存在');
+    if (from.currentBalanceCents < p.amountCents) {
+      throw const ServerFailure('转出账户余额不足');
+    }
+    return _insertWithEntries(
+      p.transactionDate,
+      p.description,
+      p.transactionTime,
+      _pair(p.toAccountId, p.fromAccountId, p.amountCents, p.note),
+      markPending: markPending,
+    );
+  }
 
   Future<Transaction> recordTransaction(RecordTransactionParams p,
           {bool markPending = false}) =>

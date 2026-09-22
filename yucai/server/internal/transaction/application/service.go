@@ -359,9 +359,13 @@ func (s *Service) SimpleExpense(ctx context.Context, req SimpleExpenseRequest) (
 
 // SimpleTransfer creates a debit-to + credit-from transaction.
 // It rejects transfers between accounts that use different currencies
-// (cross-currency transfers require explicit FX handling, out of scope here).
-// The currency check, header/entries writes, and balance updates run inside one
-// sqltx.WithTx so a failure at any step rolls back the whole operation.
+// (cross-currency transfers require explicit FX handling, out of scope here),
+// and rejects transfers whose source balance cannot cover the amount
+// (mirrors SimpleExpense's on-the-spot overdraft guard; powers the
+// credit-card repayment "insufficient savings" rule).
+// The balance/currency checks, header/entries writes, and balance updates run
+// inside one sqltx.WithTx so a failure at any step rolls back the whole
+// operation.
 func (s *Service) SimpleTransfer(ctx context.Context, req SimpleTransferRequest) (*TransactionDTO, error) {
 	return s.runInTx(ctx, func(ctx context.Context) (*TransactionDTO, error) {
 		from, err := s.accountRepo.FindByID(ctx, req.TenantID, req.FromAccountID)
@@ -376,6 +380,12 @@ func (s *Service) SimpleTransfer(ctx context.Context, req SimpleTransferRequest)
 			return nil, fmt.Errorf(
 				"currency mismatch: from account %s uses %s, to account %s uses %s",
 				req.FromAccountID, from.CurrencyCode, req.ToAccountID, to.CurrencyCode,
+			)
+		}
+		if from.CurrentBalanceCents < req.AmountCents {
+			return nil, fmt.Errorf(
+				"insufficient balance: account %s has %d cents, transfer requires %d cents",
+				req.FromAccountID, from.CurrentBalanceCents, req.AmountCents,
 			)
 		}
 

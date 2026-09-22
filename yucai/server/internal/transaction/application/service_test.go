@@ -290,6 +290,52 @@ func TestSimpleTransfer_AcceptsSameCurrency(t *testing.T) {
 	}
 }
 
+// Credit-card repayment rides SimpleTransfer (debit card / credit savings);
+// the from-side balance must cover the amount, mirroring SimpleExpense's
+// overdraft guard.
+func TestSimpleTransfer_RejectsInsufficientBalance(t *testing.T) {
+	tenantID := uuid.New()
+	fromAcc := newTestAccount(t, accountdomain.AccountTypeAsset, "CNY", 100_00)
+	// Liability "to" side: credit-positive debt of 5000 does not matter for
+	// the guard — only the from-side balance is checked.
+	toAcc := newTestAccount(t, accountdomain.AccountTypeLiability, "CNY", 5000_00)
+
+	repo := newMockAccountRepo()
+	repo.seed(fromAcc)
+	repo.seed(toAcc)
+	txnRepo := &recordingTxnRepo{}
+
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{}, nil)
+
+	_, err := svc.SimpleTransfer(context.Background(), SimpleTransferRequest{
+		TenantID:        tenantID,
+		TransactionDate: time.Now(),
+		Description:     "card repayment with empty savings",
+		FromAccountID:   fromAcc.ID,
+		ToAccountID:     toAcc.ID,
+		AmountCents:     200_00, // savings 100 < 200
+	})
+	if err == nil {
+		t.Fatal("expected insufficient balance error, got nil")
+	}
+	if txnRepo.saved != nil {
+		t.Fatal("expected no transaction to be saved on insufficient balance")
+	}
+
+	// Boundary: exact balance passes.
+	_, err = svc.SimpleTransfer(context.Background(), SimpleTransferRequest{
+		TenantID:        tenantID,
+		TransactionDate: time.Now(),
+		Description:     "card repayment exact balance",
+		FromAccountID:   fromAcc.ID,
+		ToAccountID:     toAcc.ID,
+		AmountCents:     100_00,
+	})
+	if err != nil {
+		t.Fatalf("expected exact-balance transfer to pass, got error: %v", err)
+	}
+}
+
 func TestSimpleExpense_RejectsInsufficientBalance(t *testing.T) {
 	tenantID := uuid.New()
 	assetAcc := newTestAccount(t, accountdomain.AccountTypeAsset, "CNY", 100_00)

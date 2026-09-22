@@ -11,6 +11,7 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
+import 'package:yucai_client/account/presentation/widgets/credit_card_repay_dialog.dart';
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
@@ -1327,6 +1328,22 @@ class _AccountCardState extends State<_AccountCard> {
   /// 重挑账户）。记一笔默认支出 tab；转账直入转账 tab 且本账户作为转出方。
   /// 同 account_detail_page._recordTxn：成功返回后 toast + 重新拉账户列表
   ///（交易可能改变余额）。
+  /// 信用卡 → 还款对话框(三方式,储蓄卡付款);其余账户 → 原转账表单。
+  Future<void> _repayOrTransfer(BuildContext context) async {
+    if (a.category != AccountCategory.creditCard) {
+      _recordTxn(context, initialType: TxnType.transfer);
+      return;
+    }
+    final st = context.read<AccountBloc>().state;
+    final all = st is AccountsLoaded ? st.accounts : <Account>[a];
+    await showCreditCardRepayDialog(context, a, all,
+        onDone: () {
+          if (context.mounted) {
+            context.read<AccountBloc>().add(LoadAccountsRequested());
+          }
+        });
+  }
+
   void _recordTxn(BuildContext context, {TxnType? initialType}) {
     Navigator.of(context)
         .push<bool>(MaterialPageRoute(
@@ -1366,7 +1383,11 @@ class _AccountCardState extends State<_AccountCard> {
       items: <PopupMenuEntry<String>>[
         const PopupMenuItem(value: 'edit', child: Text('编辑')),
         const PopupMenuItem(value: 'record', child: Text('记一笔')),
-        const PopupMenuItem(value: 'transfer', child: Text('转账')),
+        PopupMenuItem(
+            value: 'transfer',
+            child: Text(a.category == AccountCategory.creditCard
+                ? '还款'
+                : '转账')),
         const PopupMenuItem(value: 'duplicate', child: Text('复制')),
         PopupMenuItem(
             value: archived ? 'reactivate' : 'close',
@@ -1385,7 +1406,7 @@ class _AccountCardState extends State<_AccountCard> {
       case 'record':
         _recordTxn(this.context);
       case 'transfer':
-        _recordTxn(this.context, initialType: TxnType.transfer);
+        _repayOrTransfer(this.context);
       case 'duplicate':
         widget.onDuplicate();
       case 'close':
@@ -1661,6 +1682,7 @@ class _AccountCardState extends State<_AccountCard> {
             onTap: () => context.go('/accounts/${a.id}'),
           ),
           _actionBtn(
+            key: ValueKey('cardEdit-${a.id}'),
             icon: LucideIcons.pencil,
             label: '编辑',
             onTap: widget.onEdit,
@@ -1671,9 +1693,11 @@ class _AccountCardState extends State<_AccountCard> {
             onTap: () => _recordTxn(context),
           ),
           _actionBtn(
-            icon: LucideIcons.arrowLeftRight,
-            label: '转账',
-            onTap: () => _recordTxn(context, initialType: TxnType.transfer),
+            icon: a.category == AccountCategory.creditCard
+                ? LucideIcons.creditCard
+                : LucideIcons.arrowLeftRight,
+            label: a.category == AccountCategory.creditCard ? '还款' : '转账',
+            onTap: () => _repayOrTransfer(context),
           ),
           // 更多：MenuAnchor 锚定按钮本体（自动翻转/钳制窗口内，
           // 不做任何手算坐标 —— F5 前复用长按陈旧锚点导致菜单飞位）。
@@ -1689,10 +1713,12 @@ class _AccountCardState extends State<_AccountCard> {
                     icon: LucideIcons.plus,
                     onTap: () => _recordTxn(context)),
                 YucaiMenuItemData(
-                    label: '转账',
-                    icon: LucideIcons.arrowLeftRight,
-                    onTap: () =>
-                        _recordTxn(context, initialType: TxnType.transfer)),
+                    label:
+                        a.category == AccountCategory.creditCard ? '还款' : '转账',
+                    icon: a.category == AccountCategory.creditCard
+                        ? LucideIcons.creditCard
+                        : LucideIcons.arrowLeftRight,
+                    onTap: () => _repayOrTransfer(context)),
                 YucaiMenuItemData(
                     label: '复制',
                     icon: LucideIcons.copy,
@@ -1738,12 +1764,14 @@ class _AccountCardState extends State<_AccountCard> {
 
   /// 单个等宽快捷按钮（icon + label，纵向）。
   Widget _actionBtn({
+    Key? key,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
     bool isLast = false,
   }) {
     return Expanded(
+      key: key,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(

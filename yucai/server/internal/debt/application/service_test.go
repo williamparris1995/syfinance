@@ -1047,6 +1047,69 @@ func TestSetPaymentDate_RejectsFrozenAndCollision(t *testing.T) {
 	}
 }
 
+// TestCreateDebt_RestructureOnlySkipsOpeningPosting verifies the credit-card
+// installment path: with RestructureOnly the F36 opening posting is skipped
+// (the card balance already carries the principal) and the mutual-exclusion /
+// type validations fire for bad combinations.
+func TestCreateDebt_RestructureOnlySkipsOpeningPosting(t *testing.T) {
+	repo := newMockDebtRepo()
+	recorded := make(chan *domain.RepaymentCashRecordRequest, 4)
+	svc := NewService(repo)
+	svc.SetCashRecorder(&recordingCashRecorder{recorded: recorded})
+
+	base := CreateDebtRequest{
+		TenantID:            uuid.New(),
+		AccountID:           uuid.New(),
+		Counterparty:        "Credit card installment",
+		InterestRate:        0.06,
+		AmortizationMethod:  domain.AmortizationEqualPrincipalInterest,
+		StartDate:           time.Date(2026, 9, 22, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 12, 22, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 300000,
+		DebtType:            domain.BorrowedIn,
+		Subtype:             domain.DebtSubtypeCreditCard,
+		TermPeriods:         3,
+		RestructureOnly:     true,
+	}
+	resp, err := svc.CreateDebt(context.Background(), base)
+	if err != nil {
+		t.Fatalf("restructure create failed: %v", err)
+	}
+	if len(recorded) != 0 {
+		t.Fatalf("expected NO opening posting for restructure-only create, got %d", len(recorded))
+	}
+	if resp.DebtType != domain.BorrowedIn || resp.Subtype != domain.DebtSubtypeCreditCard {
+		t.Errorf("unexpected debt type/subtype: %v/%s", resp.DebtType, resp.Subtype)
+	}
+
+	// Bad combo 1: restructure + source account.
+	src := uuid.New()
+	bad := base
+	bad.SourceAccountID = &src
+	if _, err := svc.CreateDebt(context.Background(), bad); err == nil {
+		t.Fatal("expected error for restructure_only + source_account_id")
+	}
+
+	// Bad combo 2: restructure on a receivable.
+	bad2 := base
+	bad2.RestructureOnly = true
+	bad2.DebtType = domain.BorrowedOut
+	coll := uuid.New()
+	bad2.CollectionAccountID = &coll
+	if _, err := svc.CreateDebt(context.Background(), bad2); err == nil {
+		t.Fatal("expected error for restructure_only on borrowed_out")
+	}
+}
+
+type recordingCashRecorder struct {
+	recorded chan *domain.RepaymentCashRecordRequest
+}
+
+func (r *recordingCashRecorder) Record(_ context.Context, req domain.RepaymentCashRecordRequest) (uuid.UUID, error) {
+	r.recorded <- &req
+	return uuid.New(), nil
+}
+
 func TestCreateDebt_InterestWaiverApplied(t *testing.T) {
 	repo := newMockDebtRepo()
 	svc := NewService(repo)

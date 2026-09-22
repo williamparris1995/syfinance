@@ -112,6 +112,7 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		Nth:                 req.Nth,
 		TermPeriods:         req.TermPeriods,
 		InterestWaivedCents: req.InterestWaivedCents,
+		RestructureOnly:     req.RestructureOnly,
 	}
 	if debtType == domain.BorrowedOut {
 		// Collection account = where repayments land.

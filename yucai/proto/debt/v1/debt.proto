@@ -129,6 +129,12 @@ message CreateDebtRequest {
   string guarantor_contact = 21;
   // One-off interest waiver (cents); must not exceed total interest.
   int64 interest_waived_cents = 22;
+  // Credit-card installment restructure: the liability account's balance
+  // ALREADY includes this principal (existing card debt converted into an
+  // installment plan), so the F36 opening posting (debit source/equity +
+  // credit liability) must be skipped — posting it would double-count the
+  // debt. BorrowedIn only; mutually exclusive with source_account_id.
+  bool restructure_only = 23;
 }
 
 message UpdateDebtRequest {

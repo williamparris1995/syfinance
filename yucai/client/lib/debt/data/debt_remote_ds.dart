@@ -93,6 +93,7 @@ class DebtRemoteDataSource {
     int nth = 0,
     int termPeriods = 0,
     int interestWaivedCents = 0,
+    bool restructureOnly = false,
   }) async {
     return _retryWithTimeout(() async {
       final res = await _client.createDebt(pb.CreateDebtRequest(
@@ -129,6 +130,8 @@ class DebtRemoteDataSource {
         nth: nth,
         termPeriods: termPeriods,
         interestWaivedCents: Int64(interestWaivedCents),
+        // 信用卡分期重构:服务端跳过 F36 开账记账(余额已含本金)。
+        restructureOnly: restructureOnly,
       ));
       return DebtMapper.toDomain(res.debt);
     });

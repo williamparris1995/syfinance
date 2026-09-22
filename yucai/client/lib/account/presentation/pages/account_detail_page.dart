@@ -13,6 +13,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
+import 'package:yucai_client/account/presentation/widgets/credit_card_repay_dialog.dart';
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -170,6 +171,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
       (a.category == AccountCategory.loan ||
           a.category == AccountCategory.otherLiability) &&
       _linkedDebts.isNotEmpty;
+
+  /// 信用卡挂分期债时也渲染还款计划面板(2026-09 分期还款);与
+  /// _isDebtDerivedLiability 分开 —— 信用卡 hero/信息卡仍按账户本体呈现,
+  /// 只有计划面板追加。
+  bool _cardHasInstallmentPanel(Account a) =>
+      a.category == AccountCategory.creditCard && _debtPlans.isNotEmpty;
   Future<void> _loadLinkedDebt() async {
     try {
       final r = await GetIt.instance<DebtRepository>()
@@ -259,9 +266,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                         onPressed: a == null ? null : _recordTxn,
                       ),
                       IconButton(
-                        tooltip: '转账',
-                        icon:
-                            const Icon(LucideIcons.arrowLeftRight, size: 18),
+                        tooltip: a?.category == AccountCategory.creditCard
+                            ? '还款'
+                            : '转账',
+                        icon: Icon(
+                            a?.category == AccountCategory.creditCard
+                                ? LucideIcons.creditCard
+                                : LucideIcons.arrowLeftRight,
+                            size: 18),
                         onPressed: a == null ? null : _transfer,
                       ),
                     ] else ...[
@@ -275,7 +287,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       ),
                       TextButton(
                         onPressed: a == null ? null : _transfer,
-                        child: const Text('转账'),
+                        child: Text(a?.category == AccountCategory.creditCard
+                            ? '还款'
+                            : '转账'),
                       ),
                     ],
                   ],
@@ -403,7 +417,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         const SizedBox(height: AppSpacing.lg),
         if (a.category == AccountCategory.investment)
           _panel('持仓列表', '待 Holding 模块接入')
-        else if (_isDebtDerivedLiability(a))
+        else if (_cardHasInstallmentPanel(a) || _isDebtDerivedLiability(a))
           // F35:还款计划只读面板(名下有借入债务才渲染,FR-2 隐藏优于空占位);
           // 「查看完整还款计划 →」跳债务详情页(完整交互计划所在处)。
           // F35 扩展:otherLiability(个人待还款)与 loan 同待遇。
@@ -683,9 +697,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               // F35 验收:挂债贷款账户改显「剩余应还」= 债务实时剩余本金
               // 合计 —— currentBalance 是流水残值(如 -¥6,795.20),用户无法
               // 理解;余额本身的重算治本在 F36,此处先做展示语义纠正。
-              // F35 扩展:otherLiability(个人待还款)与 loan 同待遇。
+              // F35 扩展:otherLiability(个人待付款)与 loan 同待遇。
+              // 信用卡:负债 credit-正,currentBalance 即欠款,标签须说真话
+              // (原先标「可用余额」但值是欠款,误导)。
               Text(
-                _isDebtDerivedLiability(a) ? '剩余应还' : '可用余额',
+                _isDebtDerivedLiability(a)
+                    ? '剩余应还'
+                    : (a.category == AccountCategory.creditCard
+                        ? '当前欠款'
+                        : '可用余额'),
                 style: TextStyle(
                   fontSize: 12,
                   color: context.yucai.muted,
@@ -1724,8 +1744,32 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     });
   }
 
-  /// 转账：push TransactionFormPage 并直入转账 tab，预选本账户为转出账户。
+  /// 转账/还款：信用卡 → 三方式还款对话框；其余 → 转账表单（预选本账户转出）。
   void _transfer() {
+    final st = context.read<AccountBloc>().state;
+    final a = st is AccountDetailLoaded ? st.account : null;
+    if (a != null && a.category == AccountCategory.creditCard) {
+      _repay(a);
+      return;
+    }
+    _transferForm();
+  }
+
+  /// 信用卡还款对话框（储蓄卡候选来自账户列表 bloc 缓存，回退单账户）。
+  Future<void> _repay(Account card) async {
+    final st = context.read<AccountBloc>().state;
+    final all = st is AccountsLoaded ? st.accounts : <Account>[card];
+    await showCreditCardRepayDialog(context, card, all,
+        onDone: () {
+          if (mounted) {
+            context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+            _refreshTxn();
+          }
+        });
+  }
+
+  /// 转账表单：push TransactionFormPage 并直入转账 tab，预选本账户为转出账户。
+  void _transferForm() {
     Navigator.of(context)
         .push<bool>(MaterialPageRoute(
             builder: (_) => TransactionFormPage(

@@ -677,6 +677,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     $core.String? guarantorName,
     $core.String? guarantorContact,
     $fixnum.Int64? interestWaivedCents,
+    $core.bool? restructureOnly,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -705,6 +706,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     if (guarantorContact != null) result.guarantorContact = guarantorContact;
     if (interestWaivedCents != null)
       result.interestWaivedCents = interestWaivedCents;
+    if (restructureOnly != null) result.restructureOnly = restructureOnly;
     return result;
   }
 
@@ -747,6 +749,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     ..aOS(20, _omitFieldNames ? '' : 'guarantorName')
     ..aOS(21, _omitFieldNames ? '' : 'guarantorContact')
     ..aInt64(22, _omitFieldNames ? '' : 'interestWaivedCents')
+    ..aOB(23, _omitFieldNames ? '' : 'restructureOnly')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -972,6 +975,20 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasInterestWaivedCents() => $_has(21);
   @$pb.TagNumber(22)
   void clearInterestWaivedCents() => $_clearField(22);
+
+  /// Credit-card installment restructure: the liability account's balance
+  /// ALREADY includes this principal (existing card debt converted into an
+  /// installment plan), so the F36 opening posting (debit source/equity +
+  /// credit liability) must be skipped — posting it would double-count the
+  /// debt. BorrowedIn only; mutually exclusive with source_account_id.
+  @$pb.TagNumber(23)
+  $core.bool get restructureOnly => $_getBF(22);
+  @$pb.TagNumber(23)
+  set restructureOnly($core.bool value) => $_setBool(22, value);
+  @$pb.TagNumber(23)
+  $core.bool hasRestructureOnly() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearRestructureOnly() => $_clearField(23);
 }
 
 class UpdateDebtRequest extends $pb.GeneratedMessage {
