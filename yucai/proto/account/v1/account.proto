@@ -208,6 +208,11 @@ message UpdateAccountRequest {
   // for the first time). Mirrors CreateAccountRequest.parent_id so the category
   // edit path (which rides on UpdateAccount) can persist parent changes.
   optional string parent_id = 36;
+  // Manual current-balance override (credit card "current debt" edit). nil =
+  // unchanged. Set only for credit-card style liabilities whose balance the
+  // user corrects by hand (statement reconciliation): bypasses the
+  // transactions-only balance pipeline on purpose.
+  optional int64 current_balance_cents = 37;
 }
 
 message DeleteAccountRequest {

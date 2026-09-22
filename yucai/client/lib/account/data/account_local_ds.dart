@@ -151,6 +151,10 @@ class AccountLocalDataSource {
       loanRemainingCents: orAbsent(p.loanRemainingCents),
       loanMonthlyCents: orAbsent(p.loanMonthlyCents),
       loanNextPaymentDate: orAbsent(p.loanNextPaymentDate),
+      // 信用卡「当前欠款」手工校正（null = 不更新；负债余额 credit-正）。
+      currentBalanceCents: p.currentBalanceCents == null
+          ? const Value.absent()
+          : Value(p.currentBalanceCents!),
       version: Value(row.version + 1),
       updatedAt: Value(DateTime.now().toUtc()),
       syncState: markPending ? const Value(SyncState.pending) : const Value.absent(),

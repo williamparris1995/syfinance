@@ -190,10 +190,14 @@ String? optionalNumberValidator(String? v) {
 /// 按 category 渲染专属字段 widget 列表。
 /// [currencySymbol] 透传给所有 AmountInput（随币种变化，由 FormPage 传
 /// currencySymbolOf(_currency)）。切币种 → setState → 重渲染 → 符号更新。
+/// [primaryReadOnly] 编辑态储蓄卡的「初始余额」置只读 —— 余额只随交易流水
+/// 变化，update 链路无 initialBalance 字段（编辑本就无效），只读+提示消除
+/// 「改了存不上」的困惑；创建/复制模式仍可输入。
 List<Widget> categoryFieldsWidget(
   AccountCategory c,
   CategoryFieldBundle b, {
   String currencySymbol = '¥',
+  bool primaryReadOnly = false,
 }) {
   switch (c) {
     case AccountCategory.savings:
@@ -206,7 +210,15 @@ List<Widget> categoryFieldsWidget(
           controller: b.cardNumberTailCtrl,
           decoration: const InputDecoration(labelText: '卡号后四位'),
         ),
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
+        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol, enabled: !primaryReadOnly),
+        if (primaryReadOnly)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '初始余额创建后不可修改；当前余额随交易流水自动变化',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
         TextFormField(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
@@ -229,7 +241,11 @@ List<Widget> categoryFieldsWidget(
           controller: b.cardNumberTailCtrl,
           decoration: const InputDecoration(labelText: '卡号尾号'),
         ),
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
+        AmountInput(
+            key: const ValueKey('accountPrimaryAmount'),
+            controller: b.primaryCentsCtrl,
+            label: primaryAmountLabel(c),
+            currencySymbol: currencySymbol),
         AmountInput(controller: b.creditLimitCtrl, label: '信用额度', currencySymbol: currencySymbol),
         FormRow(children: [
           _dayPicker(b.creditBillingDayCtrl, '账单日'),

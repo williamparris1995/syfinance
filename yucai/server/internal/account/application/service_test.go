@@ -151,6 +151,52 @@ func TestCreateAccountPersistsTypeSpecificFields(t *testing.T) {
 	}
 }
 
+// UpdateAccount with CurrentBalanceCents set must override the stored balance
+// (credit-card "current debt" statement reconciliation); nil must leave it
+// untouched. Previously the update pipeline had no balance field at all, so
+// the client's debt edit was silently dropped.
+func TestUpdateAccount_OverridesCurrentBalance(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	created, err := svc.CreateAccount(context.Background(), CreateAccountRequest{
+		TenantID: uuid.New(), Name: "招行信用卡",
+		Category: domain.AccountCategoryCreditCard, CurrencyCode: "CNY",
+		InitialBalanceCents: 120000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// nil = 不更新：普通 profile 编辑不动余额。
+	name := "招行信用卡(改名)"
+	dto, err := svc.UpdateAccount(context.Background(), UpdateAccountRequest{
+		TenantID: created.TenantID, AccountID: created.ID,
+		Name: name, CreditLimitCents: created.CreditLimitCents,
+		Version: created.Version,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dto.CurrentBalanceCents != 120000 {
+		t.Errorf("nil override changed balance: got %d, want 120000", dto.CurrentBalanceCents)
+	}
+
+	// 非 nil = 覆盖：欠款手工校正生效。
+	overridden := int64(98000)
+	dto, err = svc.UpdateAccount(context.Background(), UpdateAccountRequest{
+		TenantID: created.TenantID, AccountID: created.ID,
+		Name: name, CreditLimitCents: created.CreditLimitCents,
+		CurrentBalanceCents: &overridden,
+		Version:             dto.Version,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dto.CurrentBalanceCents != 98000 {
+		t.Errorf("override not persisted: got %d, want 98000", dto.CurrentBalanceCents)
+	}
+}
+
 // Regression: creating an expense/income account must persist the requested
 // AccountType, NOT derive asset/other_asset from the (ignored) Category field.
 // Previously CreateAccount always called NewAccountWithCategory, which mapped

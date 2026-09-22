@@ -284,6 +284,7 @@ func (h *AccountHandler) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 		LoanMonthlyCents:         req.LoanMonthlyCents,
 		LoanNextPaymentDate:      ts(req.LoanNextPaymentDate),
 		ParentID:                 parentID,
+		CurrentBalanceCents:      req.CurrentBalanceCents,
 		Version:                  req.Version,
 	})
 	if err != nil {

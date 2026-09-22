@@ -87,6 +87,30 @@ void main() {
     expect(updated.version, a.version + 1);
   });
 
+  // 信用卡「当前欠款」编辑：currentBalanceCents 非 null 覆盖落库，null 不动
+  // （回归：此前 update 链路无余额字段，编辑金额被静默丢弃）。
+  test('update with currentBalanceCents overrides the stored debt', () async {
+    final card = await ds.create(
+        params(name: '招行信用卡', category: AccountCategory.creditCard, initialBalanceCents: 500000));
+    final updated = await ds.update(UpdateAccountParams(
+      id: card.id,
+      version: card.version,
+      name: card.name,
+      currentBalanceCents: 398000,
+    ));
+    expect(updated.currentBalanceCents, 398000);
+    expect(updated.initialBalanceCents, 500000); // 初始余额不动
+    expect(updated.version, card.version + 1);
+
+    // nil 路径：不带余额的普通编辑不再改欠款。
+    final again = await ds.update(UpdateAccountParams(
+      id: card.id,
+      version: updated.version,
+      name: '招行信用卡(改名)',
+    ));
+    expect(again.currentBalanceCents, 398000);
+  });
+
   test('update with a stale version is rejected (remote-409 mirror)',
       () async {
     final a = await ds.create(params(name: '原名'));

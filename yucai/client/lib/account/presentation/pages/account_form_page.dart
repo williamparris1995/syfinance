@@ -105,7 +105,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
 
   /// 主金额按 category 反查：投资→InvestCost，定期→FixedPrincipal，
   /// 黄金→GoldBuyPrice，固定资产→EstatePurchasePrice，贷款→LoanRemaining，
-  /// 其余→InitialBalance。
+  /// 信用卡→CurrentBalance（「当前欠款」，负债 credit-正），其余→InitialBalance。
   int _primaryCentsOf(Account e) {
     switch (e.category) {
       case AccountCategory.investment:
@@ -118,6 +118,8 @@ class _AccountFormPageState extends State<AccountFormPage> {
         return e.estatePurchasePriceCents ?? 0;
       case AccountCategory.loan:
         return e.loanRemainingCents ?? 0;
+      case AccountCategory.creditCard:
+        return e.currentBalanceCents;
       default:
         return e.initialBalanceCents;
     }
@@ -226,6 +228,10 @@ class _AccountFormPageState extends State<AccountFormPage> {
           _category == AccountCategory.realEstate ? primary : null,
       loanRemainingCents:
           _category == AccountCategory.loan ? primary : null,
+      // 信用卡「当前欠款」编辑：走 currentBalanceCents 手工覆盖通道
+      // （负债 credit-正，欠款=正数）。此前该金额无映射被静默丢弃 → 编辑无效。
+      currentBalanceCents:
+          _category == AccountCategory.creditCard ? primary : null,
       creditBillingDay: _optInt(_bundle.creditBillingDayCtrl),
       creditRepaymentDay: _optInt(_bundle.creditRepaymentDayCtrl),
       creditAnnualFeeCents: _yuanToCents(_bundle.creditAnnualFeeCtrl),
@@ -478,7 +484,9 @@ class _AccountFormPageState extends State<AccountFormPage> {
                           title: '${_category.label}信息',
                           trailing: _kindBadge(_category),
                           children: categoryFieldsWidget(_category, _bundle,
-                              currencySymbol: currencySymbolOf(_currency)),
+                              currencySymbol: currencySymbolOf(_currency),
+                              primaryReadOnly:
+                                  _isEdit && _category == AccountCategory.savings),
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         FormSection(

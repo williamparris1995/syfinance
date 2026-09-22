@@ -152,6 +152,9 @@ func (s *Service) UpdateAccount(ctx context.Context, req UpdateAccountRequest) (
 	if req.ParentID != nil {
 		account.ParentID = req.ParentID
 	}
+	if req.CurrentBalanceCents != nil {
+		account.OverrideCurrentBalance(*req.CurrentBalanceCents)
+	}
 	account.IncrementVersion()
 
 	if err := s.accountRepo.Update(ctx, account); err != nil {

@@ -186,6 +186,13 @@ func (a *Account) IsDeleted() bool {
 	return a.DeletedAt != nil
 }
 
+// OverrideCurrentBalance 手工覆盖当前余额（信用卡「当前欠款」对账单校正）。
+// 与 ApplyEntryDelta 的交易增量并行的唯一人工修正通道：余额正常只随交易
+// 流水变化，此方法仅供用户在编辑表单里改欠款时调用。
+func (a *Account) OverrideCurrentBalance(cents int64) {
+	a.CurrentBalanceCents = cents
+}
+
 // AccountProfile 是账户可编辑字段的值对象（全指针，nil=不提供/不更新）。
 // 用于统一 create 灌入 + update 应用，避免大参数列表。
 type AccountProfile struct {

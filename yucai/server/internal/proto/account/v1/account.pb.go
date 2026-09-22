@@ -1190,9 +1190,14 @@ type UpdateAccountRequest struct {
 	// Optional sub-category parent. nil/empty = unchanged (top-level if setting
 	// for the first time). Mirrors CreateAccountRequest.parent_id so the category
 	// edit path (which rides on UpdateAccount) can persist parent changes.
-	ParentId      *string `protobuf:"bytes,36,opt,name=parent_id,json=parentId,proto3,oneof" json:"parent_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ParentId *string `protobuf:"bytes,36,opt,name=parent_id,json=parentId,proto3,oneof" json:"parent_id,omitempty"`
+	// Manual current-balance override (credit card "current debt" edit). nil =
+	// unchanged. Set only for credit-card style liabilities whose balance the
+	// user corrects by hand (statement reconciliation): bypasses the
+	// transactions-only balance pipeline on purpose.
+	CurrentBalanceCents *int64 `protobuf:"varint,37,opt,name=current_balance_cents,json=currentBalanceCents,proto3,oneof" json:"current_balance_cents,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UpdateAccountRequest) Reset() {
@@ -1475,6 +1480,13 @@ func (x *UpdateAccountRequest) GetParentId() string {
 		return *x.ParentId
 	}
 	return ""
+}
+
+func (x *UpdateAccountRequest) GetCurrentBalanceCents() int64 {
+	if x != nil && x.CurrentBalanceCents != nil {
+		return *x.CurrentBalanceCents
+	}
+	return 0
 }
 
 type DeleteAccountRequest struct {
@@ -2060,7 +2072,7 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x1f.yucai.account.v1.AccountStatusR\x06status\"\x83\x01\n" +
 	"\x14ListAccountsResponse\x128\n" +
 	"\baccounts\x18\x01 \x03(\v2\x1c.yucai.account.v1.AccountDTOR\baccounts\x121\n" +
-	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\"\xa8\x12\n" +
+	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\"\xfb\x12\n" +
 	"\x14UpdateAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -2100,7 +2112,8 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x14loan_remaining_cents\x18! \x01(\x03H\x14R\x12loanRemainingCents\x88\x01\x01\x121\n" +
 	"\x12loan_monthly_cents\x18\" \x01(\x03H\x15R\x10loanMonthlyCents\x88\x01\x01\x12O\n" +
 	"\x16loan_next_payment_date\x18# \x01(\v2\x1a.google.protobuf.TimestampR\x13loanNextPaymentDate\x12 \n" +
-	"\tparent_id\x18$ \x01(\tH\x16R\bparentId\x88\x01\x01B\t\n" +
+	"\tparent_id\x18$ \x01(\tH\x16R\bparentId\x88\x01\x01\x127\n" +
+	"\x15current_balance_cents\x18% \x01(\x03H\x17R\x13currentBalanceCents\x88\x01\x01B\t\n" +
 	"\a_statusB\x13\n" +
 	"\x11_card_number_tailB\b\n" +
 	"\x06_notesB\x10\n" +
@@ -2124,7 +2137,8 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x15_loan_remaining_centsB\x15\n" +
 	"\x13_loan_monthly_centsB\f\n" +
 	"\n" +
-	"_parent_id\"&\n" +
+	"_parent_idB\x18\n" +
+	"\x16_current_balance_cents\"&\n" +
 	"\x14DeleteAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"I\n" +
 	"\x0fAccountResponse\x126\n" +
@@ -2194,8 +2208,7 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x0eCreateCategory\x12'.yucai.account.v1.CreateCategoryRequest\x1a!.yucai.account.v1.AccountResponse\x12\\\n" +
 	"\x0eUpdateCategory\x12'.yucai.account.v1.UpdateCategoryRequest\x1a!.yucai.account.v1.AccountResponse\x12Q\n" +
 	"\x0eDeleteCategory\x12'.yucai.account.v1.DeleteCategoryRequest\x1a\x16.google.protobuf.Empty\x12W\n" +
-	"\x11ReorderCategories\x12*.yucai.account.v1.ReorderCategoriesRequest\x1a\x16.google.protobuf.EmptyB\xc3\x01\n" +
-	"\x14com.yucai.account.v1B\fAccountProtoP\x01Z;github.com/yucai/server/internal/proto/account/v1;accountv1\xa2\x02\x03YAX\xaa\x02\x10Yucai.Account.V1\xca\x02\x10Yucai\\Account\\V1\xe2\x02\x1cYucai\\Account\\V1\\GPBMetadata\xea\x02\x12Yucai::Account::V1b\x06proto3"
+	"\x11ReorderCategories\x12*.yucai.account.v1.ReorderCategoriesRequest\x1a\x16.google.protobuf.EmptyB3Z1github.com/yucai/server/internal/proto/account/v1b\x06proto3"
 
 var (
 	file_account_v1_account_proto_rawDescOnce sync.Once

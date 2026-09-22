@@ -5,6 +5,8 @@ inputs:
   - directory: .
     paths:
       - feedback/v1/feedback.proto
+      - account/v1/account.proto
+      - debt/v1/debt.proto
 plugins:
   - local: protoc-gen-go
     out: ../server/internal/proto
@@ -12,15 +14,19 @@ plugins:
       - paths=source_relative
       - "Mcommon/v1/recurrence.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
       - "Mcommon/v1/pagination.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
+      - "Mcommon/v1/money.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
       - "Mtemplate/v1/template.proto=github.com/yucai/server/internal/proto/template/v1;templatev1"
       - "Mdebt/v1/debt.proto=github.com/yucai/server/internal/proto/debt/v1;debtv1"
       - "Mfeedback/v1/feedback.proto=github.com/yucai/server/internal/proto/feedback/v1;feedbackv1"
+      - "Maccount/v1/account.proto=github.com/yucai/server/internal/proto/account/v1;accountv1"
   - local: protoc-gen-go-grpc
     out: ../server/internal/proto
     opt:
       - paths=source_relative
       - "Mcommon/v1/recurrence.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
       - "Mcommon/v1/pagination.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
+      - "Mcommon/v1/money.proto=github.com/yucai/server/internal/proto/common/v1;commonv1"
       - "Mtemplate/v1/template.proto=github.com/yucai/server/internal/proto/template/v1;templatev1"
       - "Mdebt/v1/debt.proto=github.com/yucai/server/internal/proto/debt/v1;debtv1"
       - "Mfeedback/v1/feedback.proto=github.com/yucai/server/internal/proto/feedback/v1;feedbackv1"
+      - "Maccount/v1/account.proto=github.com/yucai/server/internal/proto/account/v1;accountv1"

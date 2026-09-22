@@ -90,7 +90,11 @@ type UpdateAccountRequest struct {
 	LoanNextPaymentDate      *time.Time
 	SortOrder                *int // nil = 不更新；分类重排时由 ReorderCategories 设置
 	ParentID                 *uuid.UUID // nil = 不更新；分类编辑改父分类走 UpdateAccount 路径
-	Version                  int64
+	// CurrentBalanceCents nil = 不更新；非 nil = 手工覆盖当前余额（信用卡
+	// 「当前欠款」编辑）。余额正常只随交易流水变化，此字段是对账单校正的
+	// 例外通道。
+	CurrentBalanceCents *int64
+	Version             int64
 }
 
 // CreateCategoryRequest creates a category account (AccountType=Expense/Income).

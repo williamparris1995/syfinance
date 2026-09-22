@@ -1427,6 +1427,7 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     $fixnum.Int64? loanMonthlyCents,
     $2.Timestamp? loanNextPaymentDate,
     $core.String? parentId,
+    $fixnum.Int64? currentBalanceCents,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -1476,6 +1477,8 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     if (loanNextPaymentDate != null)
       result.loanNextPaymentDate = loanNextPaymentDate;
     if (parentId != null) result.parentId = parentId;
+    if (currentBalanceCents != null)
+      result.currentBalanceCents = currentBalanceCents;
     return result;
   }
 
@@ -1535,6 +1538,7 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     ..aOM<$2.Timestamp>(35, _omitFieldNames ? '' : 'loanNextPaymentDate',
         subBuilder: $2.Timestamp.create)
     ..aOS(36, _omitFieldNames ? '' : 'parentId')
+    ..aInt64(37, _omitFieldNames ? '' : 'currentBalanceCents')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1892,6 +1896,19 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
   $core.bool hasParentId() => $_has(35);
   @$pb.TagNumber(36)
   void clearParentId() => $_clearField(36);
+
+  /// Manual current-balance override (credit card "current debt" edit). nil =
+  /// unchanged. Set only for credit-card style liabilities whose balance the
+  /// user corrects by hand (statement reconciliation): bypasses the
+  /// transactions-only balance pipeline on purpose.
+  @$pb.TagNumber(37)
+  $fixnum.Int64 get currentBalanceCents => $_getI64(36);
+  @$pb.TagNumber(37)
+  set currentBalanceCents($fixnum.Int64 value) => $_setInt64(36, value);
+  @$pb.TagNumber(37)
+  $core.bool hasCurrentBalanceCents() => $_has(36);
+  @$pb.TagNumber(37)
+  void clearCurrentBalanceCents() => $_clearField(37);
 }
 
 class DeleteAccountRequest extends $pb.GeneratedMessage {

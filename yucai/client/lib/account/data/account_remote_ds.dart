@@ -232,6 +232,10 @@ class AccountRemoteDataSource {
     if (p.loanNextPaymentDate != null) {
       req.loanNextPaymentDate = _ts(p.loanNextPaymentDate!);
     }
+    // 信用卡「当前欠款」手工校正（proto3 optional, null = 不更新）。
+    if (p.currentBalanceCents != null) {
+      req.currentBalanceCents = Int64(p.currentBalanceCents!);
+    }
   }
 }
 

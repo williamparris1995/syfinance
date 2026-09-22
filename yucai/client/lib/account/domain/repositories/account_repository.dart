@@ -155,6 +155,7 @@ class UpdateAccountParams {
     this.loanRemainingCents,
     this.loanMonthlyCents,
     this.loanNextPaymentDate,
+    this.currentBalanceCents,
   });
 
   final String id;
@@ -197,4 +198,8 @@ class UpdateAccountParams {
   final int? loanRemainingCents;
   final int? loanMonthlyCents;
   final DateTime? loanNextPaymentDate;
+
+  /// null = 不更新；非 null = 手工覆盖当前余额（信用卡「当前欠款」编辑，
+  /// 对账单校正例外通道）。负债余额为 credit-正（欠款 = 正数）。
+  final int? currentBalanceCents;
 }

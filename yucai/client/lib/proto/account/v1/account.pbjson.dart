@@ -1158,6 +1158,15 @@ const UpdateAccountRequest$json = {
       '10': 'parentId',
       '17': true
     },
+    {
+      '1': 'current_balance_cents',
+      '3': 37,
+      '4': 1,
+      '5': 3,
+      '9': 23,
+      '10': 'currentBalanceCents',
+      '17': true
+    },
   ],
   '8': [
     {'1': '_status'},
@@ -1183,6 +1192,7 @@ const UpdateAccountRequest$json = {
     {'1': '_loan_remaining_cents'},
     {'1': '_loan_monthly_cents'},
     {'1': '_parent_id'},
+    {'1': '_current_balance_cents'},
   ],
 };
 
@@ -1220,17 +1230,18 @@ final $typed_data.Uint8List updateAccountRequestDescriptor = $convert.base64Deco
     '5nX2NlbnRzGCEgASgDSBRSEmxvYW5SZW1haW5pbmdDZW50c4gBARIxChJsb2FuX21vbnRobHlf'
     'Y2VudHMYIiABKANIFVIQbG9hbk1vbnRobHlDZW50c4gBARJPChZsb2FuX25leHRfcGF5bWVudF'
     '9kYXRlGCMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFITbG9hbk5leHRQYXltZW50'
-    'RGF0ZRIgCglwYXJlbnRfaWQYJCABKAlIFlIIcGFyZW50SWSIAQFCCQoHX3N0YXR1c0ITChFfY2'
-    'FyZF9udW1iZXJfdGFpbEIICgZfbm90ZXNCEAoOX2ludGVyZXN0X3JhdGVCFQoTX2NyZWRpdF9i'
-    'aWxsaW5nX2RheUIXChVfY3JlZGl0X3JlcGF5bWVudF9kYXlCGgoYX2NyZWRpdF9hbm51YWxfZm'
-    'VlX2NlbnRzQhQKEl9pbnZlc3RfY29zdF9jZW50c0IcChpfaW52ZXN0X21hcmtldF92YWx1ZV9j'
-    'ZW50c0IUChJfaW52ZXN0X3JldHVybl95dGRCGAoWX2ZpeGVkX3ByaW5jaXBhbF9jZW50c0IUCh'
-    'JfZml4ZWRfdGVybV9tb250aHNCFAoSX2dvbGRfcHJvZHVjdF90eXBlQhAKDl9nb2xkX3F1YW50'
-    'aXR5QhcKFV9nb2xkX2J1eV9wcmljZV9jZW50c0IbChlfZ29sZF9jdXJyZW50X3ByaWNlX2Nlbn'
-    'RzQh4KHF9lc3RhdGVfcHVyY2hhc2VfcHJpY2VfY2VudHNCHQobX2VzdGF0ZV9jdXJyZW50X3Zh'
-    'bHVlX2NlbnRzQhsKGV9lc3RhdGVfZGVwcmVjaWF0aW9uX3JhdGVCFgoUX2xvYW5fb3JpZ2luYW'
-    'xfY2VudHNCFwoVX2xvYW5fcmVtYWluaW5nX2NlbnRzQhUKE19sb2FuX21vbnRobHlfY2VudHNC'
-    'DAoKX3BhcmVudF9pZA==');
+    'RGF0ZRIgCglwYXJlbnRfaWQYJCABKAlIFlIIcGFyZW50SWSIAQESNwoVY3VycmVudF9iYWxhbm'
+    'NlX2NlbnRzGCUgASgDSBdSE2N1cnJlbnRCYWxhbmNlQ2VudHOIAQFCCQoHX3N0YXR1c0ITChFf'
+    'Y2FyZF9udW1iZXJfdGFpbEIICgZfbm90ZXNCEAoOX2ludGVyZXN0X3JhdGVCFQoTX2NyZWRpdF'
+    '9iaWxsaW5nX2RheUIXChVfY3JlZGl0X3JlcGF5bWVudF9kYXlCGgoYX2NyZWRpdF9hbm51YWxf'
+    'ZmVlX2NlbnRzQhQKEl9pbnZlc3RfY29zdF9jZW50c0IcChpfaW52ZXN0X21hcmtldF92YWx1ZV'
+    '9jZW50c0IUChJfaW52ZXN0X3JldHVybl95dGRCGAoWX2ZpeGVkX3ByaW5jaXBhbF9jZW50c0IU'
+    'ChJfZml4ZWRfdGVybV9tb250aHNCFAoSX2dvbGRfcHJvZHVjdF90eXBlQhAKDl9nb2xkX3F1YW'
+    '50aXR5QhcKFV9nb2xkX2J1eV9wcmljZV9jZW50c0IbChlfZ29sZF9jdXJyZW50X3ByaWNlX2Nl'
+    'bnRzQh4KHF9lc3RhdGVfcHVyY2hhc2VfcHJpY2VfY2VudHNCHQobX2VzdGF0ZV9jdXJyZW50X3'
+    'ZhbHVlX2NlbnRzQhsKGV9lc3RhdGVfZGVwcmVjaWF0aW9uX3JhdGVCFgoUX2xvYW5fb3JpZ2lu'
+    'YWxfY2VudHNCFwoVX2xvYW5fcmVtYWluaW5nX2NlbnRzQhUKE19sb2FuX21vbnRobHlfY2VudH'
+    'NCDAoKX3BhcmVudF9pZEIYChZfY3VycmVudF9iYWxhbmNlX2NlbnRz');
 
 @$core.Deprecated('Use deleteAccountRequestDescriptor instead')
 const DeleteAccountRequest$json = {
