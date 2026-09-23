@@ -69,7 +69,7 @@ E2E_FILES := integration_test/app_pages_test.dart integration_test/linked_transa
 # UI 链文件(一链一文件,不进默认回归;T4 十文件 + review round-1 补 ui_template_record = 11;
 # fix round 1 尾追加 ui_template_record —— FR-12「手动触发记一笔」枚举项补齐;
 # F9-T4 尾追加 ui_list_unify —— 列表能力统一 UI 抽验,= 12)。
-E2E_UI_FILES := integration_test/ui_boot_subscription_test.dart integration_test/ui_record_form_test.dart integration_test/ui_transfer_form_test.dart integration_test/ui_collect_form_test.dart integration_test/ui_buy_form_test.dart integration_test/ui_contribution_form_test.dart integration_test/ui_budget_page_test.dart integration_test/ui_tag_page_test.dart integration_test/ui_backup_entry_test.dart integration_test/ui_list_filter_test.dart integration_test/ui_template_record_test.dart integration_test/ui_list_unify_test.dart
+E2E_UI_FILES := integration_test/ui_boot_subscription_test.dart integration_test/ui_record_form_test.dart integration_test/ui_transfer_form_test.dart integration_test/ui_collect_form_test.dart integration_test/ui_buy_form_test.dart integration_test/ui_contribution_form_test.dart integration_test/ui_budget_page_test.dart integration_test/ui_tag_page_test.dart integration_test/ui_backup_entry_test.dart integration_test/ui_list_filter_test.dart integration_test/ui_template_record_test.dart integration_test/ui_list_unify_test.dart integration_test/ui_bill_cycle_panel_test.dart
 
 # F= 单文件精准重跑(两入口通用,F 非空则只跑该文件),例:
 #   make client-e2e F=integration_test/link_budget_goal_test.dart
@@ -80,5 +80,5 @@ client-e2e: ## 管道链路 E2E 默认回归(种子注入→断言→测试库�
 	@echo "client E2E: all suites passed (test DB auto-deleted)"
 
 client-e2e-ui: FILES := $(if $(F),$(F),$(E2E_UI_FILES))
-client-e2e-ui: ## UI 链 E2E 手动入口(E2E_UI_FILES 12 文件串行);F= 单文件精准重跑
+client-e2e-ui: ## UI 链 E2E 手动入口(E2E_UI_FILES 13 文件串行);F= 单文件精准重跑
 	@if [ -z "$(strip $(FILES))" ]; then echo "no UI files yet"; else 	for f in $(FILES); do 		powershell -NoProfile -Command "Get-Process yucai_client -ErrorAction SilentlyContinue | Stop-Process -Force" 2>/dev/null; 		echo "=== $$f ==="; 		cd client && flutter test $$f -d windows --dart-define=YUCAI_DB_FILE=yucai_test.db || exit 1; 		cd ..; 	done; 	echo "client E2E UI: all suites passed (test DB auto-deleted)"; fi

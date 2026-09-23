@@ -133,9 +133,10 @@ void main() {
         ));
 
     expect(find.text('全额(上期账单)'), findsOneWidget);
-    // 只读金额 = 应还 4200.00;卡片概览「当前欠款 ¥5000.00」照旧(两数分开)。
-    expect(find.text('¥4200.00'), findsOneWidget);
-    expect(find.textContaining('当前欠款 ¥5000.00'), findsOneWidget);
+    // 只读金额 = 应还 ¥4,200.00(千分位,2026-09-23 v5「三处同数」呈现对齐);
+    // 卡片概览「当前欠款 ¥5,000.00」照旧(两数分开)。
+    expect(find.text('¥4,200.00'), findsOneWidget);
+    expect(find.textContaining('当前欠款 ¥5,000.00'), findsOneWidget);
 
     await _submit(tester);
     expect(repayments, [(420000, 'rich')]); // 全额 = 上期账单应还

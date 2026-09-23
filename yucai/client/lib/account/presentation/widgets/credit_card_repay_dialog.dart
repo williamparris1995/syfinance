@@ -258,8 +258,8 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
   Widget build(BuildContext context) {
     final symbol = currencySymbol(widget.card.currencyCode);
     // 概览示当前总欠款;还款基数(全额只读金额)= 上期账单应还,两数分开。
-    final debtYuan = (_debtCents / 100).toStringAsFixed(2);
-    final baseYuan = (_baseCents / 100).toStringAsFixed(2);
+    final debtYuan = _groupedYuan(_debtCents);
+    final baseYuan = _groupedYuan(_baseCents);
     return AlertDialog(
       title: const Text('信用卡还款'),
       content: SizedBox(
@@ -460,6 +460,22 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
         ),
       ],
     );
+  }
+
+  /// 千分位两位小数(「三处同数」呈现对齐:面板应答大字/催办/对话框同形态;
+  /// 既有表单预填仍用无分组小数,输入态不掺逗号)。
+  static String _groupedYuan(int cents) {
+    final sign = cents < 0 ? '-' : '';
+    final abs = cents.abs();
+    final yuan = abs ~/ 100;
+    final frac = (abs % 100).toString().padLeft(2, '0');
+    final src = yuan.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < src.length; i++) {
+      if (i > 0 && (src.length - i) % 3 == 0) buf.write(',');
+      buf.write(src[i]);
+    }
+    return '$sign$buf.$frac';
   }
 
   Widget _readonlyAmount(String symbol, String baseYuan) => Container(
