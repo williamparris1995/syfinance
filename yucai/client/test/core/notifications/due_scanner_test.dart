@@ -3,6 +3,7 @@ import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:drift/native.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
+import 'package:yucai_client/core/notifications/due_target.dart';
 import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 
 /// 内存 fake:期次候选源。
@@ -51,11 +52,11 @@ void main() {
   test('档位命中:窗口内(含差 1/2 天)都发,窗口外跳过', () async {
     final n = FakeNotifier();
     final s = scannerWith([
-      DueScheduleEntry(id: 'e1', debtName: '房贷', totalCents: 100000, paymentDate: DateTime(2026, 9, 1)), // advance 3 天
-      DueScheduleEntry(id: 'e2', debtName: '信用卡', totalCents: 200000, paymentDate: today), // advance 当天
-      DueScheduleEntry(id: 'e3', debtName: '车贷', totalCents: 300000, paymentDate: DateTime(2026, 8, 25)), // overdue 4 天
-      DueScheduleEntry(id: 'e4', debtName: '远期', totalCents: 400000, paymentDate: DateTime(2026, 9, 20)), // 窗口外
-      DueScheduleEntry(id: 'e5', debtName: '差2天', totalCents: 500000, paymentDate: DateTime(2026, 8, 31)), // 催办:也发
+      DueScheduleEntry(id: 'e1', debtName: '房贷', totalCents: 100000, paymentDate: DateTime(2026, 9, 1), target: const DebtTarget('d1')), // advance 3 天
+      DueScheduleEntry(id: 'e2', debtName: '信用卡', totalCents: 200000, paymentDate: today, target: const AccountTarget('cc-1')), // advance 当天
+      DueScheduleEntry(id: 'e3', debtName: '车贷', totalCents: 300000, paymentDate: DateTime(2026, 8, 25), target: const DebtTarget('d3')), // overdue 4 天
+      DueScheduleEntry(id: 'e4', debtName: '远期', totalCents: 400000, paymentDate: DateTime(2026, 9, 20), target: const DebtTarget('d4')), // 窗口外
+      DueScheduleEntry(id: 'e5', debtName: '差2天', totalCents: 500000, paymentDate: DateTime(2026, 8, 31), target: const DebtTarget('d5')), // 催办:也发
     ], n);
     final result = await s.scan(today);
     expect(result.scanned, 5);
@@ -70,7 +71,7 @@ void main() {
     final token = policy.bucketToken(DateTime.now());
     final n = FakeNotifier();
     final s = scannerWith(
-      [DueScheduleEntry(id: 'e1', debtName: '房贷', totalCents: 100000, paymentDate: DateTime(2026, 9, 1))],
+      [DueScheduleEntry(id: 'e1', debtName: '房贷', totalCents: 100000, paymentDate: DateTime(2026, 9, 1), target: const DebtTarget('d1'))],
       n,
       keys: {'advance|e1|$token'},
     );
@@ -82,7 +83,7 @@ void main() {
   test('重复调用第二次 0 条(markSent 写回生效)', () async {
     final n = FakeNotifier();
     final s = scannerWith(
-      [DueScheduleEntry(id: 'e2', debtName: '信用卡', totalCents: 200000, paymentDate: today)],
+      [DueScheduleEntry(id: 'e2', debtName: '信用卡', totalCents: 200000, paymentDate: today, target: const AccountTarget('cc-1'))],
       n,
     );
     expect((await s.scan(today)).sent, 1);
@@ -94,7 +95,7 @@ void main() {
     await store.dismiss('e3');
     final n = FakeNotifier();
     final s = scannerWith(
-      [DueScheduleEntry(id: 'e3', debtName: '车贷', totalCents: 99005, paymentDate: DateTime(2026, 8, 24))],
+      [DueScheduleEntry(id: 'e3', debtName: '车贷', totalCents: 99005, paymentDate: DateTime(2026, 8, 24), target: const DebtTarget('d3'))],
       n,
       dismissals: store,
     );
@@ -123,7 +124,7 @@ void main() {
     var cfg = const DueReminderConfig(advanceDays: 1);
     final s = DueScanner(
       source: FakeDueSource([
-        DueScheduleEntry(id: 'e5', debtName: '差2天', totalCents: 500000, paymentDate: DateTime(2026, 8, 31)),
+        DueScheduleEntry(id: 'e5', debtName: '差2天', totalCents: 500000, paymentDate: DateTime(2026, 8, 31), target: const DebtTarget('d5')),
       ]),
       notifier: n,
       logStore: FakeLogStore(<String>{}),

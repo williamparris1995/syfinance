@@ -33,6 +33,8 @@ class TrayHeadData {
     required this.todayIncomeCents,
     required this.todayExpenseCents,
     required this.monthBalanceCents,
+    this.dueCount,
+    this.dueNearestDays,
   });
 
   /// 今日收入合计(分,本地口径)。
@@ -43,6 +45,18 @@ class TrayHeadData {
 
   /// 本月结余 = 本月收入 - 本月支出(分,本地口径)。
   final int monthBalanceCents;
+
+  /// 待还笔数(2026-09 到期常显提醒 FR-4/ADR-5;组合根从读侧
+  /// DueCandidateProvider.latest 并入本对象)。null = 查询失败/未注入
+  /// → 待还行不显示(fail-safe 同 F25 NFR-1);0 = 无候选同样不显示。
+  /// 永不含金额(spec FR-4:笔数非金额,不跟隐私开关)。
+  final int? dueCount;
+
+  /// 最近到期日差:**存在非逾期候选 → 最小非负 daysLeft(0 = 今日到期);
+  /// 全逾期 → 存最小 daysLeft(负,即最重逾期档),渲染层判 < 0 →
+  /// 「已逾期 M 天」**。该语义钉死:与 DueBanner 聚合「M 笔已逾期 D 天」
+  /// 的 D = 最大逾期天数一致(-min = max)。null → 待还行不显示。
+  final int? dueNearestDays;
 }
 
 /// F25 ADR-1:摘要提供者函数注入 port(与 exitFn/traySetup 缝同构,最小面)。
@@ -74,6 +88,7 @@ class TrayController with TrayListener, WindowListener {
     this.headProvider,
     this.versionProvider,
     this.newTransactionNav,
+    this.inboxNav,
     AppExitFn? exitFn,
   }) : _exit = exitFn ?? _defaultExit;
 
@@ -113,6 +128,11 @@ class TrayController with TrayListener, WindowListener {
   /// null / 抛错 = 降级仅 show/focus 窗口(不炸,NFR-1)。
   final Future<void> Function()? newTransactionNav;
 
+  /// 「提醒中心」导航闭包(2026-09 到期常显提醒 FR-7,组合根注入
+  /// GoRouter go('/inbox') —— 托盘唯二入口之一);null / 抛错 = 降级
+  /// 仅 show/focus 窗口(不炸,NFR-1,照 [newTransactionNav] 范式)。
+  final Future<void> Function()? inboxNav;
+
   final AppExitFn _exit;
 
   static Never _defaultExit() => exit(0);
@@ -133,8 +153,10 @@ class TrayController with TrayListener, WindowListener {
 
   static const _kQuit = 'quit';
   static const _kNewTxn = 'new_transaction';
+  static const _kInbox = 'inbox';
   static const _kHeadToday = 'head_today';
   static const _kHeadMonth = 'head_month';
+  static const _kHeadDue = 'head_due';
   static const _kHead = 'head';
   static const _kCheckUpdate = 'check_update';
   static const _kVersion = 'version';
@@ -363,6 +385,18 @@ class TrayController with TrayListener, WindowListener {
             await nav();
           } catch (_) {}
         }
+      case _kInbox:
+        // 2026-09 到期常显提醒 FR-7:显示并聚焦窗口,再跳提醒中心
+        // (/inbox 收件箱,托盘唯二入口之一);导航闭包缺失/抛错 →
+        // 降级仅 show/focus,不炸(照「记一笔」同范式)。
+        await windowManager.show();
+        await windowManager.focus();
+        final inbox = inboxNav;
+        if (inbox != null) {
+          try {
+            await inbox();
+          } catch (_) {}
+        }
       case _kCheckUpdate:
         // F24 FR-5/6:手动检查 → auto_updater 引擎检查 UI(WinSparkle,
         // 英文弹窗决策在案)。引擎抛错(bootstrap 降级后未初始化/平台
@@ -403,15 +437,19 @@ class TrayController with TrayListener, WindowListener {
     await windowManager.focus();
   }
 
-  /// 托盘菜单项(FR-6 + F25 + F24):数据头区(FR-1,动态禁用项)→ 分隔线 →
-  /// 检查更新(F24 FR-5,enabled)→ 御财 vX.Y.Z(F24 FR-6,disabled)→
-  /// 记一笔(置顶)→ 数据头 → 检查更新/版本 → 退出。「显示御财」已撤(左键即显示)、「立即检查」已撤 —— 变更即扫
-  /// (FR-4)+ 可配间隔(FR-5)治本取代手动逃生口,_kCheck 与其 case 退役。
+  /// 托盘菜单项(FR-6 + F25 + F24 + 2026-09 到期常显提醒):记一笔 +
+  /// 提醒中心(两导航快捷动作,置顶)→ 数据头区(FR-1 动态禁用项 +
+  /// 待还行)→ 分隔线 → 检查更新(F24 FR-5,enabled)→ 御财 vX.Y.Z
+  /// (F24 FR-6,disabled)→ 退出。「显示御财」已撤(左键即显示)、「立即检查」
+  /// 已撤 —— 变更即扫(FR-4)+ 可配间隔(FR-5)治本取代手动逃生口。
   ///
   /// F25 参数化(design LLD):
   /// - [head] 非空且 [showAmounts] → 今日/本月两行 disabled;
-  /// - [showAmounts]=false → 「金额已隐藏」单行(不出两行空壳);
+  /// - [showAmounts]=false → 「金额已隐藏」单行(不出两行空壳),但待还
+  ///   行照常(笔数非金额,不跟隐私开关,spec FR-4 承 F25 哲学);
   /// - [head]=null(查询失败/未注入)→ 「--」单行占位,不阻断其余项;
+  /// - 待还行(2026-09 FR-4/ADR-5):数据头区尾追加 disabled 行
+  ///   「待还 N 笔 · 最近 X 天后」;dueCount null/0 → 不显示不占位;
   /// - [version](F24,PackageInfo 派生)非空 → 「御财 vX.Y.Z」,否则
   ///   降级纯「御财」(见 [formatVersionLabel])。
   @visibleForTesting
@@ -420,27 +458,50 @@ class TrayController with TrayListener, WindowListener {
     bool showAmounts = true,
     String? version,
   }) {
-    final headItems = !showAmounts
-        ? [MenuItem(key: _kHead, label: '金额已隐藏', disabled: true)]
-        : (head == null
-            ? [MenuItem(key: _kHead, label: '--', disabled: true)]
-            : [
+    // 待还行(FR-4):永不含金额、不跟 [showAmounts];dueCount null/0 或
+    // dueNearestDays null(查询失败/未注入/无候选)→ 无行(fail-safe,
+    // NFR-1 —— head=null 时两字段必为 null,条件天然收口)。
+    final dueCount = head?.dueCount;
+    final dueNearestDays = head?.dueNearestDays;
+    final dueItems =
+        (dueCount != null && dueCount > 0 && dueNearestDays != null)
+            ? [
                 MenuItem(
-                  key: _kHeadToday,
-                  label:
-                      '今日 收 ${formatTrayAmount(head.todayIncomeCents)} · 支 ${formatTrayAmount(head.todayExpenseCents)}',
+                  key: _kHeadDue,
+                  label: formatTrayDueLabel(dueCount, dueNearestDays),
                   disabled: true,
                 ),
-                MenuItem(
-                  key: _kHeadMonth,
-                  label: '本月结余 ${formatTrayBalance(head.monthBalanceCents)}',
-                  disabled: true,
-                ),
-              ]);
+              ]
+            : const <MenuItem>[];
+    final headItems = [
+      ...(!showAmounts
+          ? [MenuItem(key: _kHead, label: '金额已隐藏', disabled: true)]
+          : (head == null
+              ? [MenuItem(key: _kHead, label: '--', disabled: true)]
+              : [
+                  MenuItem(
+                    key: _kHeadToday,
+                    label:
+                        '今日 收 ${formatTrayAmount(head.todayIncomeCents)} · 支 ${formatTrayAmount(head.todayExpenseCents)}',
+                    disabled: true,
+                  ),
+                  MenuItem(
+                    key: _kHeadMonth,
+                    label:
+                        '本月结余 ${formatTrayBalance(head.monthBalanceCents)}',
+                    disabled: true,
+                  ),
+                ])),
+      // 待还行恒随数据头区(金额行之后),不受隐私开关影响(FR-4)。
+      ...dueItems,
+    ];
     // 验收调序(2026-09-16 用户拍板):记一笔置顶;「显示御财」移除(左键单击
     // 托盘即显示,菜单项冗余);数据头/更新组居中;退出独立收尾(惯例)。
+    // 2026-09 到期常显提醒:「提醒中心」与「记一笔」同组置顶(FR-7 托盘
+    // 唯二入口,无候选时主窗口无入口仍可达)。
     return [
       MenuItem(key: _kNewTxn, label: '记一笔'),
+      MenuItem(key: _kInbox, label: '提醒中心'),
       MenuItem.separator(),
       ...headItems,
       MenuItem.separator(),
@@ -450,6 +511,19 @@ class TrayController with TrayListener, WindowListener {
       MenuItem.separator(),
       MenuItem(key: _kQuit, label: '退出'),
     ];
+  }
+
+  /// 待还行文案(FR-4):「待还 N 笔 · 最近 X 天后」;X=0 → 「今日到期」;
+  /// [nearestDays] < 0(全逾期,组合根存最重逾期档的负 daysLeft,语义见
+  /// [TrayHeadData.dueNearestDays])→ 「待还 N 笔 · 已逾期 M 天」。与
+  /// DueBanner 聚合语义一致(措辞同词形、今日到期/逾期口径同源),但本
+  /// 文件属 core,不得 import account 模块复用 dueBannerSummary —— 文案
+  /// 逻辑在本文件独立实现(brief 钉死)。永不含金额。
+  @visibleForTesting
+  static String formatTrayDueLabel(int count, int nearestDays) {
+    if (nearestDays < 0) return '待还 $count 笔 · 已逾期 ${-nearestDays} 天';
+    if (nearestDays == 0) return '待还 $count 笔 · 今日到期';
+    return '待还 $count 笔 · 最近 $nearestDays 天后';
   }
 
   /// F24 FR-6:「御财 vX.Y.Z」label 组装(X.Y.Z 取 PackageInfo.version,

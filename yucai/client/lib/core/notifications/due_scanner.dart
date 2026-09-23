@@ -3,21 +3,27 @@
 library;
 
 import 'due_reminder_policy.dart';
+import 'due_target.dart';
 import 'reminder_dismissal_store.dart';
 
 /// 一条未付期次候选(由数据层组装,含债务名)。
 /// 信用卡还款候选复用同一形态:debtName=卡名,totalCents=欠款(credit-正)。
+/// [target] 为强类型路由目标(design ADR-2),两源构造时各自填。
 class DueScheduleEntry {
   const DueScheduleEntry({
     required this.id,
     required this.debtName,
     required this.totalCents,
     required this.paymentDate,
+    required this.target,
   });
   final String id;
   final String debtName;
   final int totalCents;
   final DateTime paymentDate;
+
+  /// 直达目标:期次 → 债务详情页;信用卡 → 还款对话框。
+  final DueTarget target;
 }
 
 /// 数据源:未付期次候选(本地 drift;窗口过滤在实现侧)。
@@ -54,6 +60,45 @@ class ScanResult {
   final int sent;
 }
 
+/// 一条活跃候选(窗口内 + 未挂失)及其口径化分档结果。
+/// 写侧 scanner(去重/发送)与读侧 DueCandidateProvider(视图广播)共用,
+/// 「什么算一条待办」由此单一函数定义(design ADR-1 / 风险 R1 同源契约)。
+class ActiveDueCandidate {
+  const ActiveDueCandidate({
+    required this.entry,
+    required this.tier,
+    required this.daysLeft,
+  });
+  final DueScheduleEntry entry;
+  final DueTier tier;
+
+  /// 到期日差([DueReminderPolicy.daysBetween] 同口径;负 = 逾期天数)。
+  final int daysLeft;
+}
+
+/// 源候选 → 活跃候选的共享纯函数:窗口分档(policy.tierFor,null = 窗口外
+/// 剔除)+ 挂失过滤([dismissedIds] 含 entry.id 则剔)。scanner 与读侧
+/// provider 都调它,两管线候选口径不得分叉(同源契约测试钉死)。
+List<ActiveDueCandidate> filterActiveCandidates(
+  List<DueScheduleEntry> raw,
+  Set<String>? dismissedIds, {
+  required DueReminderPolicy policy,
+  required DateTime today,
+}) {
+  final out = <ActiveDueCandidate>[];
+  for (final e in raw) {
+    final tier = policy.tierFor(today, e.paymentDate);
+    if (tier == null) continue;
+    if (dismissedIds != null && dismissedIds.contains(e.id)) continue;
+    out.add(ActiveDueCandidate(
+      entry: e,
+      tier: tier,
+      daysLeft: DueReminderPolicy.daysBetween(today, e.paymentDate),
+    ));
+  }
+  return out;
+}
+
 class DueScanner {
   DueScanner({
     required this.source,
@@ -76,27 +121,28 @@ class DueScanner {
   final ReminderDismissalStore? dismissalStore;
 
   /// 扫一轮:窗口内未付期次按档位发提醒,同档同桶幂等,挂失跳过。
+  /// 候选口径(窗口 + 挂失)走 [filterActiveCandidates] 共享纯函数
+  /// (与读侧 provider 同源;行为与内联版逐字等价,FR-8)。
   Future<ScanResult> scan(DateTime today) async {
     final policy = policyProvider();
     final entries = await source.unpaidDueCandidates();
     final dismissed =
         dismissalStore == null ? null : await dismissalStore!.dismissedEntryIds();
+    final active = filterActiveCandidates(entries, dismissed,
+        policy: policy, today: today);
     var sent = 0;
-    for (final e in entries) {
-      final tier = policy.tierFor(today, e.paymentDate);
-      if (tier == null) continue;
-      if (dismissed != null && dismissed.contains(e.id)) continue;
+    for (final c in active) {
       final token = policy.bucketToken(DateTime.now());
-      if (await logStore.wasSent(e.id, tier, token)) continue;
+      if (await logStore.wasSent(c.entry.id, c.tier, token)) continue;
       final copy = policy.compose(
-        debtName: e.debtName,
-        totalCents: e.totalCents,
-        tier: tier,
+        debtName: c.entry.debtName,
+        totalCents: c.entry.totalCents,
+        tier: c.tier,
         today: today,
-        paymentDate: e.paymentDate,
+        paymentDate: c.entry.paymentDate,
       );
       await notifier.show(copy);
-      await logStore.markSent(e.id, tier, token);
+      await logStore.markSent(c.entry.id, c.tier, token);
       sent++;
     }
     return ScanResult(scanned: entries.length, sent: sent);

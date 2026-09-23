@@ -7113,6 +7113,658 @@ class ReminderDismissalsCompanion extends UpdateCompanion<ReminderDismissal> {
   }
 }
 
+class $InboxEntriesTable extends InboxEntries
+    with TableInfo<$InboxEntriesTable, InboxEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InboxEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _entryKeyMeta = const VerificationMeta(
+    'entryKey',
+  );
+  @override
+  late final GeneratedColumn<String> entryKey = GeneratedColumn<String>(
+    'entry_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountCentsMeta = const VerificationMeta(
+    'amountCents',
+  );
+  @override
+  late final GeneratedColumn<int> amountCents = GeneratedColumn<int>(
+    'amount_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<String> dueDate = GeneratedColumn<String>(
+    'due_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<int> state = GeneratedColumn<int>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _handledAtMeta = const VerificationMeta(
+    'handledAt',
+  );
+  @override
+  late final GeneratedColumn<int> handledAt = GeneratedColumn<int>(
+    'handled_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetKindMeta = const VerificationMeta(
+    'targetKind',
+  );
+  @override
+  late final GeneratedColumn<int> targetKind = GeneratedColumn<int>(
+    'target_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetIdMeta = const VerificationMeta(
+    'targetId',
+  );
+  @override
+  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
+    'target_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entryKey,
+    type,
+    title,
+    amountCents,
+    dueDate,
+    state,
+    createdAt,
+    handledAt,
+    targetKind,
+    targetId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'inbox_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<InboxEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('entry_key')) {
+      context.handle(
+        _entryKeyMeta,
+        entryKey.isAcceptableOrUnknown(data['entry_key']!, _entryKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entryKeyMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('amount_cents')) {
+      context.handle(
+        _amountCentsMeta,
+        amountCents.isAcceptableOrUnknown(
+          data['amount_cents']!,
+          _amountCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountCentsMeta);
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dueDateMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('handled_at')) {
+      context.handle(
+        _handledAtMeta,
+        handledAt.isAcceptableOrUnknown(data['handled_at']!, _handledAtMeta),
+      );
+    }
+    if (data.containsKey('target_kind')) {
+      context.handle(
+        _targetKindMeta,
+        targetKind.isAcceptableOrUnknown(data['target_kind']!, _targetKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetKindMeta);
+    }
+    if (data.containsKey('target_id')) {
+      context.handle(
+        _targetIdMeta,
+        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {entryKey},
+  ];
+  @override
+  InboxEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InboxEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      entryKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entry_key'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      amountCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_cents'],
+      )!,
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}due_date'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      handledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}handled_at'],
+      ),
+      targetKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_kind'],
+      )!,
+      targetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_id'],
+      )!,
+    );
+  }
+
+  @override
+  $InboxEntriesTable createAlias(String alias) {
+    return $InboxEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class InboxEntry extends DataClass implements Insertable<InboxEntry> {
+  final int id;
+  final String entryKey;
+  final String type;
+  final String title;
+  final int amountCents;
+  final String dueDate;
+  final int state;
+  final int createdAt;
+  final int? handledAt;
+  final int targetKind;
+  final String targetId;
+  const InboxEntry({
+    required this.id,
+    required this.entryKey,
+    required this.type,
+    required this.title,
+    required this.amountCents,
+    required this.dueDate,
+    required this.state,
+    required this.createdAt,
+    this.handledAt,
+    required this.targetKind,
+    required this.targetId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['entry_key'] = Variable<String>(entryKey);
+    map['type'] = Variable<String>(type);
+    map['title'] = Variable<String>(title);
+    map['amount_cents'] = Variable<int>(amountCents);
+    map['due_date'] = Variable<String>(dueDate);
+    map['state'] = Variable<int>(state);
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || handledAt != null) {
+      map['handled_at'] = Variable<int>(handledAt);
+    }
+    map['target_kind'] = Variable<int>(targetKind);
+    map['target_id'] = Variable<String>(targetId);
+    return map;
+  }
+
+  InboxEntriesCompanion toCompanion(bool nullToAbsent) {
+    return InboxEntriesCompanion(
+      id: Value(id),
+      entryKey: Value(entryKey),
+      type: Value(type),
+      title: Value(title),
+      amountCents: Value(amountCents),
+      dueDate: Value(dueDate),
+      state: Value(state),
+      createdAt: Value(createdAt),
+      handledAt: handledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(handledAt),
+      targetKind: Value(targetKind),
+      targetId: Value(targetId),
+    );
+  }
+
+  factory InboxEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InboxEntry(
+      id: serializer.fromJson<int>(json['id']),
+      entryKey: serializer.fromJson<String>(json['entryKey']),
+      type: serializer.fromJson<String>(json['type']),
+      title: serializer.fromJson<String>(json['title']),
+      amountCents: serializer.fromJson<int>(json['amountCents']),
+      dueDate: serializer.fromJson<String>(json['dueDate']),
+      state: serializer.fromJson<int>(json['state']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      handledAt: serializer.fromJson<int?>(json['handledAt']),
+      targetKind: serializer.fromJson<int>(json['targetKind']),
+      targetId: serializer.fromJson<String>(json['targetId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'entryKey': serializer.toJson<String>(entryKey),
+      'type': serializer.toJson<String>(type),
+      'title': serializer.toJson<String>(title),
+      'amountCents': serializer.toJson<int>(amountCents),
+      'dueDate': serializer.toJson<String>(dueDate),
+      'state': serializer.toJson<int>(state),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'handledAt': serializer.toJson<int?>(handledAt),
+      'targetKind': serializer.toJson<int>(targetKind),
+      'targetId': serializer.toJson<String>(targetId),
+    };
+  }
+
+  InboxEntry copyWith({
+    int? id,
+    String? entryKey,
+    String? type,
+    String? title,
+    int? amountCents,
+    String? dueDate,
+    int? state,
+    int? createdAt,
+    Value<int?> handledAt = const Value.absent(),
+    int? targetKind,
+    String? targetId,
+  }) => InboxEntry(
+    id: id ?? this.id,
+    entryKey: entryKey ?? this.entryKey,
+    type: type ?? this.type,
+    title: title ?? this.title,
+    amountCents: amountCents ?? this.amountCents,
+    dueDate: dueDate ?? this.dueDate,
+    state: state ?? this.state,
+    createdAt: createdAt ?? this.createdAt,
+    handledAt: handledAt.present ? handledAt.value : this.handledAt,
+    targetKind: targetKind ?? this.targetKind,
+    targetId: targetId ?? this.targetId,
+  );
+  InboxEntry copyWithCompanion(InboxEntriesCompanion data) {
+    return InboxEntry(
+      id: data.id.present ? data.id.value : this.id,
+      entryKey: data.entryKey.present ? data.entryKey.value : this.entryKey,
+      type: data.type.present ? data.type.value : this.type,
+      title: data.title.present ? data.title.value : this.title,
+      amountCents: data.amountCents.present
+          ? data.amountCents.value
+          : this.amountCents,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      state: data.state.present ? data.state.value : this.state,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      handledAt: data.handledAt.present ? data.handledAt.value : this.handledAt,
+      targetKind: data.targetKind.present
+          ? data.targetKind.value
+          : this.targetKind,
+      targetId: data.targetId.present ? data.targetId.value : this.targetId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InboxEntry(')
+          ..write('id: $id, ')
+          ..write('entryKey: $entryKey, ')
+          ..write('type: $type, ')
+          ..write('title: $title, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('handledAt: $handledAt, ')
+          ..write('targetKind: $targetKind, ')
+          ..write('targetId: $targetId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    entryKey,
+    type,
+    title,
+    amountCents,
+    dueDate,
+    state,
+    createdAt,
+    handledAt,
+    targetKind,
+    targetId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InboxEntry &&
+          other.id == this.id &&
+          other.entryKey == this.entryKey &&
+          other.type == this.type &&
+          other.title == this.title &&
+          other.amountCents == this.amountCents &&
+          other.dueDate == this.dueDate &&
+          other.state == this.state &&
+          other.createdAt == this.createdAt &&
+          other.handledAt == this.handledAt &&
+          other.targetKind == this.targetKind &&
+          other.targetId == this.targetId);
+}
+
+class InboxEntriesCompanion extends UpdateCompanion<InboxEntry> {
+  final Value<int> id;
+  final Value<String> entryKey;
+  final Value<String> type;
+  final Value<String> title;
+  final Value<int> amountCents;
+  final Value<String> dueDate;
+  final Value<int> state;
+  final Value<int> createdAt;
+  final Value<int?> handledAt;
+  final Value<int> targetKind;
+  final Value<String> targetId;
+  const InboxEntriesCompanion({
+    this.id = const Value.absent(),
+    this.entryKey = const Value.absent(),
+    this.type = const Value.absent(),
+    this.title = const Value.absent(),
+    this.amountCents = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.handledAt = const Value.absent(),
+    this.targetKind = const Value.absent(),
+    this.targetId = const Value.absent(),
+  });
+  InboxEntriesCompanion.insert({
+    this.id = const Value.absent(),
+    required String entryKey,
+    required String type,
+    required String title,
+    required int amountCents,
+    required String dueDate,
+    required int state,
+    required int createdAt,
+    this.handledAt = const Value.absent(),
+    required int targetKind,
+    required String targetId,
+  }) : entryKey = Value(entryKey),
+       type = Value(type),
+       title = Value(title),
+       amountCents = Value(amountCents),
+       dueDate = Value(dueDate),
+       state = Value(state),
+       createdAt = Value(createdAt),
+       targetKind = Value(targetKind),
+       targetId = Value(targetId);
+  static Insertable<InboxEntry> custom({
+    Expression<int>? id,
+    Expression<String>? entryKey,
+    Expression<String>? type,
+    Expression<String>? title,
+    Expression<int>? amountCents,
+    Expression<String>? dueDate,
+    Expression<int>? state,
+    Expression<int>? createdAt,
+    Expression<int>? handledAt,
+    Expression<int>? targetKind,
+    Expression<String>? targetId,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entryKey != null) 'entry_key': entryKey,
+      if (type != null) 'type': type,
+      if (title != null) 'title': title,
+      if (amountCents != null) 'amount_cents': amountCents,
+      if (dueDate != null) 'due_date': dueDate,
+      if (state != null) 'state': state,
+      if (createdAt != null) 'created_at': createdAt,
+      if (handledAt != null) 'handled_at': handledAt,
+      if (targetKind != null) 'target_kind': targetKind,
+      if (targetId != null) 'target_id': targetId,
+    });
+  }
+
+  InboxEntriesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? entryKey,
+    Value<String>? type,
+    Value<String>? title,
+    Value<int>? amountCents,
+    Value<String>? dueDate,
+    Value<int>? state,
+    Value<int>? createdAt,
+    Value<int?>? handledAt,
+    Value<int>? targetKind,
+    Value<String>? targetId,
+  }) {
+    return InboxEntriesCompanion(
+      id: id ?? this.id,
+      entryKey: entryKey ?? this.entryKey,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      amountCents: amountCents ?? this.amountCents,
+      dueDate: dueDate ?? this.dueDate,
+      state: state ?? this.state,
+      createdAt: createdAt ?? this.createdAt,
+      handledAt: handledAt ?? this.handledAt,
+      targetKind: targetKind ?? this.targetKind,
+      targetId: targetId ?? this.targetId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (entryKey.present) {
+      map['entry_key'] = Variable<String>(entryKey.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (amountCents.present) {
+      map['amount_cents'] = Variable<int>(amountCents.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<String>(dueDate.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<int>(state.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (handledAt.present) {
+      map['handled_at'] = Variable<int>(handledAt.value);
+    }
+    if (targetKind.present) {
+      map['target_kind'] = Variable<int>(targetKind.value);
+    }
+    if (targetId.present) {
+      map['target_id'] = Variable<String>(targetId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InboxEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('entryKey: $entryKey, ')
+          ..write('type: $type, ')
+          ..write('title: $title, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('handledAt: $handledAt, ')
+          ..write('targetKind: $targetKind, ')
+          ..write('targetId: $targetId')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -17249,6 +17901,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ReminderLogsTable reminderLogs = $ReminderLogsTable(this);
   late final $ReminderDismissalsTable reminderDismissals =
       $ReminderDismissalsTable(this);
+  late final $InboxEntriesTable inboxEntries = $InboxEntriesTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $BudgetItemsTable budgetItems = $BudgetItemsTable(this);
   late final $GoalsTable goals = $GoalsTable(this);
@@ -17311,6 +17964,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     contractAttachments,
     reminderLogs,
     reminderDismissals,
+    inboxEntries,
     budgets,
     budgetItems,
     goals,
@@ -21285,6 +21939,318 @@ typedef $$ReminderDismissalsTableProcessedTableManager =
         >,
       ),
       ReminderDismissal,
+      PrefetchHooks Function()
+    >;
+typedef $$InboxEntriesTableCreateCompanionBuilder =
+    InboxEntriesCompanion Function({
+      Value<int> id,
+      required String entryKey,
+      required String type,
+      required String title,
+      required int amountCents,
+      required String dueDate,
+      required int state,
+      required int createdAt,
+      Value<int?> handledAt,
+      required int targetKind,
+      required String targetId,
+    });
+typedef $$InboxEntriesTableUpdateCompanionBuilder =
+    InboxEntriesCompanion Function({
+      Value<int> id,
+      Value<String> entryKey,
+      Value<String> type,
+      Value<String> title,
+      Value<int> amountCents,
+      Value<String> dueDate,
+      Value<int> state,
+      Value<int> createdAt,
+      Value<int?> handledAt,
+      Value<int> targetKind,
+      Value<String> targetId,
+    });
+
+class $$InboxEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $InboxEntriesTable> {
+  $$InboxEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entryKey => $composableBuilder(
+    column: $table.entryKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get handledAt => $composableBuilder(
+    column: $table.handledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetKind => $composableBuilder(
+    column: $table.targetKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$InboxEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $InboxEntriesTable> {
+  $$InboxEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entryKey => $composableBuilder(
+    column: $table.entryKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get handledAt => $composableBuilder(
+    column: $table.handledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetKind => $composableBuilder(
+    column: $table.targetKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$InboxEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $InboxEntriesTable> {
+  $$InboxEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entryKey =>
+      $composableBuilder(column: $table.entryKey, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<int> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get handledAt =>
+      $composableBuilder(column: $table.handledAt, builder: (column) => column);
+
+  GeneratedColumn<int> get targetKind => $composableBuilder(
+    column: $table.targetKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetId =>
+      $composableBuilder(column: $table.targetId, builder: (column) => column);
+}
+
+class $$InboxEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $InboxEntriesTable,
+          InboxEntry,
+          $$InboxEntriesTableFilterComposer,
+          $$InboxEntriesTableOrderingComposer,
+          $$InboxEntriesTableAnnotationComposer,
+          $$InboxEntriesTableCreateCompanionBuilder,
+          $$InboxEntriesTableUpdateCompanionBuilder,
+          (
+            InboxEntry,
+            BaseReferences<_$AppDatabase, $InboxEntriesTable, InboxEntry>,
+          ),
+          InboxEntry,
+          PrefetchHooks Function()
+        > {
+  $$InboxEntriesTableTableManager(_$AppDatabase db, $InboxEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$InboxEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$InboxEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$InboxEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> entryKey = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<int> amountCents = const Value.absent(),
+                Value<String> dueDate = const Value.absent(),
+                Value<int> state = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int?> handledAt = const Value.absent(),
+                Value<int> targetKind = const Value.absent(),
+                Value<String> targetId = const Value.absent(),
+              }) => InboxEntriesCompanion(
+                id: id,
+                entryKey: entryKey,
+                type: type,
+                title: title,
+                amountCents: amountCents,
+                dueDate: dueDate,
+                state: state,
+                createdAt: createdAt,
+                handledAt: handledAt,
+                targetKind: targetKind,
+                targetId: targetId,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String entryKey,
+                required String type,
+                required String title,
+                required int amountCents,
+                required String dueDate,
+                required int state,
+                required int createdAt,
+                Value<int?> handledAt = const Value.absent(),
+                required int targetKind,
+                required String targetId,
+              }) => InboxEntriesCompanion.insert(
+                id: id,
+                entryKey: entryKey,
+                type: type,
+                title: title,
+                amountCents: amountCents,
+                dueDate: dueDate,
+                state: state,
+                createdAt: createdAt,
+                handledAt: handledAt,
+                targetKind: targetKind,
+                targetId: targetId,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$InboxEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $InboxEntriesTable,
+      InboxEntry,
+      $$InboxEntriesTableFilterComposer,
+      $$InboxEntriesTableOrderingComposer,
+      $$InboxEntriesTableAnnotationComposer,
+      $$InboxEntriesTableCreateCompanionBuilder,
+      $$InboxEntriesTableUpdateCompanionBuilder,
+      (
+        InboxEntry,
+        BaseReferences<_$AppDatabase, $InboxEntriesTable, InboxEntry>,
+      ),
+      InboxEntry,
       PrefetchHooks Function()
     >;
 typedef $$BudgetsTableCreateCompanionBuilder =
@@ -27542,6 +28508,8 @@ class $AppDatabaseManager {
       $$ReminderLogsTableTableManager(_db, _db.reminderLogs);
   $$ReminderDismissalsTableTableManager get reminderDismissals =>
       $$ReminderDismissalsTableTableManager(_db, _db.reminderDismissals);
+  $$InboxEntriesTableTableManager get inboxEntries =>
+      $$InboxEntriesTableTableManager(_db, _db.inboxEntries);
   $$BudgetsTableTableManager get budgets =>
       $$BudgetsTableTableManager(_db, _db.budgets);
   $$BudgetItemsTableTableManager get budgetItems =>

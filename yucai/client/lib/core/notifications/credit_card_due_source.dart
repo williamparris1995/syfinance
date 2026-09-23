@@ -13,6 +13,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
+import 'package:yucai_client/core/notifications/due_target.dart';
 import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 
 /// drift 列存储编码(与 AccountLocalDataSource 的 index+1 口径一致):
@@ -66,6 +67,7 @@ class CreditCardDueSource implements DueScheduleSource {
           debtName: a.name,
           totalCents: debtCents,
           paymentDate: thisMonth,
+          target: AccountTarget(a.id),
         ));
         if (nextMonth.isBefore(windowEnd)) {
           out.add(DueScheduleEntry(
@@ -73,6 +75,7 @@ class CreditCardDueSource implements DueScheduleSource {
             debtName: a.name,
             totalCents: debtCents,
             paymentDate: nextMonth,
+            target: AccountTarget(a.id),
           ));
         }
       } else if (thisMonth.isBefore(windowEnd)) {
@@ -82,6 +85,7 @@ class CreditCardDueSource implements DueScheduleSource {
           debtName: a.name,
           totalCents: debtCents,
           paymentDate: thisMonth,
+          target: AccountTarget(a.id),
         ));
       }
     }

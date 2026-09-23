@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
+import 'package:yucai_client/core/notifications/due_target.dart';
 
 /// 未付期次候选:paymentDate ≤ today+advanceDays(档位细分留给 policy),
 /// join Debts 取 counterparty 作债务展示名。
@@ -42,6 +43,8 @@ class DriftDueSource implements DueScheduleSource {
           debtName: r.readTable(db.debts).counterparty,
           totalCents: r.readTable(db.paymentScheduleEntries).totalCents,
           paymentDate: r.readTable(db.paymentScheduleEntries).paymentDate,
+          target:
+              DebtTarget(r.readTable(db.paymentScheduleEntries).debtId),
         ),
     ];
   }

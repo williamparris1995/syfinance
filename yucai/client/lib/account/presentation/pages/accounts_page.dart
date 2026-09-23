@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -12,11 +14,14 @@ import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
 import 'package:yucai_client/account/presentation/widgets/credit_card_repay_dialog.dart';
+import 'package:yucai_client/account/presentation/widgets/due_banner.dart';
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/notifications/due_candidate_provider.dart';
+import 'package:yucai_client/core/notifications/due_target.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
@@ -137,6 +142,39 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// accountId → 账户关联债务聚合信息(剩余/原始/月供/下次)。
   Map<String, AccountDebtInfo> _debtInfoByAccount = {};
 
+  // ── 到期聚合条(2026-09 常显提醒 FR-1/2/3/7):读侧候选订阅 ──
+  // 候选来源 = bootstrap(T5)装配的共享 [DueCandidateProvider] 广播流
+  // (banner/托盘行/收件箱三消费方共此一流,NFR-1 候选零新源);本页只订阅
+  // 不启动/不销毁(生命周期归装配方)。未注册(测试/装配前)→ 不订阅不
+  // 显示,fail-safe 照 app_shell 的 isRegistered 守卫先例。
+  StreamSubscription<List<DueCandidateView>>? _dueSub;
+  List<DueCandidateView> _dueCandidates = const [];
+
+  void _subscribeDueCandidates() {
+    if (!getIt.isRegistered<DueCandidateProvider>()) return;
+    final provider = getIt<DueCandidateProvider>();
+    _dueCandidates = provider.latest; // 首帧同步取值(启动初始值已发)。
+    _dueSub = provider.stream.listen((views) {
+      if (mounted) setState(() => _dueCandidates = views);
+    });
+  }
+
+  /// 聚合条信用卡条目直达(FR-3):按 accountId 从本页账户列表查对象,唤起
+  /// 还款对话框(照本页 _repayOrTransfer 既有链路);还款落账后 accounts/
+  /// transactions watch 触发候选流刷新,欠款清零的候选自动从聚合条消失
+  /// (FR-6/NFR-1,候选消失语义由共享管线裁决,本页不另判)。
+  Future<void> _openRepayFromBanner(AccountTarget target) async {
+    final st = context.read<AccountBloc>().state;
+    final all = st is AccountsLoaded ? st.accounts : const <Account>[];
+    final card = all.where((a) => a.id == target.accountId).firstOrNull;
+    if (card == null) return; // 账户不在列表(已删/未加载)→ 静默不动作。
+    await showCreditCardRepayDialog(context, card, all, onDone: () {
+      if (mounted) {
+        context.read<AccountBloc>().add(LoadAccountsRequested());
+      }
+    });
+  }
+
   Future<void> _loadDebts() async {
     try {
       final r = await getIt<DebtRepository>().list();
@@ -196,6 +234,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     context.read<AccountBloc>().add(LoadAccountsRequested());
     _dataRefresh.addListener(_onDataRefresh);
     _loadDebts();
+    _subscribeDueCandidates();
   }
 
   @override
@@ -213,6 +252,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   void dispose() {
     accountsRouteObserver.unsubscribe(this);
     _dataRefresh.removeListener(_onDataRefresh);
+    _dueSub?.cancel();
     super.dispose();
   }
 
@@ -572,6 +612,19 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // 到期聚合条(FR-1):净资产 hero 上方;空列表时 DueBanner
+                // 自身 shrink 不渲染,此处的间距也随集合条件一起消失(hero
+                // 回到页面顶部原位,不占位)。
+                if (_dueCandidates.isNotEmpty) ...[
+                  DueBanner(
+                    candidates: _dueCandidates,
+                    onOpenCard: _openRepayFromBanner,
+                    onOpenDebt: (target) =>
+                        context.push('/debts/${target.debtId}'),
+                    onViewAll: () => context.go('/inbox'),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
                 _AccountsHeader(
                   netCents: netCents,
                   assetCents: assetCents,

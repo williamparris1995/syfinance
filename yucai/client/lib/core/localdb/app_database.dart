@@ -26,6 +26,7 @@ import 'tables/reminder_tables.dart';
 import 'tables/derived_tables.dart';
 import 'tables/goal_tables.dart';
 import 'tables/holding_tables.dart';
+import 'tables/inbox_tables.dart';
 import 'tables/reference_tables.dart';
 import 'tables/sync_tables.dart';
 import 'tables/tag_tables.dart';
@@ -49,6 +50,7 @@ part 'app_database.g.dart';
     ContractAttachments,
     ReminderLogs,
     ReminderDismissals,
+    InboxEntries,
     Budgets,
     BudgetItems,
     Goals,
@@ -140,7 +142,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   /// 幂等加列:先查 PRAGMA table_info,列已存在则跳过。
   /// 背景:库文件可能被不同版本的 App 触碰(安装版/调试版/手工恢复备份),
@@ -241,6 +243,11 @@ class AppDatabase extends _$AppDatabase {
           // 「不再提醒」挂失表。仅建表,无损。
           if (from < 10) {
             await m.createTable(reminderDismissals);
+          }
+          // v10→v11(2026-09 到期常显提醒):增 InboxEntries 收件箱台账表
+          // (design ADR-4)。仅建表,无损;无数据回填(候选入窗起记)。
+          if (from < 11) {
+            await m.createTable(inboxEntries);
           }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)

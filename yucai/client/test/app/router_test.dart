@@ -451,15 +451,16 @@ void main() {
         '/transactions/t-42');
   });
 
-  test('router has nine StatefulShell branches '
-      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals/settings)',
+  test('router has ten StatefulShell branches '
+      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals/settings/inbox)',
       () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
         .whereType<StatefulShellRoute>()
         .first;
-    expect(shell.branches.length, 9,
-        reason: 'settings branch (index 8) must be registered');
+    expect(shell.branches.length, 10,
+        reason: 'settings branch (index 8) must be registered; '
+            'inbox branch (index 9, 2026-09 到期常显提醒 T4) 追加于末尾');
   });
 
   testWidgets(

@@ -217,6 +217,7 @@ void main() {
     BuildContext? Function()? contextResolver,
     TrayHeadProvider? headProvider,
     Future<void> Function()? newTransactionNav,
+    Future<void> Function()? inboxNav,
     Future<String?> Function()? versionProvider,
   }) =>
       TrayController(
@@ -226,6 +227,7 @@ void main() {
         contextResolver: contextResolver,
         headProvider: headProvider,
         newTransactionNav: newTransactionNav,
+        inboxNav: inboxNav,
         versionProvider: versionProvider,
         exitFn: exitSpy.exit0,
       )..trayReady = true;
@@ -481,13 +483,21 @@ void main() {
       );
       final items = TrayController.buildContextMenu(head: head);
 
-      // 分隔线无 key,非空 key 枚举 = 六个语义项;顺序 = 验收调序拍板。
+      // 分隔线无 key,非空 key 枚举 = 七个语义项;顺序 = 验收调序拍板
+      // (2026-09 到期常显提醒:记一笔下追加「提醒中心」,FR-7 托盘唯二入口)。
       final keys =
           items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['new_transaction', 'head_today', 'head_month', 'check_update', 'version', 'quit']);
+      expect(keys, ['new_transaction', 'inbox', 'head_today', 'head_month', 'check_update', 'version', 'quit']);
       // 「显示御财」已撤(左键单击即显示)。
       expect(keys, isNot(contains('show')));
       expect(items.any((i) => i.type == 'separator'), isTrue);
+
+      // FR-7:「提醒中心」与「记一笔」同组置顶(两导航快捷动作),enabled。
+      final inbox = items.firstWhere((i) => i.key == 'inbox');
+      expect(inbox.disabled, isFalse);
+      expect(inbox.label, '提醒中心');
+      expect(keys.indexOf('new_transaction'), lessThan(keys.indexOf('inbox')));
+      expect(keys.indexOf('inbox'), lessThan(keys.indexOf('head_today')));
 
       // FR-1:数据头两行 disabled(仅速览不可点)+ 金额文案逐字。
       final today = items.firstWhere((i) => i.key == 'head_today');
@@ -547,7 +557,7 @@ void main() {
           TrayController.buildContextMenu(head: head, showAmounts: false);
       // 隐藏 → 单行占位(design LLD:单行,不出两行空壳)。
       final keys = items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['new_transaction', 'head', 'check_update', 'version', 'quit']);
+      expect(keys, ['new_transaction', 'inbox', 'head', 'check_update', 'version', 'quit']);
       final headItem = items.firstWhere((i) => i.key == 'head');
       expect(headItem.disabled, isTrue);
       expect(headItem.label, '金额已隐藏');
@@ -556,7 +566,7 @@ void main() {
     test('head=null(查询失败/未注入)→ 「--」占位(FR-4/NFR-1)', () {
       final items = TrayController.buildContextMenu();
       final keys = items.map((i) => i.key).whereType<String>().toList();
-      expect(keys, ['new_transaction', 'head', 'check_update', 'version', 'quit']);
+      expect(keys, ['new_transaction', 'inbox', 'head', 'check_update', 'version', 'quit']);
       final headItem = items.firstWhere((i) => i.key == 'head');
       expect(headItem.disabled, isTrue);
       expect(headItem.label, '--');
@@ -615,6 +625,181 @@ void main() {
 
       expect(windowLog.calls.where((m) => m == 'show'), isNotEmpty);
       expect(errors, isEmpty); // 降级不炸(NFR-1)
+    });
+  });
+
+  group('待还行(2026-09 到期常显提醒 FR-4/ADR-5)', () {
+    test('有候选 → 数据头两行之后追加 disabled 行「待还 N 笔 · 最近 X 天后」', () {
+      const head = TrayHeadData(
+        todayIncomeCents: 123456,
+        todayExpenseCents: 7890,
+        monthBalanceCents: 12345,
+        dueCount: 3,
+        dueNearestDays: 5,
+      );
+      final items = TrayController.buildContextMenu(head: head);
+
+      // 数据头区尾追加(今日/本月之后、分隔线之前),不占多余分隔。
+      final keys = items.map((i) => i.key).whereType<String>().toList();
+      expect(keys, [
+        'new_transaction', 'inbox',
+        'head_today', 'head_month', 'head_due',
+        'check_update', 'version', 'quit',
+      ]);
+      final due = items.firstWhere((i) => i.key == 'head_due');
+      expect(due.disabled, isTrue); // 仅速览不可点(数据头区同款)
+      expect(due.label, '待还 3 笔 · 最近 5 天后');
+      // 永不含金额(spec FR-4)。
+      expect(due.label, isNot(contains('¥')));
+    });
+
+    test('最近 0 天 → 「今日到期」(与 DueBanner 措辞同词形)', () {
+      const head = TrayHeadData(
+        todayIncomeCents: 0,
+        todayExpenseCents: 0,
+        monthBalanceCents: 0,
+        dueCount: 1,
+        dueNearestDays: 0,
+      );
+      expect(
+        TrayController.buildContextMenu(head: head)
+            .firstWhere((i) => i.key == 'head_due')
+            .label,
+        '待还 1 笔 · 今日到期',
+      );
+    });
+
+    test('全逾期(dueNearestDays 负)→ 「待还 N 笔 · 已逾期 M 天」', () {
+      const head = TrayHeadData(
+        todayIncomeCents: 0,
+        todayExpenseCents: 0,
+        monthBalanceCents: 0,
+        dueCount: 2,
+        dueNearestDays: -4, // 全逾期:存最重逾期档(负),渲染层判
+      );
+      expect(
+        TrayController.buildContextMenu(head: head)
+            .firstWhere((i) => i.key == 'head_due')
+            .label,
+        '待还 2 笔 · 已逾期 4 天',
+      );
+    });
+
+    test('无候选(dueCount=0 / null)→ 无待还行不占位(fail-safe)', () {
+      const zero = TrayHeadData(
+          todayIncomeCents: 1,
+          todayExpenseCents: 2,
+          monthBalanceCents: 3,
+          dueCount: 0,
+          dueNearestDays: null);
+      final keysZero = TrayController.buildContextMenu(head: zero)
+          .map((i) => i.key)
+          .whereType<String>()
+          .toList();
+      expect(keysZero,
+          ['new_transaction', 'inbox', 'head_today', 'head_month', 'check_update', 'version', 'quit']);
+
+      // 旧构造(未带 due 字段)→ 两字段缺省 null → 同样无行。
+      const legacy = TrayHeadData(
+          todayIncomeCents: 1, todayExpenseCents: 2, monthBalanceCents: 3);
+      final keysLegacy = TrayController.buildContextMenu(head: legacy)
+          .map((i) => i.key)
+          .whereType<String>()
+          .toList();
+      expect(keysLegacy, keysZero);
+    });
+
+    test('隐私开关不影响:showAmounts=false → 金额行隐藏但待还行照常(FR-4)', () {
+      const head = TrayHeadData(
+        todayIncomeCents: 123456,
+        todayExpenseCents: 7890,
+        monthBalanceCents: 12345,
+        dueCount: 2,
+        dueNearestDays: 7,
+      );
+      final items =
+          TrayController.buildContextMenu(head: head, showAmounts: false);
+      final keys = items.map((i) => i.key).whereType<String>().toList();
+      expect(keys, [
+        'new_transaction', 'inbox', 'head', 'head_due',
+        'check_update', 'version', 'quit',
+      ]);
+      // 金额两行变「金额已隐藏」,待还行紧跟其后照常显示(笔数非金额)。
+      expect(items.firstWhere((i) => i.key == 'head').label, '金额已隐藏');
+      final due = items.firstWhere((i) => i.key == 'head_due');
+      expect(due.disabled, isTrue);
+      expect(due.label, '待还 2 笔 · 最近 7 天后');
+    });
+
+    test('head=null(整头查询失败)→ 待还行随头消失(fail-safe,NFR-1)', () {
+      final items = TrayController.buildContextMenu();
+      expect(items.map((i) => i.key).whereType<String>(),
+          isNot(contains('head_due')));
+    });
+
+    test('formatTrayDueLabel:三种形态单元', () {
+      expect(TrayController.formatTrayDueLabel(1, 1), '待还 1 笔 · 最近 1 天后');
+      expect(TrayController.formatTrayDueLabel(12, 15), '待还 12 笔 · 最近 15 天后');
+      expect(TrayController.formatTrayDueLabel(1, 0), '待还 1 笔 · 今日到期');
+      expect(TrayController.formatTrayDueLabel(2, -1), '待还 2 笔 · 已逾期 1 天');
+    });
+
+    test('TrayHeadData 扩展字段往返:dueCount/dueNearestDays 写读一致;旧构造缺省 null',
+        () {
+      const head = TrayHeadData(
+        todayIncomeCents: 100,
+        todayExpenseCents: 200,
+        monthBalanceCents: -100,
+        dueCount: 5,
+        dueNearestDays: -2,
+      );
+      expect(head.dueCount, 5);
+      expect(head.dueNearestDays, -2);
+      expect(head.todayIncomeCents, 100); // 既有字段不受影响
+      expect(head.monthBalanceCents, -100);
+
+      const legacy = TrayHeadData(
+          todayIncomeCents: 1, todayExpenseCents: 2, monthBalanceCents: 3);
+      expect(legacy.dueCount, isNull);
+      expect(legacy.dueNearestDays, isNull);
+    });
+  });
+
+  group('「提醒中心」菜单项(2026-09 到期常显提醒 FR-7,记一项同范式)', () {
+    test('点击 → 显示并聚焦窗口 + inboxNav 导航闭包调用一次', () async {
+      var navCalls = 0;
+      final controller = mk(inboxNav: () async => navCalls++);
+      controller.onTrayMenuItemClick(
+          MenuItem(key: 'inbox', label: '提醒中心'));
+      await pump();
+
+      expect(windowLog.calls.where((m) => m == 'show'), isNotEmpty);
+      expect(windowLog.calls.where((m) => m == 'focus'), isNotEmpty);
+      expect(navCalls, 1);
+    });
+
+    test('inboxNav 未注入 → 降级仅 show/focus,不炸', () async {
+      final controller = mk();
+      controller.onTrayMenuItemClick(
+          MenuItem(key: 'inbox', label: '提醒中心'));
+      await pump();
+
+      expect(windowLog.calls.where((m) => m == 'show'), isNotEmpty);
+      expect(windowLog.calls.where((m) => m == 'focus'), isNotEmpty);
+    });
+
+    test('inboxNav 抛错(极端时序无 context 等)→ 吞掉不炸(NFR-1)', () async {
+      final errors = <Object>[];
+      final controller =
+          mk(inboxNav: () async => throw StateError('no context'));
+      runZonedGuarded<void>(
+          () => controller.onTrayMenuItemClick(
+              MenuItem(key: 'inbox', label: '提醒中心')),
+          (e, _) => errors.add(e));
+      await pump();
+
+      expect(windowLog.calls.where((m) => m == 'show'), isNotEmpty);
+      expect(errors, isEmpty); // 降级不炸
     });
   });
 

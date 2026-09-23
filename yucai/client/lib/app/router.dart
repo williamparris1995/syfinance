@@ -61,6 +61,7 @@ import 'package:yucai_client/holding/presentation/pages/performance_page.dart';
 import 'package:yucai_client/holding/presentation/pages/security_page.dart';
 import 'package:yucai_client/holding/presentation/pages/trade_sheet_page.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/inbox/presentation/pages/inbox_page.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
@@ -998,6 +999,24 @@ GoRouter buildRouter(
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+          // 提醒中心 / 收件箱(branch 9,2026-09 到期常显提醒 T4,spec
+          // FR-5/FR-7):app shell 内平级页面(宽窄屏同其他页),但无侧栏/
+          // 底栏入口 —— spec FR-7 裁入口唯二(聚合条「查看全部」+ 托盘
+          // 菜单项),无候选时主窗口无入口属预期。分支置于末尾(index 9):
+          // 侧栏/底栏/顶栏面包屑全按 branch 索引硬编码(0..8),末尾追加
+          // 既有索引零移位;窄屏底栏无 inbox 槽 → _slotIndexOf 回退 0 高亮
+          // (无候选主窗口本就无入口,不构成误导)。
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/inbox',
+                // 页面无参构造:store/provider 走 guarded getIt(生产
+                // AppDatabase 恒注册;接线任务落 InboxStore 共享实例后
+                // 自动切换),测试注入走页面构造缝。
+                builder: (_, __) => const InboxPage(),
               ),
             ],
           ),

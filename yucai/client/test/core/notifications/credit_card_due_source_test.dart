@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/notifications/credit_card_due_source.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
+import 'package:yucai_client/core/notifications/due_target.dart';
 import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 
 void main() {
@@ -72,6 +73,10 @@ void main() {
     expect(out.map((e) => e.debtName), ['card-in-debt']);
     expect(out.single.totalCents, 500000); // credit-正:欠款原值
     expect(out.single.id, creditCardCycleEntryId('card-in-debt', DateTime(now.year, now.month, 1)));
+    // 强类型路由目标(design ADR-2):信用卡候选 → AccountTarget(卡账户 id)。
+    final t = out.single.target;
+    expect(t, isA<AccountTarget>());
+    expect((t as AccountTarget).accountId, 'card-in-debt');
   });
 
   test('月末 clamp:还款日 31 在 2 月只到 28/29', () async {

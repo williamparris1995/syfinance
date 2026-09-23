@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:async';
@@ -12,9 +13,12 @@ import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart';
 import 'package:yucai_client/core/notifications/app_updater.dart';
 import 'package:yucai_client/core/notifications/credit_card_due_source.dart';
+import 'package:yucai_client/core/notifications/due_candidate_provider.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/drift_due_source.dart';
+import 'package:yucai_client/core/notifications/inbox/inbox_store.dart';
+import 'package:yucai_client/core/notifications/inbox/inbox_syncer.dart';
 import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 import 'package:yucai_client/core/notifications/auto_record_scheduler.dart';
 import 'package:yucai_client/core/notifications/local_notifier_adapter.dart';
@@ -55,6 +59,9 @@ Future<void> _bootstrap(AppDatabase db) async {
       );
 
   // 双源:债务期次(既有)+ 信用卡还款日(有欠款才提醒)。
+  // T5 注(2026-09 到期常显提醒):本局部实例即「既有那份」MultiDueSource
+  // —— scanner 与读侧 provider 两处共用同一实例(NFR-1 候选零新源,
+  // design ADR-1 分叉仅在去重/发送),scanner 装配零变化。
   final source = MultiDueSource([
     DriftDueSource(db, configProvider: reminderConfig),
     CreditCardDueSource(db, configProvider: reminderConfig),
@@ -85,6 +92,21 @@ Future<void> _bootstrap(AppDatabase db) async {
     dismissalStore: dismissalStore,
   );
 
+  // ── T5 读侧候选流装配(2026-09 到期常显提醒,design ADR-1/ADR-5)──
+  // banner / 托盘待还行 / 收件箱三消费方共此一流;与写侧 scanner 共享
+  // 同一 MultiDueSource 实例与挂失存储(NFR-1),分叉仅在去重/发送。
+  // guest 全链本地:drift watch + 本地表 + getIt,无 server/绑定依赖,
+  // 免任何门控(NFR-5;bootstrapNotifications 本身双模式都进 —— 平台门
+  // 是 Windows 而非会话模式)。须先于 TrayController 构造:trayHead 闭包
+  // 消费 provider.latest,且 getIt 注册先于 runApp 首帧(T3 banner 守卫 /
+  // T4 收件箱兜底自建在注册后自动切共享实例)。
+  final dueCandidateProvider = await assembleDueCandidatePipeline(
+    db: db,
+    source: source,
+    dismissalStore: dismissalStore,
+    configProvider: reminderConfig,
+  );
+
   // autoRecord 调度(R7-C):双模式常跑,经模板双源 repo 写穿透。
   final autoScheduler = AutoRecordScheduler(
     templates: TemplateRepoAutoRecord(getIt<TemplateRepository>()),
@@ -108,10 +130,36 @@ Future<void> _bootstrap(AppDatabase db) async {
           scope: SummaryScope.day, day: now.day);
       final month = await txnLocal.summary(now.year, now.month,
           scope: SummaryScope.month);
+      // T5 待还行数据(FR-4/ADR-5)并入同一查询点:读侧 provider 的最近
+      // 候选快照(latest 同步取值,不另查库 —— 托盘三触发刷新时 provider
+      // 已随 watch 防抖先行刷新)。空集 → dueCount=0 → 行不显示;取值
+      // 异常 → null 字段 → 行消失(fail-safe,NFR-1)。
+      int? dueCount;
+      int? dueNearestDays;
+      try {
+        final candidates = dueCandidateProvider.latest;
+        if (candidates.isNotEmpty) {
+          dueCount = candidates.length;
+          final future = [
+            for (final c in candidates)
+              if (c.daysLeft >= 0) c.daysLeft,
+          ];
+          // 语义钉死(TrayHeadData.dueNearestDays):有非逾期候选 → 最小
+          // 非负 daysLeft(0=今日到期);全逾期 → 最小 daysLeft(负,最重
+          // 逾期档),渲染层 formatTrayDueLabel 判 < 0 → 「已逾期 M 天」。
+          dueNearestDays = future.isEmpty
+              ? candidates
+                  .map((c) => c.daysLeft)
+                  .reduce((a, b) => a < b ? a : b)
+              : future.reduce((a, b) => a < b ? a : b);
+        }
+      } catch (_) {}
       return TrayHeadData(
         todayIncomeCents: day.incomeCents,
         todayExpenseCents: day.expenseCents,
         monthBalanceCents: month.netCents,
+        dueCount: dueCount,
+        dueNearestDays: dueNearestDays,
       );
     } catch (_) {
       return null;
@@ -125,6 +173,16 @@ Future<void> _bootstrap(AppDatabase db) async {
     final context = rootNavigatorKey.currentContext;
     if (context == null) return;
     GoRouter.of(context).push('/transactions/new');
+  }
+
+  // T5 FR-7 接线:「提醒中心」导航闭包 —— 照 navigateNewTransaction 同
+  // 范式,但用 go 而非 push:从托盘直达是全新任务上下文,无返回栈诉求
+  // (与收件箱「查看全部」的 context.go('/inbox') 同语义);无 context →
+  // no-op,控制器侧已 show/focus 兜底。
+  Future<void> navigateInbox() async {
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) return;
+    GoRouter.of(context).go('/inbox');
   }
 
   // F24 FR-6 接线(组合根):托盘「御财 vX.Y.Z」版本提供者 ——
@@ -170,6 +228,7 @@ Future<void> _bootstrap(AppDatabase db) async {
     headProvider: trayHead,
     versionProvider: trayVersion,
     newTransactionNav: navigateNewTransaction,
+    inboxNav: navigateInbox,
   );
   await tray.start();
 
@@ -216,6 +275,52 @@ Future<bool> acquireSingleInstance() async {
   if (await SingleInstanceGuard.isFirst()) return true;
   await SingleInstanceGuard.signalExistingAndExit();
   return false;
+}
+
+/// T5 装配核心(2026-09 到期常显提醒,design ADR-1/ADR-5,组合根豁免区):
+/// 读侧候选管线组装 + getIt 注册。拆出为独立函数供装配冒烟测试;生产入口
+/// [_bootstrap] 内联调用同一函数(单一装配路径,测试即生产)。guest 全链
+/// 本地:drift watch + 本地表,无 server/绑定依赖,免门控(NFR-5)。
+///
+/// - [source] 须与写侧 scanner 共享同一 MultiDueSource 实例(NFR-1);
+/// - changeTriggers = TrayController 变更即扫的既有 5 流照抄(独立 watch
+///   实例,与 tray 订阅互不干扰)+ debts 表 watch(债务名/归属变更 →
+///   候选 title 跟随刷新,期次表 watch 不到 Debts 行改名);
+/// - [syncer] 可注入(冒烟测试假件断言 diff 被调);缺省构造真实
+///   InboxSyncer(InboxStore + 挂失存储,ADR-1 寄宿管道尾);
+/// - 注册先行(T3 banner 守卫 / T4 收件箱兜底自建在注册后自动切共享
+///   实例),启动后即发初始值,晚来的消费方经 latest 同步取值。
+@visibleForTesting
+Future<DueCandidateProvider> assembleDueCandidatePipeline({
+  required AppDatabase db,
+  required DueScheduleSource source,
+  required ReminderDismissalStore dismissalStore,
+  required DueReminderConfig Function() configProvider,
+  InboxSyncer? syncer,
+}) async {
+  final inboxStore = InboxStore(db);
+  final provider = DueCandidateProvider(
+    changeTriggers: [
+      // 既有 5 流照抄(与 TrayController 变更即扫同一批表)。
+      db.select(db.paymentScheduleEntries).watch().map((_) {}),
+      db.select(db.transactionTemplates).watch().map((_) {}),
+      db.select(db.transactions).watch().map((_) {}),
+      db.select(db.accounts).watch().map((_) {}),
+      db.select(db.reminderDismissals).watch().map((_) {}),
+      // 债务名变更刷新:候选 title 取 Debts.counterparty(join),期次表
+      // watch 不到 Debts 行改名 → 追加 debts 流。
+      db.select(db.debts).watch().map((_) {}),
+    ],
+    source: source,
+    dismissalStore: dismissalStore,
+    configProvider: configProvider,
+    syncer: syncer ??
+        InboxSyncer(store: inboxStore, dismissalStore: dismissalStore),
+  );
+  getIt.registerSingleton<InboxStore>(inboxStore);
+  getIt.registerSingleton<DueCandidateProvider>(provider);
+  await provider.start();
+  return provider;
 }
 
 // ignore: unused_element — 回网订阅持有(防 GC;生命周期=进程)。

@@ -67,6 +67,11 @@ import 'package:yucai_client/core/theme/app_design.dart';
       );
     case 8:
       return (section: '系统', page: '设置', rootPath: '/settings', createLabel: null, createRoute: null);
+    case 9:
+      // 提醒中心 / 收件箱(2026-09 到期常显提醒 T4):无侧栏/底栏入口
+      // (spec FR-7 入口唯二 = 聚合条「查看全部」+ 托盘),仅面包屑按
+      // branch 元数据呈现;section 空 → 单级面包屑(对齐仪表盘先例)。
+      return (section: '', page: '提醒中心', rootPath: '/inbox', createLabel: null, createRoute: null);
     default:
       return (section: '', page: '御财', rootPath: '/', createLabel: null, createRoute: null);
   }

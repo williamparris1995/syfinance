@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/drift_due_source.dart';
+import 'package:yucai_client/core/notifications/due_target.dart';
 
 void main() {
   late AppDatabase db;
@@ -68,6 +69,12 @@ void main() {
     expect(out.length, 2);
     expect(out.map((e) => e.debtName), everyElement('房贷'));
     expect(out.map((e) => e.totalCents), containsAll([100000, 200000]));
+    // 强类型路由目标(design ADR-2):期次候选 → DebtTarget(join 债务 id)。
+    for (final e in out) {
+      final t = e.target;
+      expect(t, isA<DebtTarget>());
+      expect((t as DebtTarget).debtId, 'd1');
+    }
   });
 
   test('log store:markSent 后 wasSent 真;跨桶/跨档互不影响', () async {

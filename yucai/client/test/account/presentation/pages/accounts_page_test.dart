@@ -12,7 +12,10 @@
 //   - goldFx: 买入 · 涨幅，无 bar
 //   - realEstate: 现估值 · 增值，无 bar
 //   - loan: 原始 · 月供 · 下次还款，已还比例绿 bar
+import 'dart:async';
+
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +33,13 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
 import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/localdb/app_database.dart'
+    show AppDatabase;
+import 'package:yucai_client/core/notifications/due_candidate_provider.dart';
+import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
+import 'package:yucai_client/core/notifications/due_scanner.dart';
+import 'package:yucai_client/core/notifications/due_target.dart';
+import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
@@ -39,6 +49,25 @@ class _MockCreate extends Mock implements CreateAccountUseCase {}
 class _MockDelete extends Mock implements DeleteAccountUseCase {}
 class _MockGet extends Mock implements GetAccountUseCase {}
 class _MockUpdate extends Mock implements UpdateAccountUseCase {}
+
+/// 到期候选可变 fake 源(照 due_candidate_provider_test 范式)。
+class _FakeDueSource implements DueScheduleSource {
+  _FakeDueSource(this.entries);
+  List<DueScheduleEntry> entries;
+
+  @override
+  Future<List<DueScheduleEntry>> unpaidDueCandidates() async => entries;
+}
+
+/// 挂失存储 fake:恒无挂失(覆写查询,不触 drift —— testWidgets 的
+/// FakeAsync 内 drift isolate 查询会挂起;库内先例:drift 仅用于纯 test())。
+/// 传入的内存库永不打开(惰性连接),close 为无害 no-op。
+class _NoDismissals extends ReminderDismissalStore {
+  _NoDismissals() : super(AppDatabase(NativeDatabase.memory()));
+
+  @override
+  Future<Set<String>> dismissedEntryIds() async => const {};
+}
 
 /// Fake CurrencyBloc that holds a fixed state (no async event dispatch needed).
 class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
@@ -702,6 +731,98 @@ void main() {
       await t.testTextInput.receiveAction(TextInputAction.search);
       await t.pumpAndSettle();
       expect(find.text('该筛选下暂无账户'), findsOneWidget);
+    });
+  });
+
+  // ─────────────── 2026-09 到期聚合条接线(FR-1/2/3/7) ───────────────
+  // 候选 = 共享 DueCandidateProvider 广播流(真 provider + fake 源 + 无挂失
+  // fake 存储,零 drift 查询 —— FakeAsync 内 drift 会挂起);页面只订阅,
+  // 启动/销毁归装配方(本组测试自己 start/dispose)。
+  group('到期聚合条接线(provider 订阅 + stream 驱动刷新)', () {
+    // 固定时钟 2026-09-23;窗口 advanceDays=3 → 9/26 到期 = 3 天后。
+    final today = DateTime(2026, 9, 23);
+
+    DueScheduleEntry ccEntry() => DueScheduleEntry(
+        id: 'cc:a1:2026-09',
+        debtName: '招行卡',
+        totalCents: 5000,
+        paymentDate: DateTime(2026, 9, 26),
+        target: const AccountTarget('a1'));
+
+    /// 注册真 provider(可变源 + 触发流)并启动;返回三元组供测试驱动刷新。
+    (DueCandidateProvider, _FakeDueSource, StreamController<void>)
+        registerProvider(List<DueScheduleEntry> entries) {
+      final sc = StreamController<void>.broadcast();
+      final source = _FakeDueSource(entries);
+      final provider = DueCandidateProvider(
+        changeTriggers: [sc.stream],
+        source: source,
+        dismissalStore: _NoDismissals(),
+        configProvider: () => const DueReminderConfig(),
+        clock: () => today,
+      );
+      GetIt.instance.registerSingleton<DueCandidateProvider>(provider);
+      unawaited(provider.start());
+      addTearDown(() async {
+        await provider.dispose();
+        await sc.close();
+      });
+      return (provider, source, sc);
+    }
+
+    testWidgets('候选非空 → 净资产 hero 上方显示聚合条(FR-1 位置)', (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      registerProvider([ccEntry()]);
+      // provider 初始刷新(microtask 链)落地 latest 后再挂页面(首帧有数;
+      // 生产同构:bootstrap start 先于页面挂载)。
+      await t.pump();
+      await t.pump();
+      await t.pumpWidget(_harness([_savings()]));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('dueBanner')), findsOneWidget);
+      expect(find.text('⏰ 1 笔待还 · 最近 3 天后'), findsOneWidget);
+      // 位置:聚合条在净资产 hero(_AccountsHeader)上方。
+      expect(
+        t.getTopLeft(find.byKey(const ValueKey('dueBanner'))).dy,
+        lessThan(t.getTopLeft(find.text('净资产合计')).dy),
+      );
+    });
+
+    testWidgets('流刷新到空列表 → 聚合条消失(还款后候选自动消失的机制面)',
+        (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final (provider, source, sc) = registerProvider([ccEntry()]);
+      await t.pump();
+      await t.pump();
+      expect(provider.latest, isNotEmpty);
+      await t.pumpWidget(_harness([_savings()]));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('dueBanner')), findsOneWidget);
+
+      // 模拟还款落账:源候选清空 + watch 触发 → 防抖 500ms → 刷新广播空列表。
+      source.entries = [];
+      sc.add(null);
+      await t.pump(const Duration(milliseconds: 600));
+      await t.pumpAndSettle();
+      expect(provider.latest, isEmpty);
+      expect(find.byKey(const ValueKey('dueBanner')), findsNothing);
+      // hero 回到页面顶部原位(空态不占位,FR-1)。
+      expect(find.text('净资产合计'), findsOneWidget);
+    });
+
+    testWidgets('未注册 provider(装配前/裸挂载)→ 无聚合条、不报错(fail-safe)',
+        (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness([_savings()]));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('dueBanner')), findsNothing);
+      expect(find.text('净资产合计'), findsOneWidget);
     });
   });
 }

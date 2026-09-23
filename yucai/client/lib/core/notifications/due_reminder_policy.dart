@@ -46,7 +46,7 @@ class DueReminderPolicy {
   /// 差值分类:paymentDate 相对 today 的天数决定档位。
   /// 已过 → overdue;0 ≤ 差 ≤ advanceDays → advance;更远 → null(不发)。
   DueTier? tierFor(DateTime today, DateTime paymentDate) {
-    final days = _daysBetween(today, paymentDate);
+    final days = daysBetween(today, paymentDate);
     if (days < 0) return DueTier.overdue;
     if (days <= config.advanceDays) return DueTier.advance;
     return null;
@@ -69,7 +69,7 @@ class DueReminderPolicy {
     required DateTime paymentDate,
   }) {
     final amount = _formatYuan(totalCents);
-    final days = _daysBetween(today, paymentDate);
+    final days = daysBetween(today, paymentDate);
     final String when;
     switch (tier) {
       case DueTier.advance:
@@ -81,7 +81,9 @@ class DueReminderPolicy {
   }
 
   /// 日粒度差值(a-b 的天数,按本地日期截断;与 drift 查询的日期语义一致)。
-  static int _daysBetween(DateTime a, DateTime b) {
+  /// 公开为读侧候选 daysLeft 的同口径来源(2026-09 到期常显提醒:
+  /// scanner 通知文案与 DueCandidateView 视图不得各写一套差值)。
+  static int daysBetween(DateTime a, DateTime b) {
     final da = DateTime(a.year, a.month, a.day);
     final db = DateTime(b.year, b.month, b.day);
     return db.difference(da).inDays;
