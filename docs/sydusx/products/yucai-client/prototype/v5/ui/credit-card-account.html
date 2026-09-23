@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark" data-panel="a" data-billing="set">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>信用卡账户(账单周期)— prototype v5</title>
+<style>
+/* === theme.css 快照(design-output-v2/ab/assets/theme.css,SSOT 不变;修改令牌请回 theme.css)=== */
+:root, [data-theme="dark"]{
+  --bg:#0B0E13; --surface:#141922; --surface-2:#1A2130; --border:#232B38;
+  --fg:#F2F4F8; --muted:#8B93A3;
+  --acc:#E8C07A; --acc-deep:#C9964A; --acc-text:#1A1408;
+  --pos:#34D399; --neg:#F87171; --cyan:#22D3EE;
+  --pos-soft:rgba(52,211,153,.1); --neg-soft:rgba(248,113,113,.1);
+  --line:#1B2231;
+  --shadow:none;
+  --btn-bg:linear-gradient(135deg,#E8C07A,#C9964A); --btn-fg:#1A1408;
+  --q1-bg:rgba(232,192,122,.1); --q1-fg:#E8C07A;
+  --bar-track:#1A2130; --bar-fill:linear-gradient(90deg,#E8C07A,#C9964A);
+  --warn:#FBBF24;
+}
+[data-theme="light"]{
+  --bg:#F8FAFC; --surface:#FFFFFF; --surface-2:#F1F5F9; --border:#EEF2F7;
+  --fg:#0F172A; --muted:#64748B;
+  --acc:#059669; --acc-deep:#047857; --acc-text:#FFFFFF;
+  --pos:#059669; --neg:#E11D48; --cyan:#0EA5E9;
+  --pos-soft:#ECFDF5; --neg-soft:#FFF1F2;
+  --line:#EEF2F7;
+  --shadow:0 1px 2px rgba(15,23,42,.05),0 4px 16px rgba(15,23,42,.05);
+  --btn-bg:#059669; --btn-fg:#FFFFFF;
+  --q1-bg:#ECFDF5; --q1-fg:#047857;
+  --bar-track:#F1F5F9; --bar-fill:#059669;
+  --warn:#D97706;
+}
+/* === v5 组装(零新令牌,全部拼装自上表)=== */
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--fg);
+  font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+  font-size:14px;line-height:1.5;min-height:100vh;
+  display:flex;justify-content:center;padding:32px 20px 120px;
+  transition:background-color .25s ease,color .25s ease;
+}
+.num{font-variant-numeric:tabular-nums}
+.wrap{width:100%;max-width:860px;display:flex;flex-direction:column;gap:14px}
+.top{display:flex;align-items:center;gap:10px}
+.top h1{font-size:16px;font-weight:600}
+.badge-ver{font-size:11px;color:var(--acc);background:var(--q1-bg);border-radius:999px;padding:2px 10px}
+.top .sp{flex:1}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+.sec-t{font-size:13px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.sec-t .sp{flex:1}
+
+/* hero */
+.hero{display:flex;flex-direction:column;gap:4px}
+.hero .lbl{font-size:13px;color:var(--muted)}
+.hero .amt{font-size:34px;font-weight:700;letter-spacing:.5px}
+.hero .eq{font-size:12px;color:var(--muted);margin-top:6px;padding:6px 10px;background:var(--surface-2);border-radius:8px}
+.hero .eq b{color:var(--fg);font-weight:600}
+[data-billing="unset"] .hero .eq{color:var(--muted)}
+
+/* 额度条 */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{padding:10px 12px;background:var(--surface-2);border-radius:10px}
+.stat .k{font-size:11px;color:var(--muted)}
+.stat .v{font-size:15px;font-weight:600;margin-top:2px}
+.stat .v small{font-size:11px;color:var(--muted);font-weight:400}
+
+/* 账单周期面板:variant A 四行列表 */
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row .k{color:var(--muted);flex:1}
+.row .v{font-weight:600}
+.row .v small{color:var(--muted);font-weight:400;margin-right:6px}
+.row.emph{padding:9px 12px;margin:4px -12px 0;background:var(--q1-bg);border-radius:10px;border-bottom:none}
+.row.emph .k{color:var(--fg)}
+.row.emph .v{color:var(--acc);font-size:16px}
+.panel-sub{font-size:12px;color:var(--muted);margin-top:10px}
+.panel-sub b{color:var(--fg);font-weight:600}
+
+/* variant B 2x2 数字卡 */
+[data-panel="b"] .panel-a{display:none}
+.panel-b{display:none;grid-template-columns:1fr 1fr;gap:10px}
+[data-panel="b"] .panel-b{display:grid}
+.cell{padding:14px 16px;background:var(--surface-2);border-radius:12px}
+.cell .k{font-size:11px;color:var(--muted)}
+.cell .v{font-size:20px;font-weight:700;margin-top:4px}
+.cell .sub{font-size:11px;color:var(--muted);margin-top:2px}
+.cell.emph{background:var(--q1-bg);outline:1px solid var(--acc)}
+.cell.emph .v{color:var(--acc)}
+
+/* variant C 周期时间轴 */
+.panel-c{display:none;flex-direction:column;gap:14px}
+[data-panel="c"] .panel-c{display:flex}
+[data-panel="a"] .panel-a{display:block}
+.tl{position:relative;height:8px;border-radius:999px;background:var(--bar-track)}
+.tl .fill{position:absolute;left:0;top:0;bottom:0;width:72%;border-radius:999px;background:var(--bar-fill)}
+.tl .dot{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;transform:translate(-50%,-50%);background:var(--surface);border:3px solid var(--acc)}
+.tl .dot.today{border-color:var(--cyan);left:72%}
+.tl-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.tl-lbl b{color:var(--fg)}
+.c-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.c-nums .n{font-size:16px;font-weight:700}
+.c-nums .n.emph{color:var(--acc)}
+.c-nums .l{font-size:11px;color:var(--muted)}
+
+/* 未设账单日降级 */
+[data-billing="set"] .unset-hint{display:none}
+[data-billing="unset"] .panel-a,[data-billing="unset"] .panel-b,[data-billing="unset"] .panel-c{display:none!important}
+[data-billing="unset"] .panel-wrap .sec-t small{display:none}
+.unset-hint{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface-2);border-radius:10px;color:var(--muted);font-size:13px}
+.btn-mini{font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--acc);cursor:pointer}
+
+/* 快捷动作 */
+.acts{display:flex;gap:10px}
+.btn-primary{flex:1;padding:10px;border:none;border-radius:10px;background:var(--btn-bg);color:var(--btn-fg);font-size:14px;font-weight:600;cursor:pointer}
+.btn-ghost{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-size:14px;cursor:pointer}
+
+/* 近期交易 */
+.tx{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.tx:last-child{border-bottom:none}
+.tx .ic{width:30px;height:30px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;font-size:14px}
+.tx .d{flex:1}
+.tx .d .t{font-size:13px}
+.tx .d .s{font-size:11px;color:var(--muted)}
+.tx .amt2{font-weight:600}
+
+/* 编辑表单卡 */
+details.form summary{cursor:pointer;font-size:13px;color:var(--muted);list-style:none}
+details.form summary::-webkit-details-marker{display:none}
+.f-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+select{width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg);font-size:14px}
+.f-note{font-size:11px;color:var(--muted);margin-top:10px}
+
+/* 还款对话框 overlay */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;place-items:center;z-index:50}
+.overlay.open{display:grid}
+.dlg{width:min(430px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
+.dlg h3{font-size:15px;margin-bottom:2px}
+.dlg .sub{font-size:12px;color:var(--muted);margin-bottom:14px}
+.radio-card{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--border);border-radius:11px;margin-bottom:8px;cursor:pointer}
+.radio-card input{accent-color:var(--acc)}
+.radio-card.on{border-color:var(--acc);background:var(--q1-bg)}
+.radio-card .rc-t{font-size:13px;font-weight:600}
+.radio-card .rc-s{font-size:11px;color:var(--muted)}
+.radio-card .rc-amt{margin-left:auto;font-weight:700}
+.dlg .amt-line{display:flex;align-items:center;gap:8px;margin:12px 0}
+.dlg .amt-line label{font-size:12px;color:var(--muted)}
+.dlg input[type=text]{width:130px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg);text-align:right}
+.dlg input[type=text]:disabled{opacity:.55}
+.dlg .foot{display:flex;gap:10px;margin-top:14px}
+.dlg .kv{font-size:12px;color:var(--muted);margin-top:4px}
+.dlg .kv b{color:var(--acc)}
+
+/* 浮动切换条 */
+.float{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 14px;box-shadow:var(--shadow);z-index:60;font-size:12px}
+.seg{display:flex;border:1px solid var(--border);border-radius:999px;overflow:hidden}
+.seg button{border:none;background:transparent;color:var(--muted);padding:5px 12px;cursor:pointer;font-size:12px}
+.seg button.on{background:var(--q1-bg);color:var(--acc);font-weight:600}
+.float .lbl2{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <h1>信用卡账户 · 账单周期</h1>
+    <span class="badge-ver">prototype v5</span>
+    <span class="sp"></span>
+    <button class="btn-mini" onclick="toggleTheme()">主题</button>
+  </div>
+
+  <!-- hero:当前欠款 + 恒等式 -->
+  <div class="card hero">
+    <div class="lbl">当前欠款</div>
+    <div class="amt num">¥2,500.00</div>
+    <div class="eq num" data-billing="set-only">当前欠款 = <b>上期剩余 ¥2,000.00</b> + <b>本期账单(未出账)¥500.00</b></div>
+    <div class="eq num" data-billing="unset-only" style="display:none">未设账单日 —— 按全额欠款口径,无法分账单周期</div>
+  </div>
+
+  <!-- 额度 stats -->
+  <div class="card">
+    <div class="sec-t">额度与周期<small class="sp"></small><span id="cycleBadge" class="badge-ver">账单日 5 日 · 还款日 23 日</span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">信用额度</div><div class="v num">¥20,000.00</div></div>
+      <div class="stat"><div class="k">已用</div><div class="v num">¥2,500.00</div></div>
+      <div class="stat"><div class="k">可用</div><div class="v num">¥17,500.00</div></div>
+      <div class="stat"><div class="k">免息还款</div><div class="v num">18<small> 天</small></div></div>
+    </div>
+  </div>
+
+  <!-- ★ 账单周期面板(A/B/C 变体) -->
+  <div class="card panel-wrap">
+    <div class="sec-t">账单周期<small>原型待拍板:A 列表 / B 数字卡 / C 时间轴</small></div>
+
+    <!-- variant A:四行列表(当前实现形态,64dfc893) -->
+    <div class="panel-a">
+      <div class="row"><span class="k">上期账单</span><span class="v num">¥3,000.00</span></div>
+      <div class="row"><span class="k">上期已还</span><span class="v num">¥1,000.00</span></div>
+      <div class="row"><span class="k">本期账单(未出账)</span><span class="v num">¥500.00</span></div>
+      <div class="row emph"><span class="k">上期剩余(还款日应还)</span><span class="v num">¥2,000.00</span></div>
+      <div class="panel-sub">依据 <b>账单日 5 日</b> · <b>还款日 23 日</b> 推导,与催办提醒、还款对话框同数</div>
+    </div>
+
+    <!-- variant B:2×2 数字卡 -->
+    <div class="panel-b">
+      <div class="cell"><div class="k">上期账单</div><div class="v num">¥3,000.00</div><div class="sub">5 日出账</div></div>
+      <div class="cell"><div class="k">上期已还</div><div class="v num">¥1,000.00</div><div class="sub">账单日后还款</div></div>
+      <div class="cell"><div class="k">本期账单(未出账)</div><div class="v num">¥500.00</div><div class="sub">5 日后新刷</div></div>
+      <div class="cell emph"><div class="k">上期剩余 · 还款日应还</div><div class="v num">¥2,000.00</div><div class="sub">= 账单 − 已还</div></div>
+    </div>
+
+    <!-- variant C:周期时间轴 -->
+    <div class="panel-c">
+      <div class="tl">
+        <div class="fill"></div>
+        <span class="dot" style="left:0"></span>
+        <span class="dot today"></span>
+        <span class="dot" style="left:100%"></span>
+      </div>
+      <div class="tl-lbl"><span><b>账单日</b> 5 日</span><span>今天 · 17 日</span><span><b>还款日</b> 23 日</span></div>
+      <div class="c-nums">
+        <div><div class="n num">¥3,000</div><div class="l">上期账单</div></div>
+        <div><div class="n num">¥1,000</div><div class="l">上期已还</div></div>
+        <div><div class="n num">¥500</div><div class="l">本期未出账</div></div>
+        <div><div class="n num emph">¥2,000</div><div class="l">上期剩余应还</div></div>
+      </div>
+    </div>
+
+    <!-- 未设账单日降级 -->
+    <div class="unset-hint">ⓘ 设置账单日后可查看账单周期明细
+      <button class="btn-mini" onclick="openForm()">去设置</button>
+    </div>
+  </div>
+
+  <!-- 快捷动作 -->
+  <div class="acts">
+    <button class="btn-ghost" onclick="openForm()">编辑账户</button>
+    <button class="btn-primary" onclick="openRepay()">还款</button>
+  </div>
+
+  <!-- 近期交易 -->
+  <div class="card">
+    <div class="sec-t">近期交易</div>
+    <div class="tx"><span class="ic">🛒</span><span class="d"><div class="t">超市购物</div><div class="s">09-17 · 消费</div></span><span class="amt2 num" style="color:var(--neg)">¥300.00</span></div>
+    <div class="tx"><span class="ic">☕</span><span class="d"><div class="t">咖啡</div><div class="s">09-08 · 消费</div></span><span class="amt2 num" style="color:var(--neg)">¥200.00</span></div>
+    <div class="tx"><span class="ic">💳</span><span class="d"><div class="t">还款 · 工资卡转入</div><div class="s">09-06 · 还款</div></span><span class="amt2 num" style="color:var(--pos)">−¥1,000.00</span></div>
+  </div>
+
+  <!-- 编辑表单(账单日/还款日预填语义) -->
+  <details class="card form" id="formCard">
+    <summary>▸ 编辑账户 · 账单日 / 还款日(预填修复验证)</summary>
+    <div class="f-grid">
+      <div class="field"><label>账单日</label>
+        <select id="selBill"><option selected>5日</option><option>10日</option><option>15日</option><option>25日</option></select>
+      </div>
+      <div class="field"><label>还款日</label>
+        <select id="selRepay"><option>15日</option><option selected>23日</option><option>28日</option></select>
+      </div>
+    </div>
+    <div class="f-note">编辑态下拉自动带入原值(64dfc893 修复:initialValue 回读,数据本就未丢,此前仅显示为空)</div>
+  </details>
+
+</div>
+
+<!-- 还款对话框(上期账单基数口径) -->
+<div class="overlay" id="repayOverlay" onclick="if(event.target===this)closeRepay()">
+  <div class="dlg">
+    <h3>信用卡还款</h3>
+    <div class="sub">招商银行信用卡 · <span id="dlgBasis" class="num">上期账单口径</span></div>
+
+    <label class="radio-card on" data-mode="full">
+      <input type="radio" name="mode" checked onchange="pickMode('full')">
+      <span><div class="rc-t" id="lblFull">全额(上期账单)</div><div class="rc-s">还清上期账单剩余</div></span>
+      <span class="rc-amt num" id="amtFull">¥2,000.00</span>
+    </label>
+    <label class="radio-card" data-mode="min">
+      <input type="radio" name="mode" onchange="pickMode('min')">
+      <span><div class="rc-t">最低还款</div><div class="rc-s">上期剩余的 10%</div></span>
+      <span class="rc-amt num">¥200.00</span>
+    </label>
+    <label class="radio-card" data-mode="inst">
+      <input type="radio" name="mode" onchange="pickMode('inst')">
+      <span><div class="rc-t">分期</div><div class="rc-s">上期剩余分期</div></span>
+      <span class="rc-amt num">¥2,000 × N 期</span>
+    </label>
+
+    <div class="amt-line">
+      <label>金额</label>
+      <input type="text" id="amtInput" class="num" value="2,000.00" disabled>
+      <span style="flex:1"></span>
+      <span class="kv">还款后上期剩余清零,催办自动停止</span>
+    </div>
+
+    <div class="foot">
+      <button class="btn-ghost" onclick="closeRepay()">取消</button>
+      <button class="btn-primary" onclick="closeRepay()">确认还款</button>
+    </div>
+  </div>
+</div>
+
+<!-- 浮动切换条:面板变体 + 账单日状态 + 主题 -->
+<div class="float">
+  <span class="lbl2">面板</span>
+  <div class="seg" id="segPanel">
+    <button data-v="a" class="on" onclick="setPanel('a')">A 列表</button>
+    <button data-v="b" onclick="setPanel('b')">B 数字卡</button>
+    <button data-v="c" onclick="setPanel('c')">C 时间轴</button>
+  </div>
+  <span class="lbl2">账单日</span>
+  <div class="seg" id="segBill">
+    <button data-v="set" class="on" onclick="setBilling('set')">已设</button>
+    <button data-v="unset" onclick="setBilling('unset')">未设</button>
+  </div>
+</div>
+
+<script>
+// URL 参数驱动(?panel=b&billing=unset)+ 浮动条双通道切换(prototype skill UI 支惯例)
+const $=s=>document.querySelector(s);
+function syncUrl(){
+  const h=document.documentElement;
+  const q=new URLSearchParams({panel:h.dataset.panel,billing:h.dataset.billing});
+  history.replaceState(null,'','?'+q);
+}
+function setPanel(v){
+  const h=document.documentElement;h.dataset.panel=v;
+  document.querySelectorAll('#segPanel button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  syncUrl();
+}
+function setBilling(v){
+  const h=document.documentElement;h.dataset.billing=v;
+  document.querySelectorAll('#segBill button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  const set=v==='set';
+  // 恒等式 caption 切换
+  $('[data-billing="set-only"]').style.display=set?'':'none';
+  $('[data-billing="unset-only"]').style.display=set?'none':'';
+  // 周期徽标/面板副标注
+  $('#cycleBadge').textContent=set?'账单日 5 日 · 还款日 23 日':'账单日未设置';
+  // 还款对话框口径联动:已设=上期账单剩余 2,000;未设降级=全额欠款 2,500
+  $('#lblFull').textContent=set?'全额(上期账单)':'全额';
+  $('#amtFull').textContent=set?'¥2,000.00':'¥2,500.00';
+  $('#dlgBasis').textContent=set?'上期账单口径':'未设账单日 · 全额欠款口径';
+  if($('#amtInput').disabled)$('#amtInput').value=set?'2,000.00':'2,500.00';
+  syncUrl();
+}
+function toggleTheme(){
+  const h=document.documentElement;
+  h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';
+}
+function pickMode(m){
+  document.querySelectorAll('.radio-card').forEach(r=>r.classList.toggle('on',r.dataset.mode===m));
+  const inp=$('#amtInput');
+  const set=document.documentElement.dataset.billing==='set';
+  if(m==='full'){inp.disabled=true;inp.value=set?'2,000.00':'2,500.00';}
+  else if(m==='min'){inp.disabled=false;inp.value='200.00';}
+  else{inp.disabled=false;inp.value=set?'2,000.00':'2,500.00';}
+}
+function openRepay(){$('#repayOverlay').classList.add('open')}
+function closeRepay(){$('#repayOverlay').classList.remove('open')}
+function openForm(){$('#formCard').open=true;$('#formCard').scrollIntoView({behavior:'smooth'})}
+// 初始化:URL 参数恢复
+const q0=new URLSearchParams(location.search);
+if(q0.get('panel'))setPanel(q0.get('panel'));
+if(q0.get('billing'))setBilling(q0.get('billing'));
+</script>
+</body>
+</html>
