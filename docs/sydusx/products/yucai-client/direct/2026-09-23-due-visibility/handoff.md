@@ -13,7 +13,7 @@
 | `64dfc893` | 信用卡详情页**账单周期面板**(四字段+恒等式 caption+breakdown 不变式)+账单日/还款日编辑预填修复(_dayPicker initialValue 回读) | 2064 绿 |
 | `529fd9a8` | prototype v5 重构为 **OD 套件底版 fork**(account-detail.html 同构壳/SSOT 直连/导航互通),初版裸列被用户打回 | docs |
 | `c32c7bd1` | prototype v5 **交 OD 管线重做**(OD 项目 `yucai-cc-bill-cycle-13e8`/run `fe09336c`:A 列表/B 应还拆解/C 周期时间轴,壳同构+零新令牌+口径 fixture 一字不差;浏览器视觉+程序化核验过;**顺修 fork 版 ui/ 页 SSOT 6 级坏链→7 级**,fork 版经此取代、回取走 git) | docs |
-| (本次) | **拍板 B「应还拆解」落地生产**:面板重写(应答块[还款日应还大字 accent+还有N天 chip+恢复等式推导]+构成条 80/20+双图例+下期出账日+降级「去设置」);页面级全对齐(hero 恒等式 caption/未设降级文案、stats 语义卡[上期剩余(应还) accent+本期新增(未出账)]、「还款日提醒」callout);`nextRepaymentDate` 共享静态入 core;CURRENT→v5、原型默认切 B;仅 creditCard 分支,其他账户类型零变化 | 2068 绿/analyze 438=基线 |
+| `057673e3` | **拍板 B「应还拆解」落地生产**:面板重写(应答块[还款日应还大字 accent+还有N天 chip+恢复等式推导]+构成条 80/20+双图例+下期出账日+降级「去设置」);页面级全对齐(hero 恒等式 caption/未设降级文案、stats 语义卡[上期剩余(应还) accent+本期新增(未出账)]、「还款日提醒」callout);`nextRepaymentDate` 共享静态入 core;CURRENT→v5、原型默认切 B;仅 creditCard 分支,其他账户类型零变化 | 2068 绿/analyze 438=基线 |
 
 ## 未决(按优先序)
 
