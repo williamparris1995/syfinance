@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark" data-panel="a" data-billing="set">
+<html lang="zh-CN" data-theme="dark" data-panel="b" data-billing="set">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -304,7 +304,7 @@
       <div class="col">
         <!-- ★ 账单周期面板(本页核心):A/B/C 由底部控制条切换;账单日未设时整体降级 -->
         <div class="card" data-od-id="card-bill-cycle">
-          <div class="card-head"><h2>账单周期</h2><span class="chip" id="panelTag">变体 A · 列表</span></div>
+          <div class="card-head"><h2>账单周期</h2><span class="chip" id="panelTag">变体 B · 应还拆解(已拍板 2026-09-23)</span></div>
 
           <!-- 变体 A「列表」:生产已实现形态,视觉克制照实,零改动基线 -->
           <div class="panel-a" data-od-id="panel-variant-a">
@@ -444,8 +444,8 @@
 <div class="pfloat" data-od-id="proto-control-bar">
   <span class="plbl">面板</span>
   <div class="pseg" id="segPanel">
-    <button type="button" data-v="a" class="on" onclick="setPanel('a')">A 列表</button>
-    <button type="button" data-v="b" onclick="setPanel('b')">B 应还拆解</button>
+    <button type="button" data-v="a" onclick="setPanel('a')">A 列表</button>
+    <button type="button" data-v="b" class="on" onclick="setPanel('b')">B 应还拆解 ★</button>
     <button type="button" data-v="c" onclick="setPanel('c')">C 周期时间轴</button>
   </div>
   <span class="plbl">账单日</span>

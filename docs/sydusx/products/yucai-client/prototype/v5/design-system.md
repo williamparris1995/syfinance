@@ -63,7 +63,11 @@ D=≤今天最近账单日;S=账单日后正向消费和;R=账单日后还款和
 已核验(2026-09-23,浏览器视觉+程序化):A/B/C 三变体渲染、URL 反向初始化、billing 四处
 联动+面板降级、对话框三模式金额、Esc 关闭、亮暗切换、CSS 183 规则加载(7 级路径)。
 
-## 定稿指引
+## 定稿(2026-09-23 用户拍板)
 
-浏览器打开 ui/credit-card-account.html 拍板 A/B/C → CURRENT 指 v5。A=零改动已实现;
-B/C 需后续 UI 票(布局契约照本版快照,review 门以此为 code↔prototype 对照)。
+- **变体 B「应还拆解」拍板落地**;CURRENT 已指 v5,本页默认变体切 B。
+- 生产实现(同日):`CreditCardStatementPanel` 重写为 B 形态(应答块 + 构成条);
+  页面级全对齐 —— hero 恒等式 caption / stats 语义卡(上期剩余(应还) accent +
+  本期新增(未出账))/「还款日提醒」callout;`nextRepaymentDate` 共享静态入 core。
+  A/C 保留在本页作对照(控制条/URL 可切),后续如需可另立 UI 票。
+- review 门:code↔prototype 对照以 **B 变体快照**(`?panel=b`)为契约。

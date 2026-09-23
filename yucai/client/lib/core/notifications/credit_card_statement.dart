@@ -184,4 +184,13 @@ class CreditCardStatementDue {
     final length = DateTime(y, m + 1, 0).day;
     return DateTime(y, m, day > length ? length : day);
   }
+
+  /// 下一个还款日(≥ [today] 的最近还款日;月长 clamp 同账单日)。
+  /// 面板「还有 N 天」chip 与详情页还款提醒 callout 共用(单一口径,
+  /// v5 原型 B「应还拆解」拍板引入)。[today] 须为日期零点(调用方归一)。
+  static DateTime nextRepaymentDate(DateTime today, int repaymentDay) {
+    final thisMonth = clampDay(today.year, today.month, repaymentDay);
+    if (!thisMonth.isBefore(today)) return thisMonth;
+    return clampDay(today.year, today.month + 1, repaymentDay);
+  }
 }

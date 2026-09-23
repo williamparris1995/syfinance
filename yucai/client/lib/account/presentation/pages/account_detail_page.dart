@@ -435,8 +435,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         _hero(a, summary?.netCents ?? 0),
         const SizedBox(height: 18),
         _statsRow(a, txns, summary),
-        // T8:信用卡「账单周期」面板 —— 欠款 hero 与额度 stats 之下、近期
-        // 交易之上(信用卡区就近欠款/额度概览;账单日未设面板内部降级提示)。
+        // T8:信用卡「账单周期」面板(v5 原型拍板 B「应还拆解」)—— 欠款
+        // hero 与额度 stats 之下、近期交易之上(信用卡区就近欠款/额度概览;
+        // 账单日未设面板内部降级提示 +「去设置」直达编辑)。
         if (a.category == AccountCategory.creditCard) ...[
           const SizedBox(height: 18),
           CreditCardStatementPanel(
@@ -445,7 +446,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
             repaymentDay: a.creditRepaymentDay,
             currencyCode: a.currencyCode,
             breakdown: _statementBreakdown,
+            onSetupBilling: () => _edit(a),
           ),
+          // v5 原型页面级对齐:「还款日提醒」callout(与催办同数声明;
+          // breakdown 已算出且还款日已设才渲染 —— 提醒无还款日无从谈起)。
+          if (_statementBreakdown != null && a.creditRepaymentDay != null) ...[
+            const SizedBox(height: 12),
+            _ccRepayReminder(a),
+          ],
         ],
         const SizedBox(height: 18),
         // OD .cols：>900 双栏（交易 1.5fr + 饼图 1fr）/ ≤900 堆叠单列。
@@ -793,25 +801,129 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
-              // hero-bal-sub {scope}收支（正绿 #6FCF9A 负红 #E57373）。
-              // Task 11：前缀跟随 _scope（本日/本月/本年）。
-              Text(
-                '$_scopeLabel收支 ${netPositive ? '+' : '-'}${currencySymbol(a.currencyCode)}'
-                '${(netCents.abs() ~/ 100).toString()}.'
-                '${(netCents.abs() % 100).toString().padLeft(2, '0')}',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: netPositive
-                      ? context.yucai.positive
-                      : context.yucai.negative,
-                  fontFeatures: AppTypography.tabularFigures,
+              if (a.category == AccountCategory.creditCard)
+                // v5 原型页面级对齐:信用卡 hero 副行改账单周期口径 ——
+                // 恒等式 caption(= 上期剩余 + 本期账单,与 breakdown 不变式
+                // 同源);未设账单日 → 全额欠款口径降级文案;加载中不占位。
+                _ccHeroCaption(a)
+              else
+                // hero-bal-sub {scope}收支（正绿 #6FCF9A 负红 #E57373）。
+                // Task 11：前缀跟随 _scope（本日/本月/本年）。
+                Text(
+                  '$_scopeLabel收支 ${netPositive ? '+' : '-'}${currencySymbol(a.currencyCode)}'
+                  '${(netCents.abs() ~/ 100).toString()}.'
+                  '${(netCents.abs() % 100).toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: netPositive
+                        ? context.yucai.positive
+                        : context.yucai.negative,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
                 ),
-              ),
               const SizedBox(height: 26),
               // hero-fields 类型专属字段网格（OD .hero-fields：margin-top 26，
               // padding-top 22 + border-top，gap 18）。
               _heroFields(a),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// v5 原型:信用卡 hero 副行 —— 恒等式 caption「= 上期剩余 X + 本期账单
+  /// (未出账) Y」(muted 底 + fg 加粗数字段,同原型 .hero-eq)。breakdown
+  /// 未算出(加载中)不占位;账单日未设 → 全额欠款口径降级文案。
+  Widget _ccHeroCaption(Account a) {
+    final b = _statementBreakdown;
+    if (b != null) {
+      return Text.rich(
+        TextSpan(
+          style: TextStyle(
+              fontSize: 12.5,
+              height: 1.6,
+              color: context.yucai.muted,
+              fontFeatures: AppTypography.tabularFigures),
+          children: [
+            const TextSpan(text: '= '),
+            TextSpan(
+                text: '上期剩余 ${_fmtSigned(b.remainingCents, a.currencyCode)}',
+                style: TextStyle(
+                    color: context.yucai.fg, fontWeight: FontWeight.w600)),
+            const TextSpan(text: ' + '),
+            TextSpan(
+                text: '本期账单(未出账) ${_fmtSigned(b.cycleNewCents, a.currencyCode)}',
+                style: TextStyle(
+                    color: context.yucai.fg, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+    }
+    if (a.creditBillingDay == null) {
+      return Text(
+        '未设账单日 · 按全额欠款口径',
+        style: TextStyle(fontSize: 12.5, color: context.yucai.muted),
+      );
+    }
+    // 加载中:不占位(到达后 BlocListener 重算重绘)。
+    return const SizedBox.shrink();
+  }
+
+  /// v5 原型:「还款日提醒」callout(.callout.pos 形态 —— positive 软底 +
+  /// 标题/正文)。应还数 = breakdown.remainingCents(与催办/还款对话框/
+  /// 面板同数);天数经 [CreditCardStatementDue.nextRepaymentDate] 单一口径。
+  Widget _ccRepayReminder(Account a) {
+    final b = _statementBreakdown!;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final days = CreditCardStatementDue.nextRepaymentDate(
+            today, a.creditRepaymentDay!)
+        .difference(today)
+        .inDays;
+    final dueLabel = days > 0 ? '还有 $days 天' : '今天到期';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        color: context.yucai.positive.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(LucideIcons.creditCard,
+              size: 18, color: context.yucai.positive),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('还款日提醒',
+                    style: TextStyle(
+                        fontSize: 13.5, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text.rich(
+                  TextSpan(
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.7,
+                        color: context.yucai.muted,
+                        fontFeatures: AppTypography.tabularFigures),
+                    children: [
+                      TextSpan(
+                          text:
+                              '还款日 ${a.creditRepaymentDay}日,$dueLabel · 上期剩余 '),
+                      TextSpan(
+                          text: _fmtSigned(b.remainingCents, a.currencyCode),
+                          style: TextStyle(
+                              color: context.yucai.accent,
+                              fontWeight: FontWeight.w600)),
+                      const TextSpan(text: ' 应还。首页提醒条/托盘/收件箱与还款对话框均以此数为准。'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1136,9 +1248,19 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(stats[i].$2,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w600)),
+                // v5 原型:上期剩余(应还)卡值 accent 强调(= 还款日应还,
+                // 原型 sum-strip 第二卡 mini-big accent);其余卡值默认 fg。
+                Text(
+                  stats[i].$2,
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: (a.category == AccountCategory.creditCard &&
+                              _statementBreakdown != null &&
+                              stats[i].$1 == '上期剩余(应还)')
+                          ? context.yucai.accent
+                          : null),
+                ),
                 const SizedBox(height: 4),
                 Container(
                   padding:
@@ -1172,6 +1294,18 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
       case AccountCategory.creditCard:
         final limit = a.creditLimitCents;
         final used = a.currentBalanceCents.abs(); // 欠款为负，取绝对值
+        // v5 原型页面级对齐:breakdown 已算出 → 四卡换账单周期语义卡
+        //(上期剩余(应还) = 还款日应还,accent 强调 —— 原型 sum-strip 第二卡;
+        // 本期新增 = 未出账,第三卡)。未算出/未设账单日 → 回退额度四卡。
+        final b = _statementBreakdown;
+        if (b != null) {
+          return [
+            ('信用额度', _fmtSigned(limit, a.currencyCode)),
+            ('已用额度', _fmtSigned(used, a.currencyCode)),
+            ('上期剩余(应还)', _fmtSigned(b.remainingCents, a.currencyCode)),
+            ('本期新增(未出账)', _fmtSigned(b.cycleNewCents, a.currencyCode)),
+          ];
+        }
         final avail = (limit - used).clamp(0, limit);
         return [
           ('信用额度', _fmtSigned(limit, a.currencyCode)),

@@ -1956,7 +1956,7 @@ void main() {
   }
 
   testWidgets(
-      'T8: 信用卡详情渲染「账单周期」面板四行(真实 drift 推导,与催办同口径)',
+      'T8/v5-B: 信用卡详情渲染「账单周期」应还拆解面板 + hero 恒等式 + 语义 stats 卡(真实 drift 推导,与催办同口径)',
       (tester) async {
     // 内存 db + GetIt 注册(页面经 getIt<AppDatabase> 取数)。
     final database = db.AppDatabase(NativeDatabase.memory());
@@ -1993,6 +1993,11 @@ void main() {
       ),
     );
 
+    // v5 hero 恒等式 caption(欠款大字之下,与 breakdown 不变式同源)。
+    expect(
+        find.textContaining('= 上期剩余 ¥2,000.00 + 本期账单(未出账) ¥500.00'),
+        findsOneWidget);
+
     // 面板在 stats 条之下,滚入视口。
     await tester.scrollUntilVisible(
       find.text('账单周期'),
@@ -2000,26 +2005,57 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
 
+    final panel =
+        find.byKey(const ValueKey('statementCyclePanel'));
+    Finder inPanel(Finder f) => find.descendant(of: panel, matching: f);
+
     // 标题 + 副标注(取卡字段)。
     expect(find.text('账单周期'), findsOneWidget);
     expect(find.text('账单日 $bd日 · 还款日 5日'), findsOneWidget);
-    // 四行:上期账单 3000 / 上期已还 1000 / 上期剩余 2000 / 本期 500。
-    expect(find.text('上期账单'), findsOneWidget);
-    expect(find.text('¥3,000.00'), findsOneWidget);
-    expect(find.text('上期已还'), findsOneWidget);
-    expect(find.text('¥1,000.00'), findsOneWidget);
-    expect(find.text('上期剩余'), findsOneWidget);
-    expect(find.text('¥2,000.00'), findsOneWidget);
-    expect(find.text('本期账单(未出账)'), findsOneWidget);
-    expect(find.text('¥500.00'), findsOneWidget);
-    // 强调断言:上期剩余 = 还款日应还 → accent + w600(裸 MaterialApp 回落
-    // 亮色令牌 = AppColors)。
-    final remaining = tester.widget<Text>(find.text('¥2,000.00'));
-    expect(remaining.style?.color, AppColors.accent);
-    expect(remaining.style?.fontWeight, FontWeight.w600);
+    // v5-B 应答块:还款日应还大字(= breakdown.remainingCents,与催办/
+    // 还款对话框同数)→ accent + w800(裸 MaterialApp 回落亮色令牌)。
+    final big = tester.widget<Text>(
+        inPanel(find.byKey(const ValueKey('ccAnswerAmount'))));
+    expect(big.data, '¥2,000.00');
+    expect(big.style?.color, AppColors.accent);
+    expect(big.style?.fontWeight, FontWeight.w800);
+    // 恢复等式推导 + 构成区(图例合计 = 当前欠款 2500,80%/20%)。
+    expect(inPanel(find.textContaining('= 上期账单 ¥3,000.00')), findsOneWidget);
+    expect(inPanel(find.textContaining('− 上期已还 ¥1,000.00')), findsOneWidget);
+    expect(inPanel(find.text('当前欠款构成')), findsOneWidget);
+    expect(inPanel(find.text('¥2,500.00')), findsOneWidget);
+    expect(inPanel(find.textContaining(' · 80%')), findsOneWidget);
+    expect(inPanel(find.textContaining(' · 20%')), findsOneWidget);
+
+    // v5 语义 stats 卡:上期剩余(应还) accent 强调 + 本期新增(未出账)。
+    final statsRow = find.byKey(const ValueKey('statsRow'));
+    expect(
+        find.descendant(of: statsRow, matching: find.text('上期剩余(应还)')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: statsRow, matching: find.text('本期新增(未出账)')),
+        findsOneWidget);
+    final statValue = tester.widget<Text>(find.descendant(
+        of: statsRow,
+        matching: find.text('¥2,000.00')));
+    expect(statValue.style?.color, AppColors.accent,
+        reason: '上期剩余(应还)卡值 = 还款日应还,v5 原型 accent 强调');
+    // 「还款日提醒」callout(还款日 5 已设 + breakdown 已算 → 渲染;
+    // 在面板之下,懒构建 ListView 须滚入后再断言;天数随运行日漂移,
+    // 只钉「同数」口径文案)。
+    await tester.scrollUntilVisible(
+      find.text('还款日提醒'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('还款日提醒'), findsOneWidget);
+    expect(find.textContaining('均以此数为准'), findsOneWidget);
+    expect(find.textContaining('还款日 5日,'), findsOneWidget);
   });
 
-  testWidgets('T8: 账单日未设 → 降级一行 muted 提示,不渲染四行', (tester) async {
+  testWidgets('T8/v5: 账单日未设 → 面板降级提示 +「去设置」+ hero 全额口径 caption',
+      (tester) async {
     await pumpPage(
       tester,
       account: _account(
@@ -2030,6 +2066,9 @@ void main() {
       ).copyWith(creditLimitCents: 500000),
     );
 
+    // hero 降级 caption(v5 原型:未设账单日 → 全额欠款口径)。
+    expect(find.text('未设账单日 · 按全额欠款口径'), findsOneWidget);
+
     await tester.scrollUntilVisible(
       find.text('账单周期'),
       200,
@@ -2037,11 +2076,59 @@ void main() {
     );
 
     expect(find.text('设置账单日后可查看账单周期明细'), findsOneWidget);
-    expect(find.text('上期账单'), findsNothing);
-    expect(find.text('上期剩余'), findsNothing);
-    expect(find.text('本期账单(未出账)'), findsNothing);
-    // 副标注不渲染(账单日未设无周期可言)。
-    expect(find.textContaining('账单日 '), findsNothing);
+    // v5:降级提示行带「去设置」(页面接编辑账户)。
+    expect(find.text('去设置'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ccAnswerAmount')), findsNothing);
+    expect(find.text('当前欠款构成'), findsNothing);
+    // 副标注不渲染(账单日未设无周期可言;收窄到面板内 —— hero 降级
+    // caption「未设账单日 · …」也含「账单日」子串)。
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('statementCyclePanel')),
+            matching: find.textContaining('账单日 ')),
+        findsNothing);
+  });
+
+  testWidgets('v5: 还款日提醒 callout —— 还款日就在今天 → 「今天到期」(确定性)',
+      (tester) async {
+    final database = db.AppDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+    GetIt.instance.registerSingleton<db.AppDatabase>(database);
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final bd = today.day >= 8 ? today.day - 7 : 20;
+    final d = DateTime(today.year, today.month, bd).isAfter(today)
+        ? DateTime(today.year, today.month - 1, bd)
+        : DateTime(today.year, today.month, bd);
+    await seedStatementEntry(database, 'repay', d.add(const Duration(days: 3)),
+        debit: 100000);
+    await seedStatementEntry(database, 'spend', d.add(const Duration(days: 5)),
+        credit: 50000);
+
+    await pumpPage(
+      tester,
+      account: _account(
+        name: '今日到期卡',
+        category: AccountCategory.creditCard,
+        accountType: AccountType.liability,
+        currentBalanceCents: 250000,
+      ).copyWith(
+        creditLimitCents: 500000,
+        creditBillingDay: bd,
+        creditRepaymentDay: today.day, // 还款日 = 今天 → nextRepaymentDate 差 0 天
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('还款日提醒'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text('还款日提醒'), findsOneWidget);
+    expect(find.textContaining('今天到期'), findsOneWidget);
+    expect(find.textContaining('上期剩余 ¥2,000.00 应还'), findsOneWidget);
   });
 
   testWidgets('T8: 储蓄(非信用卡)账户不渲染「账单周期」面板', (tester) async {
