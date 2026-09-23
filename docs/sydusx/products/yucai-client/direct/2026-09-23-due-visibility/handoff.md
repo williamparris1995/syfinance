@@ -12,16 +12,18 @@
 | `24f29e66` | fix:信用卡到期金额改**上期账单剩余口径**(current−S;还款不进 Δ;应还≤0 不催);还款对话框基数对齐(全额(上期账单)/最低10%/分期) | 2045 绿 |
 | `64dfc893` | 信用卡详情页**账单周期面板**(四字段+恒等式 caption+breakdown 不变式)+账单日/还款日编辑预填修复(_dayPicker initialValue 回读) | 2064 绿 |
 | `529fd9a8` | prototype v5 重构为 **OD 套件底版 fork**(account-detail.html 同构壳/SSOT 直连/导航互通),初版裸列被用户打回 | docs |
+| (本次) | prototype v5 **交 OD 管线重做**(OD 项目 `yucai-cc-bill-cycle-13e8`/run `fe09336c`:A 列表/B 应还拆解/C 周期时间轴,壳同构+零新令牌+口径 fixture 一字不差;浏览器视觉+程序化核验过;**顺修 fork 版 ui/ 页 SSOT 6 级坏链→7 级**,fork 版经此取代、回取走 git) | docs |
 
 ## 未决(按优先序)
 
-1. **v5 面板交 OD 管线重做**(用户指示「使用 od 去设计」;fork 版为 fallback 基线)——
-   前置:open-design MCP 已注册 `~/.zcode/cli/config.json` `mcp.servers.open-design`
-   (逐字拷自 ~/.claude.json;daemon 活,握手 smoke 过,18 工具:create_project/start_run/
-   list_agents/write_file…),**需新会话启动时才会连上**(本会话工具面已固定)。
-   OD 背景参考:CLAUDE.md memory `od-prototype-to-flutter`(OD→Flutter 工作流)、
-   repo `.od-skills/`(既往 OD agent 产物)、design-output-v2/ab(OD 设计的 12 页套件=布局基准)。
-2. **面板 A/B/C 拍板 → CURRENT 指 v5**(A=生产已实现零改动;B/C 需后续 UI 票,布局契约照 v5 快照)。
+1. **面板 A/B/C 拍板 → CURRENT 指 v5**(A=生产已实现零改动;B/C 需后续 UI 票,布局契约照 v5 快照)。
+   浏览器打开 `docs/sydusx/products/yucai-client/prototype/v5/ui/credit-card-account.html`,
+   底部浮动条切 A/B/C + 账单日 已设/未设(或 URL `?panel=b|c&billing=unset`)。OD redo 已完成
+   (上一行提交),OD studio 预览亦可:`yucai-cc-bill-cycle-13e8` 项目。
+2. **真机验收清单**(dev app 已带全部修复重启过):聚合条(空态/展开/直达/还款后消失)/
+   收件箱(两区/三态/小圆点/托盘入口)/托盘行(不含金额/不跟隐私开关)/账单周期面板四数
+   (恒等式:当前欠款=上期剩余+本期账单)/编辑预填(下拉带 N日)。
+3. 发版待用户(可攒票):tag 推送照 runbook client/tool/RELEASE.md;server 无改动本次可只发 client。
 3. **真机验收清单**(dev app 已带全部修复重启过):聚合条(空态/展开/直达/还款后消失)/
    收件箱(两区/三态/小圆点/托盘入口)/托盘行(不含金额/不跟隐私开关)/账单周期面板四数
    (恒等式:当前欠款=上期剩余+本期账单)/编辑预填(下拉带 N日)。
