@@ -4,7 +4,7 @@
 > + prototype/v5/。工作树应干净(仅 .zcode/ devtools_options.yaml scratch_repro_test.dart 三个
 > 既有杂散 untracked)。
 
-## 已落地(四提交,全过钩子门)
+## 已落地(五提交,全过钩子门)
 
 | 提交 | 内容 | 门 |
 |---|---|---|
@@ -12,7 +12,7 @@
 | `24f29e66` | fix:信用卡到期金额改**上期账单剩余口径**(current−S;还款不进 Δ;应还≤0 不催);还款对话框基数对齐(全额(上期账单)/最低10%/分期) | 2045 绿 |
 | `64dfc893` | 信用卡详情页**账单周期面板**(四字段+恒等式 caption+breakdown 不变式)+账单日/还款日编辑预填修复(_dayPicker initialValue 回读) | 2064 绿 |
 | `529fd9a8` | prototype v5 重构为 **OD 套件底版 fork**(account-detail.html 同构壳/SSOT 直连/导航互通),初版裸列被用户打回 | docs |
-| (本次) | prototype v5 **交 OD 管线重做**(OD 项目 `yucai-cc-bill-cycle-13e8`/run `fe09336c`:A 列表/B 应还拆解/C 周期时间轴,壳同构+零新令牌+口径 fixture 一字不差;浏览器视觉+程序化核验过;**顺修 fork 版 ui/ 页 SSOT 6 级坏链→7 级**,fork 版经此取代、回取走 git) | docs |
+| `c32c7bd1` | prototype v5 **交 OD 管线重做**(OD 项目 `yucai-cc-bill-cycle-13e8`/run `fe09336c`:A 列表/B 应还拆解/C 周期时间轴,壳同构+零新令牌+口径 fixture 一字不差;浏览器视觉+程序化核验过;**顺修 fork 版 ui/ 页 SSOT 6 级坏链→7 级**,fork 版经此取代、回取走 git) | docs |
 
 ## 未决(按优先序)
 
