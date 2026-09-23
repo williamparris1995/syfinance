@@ -1,5 +1,7 @@
 // CreditCardDueSource 单测:有欠款才提醒、月末 clamp、跨月 overdue 候选、
 // id 与还款对话框「本期不再提醒」共用 creditCardCycleEntryId。
+// T7 起金额口径 = 上期账单应还(credit_card_statement.dart 共享推导;
+// 账单日未设降级 = 当前总欠款 —— 原断言金额=总欠款的改为账单口径,是本票目的)。
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +28,7 @@ void main() {
     required int category,
     int balance = 500000,
     int? repaymentDay,
+    int? billingDay,
     int status = 1,
   }) async {
     await database.into(database.accounts).insert(
@@ -54,6 +57,35 @@ void main() {
             creditRepaymentDay: repaymentDay == null
                 ? const Value<int>.absent()
                 : Value<int>(repaymentDay),
+            creditBillingDay: billingDay == null
+                ? const Value<int>.absent()
+                : Value<int>(billingDay),
+          ),
+        );
+  }
+
+  /// 卡上一笔消费分录(负债 credit-正;交易头行 + 分录)。
+  Future<void> seedSpend(String id, String accountId, DateTime date,
+      {required int cents}) async {
+    await database.into(database.transactions).insert(
+          db.TransactionsCompanion.insert(
+            id: id,
+            transactionDate: date,
+            description: 'fixture',
+            version: 1,
+            createdAt: DateTime.now().toUtc(),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
+    await database.into(database.transactionEntries).insert(
+          db.TransactionEntriesCompanion.insert(
+            id: 'e-$id',
+            transactionId: id,
+            accountId: accountId,
+            chartOfAccountCode: '',
+            debitCents: 0,
+            creditCents: cents,
+            note: '',
           ),
         );
   }
@@ -71,7 +103,8 @@ void main() {
 
     final out = await CreditCardDueSource(database).unpaidDueCandidates();
     expect(out.map((e) => e.debtName), ['card-in-debt']);
-    expect(out.single.totalCents, 500000); // credit-正:欠款原值
+    // 本卡未设账单日 → 降级口径 = 当前总欠款 500000(credit-正)。
+    expect(out.single.totalCents, 500000);
     expect(out.single.id, creditCardCycleEntryId('card-in-debt', DateTime(now.year, now.month, 1)));
     // 强类型路由目标(design ADR-2):信用卡候选 → AccountTarget(卡账户 id)。
     final t = out.single.target;
@@ -127,5 +160,53 @@ void main() {
     expect(ids.contains('near-card'), isTrue);
     expect(out.where((e) => e.debtName == 'near-card').single.id,
         creditCardCycleEntryId('near-card', DateTime(2026, 9, 1)));
+  });
+
+  test('T7 账单口径:候选金额 = 上期账单应还,本周期消费不计入', () async {
+    // 时钟 2026-09-22,账单日 15 → D = 2026-09-15;还款日 25 在窗口内。
+    DateTime clock() => DateTime(2026, 9, 22, 10);
+    await seedAccount('statement-open',
+        category: 2, repaymentDay: 25, billingDay: 15);
+    // 欠款 500000 = 账单内 100000(09-10)+ 本周期 80000(09-18)+ 更早 320000。
+    await seedSpend('s1', 'statement-open', DateTime(2026, 9, 10), cents: 100000);
+    await seedSpend('s2', 'statement-open', DateTime(2026, 9, 18), cents: 80000);
+
+    final out = await CreditCardDueSource(database, clock: clock)
+        .unpaidDueCandidates();
+    // 口径修正:金额 = 应还 500000 − 80000 = 420000,而非总欠款 500000。
+    expect(out.single.totalCents, 420000);
+  });
+
+  test('T7 应还 ≤ 0 不产候选:还清上期账单后本周期消费不再催', () async {
+    DateTime clock() => DateTime(2026, 9, 22, 10);
+    // cycle-only:欠款 100000 全部来自本周期消费(09-18)→ 应还 0 → 不催。
+    await seedAccount('cycle-only',
+        category: 2, repaymentDay: 25, billingDay: 15, balance: 100000);
+    await seedSpend('c1', 'cycle-only', DateTime(2026, 9, 18), cents: 100000);
+    // statement-open:对照卡,应还 > 0 → 照常候选。
+    await seedAccount('statement-open',
+        category: 2, repaymentDay: 25, billingDay: 15);
+    await seedSpend('c2', 'statement-open', DateTime(2026, 9, 10), cents: 500000);
+
+    final out = await CreditCardDueSource(database, clock: clock)
+        .unpaidDueCandidates();
+    expect(out.map((e) => e.debtName), ['statement-open']);
+  });
+
+  test('T7 overdue 金额同步 = 应还(账单口径)', () async {
+    // 时钟 2026-09-22,还款日 5(本月已过)→ 本月 overdue 候选;账单日 15。
+    DateTime clock() => DateTime(2026, 9, 22, 10);
+    await seedAccount('passed-card',
+        category: 2, repaymentDay: 5, billingDay: 15);
+    await seedSpend('s1', 'passed-card', DateTime(2026, 9, 10), cents: 100000);
+    await seedSpend('s2', 'passed-card', DateTime(2026, 9, 18), cents: 80000);
+
+    final out = await CreditCardDueSource(database, clock: clock)
+        .unpaidDueCandidates();
+    final overdue = out.where((e) =>
+        e.id == creditCardCycleEntryId('passed-card', DateTime(2026, 9, 1)));
+    expect(overdue, isNotEmpty);
+    // overdue 候选金额与 advance 候选同一口径 = 应还 420000。
+    expect(overdue.single.totalCents, 420000);
   });
 }

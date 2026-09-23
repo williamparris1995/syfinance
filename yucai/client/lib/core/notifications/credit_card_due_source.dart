@@ -5,12 +5,16 @@
 ///   与还款对话框「本期不再提醒」共用 [creditCardCycleEntryId])。
 /// - 本月还款日已过且仍有欠款 → 追加一条本月已过期次(overdue 催办),
 ///   同时下月候选照常返回。
-/// 还清后(余额 ≤ 0)候选消失 = 催办自然终止。
+/// 金额口径(T7 修正):候选/overdue totalCents = **上期账单应还**
+/// ([CreditCardStatementDue] 共享推导;账单日未设降级 = 当前总欠款)。
+/// **应还 ≤ 0 → 不产候选**(还清上期账单后即使本周期有消费也不再催
+/// —— 用户领域规则);还清后(余额 ≤ 0)候选消失 = 催办自然终止。
 library;
 
 import 'package:drift/drift.dart' hide Column;
 
 import 'package:yucai_client/core/localdb/app_database.dart';
+import 'package:yucai_client/core/notifications/credit_card_statement.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/due_target.dart';
@@ -53,11 +57,23 @@ class CreditCardDueSource implements DueScheduleSource {
     final out = <DueScheduleEntry>[];
     for (final a in rows) {
       final day = a.creditRepaymentDay!;
-      final debtCents = a.currentBalanceCents;
+      // T7:金额口径 = 上期账单应还(账单日未设降级 = 当前总欠款),
+      // 与还款对话框同一共享推导 → 同一数字。
+      final dueCents = await CreditCardStatementDue.compute(
+        db: db,
+        accountId: a.id,
+        accountType: a.accountType,
+        currentBalanceCents: a.currentBalanceCents,
+        billingDay: a.creditBillingDay,
+        clock: _now,
+      );
+      // 应还 ≤ 0(上期账单已还清)→ 不催,即使本周期有新消费。
+      if (dueCents <= 0) continue;
       // 本月还款日(按月长 clamp:31→28/30)。
-      final thisMonth = _clampDay(today.year, today.month, day);
+      final thisMonth =
+          CreditCardStatementDue.clampDay(today.year, today.month, day);
       final nextMonth =
-          _clampDay(today.year, today.month + 1, day);
+          CreditCardStatementDue.clampDay(today.year, today.month + 1, day);
 
       if (thisMonth.isBefore(today) || thisMonth.isAtSameMomentAs(today)) {
         // 已过(含当天):overdue 候选(仍欠款);下月到期仅在提前天数
@@ -65,7 +81,7 @@ class CreditCardDueSource implements DueScheduleSource {
         out.add(DueScheduleEntry(
           id: creditCardCycleEntryId(a.id, today),
           debtName: a.name,
-          totalCents: debtCents,
+          totalCents: dueCents,
           paymentDate: thisMonth,
           target: AccountTarget(a.id),
         ));
@@ -73,7 +89,7 @@ class CreditCardDueSource implements DueScheduleSource {
           out.add(DueScheduleEntry(
             id: creditCardCycleEntryId(a.id, nextMonth),
             debtName: a.name,
-            totalCents: debtCents,
+            totalCents: dueCents,
             paymentDate: nextMonth,
             target: AccountTarget(a.id),
           ));
@@ -83,28 +99,12 @@ class CreditCardDueSource implements DueScheduleSource {
         out.add(DueScheduleEntry(
           id: creditCardCycleEntryId(a.id, thisMonth),
           debtName: a.name,
-          totalCents: debtCents,
+          totalCents: dueCents,
           paymentDate: thisMonth,
           target: AccountTarget(a.id),
         ));
       }
     }
     return out;
-  }
-
-  /// 月长 clamp(2 月 31 → 28/29;小月 31 → 30)。
-  static DateTime _clampDay(int year, int month, int day) {
-    var y = year, m = month;
-    if (m > 12) {
-      y += m ~/ 12;
-      m = m % 12;
-      if (m == 0) {
-        m = 12;
-        y -= 1;
-      }
-    }
-    // DateTime 构造自动 clamp 溢出天(2026-02-31 → 2026-03-03),须先求月长。
-    final length = DateTime(y, m + 1, 0).day;
-    return DateTime(y, m, day > length ? length : day);
   }
 }

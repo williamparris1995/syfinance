@@ -2,12 +2,17 @@
 /// 「本期不再提醒」。回调风格(照 DebtRecordDialog 范式),仓储接线集中在
 /// [showCreditCardRepayDialog] 组合根,便于 widget 测试。
 ///
-/// 方式:
-/// - 全额还款:金额固定 = 当前欠款,储蓄卡 SimpleTransfer(借:信用卡/贷:储蓄卡)。
-/// - 最低还款:预填 ⌈10% × 欠款⌉ 可改(0 < 金额 ≤ 欠款),提交后自动挂失本期提醒。
-/// - 分期还款:金额 + 期数 + 年利率(必填)→ 复用债务模块建分期债
-///   (subtype=credit_card 挂本卡,restructureOnly 跳过开账双写防欠款翻倍);
-///   每期到期提醒/还款走债务期次既有链路。提交后自动挂失本期提醒。
+/// 方式(T7 起全额/最低/分期的基数 = **上期账单应还** [statementDueCents],
+/// 由组合根经共享推导 CreditCardStatementDue 算好注入,与还款日提醒源
+/// 同一数字;账单日未设降级 = 当前欠款,文案「全额」维持):
+/// - 全额还款:金额固定 = 应还(账单日已设时文案「全额(上期账单)」),
+///   储蓄卡 SimpleTransfer(借:信用卡/贷:储蓄卡)。
+/// - 最低还款:预填 ⌈10% × 应还⌉ 可改(0 < 金额 ≤ 当前欠款),提交后
+///   自动挂失本期提醒。
+/// - 分期还款:金额(预填 = 应还)+ 期数 + 年利率(必填)→ 复用债务模块
+///   建分期债(subtype=credit_card 挂本卡,restructureOnly 跳过开账双写
+///   防欠款翻倍);每期到期提醒/还款走债务期次既有链路。提交后自动挂失
+///   本期提醒。
 library;
 
 import 'package:flutter/material.dart';
@@ -18,6 +23,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/localdb/app_database.dart'
     show AppDatabase;
+import 'package:yucai_client/core/notifications/credit_card_statement.dart';
 import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
@@ -34,6 +40,8 @@ class CreditCardRepayDialog extends StatefulWidget {
   const CreditCardRepayDialog({
     super.key,
     required this.card,
+    required this.statementDueCents,
+    required this.hasBillingDay,
     required this.savingsAccounts,
     required this.hasActiveInstallment,
     required this.onRepay,
@@ -42,6 +50,13 @@ class CreditCardRepayDialog extends StatefulWidget {
   });
 
   final Account card;
+
+  /// 上期账单应还(分,T7 口径):全额/最低/分期的基数。
+  /// 账单日未设时降级 = 当前欠款(组合根保证)。
+  final int statementDueCents;
+
+  /// 账单日是否已设:已设 → 全额文案「全额(上期账单)」;未设 → 「全额」。
+  final bool hasBillingDay;
 
   /// 储蓄卡候选(调用方已过滤 savings + active + 同币种)。
   final List<Account> savingsAccounts;
@@ -72,14 +87,19 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
   bool _submitting = false;
 
   /// 负债 credit-正:欠款 = currentBalanceCents(>0)。
+  /// 校验上限/概览展示用;T7 起还款基数另见 [_baseCents]。
   int get _debtCents => widget.card.currentBalanceCents;
+
+  /// 还款基数(T7 口径)= 上期账单应还;账单日未设时组合根已降级为
+  /// 当前欠款,故此值即对话框对外的「全额」数字,与提醒源同源。
+  int get _baseCents => widget.statementDueCents;
 
   @override
   void initState() {
     super.initState();
-    // 金额预填:全额欠款(最低/分期切换时再按需重填)。
+    // 金额预填:全额基数(最低/分期切换时再按需重填)。
     _amountCtrl = TextEditingController(
-        text: (_debtCents / 100).toStringAsFixed(2));
+        text: (_baseCents / 100).toStringAsFixed(2));
     _periodsCtrl = TextEditingController(text: '12');
     _rateCtrl = TextEditingController();
     _selectedSavingsId = widget.savingsAccounts.isNotEmpty
@@ -159,6 +179,8 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
     if (_submitting) return false;
     switch (_mode) {
       case _RepayMode.full:
+        // 应还为 0(上期账单已还清)→ 全额无可还,禁止提交 0 元转账。
+        return _baseCents > 0 && _selectedSavings != null && !_insufficient;
       case _RepayMode.minimum:
         return _selectedSavings != null && !_insufficient;
       case _RepayMode.installment:
@@ -235,7 +257,9 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
   @override
   Widget build(BuildContext context) {
     final symbol = currencySymbol(widget.card.currencyCode);
+    // 概览示当前总欠款;还款基数(全额只读金额)= 上期账单应还,两数分开。
     final debtYuan = (_debtCents / 100).toStringAsFixed(2);
+    final baseYuan = (_baseCents / 100).toStringAsFixed(2);
     return AlertDialog(
       title: const Text('信用卡还款'),
       content: SizedBox(
@@ -269,26 +293,27 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
               ),
             ),
             const SizedBox(height: 14),
-            // 还款方式三选一。
+            // 还款方式三选一(账单日已设 → 全额示「全额(上期账单)」)。
             SegmentedButton<_RepayMode>(
               segments: [
-                const ButtonSegment(
-                    value: _RepayMode.full, label: Text('全额')),
+                ButtonSegment(
+                    value: _RepayMode.full,
+                    label: Text(widget.hasBillingDay ? '全额(上期账单)' : '全额')),
                 const ButtonSegment(
                     value: _RepayMode.minimum, label: Text('最低')),
                 ButtonSegment(
-                    value: _RepayMode.installment,
-                    enabled: !widget.hasActiveInstallment,
-                    label: const Text('分期')),
+                  value: _RepayMode.installment,
+                  enabled: !widget.hasActiveInstallment,
+                  label: const Text('分期')),
               ],
               selected: {_mode},
               onSelectionChanged: (s) {
                 setState(() {
                   _mode = s.first;
-                  // 各方式金额预填:全额/分期=全额欠款,最低=10%。
+                  // 各方式金额预填:全额/分期=应还基数,最低=10% × 应还。
                   _amountCtrl.text = _mode == _RepayMode.minimum
-                      ? ((_debtCents * 0.10).ceil() / 100).toStringAsFixed(2)
-                      : (_debtCents / 100).toStringAsFixed(2);
+                      ? ((_baseCents * 0.10).ceil() / 100).toStringAsFixed(2)
+                      : (_baseCents / 100).toStringAsFixed(2);
                 });
               },
             ),
@@ -298,9 +323,9 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
                   style: TextStyle(fontSize: 11, color: context.yucai.negative)),
             ],
             const SizedBox(height: 12),
-            // 金额(全额只读;最低/分期可改)。
+            // 金额(全额只读 = 应还基数;最低/分期可改)。
             _mode == _RepayMode.full
-                ? _readonlyAmount(symbol, debtYuan)
+                ? _readonlyAmount(symbol, baseYuan)
                 : AmountInput(
                     key: const ValueKey('repayAmountField'),
                     controller: _amountCtrl,
@@ -437,7 +462,7 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
     );
   }
 
-  Widget _readonlyAmount(String symbol, String debtYuan) => Container(
+  Widget _readonlyAmount(String symbol, String baseYuan) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           border: Border.all(color: context.yucai.border),
@@ -448,7 +473,7 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
             Text('还款金额',
                 style: TextStyle(fontSize: 12, color: context.yucai.muted)),
             const Spacer(),
-            Text('$symbol$debtYuan',
+            Text('$symbol$baseYuan',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -467,7 +492,8 @@ class _CreditCardRepayDialogState extends State<CreditCardRepayDialog> {
   }
 }
 
-/// 组合根:过滤储蓄卡候选、检查挂账分期、接线仓储与挂失存储。
+/// 组合根:过滤储蓄卡候选、检查挂账分期、算上期账单应还(T7 共享推导,
+/// 与还款日提醒源同一数字)、接线仓储与挂失存储。
 /// [allAccounts] 由调用方(账户页/详情页)从既有账户列表传入。
 Future<void> showCreditCardRepayDialog(
   BuildContext context,
@@ -490,8 +516,20 @@ Future<void> showCreditCardRepayDialog(
         d.accountId == card.id && d.remainingPrincipalCents > 0);
   });
 
+  // T7:还款基数 = 上期账单应还(core 共享推导;account→core import 合法)。
+  // 账单日未设 → 推导内降级 = 当前欠款,对话框文案「全额」维持。
+  final statementDueCents = await CreditCardStatementDue.compute(
+    db: GetIt.instance<AppDatabase>(),
+    accountId: card.id,
+    accountType: card.accountType.index + 1, // 域枚举序 +1 = 契约 int
+    currentBalanceCents: card.currentBalanceCents,
+    billingDay: card.creditBillingDay,
+  );
+
   final dialog = CreditCardRepayDialog(
     card: card,
+    statementDueCents: statementDueCents,
+    hasBillingDay: card.creditBillingDay != null,
     savingsAccounts: savings,
     hasActiveInstallment: hasInstallment,
     onRepay: (amountCents, fromAccountId) async {

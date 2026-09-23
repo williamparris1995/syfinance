@@ -1,12 +1,20 @@
 // CreditCardRepayDialog widget 测试:三方式交互 + 储蓄卡余额不足拦截 +
 // 最低/分期后自动挂失本期催办。对话框纯回调,无需 DI。
+// T7 起全额/最低/分期基数 = 上期账单应还(statementDueCents,经共享推导
+// 由组合根算好注入;账单日未设降级 = 当前欠款,文案「全额」维持)。
+import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/widgets/credit_card_repay_dialog.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' as db;
+import 'package:yucai_client/core/notifications/credit_card_due_source.dart';
+import 'package:yucai_client/core/notifications/credit_card_statement.dart';
 import 'package:yucai_client/core/theme/app_theme.dart';
+import 'package:yucai_client/core/widgets/amount_input.dart';
 
 Account _card({int debtCents = 500000}) => Account(
       id: 'card1',
@@ -60,7 +68,7 @@ Future<void> _submit(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('全额:余额不足禁用提交并提示,足额后提交回调正确金额与账户',
+  testWidgets('全额(降级:未设账单日):余额不足禁用提交并提示,足额后提交回调正确金额与账户',
       (tester) async {
     final repayments = <(int, String)>[];
     var dismissed = 0;
@@ -68,6 +76,8 @@ void main() {
         tester,
         CreditCardRepayDialog(
           card: _card(debtCents: 500000),
+          statementDueCents: 500000, // 账单日未设 → 降级 = 当前欠款
+          hasBillingDay: false,
           savingsAccounts: [
             _savings('poor', '穷储蓄', 10000), // ¥100 < ¥5000
             _savings('rich', '富储蓄', 900000),
@@ -80,6 +90,9 @@ void main() {
           onInstallment: (p, n, r) async => true,
           onDismissCycle: () async => dismissed++,
         ));
+
+    // 降级文案:「全额」(不带上期账单后缀)。
+    expect(find.text('全额'), findsOneWidget);
 
     // 预选第一个储蓄卡(穷储蓄 ¥100)→ 余额不足。
     expect(find.byKey(const ValueKey('repayInsufficientHint')), findsOneWidget);
@@ -100,13 +113,108 @@ void main() {
     expect(find.text('信用卡还款'), findsNothing); // 对话框已关闭
   });
 
-  testWidgets('最低:预填 10%,提交后还款并挂失本期', (tester) async {
+  testWidgets('T7 全额(账单日已设):基数 = 上期账单应还,标签「全额(上期账单)」,概览仍示当前欠款',
+      (tester) async {
+    final repayments = <(int, String)>[];
+    await _pump(
+        tester,
+        CreditCardRepayDialog(
+          card: _card(debtCents: 500000),
+          statementDueCents: 420000, // 应还 4200.00 ≠ 当前欠款 5000.00
+          hasBillingDay: true,
+          savingsAccounts: [_savings('rich', '富储蓄', 900000)],
+          hasActiveInstallment: false,
+          onRepay: (cents, from) async {
+            repayments.add((cents, from));
+            return true;
+          },
+          onInstallment: (p, n, r) async => true,
+          onDismissCycle: () async {},
+        ));
+
+    expect(find.text('全额(上期账单)'), findsOneWidget);
+    // 只读金额 = 应还 4200.00;卡片概览「当前欠款 ¥5000.00」照旧(两数分开)。
+    expect(find.text('¥4200.00'), findsOneWidget);
+    expect(find.textContaining('当前欠款 ¥5000.00'), findsOneWidget);
+
+    await _submit(tester);
+    expect(repayments, [(420000, 'rich')]); // 全额 = 上期账单应还
+  });
+
+  testWidgets('T7 最低:预填 ⌈10% × 应还⌉(基数 = 上期账单应还)', (tester) async {
     final repayments = <(int, String)>[];
     var dismissed = 0;
     await _pump(
         tester,
         CreditCardRepayDialog(
           card: _card(debtCents: 500000),
+          statementDueCents: 420000,
+          hasBillingDay: true,
+          savingsAccounts: [_savings('rich', '富储蓄', 900000)],
+          hasActiveInstallment: false,
+          onRepay: (cents, from) async {
+            repayments.add((cents, from));
+            return true;
+          },
+          onInstallment: (p, n, r) async => true,
+          onDismissCycle: () async => dismissed++,
+        ));
+
+    await tester.tap(find.text('最低'));
+    await tester.pumpAndSettle();
+    // 预填 ⌈10% × 4200.00⌉ = 420.00(基数是应还,不是当前欠款 5000)。
+    expect(find.text('420.00'), findsOneWidget);
+
+    await _submit(tester);
+    expect(repayments, [(42000, 'rich')]);
+    expect(dismissed, 1); // 最低还款后自动不再催办本期
+  });
+
+  testWidgets('T7 分期:金额预填 = 上期账单应还', (tester) async {
+    final installments = <(int, int, double)>[];
+    await _pump(
+        tester,
+        CreditCardRepayDialog(
+          card: _card(debtCents: 500000),
+          statementDueCents: 420000,
+          hasBillingDay: true,
+          savingsAccounts: [_savings('rich', '富储蓄', 900000)],
+          hasActiveInstallment: false,
+          onRepay: (c, f) async => true,
+          onInstallment: (p, n, r) async {
+            installments.add((p, n, r));
+            return true;
+          },
+          onDismissCycle: () async {},
+        ));
+
+    await tester.tap(find.text('分期'));
+    await tester.pumpAndSettle();
+    // 分期金额预填 = 应还 4200.00。
+    expect(
+        tester
+            .widget<AmountInput>(
+                find.byKey(const ValueKey('repayAmountField')))
+            .controller
+            .text,
+        '4200.00');
+
+    await tester.enterText(
+        find.byKey(const ValueKey('repayRateField')), '3.6');
+    await tester.pumpAndSettle();
+    await _submit(tester);
+    expect(installments, [(420000, 12, 3.6)]);
+  });
+
+  testWidgets('最低(降级):预填 10% × 当前欠款,提交后还款并挂失本期', (tester) async {
+    final repayments = <(int, String)>[];
+    var dismissed = 0;
+    await _pump(
+        tester,
+        CreditCardRepayDialog(
+          card: _card(debtCents: 500000),
+          statementDueCents: 500000, // 降级 = 当前欠款
+          hasBillingDay: false,
           savingsAccounts: [_savings('rich', '富储蓄', 900000)],
           hasActiveInstallment: false,
           onRepay: (cents, from) async {
@@ -128,12 +236,14 @@ void main() {
     expect(find.text('信用卡还款'), findsNothing);
   });
 
-  testWidgets('分期:利率必填,提交建分期债并挂失;已挂账时分段禁用', (tester) async {
+  testWidgets('分期(降级):利率必填,提交建分期债并挂失;已挂账时分段禁用', (tester) async {
     final installments = <(int, int, double)>[];
     var dismissed = 0;
 
     Widget dialog({required bool hasInstallment}) => CreditCardRepayDialog(
           card: _card(debtCents: 500000),
+          statementDueCents: 500000, // 降级 = 当前欠款
+          hasBillingDay: false,
           savingsAccounts: [_savings('rich', '富储蓄', 900000)],
           hasActiveInstallment: hasInstallment,
           onRepay: (c, f) async => true,
@@ -182,6 +292,8 @@ void main() {
         tester,
         CreditCardRepayDialog(
           card: _card(),
+          statementDueCents: 500000,
+          hasBillingDay: false,
           savingsAccounts: [_savings('rich', '富储蓄', 900000)],
           hasActiveInstallment: false,
           onRepay: (c, f) async {
@@ -199,5 +311,103 @@ void main() {
     expect(dismissed, 1);
     expect(repaid, 0);
     expect(find.text('信用卡还款'), findsNothing);
+  });
+
+  testWidgets('T7 与提醒源同一数字:同 fixture 下对话框全额 = 源候选金额(共享推导)',
+      (tester) async {
+    // 同一内存库 fixture:时钟 2026-09-22,账单日 15 → D = 09-15;
+    // 欠款 500000 = 账单内 100000(09-10)+ 本周期 80000(09-18)+ 更早 320000。
+    final database = db.AppDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+    await database.into(database.accounts).insert(
+          db.AccountsCompanion.insert(
+            id: 'card1',
+            name: '招行信用卡',
+            accountType: 2,
+            category: 2,
+            currencyCode: 'CNY',
+            initialBalanceCents: 0,
+            currentBalanceCents: 500000,
+            ownership: 1,
+            icon: '',
+            color: '',
+            chartCode: '',
+            isSystem: false,
+            sortOrder: 0,
+            institution: '',
+            cardNumberTail: '',
+            notes: '',
+            goldProductType: '',
+            status: 1,
+            version: 1,
+            createdAt: DateTime.now().toUtc(),
+            updatedAt: DateTime.now().toUtc(),
+            creditRepaymentDay: const Value(25),
+            creditBillingDay: const Value(15),
+          ),
+        );
+    for (final (id, day, cents) in [
+      ('s1', 10, 100000),
+      ('s2', 18, 80000),
+    ]) {
+      final date = DateTime(2026, 9, day);
+      await database.into(database.transactions).insert(
+            db.TransactionsCompanion.insert(
+              id: id,
+              transactionDate: date,
+              description: 'fixture',
+              version: 1,
+              createdAt: DateTime.now().toUtc(),
+              updatedAt: DateTime.now().toUtc(),
+            ),
+          );
+      await database.into(database.transactionEntries).insert(
+            db.TransactionEntriesCompanion.insert(
+              id: 'e-$id',
+              transactionId: id,
+              accountId: 'card1',
+              chartOfAccountCode: '',
+              debitCents: 0,
+              creditCents: cents,
+              note: '',
+            ),
+          );
+    }
+    DateTime clock() => DateTime(2026, 9, 22, 10);
+
+    // 源候选金额 与 共享推导 同数(对话框经组合根也取自该推导)。
+    final sourceTotal = (await CreditCardDueSource(database, clock: clock)
+            .unpaidDueCandidates())
+        .single
+        .totalCents;
+    final computed = await CreditCardStatementDue.compute(
+      db: database,
+      accountId: 'card1',
+      accountType: 2,
+      currentBalanceCents: 500000,
+      billingDay: 15,
+      clock: clock,
+    );
+    expect(sourceTotal, 420000);
+    expect(computed, sourceTotal); // 同 fixture 断言相等
+
+    final repayments = <(int, String)>[];
+    await _pump(
+        tester,
+        CreditCardRepayDialog(
+          card: _card(debtCents: 500000),
+          statementDueCents: computed,
+          hasBillingDay: true,
+          savingsAccounts: [_savings('rich', '富储蓄', 900000)],
+          hasActiveInstallment: false,
+          onRepay: (cents, from) async {
+            repayments.add((cents, from));
+            return true;
+          },
+          onInstallment: (p, n, r) async => true,
+          onDismissCycle: () async {},
+        ));
+    await _submit(tester);
+    expect(repayments, [(sourceTotal, 'rich')]); // 对话框全额 = 源候选金额
   });
 }
