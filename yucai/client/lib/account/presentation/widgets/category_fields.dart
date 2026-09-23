@@ -169,7 +169,13 @@ String rateLabel(AccountCategory c) {
 
 DropdownButtonFormField<int> _dayPicker(
     TextEditingController ctrl, String label) {
+  // T8 预填修复:编辑态 controller 已由 account_form_page initState 写入
+  // (数据不丢,提交一直读 controller),但下拉从未回读 → 显示空。此处经
+  // initialValue 回读;空串/不可解析 → null(显示 label)。越界值(不在
+  // 1-31 items,脏数据兜底)也钳 null,防 DropdownButton 选中项断言。
+  final v = int.tryParse(ctrl.text);
   return DropdownButtonFormField<int>(
+    initialValue: v != null && v >= 1 && v <= 31 ? v : null,
     decoration: InputDecoration(labelText: label),
     items: [
       for (var d = 1; d <= 31; d++) DropdownMenuItem(value: d, child: Text('$d日'))

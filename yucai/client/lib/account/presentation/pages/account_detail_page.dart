@@ -14,9 +14,12 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/credit_card_repay_dialog.dart';
+import 'package:yucai_client/account/presentation/widgets/credit_card_statement_panel.dart';
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' show AppDatabase;
+import 'package:yucai_client/core/notifications/credit_card_statement.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/repayment_plan_panel.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
@@ -105,6 +108,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// F35:贷款账户「还款计划」面板数据(每笔债一节:债务 + 未来未还期次
   /// 前 3 条)。空 = 名下无借入债务,面板不渲染(FR-2 隐藏优于空占位)。
   List<({Debt debt, List<PaymentEntry> upcoming})> _debtPlans = const [];
+
+  /// T8:信用卡「账单周期」面板数据(共享推导 breakdown)。null = 未算/
+  /// 账单日未设(面板自行降级提示)。随 AccountDetailLoaded 每次到达重算
+  /// (首进/didPopNext/跨分支刷新/记一笔·还款回拉都重发 GetAccountRequested)。
+  CreditCardStatementBreakdown? _statementBreakdown;
 
   /// 当前 scope 的中文前缀（Task 11）。用于 summary-based 的 label：
   /// 储蓄/其他类 4 卡（收入/支出/净流入/交易）+ hero-bal-sub「{scope}收支」+
@@ -223,6 +231,31 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     );
   }
 
+  /// T8:「账单周期」面板取数 —— 共享推导 breakdown(与催办 toast/聚合条/
+  /// 还款对话框同一数字;account→core import 合法,同还款对话框组合根)。
+  /// 账单日未设不查(面板降级提示);失败/未注册(测试 harness 无 db)静默
+  /// 保持 null(四行不渲染)。候选交易变化不监听 —— 详情页进出/余额变更
+  /// 均重发 GetAccountRequested → 本方法经 BlocListener 重算。
+  Future<void> _loadStatementBreakdown(Account a) async {
+    final billingDay = a.creditBillingDay;
+    if (billingDay == null) {
+      if (_statementBreakdown != null) {
+        setState(() => _statementBreakdown = null);
+      }
+      return;
+    }
+    try {
+      final b = await CreditCardStatementDue.breakdown(
+        db: getIt<AppDatabase>(),
+        accountId: a.id,
+        accountType: a.accountType.index + 1, // 域枚举序 +1 = 契约 int
+        currentBalanceCents: a.currentBalanceCents,
+        billingDay: billingDay,
+      );
+      if (mounted) setState(() => _statementBreakdown = b);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return _scaffold();
@@ -329,39 +362,51 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         ],
       ),
       body: BlocListener<AccountBloc, AccountState>(
-        // 仅在关闭写操作进行中时，对终态（成功 AccountsLoaded / 失败 AccountError）反应。
-        listenWhen: (p, c) =>
-            _closePending && (c is AccountsLoaded || c is AccountError),
+        // T8:账单周期面板取数 —— AccountDetailLoaded 每次到达即重算(首进/
+        // didPopNext/跨分支 DataRefresh/记一笔·还款回拉都重发 GetAccountRequested,
+        // 余额与分录变化经此单一入口刷新,无需另监听交易候选)。
+        listenWhen: (p, c) => c is AccountDetailLoaded,
         listener: (context, state) {
-          if (state is AccountsLoaded) {
-            final msg = _pendingSuccessMsg ?? '操作完成';
-            setState(() {
-              _closePending = false;
-              _pendingSuccessMsg = null;
-            });
-            AppToast.show(context, msg, type: ToastType.success);
-            context.pop(); // 回列表
-          } else if (state is AccountError) {
-            setState(() {
-              _closePending = false;
-              _pendingSuccessMsg = null;
-            });
-            AppToast.show(context, state.message, type: ToastType.error);
+          final a = (state as AccountDetailLoaded).account;
+          if (a.category == AccountCategory.creditCard) {
+            _loadStatementBreakdown(a);
           }
         },
-        child: BlocBuilder<AccountBloc, AccountState>(
-          builder: (context, state) {
-            if (state is AccountLoading) {
-              return const Center(child: CircularProgressIndicator());
+        child: BlocListener<AccountBloc, AccountState>(
+          // 仅在关闭写操作进行中时，对终态（成功 AccountsLoaded / 失败 AccountError）反应。
+          listenWhen: (p, c) =>
+              _closePending && (c is AccountsLoaded || c is AccountError),
+          listener: (context, state) {
+            if (state is AccountsLoaded) {
+              final msg = _pendingSuccessMsg ?? '操作完成';
+              setState(() {
+                _closePending = false;
+                _pendingSuccessMsg = null;
+              });
+              AppToast.show(context, msg, type: ToastType.success);
+              context.pop(); // 回列表
+            } else if (state is AccountError) {
+              setState(() {
+                _closePending = false;
+                _pendingSuccessMsg = null;
+              });
+              AppToast.show(context, state.message, type: ToastType.error);
             }
-            if (state is AccountError) {
-              return Center(child: Text(state.message));
-            }
-            if (state is AccountDetailLoaded) {
-              return _body(state.account);
-            }
-            return const SizedBox.shrink();
           },
+          child: BlocBuilder<AccountBloc, AccountState>(
+            builder: (context, state) {
+              if (state is AccountLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state is AccountError) {
+                return Center(child: Text(state.message));
+              }
+              if (state is AccountDetailLoaded) {
+                return _body(state.account);
+              }
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );
@@ -390,6 +435,18 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         _hero(a, summary?.netCents ?? 0),
         const SizedBox(height: 18),
         _statsRow(a, txns, summary),
+        // T8:信用卡「账单周期」面板 —— 欠款 hero 与额度 stats 之下、近期
+        // 交易之上(信用卡区就近欠款/额度概览;账单日未设面板内部降级提示)。
+        if (a.category == AccountCategory.creditCard) ...[
+          const SizedBox(height: 18),
+          CreditCardStatementPanel(
+            key: const ValueKey('statementCyclePanel'),
+            billingDay: a.creditBillingDay,
+            repaymentDay: a.creditRepaymentDay,
+            currencyCode: a.currencyCode,
+            breakdown: _statementBreakdown,
+          ),
+        ],
         const SizedBox(height: 18),
         // OD .cols：>900 双栏（交易 1.5fr + 饼图 1fr）/ ≤900 堆叠单列。
         if (isTablet)

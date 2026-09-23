@@ -14,6 +14,7 @@
 // Both blocs are wired via BlocProvider with a fake repo; no DI / no gRPC.
 // Mirrors transactions_page_test.dart harness shape.
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,6 +33,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/theme/app_theme.dart';
 import 'package:yucai_client/core/widgets/pager_bar.dart';
@@ -1912,5 +1914,148 @@ void main() {
       expect(find.text('40.0%'), findsOneWidget);
       expect(find.textContaining('原始本金'), findsWidgets);
     });
+  });
+
+  // ───── T8: 信用卡「账单周期」面板(账单周期四行 + 降级态)─────
+  //
+  // FR:信用卡详情在额度 stats 条之下渲染「账单周期」面板:四行(上期账单/
+  // 上期已还/上期剩余(强调)/本期账单未出账)+ 副标注(账单日·还款日)。
+  // 数据 = 共享推导 CreditCardStatementDue.breakdown(与催办/还款对话框同
+  // 一口径),页面经 GetIt<AppDatabase> 计算;账单日未设 → 降级一行 muted
+  // 提示;非信用卡不渲染。
+
+  /// 内存 drift db 里种一笔分录(join Transactions 取日期)。
+  Future<void> seedStatementEntry(
+    db.AppDatabase database,
+    String id,
+    DateTime date, {
+    int debit = 0,
+    int credit = 0,
+  }) async {
+    await database.into(database.transactions).insert(
+          db.TransactionsCompanion.insert(
+            id: 't-$id',
+            transactionDate: date,
+            description: 'fixture',
+            version: 1,
+            createdAt: DateTime.now().toUtc(),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
+    await database.into(database.transactionEntries).insert(
+          db.TransactionEntriesCompanion.insert(
+            id: 'e-$id',
+            transactionId: 't-$id',
+            accountId: 'a1',
+            chartOfAccountCode: '',
+            debitCents: debit,
+            creditCents: credit,
+            note: '',
+          ),
+        );
+  }
+
+  testWidgets(
+      'T8: 信用卡详情渲染「账单周期」面板四行(真实 drift 推导,与催办同口径)',
+      (tester) async {
+    // 内存 db + GetIt 注册(页面经 getIt<AppDatabase> 取数)。
+    final database = db.AppDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+    GetIt.instance.registerSingleton<db.AppDatabase>(database);
+
+    // 账单日动态选(两种取法都保证 D ≤ 今天 − 5 天):
+    // day ≥ 8 → bd = day-7(D = 本月 day-7);day < 8 → bd = 20(本月 20 未
+    // 过 → D = 上月 20,距今 ≥ 8 天)。还款 D+3、消费 D+5 必落在 (D, 今天]。
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final bd = today.day >= 8 ? today.day - 7 : 20;
+    final d = DateTime(today.year, today.month, bd).isAfter(today)
+        ? DateTime(today.year, today.month - 1, bd)
+        : DateTime(today.year, today.month, bd);
+
+    // current = 3000 − 1000(还) + 500(刷)= 2500(250000 分)。
+    await seedStatementEntry(database, 'repay', d.add(const Duration(days: 3)),
+        debit: 100000);
+    await seedStatementEntry(database, 'spend', d.add(const Duration(days: 5)),
+        credit: 50000);
+
+    await pumpPage(
+      tester,
+      account: _account(
+        name: '招行信用卡',
+        category: AccountCategory.creditCard,
+        accountType: AccountType.liability,
+        currentBalanceCents: 250000,
+      ).copyWith(
+        creditLimitCents: 500000,
+        creditBillingDay: bd,
+        creditRepaymentDay: 5,
+      ),
+    );
+
+    // 面板在 stats 条之下,滚入视口。
+    await tester.scrollUntilVisible(
+      find.text('账单周期'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // 标题 + 副标注(取卡字段)。
+    expect(find.text('账单周期'), findsOneWidget);
+    expect(find.text('账单日 $bd日 · 还款日 5日'), findsOneWidget);
+    // 四行:上期账单 3000 / 上期已还 1000 / 上期剩余 2000 / 本期 500。
+    expect(find.text('上期账单'), findsOneWidget);
+    expect(find.text('¥3,000.00'), findsOneWidget);
+    expect(find.text('上期已还'), findsOneWidget);
+    expect(find.text('¥1,000.00'), findsOneWidget);
+    expect(find.text('上期剩余'), findsOneWidget);
+    expect(find.text('¥2,000.00'), findsOneWidget);
+    expect(find.text('本期账单(未出账)'), findsOneWidget);
+    expect(find.text('¥500.00'), findsOneWidget);
+    // 强调断言:上期剩余 = 还款日应还 → accent + w600(裸 MaterialApp 回落
+    // 亮色令牌 = AppColors)。
+    final remaining = tester.widget<Text>(find.text('¥2,000.00'));
+    expect(remaining.style?.color, AppColors.accent);
+    expect(remaining.style?.fontWeight, FontWeight.w600);
+  });
+
+  testWidgets('T8: 账单日未设 → 降级一行 muted 提示,不渲染四行', (tester) async {
+    await pumpPage(
+      tester,
+      account: _account(
+        name: '无账单日卡',
+        category: AccountCategory.creditCard,
+        accountType: AccountType.liability,
+        currentBalanceCents: 320000,
+      ).copyWith(creditLimitCents: 500000),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('账单周期'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text('设置账单日后可查看账单周期明细'), findsOneWidget);
+    expect(find.text('上期账单'), findsNothing);
+    expect(find.text('上期剩余'), findsNothing);
+    expect(find.text('本期账单(未出账)'), findsNothing);
+    // 副标注不渲染(账单日未设无周期可言)。
+    expect(find.textContaining('账单日 '), findsNothing);
+  });
+
+  testWidgets('T8: 储蓄(非信用卡)账户不渲染「账单周期」面板', (tester) async {
+    await pumpPage(tester);
+
+    // 滚到底部让 ListView 全量构建后再断言缺席。
+    await tester.scrollUntilVisible(
+      find.textContaining('账户信息'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.drag(find.byType(ListView).first, const Offset(0, -1200));
+    await tester.pumpAndSettle();
+
+    expect(find.text('账单周期'), findsNothing);
   });
 }
