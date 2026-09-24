@@ -310,6 +310,37 @@ func (s *Service) RecordTransaction(ctx context.Context, tenantID, templateID uu
 	})
 }
 
+// MarkTemplateRecorded links an ALREADY-RECORDED (form-created) transaction to
+// a template and advances NextDate past recordedDate — the "link a manual
+// payment to a subscription" path (v6). The form's own transaction is the
+// source of truth (amount/payment account semantics preserved, coupons
+// included); the template only advances its schedule, so unlike
+// RecordTransaction no transaction is instantiated here. Anchored via
+// FirstOnSeriesAfter (F38) so interval>1 rules don't drift when the manual
+// payment date is off-series or backfilled.
+func (s *Service) MarkTemplateRecorded(ctx context.Context, tenantID, templateID, transactionID uuid.UUID, recordedDate time.Time) (*TemplateDTO, error) {
+	tmpl, err := s.repo.FindByID(ctx, tenantID, templateID)
+	if err != nil {
+		return nil, fmt.Errorf("template not found: %w", err)
+	}
+	if tmpl.Paused {
+		return nil, domain.ErrTemplatePaused
+	}
+
+	txnID := transactionID
+	tmpl.LastTransactionID = &txnID
+	day := recordedDate.UTC().Truncate(24 * time.Hour)
+	tmpl.NextDate = recurrence.FirstOnSeriesAfter(tmpl.StartDate, tmpl.Rule(), day.AddDate(0, 0, 1))
+	tmpl.IncrementVersion()
+	tmpl.UpdatedAt = time.Now()
+
+	if err := s.repo.Update(ctx, tmpl); err != nil {
+		return nil, fmt.Errorf("update template after mark: %w", err)
+	}
+	dto := TemplateToDTO(tmpl)
+	return &dto, nil
+}
+
 // autoRecord is the transactional-body implementation of RecordTransaction.
 // It must be called inside runInTx (directly or via the RecordTransaction
 // wrapper) so the idempotency-key insert (Task 8), recorder.Record (which

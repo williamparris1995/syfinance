@@ -97,6 +97,16 @@ class TransactionTemplateServiceClient extends $grpc.Client {
     return $createUnaryCall(_$recordTransaction, request, options: options);
   }
 
+  /// v6 手工扣费关联订阅:交易已由表单正常入账(金额/账户语义保留,含优惠券
+  /// 实付),本 RPC 只把交易挂到模板(last_transaction_id)并按 recorded_date
+  /// 锚定推进 next_date。空 recorded_date = 今天。
+  $grpc.ResponseFuture<$0.TemplateResponse> markTemplateRecorded(
+    $0.MarkTemplateRecordedRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$markTemplateRecorded, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createTransactionTemplate = $grpc.ClientMethod<
@@ -139,6 +149,11 @@ class TransactionTemplateServiceClient extends $grpc.Client {
       '/yucai.template.v1.TransactionTemplateService/RecordTransaction',
       ($0.RecordTemplateRequest value) => value.writeToBuffer(),
       $0.RecordTransactionResponse.fromBuffer);
+  static final _$markTemplateRecorded =
+      $grpc.ClientMethod<$0.MarkTemplateRecordedRequest, $0.TemplateResponse>(
+          '/yucai.template.v1.TransactionTemplateService/MarkTemplateRecorded',
+          ($0.MarkTemplateRecordedRequest value) => value.writeToBuffer(),
+          $0.TemplateResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.template.v1.TransactionTemplateService')
@@ -216,6 +231,15 @@ abstract class TransactionTemplateServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.RecordTemplateRequest.fromBuffer(value),
         ($0.RecordTransactionResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.MarkTemplateRecordedRequest,
+            $0.TemplateResponse>(
+        'MarkTemplateRecorded',
+        markTemplateRecorded_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.MarkTemplateRecordedRequest.fromBuffer(value),
+        ($0.TemplateResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.TemplateResponse> createTransactionTemplate_Pre(
@@ -288,4 +312,13 @@ abstract class TransactionTemplateServiceBase extends $grpc.Service {
 
   $async.Future<$0.RecordTransactionResponse> recordTransaction(
       $grpc.ServiceCall call, $0.RecordTemplateRequest request);
+
+  $async.Future<$0.TemplateResponse> markTemplateRecorded_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.MarkTemplateRecordedRequest> $request) async {
+    return markTemplateRecorded($call, await $request);
+  }
+
+  $async.Future<$0.TemplateResponse> markTemplateRecorded(
+      $grpc.ServiceCall call, $0.MarkTemplateRecordedRequest request);
 }

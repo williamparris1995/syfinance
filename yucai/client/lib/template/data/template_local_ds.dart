@@ -291,6 +291,42 @@ class TemplateLocalDataSource {
     );
   }
 
+  /// v6 手工扣费关联订阅:交易已入账(金额/账户语义在表单侧),这里只把
+  /// last_transaction_id 挂上并按 recordedDate 锚定推进 next_date(与服务端
+  /// FirstOnSeriesAfter 同口径,防 interval>1 规则漂移)。
+  Future<Template> markRecorded(String templateId, String transactionId,
+      DateTime recordedDate,
+      {bool markPending = false}) async {
+    final row = await _dao.getTemplateById(templateId);
+    if (row == null) throw const ServerFailure('模板不存在');
+    if (row.paused) throw const ServerFailure('模板已暂停');
+    final rule = RecurrenceRule.fromInts(
+        cycle: row.cycle,
+        cycleDays: row.cycleDays,
+        billingDay: row.billingDay,
+        interval: row.interval,
+        weekdayMask: row.weekdayMask,
+        monthlyMode: row.monthlyMode,
+        nth: row.nth);
+    final next = firstOnSeriesAfter(
+        DateTime.utc(row.startDate.year, row.startDate.month, row.startDate.day),
+        rule,
+        DateTime.utc(recordedDate.year, recordedDate.month, recordedDate.day)
+            .add(const Duration(days: 1)));
+    await _dao.updateTemplate(db.TransactionTemplatesCompanion(
+      id: Value(templateId),
+      nextDate: Value(next),
+      lastTransactionId: Value(transactionId),
+      version: Value(row.version + 1),
+      updatedAt: Value(DateTime.now().toUtc()),
+      syncState: markPending
+          ? const Value(SyncState.pending)
+          : const Value.absent(),
+    ));
+    final updated = await _dao.getTemplateById(templateId);
+    return _toEntity(updated!);
+  }
+
   /// 分类账户兜底(user-acceptance 修复):表单「分类(可选)」可空,而复式
   /// 分录的借/贷方必须有账户 —— 为空(或指向已删账户)时按模板名自动补建
   /// 对应方向的系统分类账户(expense/income),杜绝 accountId='' →

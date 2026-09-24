@@ -392,6 +392,23 @@ final $typed_data.Uint8List recordTemplateRequestDescriptor = $convert.base64Dec
     'ChVSZWNvcmRUZW1wbGF0ZVJlcXVlc3QSHwoLdGVtcGxhdGVfaWQYASABKAlSCnRlbXBsYXRlSW'
     'Q=');
 
+@$core.Deprecated('Use markTemplateRecordedRequestDescriptor instead')
+const MarkTemplateRecordedRequest$json = {
+  '1': 'MarkTemplateRecordedRequest',
+  '2': [
+    {'1': 'template_id', '3': 1, '4': 1, '5': 9, '10': 'templateId'},
+    {'1': 'transaction_id', '3': 2, '4': 1, '5': 9, '10': 'transactionId'},
+    {'1': 'recorded_date', '3': 3, '4': 1, '5': 9, '10': 'recordedDate'},
+  ],
+};
+
+/// Descriptor for `MarkTemplateRecordedRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List markTemplateRecordedRequestDescriptor =
+    $convert.base64Decode(
+        'ChtNYXJrVGVtcGxhdGVSZWNvcmRlZFJlcXVlc3QSHwoLdGVtcGxhdGVfaWQYASABKAlSCnRlbX'
+        'BsYXRlSWQSJQoOdHJhbnNhY3Rpb25faWQYAiABKAlSDXRyYW5zYWN0aW9uSWQSIwoNcmVjb3Jk'
+        'ZWRfZGF0ZRgDIAEoCVIMcmVjb3JkZWREYXRl');
+
 @$core.Deprecated('Use recordTransactionResponseDescriptor instead')
 const RecordTransactionResponse$json = {
   '1': 'RecordTransactionResponse',

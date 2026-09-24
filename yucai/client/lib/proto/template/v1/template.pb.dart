@@ -1307,6 +1307,88 @@ class RecordTemplateRequest extends $pb.GeneratedMessage {
   void clearTemplateId() => $_clearField(1);
 }
 
+class MarkTemplateRecordedRequest extends $pb.GeneratedMessage {
+  factory MarkTemplateRecordedRequest({
+    $core.String? templateId,
+    $core.String? transactionId,
+    $core.String? recordedDate,
+  }) {
+    final result = create();
+    if (templateId != null) result.templateId = templateId;
+    if (transactionId != null) result.transactionId = transactionId;
+    if (recordedDate != null) result.recordedDate = recordedDate;
+    return result;
+  }
+
+  MarkTemplateRecordedRequest._();
+
+  factory MarkTemplateRecordedRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory MarkTemplateRecordedRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'MarkTemplateRecordedRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.template.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'templateId')
+    ..aOS(2, _omitFieldNames ? '' : 'transactionId')
+    ..aOS(3, _omitFieldNames ? '' : 'recordedDate')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MarkTemplateRecordedRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MarkTemplateRecordedRequest copyWith(
+          void Function(MarkTemplateRecordedRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as MarkTemplateRecordedRequest))
+          as MarkTemplateRecordedRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static MarkTemplateRecordedRequest create() =>
+      MarkTemplateRecordedRequest._();
+  @$core.override
+  MarkTemplateRecordedRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static MarkTemplateRecordedRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<MarkTemplateRecordedRequest>(create);
+  static MarkTemplateRecordedRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get templateId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set templateId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTemplateId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTemplateId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get transactionId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set transactionId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTransactionId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTransactionId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get recordedDate => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set recordedDate($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasRecordedDate() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearRecordedDate() => $_clearField(3);
+}
+
 class RecordTransactionResponse extends $pb.GeneratedMessage {
   factory RecordTransactionResponse({
     $core.String? transactionId,

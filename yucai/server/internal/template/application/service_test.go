@@ -301,3 +301,47 @@ func TestUpdateTemplate_InvalidRuleRejected(t *testing.T) {
 		t.Error("expected error for invalid weekday mask")
 	}
 }
+
+// v6 手工扣费关联订阅:表单交易挂到模板 + 锚定推进 next_date。
+func TestMarkTemplateRecorded_AdvancesAnchoredAndLinksTxn(t *testing.T) {
+	// 每 3 月付(1/1 起):手工在 3/1 记了一笔(补记/优惠券场景)→
+	// 下次应推进到锚定系列的 4/1,而非从 3/1 链式漂移到 6/1。
+	tmpl, err := domain.NewTransactionTemplate(
+		uuid.New(), "Gym", 360000, domain.DirectionExpense, uuid.New(),
+		recurrence.Rule{Cycle: recurrence.CycleMonthly, Interval: 3, BillingDay: 1}, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("build template: %v", err)
+	}
+	repo := &fakeRepo{tmpl: tmpl}
+	svc := NewService(repo, nil)
+
+	txnID := uuid.New()
+	dto, err := svc.MarkTemplateRecorded(context.Background(), uuid.New(), tmpl.ID, txnID, time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("MarkTemplateRecorded: %v", err)
+	}
+	if !repo.updateCalled {
+		t.Fatal("template update not persisted")
+	}
+	if repo.updated.LastTransactionID == nil || *repo.updated.LastTransactionID != txnID {
+		t.Fatalf("last_transaction_id not linked: %v", repo.updated.LastTransactionID)
+	}
+	want := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+	if !dto.NextDate.Equal(want) {
+		t.Fatalf("next_date = %v, want %v (anchored series, no interval drift)", dto.NextDate, want)
+	}
+}
+
+func TestMarkTemplateRecorded_Paused_Rejected(t *testing.T) {
+	tmpl := newTestTemplate(t, domain.DirectionExpense, true)
+	repo := &fakeRepo{tmpl: tmpl}
+	svc := NewService(repo, nil)
+
+	if _, err := svc.MarkTemplateRecorded(context.Background(), uuid.New(), tmpl.ID, uuid.New(), time.Now()); err == nil {
+		t.Fatal("paused template must reject mark")
+	}
+	if repo.updateCalled {
+		t.Fatal("paused template must not be updated")
+	}
+}

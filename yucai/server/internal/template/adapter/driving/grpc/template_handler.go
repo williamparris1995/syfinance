@@ -226,6 +226,36 @@ func (h *TemplateHandler) RecordTransaction(ctx context.Context, req *pb.RecordT
 	}, nil
 }
 
+// MarkTemplateRecorded links a form-created transaction to a template and
+// advances its schedule (v6 手工扣费关联订阅). No transaction is created here.
+func (h *TemplateHandler) MarkTemplateRecorded(ctx context.Context, req *pb.MarkTemplateRecordedRequest) (*pb.TemplateResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	templateID, err := uuid.Parse(req.TemplateId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid template_id")
+	}
+	transactionID, err := uuid.Parse(req.TransactionId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid transaction_id")
+	}
+	recordedDate := time.Now()
+	if req.RecordedDate != "" {
+		recordedDate, err = parseDate(req.RecordedDate)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid recorded_date (want YYYY-MM-DD)")
+		}
+	}
+
+	tmpl, err := h.service.MarkTemplateRecorded(ctx, tenantID, templateID, transactionID, recordedDate)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.TemplateResponse{Template: templateToProto(*tmpl)}, nil
+}
+
 func templateToProto(t application.TemplateDTO) *pb.TemplateDTO {
 	p := &pb.TemplateDTO{
 		Id:              t.ID.String(),

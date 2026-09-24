@@ -147,4 +147,18 @@ class TemplateRemoteDataSource {
       return TemplateMapper.toRecordResult(res);
     });
   }
+
+  /// v6 手工扣费关联订阅:交易已入账,只挂 last_transaction_id + 推进 next_date。
+  Future<Template> markRecorded(String templateId, String transactionId,
+      DateTime recordedDate) async {
+    return _retry.call(() async {
+      final res = await _client.markTemplateRecorded(pb.MarkTemplateRecordedRequest(
+            templateId: templateId,
+            transactionId: transactionId,
+            recordedDate:
+                '${recordedDate.year.toString().padLeft(4, '0')}-${recordedDate.month.toString().padLeft(2, '0')}-${recordedDate.day.toString().padLeft(2, '0')}',
+          ));
+      return TemplateMapper.toDomain(res.template);
+    });
+  }
 }

@@ -28,6 +28,7 @@ const (
 	TransactionTemplateService_GetTransactionTemplate_FullMethodName    = "/yucai.template.v1.TransactionTemplateService/GetTransactionTemplate"
 	TransactionTemplateService_ListTransactionTemplates_FullMethodName  = "/yucai.template.v1.TransactionTemplateService/ListTransactionTemplates"
 	TransactionTemplateService_RecordTransaction_FullMethodName         = "/yucai.template.v1.TransactionTemplateService/RecordTransaction"
+	TransactionTemplateService_MarkTemplateRecorded_FullMethodName      = "/yucai.template.v1.TransactionTemplateService/MarkTemplateRecorded"
 )
 
 // TransactionTemplateServiceClient is the client API for TransactionTemplateService service.
@@ -42,6 +43,10 @@ type TransactionTemplateServiceClient interface {
 	GetTransactionTemplate(ctx context.Context, in *GetTemplateRequest, opts ...grpc.CallOption) (*TemplateResponse, error)
 	ListTransactionTemplates(ctx context.Context, in *ListTemplatesRequest, opts ...grpc.CallOption) (*ListTemplatesResponse, error)
 	RecordTransaction(ctx context.Context, in *RecordTemplateRequest, opts ...grpc.CallOption) (*RecordTransactionResponse, error)
+	// v6 手工扣费关联订阅:交易已由表单正常入账(金额/账户语义保留,含优惠券
+	// 实付),本 RPC 只把交易挂到模板(last_transaction_id)并按 recorded_date
+	// 锚定推进 next_date。空 recorded_date = 今天。
+	MarkTemplateRecorded(ctx context.Context, in *MarkTemplateRecordedRequest, opts ...grpc.CallOption) (*TemplateResponse, error)
 }
 
 type transactionTemplateServiceClient struct {
@@ -132,6 +137,16 @@ func (c *transactionTemplateServiceClient) RecordTransaction(ctx context.Context
 	return out, nil
 }
 
+func (c *transactionTemplateServiceClient) MarkTemplateRecorded(ctx context.Context, in *MarkTemplateRecordedRequest, opts ...grpc.CallOption) (*TemplateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TemplateResponse)
+	err := c.cc.Invoke(ctx, TransactionTemplateService_MarkTemplateRecorded_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TransactionTemplateServiceServer is the server API for TransactionTemplateService service.
 // All implementations must embed UnimplementedTransactionTemplateServiceServer
 // for forward compatibility.
@@ -144,6 +159,10 @@ type TransactionTemplateServiceServer interface {
 	GetTransactionTemplate(context.Context, *GetTemplateRequest) (*TemplateResponse, error)
 	ListTransactionTemplates(context.Context, *ListTemplatesRequest) (*ListTemplatesResponse, error)
 	RecordTransaction(context.Context, *RecordTemplateRequest) (*RecordTransactionResponse, error)
+	// v6 手工扣费关联订阅:交易已由表单正常入账(金额/账户语义保留,含优惠券
+	// 实付),本 RPC 只把交易挂到模板(last_transaction_id)并按 recorded_date
+	// 锚定推进 next_date。空 recorded_date = 今天。
+	MarkTemplateRecorded(context.Context, *MarkTemplateRecordedRequest) (*TemplateResponse, error)
 	mustEmbedUnimplementedTransactionTemplateServiceServer()
 }
 
@@ -177,6 +196,9 @@ func (UnimplementedTransactionTemplateServiceServer) ListTransactionTemplates(co
 }
 func (UnimplementedTransactionTemplateServiceServer) RecordTransaction(context.Context, *RecordTemplateRequest) (*RecordTransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RecordTransaction not implemented")
+}
+func (UnimplementedTransactionTemplateServiceServer) MarkTemplateRecorded(context.Context, *MarkTemplateRecordedRequest) (*TemplateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MarkTemplateRecorded not implemented")
 }
 func (UnimplementedTransactionTemplateServiceServer) mustEmbedUnimplementedTransactionTemplateServiceServer() {
 }
@@ -344,6 +366,24 @@ func _TransactionTemplateService_RecordTransaction_Handler(srv interface{}, ctx 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TransactionTemplateService_MarkTemplateRecorded_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MarkTemplateRecordedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionTemplateServiceServer).MarkTemplateRecorded(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TransactionTemplateService_MarkTemplateRecorded_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionTemplateServiceServer).MarkTemplateRecorded(ctx, req.(*MarkTemplateRecordedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TransactionTemplateService_ServiceDesc is the grpc.ServiceDesc for TransactionTemplateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -382,6 +422,10 @@ var TransactionTemplateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RecordTransaction",
 			Handler:    _TransactionTemplateService_RecordTransaction_Handler,
+		},
+		{
+			MethodName: "MarkTemplateRecorded",
+			Handler:    _TransactionTemplateService_MarkTemplateRecorded_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

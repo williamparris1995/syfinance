@@ -171,6 +171,16 @@ class TemplateRepositoryImpl implements TemplateRepository {
       _routedWrite(MirrorModule.template, () => _remote.record(templateId),
           (markPending) => _local.record(templateId, markPending: markPending));
 
+  @override
+  Future<Either<Failure, Template>> markRecorded(
+          String templateId, String transactionId, DateTime recordedDate) =>
+      _routedWrite(
+          MirrorModule.template,
+          () => _remote.markRecorded(templateId, transactionId, recordedDate),
+          (markPending) => _local.markRecorded(templateId, transactionId,
+              recordedDate,
+              markPending: markPending));
+
   /// 统一 try/Either 包装(对齐 TagRepositoryImpl._guard / BackupRepositoryImpl._guard)。
   /// Bound-state mirror hook (R6 H): after a SUCCESSFUL REMOTE
   /// write, refresh this module's local mirror (fire-and-forget).

@@ -54,4 +54,8 @@ abstract class TemplateRepository {
   Future<Either<Failure, Template>> get(String id);
 
   Future<Either<Failure, RecordResult>> record(String templateId);
+
+  /// v6 手工扣费关联订阅:把表单已入账的交易挂到模板并推进下次续费。
+  Future<Either<Failure, Template>> markRecorded(
+      String templateId, String transactionId, DateTime recordedDate);
 }

@@ -9,6 +9,8 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/template/domain/entities/template_entity.dart';
+import 'package:yucai_client/template/domain/repositories/template_repository.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/date_picker_input.dart';
 import 'package:yucai_client/core/widgets/time_picker_input.dart';
@@ -137,6 +139,12 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   final _noteCtrl = TextEditingController();
 
   late TxnType _type;
+
+  /// v6 关联订阅(仅支出新建):选中后提交成功时调用
+  /// TemplateRepository.markRecorded 把本笔交易挂到模板并推进下次续费。
+  /// 金额/账户语义完全以表单为准(优惠券实付、储值卡付款均成立)。
+  String? _linkedTemplateId;
+  List<Template> _linkableTemplates = const [];
   DateTime _date = DateTime.now();
   TimeOfDay _time = TimeOfDay.now();
   String? _assetAccountId;
@@ -160,6 +168,9 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     _type = widget.initialType ?? TxnType.expense;
     _assetAccountId = widget.initialAccountId;
     _loadTags();
+    if (widget.existing == null || widget.isCopy) {
+      _loadLinkableTemplates();
+    }
     final ex = widget.existing;
     if (ex != null) {
       // 复制模式:预填字段但 _existingId 留空 → _isEdit=false → 提交走创建。
@@ -174,6 +185,37 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
       _inferTypeAndAccountsFromExisting(ex);
       _loadTransactionTags(ex.id);
     }
+  }
+
+  /// v6 关联订阅:支出向、未暂停的模板 = 可关联订阅。失败静默(下拉不渲染)。
+  Future<void> _loadLinkableTemplates() async {
+    try {
+      final r = await getIt<TemplateRepository>().list();
+      r.fold((_) {}, (list) {
+        if (mounted) {
+          setState(() => _linkableTemplates = list
+              .where((t) =>
+                  t.direction == TemplateDirection.expense && !t.paused)
+              .toList());
+        }
+      });
+    } catch (_) {}
+  }
+
+  /// 交易已入账后把本笔挂到订阅并推进下次续费。失败只 toast,不阻断
+  /// pop(交易本体已成功,关联可重试)。
+  Future<void> _linkSubscription(String templateId, String txnId) async {
+    try {
+      final r =
+          await getIt<TemplateRepository>().markRecorded(templateId, txnId, _date);
+      if (!mounted) return;
+      r.fold(
+        (_) => AppToast.show(context, '交易已记录,但订阅推进失败',
+            type: ToastType.error),
+        (t) => AppToast.show(context, '已关联订阅,下次续费 ${t.nextDate ?? '-'}',
+            type: ToastType.success),
+      );
+    } catch (_) {}
   }
 
   /// ListTags → _allTags(驱动 chip-row 渲染)。失败静默降级(空 list → chip-row 不渲染)。
@@ -543,6 +585,13 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
               await _syncTags(txnId,
                   existingTagIds:
                       _isEdit ? _originalTagIds : const <String>{});
+              // v6 关联订阅:交易已入账,推进订阅的下次续费(失败不阻断
+              // pop —— 交易本体已成功,关联可重试)。
+              if (!_isEdit &&
+                  _type == TxnType.expense &&
+                  _linkedTemplateId != null) {
+                await _linkSubscription(_linkedTemplateId!, txnId);
+              }
             }
             if (mounted) navigator.pop(true);
           } else if (state is TransactionFormError) {
@@ -783,6 +832,23 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           _accountField('支出分类', '例如：餐饮、交通', expenseAccounts,
               _categoryAccountId, (v) => setState(() => _categoryAccountId = v),
               allAccounts: allAccounts),
+          // v6 关联订阅(可选):提交成功后推进该订阅的下次续费。
+          // 金额/账户以表单为准 —— 优惠券实付、储值卡付款均直接成立。
+          if (_linkableTemplates.isNotEmpty)
+            DropdownButtonFormField<String>(
+              initialValue: _linkedTemplateId,
+              decoration: const InputDecoration(
+                labelText: '关联订阅(可选)',
+                helperText: '提交后推进该订阅的下次续费',
+              ),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('不关联')),
+                for (final t in _linkableTemplates)
+                  DropdownMenuItem(value: t.id, child: Text(t.name)),
+              ],
+              onChanged: (v) =>
+                  setState(() => _linkedTemplateId = (v == '' ? null : v)),
+            ),
         ];
         break;
       case TxnType.income:
@@ -806,12 +872,21 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
         ];
         break;
     }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        Expanded(child: fields[0]),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(child: fields[1]),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: fields[0]),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(child: fields[1]),
+          ],
+        ),
+        // 第 3+ 字段纵向补排(v6 关联订阅下拉;两列网格放不下的扩展位)。
+        for (final f in fields.skip(2)) ...[
+          const SizedBox(height: AppSpacing.md),
+          f,
+        ],
       ],
     );
   }

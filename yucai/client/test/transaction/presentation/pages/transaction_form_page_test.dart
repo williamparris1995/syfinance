@@ -21,6 +21,8 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
+import 'package:yucai_client/template/domain/entities/template_entity.dart';
+import 'package:yucai_client/template/domain/repositories/template_repository.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_bloc.dart';
@@ -32,6 +34,7 @@ class _FakeAccountRepo extends Mock implements AccountRepository {}
 class _FakeTxnRepo extends Mock implements TransactionRepository {}
 
 class _FakeTagRepo extends Mock implements TagRepository {}
+class _FakeTplRepo extends Mock implements TemplateRepository {}
 
 final _assetAccount = Account(
   id: 'cash',
@@ -99,6 +102,7 @@ void main() {
   late _FakeAccountRepo accountRepo;
   late _FakeTxnRepo txnRepo;
   late _FakeTagRepo tagRepo;
+  late _FakeTplRepo tplRepo;
 
   setUp(() {
     // NOTE: do NOT call getIt.reset() here — in this env reset() defers
@@ -114,6 +118,13 @@ void main() {
     getIt.registerSingleton<TagRepository>(tagRepo);
     // 保存成功 listener bump DataRefreshNotifier(跨页刷新广播)。
     getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
+    // v6 关联订阅:表单 initState 读 TemplateRepository(空列表 → 下拉不渲染)。
+    tplRepo = _FakeTplRepo();
+    getIt.registerSingleton<TemplateRepository>(tplRepo);
+    when(() => tplRepo.list())
+        .thenAnswer((_) async => dartz.Right(<Template>[]));
+    when(() => tplRepo.list(paused: any(named: 'paused')))
+        .thenAnswer((_) async => dartz.Right(<Template>[]));
     when(() => accountRepo.list()).thenAnswer(
         (_) async => dartz.Right([_assetAccount, _assetAccount2, _expenseAccount, _cardAccount]));
     when(() => tagRepo.list()).thenAnswer((_) async => dartz.Right(_allTags));
@@ -354,6 +365,66 @@ void main() {
     verifyNever(() => tagRepo.removeTagFromTransaction(
         tagId: any(named: 'tagId'),
         transactionId: any(named: 'transactionId')));
+  });
+
+  testWidgets('v6 关联订阅:支出提交成功后 markRecorded 推进订阅下次续费',
+      (tester) async {
+    registerFallbackValue(DateTime(2026, 1, 1));
+    final tpl = Template(
+      id: 'tpl-1',
+      name: '健身房年卡',
+      description: '',
+      amountCents: 360000,
+      direction: TemplateDirection.expense,
+      sourceAccountId: 'cash',
+      destinationAccountId: null,
+      cycle: TemplateCycle.yearly,
+      cycleDays: 0,
+      billingDay: 0,
+      interval: 1,
+      weekdayMask: 0,
+      monthlyMode: TemplateMonthlyMode.byDate,
+      nth: 0,
+      nextDate: '2027-03-01',
+      startDate: '2026-03-01',
+      endDate: null,
+      autoRecord: false,
+      paused: false,
+      lastTransactionId: null,
+      category: 'food',
+      version: 1,
+      createdAt: DateTime(2026, 3, 1),
+      updatedAt: DateTime(2026, 3, 1),
+    );
+    when(() => tplRepo.list()).thenAnswer((_) async => dartz.Right([tpl]));
+    when(() => tplRepo.list(paused: any(named: 'paused')))
+        .thenAnswer((_) async => dartz.Right([tpl]));
+    when(() => tplRepo.markRecorded('tpl-1', 'new-1', any()))
+        .thenAnswer((_) async => dartz.Right(tpl));
+    when(() => txnRepo.recordExpense(any())).thenAnswer((_) async =>
+        dartz.Right(
+            Transaction(id: 'new-1', transactionDate: _date, entries: const [])));
+
+    await pumpPage(tester, 1440);
+    // 选关联订阅(2 列网格第 3 格,视口外需先滚入)
+    await tester.ensureVisible(find.text('关联订阅(可选)'));
+    await tester.pumpAndSettle();
+    await _openDropdownAndPick(tester, '关联订阅(可选)', '健身房年卡');
+    await tester.tap(find.text('+50'));
+    await tester.pumpAndSettle();
+    await _openDropdownAndPick(tester, '例如：招商银行、现金', '现金');
+    await _openDropdownAndPick(tester, '例如：餐饮、交通', '餐饮');
+    await tester.ensureVisible(find.text('保存'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    // 成功后 listener 异步 markRecorded + 成功 toast(3s 定时器):
+    // 显式推进时间排空,避免 pumpAndSettle 悬挂 timer 断言。
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
+
+    verify(() => txnRepo.recordExpense(any())).called(1);
+    // 交易入账成功 → 挂到订阅(交易 id + 表单日期)
+    verify(() => tplRepo.markRecorded('tpl-1', 'new-1', any())).called(1);
   });
 
   testWidgets(

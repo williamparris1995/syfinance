@@ -18,6 +18,10 @@ service TransactionTemplateService {
   rpc GetTransactionTemplate(GetTemplateRequest) returns (TemplateResponse);
   rpc ListTransactionTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
   rpc RecordTransaction(RecordTemplateRequest) returns (RecordTransactionResponse);
+  // v6 手工扣费关联订阅:交易已由表单正常入账(金额/账户语义保留,含优惠券
+  // 实付),本 RPC 只把交易挂到模板(last_transaction_id)并按 recorded_date
+  // 锚定推进 next_date。空 recorded_date = 今天。
+  rpc MarkTemplateRecorded(MarkTemplateRecordedRequest) returns (TemplateResponse);
 }
 
 enum TemplateDirection {
@@ -120,6 +124,12 @@ message ListTemplatesResponse {
 message TemplateResponse { TemplateDTO template = 1; }
 
 message RecordTemplateRequest { string template_id = 1; }
+
+message MarkTemplateRecordedRequest {
+  string template_id = 1;
+  string transaction_id = 2;  // 手工入账交易引用(挂 last_transaction_id)
+  string recorded_date = 3;   // date-only YYYY-MM-DD;空 = 今天
+}
 
 message RecordTransactionResponse {
   string transaction_id = 1;
