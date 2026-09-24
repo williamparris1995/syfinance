@@ -77,6 +77,7 @@ import 'package:yucai_client/template/domain/entities/template_entity.dart';
 import 'package:yucai_client/template/domain/repositories/template_repository.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
 import 'package:yucai_client/template/presentation/pages/template_page.dart';
+import 'package:yucai_client/template/presentation/pages/subscription_center_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -978,8 +979,8 @@ void main() {
     expect(find.byType(AccountDetailPage), findsNothing);
   });
 
-  testWidgets('sidebar 订阅管理 tap navigates to /accounts/templates and '
-      'renders TemplatePage', (tester) async {
+  testWidgets('sidebar 订阅管理 tap navigates to /accounts/subscriptions and '
+      'renders SubscriptionCenterPage', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -1001,8 +1002,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(),
-        '/accounts/templates');
-    expect(find.byType(TemplatePage), findsOneWidget);
+        '/accounts/subscriptions');
+    // v6:订阅管理改指订阅中心页(模板页 /accounts/templates 由其入口进入)。
+    expect(find.byType(SubscriptionCenterPage), findsOneWidget);
     expect(find.byType(AccountDetailPage), findsNothing);
   });
 
@@ -1012,7 +1014,7 @@ void main() {
   // 模块的标题);侧栏「账户管理」(branch 1)与「订阅管理」也曾同时高亮。
   // 修法:_branchMetaOf 按 location 覆盖为「交易 › 订阅管理」;branch 项在
   // route-only 导航项声称的路径下让位高亮(_claimedByRouteOnlyNav)。
-  testWidgets('/accounts/templates 顶栏面包屑显「交易 › 订阅管理」,'
+  testWidgets('/accounts/subscriptions 顶栏面包屑显「交易 › 订阅管理」,'
       '侧栏仅「订阅管理」高亮', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1.0;
@@ -1024,7 +1026,7 @@ void main() {
 
     final authBloc = _seededAuthBloc();
     final router = buildRouter(authBloc);
-    router.go('/accounts/templates');
+    router.go('/accounts/subscriptions');
     await tester.pumpWidget(app(router, authBloc));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -1043,7 +1045,7 @@ void main() {
             .first);
     expect((tileOf('账户管理').decoration as BoxDecoration).color,
         Colors.transparent,
-        reason: '/accounts/templates 下「账户管理」不应保持 branch 高亮');
+        reason: '/accounts/subscriptions 下「账户管理」不应保持 branch 高亮');
     expect((tileOf('订阅管理').decoration as BoxDecoration).color,
         isNot(equals(Colors.transparent)),
         reason: '/accounts/templates 下「订阅管理」应高亮');

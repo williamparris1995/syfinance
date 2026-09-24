@@ -381,5 +381,22 @@ List<Widget> categoryFieldsWidget(
     case AccountCategory.otherAsset:
     case AccountCategory.otherLiability:
       return [AmountInput(controller: b.primaryCentsCtrl, label: '金额', currencySymbol: currencySymbol)];
+    case AccountCategory.storedValue:
+      return [
+        TextFormField(
+          controller: b.institutionCtrl,
+          decoration: const InputDecoration(labelText: '商户名称'),
+        ),
+        TextFormField(
+          controller: b.cardNumberTailCtrl,
+          decoration: const InputDecoration(labelText: '卡号尾号'),
+        ),
+        AmountInput(
+          controller: b.primaryCentsCtrl,
+          label: primaryAmountLabel(c),
+          currencySymbol: currencySymbol,
+          enabled: !primaryReadOnly,
+        ),
+      ];
   }
 }

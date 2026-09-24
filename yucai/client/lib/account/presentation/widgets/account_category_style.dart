@@ -32,6 +32,8 @@ Color categoryColor(BuildContext context, AccountCategory c) {
       return context.yucai.muted;
     case AccountCategory.otherLiability:
       return context.yucai.negative;
+    case AccountCategory.storedValue:
+      return context.yucai.accent;
   }
 }
 
@@ -57,5 +59,7 @@ IconData categoryIcon(AccountCategory c) {
       return LucideIcons.wallet;
     case AccountCategory.otherLiability:
       return LucideIcons.wallet;
+    case AccountCategory.storedValue:
+      return LucideIcons.gift;
   }
 }

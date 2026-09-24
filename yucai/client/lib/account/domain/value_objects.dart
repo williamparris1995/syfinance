@@ -94,8 +94,8 @@ AccountStatus accountStatusFromProto(pb.AccountStatus s) {
   }
 }
 
-/// 用户面向账户分类（9 类，匹配原型 + 行业惯例 Mint/YNAB/Quicken）。
-/// category 派生会计 [AccountType]（复式记账用），不暴露给用户。
+/// 用户面向账户分类(10 类,匹配原型 + 行业惯例 Mint/YNAB/Quicken;v6 新增储值卡)。
+/// category 派生会计 [AccountType](复式记账用),不暴露给用户。
 enum AccountCategory {
   savings,
   creditCard,
@@ -106,6 +106,7 @@ enum AccountCategory {
   loan,
   otherAsset,
   otherLiability,
+  storedValue,
 }
 
 extension AccountCategoryX on AccountCategory {
@@ -120,6 +121,7 @@ extension AccountCategoryX on AccountCategory {
       case AccountCategory.loan: return '贷款';
       case AccountCategory.otherAsset: return '其他资产';
       case AccountCategory.otherLiability: return '其他负债';
+      case AccountCategory.storedValue: return '储值卡';
     }
   }
 
@@ -134,6 +136,7 @@ extension AccountCategoryX on AccountCategory {
       case AccountCategory.loan: return '房贷、车贷、消费贷';
       case AccountCategory.otherAsset: return '古董、字画、收藏品、保险现金价值';
       case AccountCategory.otherLiability: return '其他欠款、应付款';
+      case AccountCategory.storedValue: return '商家储值卡、礼品卡、会员预存';
     }
   }
 
@@ -161,6 +164,7 @@ extension AccountCategoryX on AccountCategory {
       case AccountCategory.loan: return '招行房贷';
       case AccountCategory.otherAsset: return '公积金账户';
       case AccountCategory.otherLiability: return '亲友借款';
+      case AccountCategory.storedValue: return '星巴克储值卡、山姆礼品卡';
     }
   }
 }

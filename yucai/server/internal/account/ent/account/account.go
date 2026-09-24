@@ -259,6 +259,7 @@ const (
 	CategoryLoan           Category = "loan"
 	CategoryOtherAsset     Category = "other_asset"
 	CategoryOtherLiability Category = "other_liability"
+	CategoryStoredValue    Category = "stored_value"
 )
 
 func (c Category) String() string {
@@ -268,7 +269,7 @@ func (c Category) String() string {
 // CategoryValidator is a validator for the "category" field enum values. It is called by the builders before save.
 func CategoryValidator(c Category) error {
 	switch c {
-	case CategorySavings, CategoryCreditCard, CategoryInvestment, CategoryFixedDeposit, CategoryGoldFx, CategoryRealEstate, CategoryLoan, CategoryOtherAsset, CategoryOtherLiability:
+	case CategorySavings, CategoryCreditCard, CategoryInvestment, CategoryFixedDeposit, CategoryGoldFx, CategoryRealEstate, CategoryLoan, CategoryOtherAsset, CategoryOtherLiability, CategoryStoredValue:
 		return nil
 	default:
 		return fmt.Errorf("account: invalid enum value for category field: %q", c)

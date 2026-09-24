@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark" data-variant="a">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · 星巴克储值卡</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:储值卡账户详情(变体 A/B)——只写布局形态,零新令牌,视觉全部来自 theme.css */
+
+  /* —— 壳:与 account-detail.html 同构 —— */
+  .acct-hero{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .acct-hero .info{flex:1;min-width:200px}
+  .acct-hero .name{font-size:17px;font-weight:800}
+  .acct-hero .no{color:var(--muted);font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+  .hero-eq{font-size:12px;color:var(--muted);margin-top:6px}
+  .hero-eq b{color:var(--fg);font-weight:600}
+  .hero-cap{font-size:12px;color:var(--muted);margin-top:12px}
+  .detail-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start}
+  .col{display:grid;gap:18px}
+  .kv{display:grid;gap:0}
+  .kv .row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .kv .row:last-child{border-bottom:0}
+  .kv .k{color:var(--muted)}
+  .kv .v{font-weight:600;text-align:right}
+
+  /* —— 流水:类型标记(充值=chip pos / 赠送=chip / 消费=muted 文本)+ 赠送附行 —— */
+  .t-muted{font-size:11px;color:var(--muted);font-weight:600;margin-left:6px}
+  .txn-name .chip{margin-left:6px;vertical-align:1px}
+  .txn.has-sub{border-bottom:0;padding-bottom:4px}
+  .sv-sub{display:flex;align-items:center;gap:8px;padding:4px 0 9px 46px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .sv-sub .arr{opacity:.6}
+  .sv-sub .amt{color:var(--pos);font-weight:700}
+  .sv-sub .memo{font-size:11px}
+
+  /* —— 变体 A/B 切换(纯充值 / 充值送优惠) —— */
+  [data-variant="a"] .only-b{display:none!important}
+  [data-variant="b"] .only-a{display:none!important}
+
+  /* —— 充值构成卡(仅变体 B):双段构成条 —— */
+  .g-mix-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px}
+  .g-mix-head b{color:var(--fg);font-size:13.5px}
+  .g-bar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--bar-track)}
+  .g-bar i{display:block;height:100%}
+  .g-bar .seg-principal{width:92.6%;background:var(--bar-fill)}
+  .g-bar .seg-bonus{width:7.4%;background:var(--seg2)}
+  .g-lg{display:grid;gap:7px;margin-top:9px;font-size:11.5px;color:var(--muted)}
+  .g-lg .row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .g-lg .sw{width:9px;height:9px;border-radius:3px;flex:none}
+  .g-lg .sw.principal{background:var(--seg1)}
+  .g-lg .sw.bonus{background:var(--seg2)}
+  .g-lg b{color:var(--fg);font-weight:600}
+  .g-foot{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.7}
+  .g-foot b{color:var(--fg);font-weight:600}
+  .g-foot .eq{margin-bottom:4px}
+
+  /* —— 充值对话框(照还款对话框写法) —— */
+  .overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 62%,transparent);display:none;place-items:center;z-index:50;padding:20px}
+  .overlay.open{display:grid}
+  .dlg{width:min(430px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
+  .dlg h3{font-size:15px;font-weight:700}
+  .dlg .sub{font-size:12px;color:var(--muted);margin:2px 0 14px}
+  .amt-line{display:flex;align-items:center;gap:8px;margin:12px 0 2px;font-size:12px;color:var(--muted)}
+  .amt-line input{width:130px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit}
+  .bonus-line{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--q1-bg);border-radius:10px;padding:10px 12px;margin:10px 0 2px;font-size:12px;color:var(--muted)}
+  .bonus-line b{color:var(--acc);font-weight:700}
+  .je{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+  .je-k{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.5px;margin-bottom:6px}
+  .je-row{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;padding:5px 0;font-size:11.5px}
+  .je-row .w{color:var(--fg);font-weight:700}
+  .je-row .d{color:var(--muted)}
+  .dlg-note{font-size:11px;color:var(--muted);line-height:1.6;margin-top:10px}
+  .dlg-foot{display:flex;gap:10px;margin-top:14px}
+  .dlg-foot .btn-primary{flex:1}
+
+  /* —— 更多操作菜单 + 生命周期对话框(BRIEF2 增量,零新令牌) —— */
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;filter:none}
+  .btn-primary:disabled:hover{filter:none}
+  .ops-wrap{position:relative}
+  .ops-menu{
+    position:absolute;right:0;top:calc(100% + 6px);z-index:70;min-width:148px;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    box-shadow:0 10px 28px color-mix(in srgb,var(--fg) 10%,transparent);
+    padding:6px;display:none;
+  }
+  .ops-menu.open{display:grid;gap:2px}
+  .ops-item{
+    display:block;width:100%;border:0;background:transparent;color:var(--fg);text-align:left;
+    padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;
+  }
+  .ops-item:hover{background:var(--surface-2)}
+  .ops-item.muted{color:var(--muted)}
+  .ops-mask{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 32%,transparent);z-index:65;display:none}
+  .ops-mask.open{display:block}
+  .fld{display:flex;align-items:center;gap:10px;margin:10px 0 2px;font-size:12px;color:var(--muted)}
+  .fld input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg);font-family:inherit}
+  .amt-line .note{font-size:11px}
+  .promo-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 2px}
+
+  /* —— 原型控制条(浮动变体条,照 credit-card-account 写法) —— */
+  .pfloat{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:7px 14px;box-shadow:var(--shadow);z-index:60;font-size:12px}
+  .plbl{color:var(--muted)}
+  .pseg{display:flex;border:1px solid var(--border);border-radius:999px;overflow:hidden}
+  .pseg button{border:0;background:transparent;color:var(--muted);padding:4px 11px;cursor:pointer;font-size:12px;font-family:inherit}
+  .pseg button.on{background:var(--q1-bg);color:var(--acc);font-weight:600}
+
+  @media (max-width:900px){
+    .detail-grid{grid-template-columns:1fr}
+    .acct-hero .actions{width:100%}
+    .pfloat{bottom:86px;flex-wrap:wrap;justify-content:center;max-width:92vw}
+    .sv-sub{padding-left:0}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="19" cy="12" r="1.1"/></symbol>
+</svg>
+
+<!-- 套件页面链接为 # 占位,集成阶段重接到套件真实页面 -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item active" href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/settings.html"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main" data-od-id="main-region">
+  <header class="topbar">
+    <div class="crumb">资产 <span class="sep">›</span> <a href="../../../../../../../design-output-v2/ab/accounts.html">账户管理</a> <span class="sep">›</span> <b>星巴克储值卡</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索交易…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1 data-od-id="page-title">星巴克储值卡</h1>
+        <p class="date"><a href="../../../../../../../design-output-v2/ab/accounts.html" style="color:var(--link)" data-od-id="link-back-accounts">‹ 返回账户列表</a></p>
+        <p class="date num">储值卡 · 尾号 8823 · 有效期至 2027-06-30</p>
+      </div>
+      <div class="page-head-actions">
+        <div class="ops-wrap">
+          <button type="button" class="icon-btn" data-od-id="btn-ops-menu" onclick="toggleOps(event,'opsMenu')" aria-label="更多操作" title="更多操作"><svg class="ic"><use href="#i-dots"/></svg></button>
+          <div class="ops-menu" id="opsMenu">
+            <button type="button" class="ops-item" data-od-id="m-transfer" onclick="openById('transferOverlay')">转让</button>
+            <button type="button" class="ops-item" data-od-id="m-refund" onclick="openById('refundOverlay')">退卡退款</button>
+            <button type="button" class="ops-item" data-od-id="m-freeze" id="mFreeze" onclick="onFreezeMenu()">挂失冻结</button>
+            <a class="ops-item" href="#">编辑账户</a>
+            <a class="ops-item muted" href="#">归档注销</a>
+          </div>
+        </div>
+        <a class="btn-ghost" href="../../../../../../../design-output-v2/ab/transaction-form.html" data-od-id="btn-add-txn">记一笔</a>
+        <button class="btn-primary" id="btnTopup" onclick="openTopup()" data-od-id="btn-topup-open"><svg class="ic"><use href="#i-plus"/></svg>充值</button>
+      </div>
+    </div>
+
+    <section class="hero" data-od-id="sv-hero">
+      <div class="acct-hero">
+        <div class="acct-logo lg-green" style="width:52px;height:52px;border-radius:15px;font-size:20px">星</div>
+        <div class="info">
+          <div class="name">星巴克储值卡 <span class="chip">储值卡</span> <span class="chip">人民币</span><span class="chip warn" id="frozenChip" style="display:none" data-od-id="chip-frozen">已冻结</span></div>
+          <div class="no num">尾号 8823 · CNY · 有效期至 2027-06-30</div>
+        </div>
+        <div style="text-align:right">
+          <div class="hero-label">当前余额</div>
+          <div class="hero-amount sm num">¥820<span class="cents">.00</span></div>
+          <div class="hero-eq num">= 累计充值 <b>3,000</b> + 赠送 <b>240</b> − 累计消费 <b>2,420</b></div>
+        </div>
+      </div>
+      <div class="hero-cap num" data-od-id="sv-hero-caption">充值 = 账户间转账(净资产不变) · 赠送计入其他收入 · 消费时方计支出</div>
+    </section>
+
+    <section class="sum-strip">
+      <div class="card" data-od-id="sum-card-balance">
+        <div class="mini-head"><span class="mini-title">当前余额</span><span class="chip num">尾号 8823</span></div>
+        <div class="mini-big num">¥820.00</div>
+        <div class="mini-foot num">3,000 + 240 − 2,420 = 820</div>
+      </div>
+      <div class="card" data-od-id="sum-card-topup">
+        <div class="mini-head">
+          <span class="mini-title"><span class="only-a">累计充值</span><span class="only-b">累计充值+赠送</span></span>
+          <span class="chip num">3 笔</span>
+        </div>
+        <div class="mini-big num"><span class="only-a">¥3,000.00</span><span class="only-b">¥3,240.00</span></div>
+        <div class="mini-foot num"><span class="only-a">本金 ¥3,000 · 纯充值口径</span><span class="only-b">本金 ¥3,000 + 赠送 ¥240</span></div>
+      </div>
+      <div class="card" data-od-id="sum-card-spend">
+        <div class="mini-head"><span class="mini-title">累计消费</span><span class="chip">消费时计支出</span></div>
+        <div class="mini-big num">¥2,420.00</div>
+        <div class="mini-foot num">本月 ¥186.00 · 4 笔</div>
+      </div>
+    </section>
+
+    <section class="detail-grid">
+      <div class="col">
+        <div class="card" data-od-id="card-sv-flow">
+          <div class="card-head"><h2>储值流水</h2><a href="../../../../../../../design-output-v2/ab/transactions.html">全部 ›</a></div>
+          <div class="txn" data-od-id="sv-row-0920">
+            <div class="txn-ic">☕</div>
+            <div class="txn-main"><div class="txn-name">饮品 <span class="t-muted">消费</span></div><div class="txn-cat num">2026-09-20</div></div>
+            <div class="txn-amt out num">−¥38.00</div>
+          </div>
+          <div class="txn" data-od-id="sv-row-0915">
+            <div class="txn-ic">🍱</div>
+            <div class="txn-main"><div class="txn-name">门店午餐 <span class="t-muted">消费</span></div><div class="txn-cat num">2026-09-15</div></div>
+            <div class="txn-amt out num">−¥86.00</div>
+          </div>
+          <div class="txn has-sub" data-od-id="sv-row-0901">
+            <div class="txn-ic">💳</div>
+            <div class="txn-main"><div class="txn-name">招商银行转账 <span class="chip pos">充值</span></div><div class="txn-cat num">2026-09-01</div></div>
+            <div class="txn-amt in num">+¥1,000.00</div>
+          </div>
+          <div class="sv-sub" data-od-id="sv-row-0901-bonus">
+            <span class="arr">↳</span><span class="chip">赠送</span><span class="amt num">+¥80.00</span><span class="memo">计入其他收入</span>
+          </div>
+          <div class="txn" data-od-id="sv-row-0822">
+            <div class="txn-ic">🥤</div>
+            <div class="txn-main"><div class="txn-name">亲友饮品 <span class="t-muted">消费</span></div><div class="txn-cat num">2026-08-22</div></div>
+            <div class="txn-amt out num">−¥112.00</div>
+          </div>
+          <div class="txn has-sub" data-od-id="sv-row-0715">
+            <div class="txn-ic">💳</div>
+            <div class="txn-main"><div class="txn-name">— <span class="chip pos">充值</span></div><div class="txn-cat num">2026-07-15</div></div>
+            <div class="txn-amt in num">+¥1,000.00</div>
+          </div>
+          <div class="sv-sub" data-od-id="sv-row-0715-bonus">
+            <span class="arr">↳</span><span class="chip">赠送</span><span class="amt num">+¥80.00</span><span class="memo">计入其他收入</span>
+          </div>
+          <div class="txn" data-od-id="sv-row-0702">
+            <div class="txn-ic">🛍️</div>
+            <div class="txn-main"><div class="txn-name">— <span class="t-muted">消费</span></div><div class="txn-cat num">2026-07-02</div></div>
+            <div class="txn-amt out num">−¥45.00</div>
+          </div>
+        </div>
+
+        <div class="card" data-od-id="card-month-spend">
+          <div class="mini-head"><span class="mini-title">本月消费</span><span class="chip num">9月</span></div>
+          <div class="mini-big num">¥186.00 <small>· 4 笔</small></div>
+          <div class="mini-foot num only-b">变体 B 注记:按折扣口径成本 ¥172.22</div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card" data-od-id="card-account-info">
+          <div class="card-head"><h2>账户信息</h2></div>
+          <div class="kv">
+            <div class="row"><span class="k">账户类型</span><span class="v">储值卡(资产)</span></div>
+            <div class="row"><span class="k">尾号</span><span class="v num">8823</span></div>
+            <div class="row"><span class="k">币种</span><span class="v">CNY</span></div>
+            <div class="row"><span class="k">创建于</span><span class="v num">2026-06-01</span></div>
+            <div class="row"><span class="k">关联预算分类</span><span class="v">餐饮</span></div>
+            <div class="row"><span class="k">记账方式</span><span class="v">双记账(五类科目)</span></div>
+          </div>
+        </div>
+
+        <!-- 充值构成:仅变体 B「充值送优惠」显示 -->
+        <div class="card only-b" data-od-id="card-topup-mix">
+          <div class="card-head"><h2>充值构成</h2><span class="chip">变体 B</span></div>
+          <div class="g-mix-head"><span>充值构成 · 两段</span><b class="num">¥3,240.00</b></div>
+          <div class="g-bar"><i class="seg-principal"></i><i class="seg-bonus"></i></div>
+          <div class="g-lg num">
+            <div class="row"><i class="sw principal"></i><span>本金 <b>¥3,000</b> · 92.6%</span></div>
+            <div class="row"><i class="sw bonus"></i><span>赠送 <b>¥240</b> · 7.4%</span></div>
+          </div>
+          <div class="g-foot num">
+            <div class="eq">余额 = <b>3,000 + 240 − 2,420 = 820</b></div>
+            <div>实际折扣 = 3,000 ÷ 3,240 ≈ 92.6%(消费 ¥100 实际成本 ¥92.60)</div>
+          </div>
+        </div>
+
+        <div class="callout pos" data-od-id="callout-remind">
+          <span class="c-ic">🔔</span>
+          <div>
+            <div class="c-title">提醒</div>
+            <div class="c-body num">低余额阈值 ¥200(当前 ¥820 未触发);有效期至 2027-06-30,到期前 30 天提醒。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">御财 v2 设计原型 · A+B 亮暗双主题 · 储值卡详情 · 演示数据</footer>
+  </div>
+</main>
+
+<!-- 套件页面链接为 # 占位,集成阶段重接到套件真实页面 -->
+<nav class="bottom-nav">
+  <a href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="../../../../../../../design-output-v2/ab/transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a class="active" href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<!-- 充值对话框:变体 B 显示赠送行与赠送分录 -->
+<div class="overlay" id="topupOverlay" onclick="if(event.target===this)closeTopup()">
+  <div class="dlg" data-od-id="topup-dialog" role="dialog" aria-modal="true" aria-label="储值卡充值">
+    <h3>充值</h3>
+    <div class="sub num">星巴克储值卡 · 尾号 8823</div>
+
+    <div class="amt-line">
+      <label for="topupAmt">充值金额</label>
+      <input type="text" id="topupAmt" class="num" value="1,000.00">
+      <span style="flex:1"></span>
+    </div>
+
+    <div class="promo-line" data-od-id="promo-line">
+      <span class="plbl">优惠活动</span>
+      <div class="pseg" id="segPromo" data-od-id="promo-seg">
+        <button type="button" data-v="a" class="on" onclick="setPromo('a')">充 1,000 送 80</button>
+        <button type="button" data-v="b" onclick="setPromo('b')">首充翻倍 充 500 送 100</button>
+        <button type="button" data-v="none" onclick="setPromo('none')">无活动</button>
+      </div>
+    </div>
+
+    <div class="bonus-line" id="bonusLine" data-od-id="topup-bonus-line" style="display:none">
+      <span id="bonusAct">活动 充 1,000 送 80 · 自动带出</span>
+      <b class="num" id="bonusAmt">赠送 +¥80.00</b>
+    </div>
+
+    <div class="je" data-od-id="topup-je-preview">
+      <div class="je-k">双记账预览</div>
+      <div class="je-row" id="jeTr"><span class="w num" id="jeTrW">转账 ¥1,000.00</span><span class="d">借 储值卡(星巴克) / 贷 招商银行储蓄卡</span></div>
+      <div class="je-row" id="jeBn" style="display:none"><span class="w num" id="jeBnW">赠送 ¥80.00</span><span class="d">借 储值卡(星巴克) / 贷 其他收入-赠送</span></div>
+    </div>
+
+    <div class="dlg-note num">充值 = 账户间转账,净资产不变;赠送计入其他收入。</div>
+
+    <div class="dlg-foot">
+      <button type="button" class="btn-ghost" onclick="closeTopup()">取消</button>
+      <button type="button" class="btn-primary" onclick="closeTopup()" data-od-id="btn-topup-confirm">确认充值</button>
+    </div>
+  </div>
+</div>
+
+<!-- 转让对话框:折价转让双记账预览(700 + 120 = 820) -->
+<div class="overlay" id="transferOverlay" onclick="if(event.target===this)closeById('transferOverlay')">
+  <div class="dlg" data-od-id="transfer-dialog" role="dialog" aria-modal="true" aria-label="转让储值卡">
+    <h3>转让储值卡</h3>
+    <div class="sub">将卡内余额转让给他人,转让后本卡余额清零</div>
+
+    <div class="fld">
+      <label for="trTo">转让对象</label>
+      <input type="text" id="trTo" placeholder="接收人/备注">
+    </div>
+
+    <div class="amt-line">
+      <label>转让金额</label>
+      <input type="text" class="num" value="820.00" disabled>
+      <span class="note">默认全部 · 只读演示</span>
+    </div>
+    <div class="amt-line">
+      <label>实际成交</label>
+      <input type="text" class="num" value="700.00" disabled>
+      <span class="note">折价示例</span>
+    </div>
+    <div class="dlg-note num">按面值转让时成交=余额,无折价分录</div>
+
+    <div class="je">
+      <div class="je-k">双记账预览</div>
+      <div class="je-row"><span class="w num">转让收款 ¥700.00</span><span class="d">借 现金-微信零钱 / 贷 储值卡(星巴克) ¥700.00</span></div>
+      <div class="je-row"><span class="w num">转让折价 ¥120.00</span><span class="d">借 其他支出-转让折价 / 贷 储值卡(星巴克) ¥120.00</span></div>
+      <div class="je-row"><span class="w num">转让后余额 ¥0.00</span><span class="d num">700 + 120 = 820(卡清零)</span></div>
+    </div>
+    <div class="dlg-note num only-b">含赠送份额一并转出,赠送部分不产生损益</div>
+
+    <div class="dlg-foot">
+      <button type="button" class="btn-ghost" onclick="closeById('transferOverlay')">取消</button>
+      <button type="button" class="btn-primary" onclick="closeById('transferOverlay')" data-od-id="btn-transfer-confirm">确认转让</button>
+    </div>
+  </div>
+</div>
+
+<!-- 退卡退款对话框:扣 10% 手续费口径(738 + 82 = 820) -->
+<div class="overlay" id="refundOverlay" onclick="if(event.target===this)closeById('refundOverlay')">
+  <div class="dlg" data-od-id="refund-dialog" role="dialog" aria-modal="true" aria-label="退卡退款">
+    <h3>退卡退款</h3>
+    <div class="sub">商家政策示例:退还本金余额,扣 10% 手续费,赠送部分作废</div>
+
+    <div class="je">
+      <div class="je-k">双记账预览</div>
+      <div class="je-row"><span class="w num">商家实退 ¥738.00</span><span class="d">借 现金-招商银行 / 贷 储值卡(星巴克) ¥738.00</span></div>
+      <div class="je-row"><span class="w num">退卡手续费 ¥82.00</span><span class="d">借 其他支出-退卡手续费 / 贷 储值卡(星巴克) ¥82.00</span></div>
+      <div class="je-row"><span class="w num">退款后余额 ¥0.00</span><span class="d num">738 + 82 = 820</span></div>
+    </div>
+    <div class="dlg-note num only-b">赠送份额(占余额 7.4%)按政策作废,不参与退款</div>
+
+    <div class="dlg-foot">
+      <button type="button" class="btn-ghost" onclick="closeById('refundOverlay')">取消</button>
+      <button type="button" class="btn-primary" onclick="closeById('refundOverlay')" data-od-id="btn-refund-confirm">确认退卡</button>
+    </div>
+  </div>
+</div>
+
+<!-- 挂失冻结:confirm 式,确认后 hero chip + 充值禁用 + 菜单项可切回 -->
+<div class="overlay" id="freezeOverlay" onclick="if(event.target===this)closeById('freezeOverlay')">
+  <div class="dlg" data-od-id="freeze-dialog" role="dialog" aria-modal="true" aria-label="挂失冻结">
+    <h3>挂失冻结</h3>
+    <div class="sub">挂失后本卡暂停一切充值与消费,可随时解除。</div>
+    <div class="dlg-foot">
+      <button type="button" class="btn-ghost" onclick="closeById('freezeOverlay')">取消</button>
+      <button type="button" class="btn-primary" onclick="doFreeze()" data-od-id="btn-freeze-confirm">确认挂失</button>
+    </div>
+  </div>
+</div>
+
+<!-- 菜单遮罩(点击外部关闭) -->
+<div class="ops-mask" id="opsMask" onclick="closeOps()"></div>
+
+<!-- 浮动变体条(原型控制,非套件组件;A/B 拍板前保留) -->
+<div class="pfloat" data-od-id="variant-bar">
+  <span class="plbl">变体</span>
+  <div class="pseg" id="segVariant">
+    <button type="button" data-v="a" class="on" onclick="setVariant('a')">A 纯充值</button>
+    <button type="button" data-v="b" onclick="setVariant('b')">B 充值送优惠</button>
+  </div>
+</div>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+<script>
+function syncUrl(){
+  try{history.replaceState(null,'','?'+new URLSearchParams({variant:document.documentElement.dataset.variant}));}catch(e){/* file:// 等环境禁写 URL 时静默 */}
+}
+function setVariant(v){
+  document.documentElement.dataset.variant=v;
+  document.querySelectorAll('#segVariant button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  syncPromo();
+  syncUrl();
+}
+function openTopup(){document.getElementById('topupOverlay').classList.add('open')}
+function closeTopup(){document.getElementById('topupOverlay').classList.remove('open')}
+function openById(id){closeOps();document.getElementById(id).classList.add('open')}
+function closeById(id){document.getElementById(id).classList.remove('open')}
+
+/* —— 更多操作菜单(A1) —— */
+function toggleOps(e,id){
+  e.stopPropagation();
+  const m=document.getElementById(id),wasOpen=m.classList.contains('open');
+  closeOps();
+  if(!wasOpen){m.classList.add('open');document.getElementById('opsMask').classList.add('open')}
+}
+function closeOps(){
+  document.querySelectorAll('.ops-menu.open').forEach(m=>m.classList.remove('open'));
+  document.getElementById('opsMask').classList.remove('open');
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.ops-wrap'))closeOps()});
+
+/* —— 挂失冻结演示态(A4) —— */
+let frozen=false;
+function onFreezeMenu(){
+  closeOps();
+  if(frozen){doUnfreeze();return}
+  openById('freezeOverlay');
+}
+function doFreeze(){
+  frozen=true;closeById('freezeOverlay');
+  document.getElementById('frozenChip').style.display='';
+  document.getElementById('btnTopup').disabled=true;
+  document.getElementById('mFreeze').textContent='解除挂失';
+}
+function doUnfreeze(){
+  frozen=false;
+  document.getElementById('frozenChip').style.display='none';
+  document.getElementById('btnTopup').disabled=false;
+  document.getElementById('mFreeze').textContent='挂失冻结';
+}
+
+/* —— 优惠活动联动(A5):与变体 A/B 共同决定赠送行/分录 —— */
+const PROMO={
+  a:{act:'活动 充 1,000 送 80 · 自动带出',bonus:'赠送 +¥80.00',trW:'转账 ¥1,000.00',bnW:'赠送 ¥80.00',amt:'1,000.00'},
+  b:{act:'活动 首充翻倍 充 500 送 100 · 自动带出',bonus:'赠送 +¥100.00',trW:'转账 ¥500.00',bnW:'赠送 ¥100.00',amt:'500.00'},
+  none:{act:'',bonus:'',trW:'转账 ¥1,000.00',bnW:'',amt:'1,000.00'}
+};
+let promo='a';
+function syncPromo(){
+  const v=document.documentElement.dataset.variant,p=PROMO[promo];
+  const showBonus=(v==='b'&&promo!=='none');
+  const bl=document.getElementById('bonusLine');
+  bl.style.display=showBonus?'':'none';
+  if(showBonus){
+    document.getElementById('bonusAct').textContent=p.act;
+    document.getElementById('bonusAmt').textContent=p.bonus;
+  }
+  document.getElementById('jeBn').style.display=(promo==='none')?'none':'';
+  if(promo!=='none')document.getElementById('jeBnW').textContent=p.bnW;
+  document.getElementById('jeTrW').textContent=p.trW;
+  document.getElementById('topupAmt').value=p.amt;
+}
+function setPromo(v){
+  promo=v;
+  document.querySelectorAll('#segPromo button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  syncPromo();
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));closeOps()}});
+const q0=new URLSearchParams(location.search);
+if(q0.get('variant'))setVariant(q0.get('variant'));
+syncPromo();
+</script>
+</body>
+</html>

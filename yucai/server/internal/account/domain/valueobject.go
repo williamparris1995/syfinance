@@ -143,6 +143,7 @@ const (
 	AccountCategoryLoan
 	AccountCategoryOtherAsset
 	AccountCategoryOtherLiability
+	AccountCategoryStoredValue
 )
 
 func (c AccountCategory) String() string {
@@ -165,6 +166,8 @@ func (c AccountCategory) String() string {
 		return "other_asset"
 	case AccountCategoryOtherLiability:
 		return "other_liability"
+	case AccountCategoryStoredValue:
+		return "stored_value"
 	default:
 		return "savings"
 	}
@@ -188,6 +191,8 @@ func ParseAccountCategory(s string) AccountCategory {
 		return AccountCategoryOtherAsset
 	case "other_liability":
 		return AccountCategoryOtherLiability
+	case "stored_value":
+		return AccountCategoryStoredValue
 	default:
 		return AccountCategorySavings
 	}

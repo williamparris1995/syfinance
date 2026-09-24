@@ -26,7 +26,7 @@ import 'package:yucai_client/core/theme/app_design.dart';
 ({String section, String page, String rootPath, String? createLabel, String? createRoute})
     _branchMetaOf(int index, String location) {
   if (_isSubscriptionManagement(location)) {
-    return (section: '交易', page: '订阅管理', rootPath: '/accounts/templates', createLabel: null, createRoute: null);
+    return (section: '交易', page: '订阅管理', rootPath: '/accounts/subscriptions', createLabel: null, createRoute: null);
   }
   switch (index) {
     case 0:
@@ -98,7 +98,9 @@ bool _isCategoryManagement(String location) => location == '/categories';
 /// 覆盖 branch 元数据(见 _branchMetaOf),否则顶部残留「财务 › 账户管理」。
 bool _isSubscriptionManagement(String location) =>
     location == '/accounts/templates' ||
-    location.startsWith('/accounts/templates/');
+    location.startsWith('/accounts/templates/') ||
+    location == '/accounts/subscriptions' ||
+    location.startsWith('/accounts/subscriptions/');
 
 /// 应用外壳（侧边栏 + 顶栏 + 内容区）。
 /// 由 [StatefulShellRoute] 驱动：[navigationShell] 切换各功能分支，
@@ -263,9 +265,9 @@ const _navGroups = <_NavGroup>[
   _NavGroup('交易', [
     _NavItem('交易记录', LucideIcons.receipt, 2),
     _NavItem('分类管理', LucideIcons.tags, null, route: '/categories'),
-    // 订阅/周期模板(R7-C 调度器已接):页面在 accounts 分支子路由,
-    // 与 /categories 同款 route 自定义导航。
-    _NavItem('订阅管理', LucideIcons.repeat, null, route: '/accounts/templates'),
+    // 订阅中心(v6):订阅管理改指订阅视图页;周期模板页在
+    // /accounts/templates(订阅中心「模板管理」入口可达)。
+    _NavItem('订阅管理', LucideIcons.repeat, null, route: '/accounts/subscriptions'),
   ]),
   _NavGroup('规划', [
     _NavItem('预算管理', LucideIcons.piggyBank, 6, route: '/budgets'),
@@ -290,7 +292,10 @@ bool _claimedByRouteOnlyNav(String location) => _navGroups
     .any((i) =>
         i.branchIndex == null &&
         i.route != null &&
-        location.startsWith(i.route!));
+        location.startsWith(i.route!)) ||
+    // v6:订阅管理改指 /accounts/subscriptions,模板页 /accounts/templates
+    // 仍属其下钻范围,继续让位 branch 高亮(防「账户管理」双亮)。
+    _isSubscriptionManagement(location);
 
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
@@ -389,8 +394,14 @@ class _Sidebar extends StatelessWidget {
                       // branch 项在 route-only 项声称的路径下让位(防双高亮)。
                       selected: item.route != null
                           ? GoRouterState.of(context)
-                              .matchedLocation
-                              .startsWith(item.route!)
+                                  .matchedLocation
+                                  .startsWith(item.route!) ||
+                              // v6:订阅管理在模板下钻页 /accounts/templates
+                              // 也保持高亮(同一功能的两个视图)。
+                              (item.route == '/accounts/subscriptions' &&
+                                  _isSubscriptionManagement(
+                                      GoRouterState.of(context)
+                                          .matchedLocation))
                           : item.branchIndex == currentIndex &&
                               !_claimedByRouteOnlyNav(
                                   GoRouterState.of(context).matchedLocation),

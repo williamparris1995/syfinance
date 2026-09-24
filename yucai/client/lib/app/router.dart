@@ -73,6 +73,7 @@ import 'package:yucai_client/tag/presentation/bloc/tag_bloc.dart';
 import 'package:yucai_client/tag/presentation/pages/tag_page.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
 import 'package:yucai_client/template/presentation/pages/template_page.dart';
+import 'package:yucai_client/template/presentation/pages/subscription_center_page.dart';
 import 'package:yucai_client/report/presentation/pages/report_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -212,6 +213,15 @@ GoRouter buildRouter(
                     builder: (_, __) => BlocProvider<TemplateBloc>(
                       create: (_) => getIt<TemplateBloc>(),
                       child: const TemplatePage(),
+                    ),
+                  ),
+                  // 订阅中心(v6):模板的订阅视图(月度等价/到期/暂停),侧栏
+                  // 「订阅管理」改指本页;纯模板管理仍走 /accounts/templates。
+                  GoRoute(
+                    path: 'subscriptions',
+                    builder: (_, __) => BlocProvider<TemplateBloc>(
+                      create: (_) => getIt<TemplateBloc>(),
+                      child: const SubscriptionCenterPage(),
                     ),
                   ),
                   GoRoute(

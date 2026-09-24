@@ -14,6 +14,7 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/credit_card_repay_dialog.dart';
+import 'package:yucai_client/account/presentation/widgets/stored_value_topup_dialog.dart';
 import 'package:yucai_client/account/presentation/widgets/credit_card_statement_panel.dart';
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/data_refresh.dart';
@@ -301,7 +302,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       IconButton(
                         tooltip: a?.category == AccountCategory.creditCard
                             ? '还款'
-                            : '转账',
+                            : a?.category == AccountCategory.storedValue
+                                ? '充值'
+                                : '转账',
                         icon: Icon(
                             a?.category == AccountCategory.creditCard
                                 ? LucideIcons.creditCard
@@ -322,7 +325,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                         onPressed: a == null ? null : _transfer,
                         child: Text(a?.category == AccountCategory.creditCard
                             ? '还款'
-                            : '转账'),
+                            : a?.category == AccountCategory.storedValue
+                                ? '充值'
+                                : '转账'),
                       ),
                     ],
                   ],
@@ -577,6 +582,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         add('到期日',
             a.fixedMaturityDate == null ? null : _fmtDate(a.fixedMaturityDate!));
         add('期限', a.fixedTermMonths == null ? null : '${a.fixedTermMonths}月');
+      case AccountCategory.storedValue:
+        // v6 储值卡:充值/赠送/消费聚合面板的数据在 StoredValuePanel,信息卡
+        // 只补商户与尾号(institution 已进通用行,这里补储值语义)。
+        add('卡号尾号', a.cardNumberTail.isEmpty ? null : a.cardNumberTail);
       case AccountCategory.goldFx:
         add('品种', a.goldProductType.isEmpty ? null : a.goldProductType);
         if (a.goldQuantity != null) {
@@ -985,6 +994,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         AccountCategory.loan => LucideIcons.landmark,
         AccountCategory.otherAsset => LucideIcons.wallet,
         AccountCategory.otherLiability => LucideIcons.wallet,
+        AccountCategory.storedValue => LucideIcons.gift,
       };
 
   /// hero-badge：第1金色实心（icon + 文字）；第2 ghost（半透明）。
@@ -1119,6 +1129,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         add('账户类型', '${a.category.label} · $liquidity');
         final cn = _currencyName(a.currencyCode);
         add('币种', cn.isEmpty ? a.currencyCode : '${a.currencyCode} $cn');
+      case AccountCategory.storedValue:
+        add('卡号尾号', a.cardNumberTail.isEmpty ? null : a.cardNumberTail);
+        add('账户类型', '${a.category.label} · 充值即转账');
     }
 
     return Container(
@@ -1373,6 +1386,24 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
           // DAY = today, MONTH = this month, YEAR = this year. Otherwise the
           // count was inconsistent (scope-scoped totals + all-recent count).
           ('$_scopeLabel交易', '${_txnCountInScope(txns)}'),
+        ];
+      case AccountCategory.storedValue:
+        // v6 储值卡 sum-strip:本卡分录聚合(借=入卡:充值+赠送;贷=出卡:
+        // 消费+转出)。充值/赠送的拆分依赖对端账户类型,流水面板后续迭代;
+        // 四卡口径与原型一致:累计入卡/累计出卡/卡内余额/交易数。
+        var debit = 0, credit = 0;
+        for (final t in txns) {
+          for (final e in t.entries) {
+            if (e.accountId != a.id) continue;
+            debit += e.debitCents;
+            credit += e.creditCents;
+          }
+        }
+        return [
+          ('累计入卡(充值+赠送)', _fmtSigned(debit, a.currencyCode)),
+          ('累计出卡(消费+转出)', _fmtSigned(credit, a.currencyCode)),
+          ('卡内余额', _fmtSigned(a.currentBalanceCents, a.currencyCode)),
+          ('交易数', '${txns.length}'),
         ];
     }
   }
@@ -1935,7 +1966,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     });
   }
 
-  /// 转账/还款：信用卡 → 三方式还款对话框；其余 → 转账表单（预选本账户转出）。
+  /// 转账/还款/充值：信用卡 → 三方式还款对话框；储值卡 → 充值对话框
+  /// (v6:转账+可选赠送两笔交易)；其余 → 转账表单（预选本账户转出）。
   void _transfer() {
     final st = context.read<AccountBloc>().state;
     final a = st is AccountDetailLoaded ? st.account : null;
@@ -1943,7 +1975,23 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
       _repay(a);
       return;
     }
+    if (a != null && a.category == AccountCategory.storedValue) {
+      _topup(a);
+      return;
+    }
     _transferForm();
+  }
+
+  /// 储值卡充值对话框(付款账户候选来自账户列表 bloc 缓存,回退单账户)。
+  Future<void> _topup(Account card) async {
+    final st = context.read<AccountBloc>().state;
+    final all = st is AccountsLoaded ? st.accounts : <Account>[card];
+    await showStoredValueTopupDialog(context, card, all, onDone: () {
+      if (mounted) {
+        context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+        _refreshTxn();
+      }
+    });
   }
 
   /// 信用卡还款对话框（储蓄卡候选来自账户列表 bloc 缓存，回退单账户）。

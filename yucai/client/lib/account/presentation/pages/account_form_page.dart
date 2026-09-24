@@ -343,6 +343,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
     TypeOption(AccountCategory.loan, '贷款', LucideIcons.landmark),
     TypeOption(AccountCategory.otherAsset, '其他资产', LucideIcons.wallet),
     TypeOption(AccountCategory.otherLiability, '其他负债', LucideIcons.wallet),
+    TypeOption(AccountCategory.storedValue, '储值卡', LucideIcons.gift),
   ];
 
   @override

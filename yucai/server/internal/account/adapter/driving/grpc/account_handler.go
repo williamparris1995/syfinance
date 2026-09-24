@@ -541,6 +541,8 @@ func protoToAccountCategory(c pb.AccountCategory) domain.AccountCategory {
 		return domain.AccountCategoryOtherAsset
 	case pb.AccountCategory_ACCOUNT_CATEGORY_OTHER_LIABILITY:
 		return domain.AccountCategoryOtherLiability
+	case pb.AccountCategory_ACCOUNT_CATEGORY_STORED_VALUE:
+		return domain.AccountCategoryStoredValue
 	default:
 		return domain.AccountCategorySavings
 	}
@@ -564,6 +566,8 @@ func accountCategoryToProto(c domain.AccountCategory) pb.AccountCategory {
 		return pb.AccountCategory_ACCOUNT_CATEGORY_OTHER_ASSET
 	case domain.AccountCategoryOtherLiability:
 		return pb.AccountCategory_ACCOUNT_CATEGORY_OTHER_LIABILITY
+	case domain.AccountCategoryStoredValue:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_STORED_VALUE
 	default:
 		return pb.AccountCategory_ACCOUNT_CATEGORY_SAVINGS
 	}

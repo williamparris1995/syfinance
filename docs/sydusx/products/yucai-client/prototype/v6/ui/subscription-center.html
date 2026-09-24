@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · 订阅中心</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:订阅中心——只写布局形态,零新令牌,视觉全部来自 theme.css */
+
+  /* —— 壳:与 budgets.html 同构 —— */
+  .budget-total{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+  .budget-total .big{flex:1;min-width:220px}
+  .bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+  .bcard{display:flex;flex-direction:column;gap:12px}
+  .bcard .b-top{display:flex;align-items:center;justify-content:space-between}
+  .bcard .b-name{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px}
+  .bcard .b-cat{width:34px;height:34px;border-radius:10px;background:var(--ic-bg);display:grid;place-items:center;font-size:16px}
+  .bcard .b-amt{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums}
+  .bcard .b-amt small{font-size:13px;color:var(--muted);font-weight:500}
+  .bcard .b-cycle{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:-6px}
+  .bcard .b-foot{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;flex-wrap:wrap}
+  .bcard .b-top .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  /* —— 卡片操作菜单 + 对话框(BRIEF2 增量,零新令牌,.dlg 写法沿 credit-card-account 派生) —— */
+  .b-top-r{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .icon-btn.sm{width:30px;height:30px;border-radius:8px}
+  .icon-btn.sm svg.ic{width:15px;height:15px}
+  .ops-wrap{position:relative}
+  .ops-menu{
+    position:absolute;right:0;top:calc(100% + 6px);z-index:70;min-width:172px;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    box-shadow:0 10px 28px color-mix(in srgb,var(--fg) 10%,transparent);
+    padding:6px;display:none;
+  }
+  .ops-menu.open{display:grid;gap:2px}
+  .ops-item{
+    display:block;width:100%;border:0;background:transparent;color:var(--fg);text-align:left;
+    padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;
+  }
+  .ops-item:hover{background:var(--surface-2)}
+  .ops-mask{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 32%,transparent);z-index:65;display:none}
+  .ops-mask.open{display:block}
+  .overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 62%,transparent);display:none;place-items:center;z-index:50;padding:20px}
+  .overlay.open{display:grid}
+  .dlg{width:min(430px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
+  .dlg h3{font-size:15px;font-weight:700}
+  .dlg .sub{font-size:12px;color:var(--muted);margin:2px 0 14px;line-height:1.7}
+  .dlg .body{font-size:12.5px;color:var(--muted);line-height:1.8;margin:2px 0 4px}
+  .fld{display:flex;align-items:center;gap:10px;margin:10px 0 2px;font-size:12px;color:var(--muted)}
+  .fld input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg);font-family:inherit}
+  .pills-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 2px;font-size:12px;color:var(--muted)}
+  .eq-line{background:var(--q1-bg);color:var(--q1-fg);border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:10px}
+  .sw-row{display:flex;align-items:center;gap:10px;margin:12px 0 0;font-size:13px;color:var(--fg);font-weight:600;cursor:pointer}
+  .sw-row input{accent-color:var(--acc);width:16px;height:16px;flex:none}
+  .sw-note{font-size:11px;color:var(--muted);margin-top:4px}
+  .dlg-foot{display:flex;gap:10px;margin-top:14px}
+  .dlg-foot .btn-primary{flex:1}
+
+  @media (max-width:900px){
+    .bgrid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="19" cy="12" r="1.1"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+</svg>
+
+<!-- 套件页面链接为 # 占位,集成阶段重接到套件真实页面 -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item active" href="#"><svg class="ic"><use href="#i-repeat"/></svg>订阅中心</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/settings.html"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main" data-od-id="main-region">
+  <header class="topbar">
+    <div class="crumb">工具 <span class="sep">›</span> <b>订阅中心</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索订阅…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1 data-od-id="page-title">订阅中心</h1>
+        <p class="date num">周期扣款 · 与记账模板联动 · 5 个活跃订阅</p>
+      </div>
+      <div class="page-head-actions">
+        <button class="btn-primary" onclick="openSub('new')" data-od-id="btn-new-sub"><svg class="ic"><use href="#i-plus"/></svg>新建订阅</button>
+      </div>
+    </div>
+
+    <section class="hero" data-od-id="sub-hero">
+      <div class="budget-total">
+        <div class="big">
+          <div class="hero-label">月度等价成本 · 年付按月摊</div>
+          <div class="hero-row">
+            <div class="hero-amount sm num">¥381.50<span class="cents"> /月</span></div>
+          </div>
+        </div>
+        <div class="hero-foot num" style="margin:0">
+          <span>年化合计 <b>¥4,578</b></span>
+          <span>活跃订阅 <b>5</b></span>
+          <span>30 天内到期 <b>2</b></span>
+          <span>关联模板 <b>2/5</b></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="bgrid">
+      <div class="card bcard" data-od-id="sub-card-iccloud">
+        <div class="b-top">
+          <div class="b-name"><span class="b-cat">☁️</span>iCloud+ 200GB</div>
+          <div class="b-top-r">
+            <span class="chip">月付</span>
+            <div class="ops-wrap">
+              <button type="button" class="icon-btn sm" data-od-id="card-ops-1" onclick="toggleOps(event,'cm1')" aria-label="更多操作" title="更多操作"><svg class="ic"><use href="#i-dots"/></svg></button>
+              <div class="ops-menu" id="cm1">
+                <button type="button" class="ops-item" onclick="openSub('pause')">暂停自动记账</button>
+                <button type="button" class="ops-item" onclick="openSub('cancel')">取消订阅(到期不续)</button>
+                <button type="button" class="ops-item" onclick="openSub('cycle')">换周期(月⇄年)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="b-amt num">¥21 <small>/月</small></div>
+        <div class="bar"><i style="width:77%"></i></div>
+        <div class="b-cycle num">09-01 → 10-01</div>
+        <div class="b-foot num"><span>下次续费 2026-10-01 · 7 天</span><span>自动记账 · 关联模板</span></div>
+      </div>
+      <div class="card bcard" data-od-id="sub-card-music">
+        <div class="b-top">
+          <div class="b-name"><span class="b-cat">🎵</span>网易云音乐 黑胶VIP</div>
+          <div class="b-top-r">
+            <span class="chip">月付</span><span class="chip warn">4 天后续费</span>
+            <div class="ops-wrap">
+              <button type="button" class="icon-btn sm" data-od-id="card-ops-2" onclick="toggleOps(event,'cm2')" aria-label="更多操作" title="更多操作"><svg class="ic"><use href="#i-dots"/></svg></button>
+              <div class="ops-menu" id="cm2">
+                <button type="button" class="ops-item" onclick="openSub('pause')">暂停自动记账</button>
+                <button type="button" class="ops-item" onclick="openSub('cancel')">取消订阅(到期不续)</button>
+                <button type="button" class="ops-item" onclick="openSub('cycle')">换周期(月⇄年)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="b-amt num">¥15 <small>/月</small></div>
+        <div class="bar"><i class="warn" style="width:87%"></i></div>
+        <div class="b-cycle num">08-28 → 09-28</div>
+        <div class="b-foot num"><span>下次续费 2026-09-28</span><span>自动记账 · 关联模板</span></div>
+      </div>
+      <div class="card bcard" data-od-id="sub-card-iqiyi">
+        <div class="b-top">
+          <div class="b-name"><span class="b-cat">📺</span>爱奇艺 黄金VIP</div>
+          <div class="b-top-r">
+            <span class="chip">年付</span><span class="chip pos">年省 ¥42</span>
+            <div class="ops-wrap">
+              <button type="button" class="icon-btn sm" data-od-id="card-ops-3" onclick="toggleOps(event,'cm3')" aria-label="更多操作" title="更多操作"><svg class="ic"><use href="#i-dots"/></svg></button>
+              <div class="ops-menu" id="cm3">
+                <a class="ops-item" href="#" onclick="closeOps();return false">关联记账模板</a>
+                <button type="button" class="ops-item" onclick="openSub('cancel')">取消订阅(到期不续)</button>
+                <button type="button" class="ops-item" onclick="openSub('cycle')">换周期(月⇄年)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="b-amt num">¥21.50 <small>/月 · 年 ¥258</small></div>
+        <div class="bar"><i style="width:69%"></i></div>
+        <div class="b-cycle num">2026-01-15 → 2027-01-15</div>
+        <div class="b-foot num"><span>下次续费 2027-01-15 · 113 天</span><span>手动记账</span></div>
+      </div>
+      <div class="card bcard" data-od-id="sub-card-costco">
+        <div class="b-top">
+          <div class="b-name"><span class="b-cat">🛒</span>Costco 金星会员</div>
+          <div class="b-top-r">
+            <span class="chip">年付</span><span class="chip pos">含家庭副卡</span>
+            <div class="ops-wrap">
+              <button type="button" class="icon-btn sm" data-od-id="card-ops-4" onclick="toggleOps(event,'cm4')" aria-label="更多操作" title="更多操作"><svg class="ic"><use href="#i-dots"/></svg></button>
+              <div class="ops-menu" id="cm4">
+                <a class="ops-item" href="#" onclick="closeOps();return false">关联记账模板</a>
+                <button type="button" class="ops-item" onclick="openSub('cancel')">取消订阅(到期不续)</button>
+                <button type="button" class="ops-item" onclick="openSub('cycle')">换周期(月⇄年)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="b-amt num">¥24 <small>/月 · 年 ¥288</small></div>
+        <div class="bar"><i style="width:76%"></i></div>
+        <div class="b-cycle num">2025-11-20 → 2026-11-20</div>
+        <div class="b-foot num"><span>下次续费 2026-11-20 · 57 天</span><span>手动记账</span></div>
+      </div>
+      <div class="card bcard" data-od-id="sub-card-gym">
+        <div class="b-top">
+          <div class="b-name"><span class="b-cat">🏋️</span>健身房年卡</div>
+          <div class="b-top-r">
+            <span class="chip">年付</span>
+            <div class="ops-wrap">
+              <button type="button" class="icon-btn sm" data-od-id="card-ops-5" onclick="toggleOps(event,'cm5')" aria-label="更多操作" title="更多操作"><svg class="ic"><use href="#i-dots"/></svg></button>
+              <div class="ops-menu" id="cm5">
+                <a class="ops-item" href="#" onclick="closeOps();return false">关联记账模板</a>
+                <button type="button" class="ops-item" onclick="openSub('cancel')">取消订阅(到期不续)</button>
+                <button type="button" class="ops-item" onclick="openSub('cycle')">换周期(月⇄年)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="b-amt num">¥300 <small>/月 · 年 ¥3,600</small></div>
+        <div class="bar"><i style="width:57%"></i></div>
+        <div class="b-cycle num">2026-03-01 → 2027-03-01</div>
+        <div class="b-foot num"><span>下次续费 2027-03-01 · 158 天</span><span>手动记账</span></div>
+      </div>
+    </section>
+
+    <div class="card" style="margin-top:18px" data-od-id="card-due-soon">
+      <div class="card-head"><h2>30 天内到期</h2><span class="chip num">2 项</span></div>
+      <div class="due-row">
+        <div class="due-date num"><b>28</b>9月</div>
+        <div class="due-main">
+          <div class="due-name">网易云音乐 黑胶VIP</div>
+          <div class="due-sub num">2026-09-28 · 月付</div>
+        </div>
+        <div class="due-amt num">¥15 <span class="due-tag">4 天</span></div>
+      </div>
+      <div class="due-row">
+        <div class="due-date num"><b>01</b>10月</div>
+        <div class="due-main">
+          <div class="due-name">iCloud+ 200GB</div>
+          <div class="due-sub num">2026-10-01 · 月付</div>
+        </div>
+        <div class="due-amt num">¥21 <span class="due-tag">7 天</span></div>
+      </div>
+      <div class="mini-foot num" style="margin-top:10px">到期前 3 天推送提醒(与催办同源)</div>
+    </div>
+
+    <div class="callout warn" style="margin-top:18px" data-od-id="callout-caliber">
+      <span class="c-ic">💡</span>
+      <div>
+        <div class="c-title">口径</div>
+        <div class="c-body num">年付订阅支付时计入待摊资产(预付),按月等额转费用(如爱奇艺 ¥258/年 → ¥21.50/月);报表按月度等价口径呈现,避免支付月支出爆炸。月付订阅当月直接计费用。设置中可切回简化口径(支付当月一次性计费用)。</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px" data-od-id="card-cost-history">
+      <div class="card-head"><h2>近 6 个月订阅成本</h2><span class="chip">6 月新增健身房年卡</span></div>
+      <div style="display:flex;align-items:flex-end;gap:14px;height:120px;padding-top:6px" class="num">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%"><span style="font-size:11px;color:var(--muted)">¥81.50</span><i style="width:100%;max-width:44px;height:21%;border-radius:8px 8px 3px 3px;background:var(--bar-fill);display:block"></i><span style="font-size:11px;color:var(--muted)">3月</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%"><span style="font-size:11px;color:var(--muted)">¥81.50</span><i style="width:100%;max-width:44px;height:21%;border-radius:8px 8px 3px 3px;background:var(--bar-fill);display:block"></i><span style="font-size:11px;color:var(--muted)">4月</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%"><span style="font-size:11px;color:var(--muted)">¥81.50</span><i style="width:100%;max-width:44px;height:21%;border-radius:8px 8px 3px 3px;background:var(--bar-fill);display:block"></i><span style="font-size:11px;color:var(--muted)">5月</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%"><span style="font-size:11px;color:var(--fg);font-weight:700">¥381.50</span><i style="width:100%;max-width:44px;height:96%;border-radius:8px 8px 3px 3px;background:var(--bar-fill);display:block"></i><span style="font-size:11px;color:var(--muted)">6月</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%"><span style="font-size:11px;color:var(--muted)">¥381.50</span><i style="width:100%;max-width:44px;height:96%;border-radius:8px 8px 3px 3px;background:var(--bar-fill);display:block"></i><span style="font-size:11px;color:var(--muted)">7月</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%"><span style="font-size:11px;color:var(--fg);font-weight:700">¥381.50</span><i style="width:100%;max-width:44px;height:96%;border-radius:8px 8px 3px 3px;background:var(--bar-fill);display:block"></i><span style="font-size:11px;color:var(--fg);font-weight:600">8月</span></div>
+      </div>
+      <div class="mini-foot num" style="margin-top:10px">9 月当前 ¥381.50</div>
+    </div>
+
+    <footer class="foot">御财 v2 设计原型 · A+B 亮暗双主题 · 订阅中心 · 演示数据</footer>
+  </div>
+</main>
+
+<!-- 套件页面链接为 # 占位,集成阶段重接到套件真实页面 -->
+<nav class="bottom-nav">
+  <a href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="../../../../../../../design-output-v2/ab/transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<!-- 暂停扣款(B2) -->
+<div class="overlay" id="pauseOverlay" onclick="if(event.target===this)closeSub('pause')">
+  <div class="dlg" data-od-id="pause-dialog" role="dialog" aria-modal="true" aria-label="暂停扣款">
+    <h3>暂停扣款</h3>
+    <div class="sub">暂停期间不自动记账、不计续费提醒;可随时恢复。</div>
+    <div class="dlg-foot">
+      <button type="button" class="btn-ghost" onclick="closeSub('pause')">取消</button>
+      <button type="button" class="btn-primary" onclick="closeSub('pause')" data-od-id="btn-pause-confirm">确认暂停</button>
+    </div>
+  </div>
+</div>
+
+<!-- 取消订阅(以网易云为例,数字自含不改页面) -->
+<div class="overlay" id="cancelOverlay" onclick="if(event.target===this)closeSub('cancel')">
+  <div class="dlg" data-od-id="cancel-dialog" role="dialog" aria-modal="true" aria-label="取消订阅">
+    <h3>取消订阅</h3>
+    <div class="sub">以 网易云音乐 黑胶VIP 为例 · 到期不续</div>
+    <div class="body num">2026-09-28 到期后不再续费;本期剩余 4 天费用不退。月度等价成本将下降 ¥15/月(¥381.50 → ¥366.50)。</div>
+    <div class="dlg-foot">
+      <button type="button" class="btn-ghost" onclick="closeSub('cancel')">取消</button>
+      <button type="button" class="btn-primary" onclick="closeSub('cancel')" data-od-id="btn-cancel-confirm">确认取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 换周期(以爱奇艺为例,25×12=300 → 258) -->
+<div class="overlay" id="cycleOverlay" onclick="if(event.target===this)closeSub('cycle')">
+  <div class="dlg" data-od-id="cycle-dialog" role="dialog" aria-modal="true" aria-label="换周期">
+    <h3>换周期</h3>
+    <div class="sub">以 爱奇艺 黄金VIP 为例 · 月 ⇄ 年切换演示</div>
+    <div class="pills-row">
+      <span>周期</span>
+      <div class="pills" id="cyclePills">
+        <a href="#" data-v="m" onclick="setCycle('m');return false">月付 ¥25/月</a>
+        <a href="#" data-v="y" class="on" onclick="setCycle('y');return false">年付 ¥258/年</a>
+      </div>
+    </div>
+    <div class="eq-line num" id="cycleEq">年付月等价 ¥21.50/月 · 比月付年省 ¥42(25×12=300 → 258)</div>
+    <div class="dlg-foot">
+      <button type="button" class="btn-ghost" onclick="closeSub('cycle')">取消</button>
+      <button type="button" class="btn-primary" onclick="closeSub('cycle')" data-od-id="btn-cycle-confirm">确认换周期</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新建订阅(B3):优惠类型联动月度等价预览 -->
+<div class="overlay" id="newSubOverlay" onclick="if(event.target===this)closeSub('new')">
+  <div class="dlg" data-od-id="new-sub-dialog" role="dialog" aria-modal="true" aria-label="新建订阅">
+    <h3>新建订阅</h3>
+    <div class="sub">演示表单 · 创建后按周期自动追踪</div>
+
+    <div class="fld">
+      <label for="nsName">名称</label>
+      <input type="text" id="nsName" placeholder="如:Notion Plus">
+    </div>
+
+    <div class="pills-row">
+      <span>分类</span>
+      <div class="pills" id="nsCat">
+        <a href="#" class="on" onclick="pickPill('nsCat',this);return false">工具</a>
+        <a href="#" onclick="pickPill('nsCat',this);return false">娱乐</a>
+        <a href="#" onclick="pickPill('nsCat',this);return false">购物</a>
+        <a href="#" onclick="pickPill('nsCat',this);return false">健康</a>
+      </div>
+    </div>
+
+    <div class="pills-row">
+      <span>周期</span>
+      <div class="pills" id="nsCycle">
+        <a href="#" class="on" onclick="pickPill('nsCycle',this);return false">月付</a>
+        <a href="#" onclick="pickPill('nsCycle',this);return false">年付</a>
+      </div>
+    </div>
+
+    <div class="fld">
+      <label for="nsPrice">原价</label>
+      <input type="text" id="nsPrice" class="num" value="¥25/月">
+    </div>
+
+    <div class="pills-row">
+      <span>优惠类型</span>
+      <div class="pills" id="nsPromo">
+        <a href="#" data-v="none" class="on" onclick="setNsPromo('none');return false">无</a>
+        <a href="#" data-v="first" onclick="setNsPromo('first');return false">首月优惠 首月 ¥1</a>
+        <a href="#" data-v="year" onclick="setNsPromo('year');return false">年付折扣 ¥258/年</a>
+      </div>
+    </div>
+
+    <div class="eq-line num" id="nsEq" data-od-id="ns-monthly-eq">月度等价 · ¥25.00/月</div>
+
+    <label class="sw-row"><input type="checkbox" checked>关联记账模板</label>
+    <div class="sw-note">开启后按周期自动入账(与模板模块联动)</div>
+
+    <div class="fld">
+      <label for="nsDate">下次续费日</label>
+      <input type="date" id="nsDate" value="2026-10-24">
+    </div>
+
+    <div class="dlg-foot">
+      <button type="button" class="btn-ghost" onclick="closeSub('new')">取消</button>
+      <button type="button" class="btn-primary" onclick="closeSub('new')" data-od-id="btn-new-sub-confirm">创建订阅</button>
+    </div>
+  </div>
+</div>
+
+<!-- 菜单遮罩(点击外部关闭) -->
+<div class="ops-mask" id="opsMask" onclick="closeOps()"></div>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+<script>
+/* —— 卡片操作菜单(B1) —— */
+function toggleOps(e,id){
+  e.stopPropagation();
+  const m=document.getElementById(id),wasOpen=m.classList.contains('open');
+  closeOps();
+  if(!wasOpen){m.classList.add('open');document.getElementById('opsMask').classList.add('open')}
+}
+function closeOps(){
+  document.querySelectorAll('.ops-menu.open').forEach(m=>m.classList.remove('open'));
+  document.getElementById('opsMask').classList.remove('open');
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.ops-wrap'))closeOps()});
+
+/* —— 对话框开合(B2/B3) —— */
+const SUB_ID={pause:'pauseOverlay',cancel:'cancelOverlay',cycle:'cycleOverlay',new:'newSubOverlay'};
+function openSub(k){closeOps();document.getElementById(SUB_ID[k]).classList.add('open')}
+function closeSub(k){document.getElementById(SUB_ID[k]).classList.remove('open')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));closeOps()}});
+
+/* —— pills 与联动 —— */
+function pickPill(id,el){document.querySelectorAll('#'+id+' a').forEach(a=>a.classList.toggle('on',a===el))}
+function setCycle(v){
+  document.querySelectorAll('#cyclePills a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));
+  document.getElementById('cycleEq').textContent=v==='y'
+    ?'年付月等价 ¥21.50/月 · 比月付年省 ¥42(25×12=300 → 258)'
+    :'月付 ¥25.00/月';
+}
+const NS_EQ={none:'月度等价 · ¥25.00/月',first:'月度等价 · 首月 ¥1 · 次月起 ¥25.00/月',year:'月度等价 · ¥21.50/月(年 ¥258,省 14%)'};
+function setNsPromo(v){
+  document.querySelectorAll('#nsPromo a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));
+  document.getElementById('nsEq').textContent=NS_EQ[v];
+}
+</script>
+</body>
+</html>

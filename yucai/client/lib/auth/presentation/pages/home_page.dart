@@ -174,6 +174,7 @@ class _HomePageState extends State<HomePage> {
       switch (a.category) {
         case AccountCategory.savings:
         case AccountCategory.otherAsset:
+        case AccountCategory.storedValue:
           liquid += a.currentBalanceCents;
         case AccountCategory.investment:
           invest += a.currentBalanceCents;

@@ -112,6 +112,9 @@ class AccountCategory extends $pb.ProtobufEnum {
   static const AccountCategory ACCOUNT_CATEGORY_OTHER_LIABILITY =
       AccountCategory._(
           9, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_OTHER_LIABILITY');
+  static const AccountCategory ACCOUNT_CATEGORY_STORED_VALUE =
+      AccountCategory._(
+          10, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_STORED_VALUE');
 
   static const $core.List<AccountCategory> values = <AccountCategory>[
     ACCOUNT_CATEGORY_UNSPECIFIED,
@@ -124,10 +127,11 @@ class AccountCategory extends $pb.ProtobufEnum {
     ACCOUNT_CATEGORY_LOAN,
     ACCOUNT_CATEGORY_OTHER_ASSET,
     ACCOUNT_CATEGORY_OTHER_LIABILITY,
+    ACCOUNT_CATEGORY_STORED_VALUE,
   ];
 
   static final $core.List<AccountCategory?> _byValue =
-      $pb.ProtobufEnum.$_initByValueList(values, 9);
+      $pb.ProtobufEnum.$_initByValueList(values, 10);
   static AccountCategory? valueOf($core.int value) =>
       value < 0 || value >= _byValue.length ? null : _byValue[value];
 

@@ -93,6 +93,7 @@ int _displayValueCents(Account a) {
     case AccountCategory.savings:
     case AccountCategory.otherAsset:
     case AccountCategory.otherLiability:
+    case AccountCategory.storedValue:
       return a.currentBalanceCents;
   }
 }
@@ -1985,6 +1986,7 @@ class _AccountCardState extends State<_AccountCard> {
       AccountCategory.otherAsset => '账户金额',
       AccountCategory.otherLiability => '待还金额',
       AccountCategory.savings => '可用余额',
+      AccountCategory.storedValue => '卡内余额',
     };
     // 金额统一取 _displayValueCents（与总计/小计同口径），原货币符号。
     final info = widget.debtInfoFor(a);
@@ -2087,6 +2089,8 @@ class _AccountCardState extends State<_AccountCard> {
         return rate == null
             ? Text('可用余额', style: style)
             : Text('利率 ${rate.toStringAsFixed(2)}%', style: style);
+      case AccountCategory.storedValue:
+        return Text('卡内余额', style: style);
     }
   }
 

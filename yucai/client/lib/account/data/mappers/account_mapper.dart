@@ -100,6 +100,8 @@ AccountCategory accountCategoryFromProto(pb.AccountCategory c) {
       return AccountCategory.otherAsset;
     case pb.AccountCategory.ACCOUNT_CATEGORY_OTHER_LIABILITY:
       return AccountCategory.otherLiability;
+    case pb.AccountCategory.ACCOUNT_CATEGORY_STORED_VALUE:
+      return AccountCategory.storedValue;
     default:
       return AccountCategory.savings;
   }
@@ -123,6 +125,8 @@ pb.AccountCategory accountCategoryToProto(AccountCategory c) {
       return pb.AccountCategory.ACCOUNT_CATEGORY_OTHER_ASSET;
     case AccountCategory.otherLiability:
       return pb.AccountCategory.ACCOUNT_CATEGORY_OTHER_LIABILITY;
+    case AccountCategory.storedValue:
+      return pb.AccountCategory.ACCOUNT_CATEGORY_STORED_VALUE;
     default:
       return pb.AccountCategory.ACCOUNT_CATEGORY_SAVINGS;
   }

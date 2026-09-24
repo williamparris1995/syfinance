@@ -193,21 +193,23 @@ const (
 	AccountCategory_ACCOUNT_CATEGORY_LOAN            AccountCategory = 7
 	AccountCategory_ACCOUNT_CATEGORY_OTHER_ASSET     AccountCategory = 8
 	AccountCategory_ACCOUNT_CATEGORY_OTHER_LIABILITY AccountCategory = 9
+	AccountCategory_ACCOUNT_CATEGORY_STORED_VALUE    AccountCategory = 10
 )
 
 // Enum value maps for AccountCategory.
 var (
 	AccountCategory_name = map[int32]string{
-		0: "ACCOUNT_CATEGORY_UNSPECIFIED",
-		1: "ACCOUNT_CATEGORY_SAVINGS",
-		2: "ACCOUNT_CATEGORY_CREDIT_CARD",
-		3: "ACCOUNT_CATEGORY_INVESTMENT",
-		4: "ACCOUNT_CATEGORY_FIXED_DEPOSIT",
-		5: "ACCOUNT_CATEGORY_GOLD_FX",
-		6: "ACCOUNT_CATEGORY_REAL_ESTATE",
-		7: "ACCOUNT_CATEGORY_LOAN",
-		8: "ACCOUNT_CATEGORY_OTHER_ASSET",
-		9: "ACCOUNT_CATEGORY_OTHER_LIABILITY",
+		0:  "ACCOUNT_CATEGORY_UNSPECIFIED",
+		1:  "ACCOUNT_CATEGORY_SAVINGS",
+		2:  "ACCOUNT_CATEGORY_CREDIT_CARD",
+		3:  "ACCOUNT_CATEGORY_INVESTMENT",
+		4:  "ACCOUNT_CATEGORY_FIXED_DEPOSIT",
+		5:  "ACCOUNT_CATEGORY_GOLD_FX",
+		6:  "ACCOUNT_CATEGORY_REAL_ESTATE",
+		7:  "ACCOUNT_CATEGORY_LOAN",
+		8:  "ACCOUNT_CATEGORY_OTHER_ASSET",
+		9:  "ACCOUNT_CATEGORY_OTHER_LIABILITY",
+		10: "ACCOUNT_CATEGORY_STORED_VALUE",
 	}
 	AccountCategory_value = map[string]int32{
 		"ACCOUNT_CATEGORY_UNSPECIFIED":     0,
@@ -220,6 +222,7 @@ var (
 		"ACCOUNT_CATEGORY_LOAN":            7,
 		"ACCOUNT_CATEGORY_OTHER_ASSET":     8,
 		"ACCOUNT_CATEGORY_OTHER_LIABILITY": 9,
+		"ACCOUNT_CATEGORY_STORED_VALUE":    10,
 	}
 )
 
@@ -2185,7 +2188,7 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\rAccountStatus\x12\x1e\n" +
 	"\x1aACCOUNT_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15ACCOUNT_STATUS_ACTIVE\x10\x01\x12\x1b\n" +
-	"\x17ACCOUNT_STATUS_ARCHIVED\x10\x02*\xdb\x02\n" +
+	"\x17ACCOUNT_STATUS_ARCHIVED\x10\x02*\xfe\x02\n" +
 	"\x0fAccountCategory\x12 \n" +
 	"\x1cACCOUNT_CATEGORY_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18ACCOUNT_CATEGORY_SAVINGS\x10\x01\x12 \n" +
@@ -2196,7 +2199,9 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x1cACCOUNT_CATEGORY_REAL_ESTATE\x10\x06\x12\x19\n" +
 	"\x15ACCOUNT_CATEGORY_LOAN\x10\a\x12 \n" +
 	"\x1cACCOUNT_CATEGORY_OTHER_ASSET\x10\b\x12$\n" +
-	" ACCOUNT_CATEGORY_OTHER_LIABILITY\x10\t2\xa4\a\n" +
+	" ACCOUNT_CATEGORY_OTHER_LIABILITY\x10\t\x12!\n" +
+	"\x1dACCOUNT_CATEGORY_STORED_VALUE\x10\n" +
+	"2\xa4\a\n" +
 	"\x0eAccountService\x12Z\n" +
 	"\rCreateAccount\x12&.yucai.account.v1.CreateAccountRequest\x1a!.yucai.account.v1.AccountResponse\x12T\n" +
 	"\n" +
