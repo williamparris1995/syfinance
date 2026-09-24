@@ -13,6 +13,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:get_it/get_it.dart';
+
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
@@ -27,10 +31,25 @@ class SubscriptionCenterPage extends StatefulWidget {
 }
 
 class _SubscriptionCenterPageState extends State<SubscriptionCenterPage> {
+  /// 模板 category 存的是 expense 账户引用(创建表单落地为账户 id),
+  /// 渲染前解析成账户名;解析失败(空/脏数据)则整段省略,不裸显 id。
+  final Map<String, String> _accountNames = {};
+
   @override
   void initState() {
     super.initState();
     context.read<TemplateBloc>().add(LoadTemplatesRequested());
+    GetIt.instance<AccountRepository>().list().then((res) {
+      res.fold((_) {}, (list) {
+        if (mounted) {
+          setState(() {
+            for (final a in list) {
+              _accountNames[a.id] = a.name;
+            }
+          });
+        }
+      });
+    });
   }
 
   /// 周期月数(月度等价的分母)。interval ≤0 视为 1(实体注释口径)。
@@ -79,6 +98,14 @@ class _SubscriptionCenterPageState extends State<SubscriptionCenterPage> {
     return diff;
   }
 
+  /// category → 展示名:账户 id 命中映射表 → 账户名;非 id 的非空串原样;
+  /// 空/未命中 → null(整段省略)。
+  String? _categoryLabel(Template t) {
+    final c = t.category;
+    if (c == null || c.isEmpty) return null;
+    return _accountNames[c] ?? (c.contains('-') ? null : c);
+  }
+
   String _fmt(int cents) {
     final neg = cents < 0;
     final abs = cents.abs();
@@ -93,16 +120,6 @@ class _SubscriptionCenterPageState extends State<SubscriptionCenterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        title: const Text('订阅中心'),
-        actions: [
-          IconButton(
-            tooltip: '模板管理',
-            icon: const Icon(LucideIcons.layers, size: 18),
-            onPressed: () => context.go('/accounts/templates'),
-          ),
-        ],
-      ),
       body: BlocBuilder<TemplateBloc, TemplateState>(
         builder: (context, state) {
           if (state is TemplateLoading || state is TemplateInitial) {
@@ -114,7 +131,40 @@ class _SubscriptionCenterPageState extends State<SubscriptionCenterPage> {
           final subs = (state is TemplatesLoaded ? state.templates : const <Template>[])
               .where((t) => t.direction == TemplateDirection.expense)
               .toList();
-          return RefreshIndicator(
+          // 轻条 header(对齐 TemplatePage 版式,但无返回箭头 —— 分支页
+          // 由 shell topbar 承担导航;右侧保留「模板管理」下钻入口)。
+          final header = Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('订阅中心',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text('周期扣款 · 与记账模板联动',
+                          style: TextStyle(
+                              fontSize: 12, color: context.yucai.muted)),
+                    ],
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => context.go('/accounts/templates'),
+                  icon: const Icon(LucideIcons.layers, size: 16),
+                  label: const Text('模板管理'),
+                ),
+              ],
+            ),
+          );
+          return Column(children: [
+            header,
+            Expanded(
+              child: RefreshIndicator(
             onRefresh: () async {
               context.read<TemplateBloc>().add(LoadTemplatesRequested());
             },
@@ -150,7 +200,9 @@ class _SubscriptionCenterPageState extends State<SubscriptionCenterPage> {
                 _caliberCard(context),
               ],
             ),
-          );
+          ),
+            ),
+          ]);
         },
       ),
     );
@@ -274,7 +326,7 @@ class _SubscriptionCenterPageState extends State<SubscriptionCenterPage> {
             const SizedBox(height: 4),
             Text(
               '每期 ¥${_fmt(t.amountCents)}'
-              '${t.category != null && t.category!.isNotEmpty ? ' · ${t.category}' : ''}'
+              '${_categoryLabel(t) != null ? ' · ${_categoryLabel(t)}' : ''}'
               ' · 下次 ${t.nextDate ?? '-'}${due != null && due >= 0 ? '($due 天)' : ''}',
               style: TextStyle(fontSize: 12, color: context.yucai.muted),
             ),

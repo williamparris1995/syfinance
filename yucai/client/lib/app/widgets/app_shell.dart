@@ -26,7 +26,9 @@ import 'package:yucai_client/core/theme/app_design.dart';
 ({String section, String page, String rootPath, String? createLabel, String? createRoute})
     _branchMetaOf(int index, String location) {
   if (_isSubscriptionManagement(location)) {
-    return (section: '交易', page: '订阅管理', rootPath: '/accounts/subscriptions', createLabel: null, createRoute: null);
+    // v6:右侧创建按钮与其他列表页同款(shell topbar);新建订阅落到
+    // 模板页的「新建模板」表单(订阅 = 周期支出模板)。
+    return (section: '交易', page: '订阅管理', rootPath: '/accounts/subscriptions', createLabel: '新建订阅', createRoute: '/accounts/templates');
   }
   switch (index) {
     case 0:
