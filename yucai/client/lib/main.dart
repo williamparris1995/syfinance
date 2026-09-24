@@ -102,4 +102,14 @@ Future<void> main() async {
   // 几何每次变更后即持久化,关闭时无需补存。
   windowState.start();
   runApp(const YuCaiApp());
+  // Windows debug 下偶发首帧不呈现(2026-09-24 复现:窗口纯白、isolate 空闲
+  // 无异常,VM service 触发 reassemble 一催即恢复;engine vsync/AXTree 时序
+  // 窗口期问题,代码改动移动 JIT 时序可触发)。强制调度首帧 + 300ms 兜底
+  // 二帧,已挂载后幂等安全。
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.scheduleForcedFrame();
+  });
+  Future.delayed(const Duration(milliseconds: 300), () {
+    WidgetsBinding.instance.scheduleForcedFrame();
+  });
 }
