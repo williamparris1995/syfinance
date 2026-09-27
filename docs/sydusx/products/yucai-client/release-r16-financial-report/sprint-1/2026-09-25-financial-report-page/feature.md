@@ -9,15 +9,17 @@ keywords: [财务报告, 报告, financial report, 汇编, 章节式报告, Expe
 
 ## Description
 
-现状:仅「报表分析」页(/reports,三图表交互,数据=TransactionSummary 单 RPC),无「一份规范报告」的概念。目标:①报告期选择(月/年)→ client 侧报告汇编服务,聚合既有 RPC(TransactionSummary / GetNetWorth / ComputeBudgetActuals / GetPortfolioPerformance / GetGoalProgressHistory / GetUpcomingPayments)成统一报告模型;②章节式财务报告页:总览 / 资产负债 / 收支 / 现金流 / 预算执行 / 投资绩效(复用 design-v2 主题与既有图表组件;现金流量表=现金类科目流入流出汇总,现无现成 RPC,client 侧聚合);③ExpenseBasis 口径抽象(接口+现金口径实现+测试钉死;待摊口径归 R17 待摊引擎接入,本票不做);④guest/离线路径与在线一致(本地优先架构既有数据源)。目标零 proto/server 改动。
+现状:仅「报表分析」页(/reports,三图表交互,数据=TransactionSummary 单源),无「一份规范报告」的概念。目标(grill 后定稿,详见 [spec.md](spec.md)):①报告期(月/年)+/reports 顶栏入口+子路由报告页;②**纯本地汇编**(三态一致:guest/bound-离线/bound-在线同一报告;本地库=绑定后全量镜像),报告模型含六章节——总览/资产负债(期初期末**回放重建**+附注)/收支(环比或同比)/现金流(严格口径:现金=仅 savings,经营/投资/融资三类+勾稽)/预算执行/投资绩效(金额口径+**区间 TWR**),无数据章节自适应隐藏+总览附注披露;③ExpenseBasis 口径抽象(现金口径默认实现,待摊接入点测试钉死,R17 接入);④扩展 LocalPerformanceAssembler 支持任意报告期。零 proto/server 改动。
 
 ## Stories
 
-- [ ] S1: 报告汇编服务(报告模型+期选择+多 RPC 聚合+guest/离线一致)
-- [ ] S2: 现金流量表聚合(现金类科目流入/流出,client 侧)
-- [ ] S3: ExpenseBasis 口径抽象+现金口径实现(接口+待摊接入点测试预留)
-- [ ] S4: 章节式报告页(六章节;design-v2 主题;UI 走 sydusx-prototype 出原型)
-- [ ] S5: 测试与门(flutter 全绿+analyze 基线+client-e2e;零 proto 改动免 go 门)
+- [ ] S1: 报告模型+汇编服务(纯本地三态一致;月/年期选择;FR-1/FR-2)
+- [ ] S2: 时点回放服务(期初/期末账户余额+净资产重建,含持仓时点市值;FR-4)
+- [ ] S3: 现金流分类器(严格口径:现金=仅 savings;经营/投资/融资三类+勾稽不变式测试;FR-5)
+- [ ] S4: ExpenseBasis 口径抽象+现金口径默认实现+待摊接入点测试(FR-7)
+- [ ] S5: 投资绩效区间扩展(assembler rangeStart/End+金额口径+区间 TWR;FR-6)
+- [ ] S6: 章节式报告页(六章节+自适应隐藏+口径/未包含项附注;/reports 顶栏入口+子路由;FR-3;UI 原型走设计阶段)
+- [ ] S7: 测试与门(flutter 全绿+analyze 基线+client-e2e+proto/server 零 diff 门;NFR-1/2/3)
 
 ## Keywords
 
