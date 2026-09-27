@@ -74,6 +74,8 @@ import 'package:yucai_client/tag/presentation/pages/tag_page.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
 import 'package:yucai_client/template/presentation/pages/template_page.dart';
 import 'package:yucai_client/template/presentation/pages/subscription_center_page.dart';
+import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
+import 'package:yucai_client/report/presentation/pages/financial_report_page.dart';
 import 'package:yucai_client/report/presentation/pages/report_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -1039,6 +1041,18 @@ GoRouter buildRouter(
       GoRoute(
         path: '/reports',
         builder: (_, __) => const ReportPage(),
+        routes: [
+          // F43 财务报告（静态子路由，FR-1「报表分析 › 财务报告」）。
+          // bloc 照 /holdings 模式路由层 provide：getIt 工厂每次新实例,
+          // 页面 Initial 态(用户选期后点「生成报告」才触发汇编)。
+          GoRoute(
+            path: 'full',
+            builder: (_, __) => BlocProvider<FinancialReportBloc>(
+              create: (_) => getIt<FinancialReportBloc>(),
+              child: const FinancialReportPage(),
+            ),
+          ),
+        ],
       ),
     ],
     initialLocation: '/home',

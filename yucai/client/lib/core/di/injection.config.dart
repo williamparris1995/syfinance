@@ -84,6 +84,7 @@ import '../../report/data/report_ledger_store_impl.dart' as _i58;
 import '../../report/domain/expense_basis.dart' as _i56;
 import '../../report/domain/report_assembly_service.dart' as _i1020;
 import '../../report/domain/report_ledger_store.dart' as _i249;
+import '../../report/presentation/financial_report_bloc.dart' as _i243;
 import '../../tag/data/tag_remote_ds.dart' as _i648;
 import '../../tag/data/tag_repository_impl.dart' as _i603;
 import '../../tag/domain/repositories/tag_repository.dart' as _i585;
@@ -493,6 +494,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i933.TemplateBloc>(
       () => _i933.TemplateBloc(gh<_i74.TemplateRepository>()),
+    );
+    gh.factory<_i243.FinancialReportBloc>(
+      () => _i243.FinancialReportBloc(gh<_i1020.ReportAssemblyService>()),
     );
     gh.factory<_i703.GoalBloc>(
       () => _i703.GoalBloc(gh<_i835.GoalRepository>()),

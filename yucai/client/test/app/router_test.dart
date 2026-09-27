@@ -84,6 +84,9 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
+import 'package:yucai_client/report/domain/report_assembly_service.dart';
+import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
+import 'package:yucai_client/report/presentation/pages/financial_report_page.dart';
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
@@ -99,6 +102,8 @@ class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
 class _MockHasCredentials extends Mock implements HasStoredCredentialsUseCase {}
 class _MockAuthRemoteDataSource extends Mock implements AuthRemoteDataSource {}
+
+class _MockReportAssembly extends Mock implements ReportAssemblyService {}
 
 class _FakeThemeSettings extends Fake implements ThemeSettings {
   final ValueNotifier<ThemeMode> _notifier =
@@ -241,6 +246,11 @@ void main() {
     getIt.registerSingleton<DebtRepository>(debtRepo);
     // /debts 路由现在 getIt<DebtBloc>() 取共享单例(user-acceptance 修复)。
     getIt.registerLazySingleton<DebtBloc>(() => DebtBloc(debtRepo));
+    // /reports/full 路由层 BlocProvider 经 getIt<FinancialReportBloc>()
+    // 构造(汇编服务 mock;页面 Initial 态不触发生成,无需 stub)。
+    final reportAssembly = _MockReportAssembly();
+    getIt.registerFactory<FinancialReportBloc>(
+        () => FinancialReportBloc(reportAssembly));
     getIt.registerSingleton<HoldingRepository>(holdingRepo);
     getIt.registerSingleton<BudgetRepository>(budgetRepo);
     getIt.registerSingleton<GoalRepository>(goalRepo);
@@ -450,6 +460,19 @@ void main() {
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(),
         '/transactions/t-42');
+  });
+
+  testWidgets('/reports/full resolves to the financial report page',
+      (tester) async {
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/reports/full');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/reports/full');
+    expect(find.byType(FinancialReportPage), findsOneWidget);
   });
 
   test('router has ten StatefulShell branches '

@@ -302,6 +302,38 @@ class _ReportTopBar extends StatelessWidget {
             fontFamilyFallback: AppTypography.displayFallback,
           ),
         ),
+        const SizedBox(width: AppSpacing.sm),
+        // F43 T5(FR-1):「财务报告」入口按钮 → /reports/full
+        // (面包屑语义:报表分析 › 财务报告)。
+        GestureDetector(
+          onTap: () => context.go('/reports/full'),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              key: const ValueKey('financialReportEntryButton'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: context.yucai.accentSoft,
+                borderRadius: AppRadius.smBorder,
+                border: Border.all(color: context.yucai.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(LucideIcons.fileText,
+                      size: 14, color: context.yucai.accentDeep),
+                  const SizedBox(width: 6),
+                  Text('财务报告',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: context.yucai.accentDeep,
+                      )),
+                ],
+              ),
+            ),
+          ),
+        ),
         const Spacer(),
         // 标签口径筛选(F8 FR-4):置于日期按钮左侧,与日期/period 同属
         // 「口径」控件组。null(boundRemote 隐藏)时整体不渲染。

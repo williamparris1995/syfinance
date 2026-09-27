@@ -282,4 +282,19 @@ void main() {
     expect(nullCalls, 14);
     expect(tagCalls, 7);
   });
+
+  // F43 T5(FR-1):顶栏「财务报告」入口按钮(导航 /reports/full;
+  // 此处仅断言存在——导航需 go_router,路由接线由 router_test 覆盖)。
+  testWidgets('顶栏含「财务报告」入口按钮(FR-1)', (t) async {
+    final repo = _MockTxnRepo();
+    when(() => repo.summary(any(), any(),
+            scope: any(named: 'scope'), tagId: any(named: 'tagId')))
+        .thenAnswer((_) async => dartz.Right(_summary()));
+    await t.pumpWidget(_harness(repo));
+    await t.pumpAndSettle();
+
+    final entry = find.byKey(const ValueKey('financialReportEntryButton'));
+    expect(entry, findsOneWidget);
+    expect(find.text('财务报告'), findsOneWidget);
+  });
 }

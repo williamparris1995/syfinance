@@ -90,3 +90,22 @@ String groupInt(int n) {
   }
   return buf.toString();
 }
+
+/// int cents → '¥1,234.56'(负数 '-¥…';**不带正号**,语义性 '+' 用
+/// [fmtCentsSigned])。千分位分组复用 [groupInt](T5 财务报告页全章节
+/// 金额出口;不另立分组实现)。
+String fmtCents(int cents) {
+  final neg = cents < 0;
+  final abs = cents.abs();
+  return '${neg ? '-' : ''}¥${groupInt(abs ~/ 100)}.'
+      '${(abs % 100).toString().padLeft(2, '0')}';
+}
+
+/// 带符号金额:正 '+¥…' / 负与零原样(净资产变动、现金流净额、估算收益
+/// 等增减语义处使用;原型 .delta.up/.chg 形态)。
+String fmtCentsSigned(int cents) =>
+    cents > 0 ? '+${fmtCents(cents)}' : fmtCents(cents);
+
+/// 1 位小数百分比带符号:'5.2' → '+5.2%','-3.1' → '-3.1%',0 → '0.0%'
+/// (TWR/环比/储蓄率类展示;pct 值已在 model factory 按 1 位小数收口)。
+String fmtPctSigned(double pct) => '${pct > 0 ? '+' : ''}${pct.toStringAsFixed(1)}%';
