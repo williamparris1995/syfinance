@@ -1,9 +1,10 @@
 /// F43 财务报告全链 E2E(T6,管道链路,真实本地数据源 + 真实 UI 走查)。
 ///
-/// 链路:种子(账户+分录+预算+持仓最小集)→ 侧栏「报表分析」→ 顶栏
-/// 「财务报告」入口(/reports)→ /reports/full 选期(上一期步进到种子月)
-/// →「生成报告」→ 断言六章节关键数值(手算 oracle)+ 自适应缺席(种子
-/// 缺预算的月:预算/投资章缺席 + 未包含项附注)→ 测后清库。
+/// 链路:种子(账户+分录+预算+持仓+闲置模板最小集)→ 侧栏「报表分析」
+/// → 顶栏「财务报告」入口(/reports)→ /reports/full 选期(上一期步进
+/// 到种子月)→「生成报告」→ 断言七章节关键数值与诊断发现(手算 oracle)
+/// + 自适应缺席(种子缺预算的月:预算/投资章缺席 + 未包含项附注)
+/// → 测后清库。
 ///
 /// 夹具月固定 2026-06(过去月):demo 种子的交易/借入/持仓买入全部写在
 /// 真实运行当月(≥ 2026-09 > 六月),六月窗口与六月末回放天然不含 demo
@@ -20,6 +21,10 @@
 ///   b1 06-10 买入 100 股 @10.00(现金腿 100,000,fee 0)
 ///   b2 06-20 买入 100 股 @13.00(现金腿 130,000,fee 0)
 ///   预算:2026-06 报链餐饮 限额 250,000
+///   模板:报链视频会员 月度 15.00,billingDay 9,startDate 2026-05-09,
+///         autoRecord=false(F44 T4 闲置夹具:系列首笔 nextAfter(anchor)
+///         = 2026-06-09 落六月应扣日,但从未记账;demo 两模板 startDate
+///         2026-08,六月/五月应扣日均空)
 ///
 /// 六月 oracle(手算):
 ///   收支:收入 400,000 / 支出 200,000(debit 单边)/ 结余 200,000 /
@@ -34,9 +39,21 @@
 ///   预算:报链餐饮 actual 200,000(大边=Σdebit)/ limit 250,000 = 80.0%
 ///   投资:期初市值 0 / 期末 260,000(200 股@13,成交价 ffill)/ 净买入
 ///         230,000 / 估算收益 +30,000 / 区间 TWR 0.0%(期初零仓约定报 0)
+///   诊断(F44,2 warn + 2 info):R4 闲置订阅(应扣日 06-09 无关联记账;
+///         nextDate = create 时 nextAfter(start) = 06-09,在期内 → 不落
+///         「期末后一周」grace 窗口;周期月数走异常兜底(nextDate 不晚于
+///         期内最后应扣日)→ 1 → 月度等价 = 15,000 = ¥150.00)+ H1 支出
+///         集中(报链餐饮 200,000 = 当期支出 100.0% ≥ 40%)+ R5 单笔大额
+///         ×2(日均 = 200,000÷30 自然日 = 6,667 → 3×门槛 20,000、占比门槛
+///         40,000:6/12 报链午餐 120,000(18.0 倍/60.0%)与 6/22 报链晚餐
+///         80,000(12.0 倍/40.0%)双门槛均过);R1/R6/R2/R3 手推全不触发
+///         (储蓄率 50%、runway 1,570,000÷66,666≈23.6 月、预算未超支、
+///         负债率 11.1%)→ 0 风险 2 提示 2 关注,序 [R4,H1,R5,R5]。
 ///   对比期:五月无收支 → 首期无对比数据
 /// 五月 oracle(自适应缺席):无分录无预算无持仓 → 六章缺预算/投资两章,
-///   未包含项附注两条;净资产期初=期末 1,400,000;对比期(四月)空 → 首期。
+///   未包含项附注两条;净资产期初=期末 1,400,000;对比期(四月)空 → 首期;
+///   诊断零发现(模板应扣日空/收支空/trailing3m=0)→ 第七章健康卡 +
+///   总览单行健康徽章(储蓄率 0.0%、资产负债率 0.0%;runway 无基数省略)。
 ///
 /// Windows 桌面注意:请单独运行本文件(多集成文件同跑会有设备启动竞争,第二个文件 loading 失败)。
 /// 运行:`flutter test integration_test/financial_report_e2e_test.dart -d windows --dart-define=YUCAI_DB_FILE=yucai_test.db`
@@ -54,6 +71,8 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide TransactionEntry;
 import 'package:yucai_client/holding/data/holding_local_ds.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/template/data/template_local_ds.dart';
+import 'package:yucai_client/template/domain/entities/template_entity.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -154,6 +173,25 @@ void main() {
         (accountId: diningId, plannedAmountCents: 250000, notes: null),
       ],
     );
+
+    // F44 T4 闲置模板:月度 150.00,startDate/billingDay 05-09 → 系列
+    // 首笔 nextAfter(start) = 2026-06-09 = create 内 nextDate(锚 startDate,
+    // 与运行日无关)→ 六月应扣日 [06-09];未暂停 + 从未记账 → R4 闲置。
+    // nextDate 06-09 在期内(< 期末,grace 窗口按「期末后一周」判,任何
+    // 运行时区都不误宽限);autoRecord=false → 启动调度器(autoRecord &&
+    // !paused 谓词)不推进 nextDate,任意运行日结论不变;五月应扣日空
+    // (系列首笔 06-09 > 05-31)→ 五月零发现不受影响。
+    final templates = TemplateLocalDataSource(db, txns);
+    await templates.create(
+      name: '报链视频会员',
+      amountCents: 15000, // 150.00
+      direction: TemplateDirection.expense,
+      sourceAccountId: fundsId,
+      cycle: TemplateCycle.monthly,
+      billingDay: 9,
+      startDate: '2026-05-09',
+      autoRecord: false,
+    );
   });
 
   // 测试数据生命周期收尾:close 后删独立测试库(种子+夹具全清)。
@@ -186,16 +224,25 @@ void main() {
     await t.pumpAndSettle(const Duration(seconds: 2));
   }
 
-  testWidgets('报链①六月全量:六章在列 + 六章节关键数值(手算 oracle)', (t) async {
+  testWidgets('报链①六月全量:七章在列 + 关键数值与诊断发现(手算 oracle)', (t) async {
     await openReport(t, year: 2026, month: 6);
 
-    // 六章标题齐(章节头 + 右缘锚点标签各一处)。
-    for (final title
-        in ['总览', '资产负债', '收支', '现金流', '预算执行', '投资绩效']) {
+    // 七章标题齐(章节头 + 右缘锚点标签各一处;F44 第七章恒在列)。
+    for (final title in [
+      '总览',
+      '资产负债',
+      '收支',
+      '现金流',
+      '预算执行',
+      '投资绩效',
+      '诊断与建议',
+    ]) {
       expect(find.text(title), findsWidgets, reason: '章节「$title」在列');
     }
     expect(find.byKey(const ValueKey('sectionDot-5')), findsOneWidget,
         reason: '第 6 锚点(投资绩效)在列');
+    expect(find.byKey(const ValueKey('sectionDot-6')), findsOneWidget,
+        reason: '第 7 锚点(诊断与建议)在列');
 
     // —— 总览:期初/期末净资产 + 变动 + 储蓄率 + 现金净变动 ——
     expect(find.text('¥14,000.00'), findsWidgets,
@@ -255,19 +302,51 @@ void main() {
         reason: '估算收益 = 2,600 − 0 − 2,300');
     expect(find.text('0.0%'), findsWidgets,
         reason: '区间 TWR 期初零仓约定报 0(otherAsset 零额构成行占比同串)');
+
+    // —— 诊断与建议(F44):第七章节 + Finding 文案 + 总览摘要卡 ——
+    // 4 发现 = R4/H1 两 warn + R5 两 info;序 [R4,H1,R5,R5] → 0 风险
+    // 2 提示 2 关注,top-3 = R4/H1/R5(午餐笔)。注:textContainingRich
+    // 对每处文案命中 Text + 其内 RichText 两个 widget(文件头注同款),
+    // 每条结论两个渲染位(摘要卡 + 第七章)→ 4;仅第七章 → 2。
+    expect(find.text('诊断摘要 · 0 风险 2 提示 2 关注'), findsOneWidget,
+        reason: '总览摘要卡计数头(R4 闲置 + H1 集中 + R5 大额 ×2)');
+    expect(find.text('提示 · 2'), findsOneWidget,
+        reason: '第七章分组头(warn 组,空组不渲染)');
+    // R4 结论文案:摘要卡 top-3 首行 + 第七章卡各一处(文案直出引擎)。
+    expect(textContainingRich('可能闲置:1 个支出订阅(报链视频会员)'),
+        findsNWidgets(4), reason: 'R4 闲置订阅结论(摘要卡 + 第七章)');
+    expect(textContainingRich('月度等价合计约 ¥150.00'), findsNWidgets(4),
+        reason: 'R4 月度等价 = 15,000 ÷ 1 个月周期(异常兜底:nextDate 不晚于末应扣日)');
+    expect(find.text('前往订阅中心 →'), findsOneWidget,
+        reason: 'R4 actionLink 跳转按钮(唯一 actionLink)');
+    // H1 结论文案:摘要卡 top-3 次行 + 第七章卡各一处。
+    expect(textContainingRich('支出集中于「报链餐饮」类别'), findsNWidgets(4),
+        reason: 'H1 集中结论(摘要卡 + 第七章)');
+    expect(textContainingRich('占当期总支出 100.0%'), findsNWidgets(4),
+        reason: 'H1 占比 = 200,000 / 200,000');
+    // R5(顺带钉死数值):午餐笔 = top-3 第三行 + 第七章卡;晚餐笔只在第七章。
+    expect(textContainingRich('「报链午餐」¥1,200.00'), findsNWidgets(4),
+        reason: 'R5 午餐笔(120,000 = 日均 6,667 的 18.0 倍/占 60.0%)');
+    expect(textContainingRich('「报链晚餐」¥800.00'), findsNWidgets(2),
+        reason: 'R5 晚餐笔(12.0 倍/占 40.0%,top-3 容量外仅第七章)');
+    expect(find.text('查看全部 ↓'), findsOneWidget,
+        reason: '摘要卡「查看全部」锚滚入口(mdaViewAllLink)');
   });
 
-  testWidgets('报链②五月自适应:预算/投资章缺席 + 未包含项附注', (t) async {
+  testWidgets('报链②五月自适应:预算/投资章缺席 + 未包含项附注 + 零发现健康态', (t) async {
     await openReport(t, year: 2026, month: 5);
 
-    // 四章在列;两个自适应章节(FR-3)缺席 —— 章节头与锚点一并。
-    for (final title in ['总览', '资产负债', '收支', '现金流']) {
+    // 五章在列(前四章 + F44 第七章恒在列);两个自适应章节(FR-3)缺席
+    // —— 章节头与锚点一并。
+    for (final title in ['总览', '资产负债', '收支', '现金流', '诊断与建议']) {
       expect(find.text(title), findsWidgets, reason: '章节「$title」在列');
     }
     expect(find.text('预算执行'), findsNothing, reason: '五月无预算行 → 章节缺席');
     expect(find.text('投资绩效'), findsNothing, reason: '五月三点全零 → 章节缺席');
-    expect(find.byKey(const ValueKey('sectionDot-4')), findsNothing,
-        reason: '锚点同步缺席(仅 4 点)');
+    expect(find.byKey(const ValueKey('sectionDot-4')), findsOneWidget,
+        reason: '锚点链 = 5 点(四固定章 + 诊断与建议,末位 index 4)');
+    expect(find.byKey(const ValueKey('sectionDot-5')), findsNothing,
+        reason: '预算/投资缺席 → 第 6 锚点不在');
 
     // 未包含项附注披露两条(FR-3 自适应的显式表达)。
     expect(find.text('未包含项'), findsOneWidget);
@@ -279,5 +358,16 @@ void main() {
         reason: '期初 = 期末净资产 14,000(hero 两处 + 变动表行)');
     expect(find.text('首期无对比数据'), findsOneWidget,
         reason: '四月(对比期)无收支 → 首期');
+
+    // —— 诊断与建议(F44):零发现两态 ——
+    expect(find.text('本期诊断:0 风险 0 提示 0 关注 · 未发现需关注项 ✓'),
+        findsOneWidget,
+        reason: '总览单行健康徽章(零发现态)');
+    expect(find.text('本期诊断未发现需关注项'), findsOneWidget,
+        reason: '第七章健康卡标题');
+    expect(find.text('储蓄率 0.0%、资产负债率 0.0%,均在健康区间'), findsOneWidget,
+        reason: '健康卡通过项(runway 无基数 trailing3m=0 → 第三段省略)');
+    expect(find.text('查看全部 ↓'), findsNothing,
+        reason: '零发现态无 top-3 摘要卡(整卡降级为徽章)');
   });
 }
