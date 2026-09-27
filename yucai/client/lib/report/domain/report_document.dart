@@ -1,0 +1,448 @@
+/// F43 财务报告 —— 报告模型(immutable VO,纯 Dart domain)。
+///
+/// 金额一律 int cents;pct/率类派生字段在 factory 构造时算好(1 位小数),
+/// 渲染层零计算。结构照 design.md LLD:ReportDocument 为 F43(汇编)/
+/// F44(MD&A 规则输入)/F45(导出渲染)三票共享契约。
+library;
+
+/// 报告期:自然月或自然年(FR-1)。
+///
+/// 边界为本地时区(对齐 transaction_local_ds 月界口径);终点含
+/// (inclusive)到月末 23:59:59(秒粒度,对齐 spec FR-1 验收锚点)。
+sealed class ReportPeriod {
+  /// 自然月:monthly(2026, 8) → [08-01 00:00:00, 08-31 23:59:59]。
+  factory ReportPeriod.monthly(int year, int month) = ReportMonthly;
+
+  /// 自然年:yearly(2025) → [01-01 00:00:00, 12-31 23:59:59]。
+  factory ReportPeriod.yearly(int year) = ReportYearly;
+
+  const ReportPeriod();
+
+  /// 期起点(含)。
+  DateTime get start;
+
+  /// 期终点(含)= 下期首日退 1 秒。
+  DateTime get endInclusive;
+
+  /// 中文标签:「2026 年 8 月」「2025 年度」。
+  String get label;
+}
+
+/// 自然月报告期。
+class ReportMonthly extends ReportPeriod {
+  const ReportMonthly(this.year, this.month);
+
+  final int year;
+  final int month;
+
+  @override
+  DateTime get start => DateTime(year, month);
+
+  @override
+  DateTime get endInclusive =>
+      DateTime(year, month + 1, 1).subtract(const Duration(seconds: 1));
+
+  @override
+  String get label => '$year 年 $month 月';
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReportMonthly && other.year == year && other.month == month;
+
+  @override
+  int get hashCode => Object.hash('monthly', year, month);
+}
+
+/// 自然年报告期。
+class ReportYearly extends ReportPeriod {
+  const ReportYearly(this.year);
+
+  final int year;
+
+  @override
+  DateTime get start => DateTime(year);
+
+  @override
+  DateTime get endInclusive =>
+      DateTime(year + 1, 1, 1).subtract(const Duration(seconds: 1));
+
+  @override
+  String get label => '$year 年度';
+
+  @override
+  bool operator ==(Object other) => other is ReportYearly && other.year == year;
+
+  @override
+  int get hashCode => Object.hash('yearly', year);
+}
+
+/// 四舍五入保留 1 位小数(pct/率类派生统一口径)。
+double _round1(double v) => (v * 10).round() / 10;
+
+/// 分类金额构成行(资产负债/收支章节共用)。
+class CategoryAmount {
+  const CategoryAmount({
+    required this.category,
+    required this.amountCents,
+    required this.pct,
+  });
+
+  /// 构造时算 pct = amount/total(1 位小数);总额 0 → 0(空构成不除零)。
+  factory CategoryAmount.create({
+    required String category,
+    required int amountCents,
+    required int totalCents,
+  }) =>
+      CategoryAmount(
+        category: category,
+        amountCents: amountCents,
+        pct: totalCents == 0 ? 0.0 : _round1(amountCents * 100 / totalCents),
+      );
+
+  /// 分类代码(资产负债=category 账类代码;收支=expense/income 科目账户 id)。
+  final String category;
+
+  /// 金额(int cents)。
+  final int amountCents;
+
+  /// 构成占比 %(1 位小数)。
+  final double pct;
+}
+
+/// 总览章节(FR-3 #1)。
+class OverviewSection {
+  const OverviewSection({
+    required this.netWorthStartCents,
+    required this.netWorthEndCents,
+    required this.incomeCents,
+    required this.expenseCents,
+    required this.surplusCents,
+    required this.savingsRate,
+    required this.cashDeltaCents,
+    required this.notes,
+  });
+
+  /// 构造时算结余 = income − expense、储蓄率 = 结余/收入 %(1 位小数;
+  /// 收入 ≤ 0 → 0,不除零)。
+  factory OverviewSection.create({
+    required int netWorthStartCents,
+    required int netWorthEndCents,
+    required int incomeCents,
+    required int expenseCents,
+    required int cashDeltaCents,
+    required List<String> notes,
+  }) {
+    final surplus = incomeCents - expenseCents;
+    return OverviewSection(
+      netWorthStartCents: netWorthStartCents,
+      netWorthEndCents: netWorthEndCents,
+      incomeCents: incomeCents,
+      expenseCents: expenseCents,
+      surplusCents: surplus,
+      savingsRate:
+          incomeCents <= 0 ? 0.0 : _round1(surplus * 100 / incomeCents),
+      cashDeltaCents: cashDeltaCents,
+      notes: notes,
+    );
+  }
+
+  /// 期初净资产(int cents,回放口径,FR-4)。
+  final int netWorthStartCents;
+
+  /// 期末净资产。
+  final int netWorthEndCents;
+
+  /// 本期收入。
+  final int incomeCents;
+
+  /// 本期支出(经 ExpenseBasis 口径,FR-7)。
+  final int expenseCents;
+
+  /// 本期结余 = income − expense(构造时算)。
+  final int surplusCents;
+
+  /// 储蓄率 %(结余/收入,1 位小数;构造时算)。
+  final double savingsRate;
+
+  /// 现金及等价物净变动(= 现金流 netDelta,勾稽同源)。
+  final int cashDeltaCents;
+
+  /// 口径附注 + 未包含项附注文案(FR-3/FR-4)。
+  final List<String> notes;
+}
+
+/// 资产负债章节(FR-3 #2):期末构成 + 期初/期末变动行。
+class BalanceSheetSection {
+  const BalanceSheetSection({
+    required this.assets,
+    required this.liabilities,
+    required this.changes,
+  });
+
+  /// 期末资产构成(按 category 账类代码)。
+  final List<CategoryAmount> assets;
+
+  /// 期末负债构成。
+  final List<CategoryAmount> liabilities;
+
+  /// 期末−期初变动行(startVsEnd)。
+  final List<BalanceChange> changes;
+}
+
+/// 单分类期初/期末变动行(资产负债章节用)。
+class BalanceChange {
+  const BalanceChange({
+    required this.category,
+    required this.startCents,
+    required this.endCents,
+    required this.deltaCents,
+  });
+
+  /// 构造时算 delta = end − start。
+  factory BalanceChange.create({
+    required String category,
+    required int startCents,
+    required int endCents,
+  }) =>
+      BalanceChange(
+        category: category,
+        startCents: startCents,
+        endCents: endCents,
+        deltaCents: endCents - startCents,
+      );
+
+  /// 分类代码(同 CategoryAmount.category 维度)。
+  final String category;
+
+  /// 期初余额(int cents)。
+  final int startCents;
+
+  /// 期末余额。
+  final int endCents;
+
+  /// 变动额 = end − start(构造时算)。
+  final int deltaCents;
+}
+
+/// 收支章节(FR-3 #3)。
+class IncomeStatementSection {
+  const IncomeStatementSection({
+    required this.income,
+    required this.expense,
+    required this.dailyAvgCents,
+    this.priorComparison,
+  });
+
+  /// 收入分类构成(income 科目维度)。
+  final List<CategoryAmount> income;
+
+  /// 支出分类构成(expense 科目维度,经 ExpenseBasis)。
+  final List<CategoryAmount> expense;
+
+  /// 日均结余(月口径,对齐 TransactionSummary 规则)。
+  final int dailyAvgCents;
+
+  /// 对比期(月报=环比上月;年报=同比上年);首期无对比数据 → null。
+  final PriorComparison? priorComparison;
+}
+
+/// 对比期环比/同比(收支章节用)。
+class PriorComparison {
+  const PriorComparison({
+    required this.label,
+    required this.deltaPct,
+  });
+
+  /// 对比期标签,如「较 2026 年 7 月」「较 2025 年度」。
+  final String label;
+
+  /// 结余变动 %(1 位小数,正=改善)。
+  final double deltaPct;
+}
+
+/// 现金流章节(FR-3 #4 / FR-5):三类活动流 + 净变动勾稽。
+class CashFlowSection {
+  const CashFlowSection({
+    required this.operating,
+    required this.investing,
+    required this.financing,
+    required this.netDeltaCents,
+    required this.reconciled,
+  });
+
+  /// 经营活动流(对手 income/expense 科目)。
+  final ActivityFlow operating;
+
+  /// 投资活动流(对手投资类非现金资产)。
+  final ActivityFlow investing;
+
+  /// 融资活动流(对手负债/权益)。
+  final ActivityFlow financing;
+
+  /// 三类净额之和,== 期末−期初现金(汇编 assert 钉死,不等即抛)。
+  final int netDeltaCents;
+
+  /// 勾稽通过标记(走到这里即 true,留给渲染层显式表达)。
+  final bool reconciled;
+}
+
+/// 单类活动现金流。
+class ActivityFlow {
+  const ActivityFlow({
+    required this.inflowCents,
+    required this.outflowCents,
+    required this.netCents,
+  });
+
+  /// 构造时算 net = inflow − outflow。
+  factory ActivityFlow.create({
+    required int inflowCents,
+    required int outflowCents,
+  }) =>
+      ActivityFlow(
+        inflowCents: inflowCents,
+        outflowCents: outflowCents,
+        netCents: inflowCents - outflowCents,
+      );
+
+  /// 流入(int cents,恒 ≥ 0)。
+  final int inflowCents;
+
+  /// 流出(int cents,恒 ≥ 0)。
+  final int outflowCents;
+
+  /// 净额 = inflow − outflow(构造时算)。
+  final int netCents;
+}
+
+/// 预算执行章节(FR-3 #5;本期无预算 → null 隐藏 + 附注披露)。
+class BudgetSection {
+  const BudgetSection({required this.items});
+
+  /// 预算项视图列表。
+  final List<BudgetItemView> items;
+}
+
+/// 单预算项视图。
+class BudgetItemView {
+  const BudgetItemView({
+    required this.name,
+    required this.actualCents,
+    required this.limitCents,
+    required this.pct,
+    required this.overran,
+  });
+
+  /// 构造时算使用率 pct = actual/limit %(1 位小数;limit ≤ 0 → 0)与
+  /// overran = actual > limit。
+  factory BudgetItemView.create({
+    required String name,
+    required int actualCents,
+    required int limitCents,
+  }) =>
+      BudgetItemView(
+        name: name,
+        actualCents: actualCents,
+        limitCents: limitCents,
+        pct: limitCents <= 0 ? 0.0 : _round1(actualCents * 100 / limitCents),
+        overran: actualCents > limitCents,
+      );
+
+  /// 预算项名称。
+  final String name;
+
+  /// 实际发生额(int cents)。
+  final int actualCents;
+
+  /// 预算额度。
+  final int limitCents;
+
+  /// 使用率 %(1 位小数;构造时算)。
+  final double pct;
+
+  /// 是否超支(构造时算)。
+  final bool overran;
+}
+
+/// 投资绩效章节(FR-3 #6 / FR-6;无持仓 → null 隐藏 + 附注披露)。
+class InvestmentSection {
+  const InvestmentSection({
+    required this.mvStartCents,
+    required this.mvEndCents,
+    required this.netBuyCents,
+    required this.estGainCents,
+    this.twr,
+  });
+
+  /// 构造时算估算收益 = 期末市值 − 期初市值 − 当期净买入(FR-6 口径)。
+  factory InvestmentSection.create({
+    required int mvStartCents,
+    required int mvEndCents,
+    required int netBuyCents,
+    required double? twr,
+  }) =>
+      InvestmentSection(
+        mvStartCents: mvStartCents,
+        mvEndCents: mvEndCents,
+        netBuyCents: netBuyCents,
+        estGainCents: mvEndCents - mvStartCents - netBuyCents,
+        twr: twr,
+      );
+
+  /// 期初市值(int cents)。
+  final int mvStartCents;
+
+  /// 期末市值。
+  final int mvEndCents;
+
+  /// 当期净买入(买入−卖出)。
+  final int netBuyCents;
+
+  /// 估算收益 = 期末 − 期初 − 净买入(构造时算)。
+  final int estGainCents;
+
+  /// 区间 TWR(Holding 域返回引擎口径);端点为零等 sentinel → null。
+  final double? twr;
+}
+
+/// 财务报告文档(汇编一次性输出的 immutable 快照,ADR-1)。
+class ReportDocument {
+  const ReportDocument({
+    required this.period,
+    required this.generatedAt,
+    required this.overview,
+    required this.balanceSheet,
+    required this.incomeStatement,
+    required this.cashFlow,
+    this.budget,
+    this.investment,
+    required this.excludedSections,
+  });
+
+  /// 报告期。
+  final ReportPeriod period;
+
+  /// 生成时刻(UTC)。
+  final DateTime generatedAt;
+
+  /// 总览章节。
+  final OverviewSection overview;
+
+  /// 资产负债章节。
+  final BalanceSheetSection balanceSheet;
+
+  /// 收支章节。
+  final IncomeStatementSection incomeStatement;
+
+  /// 现金流章节。
+  final CashFlowSection cashFlow;
+
+  /// 预算执行章节(无预算 → null)。
+  final BudgetSection? budget;
+
+  /// 投资绩效章节(无持仓 → null)。
+  final InvestmentSection? investment;
+
+  /// 未包含项附注文案来源(FR-3,如「预算执行(本期无预算)」)。
+  final List<String> excludedSections;
+}
