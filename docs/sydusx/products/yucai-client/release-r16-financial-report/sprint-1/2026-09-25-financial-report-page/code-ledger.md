@@ -9,8 +9,7 @@
 | T4 ReportAssemblyService | ✅ done | ✅ report 83 绿+全量 2149 绿(T5 在途除外),analyze 零新增 | 两轴:1 Important WRONG+1 WRONG+2 MISSING+3 JUDGEMENT | R1 收口(290d977c):预算账户级去重(月报 per-item 同构/年报 (账户,月) 去重)+附注原币口径+年报日均=自然天数+isCashAccount 单点+_performanceSection 抽取;+5 测试全 RED→GREEN | 453523be+290d977c |
 | T5 bloc+页面+路由 | ✅ done | ✅ a53dac1f+d7d1fda3:report 99 绿+全量 2167 绿,analyze 446 持平,零裸色门过 | 两轴 PASS(0 HARD/Spec 零 MISSING-WRONG);MED 渲染层计算+LOW 三件 | R1 收口(d7d1fda3):name 契约五点全落+netWorthChangePct/debtRatioPct/totals factory+Equatable+Semantics;backlog=页面拆分(F45 前)/_onPhaseOf 共享 | a53dac1f+d7d1fda3 |
 | T3 assembler 区间扩展 | ✅ done | ✅ 226→234 绿,全量 2117 绿 | 两轴 PASS:0 HARD/3 JUDGEMENT Minor(DRY 日归一/Long Method=未来重构);Spec 1 Minor MISSING(负值 estGain 场景→转 T2 补)1 跨任务 Important(区间→本地路由→转 T2)0 WRONG 0 越界 | 免修(两落点均入 T2) | 3f70bde0 |
-| T4 ReportAssemblyService | 待 T1+T2+T3 | — | — | — | — |
-| T6 门与收尾 | ✅ done | ✅ 048fee8e:e2e 15/15(新成员)+五项门全绿(2167 测/analyze 零新增/零 diff/幂等) | —(收尾任务免评审) | 金图重录=暗色(环境性,照先例;主题耦合债记 backlog) | 048fee8e |
+| T6 门与收尾 | ✅ done | ✅ 048fee8e:e2e 15/15(新成员)+五项门全绿(2167 测/analyze 零新增/零 diff/幂等) | feature 门像素取证**更正**金图注记:HEAD 与 main 同为亮色(均亮度 247.8,仅 0.162% 带状环境差),非暗色重录;真债=full_audit 不钉 ThemeMode(backlog) | 金图=亮色近同图 | 048fee8e |
 
 ## 裁定记录
 
