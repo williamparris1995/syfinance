@@ -60,6 +60,14 @@
   #### Scenario:
   - GIVEN 假待摊 basis(测试替身)WHEN 替换默认 basis THEN 收支章节支出聚合改走新 basis 且章节结构与渲染不变
 
+### Requirement: FR-8 生成进度反馈(ADDED 2026-09-25,design 阶段用户拍板)
+报告生成过程 SHALL 呈现分阶段进度提示(阶段如:读取账本/回放余额/汇编章节/计算绩效);生成完成后进入报告视图;失败时呈现可重试错误态。
+- [ ] FR-8
+  #### Scenario:
+  - GIVEN 报告生成耗时超过 300ms THEN 进度阶段文案可见
+  - GIVEN 生成完成 THEN 进度提示消失、报告章节呈现
+  - GIVEN 生成抛错 THEN 错误态含「重试」动作,重试重新生成同报告期
+
 ## 需求(NFR)
 
 ### Requirement: NFR-1 性能
