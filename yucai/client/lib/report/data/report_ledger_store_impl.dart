@@ -44,13 +44,19 @@ class ReportLedgerStoreImpl implements ReportLedgerStore {
 
   @override
   Future<List<LedgerEntryRow>> entries() async {
-    // 头行:交易日期(本地时区,墙钟不变式与 transaction_local_ds._toEntity
-    // 同款 toLocal 修复;新行带本地 offset 为 no-op,旧行 Z 后缀被修复)。
+    // 头行:交易日期 **raw 直通**(T2-R1 评审 Important,对齐 transaction
+    // 模块唯一消费者 _toEntity L531 的口径)。镜像行(bound_mirror 写入
+    // _utc → drift Z 后缀文本)读回即 UTC 形态:raw 任何时区都保有正确
+    // 瞬间与 UTC 公历日;若做 toLocal,UTC 以西设备会把镜像行的日历日
+    // 回退一天(月初行跨出报告期),污染按日历日分桶的下游。
     final heads = await _db.transactionDao.getAllTransactions();
     final dateByTxn = {
-      for (final h in heads) h.id: h.transactionDate.toLocal(),
+      for (final h in heads) h.id: h.transactionDate,
     };
-    // 账户:denormalized 类型/账类(免逐条目查表)。
+    // 账户:denormalized 类型/账类(免逐条目查表)。accounts()/entries()
+    // 各拉一次全表是有意的:accounts 表量级为用户账户数(个位~十位行),
+    // 远小于分录表,二次读成本可忽略;adapter 保持无状态(快照语义,
+    // 汇编单遍消费),不做跨方法缓存。
     final accountRows = await _db.accountDao.getAllAccounts();
     final typeById = {for (final a in accountRows) a.id: a.accountType};
     final categoryById = {
@@ -62,6 +68,10 @@ class ReportLedgerStoreImpl implements ReportLedgerStore {
         LedgerEntryRow(
           transactionId: e.transactionId,
           accountId: e.accountId,
+          // 孤儿分录(accountId 不在账户表)= 科目已删的历史分录:
+          // type 0 / category null 静默降级,basis/classifier/replay 自然
+          // 跳过 —— **选择语义**(与下方孤儿头行 `!` fail-fast 不同:
+          // 头行缺失=数据结构损坏必须炸,科目缺失=合法业务状态不计)。
           accountType: typeById[e.accountId] ?? 0,
           category: categoryById[e.accountId],
           date: dateByTxn[e.transactionId]!,

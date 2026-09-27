@@ -246,6 +246,48 @@ void main() {
     expect(mealLeg.transactionId, isNot(wageLeg.transactionId));
   });
 
+  // T2-R1(评审 Important):镜像形态行(bound_mirror 写入口径 =
+  // mirror_mappers `_utc`,drift 落 Z 后缀 UTC 文本)date 必须 **raw 直通**
+  // —— 对齐 transaction 模块唯一消费者 _toEntity(transaction_local_ds
+  // L531)的口径;不做 toLocal(其仅变换公历表示,UTC 以西设备会把镜像行
+  // 的日历日回退一天,污染按日历日分桶的下游)。
+  test('entries():镜像 Z 行 date raw 直通(UTC 形态原样出,不做 toLocal)', () async {
+    final cash = await createAccount('现金', AccountType.asset,
+        AccountCategory.savings,
+        initialBalanceCents: 1000000);
+    final salary = await createAccount(
+        '工资', AccountType.income, AccountCategory.otherAsset);
+    final mirrorDate = DateTime.utc(2026, 8, 15, 12); // Z 文本镜像形态
+    await database.transactionDao.insertTransaction(db.TransactionsCompanion.insert(
+      id: 'mirror-t1',
+      transactionDate: mirrorDate,
+      description: 'mirror',
+      version: 1,
+      createdAt: DateTime.now().toUtc(),
+      updatedAt: DateTime.now().toUtc(),
+    ));
+    for (final (j, acc) in [cash.id, salary.id].indexed) {
+      await database.transactionDao.insertEntry(
+          db.TransactionEntriesCompanion.insert(
+        id: 'mirror-e-$j',
+        transactionId: 'mirror-t1',
+        accountId: acc,
+        chartOfAccountCode: '',
+        debitCents: j == 0 ? 424242 : 0,
+        creditCents: j == 0 ? 0 : 424242,
+        note: '',
+      ));
+    }
+
+    final entries = await store.entries();
+    expect(entries, hasLength(2));
+    for (final e in entries) {
+      // raw 直通:UTC 形态原样出(瞬间等值 + isUtc 保持)。
+      expect(e.date.isUtc, isTrue, reason: '镜像 Z 行须 raw 直通,不做 toLocal');
+      expect(e.date.isAtSameMomentAs(mirrorDate), isTrue);
+    }
+  });
+
   // ---- T4 追加:budgetRows / rateToCny(port 扩方法)----
 
   test('budgetRows():头+item+关联账户 id/账类/名称扁平行映射,不含 item 的头不出行', () async {

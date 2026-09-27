@@ -5,11 +5,13 @@
 // TransactionLocalDataSource.summary(server CASE 语义镜像):income/expense
 // 总额与分类构成**逐项相等**,防两套聚合漂移。
 //
-// 种子覆盖(任务书钉死三要素):
+// 种子覆盖(任务书钉死三要素 + T2-R1 评审追加):
 // - 多 expense 科目(餐饮/交通两个 type-5 账户);
 // - 贷方分录(08-20 退款:借现金/贷 expense —— debit 单边口径下两侧路径
 //   都不冲抵当期支出,应相等);
-// - 跨期分录(07-31 支出、09-01 收入 —— 期外不进两侧任何一边)。
+// - 跨期分录(07-31 支出、09-01 收入 —— 期外不进两侧任何一边);
+// - 镜像形态行(bound_mirror `_utc` 写入口径:UTC Z 文本直插)—— 报告侧
+//   raw 直通 adapter 与 summary 侧 _toEntity raw 对该行同进同出(T2-R1)。
 // 总额同时钉手算字面量(独立 oracle,防两实现一起漂移)。
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -182,6 +184,34 @@ void main() {
         amountCents: 77777,
       ),
     );
+    // 镜像形态行(T2-R1 评审 Important):bound_mirror 写入口径
+    // (mirror_mappers `_utc`)= drift 落 Z 后缀 UTC 文本 —— DAO 直插头行
+    // + 双录分录(借现金1 / 贷工资 123,456)。日期取月中正午 UTC,
+    // 任意时区(UTC±12 内)都稳定落 8 月窗,断言字面量跨环境确定。
+    // 两侧(raw 直通 adapter vs _toEntity raw)必须对该行同进同出。
+    await database.transactionDao.insertTransaction(
+      db.TransactionsCompanion.insert(
+        id: 'mirror-aug',
+        transactionDate: DateTime.utc(2026, 8, 15, 12),
+        description: 'mirror',
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+    for (final (j, acc) in [cash1.id, salary.id].indexed) {
+      await database.transactionDao.insertEntry(
+        db.TransactionEntriesCompanion.insert(
+          id: 'mirror-e-$j',
+          transactionId: 'mirror-aug',
+          accountId: acc,
+          chartOfAccountCode: '',
+          debitCents: j == 0 ? 123456 : 0,
+          creditCents: j == 0 ? 0 : 123456,
+          note: '',
+        ),
+      );
+    }
 
     // —— 报告侧(adapter 行 VO + domain 聚合)——
     final store = ReportLedgerStoreImpl(database);
@@ -224,9 +254,10 @@ void main() {
     };
 
     // —— 总额逐项相等 + 手算字面量 ——
-    // income = 300,000 + 50,000(期外 77,777 不进;退款不涉收入)。
+    // income = 300,000 + 50,000 + 镜像行 123,456 = 473,456(期外 77,777
+    // 不进;退款不涉收入)。
     expect(reportIncome, s.incomeCents);
-    expect(s.incomeCents, 350000);
+    expect(s.incomeCents, 473456);
     // expense(debit 单边)= 餐饮 12,345 + 8,888(退款 credit 200 不冲抵)
     // + 交通 2,500 = 23,733(期外 9,999 不进)。
     expect(reportExpense, s.expenseCents);
@@ -234,7 +265,7 @@ void main() {
 
     // —— 分类构成逐项相等(income 按科目、expense 按 basis 维度)——
     expect(incomeByAccount, summaryIncomeByAccount);
-    expect(incomeByAccount, {salary.id: 300000, bonus.id: 50000});
+    expect(incomeByAccount, {salary.id: 300000 + 123456, bonus.id: 50000});
     expect(expenseByAccount, summaryExpenseByAccount);
     expect(expenseByAccount, {
       food.id: 12345 + 8888, // 21,233:退款不冲抵
