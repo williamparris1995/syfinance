@@ -592,17 +592,22 @@ class HoldingLocalDataSource {
     String? accountId,
     bool includeBenchmark = false,
     String baseCurrency = '',
+    DateTime? rangeStart,
+    DateTime? rangeEnd,
   }) async {
     final now = DateTime.now();
-    final rangeStart = switch (range) {
-      'DAY' => DateTime(now.year, now.month, now.day)
-          .subtract(const Duration(days: 30)),
-      'MONTH' => DateTime(now.year, now.month, now.day)
-          .subtract(const Duration(days: 365)),
-      'YEAR' => DateTime(now.year, now.month, now.day)
-          .subtract(const Duration(days: 365 * 3)),
-      _ => null, // 全期
-    };
+    // T3(F43 R16 财务报告 FR-6):显式区间 [start,end] 优先(闭区间,供
+    // assembler 区间分解);缺省沿用 range 字符串映射 —— 既有调用逐位不变。
+    final start = rangeStart ??
+        switch (range) {
+          'DAY' => DateTime(now.year, now.month, now.day)
+              .subtract(const Duration(days: 30)),
+          'MONTH' => DateTime(now.year, now.month, now.day)
+              .subtract(const Duration(days: 365)),
+          'YEAR' => DateTime(now.year, now.month, now.day)
+              .subtract(const Duration(days: 365 * 3)),
+          _ => null, // 全期
+        };
     final hRows = await _database.select(_database.holdings).get();
     final tRows = await _database.select(_database.holdingTransactions).get();
     final sRows = await _database.select(_database.securities).get();
@@ -632,7 +637,7 @@ class HoldingLocalDataSource {
       },
       now: now,
     );
-    return assembler.assemble(rangeStart: rangeStart);
+    return assembler.assemble(rangeStart: start, rangeEnd: rangeEnd);
   }
 
   /// holding 级 performance 本地化 → 后续 polish(R7-D scope boundary):

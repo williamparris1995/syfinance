@@ -235,13 +235,19 @@ class HoldingRepositoryImpl implements HoldingRepository {
     String? accountId,
     bool includeBenchmark = false,
     String baseCurrency = '',
+    DateTime? rangeStart,
+    DateTime? rangeEnd,
   }) async {
+    // T3(FR-6):区间参数仅透传本地引擎(proto 无对应字段;远端权威口径
+    // 不受影响,断网降级路径同样带上区间)。
     if (_useLocalDs) {
       return _guard(() => _local.getPortfolioPerformance(
             range: range,
             accountId: accountId,
             includeBenchmark: includeBenchmark,
             baseCurrency: baseCurrency,
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd,
           ));
     }
     // 绑定在线:server 权威;NetworkFailure(断网)→ 本地引擎兜底
@@ -259,6 +265,8 @@ class HoldingRepositoryImpl implements HoldingRepository {
                 accountId: accountId,
                 includeBenchmark: includeBenchmark,
                 baseCurrency: baseCurrency,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd,
               ))
           : Left<Failure, PortfolioPerformance>(f),
       (r) => Right<Failure, PortfolioPerformance>(r),

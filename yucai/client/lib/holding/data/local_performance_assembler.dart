@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:yucai_client/holding/domain/entities/period_performance.dart';
 import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart' show PerfPoint;
 import 'package:yucai_client/holding/domain/return_engine/twr.dart' as twr;
@@ -130,7 +131,7 @@ class LocalPerformanceAssembler {
 
   // ---- 装配 ----
 
-  PortfolioPerformance assemble({DateTime? rangeStart}) {
+  PortfolioPerformance assemble({DateTime? rangeStart, DateTime? rangeEnd}) {
     final today = _today;
     final first = _firstTradeDay();
     final start = rangeStart ?? first ?? today;
@@ -176,6 +177,14 @@ class LocalPerformanceAssembler {
       if (open > 0) rangeCagr = _simpleCagr(open, terminal, rangeStart, today);
     }
 
+    // 区间分解(FR-6,T3):仅 rangeStart+rangeEnd 同时给定时计算;缺省或
+    // 半缺省 → period=null,既有输出逐位不变(rangeEnd 仅驱动该 VO,不改
+    // 既有 range* 字段的 now 锚定口径)。
+    PeriodPerformance? period;
+    if (rangeStart != null && rangeEnd != null) {
+      period = _periodDecomposition(rangeStart, rangeEnd);
+    }
+
     return PortfolioPerformance(
       portfolioPoints: _curvePoints(start, today, terminal),
       benchmarkPoints: const [],
@@ -192,6 +201,62 @@ class LocalPerformanceAssembler {
       totalPct: totalPct,
       currency: 'CNY',
       offlineScope: true,
+      period: period,
+    );
+  }
+
+  /// FR-6 区间分解:期初/期末市值、当期净买入、估算收益(、区间 TWR)。
+  /// 锚定语义(复用 _qtyAt/_priceOf 回放,单源):
+  /// - 期初 = qty 严格早于 start × ffill 价 ≤ start(_mvAt 语义,与
+  ///   rangeXirr 的 open 同锚 —— 窗口前已建仓计入,窗口日成交不计);
+  /// - 期末 = qty 含 end 日成交 × ffill 价 ≤ end(after 语义:末日交易属
+  ///   窗内,市值计入);
+  /// - 净买入 = 窗内 [start,end] 买卖**金额**差(费用/分红/拆股不计)。
+  /// 坏价(-1 哨兵)→ 整体 null 降级(UI 显「—」,不产半截口径)。
+  PeriodPerformance? _periodDecomposition(
+      DateTime rangeStart, DateTime rangeEnd) {
+    final startDay =
+        DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
+    final endDay = DateTime(rangeEnd.year, rangeEnd.month, rangeEnd.day);
+    final beginMv = _mvAt(startDay);
+    final endMv =
+        _mvAsOf(endDay.add(const Duration(days: 1)), endDay);
+    if (beginMv < 0 || endMv < 0) return null;
+
+    var netBuy = 0;
+    for (final t in trades) {
+      final day = DateTime(t.tradeDate.year, t.tradeDate.month, t.tradeDate.day);
+      if (day.isBefore(startDay) || day.isAfter(endDay)) continue;
+      if (t.tradeType == typeBuy) netBuy += t.amountCents;
+      if (t.tradeType == typeSell) netBuy -= t.amountCents;
+    }
+
+    // 区间 TWR(累计,×100):复用 _chainedTwr 现金流链 —— ffill 口径下
+    // 价格仅在成交日变动,「按日粒度市值链」与现金流日子期链等价(相邻
+    // 成交日间市值无变化),故不另建日循环。
+    double? twrPct;
+    if (beginMv == 0) {
+      // 期初市值为 0(窗口起点无持仓/空仓):0 基期收益率无数学定义,
+      // FR-6 报告口径**约定报 0** —— 不走 gap-restart 重建链(该口径把
+      // 窗内新建仓的涨幅算进区间,与「期初起链」定义不符),UI 显示 0
+      // 而非「—」,估算收益仍由 gain 分解如实呈现。
+      twrPct = 0;
+    } else if (_cashFlowDays(startDay, endDay).isEmpty) {
+      // 窗内无现金流日:单期 TWR = 期末/期初 − 1(与 _chainedTwr 的
+      // 「单尾因子段」同口径;其 days 空早退 null 的路径保留给既有
+      // range 语义,不改 _segmentedTwr 行为)。
+      twrPct = (endMv / beginMv - 1) * 100;
+    } else {
+      final chained = _chainedTwr(startDay, endDay, endMv);
+      twrPct = chained == null ? null : chained.cum * 100;
+    }
+
+    return PeriodPerformance(
+      beginMvCents: beginMv.round(),
+      endMvCents: endMv.round(),
+      netBuyCents: netBuy,
+      estimatedGainCents: (endMv - beginMv - netBuy).round(),
+      twrPct: twrPct,
     );
   }
 
@@ -220,6 +285,17 @@ class LocalPerformanceAssembler {
   /// GIPS 三态分段(镜像 G computeTWR):中间清仓跳段重启;终态纯清仓
   /// 链终止(不乘 0);qty>0 但无价(坏价)→ 整体 null 降级。
   double? _segmentedTwr(DateTime start, DateTime today, double terminalMV) {
+    final chained = _chainedTwr(start, today, terminalMV);
+    if (chained == null) return null;
+    return twr.annualizeTwr(
+        chained.cum, chained.totalDays < 1 ? 0 : chained.totalDays);
+  }
+
+  /// 分段链核(_segmentedTwr 的累计值 + 段天数):期初起链、现金流日子期
+  /// 链接、终段收尾。T3 起由 _segmentedTwr(年化)与区间分解(累计
+  /// twrPct)共用 —— 链式 TWR 单源,不得复制重写。
+  ({double cum, int totalDays})? _chainedTwr(
+      DateTime start, DateTime today, double terminalMV) {
     // 日算术统一本地日(测试/存量的 UTC 输入与本地 today 混比会差一天)。
     final startDay = DateTime(start.year, start.month, start.day);
     // 有意分歧(G 超集):锚点后无现金流日时本实现仍算单期 TWR(终值/开盘,
@@ -280,7 +356,7 @@ class LocalPerformanceAssembler {
       totalDays += today.difference(segStart).inDays;
     }
     if (!any) return null;
-    return twr.annualizeTwr(chain - 1, totalDays < 1 ? 0 : totalDays);
+    return (cum: chain - 1, totalDays: totalDays);
   }
 
   List<DateTime> _cashFlowDays(DateTime start, DateTime today) {

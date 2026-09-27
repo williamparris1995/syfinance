@@ -10,6 +10,7 @@
 // PerfCurveChart(以及 holding_detail_page 的 _costBasisCurve)。
 import 'package:equatable/equatable.dart';
 
+import 'package:yucai_client/holding/domain/entities/period_performance.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart'
     show PerfPoint;
 
@@ -35,6 +36,7 @@ class PortfolioPerformance extends Equatable {
     this.totalPct = 0,
     this.currency = 'CNY',
     this.offlineScope = false, // R7-D:本地引擎计算(离线口径·按成交价)
+    this.period, // T3(FR-6):区间分解,仅显式 [start,end] 窗口时非空
   });
 
   final List<PerfPoint> portfolioPoints;
@@ -67,6 +69,11 @@ class PortfolioPerformance extends Equatable {
   /// R7-D:本地计算标记(TWR 为成交价锚口径,UI 展示「离线口径」标注)。
   final bool offlineScope;
 
+  /// T3(F43 R16 财务报告 FR-6):区间绩效分解(期初/期末市值、净买入、
+  /// 估算收益、区间 TWR)。仅当 assemble 显式给定 rangeStart+rangeEnd 时
+  /// 非空;缺省(既有 range 字符串调用形态)恒为 null —— 旧调用行为不变。
+  final PeriodPerformance? period;
+
   @override
   List<Object?> get props => [
         portfolioPoints,
@@ -84,6 +91,7 @@ class PortfolioPerformance extends Equatable {
         totalPct,
         currency,
         offlineScope,
+        period,
       ];
 }
 

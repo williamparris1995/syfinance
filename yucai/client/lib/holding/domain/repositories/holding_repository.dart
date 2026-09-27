@@ -89,11 +89,18 @@ abstract class HoldingRepository {
   // —— 收益曲线(Task 12,holding-C 新增;Task 12 D-currency 加 baseCurrency)——
   /// 组合收益曲线 + 盈亏明细。range 取 'DAY'/'MONTH'/'YEAR'。
   /// [baseCurrency] 折算本位币(ISO code,来自 CurrencySettings;空/CNY 不折算)。
+  ///
+  /// [rangeStart]/[rangeEnd](T3,F43 R16 财务报告 FR-6):显式闭区间,可选、
+  /// 纯新增向后兼容;同时给定时本地引擎额外产出区间分解
+  /// PortfolioPerformance.period(期初/期末市值/净买入/估算收益/区间 TWR)。
+  /// 仅本地路径消费(holding.proto 无对应字段,绑定在线走 server 权威口径)。
   Future<Either<Failure, PortfolioPerformance>> getPortfolioPerformance({
     required String range,
     String? accountId,
     bool includeBenchmark = false,
     String baseCurrency = '',
+    DateTime? rangeStart,
+    DateTime? rangeEnd,
   });
 
   /// 单持仓价格曲线 + 盈亏明细。
