@@ -5,6 +5,8 @@
 /// F44(MD&A 规则输入)/F45(导出渲染)三票共享契约。
 library;
 
+import 'package:yucai_client/report/domain/mda/mda_models.dart';
+
 /// 报告期:自然月或自然年(FR-1)。
 ///
 /// 边界为本地时区(对齐 transaction_local_ds 月界口径);终点含
@@ -520,6 +522,7 @@ class ReportDocument {
     required this.cashFlow,
     this.budget,
     this.investment,
+    this.mda,
     required this.excludedSections,
   });
 
@@ -547,6 +550,27 @@ class ReportDocument {
   /// 投资绩效章节(无持仓 → null)。
   final InvestmentSection? investment;
 
+  /// 「诊断与建议」章节(F44,ADR-1 诊断随快照):规则引擎在汇编
+  /// assembling 阶段对本文档执行后经 [withMda] 回填;直接构造缺省 null
+  /// (兼容既有构造/测试)。**恒非空语义**(ADR-6:健康态也是发现集为
+  /// 空的章节)——仅期外异常/直接构造时为 null。
+  final MdaSection? mda;
+
   /// 未包含项附注文案来源(FR-3,如「预算执行(本期无预算)」)。
   final List<String> excludedSections;
+
+  /// 回填诊断章节(F44):引擎输入含本文档快照(period/overview/构成),
+  /// 故快照先构、章节后缀——generate() 末步调用。
+  ReportDocument withMda(MdaSection mda) => ReportDocument(
+        period: period,
+        generatedAt: generatedAt,
+        overview: overview,
+        balanceSheet: balanceSheet,
+        incomeStatement: incomeStatement,
+        cashFlow: cashFlow,
+        budget: budget,
+        investment: investment,
+        mda: mda,
+        excludedSections: excludedSections,
+      );
 }

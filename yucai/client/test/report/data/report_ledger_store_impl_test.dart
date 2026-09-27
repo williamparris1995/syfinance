@@ -7,6 +7,7 @@
 //   accountType/category)→ LedgerEntryRow,按日期升序。
 // 种子走真实写路径(AccountLocalDataSource / TransactionLocalDataSource),
 // 期望值全部手算。
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,8 +18,10 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/budget/data/budget_local_ds.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/report/data/report_ledger_store_impl.dart';
+import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
+import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
 void main() {
@@ -390,5 +393,208 @@ void main() {
     final jpy = await store.rateToCny('JPY', DateTime(2026, 8, 20));
     expect(jpy.asOfRate, isNull);
     expect(jpy.currentRate, isNull);
+  });
+
+  // ---- T2(F44 R16 sprint-1)追加:templateRows / transactions(MD&A port)----
+
+  /// 模板种子:直落 DAO 行(全列可控);日期一律 UTC date-only(对齐
+  /// template_local_ds _parseDate 落库形态)。
+  Future<void> seedTemplate(
+    String id, {
+    required String name,
+    int amountCents = 8800,
+    int direction = 1, // TemplateDirection.expense.index
+    int cycle = 2, // TemplateCycle.monthly.index
+    DateTime? startDate,
+    DateTime? endDate,
+    int interval = 0,
+    int billingDay = 0,
+    bool paused = false,
+    bool autoRecord = true,
+    String? lastTransactionId,
+  }) async {
+    final start = startDate ?? DateTime.utc(2026, 1, 10);
+    await database.templateDao.insertTemplate(
+      db.TransactionTemplatesCompanion.insert(
+        id: id,
+        name: name,
+        description: '',
+        amountCents: amountCents,
+        direction: direction,
+        sourceAccountId: 'acc-any',
+        cycle: cycle,
+        cycleDays: 0,
+        billingDay: billingDay,
+        interval: Value(interval),
+        nextDate: DateTime.utc(2026, 9, 15), // 直读列,字面量直通断言用
+        startDate: start,
+        endDate: Value(endDate),
+        autoRecord: autoRecord,
+        paused: paused,
+        lastTransactionId: Value(lastTransactionId),
+        category: '',
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  test('templateRows():月付直读字段+期内应扣日推演+lastRecordedDate join', () async {
+    // 记账交易:08-06 支出(真实写路径)→ lastTransactionId join 到其日期。
+    final cash = await createAccount(
+        '现金', AccountType.asset, AccountCategory.savings,
+        initialBalanceCents: 100000);
+    final food = await createAccount(
+        '餐饮', AccountType.expense, AccountCategory.otherAsset);
+    final t5 = await txnsDs.recordExpense(RecordExpenseParams(
+      transactionDate: DateTime(2026, 8, 6),
+      expenseAccountId: food.id,
+      assetAccountId: cash.id,
+      amountCents: 8800,
+      description: '订阅扣费',
+    ));
+    // 月付:startDate 2026-01-15(billingDay=0 锚 15 日)→ 期内应扣 08-15。
+    await seedTemplate('tpl-m',
+        name: '视频会员',
+        lastTransactionId: t5.id,
+        startDate: DateTime.utc(2026, 1, 15));
+
+    final rows = await store.templateRows(ReportPeriod.monthly(2026, 8));
+    expect(rows, hasLength(1));
+    final r = rows.single;
+    expect(r.id, 'tpl-m');
+    expect(r.name, '视频会员');
+    expect(r.expense, isTrue); // direction 1 = expense
+    expect(r.amountCents, 8800);
+    expect(r.paused, isFalse);
+    expect(r.autoRecord, isTrue);
+    expect(r.nextDate, DateTime.utc(2026, 9, 15)); // 直读列原样
+    // join:lastTransactionId → Transactions.transactionDate(date-only)。
+    expect(r.lastRecordedDate, DateTime.utc(2026, 8, 6));
+    // 应扣日:1/15 起月系列在 8 月 = 08-15(手算)。
+    expect(r.expectedDates, [DateTime.utc(2026, 8, 15)]);
+  });
+
+  test('templateRows():年付期内一单;发生日落期外 → 空;paused 仍推演;income 非支出', () async {
+    // 年付:startDate 2025-08-20 → 2026-08-20 落在 8 月。
+    await seedTemplate('tpl-y',
+        name: '网盘年费', cycle: 3, startDate: DateTime.utc(2025, 8, 20));
+    // 年付:startDate 2025-09-01 → 2026-09-01 在期外(9 月)→ 期内空。
+    await seedTemplate('tpl-y-out',
+        name: '次年外', cycle: 3, startDate: DateTime.utc(2025, 9, 1));
+    // paused:直读 true,应扣日照常推演(闲置判定在 R4 域内过滤)。
+    await seedTemplate('tpl-p',
+        name: '暂停订阅', paused: true, startDate: DateTime.utc(2026, 2, 10));
+    // income(direction=2):expense=false。
+    await seedTemplate('tpl-i',
+        name: '房租收入', direction: 2, startDate: DateTime.utc(2026, 3, 1));
+
+    final rows = await store.templateRows(ReportPeriod.monthly(2026, 8));
+    final byId = {for (final r in rows) r.id: r};
+    expect(byId.keys, containsAll(['tpl-y', 'tpl-y-out', 'tpl-p', 'tpl-i']));
+
+    expect(byId['tpl-y']!.expectedDates, [DateTime.utc(2026, 8, 20)]);
+    expect(byId['tpl-y-out']!.expectedDates, isEmpty);
+    expect(byId['tpl-p']!.paused, isTrue);
+    expect(byId['tpl-p']!.expectedDates, [DateTime.utc(2026, 8, 10)]);
+    expect(byId['tpl-i']!.expense, isFalse);
+    // 从未记账 → lastRecordedDate null(lastTransactionId 列 null)。
+    expect(byId['tpl-i']!.lastRecordedDate, isNull);
+  });
+
+  test('templateRows():endDate 截断(应扣日越过 endDate 不推演)+ 孤儿 id → null', () async {
+    // 月付锚 15 日,但 endDate=08-10 → 期内唯一应扣 08-10 之后 → 空。
+    await seedTemplate('tpl-end',
+        name: '到期订阅',
+        startDate: DateTime.utc(2026, 1, 15),
+        endDate: DateTime.utc(2026, 8, 10));
+    // endDate 恰含应扣日(08-15 ≤ 08-15)→ 计入(调度器 ≤ endDate 同口径)。
+    await seedTemplate('tpl-end-eq',
+        name: '末日扣费',
+        startDate: DateTime.utc(2026, 1, 15),
+        endDate: DateTime.utc(2026, 8, 15));
+    // lastTransactionId 指向不存在交易(脏数据)→ null 不炸。
+    await seedTemplate('tpl-orphan',
+        name: '孤儿',
+        startDate: DateTime.utc(2026, 1, 15),
+        lastTransactionId: 'no-such-txn');
+
+    final rows = await store.templateRows(ReportPeriod.monthly(2026, 8));
+    final byId = {for (final r in rows) r.id: r};
+    expect(byId['tpl-end']!.expectedDates, isEmpty);
+    expect(byId['tpl-end-eq']!.expectedDates, [DateTime.utc(2026, 8, 15)]);
+    expect(byId['tpl-orphan']!.lastRecordedDate, isNull);
+  });
+
+  test('templateRows():interval>1 锚定 startDate 系列(不从期初重锚)', () async {
+    // 季付:startDate 2026-05-10,系列 = 05-10 + 3k 月 → 08-10 在期内。
+    // 错误实现(从 period.start 链式推进)会以 08-01 为锚给出别的日子。
+    await seedTemplate('tpl-q',
+        name: '季付保险', interval: 3, startDate: DateTime.utc(2026, 5, 10));
+
+    final rows = await store.templateRows(ReportPeriod.monthly(2026, 8));
+    expect(rows.single.expectedDates, [DateTime.utc(2026, 8, 10)]);
+  });
+
+  test('transactions():期内交易 expense 科目 debit 合计+description/date 投影,期外与零支出不计', () async {
+    final cash = await createAccount(
+        '现金', AccountType.asset, AccountCategory.savings,
+        initialBalanceCents: 10000000);
+    final food = await createAccount(
+        '餐饮', AccountType.expense, AccountCategory.otherAsset);
+    final transport = await createAccount(
+        '交通', AccountType.expense, AccountCategory.otherAsset);
+    final salary = await createAccount(
+        '工资', AccountType.income, AccountCategory.otherAsset);
+
+    // 08-06 单腿支出 12,345(借 food / 贷现金)。
+    final t1 = await txnsDs.recordExpense(RecordExpenseParams(
+      transactionDate: DateTime(2026, 8, 6),
+      expenseAccountId: food.id,
+      assetAccountId: cash.id,
+      amountCents: 12345,
+      description: '超市采购',
+    ));
+    // 08-20 复合支出:两个 expense 科目腿(借 food 10,000 + 借 transport
+    // 5,000 / 贷现金 15,000)→ 交易级 expense 合计 15,000。
+    final t2 = await txnsDs.recordTransaction(RecordTransactionParams(
+      transactionDate: DateTime(2026, 8, 20),
+      description: '出行聚餐一单',
+      entries: [
+        TransactionEntry(
+            accountId: food.id, debitCents: 10000, creditCents: 0),
+        TransactionEntry(
+            accountId: transport.id, debitCents: 5000, creditCents: 0),
+        TransactionEntry(
+            accountId: cash.id, debitCents: 0, creditCents: 15000),
+      ],
+    ));
+    // 期外支出(07-31)不计;收入交易(08-02,expense 合计 0)非候选。
+    await txnsDs.recordExpense(RecordExpenseParams(
+      transactionDate: DateTime(2026, 7, 31),
+      expenseAccountId: food.id,
+      assetAccountId: cash.id,
+      amountCents: 9999,
+      description: '期外',
+    ));
+    await txnsDs.recordIncome(RecordIncomeParams(
+      transactionDate: DateTime(2026, 8, 2),
+      assetAccountId: cash.id,
+      incomeAccountId: salary.id,
+      amountCents: 500000,
+      description: '八月工资',
+    ));
+
+    final rows = await store.transactions(ReportPeriod.monthly(2026, 8));
+    // 日期升序(同 entries() 惯例;08-06 在前)。
+    expect(rows, hasLength(2));
+    expect(rows[0].transactionId, t1.id);
+    expect(rows[0].date, DateTime(2026, 8, 6));
+    expect(rows[0].description, '超市采购');
+    expect(rows[0].expenseCents, 12345);
+    expect(rows[1].transactionId, t2.id);
+    expect(rows[1].description, '出行聚餐一单');
+    expect(rows[1].expenseCents, 15000); // 10,000 + 5,000 两腿合计
   });
 }

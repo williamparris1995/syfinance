@@ -8,6 +8,9 @@
 /// 纯 Dart:零 flutter/drift/proto import。
 library;
 
+import 'package:yucai_client/report/domain/mda/mda_models.dart';
+import 'package:yucai_client/report/domain/report_document.dart';
+
 /// 账户原始行(汇编所需最小集)。
 ///
 /// [type] 为会计类型 contract int:1 asset / 2 liability / 3 equity /
@@ -146,7 +149,8 @@ class RateQuote {
 /// 账本数据源 port:全量原始行读取(回放/汇编的唯数入口)。
 ///
 /// T1 定 T1..T3 汇编路径所需最小方法;T4 追加预算行与汇率读取
-/// (adapter 单点隔离 drift 表结构变化,见 design 风险表)。
+/// (adapter 单点隔离 drift 表结构变化,见 design 风险表);F44 T2 追加
+/// 模板/交易两读法(MD&A supplement 输入,expectedDates 预推演在 adapter)。
 abstract class ReportLedgerStore {
   /// 全部账户(含 archived;汇编侧自行过滤)。
   Future<List<AccountRow>> accounts();
@@ -163,4 +167,19 @@ abstract class ReportLedgerStore {
   ///
   /// 'CNY' 本币由汇编层直加不调本方法(port 不做币种语义)。
   Future<RateQuote> rateToCny(String currencyCode, DateTime on);
+
+  /// 支出/收入订阅模板全量行(F44 MD&A supplement 输入)。
+  ///
+  /// [expectedDates] 为 adapter 预推演的 [period] **期内**应扣日
+  /// (date-only 升序;推演逻辑留 data 侧直用 core/recurrence,domain
+  /// 收纯日期表);direction/paused/nextDate 直读列,
+  /// lastRecordedDate 由 lastTransactionId join 交易头行日期(一次 join)。
+  Future<List<TemplateRowVO>> templateRows(ReportPeriod period);
+
+  /// [period] 期内交易级支出投影(F44 R5 大额单笔候选)。
+  ///
+  /// expenseCents = 该交易 expense 科目分录 debit 合计(复用 entries 读法,
+  /// 交易级聚合);description/date 头行直投影;仅含支出合计 > 0 的交易
+  /// (纯收入/转账交易非候选),按日期升序。
+  Future<List<LargeTxnVO>> transactions(ReportPeriod period);
 }

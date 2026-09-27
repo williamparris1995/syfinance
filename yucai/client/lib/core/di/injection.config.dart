@@ -82,6 +82,8 @@ import '../../holding/presentation/bloc/holding_bloc.dart' as _i255;
 import '../../holding/presentation/bloc/performance_bloc.dart' as _i493;
 import '../../report/data/report_ledger_store_impl.dart' as _i58;
 import '../../report/domain/expense_basis.dart' as _i56;
+import '../../report/domain/mda/mda_engine.dart' as _i819;
+import '../../report/domain/mda/mda_narrator.dart' as _i442;
 import '../../report/domain/report_assembly_service.dart' as _i1020;
 import '../../report/domain/report_ledger_store.dart' as _i249;
 import '../../report/presentation/financial_report_bloc.dart' as _i243;
@@ -121,6 +123,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i102.UserMapper>(() => const _i102.UserMapper());
     gh.factory<_i380.CurrencyMapper>(() => const _i380.CurrencyMapper());
     gh.factory<_i667.TransactionMapper>(() => const _i667.TransactionMapper());
+    gh.lazySingleton<_i819.MdaEngine>(() => const _i819.MdaEngine());
     gh.lazySingleton<_i697.AccountLocalDataSource>(
       () => _i697.AccountLocalDataSource(
         gh<_i581.AppDatabase>(),
@@ -133,6 +136,7 @@ extension GetItInjectableX on _i174.GetIt {
         uuid: gh<_i706.Uuid>(),
       ),
     );
+    gh.lazySingleton<_i442.MdaNarrator>(() => const _i442.NoopMdaNarrator());
     gh.lazySingleton<_i832.AuthRemoteDataSource>(
       () => _i832.AuthRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -460,13 +464,6 @@ extension GetItInjectableX on _i174.GetIt {
         uuid: gh<_i706.Uuid>(),
       ),
     );
-    gh.lazySingleton<_i1020.ReportAssemblyService>(
-      () => _i1020.ReportAssemblyService(
-        gh<_i249.ReportLedgerStore>(),
-        gh<_i56.ExpenseBasis>(),
-        gh<_i255.HoldingRepository>(),
-      ),
-    );
     gh.lazySingleton<_i74.TemplateRepository>(
       () => _i554.TemplateRepositoryImpl(
         gh<_i889.TemplateRemoteDataSource>(),
@@ -490,6 +487,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i94.GoalLocalDataSource>(),
         gh<_i781.SessionModeTracker>(),
         gh<_i507.BoundMirror>(),
+      ),
+    );
+    gh.lazySingleton<_i1020.ReportAssemblyService>(
+      () => _i1020.ReportAssemblyService(
+        gh<_i249.ReportLedgerStore>(),
+        gh<_i56.ExpenseBasis>(),
+        gh<_i255.HoldingRepository>(),
+        gh<_i819.MdaEngine>(),
       ),
     );
     gh.factory<_i933.TemplateBloc>(

@@ -19,6 +19,10 @@ import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
+import 'package:yucai_client/core/recurrence/next_after.dart';
+import 'package:yucai_client/core/recurrence/recurrence_rule.dart';
+import 'package:yucai_client/report/domain/mda/mda_models.dart';
+import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/domain/report_ledger_store.dart';
 
 @LazySingleton(as: ReportLedgerStore)
@@ -139,5 +143,100 @@ class ReportLedgerStoreImpl implements ReportLedgerStore {
       asOfRate: hist.isEmpty ? null : hist.first.exchangeRate,
       currentRate: current?.exchangeRate,
     );
+  }
+
+  // ---- T2(F44)追加:模板/交易两读法(MD&A supplement 输入)----
+
+  @override
+  Future<List<TemplateRowVO>> templateRows(ReportPeriod period) async {
+    // 头行一次拉全:lastTransactionId → 交易日期 join(孤儿 id → null)。
+    final dateByTxn = {
+      for (final h in await _db.transactionDao.getAllTransactions())
+        h.id: h.transactionDate,
+    };
+    return [
+      for (final t in await _db.select(_db.transactionTemplates).get())
+        TemplateRowVO(
+          id: t.id,
+          name: t.name,
+          // 落库 int = TemplateDirection.index:1 expense / 2 income /
+          // 3 transfer(template_local_ds 写入口径同款判别)。
+          expense: t.direction == 1,
+          amountCents: t.amountCents,
+          paused: t.paused,
+          autoRecord: t.autoRecord,
+          nextDate: t.nextDate,
+          lastRecordedDate: _dateOnlyOf(dateByTxn[t.lastTransactionId]),
+          expectedDates: _expectedDates(t, period),
+        ),
+    ];
+  }
+
+  /// [t] 在 [period] 期内的应扣日(startDate 锚定系列)。
+  ///
+  /// 推演直用 core/recurrence(firstOnSeriesAfter + 链式 nextAfter,零
+  /// 复制;interval>1 时系列锚定 startDate,不能从期初重锚)。endDate
+  /// 之后不再期望(调度器「发生日 ≤ endDate 才记」同口径);模板侧日期
+  /// 全为 UTC date-only,期界先折 UTC 公历日再比(直接比瞬间会在 UTC
+  /// 以西设备把首日应扣日错挤出期)。
+  static List<DateTime> _expectedDates(
+    db.TransactionTemplate t,
+    ReportPeriod period,
+  ) {
+    final rule = RecurrenceRule.fromInts(
+      cycle: t.cycle,
+      cycleDays: t.cycleDays,
+      billingDay: t.billingDay,
+      interval: t.interval,
+      weekdayMask: t.weekdayMask,
+      monthlyMode: t.monthlyMode,
+      nth: t.nth,
+    );
+    final anchor = _dateOnlyOf(t.startDate)!;
+    final start = _dateOnlyOf(period.start)!;
+    final end = _dateOnlyOf(period.endInclusive)!;
+    final out = <DateTime>[];
+    var d = firstOnSeriesAfter(anchor, rule, start);
+    while (!d.isAfter(end)) {
+      if (t.endDate == null || !d.isAfter(t.endDate!)) out.add(d);
+      d = nextAfter(d, rule);
+    }
+    return out;
+  }
+
+  /// raw 日期 → date-only(取 raw 公历日,去时分秒;null 透传)。
+  static DateTime? _dateOnlyOf(DateTime? d) =>
+      d == null ? null : DateTime.utc(d.year, d.month, d.day);
+
+  @override
+  Future<List<LargeTxnVO>> transactions(ReportPeriod period) async {
+    // 复用 entries() 读法:头行 + 分录 + 账户 denorm 类型(date raw 直通
+    // 口径同 entries——镜像 Z 行按 UTC 公历日分桶,不做 toLocal)。
+    final heads = await _db.transactionDao.getAllTransactions();
+    final accountRows = await _db.accountDao.getAllAccounts();
+    final typeById = {
+      for (final a in accountRows) a.id: a.accountType,
+    };
+    final expenseByTxn = <String, int>{};
+    for (final e in await _db.transactionDao.getAllEntries()) {
+      if (typeById[e.accountId] != 5) continue; // 仅 expense 科目腿
+      expenseByTxn[e.transactionId] =
+          (expenseByTxn[e.transactionId] ?? 0) + e.debitCents;
+    }
+    final out = [
+      for (final h in heads)
+        if (period.contains(h.transactionDate))
+          LargeTxnVO(
+            transactionId: h.id,
+            date: h.transactionDate,
+            description: h.description,
+            expenseCents: expenseByTxn[h.id] ?? 0,
+          ),
+    ]..retainWhere((t) => t.expenseCents > 0); // 候选集:零支出不进
+    out.sort((a, b) {
+      final byDate = a.date.compareTo(b.date);
+      return byDate != 0 ? byDate : a.transactionId.compareTo(b.transactionId);
+    });
+    return out;
   }
 }

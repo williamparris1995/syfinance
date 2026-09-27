@@ -6,7 +6,8 @@
 // - 六章节快照逐数值 oracle(总览/资产负债/收支+prior/现金流/预算/投资);
 // - 自适应隐藏(无预算/无持仓)+ excludedSections 附注(FR-3);
 // - 外币折 CNY 两级汇率(历史→现值→缺失跳过+注记);
-// - budget actuals conformance(同 drift 种子对照 budget_local_ds)。
+// - budget actuals conformance(同 drift 种子对照 budget_local_ds);
+// - T2(F44):MD&A supplement 接线 → doc.mda(手算 oracle)。
 import 'package:dartz/dartz.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +24,8 @@ import 'package:yucai_client/holding/domain/entities/period_performance.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/report/data/report_ledger_store_impl.dart';
 import 'package:yucai_client/report/domain/expense_basis.dart';
+import 'package:yucai_client/report/domain/mda/mda_engine.dart';
+import 'package:yucai_client/report/domain/mda/mda_models.dart';
 import 'package:yucai_client/report/domain/report_assembly_service.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/domain/report_ledger_store.dart';
@@ -30,6 +33,8 @@ import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+
+import 'mda/mda_fixtures.dart';
 
 // ---- fakes ----
 
@@ -40,12 +45,18 @@ class FakeStore implements ReportLedgerStore {
     this.entryList = const [],
     this.budgetList = const [],
     this.rateFor,
+    this.templateList = const [],
+    this.transactionList = const [],
   });
 
   final List<AccountRow> accountList;
   final List<LedgerEntryRow> entryList;
   final List<BudgetRow> budgetList;
   final RateQuote? Function(String code, DateTime on)? rateFor;
+
+  /// F44:MD&A supplement 输入(期内数据由测试自行构造,fake 原样回)。
+  final List<TemplateRowVO> templateList;
+  final List<LargeTxnVO> transactionList;
 
   @override
   Future<List<AccountRow>> accounts() async => accountList;
@@ -59,6 +70,14 @@ class FakeStore implements ReportLedgerStore {
   @override
   Future<RateQuote> rateToCny(String currencyCode, DateTime on) async =>
       rateFor?.call(currencyCode, on) ?? const RateQuote();
+
+  @override
+  Future<List<TemplateRowVO>> templateRows(ReportPeriod period) async =>
+      templateList;
+
+  @override
+  Future<List<LargeTxnVO>> transactions(ReportPeriod period) async =>
+      transactionList;
 }
 
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
@@ -138,7 +157,7 @@ ReportAssemblyService _service(
   ExpenseBasis basis = const CashExpenseBasis(),
   PeriodPerformance? perf,
 }) =>
-    ReportAssemblyService(store, basis, _repoWith(perf));
+    ReportAssemblyService(store, basis, _repoWith(perf), const MdaEngine());
 
 // ---- 共享账本 fixture(2026-08 月报;oracle 全手算,见各断言)----
 //
@@ -757,6 +776,7 @@ void main() {
         estimatedGainCents: -60000,
         twrPct: 25.0,
       )),
+      const MdaEngine(),
     ).generate(ReportPeriod.monthly(2026, 8), onPhase: phases.add);
 
     // phase 顺序在全链下同样钉死。
@@ -1090,6 +1110,7 @@ void main() {
       ),
       const CashExpenseBasis(),
       _repoWith(null),
+      const MdaEngine(),
     ).generate(ReportPeriod.monthly(2026, 8));
     final mine = {
       for (final i in doc.budget!.items) i.name: i.actualCents,
@@ -1097,5 +1118,145 @@ void main() {
 
     expect(mine, theirs);
     expect(mine, {'餐饮': 30000, '交通': 9000}); // 手算字面量(独立 oracle)
+  });
+
+  // ---- T2(F44 R16 sprint-1)追加:MD&A supplement 接线 → doc.mda ----
+  //
+  // fixture(_Ledger + 07-08 transport 4,000):
+  //   8 月:income 500,000 / expense 40,000(food 30,000 + transport 10,000);
+  //   7 月(prior):expense 32,000(food 28,000 + transport 4,000);
+  //   现金回放:start 1,276,000 / end 1,651,000。
+
+  test('MD&A:supplement 全链 → doc.mda 随快照生成(R4/H1/H2 warn + R5×2 info 手算)', () async {
+    final l = _Ledger();
+    // prior 期(7 月)transport 4,000 → H2 环比基准(10,000 vs 4,000)。
+    final entries = [
+      ..._doubleEntry('t0', l.transport, l.cash, DateTime(2026, 7, 8), 4000),
+      ...l.entries,
+    ];
+    final doc = await _service(
+      FakeStore(
+        accountList: l.accounts,
+        entryList: entries,
+        // 闲置订阅:期内应扣 08-10,从未记账,nextDate 09-20 超出 7 天
+        // grace → R4 报(月度等价 ¥25.00)。
+        templateList: [
+          expenseTemplate(
+            id: 'tpl-1',
+            name: '闲置会员',
+            amountCents: 2500,
+            nextDate: DateTime(2026, 9, 20),
+            expectedDates: [DateTime(2026, 8, 10)],
+          ),
+        ],
+        // R5 候选:总支出 40,000 / 31 天 → 日均 ¥129.03,×3 = ¥387.10;
+        // 20% = ¥8,000。t5 ¥300.00(75%)与 t6 ¥100.00(25%)均过双门槛;
+        // 期外/小额不喂(fake 契约:测试自行构造期内候选)。
+        transactionList: [
+          txn('t5', DateTime(2026, 8, 6), '食品大采购', 30000),
+          txn('t6', DateTime(2026, 8, 9), '通勤', 10000),
+        ],
+      ),
+      perf: null,
+    ).generate(ReportPeriod.monthly(2026, 8));
+
+    // ADR-6:mda 恒非空(健康态也是章节);severity 排序 + 同级规则表序。
+    final mda = doc.mda!;
+    expect(mda.riskCount, 0);
+    expect(mda.warnCount, 3);
+    expect(mda.infoCount, 2);
+    expect(mda.findings.map((f) => f.ruleId), ['R4', 'H1', 'H2', 'R5', 'R5']);
+    expect(mda.findings.take(3).map((f) => f.severity),
+        everyElement(MdaSeverity.warn));
+    expect(mda.findings.skip(3).map((f) => f.severity),
+        everyElement(MdaSeverity.info));
+
+    // R4(手算):月度等价 = ¥25.00;疑问式文案 + 跳订阅中心。
+    final r4 = mda.findings[0];
+    expect(r4.conclusion, contains('闲置会员'));
+    expect(r4.conclusion, contains('¥25.00'));
+    expect(r4.actionLink, '/accounts/subscriptions');
+
+    // H1(手算):餐饮 30,000 / 40,000 = 75.0% ≥ 40%。
+    final h1 = mda.findings[1];
+    expect(h1.conclusion, contains('「餐饮」'));
+    expect(h1.conclusion, contains('75.0%'));
+
+    // H2(手算,priorExpense=上一期构成 oracle):交通 10,000 vs 4,000
+    // = +150.0%,增加 ¥60.00 占 15.0%。
+    final h2 = mda.findings[2];
+    expect(h2.conclusion, contains('「交通」'));
+    expect(h2.conclusion, contains('+150.0%'));
+    expect(h2.conclusion, contains('¥60.00'));
+    expect(h2.conclusion, contains('15.0%'));
+
+    // R5×2(手算):占比门槛 75.0% / 25.0%;文案带年付语境句。
+    expect(mda.findings[3].conclusion, contains('食品大采购'));
+    expect(mda.findings[3].conclusion, contains('¥300.00'));
+    expect(mda.findings[3].conclusion, contains('75.0%'));
+    expect(mda.findings[4].conclusion, contains('¥100.00'));
+    expect(mda.findings[4].conclusion, contains('25.0%'));
+    expect(mda.findings[4].conclusion, contains('年付'));
+  });
+
+  test('MD&A:trailing3m = period.start 前三个完整月支出(R6 月均÷3 oracle)', () async {
+    // 现金 60,000;支出 5/6/7 月各 10,000(trailing3m=30,000,月均 10,000)
+    // + 8 月 5,000 → cashEnd = 25,000 → runway 2.5 个月(1≤2.5<3 → warn)。
+    final cash = _acct('cash', 1, 'savings', initial: 60000);
+    final food = _acct('food', 5, 'otherAsset');
+    final entries = [
+      ..._doubleEntry('m1', food, cash, DateTime(2026, 5, 15), 10000),
+      ..._doubleEntry('m2', food, cash, DateTime(2026, 6, 15), 10000),
+      ..._doubleEntry('m3', food, cash, DateTime(2026, 7, 15), 10000),
+      ..._doubleEntry('a1', food, cash, DateTime(2026, 8, 5), 5000),
+    ];
+    final doc = await _service(
+      FakeStore(accountList: [cash, food], entryList: entries),
+      perf: null,
+    ).generate(ReportPeriod.monthly(2026, 8));
+
+    // 8 月不计入 trailing3m(只取 5/6/7 月);月均 = 30,000÷3 = ¥100.00;
+    // 25,000 ÷ 10,000 = 2.5 个月。H1(food 100%)另计 warn。
+    final mda = doc.mda!;
+    final r6 = mda.findings.firstWhere((f) => f.ruleId == 'R6');
+    expect(r6.severity, MdaSeverity.warn);
+    expect(r6.conclusion, contains('2.5 个月'));
+    expect(r6.conclusion, contains('¥250.00'));
+    expect(r6.conclusion, contains('¥100.00'));
+  });
+
+  test('MD&A:年报 trailing3m 跨年(2025-10..12);健康输入 → mda 恒非空零发现', () async {
+    // 年报 2026:trailing3m = 2025-10/11/12(跨年回看,不含 2026-01)。
+    final cash = _acct('cash', 1, 'savings', initial: 60000);
+    final food = _acct('food', 5, 'otherAsset');
+    final entries = [
+      ..._doubleEntry('q1', food, cash, DateTime(2025, 9, 30), 7000), // 期外
+      ..._doubleEntry('q2', food, cash, DateTime(2025, 10, 15), 10000),
+      ..._doubleEntry('q3', food, cash, DateTime(2025, 11, 15), 10000),
+      ..._doubleEntry('q4', food, cash, DateTime(2025, 12, 15), 10000),
+    ];
+    final doc = await _service(
+      FakeStore(accountList: [cash, food], entryList: entries),
+      perf: null,
+    ).generate(ReportPeriod.yearly(2026));
+
+    // trailing3m = 30,000(10-12 月;9 月 7,000 不计)→ 月均 ¥100.00;
+    // cashEnd = 60,000−37,000 = 23,000 → 2.3 个月 warn。2026 年内无支出
+    // → H1 无构成、R1 收入 0、R5 总支出 0 → 仅 R6。
+    final mda = doc.mda!;
+    expect(mda.findings.map((f) => f.ruleId), ['R6']);
+    expect(mda.findings.single.conclusion, contains('2.3 个月'));
+
+    // 健康输入(空账本):mda 仍非空,零发现(ADR-6 健康态也是章节)。
+    final healthy = await _service(FakeStore(), perf: null)
+        .generate(ReportPeriod.monthly(2026, 8));
+    expect(healthy.mda, isNotNull);
+    expect(healthy.mda!.findings, isEmpty);
+    expect(
+      healthy.mda!.riskCount +
+          healthy.mda!.warnCount +
+          healthy.mda!.infoCount,
+      0,
+    );
   });
 }

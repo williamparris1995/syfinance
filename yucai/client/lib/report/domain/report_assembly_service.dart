@@ -16,6 +16,8 @@ import 'package:yucai_client/holding/domain/repositories/holding_repository.dart
 import 'package:yucai_client/report/domain/balance_replay.dart';
 import 'package:yucai_client/report/domain/cash_flow_classifier.dart';
 import 'package:yucai_client/report/domain/expense_basis.dart';
+import 'package:yucai_client/report/domain/mda/mda_engine.dart';
+import 'package:yucai_client/report/domain/mda/mda_models.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/domain/report_ledger_store.dart';
 
@@ -28,11 +30,13 @@ class ReportAssemblyService {
     this._store,
     this._expenseBasis,
     this._holdings,
+    this._mdaEngine,
   );
 
   final ReportLedgerStore _store;
   final ExpenseBasis _expenseBasis;
   final HoldingRepository _holdings;
+  final MdaEngine _mdaEngine;
 
   /// 汇编 [period] 报告期快照;[onPhase] 四阶段进度回调(顺序钉死)。
   Future<ReportDocument> generate(
@@ -41,11 +45,14 @@ class ReportAssemblyService {
   }) async {
     void phase(ReportPhase p) => onPhase?.call(p);
 
-    // —— 1. 读取账本:账户/分录/预算行一次性全量拉取(FR-2 纯本地)。——
+    // —— 1. 读取账本:账户/分录/预算行一次性全量拉取(FR-2 纯本地);
+    //    模板/交易投影(F44 MD&A supplement 输入)同段读取。——
     phase(ReportPhase.loadingLedger);
     final accounts = await _store.accounts();
     final entries = await _store.entries();
     final budgetRows = await _store.budgetRows();
+    final templates = await _store.templateRows(period);
+    final transactions = await _store.transactions(period);
 
     // —— 2. 回放余额 + 汇率簿(外币折 CNY 两级候选,ADR-3)。——
     phase(ReportPhase.replaying);
@@ -90,6 +97,21 @@ class ReportAssemblyService {
       cashEndCents: cashEnd,
     );
 
+    // —— 3b. F44 MD&A supplement(ADR-3:零新读取,既有 entries/replay
+    //    产物 + loading 阶段两投影拼装):trailing3m = period.start 前三
+    //    个完整自然月支出(basis 口径);cash 起末即上方 replay 汇总;
+    //    priorExpense = 对比期支出构成(供 H2 类别环比,ReportDocument
+    //    只带汇总无构成,故走 supplement 通道)。——
+    final supplement = MdaSupplement(
+      templates: templates,
+      transactions: transactions,
+      trailing3mExpenseCents: _trailing3mExpenseCents(entries, period),
+      cashStartCents: cashStart,
+      cashEndCents: cashEnd,
+      priorExpense:
+          _expenseBasis.expenseByCategory(entries, _priorPeriod(period)),
+    );
+
     // —— 4. 绩效:区间组合绩效(T3 强制本地路由)+ 自适应隐藏。——
     phase(ReportPhase.performance);
     final excluded = <String>[];
@@ -121,7 +143,7 @@ class ReportAssemblyService {
         ),
     ];
 
-    return ReportDocument(
+    final document = ReportDocument(
       period: period,
       generatedAt: DateTime.now().toUtc(),
       overview: OverviewSection.create(
@@ -140,6 +162,9 @@ class ReportAssemblyService {
       investment: performance.investment,
       excludedSections: excluded,
     );
+    // F44 ADR-1(诊断随快照):引擎输入含刚构好的快照(period/overview/
+    // 构成),故先构快照再回填章节;恒回填——健康态 = 发现集为空的章节。
+    return document.withMda(_mdaEngine.evaluate(document, supplement));
   }
 
   /// 绩效段(generate 第 4 阶段核心):区间组合绩效 → 投资章节 + 净资产
@@ -254,6 +279,17 @@ class ReportAssemblyService {
     return (income - expense) ~/ activeDays.length;
   }
 
+  /// 对比期(月报=环比上月,1 月回上年 12 月;年报=同比上年)。
+  ///
+  /// 单点派生:priorComparison 汇总与 MD&A priorExpense 构成(H2 环比
+  /// 基准)共用同一前期口径。
+  static ReportPeriod _priorPeriod(ReportPeriod period) => switch (period) {
+        ReportMonthly(:final year, :final month) => month == 1
+            ? ReportPeriod.monthly(year - 1, 12)
+            : ReportPeriod.monthly(year, month - 1),
+        ReportYearly(:final year) => ReportPeriod.yearly(year - 1),
+      };
+
   /// 对比期(月报=环比上月,1 月回上年 12 月;年报=同比上年):同一份
   /// entries 重过滤前期重算结余;前期无任何收支数据 → null(首期)。
   PriorComparison? _priorComparison(
@@ -261,12 +297,7 @@ class ReportAssemblyService {
     ReportPeriod period,
     int surplus,
   ) {
-    final prior = switch (period) {
-      ReportMonthly(:final year, :final month) => month == 1
-          ? ReportPeriod.monthly(year - 1, 12)
-          : ReportPeriod.monthly(year, month - 1),
-      ReportYearly(:final year) => ReportPeriod.yearly(year - 1),
-    };
+    final prior = _priorPeriod(period);
     final priorIncome = totalIncome(entries, prior);
     final priorExpense = _expenseBasis.totalExpense(entries, prior);
     if (priorIncome == 0 && priorExpense == 0) return null;
@@ -275,6 +306,32 @@ class ReportAssemblyService {
       surplusCents: surplus,
       priorSurplusCents: priorIncome - priorExpense,
     );
+  }
+
+  /// 近三个完整月支出合计(R6 月均基数):[period] 起点前一月起往前
+  /// 三个**完整自然月**(月报/年报同式:yearly(2026) → 2025-10/11/12),
+  /// basis 口径复用同一份 entries。
+  int _trailing3mExpenseCents(
+    List<LedgerEntryRow> entries,
+    ReportPeriod period,
+  ) {
+    var year = period.start.year;
+    var month = period.start.month - 1;
+    if (month == 0) {
+      month = 12;
+      year--;
+    }
+    var sum = 0;
+    for (var i = 0; i < 3; i++) {
+      sum += _expenseBasis
+          .totalExpense(entries, ReportPeriod.monthly(year, month));
+      month--;
+      if (month == 0) {
+        month = 12;
+        year--;
+      }
+    }
+    return sum;
   }
 
   /// 预算执行章节(FR-3 #5):期内无预算行 → null(章节隐藏)。
