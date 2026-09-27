@@ -1225,6 +1225,36 @@ void main() {
     expect(r6.conclusion, contains('¥100.00'));
   });
 
+  test('MD&A:2 月报 trailing3m 跨年回卷(2025-11/12 + 2026-01 手算 oracle)', () async {
+    // monthly(2026,2):循环首个回卷月 = 2026-01,再 1→0 回卷跨年取
+    // 2025-12、2025-11;2025-10(期窗外沿)与 2026-02(报告期)均不计。
+    // 现金 167,000;支出:10-31 40,000(诱饵)/ 11-10 11,000 / 12-10
+    // 22,000 / 01-10 33,000 / 02-05 6,000(期内)。
+    final cash = _acct('cash', 1, 'savings', initial: 167000);
+    final food = _acct('food', 5, 'otherAsset');
+    final entries = [
+      ..._doubleEntry('d0', food, cash, DateTime(2025, 10, 31), 40000),
+      ..._doubleEntry('n1', food, cash, DateTime(2025, 11, 10), 11000),
+      ..._doubleEntry('n2', food, cash, DateTime(2025, 12, 10), 22000),
+      ..._doubleEntry('j1', food, cash, DateTime(2026, 1, 10), 33000),
+      ..._doubleEntry('f1', food, cash, DateTime(2026, 2, 5), 6000),
+    ];
+    final doc = await _service(
+      FakeStore(accountList: [cash, food], entryList: entries),
+      perf: null,
+    ).generate(ReportPeriod.monthly(2026, 2));
+
+    // trailing3m = 11,000+22,000+33,000 = 66,000 → 月均 ¥220.00;
+    // cashEnd = 167,000−106,000−6,000 = 55,000(¥550.00)→ 2.5 个月 warn。
+    // (诱饵若误入:月均 106,000÷3 ≈ ¥353.33 → 1.6 个月,oracle 区分。)
+    final mda = doc.mda!;
+    final r6 = mda.findings.firstWhere((f) => f.ruleId == 'R6');
+    expect(r6.severity, MdaSeverity.warn);
+    expect(r6.conclusion, contains('2.5 个月'));
+    expect(r6.conclusion, contains('¥550.00'));
+    expect(r6.conclusion, contains('¥220.00'));
+  });
+
   test('MD&A:年报 trailing3m 跨年(2025-10..12);健康输入 → mda 恒非空零发现', () async {
     // 年报 2026:trailing3m = 2025-10/11/12(跨年回看,不含 2026-01)。
     final cash = _acct('cash', 1, 'savings', initial: 60000);

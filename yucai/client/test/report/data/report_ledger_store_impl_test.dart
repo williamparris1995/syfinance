@@ -405,6 +405,7 @@ void main() {
     int amountCents = 8800,
     int direction = 1, // TemplateDirection.expense.index
     int cycle = 2, // TemplateCycle.monthly.index
+    int cycleDays = 0,
     DateTime? startDate,
     DateTime? endDate,
     int interval = 0,
@@ -423,7 +424,7 @@ void main() {
         direction: direction,
         sourceAccountId: 'acc-any',
         cycle: cycle,
-        cycleDays: 0,
+        cycleDays: cycleDays,
         billingDay: billingDay,
         interval: Value(interval),
         nextDate: DateTime.utc(2026, 9, 15), // 直读列,字面量直通断言用
@@ -535,6 +536,20 @@ void main() {
 
     final rows = await store.templateRows(ReportPeriod.monthly(2026, 8));
     expect(rows.single.expectedDates, [DateTime.utc(2026, 8, 10)]);
+  });
+
+  test('templateRows():maxSteps 耗尽(极早锚点每日模板)→ 期前日期不灌入,期内空', () async {
+    // 每日模板锚 2000-01-01:firstOnSeriesAfter 的 5000 步上界推进仅到
+    // ~2013 年仍 < period.start —— 钳制后须直接空(旧缺陷:耗尽时返回
+    // 最后推进点,循环把 ~2013 起的期前日期灌进 expectedDates)。
+    await seedTemplate('tpl-ancient',
+        name: '远古日更',
+        cycle: 4, // TemplateCycle.custom.index
+        cycleDays: 1,
+        startDate: DateTime.utc(2000, 1, 1));
+
+    final rows = await store.templateRows(ReportPeriod.monthly(2026, 8));
+    expect(rows.single.expectedDates, isEmpty);
   });
 
   test('transactions():期内交易 expense 科目 debit 合计+description/date 投影,期外与零支出不计', () async {

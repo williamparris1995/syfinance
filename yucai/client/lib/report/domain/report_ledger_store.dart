@@ -174,6 +174,8 @@ abstract class ReportLedgerStore {
   /// (date-only 升序;推演逻辑留 data 侧直用 core/recurrence,domain
   /// 收纯日期表);direction/paused/nextDate 直读列,
   /// lastRecordedDate 由 lastTransactionId join 交易头行日期(一次 join)。
+  /// 全量不过滤:含 paused(直读,R4 域内过滤)与
+  /// transfer(direction=3 → expense=false 惰性行,R4 域内兜住)。
   Future<List<TemplateRowVO>> templateRows(ReportPeriod period);
 
   /// [period] 期内交易级支出投影(F44 R5 大额单笔候选)。

@@ -178,7 +178,9 @@ class ReportLedgerStoreImpl implements ReportLedgerStore {
   /// 复制;interval>1 时系列锚定 startDate,不能从期初重锚)。endDate
   /// 之后不再期望(调度器「发生日 ≤ endDate 才记」同口径);模板侧日期
   /// 全为 UTC date-only,期界先折 UTC 公历日再比(直接比瞬间会在 UTC
-  /// 以西设备把首日应扣日错挤出期)。
+  /// 以西设备把首日应扣日错挤出期)。maxSteps 耗尽防御(极早锚点+短
+  /// 周期,5000 步仍未到期首):firstOnSeriesAfter 返回最后的推进点
+  /// (< start)—— 直接空,关死期前日期灌入(唯一泄漏路径)。
   static List<DateTime> _expectedDates(
     db.TransactionTemplate t,
     ReportPeriod period,
@@ -195,8 +197,9 @@ class ReportLedgerStoreImpl implements ReportLedgerStore {
     final anchor = _dateOnlyOf(t.startDate)!;
     final start = _dateOnlyOf(period.start)!;
     final end = _dateOnlyOf(period.endInclusive)!;
-    final out = <DateTime>[];
     var d = firstOnSeriesAfter(anchor, rule, start);
+    if (d.isBefore(start)) return const [];
+    final out = <DateTime>[];
     while (!d.isAfter(end)) {
       if (t.endDate == null || !d.isAfter(t.endDate!)) out.add(d);
       d = nextAfter(d, rule);
