@@ -1,6 +1,6 @@
 # Design: F43 报告汇编层+财务报告页
 
-prototype: v7(OD run `64dbf66b` 产出中;变体 A/B 用户拍板后 CURRENT 指 v7)
+prototype: v7(OD run `64dbf66b`;用户 2026-09-25 确认,章节导航拍板**变体 B**;CURRENT→v7)
 
 ## Context
 
@@ -21,7 +21,7 @@ prototype: v7(OD run `64dbf66b` 产出中;变体 A/B 用户拍板后 CURRENT 指
 - **ADR-2 汇编数据访问 = report 自有 port + core DAO 直读,投资绩效经 HoldingRepository 扩展**。备选否决:①直接复用各模块 repository 汇总(三态路由会走 remote 破坏 FR-2 纯本地;networth/performance 锚定 now 无时点能力);②跨模块 import 各模块 local DS(违反「消费方不 import 生产方 data 层」port 约束)。定案:`ReportLedgerStore`(report domain port)读 accounts/entries/transactions/holdings/budgets 原始行,adapter(report/data)直读 core/localdb DAO(core=共享基建,非任何模块私有);收支/现金流/资产负债/预算执行**全部自算单源**(同一份 entries 推导,勾稽天然成立);投资绩效=TWR/市值链,经 `HoldingRepository.getPortfolioPerformance` **纯新增可选区间参数**(domain 接口+local assembler `assemble(rangeStart, rangeEnd)`,默认行为不变向后兼容)。**语义一致性护栏**:conformance 测试——同种子账本,报告自算收支对照 `TransactionLocalDataSource.summary`(测试内 import 允许),数值必须相等,防两套聚合漂移。
 - **ADR-3 回放引擎 = 纯函数单遍扫描**。entries 按日期升序,前缀累计 delta 至期初(exclusive)/期末(inclusive)两时点;账户余额@T = initialBalanceCents + Σ(T 前分录 delta),delta 规则照 balance_updater(asset/expense: debit−credit;liability/equity/income: credit−debit);持仓时点市值经 assembler 的 qty@T×price@T(成交价 ffill)。多币种:折算基准 CNY,历史汇率取 RateHistories 该日最近可得,缺失回退现值汇率——**附注披露**(spec FR-4 已确认接受近似)。
 - **ADR-4 现金流分类器 = 表驱动规则矩阵**。维度:本方科目是否现金(savings 类)×对手方科目类型(income/expense/投资类资产/现金/其他负债权益)。映射:对手 income/expense→经营;对手投资类资产(investment/fixedDeposit/goldFx/storedValue/realEstate/otherAsset)→投资;对手负债/权益→融资;现金↔现金→内部抵消不计;非现金×非现金→不计(如储值卡消费)。矩阵即测试全组合清单。勾稽:三类净额之和 == 期末−期初现金余额(汇编内 assert+测试钉死)。
-- **ADR-5 报告页 = 单页滚动六章节 + sticky 章节锚点 + 四阶段进度**。变体 A(顶部 sticky 锚点条)/B(右缘点状锚点)由原型拍板。挑战:tab 分章更轻;防御:财报一体感(用户原始诉求)、锚点导航已解决长滚动定位、F45 导出渲染同结构。
+- **ADR-5 报告页 = 单页滚动六章节 + 章节锚点(变体 B:右缘圆点+悬停标签,用户 2026-09-25 拍板)+ 四阶段进度**。挑战:tab 分章更轻;防御:财报一体感(用户原始诉求)、锚点导航已解决长滚动定位、F45 导出渲染同结构。原型 v7 两变体并存(B 为实现终态),execute 按 B 实现。
 - **ADR-6 ExpenseBasis = domain port,构造注入**。`abstract class ExpenseBasis { ... }`(签名见 LLD),默认 `CashExpenseBasis`(现状 TransactionSummary 语义:expense 科目 debit 口径);汇编服务构造函数注入,测试以 fake basis 替换验证章节结构不变(FR-7)。
 - **ADR-7 assembler 区间扩展 = 可选参数向后兼容**。`assemble({DateTime? rangeStart, DateTime? rangeEnd})`,两者缺省=现状(now 锚定),既有调用/测试零改;新增参数仅 report 汇总路径使用。TWR 区间计算按日粒度市值链式(期初起链,净现金流子期链接)。
 
@@ -113,5 +113,4 @@ ReportDocument {
 
 ## Open Questions
 
-- 原型变体 A(sticky 锚点条)/B(右缘点状)待用户拍板(OD run 收敛后)。
-- architecture.md「本地 DB:无」条目过时 → fast-lane 修正(R6 事实),与本票代码解耦。
+(无——变体已拍板 B;architecture.md 陈旧条目已 fast-lane 修正 `ca8319f9`。)
