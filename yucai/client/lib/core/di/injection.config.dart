@@ -81,6 +81,8 @@ import '../../holding/domain/repositories/holding_repository.dart' as _i255;
 import '../../holding/presentation/bloc/holding_bloc.dart' as _i255;
 import '../../holding/presentation/bloc/performance_bloc.dart' as _i493;
 import '../../report/data/report_ledger_store_impl.dart' as _i58;
+import '../../report/domain/expense_basis.dart' as _i56;
+import '../../report/domain/report_assembly_service.dart' as _i1020;
 import '../../report/domain/report_ledger_store.dart' as _i249;
 import '../../tag/data/tag_remote_ds.dart' as _i648;
 import '../../tag/data/tag_repository_impl.dart' as _i603;
@@ -153,6 +155,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i507.BoundMirror>(
       () => _i507.BoundMirror(gh<_i581.AppDatabase>()),
     );
+    gh.lazySingleton<_i56.ExpenseBasis>(() => const _i56.CashExpenseBasis());
     gh.lazySingleton<_i666.TransactionRemoteDataSource>(
       () => _i666.TransactionRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -454,6 +457,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i581.AppDatabase>(),
         gh<_i898.HoldingLocalDataSource>(),
         uuid: gh<_i706.Uuid>(),
+      ),
+    );
+    gh.lazySingleton<_i1020.ReportAssemblyService>(
+      () => _i1020.ReportAssemblyService(
+        gh<_i249.ReportLedgerStore>(),
+        gh<_i56.ExpenseBasis>(),
+        gh<_i255.HoldingRepository>(),
       ),
     );
     gh.lazySingleton<_i74.TemplateRepository>(

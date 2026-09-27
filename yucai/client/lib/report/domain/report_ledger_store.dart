@@ -82,10 +82,65 @@ class LedgerEntryRow {
   final int creditCents;
 }
 
+/// 预算原始行(T4:预算执行章节输入,budget 头+item 合并扁平行)。
+///
+/// [month] 为 budget 头行预算月('YYYY-MM',本地库 Budgets.month 口径;
+/// budget_local_ds 同源)。actuals 不在行上——汇编层自同一份 [entries]
+/// 按 item 账户聚合(口径 = budget_local_ds L157-186:item 账户当月
+/// max(Σdebit, Σcredit),conformance 钉死)。
+class BudgetRow {
+  const BudgetRow({
+    required this.budgetId,
+    required this.month,
+    required this.itemId,
+    required this.accountId,
+    required this.accountCategory,
+    required this.accountName,
+    required this.plannedCents,
+  });
+
+  /// 所属预算头 id。
+  final String budgetId;
+
+  /// 预算月('YYYY-MM')。
+  final String month;
+
+  /// 预算项 id。
+  final String itemId;
+
+  /// 关联账户 id(actuals 按此账户聚合)。
+  final String accountId;
+
+  /// 关联账户账类代码(同 [AccountRow.category];旧数据缺失 → null)。
+  final String? accountCategory;
+
+  /// 关联账户名称(章节展示名;账户已删 → null)。
+  final String? accountName;
+
+  /// 预算限额(int cents)。
+  final int plannedCents;
+}
+
+/// 汇率快照(T4:外币账户折 CNY 的两级候选,ADR-3 近似口径原始输入)。
+///
+/// 择优策略(历史优先、现值回退、双缺失跳过+附注)在 domain 汇编层
+/// 单点实现——adapter 只做无策略读取,口径可经 fake store 在 domain
+/// 层测试。汇率方向 = CNY per unit(与 server ConvertToBase 的
+/// rateFrom 同义:amount × rate → CNY)。
+class RateQuote {
+  const RateQuote({this.asOfRate, this.currentRate});
+
+  /// RateHistories ≤ 查询日 最近可得汇率;无 → null。
+  final double? asOfRate;
+
+  /// Currencies.exchangeRate 现值汇率;无行 → null。
+  final double? currentRate;
+}
+
 /// 账本数据源 port:全量原始行读取(回放/汇编的唯数入口)。
 ///
-/// T1 定 T1..T3 汇编路径所需最小方法;持仓/预算等原始行读取由后续
-/// 票按需追加(adapter 单点隔离 drift 表结构变化,见 design 风险表)。
+/// T1 定 T1..T3 汇编路径所需最小方法;T4 追加预算行与汇率读取
+/// (adapter 单点隔离 drift 表结构变化,见 design 风险表)。
 abstract class ReportLedgerStore {
   /// 全部账户(含 archived;汇编侧自行过滤)。
   Future<List<AccountRow>> accounts();
@@ -93,4 +148,13 @@ abstract class ReportLedgerStore {
   /// 全量分录(按日期升序;BalanceReplay 对顺序不敏感,排序仅为
   /// 与 LLD 单遍口径一致)。
   Future<List<LedgerEntryRow>> entries();
+
+  /// 全部预算行(头×item 扁平;含 inactive 头——budget_local_ds
+  /// getBudgetByMonth 同款不按 active 过滤,汇编侧自行按期筛选)。
+  Future<List<BudgetRow>> budgetRows();
+
+  /// [currencyCode] 折 CNY 的汇率候选(查询日 [on] 时点)。
+  ///
+  /// 'CNY' 本币由汇编层直加不调本方法(port 不做币种语义)。
+  Future<RateQuote> rateToCny(String currencyCode, DateTime on);
 }

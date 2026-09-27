@@ -6,6 +6,8 @@
 /// 验证章节结构不变(本票只留接入点,不实现待摊)。
 library;
 
+import 'package:injectable/injectable.dart';
+
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/domain/report_ledger_store.dart';
 
@@ -28,6 +30,7 @@ abstract class ExpenseBasis {
 ///
 /// 净额口径(debit−credit,退款冲抵)留待 R17 待摊 basis 变体,不在
 /// 本类实现。
+@LazySingleton(as: ExpenseBasis)
 class CashExpenseBasis implements ExpenseBasis {
   const CashExpenseBasis();
 

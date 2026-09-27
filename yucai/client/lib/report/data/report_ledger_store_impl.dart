@@ -14,6 +14,7 @@
 ///   transaction_local_ds 的分类映射守卫同款)。不 import proto。
 library;
 
+import 'package:drift/drift.dart' hide Column;
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -83,5 +84,48 @@ class ReportLedgerStoreImpl implements ReportLedgerStore {
   static String? _categoryName(int stored) {
     if (stored < 1 || stored > AccountCategory.values.length) return null;
     return AccountCategory.values[stored - 1].name;
+  }
+
+  // ---- T4 追加:预算行 + 汇率读取(不动既有方法)----
+
+  @override
+  Future<List<BudgetRow>> budgetRows() async {
+    // 头×item 扁平 join(holding_local_ds 同款直 select,core DAO 无
+    // 全量 item 一把读方法;表结构变化仍单点隔离在本 adapter)。
+    final heads = await _db.select(_db.budgets).get();
+    final items = await _db.select(_db.budgetItems).get();
+    final accountRows = await _db.accountDao.getAllAccounts();
+    final accountById = {for (final a in accountRows) a.id: a};
+    return [
+      for (final head in heads)
+        for (final item in items.where((i) => i.budgetId == head.id))
+          BudgetRow(
+            budgetId: head.id,
+            month: head.month,
+            itemId: item.id,
+            accountId: item.accountId,
+            accountCategory:
+                _categoryName(accountById[item.accountId]?.category ?? 0),
+            accountName: accountById[item.accountId]?.name,
+            plannedCents: item.plannedAmountCents,
+          ),
+    ];
+  }
+
+  @override
+  Future<RateQuote> rateToCny(String currencyCode, DateTime on) async {
+    // 该日最近可得:≤ on 按 rateDate 倒序取首条。
+    final hist = await (_db.select(_db.rateHistories)
+          ..where((t) =>
+              t.currencyCode.equals(currencyCode) &
+              t.rateDate.isSmallerOrEqualValue(on))
+          ..orderBy([(t) => OrderingTerm.desc(t.rateDate)])
+          ..limit(1))
+        .get();
+    final current = await _db.referenceDao.getCurrencyByCode(currencyCode);
+    return RateQuote(
+      asOfRate: hist.isEmpty ? null : hist.first.exchangeRate,
+      currentRate: current?.exchangeRate,
+    );
   }
 }

@@ -14,6 +14,7 @@ import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/budget/data/budget_local_ds.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/report/data/report_ledger_store_impl.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
@@ -243,5 +244,109 @@ void main() {
     expect(cashCreditLeg.debitCents, 0);
     // 两笔交易 id 互不相同。
     expect(mealLeg.transactionId, isNot(wageLeg.transactionId));
+  });
+
+  // ---- T4 追加:budgetRows / rateToCny(port 扩方法)----
+
+  test('budgetRows():头+item+关联账户 id/账类/名称扁平行映射,不含 item 的头不出行', () async {
+    final food = await createAccount(
+      '餐饮',
+      AccountType.expense,
+      AccountCategory.otherAsset,
+    );
+    final transport = await createAccount(
+      '交通',
+      AccountType.expense,
+      AccountCategory.otherAsset,
+    );
+    final budgetsDs = BudgetLocalDataSource(database);
+    final view = await budgetsDs.createBudget(
+      name: '八月预算',
+      month: '2026-08',
+      currencyCode: 'CNY',
+      items: [
+        (accountId: food.id, plannedAmountCents: 50000, notes: null),
+        (accountId: transport.id, plannedAmountCents: 20000, notes: '通勤'),
+      ],
+    );
+    // 转「无 item 的头」(创建单项后整项删除)→ 不产出任何行。
+    final empty = await budgetsDs.createBudget(
+      name: '空预算',
+      month: '2026-09',
+      currencyCode: 'CNY',
+      items: [
+        (accountId: food.id, plannedAmountCents: 1000, notes: null),
+      ],
+    );
+    await budgetsDs.removeItem(
+      budgetId: empty.id,
+      itemId: (await budgetsDs.getBudget(empty.id)).items.first.id,
+    );
+    expect((await budgetsDs.getBudget(empty.id)).items, isEmpty);
+
+    final rows = await store.budgetRows();
+    expect(rows, hasLength(2)); // 空 09 头零 item 不出行
+
+    final foodRow = rows.firstWhere((r) => r.accountId == food.id);
+    expect(foodRow.budgetId, view.id);
+    expect(foodRow.month, '2026-08');
+    expect(foodRow.itemId, isNotEmpty);
+    expect(foodRow.accountCategory, 'otherAsset');
+    expect(foodRow.accountName, '餐饮');
+    expect(foodRow.plannedCents, 50000);
+
+    final transportRow = rows.firstWhere((r) => r.accountId == transport.id);
+    expect(transportRow.plannedCents, 20000);
+    expect(transportRow.accountName, '交通');
+    expect(foodRow.itemId, isNot(transportRow.itemId));
+  });
+
+  test('rateToCny():该日最近可得历史→现值回退→双缺失双 null', () async {
+    final dao = database.referenceDao;
+    Future<void> seedRate(String id, DateTime d, double rate) =>
+        dao.insertRateHistory(db.RateHistoriesCompanion.insert(
+          id: id,
+          currencyCode: 'USD',
+          rateDate: d,
+          exchangeRate: rate,
+          createdAt: DateTime(2026, 9, 1),
+        ));
+
+    await seedRate('r1', DateTime(2026, 8, 10), 7.1);
+    await seedRate('r2', DateTime(2026, 8, 25), 7.2); // 未来于部分查询日
+    await dao.insertCurrency(db.CurrenciesCompanion.insert(
+      code: 'USD',
+      name: '美元',
+      symbol: r'$',
+      exchangeRate: 7.3,
+      isActive: true,
+    ));
+    await dao.insertCurrency(db.CurrenciesCompanion.insert(
+      code: 'EUR',
+      name: '欧元',
+      symbol: '€',
+      exchangeRate: 7.8,
+      isActive: true,
+    ));
+
+    // 该日最近可得(≤ on 取最近):08-20 查询 → 08-10 行 7.1。
+    final aug20 = await store.rateToCny('USD', DateTime(2026, 8, 20));
+    expect(aug20.asOfRate, 7.1);
+    expect(aug20.currentRate, 7.3);
+    // 恰命中历史日:08-25 查询 → 7.2。
+    final aug25 = await store.rateToCny('USD', DateTime(2026, 8, 25));
+    expect(aug25.asOfRate, 7.2);
+    // 历史晚于查询日不计:08-05 查询 → asOf null,现值候选仍在。
+    final aug5 = await store.rateToCny('USD', DateTime(2026, 8, 5));
+    expect(aug5.asOfRate, isNull);
+    expect(aug5.currentRate, 7.3);
+    // 无历史币种:仅现值回退候选。
+    final eur = await store.rateToCny('EUR', DateTime(2026, 8, 20));
+    expect(eur.asOfRate, isNull);
+    expect(eur.currentRate, 7.8);
+    // 双缺失 → 双 null(domain 按缺失跳过折算并注记)。
+    final jpy = await store.rateToCny('JPY', DateTime(2026, 8, 20));
+    expect(jpy.asOfRate, isNull);
+    expect(jpy.currentRate, isNull);
   });
 }

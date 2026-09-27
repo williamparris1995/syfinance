@@ -21,6 +21,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/report/data/report_ledger_store_impl.dart';
 import 'package:yucai_client/report/domain/expense_basis.dart';
+import 'package:yucai_client/report/domain/report_assembly_service.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
@@ -187,16 +188,14 @@ void main() {
     final period = ReportPeriod.monthly(2026, 8);
     final rows = await store.entries();
 
-    // income:income(4) 科目 credit 单边(镜像 summary 的
-    // 「income accounts: credit side counts」语义)。
-    var reportIncome = 0;
-    final incomeByAccount = <String, int>{};
-    for (final e in rows) {
-      if (e.accountType != 4 || !period.contains(e.date)) continue;
-      reportIncome += e.creditCents;
-      incomeByAccount[e.accountId] =
-          (incomeByAccount[e.accountId] ?? 0) + e.creditCents;
-    }
+    // income:经 ReportAssemblyService 生产聚合(T2 遗留#4 收编:income
+    // 科目 credit 单边,镜像 summary 的「income accounts: credit side
+    // counts」语义)。
+    final reportIncome = ReportAssemblyService.totalIncome(rows, period);
+    final incomeByAccount = {
+      for (final c in ReportAssemblyService.incomeByCategory(rows, period))
+        c.category: c.amountCents,
+    };
 
     // expense:经 CashExpenseBasis(生产代码,FR-7 现金口径)。
     const basis = CashExpenseBasis();
