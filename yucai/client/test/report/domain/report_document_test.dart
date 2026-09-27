@@ -29,9 +29,32 @@ void main() {
       expect(ReportPeriod.yearly(2025).label, '2025 年度');
     });
 
+    test('月期月份越界 0/13 → ArgumentError(1..12 校验)', () {
+      expect(() => ReportPeriod.monthly(2026, 0), throwsArgumentError);
+      expect(() => ReportPeriod.monthly(2026, 13), throwsArgumentError);
+      // 边界月份本身合法。
+      expect(ReportPeriod.monthly(2026, 1).label, '2026 年 1 月');
+      expect(ReportPeriod.monthly(2026, 12).label, '2026 年 12 月');
+    });
+
     test('相等性:同年月即同期(与实例无关)', () {
       expect(ReportPeriod.monthly(2026, 8), ReportPeriod.monthly(2026, 8));
       expect(ReportPeriod.yearly(2025).hashCode, ReportPeriod.yearly(2025).hashCode);
+    });
+
+    test('contains:月期含两端(8-01/8-31 23:59:59 在期内,7 月末/9-01 不在)', () {
+      final p = ReportPeriod.monthly(2026, 8);
+      expect(p.contains(DateTime(2026, 8, 1)), isTrue);
+      expect(p.contains(DateTime(2026, 8, 31, 23, 59, 59)), isTrue);
+      expect(p.contains(DateTime(2026, 7, 31, 23, 59, 59)), isFalse);
+      expect(p.contains(DateTime(2026, 9, 1)), isFalse);
+    });
+
+    test('contains:年期含 12-31 23:59:59、不含次年 1-01', () {
+      final p = ReportPeriod.yearly(2025);
+      expect(p.contains(DateTime(2025, 1, 1)), isTrue);
+      expect(p.contains(DateTime(2025, 12, 31, 23, 59, 59)), isTrue);
+      expect(p.contains(DateTime(2026, 1, 1)), isFalse);
     });
   });
 
@@ -47,6 +70,25 @@ void main() {
       );
       expect(o.surplusCents, 250000);
       expect(o.savingsRate, 25.0);
+    });
+
+    test('notes 携带 ReportNote(title + lines)', () {
+      final o = OverviewSection.create(
+        netWorthStartCents: 0,
+        netWorthEndCents: 0,
+        incomeCents: 100,
+        expenseCents: 0,
+        cashDeltaCents: 0,
+        notes: const [
+          ReportNote(title: '口径说明', lines: ['期初/期末时点数由分录回放重建']),
+          ReportNote(title: '未包含项', lines: ['预算执行(本期无预算)', '投资绩效(无持仓)']),
+        ],
+      );
+      expect(o.notes, hasLength(2));
+      expect(o.notes.first.title, '口径说明');
+      expect(o.notes.first.lines, ['期初/期末时点数由分录回放重建']);
+      expect(o.notes.last.title, '未包含项');
+      expect(o.notes.last.lines, hasLength(2));
     });
 
     test('收入 0 → 储蓄率 0(不除零),结余为负照实', () {
@@ -98,6 +140,32 @@ void main() {
         twr: null,
       );
       expect(s.estGainCents, -300000);
+    });
+  });
+
+  group('PriorComparison 环比/同比(factory 由原始结余算 %,1 位小数)', () {
+    test('3000.00 vs 2400.00 → +25.0;4000 vs 3000 → 33.3(四舍五入)', () {
+      final pc = PriorComparison.create(
+        label: '较 2026 年 7 月',
+        surplusCents: 300000,
+        priorSurplusCents: 240000,
+      );
+      expect(pc.deltaPct, 25.0);
+      final r = PriorComparison.create(
+        label: '较 2025 年度',
+        surplusCents: 4000,
+        priorSurplusCents: 3000,
+      );
+      expect(r.deltaPct, 33.3);
+    });
+
+    test('对比期结余为 0 → deltaPct 0(不除零)', () {
+      final pc = PriorComparison.create(
+        label: '较 2026 年 7 月',
+        surplusCents: 500,
+        priorSurplusCents: 0,
+      );
+      expect(pc.deltaPct, 0.0);
     });
   });
 }

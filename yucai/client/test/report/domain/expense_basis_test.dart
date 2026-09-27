@@ -57,12 +57,16 @@ void main() {
     expect(byCat.single.pct, 100.0);
   });
 
-  test('debit−credit 余额口径:退款(credit)冲抵当期支出', () {
+  test('debit 单边口径(对齐 TransactionSummary):退款 credit 不冲抵当期支出', () {
     final entries = [
       e('t1', 'E1', DateTime(2026, 8, 5), debitCents: 600),
       e('t2', 'E1', DateTime(2026, 8, 8), creditCents: 100),
     ];
-    expect(basis.totalExpense(entries, aug), 500);
+    // spec FR-7「现状 TransactionSummary 语义」:expense 科目只取 debit
+    // 单边(local_ds L425 同款),credit 退款不冲抵;净额(debit−credit)
+    // 口径留待 R17 待摊 basis 变体。
+    expect(basis.totalExpense(entries, aug), 600);
+    expect(basis.expenseByCategory(entries, aug).single.amountCents, 600);
   });
 
   test('非 expense 科目不计:income/asset/liability 行被忽略', () {

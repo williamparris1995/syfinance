@@ -11,7 +11,15 @@ library;
 /// (inclusive)到月末 23:59:59(秒粒度,对齐 spec FR-1 验收锚点)。
 sealed class ReportPeriod {
   /// 自然月:monthly(2026, 8) → [08-01 00:00:00, 08-31 23:59:59]。
-  factory ReportPeriod.monthly(int year, int month) = ReportMonthly;
+  ///
+  /// [month] 须在 1..12,越界抛 [ArgumentError](防手滑构造出 13 月被
+  /// DateTime 归一化成次年 1 月的隐性错期)。
+  factory ReportPeriod.monthly(int year, int month) {
+    if (month < 1 || month > 12) {
+      throw ArgumentError.value(month, 'month', '报告期月份须在 1..12');
+    }
+    return ReportMonthly(year, month);
+  }
 
   /// 自然年:yearly(2025) → [01-01 00:00:00, 12-31 23:59:59]。
   factory ReportPeriod.yearly(int year) = ReportYearly;
@@ -26,6 +34,11 @@ sealed class ReportPeriod {
 
   /// 中文标签:「2026 年 8 月」「2025 年度」。
   String get label;
+
+  /// [moment] 是否落在报告期内(含两端:期内判定谓词的单一事实源,
+  /// classifier/basis 一律调用本方法,不再各写一份边界比较)。
+  bool contains(DateTime moment) =>
+      !moment.isBefore(start) && !moment.isAfter(endInclusive);
 }
 
 /// 自然月报告期。
@@ -109,6 +122,17 @@ class CategoryAmount {
   final double pct;
 }
 
+/// 报告附注(design LLD 契约:overview.notes 为 List<ReportNote>)。
+class ReportNote {
+  const ReportNote({required this.title, required this.lines});
+
+  /// 附注标题,如「口径说明」「未包含项」。
+  final String title;
+
+  /// 附注正文行(中文文案直写)。
+  final List<String> lines;
+}
+
 /// 总览章节(FR-3 #1)。
 class OverviewSection {
   const OverviewSection({
@@ -130,7 +154,7 @@ class OverviewSection {
     required int incomeCents,
     required int expenseCents,
     required int cashDeltaCents,
-    required List<String> notes,
+    required List<ReportNote> notes,
   }) {
     final surplus = incomeCents - expenseCents;
     return OverviewSection(
@@ -167,8 +191,8 @@ class OverviewSection {
   /// 现金及等价物净变动(= 现金流 netDelta,勾稽同源)。
   final int cashDeltaCents;
 
-  /// 口径附注 + 未包含项附注文案(FR-3/FR-4)。
-  final List<String> notes;
+  /// 口径附注 + 未包含项附注(FR-3/FR-4,见 [ReportNote])。
+  final List<ReportNote> notes;
 }
 
 /// 资产负债章节(FR-3 #2):期末构成 + 期初/期末变动行。
@@ -253,10 +277,25 @@ class PriorComparison {
     required this.deltaPct,
   });
 
+  /// 构造时算环比/同比 %(1 位小数):本期结余 vs 对比期结余;
+  /// 对比期结余 ≤ 0 → 0(基准无意义,不除零/不除负)。
+  factory PriorComparison.create({
+    required String label,
+    required int surplusCents,
+    required int priorSurplusCents,
+  }) =>
+      PriorComparison(
+        label: label,
+        deltaPct: priorSurplusCents <= 0
+            ? 0.0
+            : _round1(
+                (surplusCents - priorSurplusCents) * 100 / priorSurplusCents),
+      );
+
   /// 对比期标签,如「较 2026 年 7 月」「较 2025 年度」。
   final String label;
 
-  /// 结余变动 %(1 位小数,正=改善)。
+  /// 结余变动 %(1 位小数,正=改善;构造时算)。
   final double deltaPct;
 }
 
@@ -320,12 +359,15 @@ class BudgetSection {
   const BudgetSection({required this.items});
 
   /// 预算项视图列表。
-  final List<BudgetItemView> items;
+  final List<ReportBudgetItem> items;
 }
 
 /// 单预算项视图。
-class BudgetItemView {
-  const BudgetItemView({
+///
+/// 命名带 Report 前缀:与 budget 模块 entities.BudgetItemView 同名异构
+/// (那边是 Equatable + accountName 等 DS 形态),避免跨模块混淆。
+class ReportBudgetItem {
+  const ReportBudgetItem({
     required this.name,
     required this.actualCents,
     required this.limitCents,
@@ -335,12 +377,12 @@ class BudgetItemView {
 
   /// 构造时算使用率 pct = actual/limit %(1 位小数;limit ≤ 0 → 0)与
   /// overran = actual > limit。
-  factory BudgetItemView.create({
+  factory ReportBudgetItem.create({
     required String name,
     required int actualCents,
     required int limitCents,
   }) =>
-      BudgetItemView(
+      ReportBudgetItem(
         name: name,
         actualCents: actualCents,
         limitCents: limitCents,

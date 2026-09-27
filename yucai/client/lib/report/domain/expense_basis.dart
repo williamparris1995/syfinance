@@ -20,9 +20,14 @@ abstract class ExpenseBasis {
   int totalExpense(List<LedgerEntryRow> entries, ReportPeriod period);
 }
 
-/// 现金口径默认实现:expense(5) 类型科目按 debit − credit 汇总
-/// (credit = 退款/返现冲抵当期支出),分类维度 = expense 科目账户 id,
-/// 构成按金额降序(对齐 TransactionSummary byCategory 排序惯例)。
+/// 现金口径默认实现:expense(5) 类型科目按 **debit 单边** 汇总(对齐
+/// spec FR-7「现状 TransactionSummary 语义」= transaction_local_ds L425
+/// 的 `expense accounts: debit side counts`;credit 退款/返现不冲抵当期
+/// 支出),分类维度 = expense 科目账户 id,构成按金额降序(对齐
+/// TransactionSummary byCategory 排序惯例)。
+///
+/// 净额口径(debit−credit,退款冲抵)留待 R17 待摊 basis 变体,不在
+/// 本类实现。
 class CashExpenseBasis implements ExpenseBasis {
   const CashExpenseBasis();
 
@@ -49,17 +54,14 @@ class CashExpenseBasis implements ExpenseBasis {
           .values
           .fold(0, (a, b) => a + b);
 
-  /// 期内 expense 科目分录按账户累计(debit − credit)。
+  /// 期内 expense 科目分录按账户累计(**只取 debit 单边**,credit 不减)。
   static Map<String, int> _expenseByAccount(
       List<LedgerEntryRow> entries, ReportPeriod period) {
     final byAccount = <String, int>{};
     for (final e in entries) {
       if (e.accountType != 5) continue; // 仅 expense 科目
-      final inPeriod = !e.date.isBefore(period.start) &&
-          !e.date.isAfter(period.endInclusive);
-      if (!inPeriod) continue;
-      byAccount[e.accountId] =
-          (byAccount[e.accountId] ?? 0) + (e.debitCents - e.creditCents);
+      if (!period.contains(e.date)) continue;
+      byAccount[e.accountId] = (byAccount[e.accountId] ?? 0) + e.debitCents;
     }
     return byAccount;
   }

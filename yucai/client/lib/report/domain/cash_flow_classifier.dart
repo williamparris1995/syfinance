@@ -40,9 +40,7 @@ class CashFlowClassifier {
     // 按 transactionId 分组(保持组内对手遍历顺序稳定即可)。
     final byTxn = <String, List<LedgerEntryRow>>{};
     for (final e in entries) {
-      final inPeriod = !e.date.isBefore(period.start) &&
-          !e.date.isAfter(period.endInclusive);
-      if (inPeriod) {
+      if (period.contains(e.date)) {
         byTxn.putIfAbsent(e.transactionId, () => []).add(e);
       }
     }
