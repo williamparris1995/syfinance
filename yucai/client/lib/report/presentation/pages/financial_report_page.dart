@@ -1,13 +1,15 @@
-/// F43 财务报告页(T5,/reports/full,ADR-5:单页滚动六章节+变体 B 锚点)。
+/// F43 财务报告页(T5,/reports/full,ADR-5:单页滚动章节+变体 B 锚点)。
 ///
-/// UI 事实源 = 原型 v7 financial-report.html(变体 B = 实现终态):
-/// 顶栏面包屑「报表分析 › 财务报告」;页头 = 标题/副题 + 月/年 segmented +
+/// UI 事实源 = 原型 v7 financial-report.html(变体 B = 实现终态)+ F44
+/// v8 增量(总览诊断摘要卡 + 第七章节「诊断与建议」):顶栏面包屑
+/// 「报表分析 › 财务报告」;页头 = 标题/副题 + 月/年 segmented +
 /// 上一期/下一期 + 期标签([ReportPeriod.label])+ 「生成报告」主按钮;
 /// gen-zone = Initial 引导卡 / 四阶段进度(FR-8,>300ms 才展开阶段明细,
-/// 判定在页面侧,见 [_progressGate] 注释);报告体 = 六章节单页滚动 +
+/// 判定在页面侧,见 [_progressGate] 注释);报告体 = 单页滚动章节 +
 /// 右缘圆点锚点([SectionDotNav]:悬停标签/点击平滑滚动/滚动高亮当前章)。
 ///
-/// 自适应章节(FR-3):预算执行/投资绩效 null → 章节与锚点一并缺席。
+/// 自适应章节(FR-3):预算执行/投资绩效 null → 章节与锚点一并缺席;
+/// F44 诊断与建议章节(mda 恒非空语义,仅期外异常 null)挂链尾。
 library;
 
 import 'dart:async';
@@ -18,12 +20,15 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/report/domain/mda/mda_models.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
 import 'package:yucai_client/report/presentation/widgets/budget_bars.dart';
 import 'package:yucai_client/report/presentation/widgets/cashflow_table.dart';
 import 'package:yucai_client/report/presentation/widgets/category_bars.dart';
 import 'package:yucai_client/report/presentation/widgets/chart_helpers.dart';
+import 'package:yucai_client/report/presentation/widgets/mda_section.dart';
+import 'package:yucai_client/report/presentation/widgets/mda_summary_card.dart';
 import 'package:yucai_client/report/presentation/widgets/notes_card.dart';
 import 'package:yucai_client/report/presentation/widgets/overview_hero.dart';
 import 'package:yucai_client/report/presentation/widgets/perf_cards.dart';
@@ -280,12 +285,25 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
     );
   }
 
-  // ───────────────────────── 六章节组装(自适应:null 章节缺席)─────────
+  // ───────────────────────── 章节组装(自适应:null 章节缺席)─────────
 
   List<_ChapterSpec> _chapters(ReportDocument doc) {
     final noun = doc.period is ReportYearly ? '本年' : '本月';
+    final mda = doc.mda;
+    // 第七章「诊断与建议」锚点索引(变体 B 锚点链):前四章固定 +
+    // 预算/投资自适应缺席;摘要卡「查看全部」锚滚目标。
+    final mdaChapterIndex =
+        4 + (doc.budget != null ? 1 : 0) + (doc.investment != null ? 1 : 0);
     return [
-      _ChapterSpec('总览', _overviewChapter(doc, noun)),
+      _ChapterSpec(
+        '总览',
+        _overviewChapter(
+          doc,
+          noun,
+          mdaSummary: mda,
+          onViewAllMda: mda == null ? null : () => _scrollTo(mdaChapterIndex),
+        ),
+      ),
       _ChapterSpec('资产负债', _balanceSheetChapter(doc)),
       _ChapterSpec('收支', _incomeChapter(doc, noun)),
       _ChapterSpec('现金流', _cashFlowChapter(doc)),
@@ -293,10 +311,18 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
       if (doc.budget != null) _ChapterSpec('预算执行', _budgetChapter(doc)),
       if (doc.investment != null)
         _ChapterSpec('投资绩效', _investmentChapter(doc)),
+      // F44 第七章节(mda 恒非空语义;仅期外异常 null → 整章缺席)。
+      if (mda != null)
+        _ChapterSpec('诊断与建议', MdaChapter(section: mda, doc: doc)),
     ];
   }
 
-  Widget _overviewChapter(ReportDocument doc, String noun) {
+  Widget _overviewChapter(
+    ReportDocument doc,
+    String noun, {
+    MdaSection? mdaSummary,
+    VoidCallback? onViewAllMda,
+  }) {
     final ov = doc.overview;
     final periodNoun = doc.period is ReportYearly ? '年度' : '月口径';
     return Column(
@@ -313,6 +339,11 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
         ),
         const SizedBox(height: AppSpacing.md),
         _CashSlimCard(deltaCents: ov.cashDeltaCents),
+        // F44 诊断摘要卡(sum-strip 后、附注卡前;mda null → 缺席)。
+        if (mdaSummary != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          MdaSummaryCard(section: mdaSummary, onViewAll: onViewAllMda!),
+        ],
         const SizedBox(height: AppSpacing.md),
         ReportNotesGrid(notes: ov.notes),
       ],

@@ -11,6 +11,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/report/domain/mda/mda_models.dart';
 import 'package:yucai_client/report/domain/report_assembly_service.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
@@ -29,6 +30,7 @@ const _fixPeriod = ReportMonthly(2026, 8);
 ReportDocument _fullDoc({
   bool includeBudget = true,
   bool includeInvestment = true,
+  MdaSection? mda,
 }) =>
     ReportDocument(
       period: _fixPeriod,
@@ -118,8 +120,35 @@ ReportDocument _fullDoc({
               netBuyCents: 200000,
               twr: 2.3)
           : null,
+      mda: mda,
       excludedSections: const [],
     );
+
+/// F44 T3:诊断章节 fixture(原型 v8 演示口径 0 风险 2 提示 1 关注;
+/// [empty] = 健康态零发现)。
+MdaSection _mda({bool empty = false}) => MdaSection.create(findings: empty
+    ? const []
+    : const [
+        MdaFinding(
+          ruleId: 'R2',
+          severity: MdaSeverity.warn,
+          conclusion: '购物超预算:4,120/3,500(118%),超支 620.00',
+          advice: '建议复盘该类别或上调预算至实际水平',
+        ),
+        MdaFinding(
+          ruleId: 'R4',
+          severity: MdaSeverity.warn,
+          conclusion: '可能闲置订阅:XX 音乐会员(年付 288.00,月度等价 24.00)',
+          advice: '若仍在使用,记一笔时请关联该订阅',
+          actionLink: '/accounts/subscriptions',
+        ),
+        MdaFinding(
+          ruleId: 'R5',
+          severity: MdaSeverity.info,
+          conclusion: '大额单笔:9 月 2 日单笔 3,600.00(年卡),≥ 日均支出×3',
+          advice: '若为年付/预付类支出属正常现象',
+        ),
+      ]);
 
 /// 把 mock 的 onPhase 命名参数取出并逐阶段回调。
 void Function(ReportPhase)? _onPhaseOf(Invocation inv) =>
@@ -358,5 +387,73 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('报告生成失败,请重试'), findsNothing);
     expect(find.text('现金流'), findsNWidgets(2));
+  });
+
+  // ── F44 T3:第七章节 + 总览摘要卡(随 doc.mda)──────────────────────
+
+  testWidgets('mda 有发现:第七章入锚点链(7 圆点)+ 摘要卡 + 查看全部锚滚',
+      (t) async {
+    // 加高测试视口(默认 800×600 下摘要卡在折叠线下,tap 不可达)。
+    t.view.physicalSize = const Size(1000, 2000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetPhysicalSize);
+
+    _stubGenerate(assembly, _fullDoc(mda: _mda()));
+    await t.pumpWidget(harness());
+    await t.tap(find.byKey(const ValueKey('generateReportButton')));
+    await t.pumpAndSettle();
+
+    // 第七章入链:章节头 + 锚点标签各一份;变体 B 锚点第 7 个圆点在位。
+    expect(find.text('诊断与建议'), findsNWidgets(2));
+    expect(find.byKey(const ValueKey('sectionDot-6')), findsOneWidget);
+
+    // 总览摘要卡(有发现态):计数头 + top-3 首条(摘要卡 + 第七章各一份)+ 查看全部。
+    expect(find.text('诊断摘要 · 0 风险 2 提示 1 关注'), findsOneWidget);
+    expect(find.text('购物超预算:4,120/3,500(118%),超支 620.00'),
+        findsNWidgets(2));
+    expect(find.byKey(const ValueKey('mdaViewAllLink')), findsOneWidget);
+
+    // 第七章体:actionLink 跳转按钮渲染(R4)。
+    expect(find.byKey(const ValueKey('mdaActionLink')), findsOneWidget);
+
+    // 「查看全部 ↓」→ 锚滚到第七章节(滚动发生:offset 离开顶部)。
+    final scrollState = t.state<ScrollableState>(find.byType(Scrollable).first);
+    expect(scrollState.position.pixels, 0);
+    await t.tap(find.byKey(const ValueKey('mdaViewAllLink')));
+    await t.pumpAndSettle();
+    expect(scrollState.position.pixels, greaterThan(0));
+  });
+
+  testWidgets('mda 零发现:第七章健康卡 + 总览单行健康徽章(两态随 doc.mda)',
+      (t) async {
+    _stubGenerate(assembly, _fullDoc(mda: _mda(empty: true)));
+    await t.pumpWidget(harness());
+    await t.tap(find.byKey(const ValueKey('generateReportButton')));
+    await t.pumpAndSettle();
+
+    // 第七章健康卡(doc 取数:储蓄率 45.6% / 资产负债率 32.3% 手算)。
+    expect(find.text('诊断与建议'), findsNWidgets(2));
+    expect(find.text('本期诊断未发现需关注项'), findsOneWidget);
+    expect(find.text('储蓄率 45.6%、资产负债率 32.3%,均在健康区间'),
+        findsOneWidget);
+
+    // 总览摘要卡 = 单行健康徽章。
+    expect(find.text('本期诊断:0 风险 0 提示 0 关注 · 未发现需关注项 ✓'),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('mdaViewAllLink')), findsNothing);
+  });
+
+  testWidgets('mda null(期外异常):第七章节与摘要卡均不渲染', (t) async {
+    _stubGenerate(assembly, _fullDoc());
+    await t.pumpWidget(harness());
+    await t.tap(find.byKey(const ValueKey('generateReportButton')));
+    await t.pumpAndSettle();
+
+    expect(find.text('诊断与建议'), findsNothing);
+    expect(find.textContaining('诊断摘要'), findsNothing);
+    expect(find.textContaining('未发现需关注项'), findsNothing);
+    // 锚点仍止于第 6 个(六章节)。
+    expect(find.byKey(const ValueKey('sectionDot-5')), findsOneWidget);
+    expect(find.byKey(const ValueKey('sectionDot-6')), findsNothing);
   });
 }
