@@ -97,7 +97,7 @@ class ReportAssemblyService {
     if (budget == null) excluded.add('预算执行(本期无预算)');
     final performance = await _performanceSection(period, excluded);
 
-    // —— 总览收口:净资产 = Σ资产回放[折 C] + 持仓时点市值 − Σ负债回放。
+    // —— 总览收口:净资产 = Σ资产回放[折 CNY] + 持仓时点市值 − Σ负债回放。
     final assetsStart = _sumConverted(accounts, balances, rateBook, 1, true);
     final assetsEnd = _sumConverted(accounts, balances, rateBook, 1, false);
     final liabStart = _sumConverted(accounts, balances, rateBook, 2, true);

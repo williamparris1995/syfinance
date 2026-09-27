@@ -5,7 +5,7 @@ import 'package:yucai_client/report/domain/report_ledger_store.dart';
 
 /// T1 report domain:ExpenseBasis 现金口径默认实现(FR-7/ADR-6)。
 ///
-/// CashExpenseBasis:expense(5) 类型科目按 debit−credit 汇总,分类
+/// CashExpenseBasis:expense(5) 类型科目按 debit 单边汇总,分类
 /// 维度 = expense 科目账户;期望值全部手算(G oracle)。
 void main() {
   LedgerEntryRow e(String t, String a, DateTime date,

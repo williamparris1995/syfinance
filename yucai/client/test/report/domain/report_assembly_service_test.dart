@@ -191,6 +191,70 @@ class _Ledger {
       ];
 }
 
+/// FR-7 接口测试替身:支出减半口径(默认构成 × ½,四舍五入)——验证
+/// 汇编服务经构造注入消费 [ExpenseBasis] 且章节结构不随实现变化
+/// (spec FR-7 scenario;R17 待摊 basis 接入点的契约钉子)。
+class _HalvedExpenseBasis implements ExpenseBasis {
+  const _HalvedExpenseBasis();
+
+  @override
+  List<CategoryAmount> expenseByCategory(
+    List<LedgerEntryRow> entries,
+    ReportPeriod period,
+  ) {
+    final base = const CashExpenseBasis().expenseByCategory(entries, period);
+    final total = base.fold<int>(0, (s, c) => s + (c.amountCents / 2).round());
+    return [
+      for (final c in base)
+        CategoryAmount.create(
+          category: c.category,
+          amountCents: (c.amountCents / 2).round(),
+          totalCents: total,
+        ),
+    ];
+  }
+
+  @override
+  int totalExpense(List<LedgerEntryRow> entries, ReportPeriod period) =>
+      (const CashExpenseBasis().totalExpense(entries, period) / 2).round();
+}
+
+// 章节数值签名:VO 无 ==,抽取原始值树后深比较(FR-7 (b) 逐位一致)。
+List<Object?> _bsSig(BalanceSheetSection s) => [
+      s.assetsTotalCents,
+      s.liabilitiesTotalCents,
+      s.debtRatioPct,
+      [
+        for (final c in s.assets) (c.category, c.name, c.amountCents, c.pct),
+      ],
+      [
+        for (final c in s.liabilities)
+          (c.category, c.name, c.amountCents, c.pct),
+      ],
+      [
+        for (final c in s.changes)
+          (c.category, c.startCents, c.endCents, c.deltaCents),
+      ],
+    ];
+
+List<Object?> _cfSig(CashFlowSection s) => [
+      (s.operating.inflowCents, s.operating.outflowCents,
+          s.operating.netCents),
+      (s.investing.inflowCents, s.investing.outflowCents,
+          s.investing.netCents),
+      (s.financing.inflowCents, s.financing.outflowCents,
+          s.financing.netCents),
+      (s.netDeltaCents, s.reconciled),
+    ];
+
+List<Object?> _budgetSig(BudgetSection s) => [
+      for (final i in s.items)
+        (i.name, i.actualCents, i.limitCents, i.pct, i.overran),
+    ];
+
+Object? _investmentSig(InvestmentSection s) =>
+    (s.mvStartCents, s.mvEndCents, s.netBuyCents, s.estGainCents, s.twr);
+
 void main() {
   test('generate:四阶段回调顺序钉死,文档期与生成时刻回填', () async {
     final service = _service(FakeStore(), perf: null);
@@ -868,6 +932,68 @@ void main() {
     expect(doc.cashFlow.operating.inflowCents, 100000);
     expect(doc.cashFlow.netDeltaCents, 100000);
     expect(doc.overview.cashDeltaCents, 100000);
+  });
+
+  test('FR-7:假 basis(支出减半)替换 → 支出聚合走注入口径,其余章节逐位不变', () async {
+    final l = _Ledger();
+    BudgetRow row(String itemId, AccountRow acct, int planned) => BudgetRow(
+          budgetId: 'b1',
+          month: '2026-08',
+          itemId: itemId,
+          accountId: acct.id,
+          accountCategory: acct.category,
+          accountName: acct.id,
+          plannedCents: planned,
+        );
+    final store = FakeStore(
+      accountList: l.accounts,
+      entryList: l.entries,
+      budgetList: [
+        row('i1', l.food, 50000),
+        row('i2', l.transport, 8000),
+      ],
+    );
+    const perf = PeriodPerformance(
+      beginMvCents: 70000,
+      endMvCents: 90000,
+      netBuyCents: 80000,
+      estimatedGainCents: -60000,
+      twrPct: 25.0,
+    );
+
+    final def =
+        await _service(store, perf: perf).generate(ReportPeriod.monthly(2026, 8));
+    final faked = await _service(store, basis: const _HalvedExpenseBasis(), perf: perf)
+        .generate(ReportPeriod.monthly(2026, 8));
+
+    // (a) 支出聚合走注入 basis:默认 40,000 vs fake 20,000(手算:food
+    // 30,000/2=15,000 + transport 10,000/2=5,000);构成逐项减半;
+    // 结余/储蓄率随之(480,000 / 96.0)。
+    expect(def.overview.expenseCents, 40000);
+    expect(faked.overview.expenseCents, 20000);
+    expect(
+      [
+        for (final c in faked.incomeStatement.expense)
+          (c.category, c.amountCents),
+      ],
+      [('food', 15000), ('transport', 5000)],
+    );
+    expect(faked.overview.surplusCents, 480000);
+    expect(faked.overview.savingsRate, 96.0);
+
+    // (b) 其余章节(资产负债/现金流/预算/投资/排除项)结构与数值和
+    // 默认 basis 运行逐位一致(签名树深比较)。
+    expect(_bsSig(faked.balanceSheet), _bsSig(def.balanceSheet));
+    expect(_cfSig(faked.cashFlow), _cfSig(def.cashFlow));
+    expect(_budgetSig(faked.budget!), _budgetSig(def.budget!));
+    expect(_investmentSig(faked.investment!), _investmentSig(def.investment!));
+    expect(faked.excludedSections, def.excludedSections);
+
+    // (c) 现金流勾稽不受 basis 替换影响(分类与余额同源 entries,不经
+    // basis):勾稽标记 + 净变动 == cashDelta + 手算 375,000。
+    expect(faked.cashFlow.reconciled, isTrue);
+    expect(faked.cashFlow.netDeltaCents, faked.overview.cashDeltaCents);
+    expect(faked.cashFlow.netDeltaCents, 375000);
   });
 
   // ---- budget actuals conformance(ADR-2 护栏:同 drift 种子对照
