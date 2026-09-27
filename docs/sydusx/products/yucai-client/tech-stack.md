@@ -13,7 +13,7 @@
 | 网络 | grpc + AuthRetryCaller `_retry` | 401→RefreshToken→retry;consumes [yucai-api 契约](../../portfolio/contracts/yucai-api/README.md) |
 | i18n | **中文直写(非 i18next)** | ⚠️ 阶段二改 i18next,[ADR-006](adr/index.md#adr-006) |
 | icons | lucide | — |
-| 本地 DB | _(无 Drift,spec 设计未实施)_ | ⚠️ 直连 gRPC,离线 defer ticket 16,[ADR-005](adr/index.md#adr-005) |
+| 本地 DB | **Drift(SQLite)** | R6 本地优先落地(schemaVersion=11);guest 主库/绑定后全量镜像;断网续写+增量同步 |
 | 测试 | flutter test + mocktail(M/Fake)+ bloc_test | 基线 3 fail/2 文件(test drift) |
 
 ## 关键约束(影响栈使用)
