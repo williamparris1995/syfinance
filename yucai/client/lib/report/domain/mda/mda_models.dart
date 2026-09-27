@@ -39,7 +39,8 @@ class MdaFinding {
   final String? actionLink;
 }
 
-/// 「诊断与建议」章节模型(FR-4):排序后的发现列表 + 三级计数汇总。
+/// 「诊断与建议」章节模型(FR-4):排序后的发现列表 + 三级计数汇总 +
+/// 健康摘要 runway(渲染层零重算)。
 ///
 /// 排序责任在引擎(按 severity 稳定排序);本 factory 只做计数汇总,
 /// findings 按入参原序存储(设计如此,渲染层免再算)。
@@ -49,10 +50,17 @@ class MdaSection {
     required this.riskCount,
     required this.warnCount,
     required this.infoCount,
+    this.healthyRunwayMonths,
   });
 
   /// 计数汇总 factory(总览摘要卡吃 counts + top3,LLD 契约)。
-  factory MdaSection.create({required List<MdaFinding> findings}) {
+  ///
+  /// [healthyRunwayMonths] 为健康态第三指标(现金可支撑月数,R6 同口径
+  /// [runwayMonths]);1 位小数构造期收口,无基数 → null。
+  factory MdaSection.create({
+    required List<MdaFinding> findings,
+    double? healthyRunwayMonths,
+  }) {
     var risk = 0, warn = 0, info = 0;
     for (final f in findings) {
       switch (f.severity) {
@@ -69,6 +77,8 @@ class MdaSection {
       riskCount: risk,
       warnCount: warn,
       infoCount: info,
+      healthyRunwayMonths:
+          healthyRunwayMonths == null ? null : mdaRound1(healthyRunwayMonths),
     );
   }
 
@@ -83,6 +93,11 @@ class MdaSection {
 
   /// info 级条数。
   final int infoCount;
+
+  /// 健康摘要:现金可支撑月数(1 位小数;trailing3m 无基数 → null)。
+  /// T3 评审 round 1:健康卡三指标第三段(储蓄率/资产负债率在 doc,
+  /// runway 不在 ReportDocument 契约,故随章节走)。
+  final double? healthyRunwayMonths;
 }
 
 /// 阈值常量表(FR-2:单点定义 + 行业依据注释;用户可配置 = backlog)。
@@ -138,6 +153,19 @@ abstract final class MdaThresholds {
   /// 闲置订阅 grace 宽限(7 天):nextDate 落在期末后一周内视为
   /// 「即将扣费」,不按闲置报(跨期入账/自动扣费延迟防御)。
   static const int idleGraceDays = 7;
+}
+
+/// 现金可支撑月数 = cashEnd ÷(trailing3m ÷ 3)——R6 阈值判定与健康摘要
+/// 共用的**单点口径**(T3 评审 round 1:公式不复制,两处同源)。
+///
+/// 返回原始 double(R6 阈值比较用原值);展示收口 1 位小数由
+/// [MdaSection.create] 负责。trailing3m ≤ 0 → null(无基数,不除零)。
+double? runwayMonths({
+  required int cashEndCents,
+  required int trailing3mExpenseCents,
+}) {
+  if (trailing3mExpenseCents <= 0) return null;
+  return cashEndCents / (trailing3mExpenseCents / 3);
 }
 
 /// 补充输入行:支出/收入订阅模板的 MD&A 视图(FR-1/FR-3)。

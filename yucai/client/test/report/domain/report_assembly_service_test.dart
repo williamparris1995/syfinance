@@ -1223,6 +1223,9 @@ void main() {
     expect(r6.conclusion, contains('2.5 个月'));
     expect(r6.conclusion, contains('¥250.00'));
     expect(r6.conclusion, contains('¥100.00'));
+    // T3 评审 round 1:健康摘要 runway 同口径随快照(cashEnd 25,000 ÷
+    // 月均 10,000 = 2.5)。
+    expect(mda.healthyRunwayMonths, 2.5);
   });
 
   test('MD&A:2 月报 trailing3m 跨年回卷(2025-11/12 + 2026-01 手算 oracle)', () async {

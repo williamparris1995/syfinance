@@ -69,6 +69,10 @@ void main() {
     expect(find.text('购物超预算:4,120/3,500(118%)'), findsOneWidget);
     expect(find.text('大额单笔:9 月 2 日单笔 3,600.00(年卡)'), findsOneWidget);
 
+    // v8 .diag-row 的 diag-s 形态:top-3 行带建议副行。
+    expect(find.text('建议复盘该类别或上调预算至实际水平'), findsOneWidget);
+    expect(find.text('若为年付/预付类支出属正常现象'), findsOneWidget);
+
     // 「查看全部 ↓」锚滚入口。
     expect(find.byKey(const ValueKey('mdaViewAllLink')), findsOneWidget);
     expect(find.text('查看全部 ↓'), findsOneWidget);
@@ -77,7 +81,7 @@ void main() {
     expect(find.textContaining('未发现需关注项'), findsNothing);
   });
 
-  testWidgets('top-3 截断:第 4/5 条结论文案不渲染', (t) async {
+  testWidgets('top-3 截断:第 4/5 条结论文案与建议副行均不渲染', (t) async {
     await t.pumpWidget(_wrap(MdaSummaryCard(section: _five, onViewAll: () {})));
     await t.pumpAndSettle();
 
@@ -86,6 +90,10 @@ void main() {
     expect(find.text('结论文案 3'), findsOneWidget);
     expect(find.text('结论文案 4'), findsNothing);
     expect(find.text('结论文案 5'), findsNothing);
+    expect(find.text('建议 1'), findsOneWidget);
+    expect(find.text('建议 3'), findsOneWidget);
+    expect(find.text('建议 4'), findsNothing);
+    expect(find.text('建议 5'), findsNothing);
     expect(find.text('诊断摘要 · 0 风险 2 提示 3 关注'), findsOneWidget);
   });
 

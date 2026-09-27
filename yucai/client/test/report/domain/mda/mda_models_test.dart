@@ -47,4 +47,33 @@ void main() {
     expect(section.infoCount, 0);
     expect(section.findings, isEmpty);
   });
+
+  // ---- T3 评审 round 1:健康摘要 runway 字段 + 单点纯函数 ----
+
+  test('MdaSection.create 带 healthyRunwayMonths:1 位小数收口;缺省 null', () {
+    // 手算:1238.25 → mdaRound1 → 1238.3(渲染层零计算,构造期收口)。
+    final section =
+        MdaSection.create(findings: const [], healthyRunwayMonths: 1238.25);
+    expect(section.healthyRunwayMonths, 1238.3);
+
+    expect(MdaSection.create(findings: const []).healthyRunwayMonths, isNull);
+  });
+
+  test('runwayMonths 纯函数:cashEnd ÷ 月均;trailing3m ≤ 0 → null(R6 同口径)',
+      () {
+    // 手算:25,000 ÷ (30,000 ÷ 3) = 2.5。
+    expect(
+      runwayMonths(cashEndCents: 25000, trailing3mExpenseCents: 30000),
+      2.5,
+    );
+    // 无基数(近 3 月零支出)→ null(不除零)。
+    expect(
+      runwayMonths(cashEndCents: 25000, trailing3mExpenseCents: 0),
+      isNull,
+    );
+    expect(
+      runwayMonths(cashEndCents: 25000, trailing3mExpenseCents: -100),
+      isNull,
+    );
+  });
 }

@@ -20,7 +20,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
-import 'package:yucai_client/report/domain/mda/mda_models.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
 import 'package:yucai_client/report/presentation/widgets/budget_bars.dart';
@@ -294,16 +293,14 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
     // 预算/投资自适应缺席;摘要卡「查看全部」锚滚目标。
     final mdaChapterIndex =
         4 + (doc.budget != null ? 1 : 0) + (doc.investment != null ? 1 : 0);
+    // 摘要卡整体预构(section 与锚滚回调用一出生地绑定,null 缺席),
+    // 免去 _overviewChapter 内跨参非空不变量。
+    final mdaCard = mda == null
+        ? null
+        : MdaSummaryCard(
+            section: mda, onViewAll: () => _scrollTo(mdaChapterIndex));
     return [
-      _ChapterSpec(
-        '总览',
-        _overviewChapter(
-          doc,
-          noun,
-          mdaSummary: mda,
-          onViewAllMda: mda == null ? null : () => _scrollTo(mdaChapterIndex),
-        ),
-      ),
+      _ChapterSpec('总览', _overviewChapter(doc, noun, mdaCard: mdaCard)),
       _ChapterSpec('资产负债', _balanceSheetChapter(doc)),
       _ChapterSpec('收支', _incomeChapter(doc, noun)),
       _ChapterSpec('现金流', _cashFlowChapter(doc)),
@@ -320,8 +317,7 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
   Widget _overviewChapter(
     ReportDocument doc,
     String noun, {
-    MdaSection? mdaSummary,
-    VoidCallback? onViewAllMda,
+    Widget? mdaCard,
   }) {
     final ov = doc.overview;
     final periodNoun = doc.period is ReportYearly ? '年度' : '月口径';
@@ -340,9 +336,9 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
         const SizedBox(height: AppSpacing.md),
         _CashSlimCard(deltaCents: ov.cashDeltaCents),
         // F44 诊断摘要卡(sum-strip 后、附注卡前;mda null → 缺席)。
-        if (mdaSummary != null) ...[
+        if (mdaCard != null) ...[
           const SizedBox(height: AppSpacing.md),
-          MdaSummaryCard(section: mdaSummary, onViewAll: onViewAllMda!),
+          mdaCard,
         ],
         const SizedBox(height: AppSpacing.md),
         ReportNotesGrid(notes: ov.notes),

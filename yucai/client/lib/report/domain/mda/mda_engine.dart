@@ -37,6 +37,9 @@ class MdaEngine {
   ];
 
   /// 对一份报告快照执行全部规则,输出排序汇总后的诊断章节。
+  ///
+  /// 健康摘要 runway(T3 评审 round 1)同源回填:supplement 数字喂
+  /// [runwayMonths] 单点口径,R6 阈值判定与本章节数字不两算。
   MdaSection evaluate(ReportDocument doc, MdaSupplement sup) {
     final bySeverity = {
       MdaSeverity.risk: <MdaFinding>[],
@@ -53,6 +56,12 @@ class MdaEngine {
       ...bySeverity[MdaSeverity.warn]!,
       ...bySeverity[MdaSeverity.info]!,
     ];
-    return MdaSection.create(findings: sorted);
+    return MdaSection.create(
+      findings: sorted,
+      healthyRunwayMonths: runwayMonths(
+        cashEndCents: sup.cashEndCents,
+        trailing3mExpenseCents: sup.trailing3mExpenseCents,
+      ),
+    );
   }
 }

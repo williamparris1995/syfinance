@@ -49,7 +49,10 @@ class MdaChapter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (section.findings.isEmpty) return _HealthyCard(doc: doc);
+    if (section.findings.isEmpty) {
+      return _HealthyCard(
+          doc: doc, runwayMonths: section.healthyRunwayMonths);
+    }
 
     final groups = <MdaSeverity, List<MdaFinding>>{
       for (final s in MdaSeverity.values) s: <MdaFinding>[],
@@ -94,7 +97,8 @@ class MdaChapter extends StatelessWidget {
   }
 }
 
-/// 三计数 chip(count>0 → severity 色调;0 → 中性描边,照原型 .chip 默认态)。
+/// 三计数 chip(risk/warn 计数>0 → severity 色调;info 与 0 计数恒中性
+/// 描边——v8 .ch-head 三 chip 中「关注」为默认态,评审 round 1 对齐)。
 class _CountChip extends StatelessWidget {
   const _CountChip({required this.count, required this.severity});
 
@@ -103,7 +107,7 @@ class _CountChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final active = count > 0;
+    final active = count > 0 && severity != MdaSeverity.info;
     final color = severityColor(context, severity);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
@@ -237,22 +241,26 @@ class _SeverityChip extends StatelessWidget {
 
 /// 零发现健康卡(原型 .ch7-healthy:居中 ✓ 圆徽 + 标题 + 通过项摘要行)。
 ///
-/// 通过项摘要从 doc 取数(渲染层零计算):储蓄率 = overview.savingsRate;
+/// 通过项三指标(渲染层零计算):储蓄率 = overview.savingsRate;
 /// 资产负债率 = balanceSheet.debtRatioPct(资产合计 ≤ 0 → null,该段
-/// 省略)。「现金可支撑月数」依赖 MdaSupplement(trailing3m/cashEnd),
-/// 不在 ReportDocument 契约内(T2 已定稿,不碰 domain)——遗留台账:
-/// 待后续票给 mda 增健康摘要字段后补第三段。
+/// 省略);现金可支撑月数 = section.healthyRunwayMonths(引擎自
+/// supplement 单点回填,无基数 → null 同省略)——评审 round 1 补齐。
 class _HealthyCard extends StatelessWidget {
-  const _HealthyCard({required this.doc});
+  const _HealthyCard({required this.doc, this.runwayMonths});
 
   final ReportDocument doc;
+
+  /// 健康摘要 runway(1 位小数已收口;null → 省略第三段)。
+  final double? runwayMonths;
 
   @override
   Widget build(BuildContext context) {
     final ratio = doc.balanceSheet.debtRatioPct;
+    final runway = runwayMonths;
     final passed = [
       '储蓄率 ${doc.overview.savingsRate.toStringAsFixed(1)}%',
       if (ratio != null) '资产负债率 ${ratio.toStringAsFixed(1)}%',
+      if (runway != null) '现金可支撑约 ${runway.toStringAsFixed(1)} 个月',
     ].join('、');
     return Container(
       padding: const EdgeInsets.symmetric(

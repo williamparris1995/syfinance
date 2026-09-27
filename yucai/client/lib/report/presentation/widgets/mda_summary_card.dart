@@ -58,24 +58,41 @@ class MdaSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Divider(height: 1, color: context.yucai.border),
-          // top-3(按 findings 序;行间细分隔线,原型 .diag-row 形态)。
+          // top-3(按 findings 序;结论主行 + 建议副行,原型 .diag-row 的
+          // diag-t/diag-s 双行形态,各单行截断)。
           for (var i = 0; i < section.findings.length && i < 3; i++)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _SevIcon(severity: section.findings[i].severity),
                   const SizedBox(width: AppSpacing.md - 2),
                   Expanded(
-                    child: Text(
-                      section.findings[i].conclusion,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: context.yucai.fg,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          section.findings[i].conclusion,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: context.yucai.fg,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          section.findings[i].advice,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.yucai.muted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

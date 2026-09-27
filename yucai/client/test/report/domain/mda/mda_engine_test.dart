@@ -88,4 +88,24 @@ void main() {
     expect(section.warnCount, 0);
     expect(section.infoCount, 0);
   });
+
+  // ---- T3 评审 round 1:健康摘要 runway 经引擎入章节(supplement 单点)----
+
+  test('evaluate 回填 healthyRunwayMonths(cashEnd ÷ trailing3m 月均手算)', () {
+    // 手算:4,520,000 ÷ (5,100,000 ÷ 3) = 832,800,000 ÷ 5,100,000
+    // ≈ 2.663… → 1 位小数 2.7。
+    final section = engine.evaluate(
+      mdaDoc(incomeCents: 1_000_000, expenseCents: 700_000),
+      mdaSupplement(trailing3mExpenseCents: 5_100_000, cashEndCents: 4_520_000),
+    );
+    expect(section.healthyRunwayMonths, 2.7);
+  });
+
+  test('evaluate:trailing3m = 0(无基数)→ healthyRunwayMonths null', () {
+    final section = engine.evaluate(
+      mdaDoc(incomeCents: 1_000_000, expenseCents: 700_000),
+      mdaSupplement(cashEndCents: 4_520_000),
+    );
+    expect(section.healthyRunwayMonths, isNull);
+  });
 }

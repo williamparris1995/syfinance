@@ -125,30 +125,33 @@ ReportDocument _fullDoc({
     );
 
 /// F44 T3:诊断章节 fixture(原型 v8 演示口径 0 风险 2 提示 1 关注;
-/// [empty] = 健康态零发现)。
-MdaSection _mda({bool empty = false}) => MdaSection.create(findings: empty
-    ? const []
-    : const [
-        MdaFinding(
-          ruleId: 'R2',
-          severity: MdaSeverity.warn,
-          conclusion: '购物超预算:4,120/3,500(118%),超支 620.00',
-          advice: '建议复盘该类别或上调预算至实际水平',
-        ),
-        MdaFinding(
-          ruleId: 'R4',
-          severity: MdaSeverity.warn,
-          conclusion: '可能闲置订阅:XX 音乐会员(年付 288.00,月度等价 24.00)',
-          advice: '若仍在使用,记一笔时请关联该订阅',
-          actionLink: '/accounts/subscriptions',
-        ),
-        MdaFinding(
-          ruleId: 'R5',
-          severity: MdaSeverity.info,
-          conclusion: '大额单笔:9 月 2 日单笔 3,600.00(年卡),≥ 日均支出×3',
-          advice: '若为年付/预付类支出属正常现象',
-        ),
-      ]);
+/// [empty] = 健康态零发现 + healthyRunwayMonths 3.2(引擎回填形态)。
+MdaSection _mda({bool empty = false}) => MdaSection.create(
+  findings: empty
+      ? const []
+      : const [
+          MdaFinding(
+            ruleId: 'R2',
+            severity: MdaSeverity.warn,
+            conclusion: '购物超预算:4,120/3,500(118%),超支 620.00',
+            advice: '建议复盘该类别或上调预算至实际水平',
+          ),
+          MdaFinding(
+            ruleId: 'R4',
+            severity: MdaSeverity.warn,
+            conclusion: '可能闲置订阅:XX 音乐会员(年付 288.00,月度等价 24.00)',
+            advice: '若仍在使用,记一笔时请关联该订阅',
+            actionLink: '/accounts/subscriptions',
+          ),
+          MdaFinding(
+            ruleId: 'R5',
+            severity: MdaSeverity.info,
+            conclusion: '大额单笔:9 月 2 日单笔 3,600.00(年卡),≥ 日均支出×3',
+            advice: '若为年付/预付类支出属正常现象',
+          ),
+        ],
+      healthyRunwayMonths: empty ? 3.2 : null,
+    );
 
 /// 把 mock 的 onPhase 命名参数取出并逐阶段回调。
 void Function(ReportPhase)? _onPhaseOf(Invocation inv) =>
@@ -431,10 +434,13 @@ void main() {
     await t.tap(find.byKey(const ValueKey('generateReportButton')));
     await t.pumpAndSettle();
 
-    // 第七章健康卡(doc 取数:储蓄率 45.6% / 资产负债率 32.3% 手算)。
+    // 第七章健康卡三指标(doc:储蓄率 45.6%/资产负债率 32.3% 手算;
+    // runway 3.2 为章节字段)。
     expect(find.text('诊断与建议'), findsNWidgets(2));
     expect(find.text('本期诊断未发现需关注项'), findsOneWidget);
-    expect(find.text('储蓄率 45.6%、资产负债率 32.3%,均在健康区间'),
+    expect(
+        find.text('储蓄率 45.6%、资产负债率 32.3%、现金可支撑约 3.2 个月,'
+            '均在健康区间'),
         findsOneWidget);
 
     // 总览摘要卡 = 单行健康徽章。
@@ -455,5 +461,53 @@ void main() {
     // 锚点仍止于第 6 个(六章节)。
     expect(find.byKey(const ValueKey('sectionDot-5')), findsOneWidget);
     expect(find.byKey(const ValueKey('sectionDot-6')), findsNothing);
+  });
+
+  testWidgets('mdaChapterIndex 自适应:预算/投资缺席组合下「查看全部」仍锚滚第七章',
+      (t) async {
+    // 加高视口(摘要卡需在折叠线上方可 tap)。
+    t.view.physicalSize = const Size(1000, 2000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetPhysicalSize);
+
+    // (budget, investment) 三组合;章节总数 = 4 固定 + b + i + 1(mda)。
+    const combos = [(true, false), (false, true), (false, false)];
+    for (final (b, i) in combos) {
+      _stubGenerate(
+        assembly,
+        _fullDoc(
+            includeBudget: b, includeInvestment: i, mda: _mda()),
+      );
+      await t.pumpWidget(harness());
+      // 页面状态跨迭代复用:复位残留滚动(上一迭代锚滚停底部,页头
+      // 生成按钮需回可视区,否则 tap 落空)。
+      t.state<ScrollableState>(find.byType(Scrollable).first)
+          .position
+          .jumpTo(0);
+      await t.pump();
+      await t.tap(find.byKey(const ValueKey('generateReportButton')));
+      await t.pumpAndSettle();
+
+      // 锚点链长度随自适应章节收缩;诊断章为末位点。
+      final lastDot = 4 + (b ? 1 : 0) + (i ? 1 : 0);
+      expect(find.byKey(ValueKey('sectionDot-$lastDot')), findsOneWidget,
+          reason: 'b=$b,i=$i 时诊断章应占锚点 $lastDot');
+      expect(find.byKey(ValueKey('sectionDot-${lastDot + 1}')), findsNothing);
+
+      // 「查看全部」锚滚目标 = 第七章头(滚动后章节头进入视口顶部区)。
+      // 「查看全部」锚滚目标 = 第七章(各组合下均为末章):意图滚动量
+      // 超出 maxScrollExtent → 钳到最大(章头整卡进入视口)。锚错索引
+      // (如指到预算/投资章)会中途停靠 → pixels < max。
+      await t.tap(find.byKey(const ValueKey('mdaViewAllLink')));
+      await t.pumpAndSettle();
+      final st = t.state<ScrollableState>(find.byType(Scrollable).first);
+      expect(st.position.pixels, closeTo(st.position.maxScrollExtent, 0.5),
+          reason: 'b=$b,i=$i 时应滚到底(第七章=末章)');
+      final head =
+          t.renderObject(find.text('诊断与建议').first) as RenderBox;
+      final dy = head.localToGlobal(Offset.zero).dy;
+      expect(dy, greaterThanOrEqualTo(0), reason: 'b=$b,i=$i 章头在视口内');
+      expect(dy + head.size.height, lessThanOrEqualTo(2000));
+    }
   });
 }

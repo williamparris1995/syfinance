@@ -133,15 +133,19 @@ void main() {
     expect(find.text('风险'), findsOneWidget); // severity chip
   });
 
-  testWidgets('零发现:居中健康卡,通过项摘要从 doc 取数(储蓄率+资产负债率)', (t) async {
+  testWidgets('零发现:居中健康卡,三指标(储蓄率+资产负债率+runway)取数', (t) async {
     // doc:收入 3,250,000c − 支出 1,767,000c → 储蓄率 45.6%;
-    // 资产 40,000,000c / 负债 10,760,000c → 资产负债率 26.9%(手算)。
-    final section = MdaSection.create(findings: const []);
+    // 资产 40,000,000c / 负债 10,760,000c → 资产负债率 26.9%(手算);
+    // healthyRunwayMonths 3.2 由章节字段直出(引擎回填)。
+    final section =
+        MdaSection.create(findings: const [], healthyRunwayMonths: 3.2);
     await t.pumpWidget(_wrap(MdaChapter(section: section, doc: _doc())));
     await t.pumpAndSettle();
 
     expect(find.text('本期诊断未发现需关注项'), findsOneWidget);
-    expect(find.text('储蓄率 45.6%、资产负债率 26.9%,均在健康区间'),
+    expect(
+        find.text('储蓄率 45.6%、资产负债率 26.9%、现金可支撑约 3.2 个月,'
+            '均在健康区间'),
         findsOneWidget);
     // 有发现态的分组结构不出现在健康态。
     expect(find.textContaining('提示 ·'), findsNothing);
@@ -156,6 +160,7 @@ void main() {
 
     expect(find.text('储蓄率 45.6%,均在健康区间'), findsOneWidget);
     expect(find.textContaining('资产负债率'), findsNothing);
+    expect(find.textContaining('现金可支撑'), findsNothing); // runway 缺省 null 同省略
   });
 
   testWidgets('actionLink:「前往订阅中心 →」按钮 context.push 到订阅中心', (t) async {
@@ -211,5 +216,24 @@ void main() {
     }
     expect(found, isTrue,
         reason: 'risk 严重度图标 32×32 底应为 negative.withValues(alpha: 0.13)');
+  });
+
+  testWidgets('v8 对齐:info 计数 chip 恒中性(仅 risk/warn 计数着色)', (t) async {
+    // 1 条 info → 「1 关注」计数 chip 仍中性(透明底 + muted 字,
+    // v8 .ch-head 三 chip 中「关注」为默认态)。
+    final section = MdaSection.create(findings: const [_i5]);
+    await t.pumpWidget(_wrap(MdaChapter(section: section, doc: _doc())));
+    await t.pumpAndSettle();
+
+    final chipBg = t.widget<Container>(
+      find.ancestor(of: find.text('1 关注'), matching: find.byType(Container)).first,
+    );
+    final d = chipBg.decoration as BoxDecoration;
+    expect(d.color, Colors.transparent,
+        reason: 'info 计数 chip 底应中性(不着 info 色)');
+    expect(
+      t.widget<Text>(find.text('1 关注')).style?.color,
+      YucaiTheme.light().muted,
+    );
   });
 }
