@@ -89,8 +89,19 @@ class CashFlowClassifier {
     );
   }
 
-  /// 现金判定:仅 savings 类账户(严格口径,spec Grill #2)。
-  static bool _isCash(LedgerEntryRow e) => e.category == 'savings';
+  /// 现金账户判定(单一事实源,严格口径 spec Grill #2):**type 1(资产)
+  /// 且 savings 账类** 的账户。
+  ///
+  /// 汇编服务的现金余额求和与本分类器的分录分类共用本谓词——两处口径
+  /// 漂移会直接打穿勾稽不变式(netDelta≠Δcash → StateError 炸整份报告;
+  /// 典型异常数据:income 科目被误挂 savings 账类,若只看 category 会被
+  /// 当作现金侧抵消)。
+  static bool isCashAccount(int accountType, String? category) =>
+      accountType == 1 && category == 'savings';
+
+  /// 分录所属账户是否现金(经 [isCashAccount] 单点判定)。
+  static bool _isCash(LedgerEntryRow e) =>
+      isCashAccount(e.accountType, e.category);
 
   /// 对手条目 → 活动归类(矩阵唯一事实源)。
   ///

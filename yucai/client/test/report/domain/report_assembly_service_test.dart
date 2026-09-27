@@ -527,16 +527,23 @@ void main() {
     expect(zero.excludedSections, contains('投资绩效(本期无持仓)'));
   });
 
-  test('外币折 CNY:期初历史汇率/期末现值回退,无汇率账户跳过+注记', () async {
+  test('外币折 CNY:期初历史汇率/期末现值回退,无汇率账户跳过+注记;现金流原币', () async {
     final l = _Ledger();
     final usdCash = _acct('usdCash', 1, 'savings', initial: 100000, currency: 'USD');
+    final usdFixed = _acct('usdFixed', 1, 'fixedDeposit', currency: 'USD');
     final jpyCash = _acct('jpyCash', 1, 'savings', initial: 30000, currency: 'JPY');
-    final accounts = [...l.accounts, usdCash, jpyCash];
+    final accounts = [...l.accounts, usdCash, usdFixed, jpyCash];
+    // 08-12 USD 内部转定存:借 usdFixed / 贷 usdCash 50,000(USD 原币,
+    // 现金→投资类非现金资产 → 投资活动流出)。
+    final entries = [
+      ...l.entries,
+      ..._doubleEntry('t9', usdFixed, usdCash, DateTime(2026, 8, 12), 50000),
+    ];
 
     final doc = await _service(
       FakeStore(
         accountList: accounts,
-        entryList: l.entries,
+        entryList: entries,
         rateFor: (code, on) {
           if (code == 'USD') {
             // 期初(08-01)有历史汇率;期末(08-31)历史缺失 → 现值回退。
@@ -550,24 +557,37 @@ void main() {
       perf: null,
     ).generate(ReportPeriod.monthly(2026, 8));
 
-    // 净资产:CNY 1,272,000/1,732,000 + USD 100,000×7.0/×7.2;JPY 跳过。
+    // 净资产(折 CNY):CNY 1,272,000/1,732,000 + USD 合计 100,000
+    // (usdCash 50,000 + usdFixed 50,000)×7.0/×7.2;JPY 跳过。
     expect(doc.overview.netWorthStartCents, 1272000 + 700000);
     expect(doc.overview.netWorthEndCents, 1732000 + 720000);
 
-    // 资产负债:savings 期末 = 1,655,000 + 720,000;JPY 不进构成。
+    // 资产负债(折 CNY):savings 期末 = CNY 1,655,000 + USD 50,000×7.2;
+    // fixedDeposit 新增 360,000;JPY 不进构成。
     final savings = doc.balanceSheet.assets
         .firstWhere((c) => c.category == 'savings');
-    expect(savings.amountCents, 1655000 + 720000);
-    // 期初变动行 = 1,280,000 + 700,000。
+    expect(savings.amountCents, 1655000 + 360000);
+    final fixed = doc.balanceSheet.assets
+        .firstWhere((c) => c.category == 'fixedDeposit');
+    expect(fixed.amountCents, 360000);
+    // 期初变动行 = 1,280,000 + 100,000×7.0。
     final savingsChange = doc.balanceSheet.changes
         .firstWhere((c) => c.category == 'savings');
     expect(savingsChange.startCents, 1280000 + 700000);
-    expect(savingsChange.deltaCents, 395000);
+    expect(savingsChange.deltaCents, 35000);
 
-    // 附注披露跳过币种。
+    // 现金流与现金净变动:**账本原币口径**(多币种直加,勾稽同单位,
+    // 不折 CNY)——投资流出 = CNY 80,000 + USD 50,000;现金净变动 =
+    // CNY +375,000 − USD 50,000 = 325,000(附注第 2 条钉此口径)。
+    expect(doc.cashFlow.investing.outflowCents, 130000);
+    expect(doc.cashFlow.netDeltaCents, 325000);
+    expect(doc.overview.cashDeltaCents, 325000);
+
+    // 附注披露跳过币种 + 口径分工(时点数折算/现金流原币)。
     final note = doc.overview.notes
         .firstWhere((n) => n.title == '口径说明');
     expect(note.lines.any((line) => line.contains('JPY') && line.contains('未折算')), isTrue);
+    expect(note.lines[1], contains('原币'));
   });
 
   test('附注:口径说明三条固定 + 未包含项按 excluded 生成(无排除则无该附注)', () async {
@@ -711,6 +731,136 @@ void main() {
     expect(doc.excludedSections, isEmpty);
     expect(doc.overview.notes, hasLength(1));
     expect(doc.overview.notes.first.title, '口径说明');
+  });
+
+  test('预算执行:月报同月同账户多 item → actual 账户级只计一次、限额分别展示', () async {
+    final l = _Ledger();
+    BudgetRow row(String itemId, AccountRow acct, int planned) => BudgetRow(
+          budgetId: 'b1',
+          month: '2026-08',
+          itemId: itemId,
+          accountId: acct.id,
+          accountCategory: acct.category,
+          accountName: acct.id,
+          plannedCents: planned,
+        );
+
+    final doc = await _service(
+      FakeStore(
+        accountList: l.accounts,
+        entryList: l.entries,
+        budgetList: [
+          row('i1', l.food, 50000),
+          row('i2', l.food, 20000), // 同月同账户第二 item
+        ],
+      ),
+      perf: null,
+    ).generate(ReportPeriod.monthly(2026, 8));
+
+    // budget_local_ds BudgetItemView 同构:每 item 一行,actual 取账户级
+    // 大边(8 月 food = 30,000)——两行同为 30,000,**不相加翻倍**;
+    // 限额各自展示(50,000 / 20,000)。
+    final items = doc.budget!.items;
+    expect(items, hasLength(2));
+    expect(items[0].actualCents, 30000);
+    expect(items[0].limitCents, 50000);
+    expect(items[0].pct, 60.0);
+    expect(items[0].overran, isFalse);
+    expect(items[1].actualCents, 30000); // 不翻倍(旧缺陷=60,000)
+    expect(items[1].limitCents, 20000);
+    expect(items[1].pct, 150.0);
+    expect(items[1].overran, isTrue);
+  });
+
+  test('预算执行:年报同月同账户多 item → (账户,月) 去重只计一份,limit 按 item 累加', () async {
+    final l = _Ledger();
+    BudgetRow row(String month, String itemId, AccountRow acct, int planned) =>
+        BudgetRow(
+          budgetId: 'b-$month-$itemId',
+          month: month,
+          itemId: itemId,
+          accountId: acct.id,
+          accountCategory: acct.category,
+          accountName: acct.id,
+          plannedCents: planned,
+        );
+
+    final doc = await _service(
+      FakeStore(
+        accountList: l.accounts,
+        entryList: l.entries,
+        budgetList: [
+          row('2026-08', 'i1', l.food, 50000),
+          row('2026-08', 'i2', l.food, 20000), // 同月同账户:actual 去重
+          row('2026-09', 'i3', l.food, 10000), // 异月:正常并入
+        ],
+      ),
+      perf: null,
+    ).generate(ReportPeriod.yearly(2026));
+
+    final items = doc.budget!.items;
+    expect(items, hasLength(1)); // 年报按账户并入
+    // actual = max(food,08)=30,000(仅一份)+ max(food,09)=0;
+    // limit = 50,000+20,000+10,000(item 累加)。
+    expect(items[0].actualCents, 30000);
+    expect(items[0].limitCents, 80000);
+    expect(items[0].pct, 37.5);
+  });
+
+  test('收支:一月月报 prior 回上年 12 月(跨年环比分支)', () async {
+    final cash = _acct('cash', 1, 'savings');
+    final income = _acct('income', 4, 'otherAsset');
+    final expense = _acct('expense', 5, 'otherAsset');
+    final entries = [
+      ..._doubleEntry('p1', cash, income, DateTime(2025, 12, 20), 100000),
+      ..._doubleEntry('t1', cash, income, DateTime(2026, 1, 10), 200000),
+      ..._doubleEntry('t2', expense, cash, DateTime(2026, 1, 15), 50000),
+    ];
+
+    final doc = await _service(
+      FakeStore(accountList: [cash, income, expense], entryList: entries),
+      perf: null,
+    ).generate(ReportPeriod.monthly(2026, 1));
+
+    // 1 月 surplus = 150,000;prior=2025 年 12 月 surplus = 100,000
+    // → +50.0%。
+    final prior = doc.incomeStatement.priorComparison!;
+    expect(prior.label, '较 2025 年 12 月');
+    expect(prior.deltaPct, 50.0);
+  });
+
+  test('收支:年报 dailyAvg=全年支出/当年自然天数(定案口径)', () async {
+    final l = _Ledger();
+    final doc = await _service(
+      FakeStore(accountList: l.accounts, entryList: l.entries),
+      perf: null,
+    ).generate(ReportPeriod.yearly(2026));
+
+    // 2026 年支出 68,000 / 365 天 = 186(截断)。
+    // 非 TransactionSummary 月 scope 规则(结余/活跃日):报告年报口径
+    // 定案为日均支出/自然天数,差异理由见服务注释。
+    expect(doc.incomeStatement.dailyAvgCents, 186);
+  });
+
+  test('现金流:income 科目误挂 savings 账类 → 现金谓词单点不炸勾稽', () async {
+    // 异常数据回归:income 科目账户被误挂 savings 账类(T2 adapter 测试
+    // 同款旧数据形态)。现金判定=type 1 且 savings 单点谓词,两侧一致
+    // → 收入计入经营流入,勾稽通过(旧缺陷:分类器仅看 category,收入
+    // 腿被当现金抵消 → netDelta≠cashDelta → StateError 炸穿整份报告)。
+    final cash = _acct('cash', 1, 'savings', initial: 50000);
+    final oddIncome = _acct('oddIncome', 4, 'savings'); // 误挂账类
+    final entries = [
+      ..._doubleEntry('t1', cash, oddIncome, DateTime(2026, 8, 5), 100000),
+    ];
+
+    final doc = await _service(
+      FakeStore(accountList: [cash, oddIncome], entryList: entries),
+      perf: null,
+    ).generate(ReportPeriod.monthly(2026, 8));
+
+    expect(doc.cashFlow.operating.inflowCents, 100000);
+    expect(doc.cashFlow.netDeltaCents, 100000);
+    expect(doc.overview.cashDeltaCents, 100000);
   });
 
   // ---- budget actuals conformance(ADR-2 护栏:同 drift 种子对照

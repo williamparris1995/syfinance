@@ -188,7 +188,8 @@ class OverviewSection {
   /// 储蓄率 %(结余/收入,1 位小数;构造时算)。
   final double savingsRate;
 
-  /// 现金及等价物净变动(= 现金流 netDelta,勾稽同源)。
+  /// 现金及等价物净变动(= 现金流 netDelta,勾稽同源;多币种下为账本
+  /// **原币直加**口径,不折 CNY——口径分工见现金流章节与附注)。
   final int cashDeltaCents;
 
   /// 口径附注 + 未包含项附注(FR-3/FR-4,见 [ReportNote])。
@@ -263,7 +264,9 @@ class IncomeStatementSection {
   /// 支出分类构成(expense 科目维度,经 ExpenseBasis)。
   final List<CategoryAmount> expense;
 
-  /// 日均结余(月口径,对齐 TransactionSummary 规则)。
+  /// 日均:月报 = 结余/活跃日(TransactionSummary 同款);年报 = 全年
+  /// 支出/当年自然天数(**报告定案口径**,TransactionSummary 仅月 scope
+  /// 计算——差异理由见汇编服务 _dailyAvgCents 注释)。
   final int dailyAvgCents;
 
   /// 对比期(月报=环比上月;年报=同比上年);首期无对比数据 → null。
@@ -300,6 +303,9 @@ class PriorComparison {
 }
 
 /// 现金流章节(FR-3 #4 / FR-5):三类活动流 + 净变动勾稽。
+///
+/// 多币种口径:各值为账本**原币直加**(勾稽与分录同单位,自洽);外币
+/// 折 CNY 仅用于净资产/资产负债时点数(口径分工见总览附注)。
 class CashFlowSection {
   const CashFlowSection({
     required this.operating,
