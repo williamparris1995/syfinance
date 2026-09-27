@@ -1,3 +1,9 @@
+/// 本地收益装配(R7-D,holding 域离线引擎):drift 行组(持仓/台账/证券
+/// 现价)→ PortfolioPerformance(全期 + 区间口径)。F43 T3(R16 财务报告
+/// FR-6)扩展区间分解:期初/期末市值(成交价 ffill 回放)、当期净买入、
+/// 估算收益与区间 TWR —— 供 ReportAssemblyService 投资绩效章节消费。
+library;
+
 import 'dart:math' as math;
 
 import 'package:yucai_client/holding/domain/entities/period_performance.dart';

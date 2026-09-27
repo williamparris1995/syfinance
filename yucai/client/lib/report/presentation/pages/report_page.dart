@@ -1,3 +1,9 @@
+/// 报表分析页(/reports,sidebar「工具 › 报表分析」):月/年 summary 汇总条 +
+/// 三图表(收支趋势 / 支出分类占比 / 近 6 月对比)+ 标签口径筛选(F8)与
+/// 历史日期切换(P0-2)。顶栏含 F43「财务报告」入口按钮(→ /reports/full,
+/// FR-1 面包屑「报表分析 › 财务报告」);类级说明见下方 ReportPage 文档。
+library;
+
 import 'package:dartz/dartz.dart' hide State;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';

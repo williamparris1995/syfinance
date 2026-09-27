@@ -1,3 +1,8 @@
+/// 持仓模块本地数据源(drift,guest/离线路由):标的 / 持仓 / 台账 CRUD 与
+/// 买卖 drift 事务;F43 T3 起 getPortfolioPerformance 支持显式区间参数
+/// (区间分解供财务报告投资绩效章节消费)。
+library;
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';

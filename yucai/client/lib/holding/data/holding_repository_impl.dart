@@ -1,3 +1,8 @@
+/// 持仓模块仓储实现:remote / bound / local 三态路由;F43 T2 起
+/// getPortfolioPerformance 的显式区间参数强制本地路由(FR-2 纯本地汇编,
+/// 财务报告不因投资绩效取数触网)。
+library;
+
 import 'dart:async';
 
 import 'package:dartz/dartz.dart';

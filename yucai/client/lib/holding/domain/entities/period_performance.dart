@@ -1,3 +1,7 @@
+/// F43 R16 财务报告 FR-6:区间绩效分解 VO(T3 LocalPerformanceAssembler
+/// 区间扩展输出)。字段口径详见下方类注释(金额 cents、ffill 成交价回放)。
+library;
+
 import 'package:equatable/equatable.dart';
 
 /// 区间绩效分解 VO(F43 R16 财务报告 FR-6;T3 LocalPerformanceAssembler
