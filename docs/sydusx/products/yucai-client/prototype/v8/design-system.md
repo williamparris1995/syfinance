@@ -15,4 +15,4 @@ http.server+IAB:默认态(ch-7/摘要卡/三条 Finding/跳转链接/旧 fixture
 
 ## CURRENT
 
-待用户确认 v8 后指向(F44 实现以 v8 为准;v7 保留为 F43 存档)。
+v8(用户 2026-09-27 确认;F44 实现以 v8 为准,v7 保留为 F43 存档)。

@@ -1,6 +1,6 @@
 # Design: F44 规则诊断引擎 MD&A
 
-prototype: v8(OD 增量迭代 run 待跑;基于 v7 页加诊断章节+摘要卡,用户确认后 CURRENT→v8)
+prototype: v8(OD run `3f2be5dd` 增量;用户 2026-09-27 确认;CURRENT→v8)
 
 ## Context
 
@@ -50,7 +50,7 @@ lib/report/presentation/widgets/mda_section.dart + mda_summary_card.dart
 
 ## Risks / Trade-offs
 
-- [recurrence 推演位置] 若在 template/data → 跨模块 import 违约 → 缓解:经 TemplateRepository domain port 暴露 `expectedDates(template, period)`(最小新增),或提纯函数至共享处;**禁止复制**。
+- ~~[recurrence 推演位置]~~ **已查证解除**:`firstOnSeriesAfter` 居 `lib/core/recurrence/next_after.dart`(core 共享基建,非 template 私有)——adapter 直用零跨模块违约零复制。
 - [误报伤信任] FR-3 四道防御已入 spec;R4 文案疑问式。
 - [规则重叠] R1 与 R6 可能同红(储蓄率低+runway 短)——保留双条(口径不同),排序稳定。
 - [R5 年付语境] 结论文案带「若为年付/预付类支出属正常」语境句。
