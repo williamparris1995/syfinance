@@ -93,7 +93,11 @@ abstract class HoldingRepository {
   /// [rangeStart]/[rangeEnd](T3,F43 R16 财务报告 FR-6):显式闭区间,可选、
   /// 纯新增向后兼容;同时给定时本地引擎额外产出区间分解
   /// PortfolioPerformance.period(期初/期末市值/净买入/估算收益/区间 TWR)。
-  /// 仅本地路径消费(holding.proto 无对应字段,绑定在线走 server 权威口径)。
+  ///
+  /// 路由语义(T2,T3 评审 Important 落点):任一区间参数显式给出时
+  /// **强制走本地引擎**(guest/bound 一致)—— holding.proto 无区间字段,
+  /// 绑定在线直达 server 会丢参数破坏 FR-2 三态一致;既有无区间调用
+  /// 行为零改(绑定在线仍走 server 权威口径,断网降级本地兜底)。
   Future<Either<Failure, PortfolioPerformance>> getPortfolioPerformance({
     required String range,
     String? accountId,

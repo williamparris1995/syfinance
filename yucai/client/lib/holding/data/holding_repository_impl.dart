@@ -240,7 +240,12 @@ class HoldingRepositoryImpl implements HoldingRepository {
   }) async {
     // T3(FR-6):区间参数仅透传本地引擎(proto 无对应字段;远端权威口径
     // 不受影响,断网降级路径同样带上区间)。
-    if (_useLocalDs) {
+    // T2(T3 评审 Important 落点,FR-2 三态一致):rangeStart/rangeEnd 显式
+    // 给出时**强制走本地 DS** —— server proto 无区间字段,绑定在线直达
+    // server 会丢参数,guest/bound 三态对同一窗口产出不一致。既有无区间
+    // 调用路由零改(护栏测试:无参 → 原路由)。
+    final useLocal = _useLocalDs || rangeStart != null || rangeEnd != null;
+    if (useLocal) {
       return _guard(() => _local.getPortfolioPerformance(
             range: range,
             accountId: accountId,

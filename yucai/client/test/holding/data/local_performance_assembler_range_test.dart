@@ -133,6 +133,50 @@ void main() {
     expect(p.period!.twrPct, 0.0);
   });
 
+  test('FR-6 负值估算收益(spec.md:54 逐字):期初 10000→期末 12000、净买入 5000 → −3000', () {
+    // T2 补测(T3 评审 Minor MISSING)。手算 oracle(双证券,金额单位 cents):
+    // - 07-01(窗前)买 sec1 10 股@1,000 → 期初市值 = 10 × 1,000 = 10,000;
+    // - 窗内 08-05 买 sec2 6.4 股@1,000(金额 6,400)、08-25 卖 sec1 2 股@700
+    //   (金额 1,400)→ 净买入 = 6,400 − 1,400 = 5,000;
+    // - 期末:sec1 余 8 股 × ffill 700 = 5,600 + sec2 6.4 股 × 1,000 = 6,400
+    //   → 期末市值 12,000;
+    // - 估算收益 = 12,000 − 10,000 − 5,000 = **−3,000**(下跌市加仓,负值)。
+    final a = LocalPerformanceAssembler(
+      holdings: const [
+        AssemblerHolding('sec1', 8, 1000),
+        AssemblerHolding('sec2', 6.4, 1000),
+      ],
+      trades: [
+        AssemblerTrade(
+            securityId: 'sec1', tradeType: 1, quantity: 10, priceCents: 1000,
+            amountCents: 10000, feeCents: 0, realizedPnlCents: 0,
+            tradeDate: d('2026-07-01')),
+        AssemblerTrade(
+            securityId: 'sec2', tradeType: 1, quantity: 6.4, priceCents: 1000,
+            amountCents: 6400, feeCents: 0, realizedPnlCents: 0,
+            tradeDate: d('2026-08-05')),
+        AssemblerTrade(
+            securityId: 'sec1', tradeType: 2, quantity: 2, priceCents: 700,
+            amountCents: 1400, feeCents: 0, realizedPnlCents: -600,
+            tradeDate: d('2026-08-25')),
+      ],
+      securities: const {
+        'sec1': AssemblerSecurity('sec1', 700),
+        'sec2': AssemblerSecurity('sec2', 1000),
+      },
+      now: d('2026-09-15'),
+    );
+    final p = a.assemble(rangeStart: d('2026-08-01'), rangeEnd: d('2026-08-31'));
+    expect(p.period!.beginMvCents, 10000);
+    expect(p.period!.endMvCents, 12000);
+    expect(p.period!.netBuyCents, 5000);
+    // spec 钉死负值:估算收益 −3,000,不为 0、不为正。
+    expect(p.period!.estimatedGainCents, -3000);
+    // 方向一致:亏钱窗口 TWR 必为负(链式精确值已由本文件其他用例钉死)。
+    expect(p.period!.twrPct, isNotNull);
+    expect(p.period!.twrPct!, lessThan(0));
+  });
+
   test('缺省 rangeStart/rangeEnd:输出与旧签名一致,period 恒为 null', () {
     // 与既有 assemble 用例同款 fixture(100 股@成本 100 → 现价 120)做
     // 等价断言:无参调用的关键输出仍是旧口径手算值。
