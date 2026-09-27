@@ -218,6 +218,15 @@ void main() {
     final period = ReportPeriod.monthly(2026, 8);
     final rows = await store.entries();
 
+    // T5-R1 分类名称契约:adapter 从 Accounts 表带入账户展示名
+    // (收支构成行显示科目名的数据源)。
+    final accountRows = await store.accounts();
+    final nameById = {for (final a in accountRows) a.id: a.name};
+    expect(nameById[food.id], '餐饮');
+    expect(nameById[transport.id], '交通');
+    expect(nameById[salary.id], '工资');
+    expect(nameById[bonus.id], '奖金');
+
     // income:经 ReportAssemblyService 生产聚合(T2 遗留#4 收编:income
     // 科目 credit 单边,镜像 summary 的「income accounts: credit side
     // counts」语义)。

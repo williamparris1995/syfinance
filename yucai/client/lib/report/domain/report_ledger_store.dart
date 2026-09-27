@@ -16,6 +16,8 @@ library;
 /// 'creditCard'/'investment'/'fixedDeposit'/'goldFx'/'realEstate'/
 /// 'loan'/'otherAsset'/'otherLiability'/'storedValue';本地库存的是
 /// proto 枚举 int,adapter 负责换算)——现金流分类以 'savings' 判现金。
+/// [name] 为账户展示名(T5-R1 分类名称契约:收支构成行显示科目账户名;
+/// 缺省 null = 未提供,汇编层回退 category 代码)。
 class AccountRow {
   const AccountRow({
     required this.id,
@@ -23,6 +25,7 @@ class AccountRow {
     required this.category,
     required this.initialBalanceCents,
     required this.currencyCode,
+    this.name,
   });
 
   /// 账户 id。
@@ -33,6 +36,9 @@ class AccountRow {
 
   /// 账类代码(见类注释;旧数据可能缺失 → null)。
   final String? category;
+
+  /// 账户展示名(T5-R1;缺失 → null)。
+  final String? name;
 
   /// 期初建账余额(int cents)。
   final int initialBalanceCents;

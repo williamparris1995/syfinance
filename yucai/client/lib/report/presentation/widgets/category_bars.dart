@@ -65,7 +65,11 @@ class CategoryBars extends StatelessWidget {
                 SizedBox(
                   width: 96,
                   child: Text(
-                    categoryLabelOf(row.category),
+                    // T5-R1:name 优先(收支维度=科目账户名);
+                    // null/空串兜底转译账类代码(资产负债维度)。
+                    (row.name == null || row.name!.isEmpty)
+                        ? categoryLabelOf(row.category)
+                        : row.name!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

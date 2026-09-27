@@ -16,17 +16,14 @@ class OverviewHero extends StatelessWidget {
   final OverviewSection overview;
   final String? periodLabel;
 
-  /// 1 位小数四舍五入(hero 内净资产变动 % 现算;model 不带该派生)。
-  static double _round1(double v) => (v * 10).round() / 10;
-
   @override
   Widget build(BuildContext context) {
     final delta = overview.netWorthEndCents - overview.netWorthStartCents;
     final up = delta >= 0;
     final deltaColor = up ? context.yucai.positive : context.yucai.negative;
-    final double? pct = overview.netWorthStartCents > 0
-        ? _round1(delta * 100 / overview.netWorthStartCents)
-        : null;
+    // T5-R1:净资产变动 % 取 model 派生(构造期算好;期初 ≤ 0 → null
+    // 隐藏 chip 的 % 部分),渲染层零现算。
+    final pct = overview.netWorthChangePct;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),

@@ -47,7 +47,7 @@ ReportDocument _fullDoc({
           ReportNote(title: '未包含项', lines: ['未包含:目标回顾(本期暂不提供)']),
         ],
       ),
-      balanceSheet: BalanceSheetSection(
+      balanceSheet: BalanceSheetSection.create(
         assets: [
           CategoryAmount.create(
               category: 'realEstate', amountCents: 28000000, totalCents: 33373000),
@@ -65,16 +65,29 @@ ReportDocument _fullDoc({
       ),
       incomeStatement: IncomeStatementSection(
         income: [
+          // T5-R1:收支构成行带科目账户名(category 保留 id 维度)。
           CategoryAmount.create(
-              category: 'income-salary', amountCents: 2800000, totalCents: 3250000),
+              category: 'income-salary',
+              name: '工资',
+              amountCents: 2800000,
+              totalCents: 3250000),
           CategoryAmount.create(
-              category: 'income-side', amountCents: 450000, totalCents: 3250000),
+              category: 'income-side',
+              name: '副业',
+              amountCents: 450000,
+              totalCents: 3250000),
         ],
         expense: [
           CategoryAmount.create(
-              category: 'expense-food', amountCents: 620000, totalCents: 1767000),
+              category: 'expense-food',
+              name: '伙食费',
+              amountCents: 620000,
+              totalCents: 1767000),
           CategoryAmount.create(
-              category: 'expense-shop', amountCents: 1147000, totalCents: 1767000),
+              category: 'expense-shop',
+              name: '日用',
+              amountCents: 1147000,
+              totalCents: 1767000),
         ],
         dailyAvgCents: 57000,
         priorComparison: PriorComparison.create(
@@ -236,8 +249,10 @@ void main() {
     expect(find.text('贷款'), findsOneWidget); // loan
     expect(find.text('¥333,730.00'), findsOneWidget); // 资产合计 33,373,000c
 
-    // 03 收支:收入/支出构成 + 日均 + 环比。
-    expect(find.text('income-salary'), findsOneWidget); // 收入维度=账户 id 原样
+    // 03 收支:收入/支出构成(科目账户名,非 id)+ 日均 + 环比。
+    expect(find.text('工资'), findsOneWidget);
+    expect(find.text('伙食费'), findsOneWidget);
+    expect(find.text('income-salary'), findsNothing); // id 不再上屏
     expect(find.text('¥570.00'), findsOneWidget); // 日均结余
     expect(find.text('较 2026 年 7 月'), findsOneWidget);
     expect(find.text('+23.6%'), findsOneWidget); // (1483000-1200000)/1200000

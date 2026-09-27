@@ -28,10 +28,10 @@ ReportDocument _doc(ReportPeriod period) => ReportDocument(
         cashDeltaCents: 853000,
         notes: const [],
       ),
-      balanceSheet: const BalanceSheetSection(
-        assets: [],
-        liabilities: [],
-        changes: [],
+      balanceSheet: BalanceSheetSection.create(
+        assets: const [],
+        liabilities: const [],
+        changes: const [],
       ),
       incomeStatement: const IncomeStatementSection(
         income: [],

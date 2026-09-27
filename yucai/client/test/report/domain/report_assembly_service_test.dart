@@ -101,6 +101,7 @@ AccountRow _acct(
   String? category, {
   int initial = 0,
   String currency = 'CNY',
+  String? name,
 }) =>
     AccountRow(
       id: id,
@@ -108,6 +109,7 @@ AccountRow _acct(
       category: category,
       initialBalanceCents: initial,
       currencyCode: currency,
+      name: name,
 );
 
 PortfolioPerformance _perf(PeriodPerformance? period) => PortfolioPerformance(
@@ -159,12 +161,13 @@ class _Ledger {
       : cash = _acct('cash', 1, 'savings', initial: 1000000),
         invest = _acct('invest', 1, 'investment'),
         card = _acct('card', 2, 'creditCard'),
-        food = _acct('food', 5, 'otherAsset'),
-        transport = _acct('transport', 5, 'otherAsset'),
+        // T5-R1:收支科目带账户名(汇编层按 id→name 挂入构成行)。
+        food = _acct('food', 5, 'otherAsset', name: '餐饮'),
+        transport = _acct('transport', 5, 'otherAsset', name: '交通'),
         // income/expense 科目账户 category 无意义,真实写路径恒 otherAsset
         // (category_bloc/demo_seed 同款)——不得用 savings,否则被现金
         // 口径误判(classifier _isCash 仅看 category)。
-        salary = _acct('salary', 4, 'otherAsset');
+        salary = _acct('salary', 4, 'otherAsset', name: '工资');
 
   final AccountRow cash;
   final AccountRow invest;
@@ -303,14 +306,18 @@ void main() {
     expect(stmt.income.first.category, 'salary');
     expect(stmt.income.first.amountCents, 500000);
     expect(stmt.income.first.pct, 100.0);
+    // T5-R1 分类名称契约:收支构成行携带科目账户名(id 保留在 category)。
+    expect(stmt.income.first.name, '工资');
 
     expect(stmt.expense, hasLength(2)); // 金额降序
     expect(stmt.expense.first.category, 'food');
     expect(stmt.expense.first.amountCents, 30000);
     expect(stmt.expense.first.pct, 75.0);
+    expect(stmt.expense.first.name, '餐饮');
     expect(stmt.expense[1].category, 'transport');
     expect(stmt.expense[1].amountCents, 10000);
     expect(stmt.expense[1].pct, 25.0);
+    expect(stmt.expense[1].name, '交通');
 
     // 活跃日 = 有 income/expense 分录的日(08-02/06/09;08-20 投资与
     // 08-25 还款不涉收支科目):460,000 ~/ 3 = 153,333(截断,summary 同款)。

@@ -129,6 +129,77 @@ void main() {
           CategoryAmount.create(category: 'food', amountCents: 0, totalCents: 0);
       expect(c.pct, 0.0);
     });
+
+    test('T5-R1 name 透传:传入「餐饮」即携带;缺省 null(渲染层兜底)', () {
+      final named = CategoryAmount.create(
+          category: 'acct-1', name: '餐饮', amountCents: 1000, totalCents: 3000);
+      expect(named.name, '餐饮');
+      final anon =
+          CategoryAmount.create(category: 'food', amountCents: 1000, totalCents: 3000);
+      expect(anon.name, isNull);
+    });
+  });
+
+  group('T5-R1 渲染层零计算派生(构造期算好,手算 oracle)', () {
+    test('OverviewSection.netWorthChangePct:28645000→30128000 = 5.2;'
+        ' 期初 0 → null; 下降为负', () {
+      final up = OverviewSection.create(
+        netWorthStartCents: 28645000,
+        netWorthEndCents: 30128000,
+        incomeCents: 0,
+        expenseCents: 0,
+        cashDeltaCents: 0,
+        notes: const [],
+      );
+      // (30128000−28645000)×100/28645000 = 5.1769… → 5.2。
+      expect(up.netWorthChangePct, 5.2);
+
+      final zeroStart = OverviewSection.create(
+        netWorthStartCents: 0,
+        netWorthEndCents: 1000,
+        incomeCents: 0,
+        expenseCents: 0,
+        cashDeltaCents: 0,
+        notes: const [],
+      );
+      expect(zeroStart.netWorthChangePct, isNull);
+
+      final down = OverviewSection.create(
+        netWorthStartCents: 100000,
+        netWorthEndCents: 90000,
+        incomeCents: 0,
+        expenseCents: 0,
+        cashDeltaCents: 0,
+        notes: const [],
+      );
+      expect(down.netWorthChangePct, -10.0);
+    });
+
+    test('BalanceSheetSection.create:合计 fold + 资产负债率 1 位小数;'
+        ' 资产合计 0 → null', () {
+      final bs = BalanceSheetSection.create(
+        assets: [
+          CategoryAmount.create(
+              category: 'savings', amountCents: 1000, totalCents: 4000),
+          CategoryAmount.create(
+              category: 'realEstate', amountCents: 3000, totalCents: 4000),
+        ],
+        liabilities: [
+          CategoryAmount.create(
+              category: 'loan', amountCents: 500, totalCents: 500),
+        ],
+        changes: const [],
+      );
+      expect(bs.assetsTotalCents, 4000);
+      expect(bs.liabilitiesTotalCents, 500);
+      // 500×100/4000 = 12.5。
+      expect(bs.debtRatioPct, 12.5);
+
+      final empty = BalanceSheetSection.create(
+          assets: const [], liabilities: const [], changes: const []);
+      expect(empty.assetsTotalCents, 0);
+      expect(empty.debtRatioPct, isNull);
+    });
   });
 
   group('InvestmentSection 估算收益(FR-6 口径:期末−期初−净买入)', () {

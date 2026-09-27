@@ -70,63 +70,74 @@ class _DotState extends State<_Dot> {
   @override
   Widget build(BuildContext context) {
     final showLabel = _hover || widget.active;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 悬停/激活标签 chip(左侧弹出;IgnorePointer 防抢点击)。
-            IgnorePointer(
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 150),
-                opacity: showLabel ? 1 : 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: context.yucai.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: context.yucai.border),
-                  ),
-                  child: Text(
-                    widget.label,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: context.yucai.fg,
+    // a11y(T5-R1):Tooltip + Semantics 对齐同页 IconButton 形态——悬停
+    // 出标签之外,读屏/键盘用户同样可获得章节名与按钮语义。
+    return Semantics(
+      button: true,
+      label: '跳转到 ${widget.label}',
+      child: Tooltip(
+        message: widget.label,
+        waitDuration: const Duration(milliseconds: 300),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 悬停/激活标签 chip(左侧弹出;IgnorePointer 防抢点击)。
+                IgnorePointer(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 150),
+                    opacity: showLabel ? 1 : 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: context.yucai.surface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: context.yucai.border),
+                      ),
+                      child: Text(
+                        widget.label,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: context.yucai.fg,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    // 激活:accent 实心 + accent 22% 光环(原型 .on box-shadow)。
+                    color: widget.active
+                        ? context.yucai.accent
+                        : context.yucai.muted.withValues(alpha: 0.45),
+                    boxShadow: widget.active
+                        ? [
+                            BoxShadow(
+                              color:
+                                  context.yucai.accent.withValues(alpha: 0.22),
+                              spreadRadius: 4,
+                              blurRadius: 0,
+                            ),
+                          ]
+                        : null,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                // 激活:accent 实心 + accent 22% 光环(原型 .on box-shadow)。
-                color: widget.active
-                    ? context.yucai.accent
-                    : context.yucai.muted.withValues(alpha: 0.45),
-                boxShadow: widget.active
-                    ? [
-                        BoxShadow(
-                          color: context.yucai.accent.withValues(alpha: 0.22),
-                          spreadRadius: 4,
-                          blurRadius: 0,
-                        ),
-                      ]
-                    : null,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

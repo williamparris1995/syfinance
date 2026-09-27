@@ -73,9 +73,13 @@ class ReportAssemblyService {
     final cashEnd = cashAccounts.fold<int>(
       0, (s, a) => s + (balances[a.id]?.endCents ?? 0));
     final balanceSheet = _balanceSheet(accounts, balances, rateBook);
+    // T5-R1 分类名称契约:收支构成维度 = 科目账户 id,展示名按
+    // id→name 映射挂入(name 缺失 → null,渲染层兜底转译 category)。
+    final nameByAccountId = {for (final a in accounts) a.id: a.name};
     final incomeStatement = IncomeStatementSection(
-      income: incomeByCategory(entries, period),
-      expense: _expenseBasis.expenseByCategory(entries, period),
+      income: _withNames(incomeByCategory(entries, period), nameByAccountId),
+      expense: _withNames(
+          _expenseBasis.expenseByCategory(entries, period), nameByAccountId),
       dailyAvgCents: _dailyAvgCents(entries, period, income, expense),
       priorComparison: _priorComparison(entries, period, income - expense),
     );
@@ -424,7 +428,8 @@ class ReportAssemblyService {
       return rows;
     }
 
-    return BalanceSheetSection(
+    // create factory:合计与资产负债率构造期算好(渲染层零计算,T5-R1)。
+    return BalanceSheetSection.create(
       assets: toComposition(assetsEndBy),
       liabilities: toComposition(liabEndBy),
       changes: [
@@ -438,6 +443,22 @@ class ReportAssemblyService {
       ],
     );
   }
+
+  /// 把 [rows](维度 = 科目账户 id)挂上账户展示名(pct 等派生已构造好,
+  /// 原样保留;name 缺失 → null)。T5-R1 分类名称契约单点。
+  static List<CategoryAmount> _withNames(
+    List<CategoryAmount> rows,
+    Map<String, String?> names,
+  ) =>
+      [
+        for (final r in rows)
+          CategoryAmount(
+            category: r.category,
+            amountCents: r.amountCents,
+            pct: r.pct,
+            name: names[r.category],
+          ),
+      ];
 }
 
 /// 汇率簿:期内两时点的有效汇率(历史 ≤ 日最近可得 → 现值回退 →

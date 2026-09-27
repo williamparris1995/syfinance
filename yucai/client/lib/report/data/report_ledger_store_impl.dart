@@ -36,6 +36,8 @@ class ReportLedgerStoreImpl implements ReportLedgerStore {
           id: a.id,
           type: a.accountType,
           category: _categoryName(a.category),
+          // T5-R1:账户展示名带入(收支构成行显示科目名的数据源)。
+          name: a.name,
           initialBalanceCents: a.initialBalanceCents,
           currencyCode: a.currencyCode,
         ),

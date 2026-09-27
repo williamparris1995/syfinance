@@ -321,10 +321,10 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
 
   Widget _balanceSheetChapter(ReportDocument doc) {
     final bs = doc.balanceSheet;
-    final assetsTotal = bs.assets.fold<int>(0, (s, r) => s + r.amountCents);
-    final liabTotal =
-        bs.liabilities.fold<int>(0, (s, r) => s + r.amountCents);
-    final ratio = assetsTotal > 0 ? liabTotal * 100 / assetsTotal : null;
+    // T5-R1:合计与资产负债率取 model 派生(构造期算好),渲染层零 fold。
+    final assetsTotal = bs.assetsTotalCents;
+    final liabTotal = bs.liabilitiesTotalCents;
+    final ratio = bs.debtRatioPct;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1359,6 +1359,7 @@ class _ChangesTable extends StatelessWidget {
               label: categoryLabelOf(change.category),
               start: change.startCents,
               end: change.endCents,
+              delta: change.deltaCents, // T5-R1:model 派生,不重算
             ),
         ],
       ),
@@ -1380,25 +1381,26 @@ class _ChangesTable extends StatelessWidget {
     required String label,
     required int start,
     required int end,
+    int? delta, // 缺省 = 净资产汇总行(OverviewSection 无 delta 派生,现算)
     bool strong = false,
-  }) =>
-      _grid(
-        context,
-        Row(children: [
-          Expanded(child: _label(context, label, strong: strong)),
-          Expanded(child: _num(context, fmtCents(start))),
-          Expanded(child: _num(context, fmtCents(end))),
-          Expanded(
-            child: _num(
-              context,
-              fmtCentsSigned(end - start),
-              color: end - start >= 0
-                  ? context.yucai.positive
-                  : context.yucai.negative,
-            ),
+  }) {
+    final d = delta ?? end - start;
+    return _grid(
+      context,
+      Row(children: [
+        Expanded(child: _label(context, label, strong: strong)),
+        Expanded(child: _num(context, fmtCents(start))),
+        Expanded(child: _num(context, fmtCents(end))),
+        Expanded(
+          child: _num(
+            context,
+            fmtCentsSigned(d),
+            color: d >= 0 ? context.yucai.positive : context.yucai.negative,
           ),
-        ]),
-      );
+        ),
+      ]),
+    );
+  }
 
   Widget _grid(BuildContext context, Widget row) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1423,7 +1425,7 @@ class _ChangesTable extends StatelessWidget {
       textAlign: TextAlign.right,
       style: TextStyle(
         fontSize: 12.5,
-        fontWeight: header ? FontWeight.w600 : FontWeight.w600,
+        fontWeight: FontWeight.w600,
         color: header ? context.yucai.muted : (color ?? context.yucai.fg),
         fontFeatures: AppTypography.tabularFigures,
       ),

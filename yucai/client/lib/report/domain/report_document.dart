@@ -98,22 +98,30 @@ class CategoryAmount {
     required this.category,
     required this.amountCents,
     required this.pct,
+    this.name,
   });
 
   /// 构造时算 pct = amount/total(1 位小数);总额 0 → 0(空构成不除零)。
   factory CategoryAmount.create({
     required String category,
+    String? name,
     required int amountCents,
     required int totalCents,
   }) =>
       CategoryAmount(
         category: category,
+        name: name,
         amountCents: amountCents,
         pct: totalCents == 0 ? 0.0 : _round1(amountCents * 100 / totalCents),
       );
 
   /// 分类代码(资产负债=category 账类代码;收支=expense/income 科目账户 id)。
   final String category;
+
+  /// 展示名(T5-R1 分类名称契约:收支维度 = 科目**账户名**,汇编层按
+  /// id→name 映射填入;资产负债维度 = null,渲染层兜底转译 [category]
+  /// 账类代码。null/空串均视为未提供)。
+  final String? name;
 
   /// 金额(int cents)。
   final int amountCents;
@@ -142,12 +150,15 @@ class OverviewSection {
     required this.expenseCents,
     required this.surplusCents,
     required this.savingsRate,
+    required this.netWorthChangePct,
     required this.cashDeltaCents,
     required this.notes,
   });
 
   /// 构造时算结余 = income − expense、储蓄率 = 结余/收入 %(1 位小数;
-  /// 收入 ≤ 0 → 0,不除零)。
+  /// 收入 ≤ 0 → 0,不除零)、净资产变动 % = (期末−期初)/期初(1 位小数;
+  /// 期初 ≤ 0 → null,除法无意义)——派生字段构造期收口,渲染层零计算
+  /// (T5-R1)。
   factory OverviewSection.create({
     required int netWorthStartCents,
     required int netWorthEndCents,
@@ -165,6 +176,11 @@ class OverviewSection {
       surplusCents: surplus,
       savingsRate:
           incomeCents <= 0 ? 0.0 : _round1(surplus * 100 / incomeCents),
+      netWorthChangePct: netWorthStartCents > 0
+          ? _round1(
+              (netWorthEndCents - netWorthStartCents) * 100 /
+                  netWorthStartCents)
+          : null,
       cashDeltaCents: cashDeltaCents,
       notes: notes,
     );
@@ -188,6 +204,10 @@ class OverviewSection {
   /// 储蓄率 %(结余/收入,1 位小数;构造时算)。
   final double savingsRate;
 
+  /// 净资产变动 % = (期末−期初)/期初(1 位小数;期初 ≤ 0 → null;
+  /// 构造时算,T5-R1 渲染层零计算收口)。
+  final double? netWorthChangePct;
+
   /// 现金及等价物净变动(= 现金流 netDelta,勾稽同源;多币种下为账本
   /// **原币直加**口径,不折 CNY——口径分工见现金流章节与附注)。
   final int cashDeltaCents;
@@ -196,13 +216,39 @@ class OverviewSection {
   final List<ReportNote> notes;
 }
 
-/// 资产负债章节(FR-3 #2):期末构成 + 期初/期末变动行。
+/// 资产负债章节(FR-3 #2):期末构成 + 期初/期末变动行 + 构造期算好的
+/// 合计与资产负债率(渲染层零计算,T5-R1)。
 class BalanceSheetSection {
   const BalanceSheetSection({
     required this.assets,
     required this.liabilities,
     required this.changes,
+    required this.assetsTotalCents,
+    required this.liabilitiesTotalCents,
+    required this.debtRatioPct,
   });
+
+  /// 按三列表构造,合计(Σ各行金额)与资产负债率 = 期末负债/期末资产 %
+  /// (1 位小数;资产合计 ≤ 0 → null)构造时算好。
+  factory BalanceSheetSection.create({
+    required List<CategoryAmount> assets,
+    required List<CategoryAmount> liabilities,
+    required List<BalanceChange> changes,
+  }) {
+    final assetsTotal = assets.fold<int>(0, (s, r) => s + r.amountCents);
+    final liabilitiesTotal =
+        liabilities.fold<int>(0, (s, r) => s + r.amountCents);
+    return BalanceSheetSection(
+      assets: assets,
+      liabilities: liabilities,
+      changes: changes,
+      assetsTotalCents: assetsTotal,
+      liabilitiesTotalCents: liabilitiesTotal,
+      debtRatioPct: assetsTotal > 0
+          ? _round1(liabilitiesTotal * 100 / assetsTotal)
+          : null,
+    );
+  }
 
   /// 期末资产构成(按 category 账类代码)。
   final List<CategoryAmount> assets;
@@ -212,6 +258,16 @@ class BalanceSheetSection {
 
   /// 期末−期初变动行(startVsEnd)。
   final List<BalanceChange> changes;
+
+  /// 期末资产合计(int cents,构造时算)。
+  final int assetsTotalCents;
+
+  /// 期末负债合计(int cents,构造时算)。
+  final int liabilitiesTotalCents;
+
+  /// 资产负债率 %(期末负债/期末资产,1 位小数;资产合计 ≤ 0 → null;
+  /// 构造时算)。
+  final double? debtRatioPct;
 }
 
 /// 单分类期初/期末变动行(资产负债章节用)。

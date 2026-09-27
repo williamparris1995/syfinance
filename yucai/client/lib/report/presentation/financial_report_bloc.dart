@@ -14,14 +14,19 @@ import 'package:yucai_client/report/domain/report_document.dart';
 
 // —— Event ——
 
-abstract class FinancialReportEvent {
+abstract class FinancialReportEvent extends Equatable {
   const FinancialReportEvent();
+  @override
+  List<Object?> get props => [];
 }
 
 /// 请求生成 [period] 报告期报告。
 class GenerateRequested extends FinancialReportEvent {
   const GenerateRequested(this.period);
   final ReportPeriod period;
+
+  @override
+  List<Object?> get props => [period];
 }
 
 /// 错误态重试:重新生成同报告期(FR-8 scenario 3)。
