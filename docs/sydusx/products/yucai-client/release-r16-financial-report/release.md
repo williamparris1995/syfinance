@@ -16,7 +16,7 @@
 
 ## Sprint roster
 
-- [ ] [sprint-1](sprint-1/sprint.md) — F43 报告汇编层+财务报告页 / F44 规则诊断引擎(MD&A)
+- [x] [sprint-1](sprint-1/sprint.md) — F43 报告汇编层+财务报告页 / F44 规则诊断引擎(MD- [ ] [sprint-1](sprint-1/sprint.md) — F43 报告汇编层+财务报告页 / F44 规则诊断引擎(MD&A)A) ✅(2026-09-28 双票收官)
 - [ ] sprint-2 — F45 报告导出(PDF/Markdown,格式 F45 spec 定;待立项)
 
 ## Done criteria
