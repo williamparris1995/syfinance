@@ -91,7 +91,7 @@ class ReportExportService {
         bytes = Uint8List.fromList(utf8.encode(renderMarkdown(layout)));
     }
     final path = await savePicker(
-      dialogTitle: '导出报告',
+      dialogTitle: '导出财务报告',
       fileName: fileName,
       bytes: bytes,
     );

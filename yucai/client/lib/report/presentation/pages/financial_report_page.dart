@@ -3,7 +3,9 @@
 /// UI 事实源 = 原型 v7 financial-report.html(变体 B = 实现终态)+ F44
 /// v8 增量(总览诊断摘要卡 + 第七章节「诊断与建议」):顶栏面包屑
 /// 「报表分析 › 财务报告」;页头 = 标题/副题 + 月/年 segmented +
-/// 上一期/下一期 + 期标签([ReportPeriod.label])+ 「生成报告」主按钮;
+/// 上一期/下一期 + 期标签([ReportPeriod.label])+ 「生成报告」主按钮 +
+/// F45 T2「导出」按钮(仅 Loaded;小菜单选 PDF/Markdown → 保存对话框 →
+/// 成功 toast「打开」,页面 handler 注入缝接线,见 [createReportExportService]);
 /// gen-zone = Initial 引导卡 / 四阶段进度(FR-8,>300ms 才展开阶段明细,
 /// 判定在页面侧,见 [_progressGate] 注释);报告体 = 单页滚动章节 +
 /// 右缘圆点锚点([SectionDotNav]:悬停标签/点击平滑滚动/滚动高亮当前章)。
@@ -21,7 +23,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
+import 'package:yucai_client/report/export/report_export_service.dart';
 import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
+import 'package:yucai_client/report/presentation/report_export_io.dart';
 import 'package:yucai_client/report/presentation/widgets/budget_bars.dart';
 import 'package:yucai_client/report/presentation/widgets/cashflow_table.dart';
 import 'package:yucai_client/report/presentation/widgets/category_bars.dart';
@@ -35,10 +39,18 @@ import 'package:yucai_client/report/presentation/widgets/section_anchor_bar.dart
 
 /// 财务报告页(/reports/full)。
 class FinancialReportPage extends StatefulWidget {
-  const FinancialReportPage({super.key, this.initialPeriod});
+  const FinancialReportPage({
+    super.key,
+    this.initialPeriod,
+    this.exportService,
+  });
 
   /// 初始报告期(测试注入固定期;缺省 = 当前自然月)。
   final ReportPeriod? initialPeriod;
+
+  /// F45 T2:导出服务注入缝(测试以 fake 四缝替换;缺省 = 生产平台
+  /// 接线,见 report_export_io.dart —— export 域保持纯 Dart)。
+  final ReportExportService? exportService;
 
   @override
   State<FinancialReportPage> createState() => _FinancialReportPageState();
@@ -62,6 +74,9 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
   Timer? _progressGate;
   bool _loadingSession = false;
   bool _progressDetailVisible = false;
+
+  // —— F45 T2:导出进行中(按钮禁用 + spinner;页面本地,不新 bloc)。——
+  bool _exporting = false;
 
   @override
   void initState() {
@@ -120,6 +135,57 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
 
   void _generate() =>
       context.read<FinancialReportBloc>().add(GenerateRequested(_period));
+
+  // —— F45 T2:导出入口(page handler,照 settings `_showExportArchive`
+  // 先例,不新 bloc;行为由导出测试逐条驱动)。——
+  ReportExportService? _prodExportService;
+
+  ReportExportService get _exporter => widget.exportService ??
+      (_prodExportService ??= createReportExportService());
+
+  Future<void> _export(ReportExportFormat format) async {
+    final st = context.read<FinancialReportBloc>().state;
+    if (_exporting || st is! FinancialReportLoaded) return; // 仅 Loaded。
+    setState(() => _exporting = true);
+    try {
+      final path = await _exporter.exportAndSave(st.document, format);
+      if (!mounted) return;
+      if (path == null) return; // 用户取消:零副作用零提示(FR-1)。
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          key: const ValueKey('reportExportedToast'),
+          content: const Text('报告已导出'),
+          action: SnackBarAction(
+            key: const ValueKey('reportExportOpenAction'),
+            label: '打开',
+            onPressed: () => _openExported(path),
+          ),
+        ),
+      );
+    } on Exception {
+      // 错误兜底(渲染/对话框/落盘异常):toast,不误报成功。
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('导出失败,请重试')));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  /// 打开已导出文件(launch 缝;失败 toast 兜底,照 debt_detail 先例)。
+  /// url_launcher 可能抛 PlatformException —— 抛错视同失败(feedback
+  /// _defaultLaunch S-4 同款),统一兜底 toast。
+  Future<void> _openExported(String path) async {
+    var ok = false;
+    try {
+      ok = await _exporter.openExported(path);
+    } on Exception {
+      ok = false;
+    }
+    if (!mounted || ok) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('打开失败')));
+  }
 
   // —— 状态副作用:进度门 + 生成完成后回顶(新报告从第一章读起)。——
   void _onState(FinancialReportState state) {
@@ -216,10 +282,13 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
                     yearly: _yearly,
                     period: _period,
                     generating: state is FinancialReportLoading,
+                    canExport: doc != null,
+                    exporting: _exporting,
                     onScopeChanged: (yearly) => setState(() => _yearly = yearly),
                     onPrev: _prevPeriod,
                     onNext: _nextPeriod,
                     onGenerate: _generate,
+                    onExportFormat: _export,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   _GenZone(
@@ -566,19 +635,29 @@ class _PageHead extends StatelessWidget {
     required this.yearly,
     required this.period,
     required this.generating,
+    required this.canExport,
+    required this.exporting,
     required this.onScopeChanged,
     required this.onPrev,
     required this.onNext,
     required this.onGenerate,
+    required this.onExportFormat,
   });
 
   final bool yearly;
   final ReportPeriod period;
   final bool generating;
+
+  /// F45 T2:Loaded 态才有可导出文档(否则导出按钮整钮缺席)。
+  final bool canExport;
+
+  /// F45 T2:导出进行中(按钮禁用 + spinner)。
+  final bool exporting;
   final ValueChanged<bool> onScopeChanged;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final VoidCallback onGenerate;
+  final ValueChanged<ReportExportFormat> onExportFormat;
 
   @override
   Widget build(BuildContext context) {
@@ -596,6 +675,11 @@ class _PageHead extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           _GenerateButton(onTap: onGenerate, loading: generating),
+          // F45 T2:导出按钮(仅 Loaded;小菜单选格式,桌面单后缀形态)。
+          if (canExport) ...[
+            const SizedBox(width: AppSpacing.sm),
+            _ExportButton(exporting: exporting, onFormat: onExportFormat),
+          ],
         ],
       );
       final title = Column(
@@ -785,8 +869,73 @@ class _GenerateButton extends StatelessWidget {
   }
 }
 
-// ───────────────────────── gen-zone:Initial 引导 / 进度 / 错误
+/// F45 T2「导出」按钮(次级形态:surface 底 + border;仅 Loaded 渲染)。
+/// 小菜单选格式(PDF/Markdown)→ 再弹保存对话框(桌面单后缀形态:
+/// 格式切换在菜单先行,对话框锁定单扩展名);导出中禁用 + spinner。
+class _ExportButton extends StatelessWidget {
+  const _ExportButton({required this.exporting, required this.onFormat});
 
+  final bool exporting;
+  final ValueChanged<ReportExportFormat> onFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<ReportExportFormat>(
+      key: const ValueKey('reportExportButton'),
+      tooltip: '导出报告',
+      enabled: !exporting, // 导出中禁用:菜单不再弹。
+      onSelected: onFormat,
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          key: ValueKey('reportExportFormatPdf'),
+          value: ReportExportFormat.pdf,
+          child: Text('PDF'),
+        ),
+        PopupMenuItem(
+          key: ValueKey('reportExportFormatMarkdown'),
+          value: ReportExportFormat.markdown,
+          child: Text('Markdown'),
+        ),
+      ],
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 140),
+        opacity: exporting ? 0.55 : 1,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: context.yucai.surface,
+            borderRadius: AppRadius.smBorder,
+            border: Border.all(color: context.yucai.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 导出中:spinner 顶替下载图标(_GenerateButton loading 同构)。
+              if (exporting)
+                SizedBox(
+                  width: 15,
+                  height: 15,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: context.yucai.accent),
+                )
+              else
+                Icon(LucideIcons.download, size: 15, color: context.yucai.fg),
+              const SizedBox(width: 6),
+              Text('导出',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: context.yucai.fg,
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ───────────────────────── gen-zone:Initial 引导 / 进度 / 错误
 /// 生成区(原型 .gen-zone):固定最小高度防跳动;[detail] = >300ms 门后
 /// 的四阶段步进展开(FR-8);Loaded → 收起(SizedBox.shrink)交棒报告体。
 class _GenZone extends StatelessWidget {
