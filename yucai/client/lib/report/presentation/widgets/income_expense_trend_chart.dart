@@ -234,7 +234,7 @@ class IncomeExpenseTrendChart extends StatelessWidget {
             fontFeatures: AppTypography.tabularFigures));
   }
 
-  List<LineTooltipItem> _tooltipItems(
+  List<LineTooltipItem?> _tooltipItems(
       BuildContext context, List<LineBarSpot> touched, List<_DayPoint> points) {
     if (touched.isEmpty) return const [];
     final idx = touched.first.spotIndex;
@@ -245,33 +245,38 @@ class IncomeExpenseTrendChart extends StatelessWidget {
     } else {
       head = '';
     }
-    return [
-      LineTooltipItem(
-        '$head\n',
-        // tooltip 固定深色面上的固定浅灰字(见 _chart 豁免注释)。
-        const TextStyle(color: Color(0xFFB8B5AD), fontSize: 11),
-        children: [
-          for (final spot in touched) ...[
-            TextSpan(
-              text: spot.barIndex == 0 ? '收入 ' : '支出 ',
-              style: TextStyle(
-                color: spot.barIndex == 0
-                    ? context.yucai.positive
-                    : context.yucai.negative,
+    // fl_chart 1.x 契约:返回列表长度必须等于 touchedSpots 数(收入/支出共用 x 轴,
+    // 悬停常同时触两条线),否则 drawTouchTooltip 抛 size mismatch。组合内容放首项,
+    // 其余补 null(单气泡外观不变)——历史 bug:固定单元素导致悬停必抛。
+    final combined = LineTooltipItem(
+      '$head\n',
+      // tooltip 固定深色面上的固定浅灰字(见 _chart 豁免注释)。
+      const TextStyle(color: Color(0xFFB8B5AD), fontSize: 11),
+      children: [
+        for (final spot in touched) ...[
+          TextSpan(
+            text: spot.barIndex == 0 ? '收入 ' : '支出 ',
+            style: TextStyle(
+              color: spot.barIndex == 0
+                  ? context.yucai.positive
+                  : context.yucai.negative,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          TextSpan(
+            text: '¥${fmtYuan(spot.y)}\n',
+            style: const TextStyle(
+                color: Color(0xFFB8B5AD),
                 fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            TextSpan(
-              text: '¥${fmtYuan(spot.y)}\n',
-              style: const TextStyle(
-                  color: Color(0xFFB8B5AD),
-                  fontSize: 11,
-                  fontFeatures: AppTypography.tabularFigures),
-            ),
-          ],
+                fontFeatures: AppTypography.tabularFigures),
+          ),
         ],
-      ),
+      ],
+    );
+    return [
+      combined,
+      ...List<LineTooltipItem?>.filled(touched.length - 1, null),
     ];
   }
 
