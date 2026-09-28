@@ -26,12 +26,15 @@ import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
+import 'package:yucai_client/core/llm/llm_settings.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/report/data/llm/llm_http.dart';
+import 'package:yucai_client/report/data/llm/llm_mda_narrator.dart';
 import 'package:yucai_client/settings/data/data_reset_controller.dart';
 import 'package:yucai_client/settings/data/local_snapshot_service.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -55,6 +58,13 @@ Future<void> configureDependencies() async {
   //     register the production launcher manually before getIt.init() resolves
   //     OIDCAuthenticator. Tests bypass getIt and pass a fake directly.
   getIt.registerSingleton<UrlLauncherFn>(defaultUrlLauncher);
+
+  // 1j. F46 (2026-09-28): LlmHttpFn (LLM 出站 HTTP 缝,唯一 dart:io 平台
+  //     文件 llm_http.dart)——函数类型 typedef 照 1b UrlLauncherFn 先例,
+  //     getIt.init() 解析 LlmMdaNarrator(MdaNarrator 主绑定)前手工注册;
+  //     测试绕开 getIt 直接注入 fake。API Key 只经请求头从此处出站,
+  //     任何日志/错误零携带(FR-5)。
+  getIt.registerSingleton<LlmHttpFn>(llmHttpPost);
 
   final tokenStorage = TokenStorage(backend: getIt<FlutterSecureStorage>());
   getIt.registerSingleton<TokenStorage>(tokenStorage);
@@ -199,6 +209,12 @@ Future<void> configureDependencies() async {
   //     button decision tree (TrayController, bootstrapNotifications) and the
   //     settings page read persisted truth synchronously on the hot path.
   await getIt<TraySettings>().load();
+
+  // 2d. F46 (2026-09-28): sync the persisted BYOK LLM config (ThemeSettings
+  //     家法镜像) so the report page entry visibility (LlmSettings.ready) and
+  //     the settings card read persisted truth synchronously. Default
+  //     off = zero behavior change (Migration Plan).
+  await getIt<LlmSettings>().load();
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
   final refreshTokenUseCase = getIt<RefreshTokenUseCase>();

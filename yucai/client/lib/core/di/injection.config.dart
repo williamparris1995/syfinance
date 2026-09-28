@@ -80,6 +80,7 @@ import '../../holding/data/networth_ds.dart' as _i600;
 import '../../holding/domain/repositories/holding_repository.dart' as _i255;
 import '../../holding/presentation/bloc/holding_bloc.dart' as _i255;
 import '../../holding/presentation/bloc/performance_bloc.dart' as _i493;
+import '../../report/data/llm/llm_mda_narrator.dart' as _i743;
 import '../../report/data/report_ledger_store_impl.dart' as _i58;
 import '../../report/domain/expense_basis.dart' as _i56;
 import '../../report/domain/mda/mda_engine.dart' as _i819;
@@ -104,6 +105,7 @@ import '../../transaction/data/transaction_repository_impl.dart' as _i733;
 import '../../transaction/domain/repositories/transaction_repository.dart'
     as _i822;
 import '../../transaction/presentation/bloc/category_bloc.dart' as _i159;
+import '../llm/llm_settings.dart' as _i555;
 import '../localdb/app_database.dart' as _i581;
 import '../network/auth_retry.dart' as _i763;
 import '../network/grpc_client.dart' as _i160;
@@ -136,7 +138,6 @@ extension GetItInjectableX on _i174.GetIt {
         uuid: gh<_i706.Uuid>(),
       ),
     );
-    gh.lazySingleton<_i442.MdaNarrator>(() => const _i442.NoopMdaNarrator());
     gh.lazySingleton<_i832.AuthRemoteDataSource>(
       () => _i832.AuthRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -206,6 +207,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i61.CurrencySettings>(
       () => _i61.CurrencySettings(gh<_i558.FlutterSecureStorage>()),
+    );
+    gh.lazySingleton<_i555.LlmSettings>(
+      () => _i555.LlmSettings(storage: gh<_i558.FlutterSecureStorage>()),
     );
     gh.lazySingleton<_i937.AuthRepository>(
       () => _i648.AuthRepositoryImpl(
@@ -401,6 +405,10 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i752.RefreshTokenUseCase>(
       () => _i752.RefreshTokenUseCase(gh<_i937.AuthRepository>()),
+    );
+    gh.lazySingleton<_i442.MdaNarrator>(
+      () =>
+          _i743.LlmMdaNarrator(gh<_i555.LlmSettings>(), gh<_i743.LlmHttpFn>()),
     );
     gh.factory<_i946.AuthBloc>(
       () => _i946.AuthBloc(

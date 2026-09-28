@@ -6,10 +6,11 @@ import 'mda_fixtures.dart';
 
 /// F44 T1:narrative port(FR-5/ADR-5)——AI 预留接口。
 ///
-/// NoopMdaNarrator 为默认绑定:返回空串(叙述章节归 F46,本期不渲染,
-/// 避免 UI 空占位)。
+/// F46 起 MdaNarrator 主绑定 = LlmMdaNarrator(BYOK,未启用返回空串);
+/// NoopMdaNarrator 类保留作测试替身/降级语义文档(直接实例化,不再进
+/// DI 图,ADR-3)。
 void main() {
-  test('NoopMdaNarrator 对任意输入返回空串(FR-5 默认绑定)', () async {
+  test('NoopMdaNarrator 对任意输入返回空串(降级语义文档/测试替身)', () async {
     const narrator = NoopMdaNarrator();
     final doc = mdaDoc(incomeCents: 1_000_000, expenseCents: 1_200_000);
     const findings = [
