@@ -13,10 +13,10 @@ keywords: [导出, 报告导出, PDF, Markdown, 存档, report-export]
 
 ## Stories(粗,analysis 细化)
 
-- [ ] S1: PDF 渲染器(pdf 直绘+Noto Sans SC 全量字体;七章节+摘要+附注;表格/条形同构)
-- [ ] S2: Markdown 渲染器(同源 VO→Markdown;F46 输入友好)
-- [ ] S3: 导出入口+保存对话框(格式切换/默认文件名)+导出后通知与打开(注入缝)
-- [ ] S4: 测试与门(golden/文本抽取断言+性能计时+全门)
+- [x] S1: PDF 渲染器(pdf 直绘+Noto Sans SC 全量字体;七章节+摘要+附注;表格/条形同构)
+- [x] S2: Markdown 渲染器(同源 VO→Markdown;F46 输入友好)
+- [x] S3: 导出入口+保存对话框(格式切换/默认文件名)+导出后通知与打开(注入缝)
+- [x] S4: 测试与门(golden/文本抽取断言+性能计时+全门)
 
 ## Keywords
 
