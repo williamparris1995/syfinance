@@ -19,6 +19,18 @@ import 'package:yucai_client/report/export/report_export_service.dart';
 /// Noto 字体资产路径(pdf 渲染中文字形源;pubspec assets 已注册)。
 const String kReportFontAssetPath = 'assets/fonts/NotoSansSC-Regular.ttf';
 
+/// 防御性自写照(settings _showExportArchive 同款守卫)+ 长度校验加固
+/// (2026-09-28 反馈③):Windows file_picker saveFile(bytes:) 自行落盘
+/// —— 若平台写半/写坏(存在但长度不符),以 app 侧完整字节覆写;
+/// 仅长度一致时跳过(幂等,勿无条件双写)。顶层函数供单测直击。
+Future<void> writeExportedBytesGuarded(String path, List<int> bytes) async {
+  if (kIsWeb) return;
+  final f = File(path);
+  if (!f.existsSync() || f.lengthSync() != bytes.length) {
+    await f.writeAsBytes(bytes, flush: true);
+  }
+}
+
 /// 生产导出服务:注入缝接平台实现。
 ReportExportService createReportExportService() => ReportExportService(
       // 桌面单后缀形态:格式切换由页面小菜单先行,保存对话框锁定单
@@ -37,14 +49,7 @@ ReportExportService createReportExportService() => ReportExportService(
           bytes: bytes,
         );
       },
-      // 防御性自写照(settings _showExportArchive 同款守卫):Windows
-      // file_picker saveFile(bytes:) 会自行落盘 —— 仅当目标文件尚不
-      // 存在时才补写(幂等守卫,勿无条件双写)。
-      writeBytes: (path, bytes) async {
-        if (!kIsWeb && !File(path).existsSync()) {
-          await File(path).writeAsBytes(bytes);
-        }
-      },
+      writeBytes: writeExportedBytesGuarded,
       // FR-4 exists 前置(照 debt_detail _openAttachment 先例):文件被
       // 移动/删除 → 直接失败(false)走页面兜底 toast,不触 url_launcher。
       launchUrl: (url) async {

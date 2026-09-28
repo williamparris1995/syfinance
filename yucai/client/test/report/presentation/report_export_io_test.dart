@@ -20,4 +20,39 @@ void main() {
     final ok = await service.launchUrl(missing);
     expect(ok, isFalse, reason: '文件不存在 → 前置失败(FR-4),页面兜底 toast');
   });
+
+/// 反馈③加固(2026-09-28):writeExportedBytesGuarded 三态——不存在→写;
+/// 存在但长度不符(平台写半)→覆写完整字节;存在且等长→零触碰(幂等)。
+group('writeExportedBytesGuarded 长度校验守卫', () {
+  test('文件不存在 → 写入完整字节', () async {
+    final dir = await Directory.systemTemp.createTemp('yucai_exp_io');
+    final p = '${dir.path}${Platform.pathSeparator}a.pdf';
+    await writeExportedBytesGuarded(p, [1, 2, 3, 4]);
+    expect(File(p).lengthSync(), 4);
+    await dir.delete(recursive: true);
+  });
+
+  test('存在但长度不符(平台写半) → 覆写完整字节', () async {
+    final dir = await Directory.systemTemp.createTemp('yucai_exp_io');
+    final p = '${dir.path}${Platform.pathSeparator}b.pdf';
+    await File(p).writeAsBytes([9, 9]); // 模拟平台只写了两个字节
+    await writeExportedBytesGuarded(p, [1, 2, 3, 4, 5, 6]);
+    expect(File(p).lengthSync(), 6);
+    expect(File(p).readAsBytesSync(), [1, 2, 3, 4, 5, 6]);
+    await dir.delete(recursive: true);
+  });
+
+  test('存在且等长 → 零触碰(修改时间不变语义以内容为准,断言内容原样)', () async {
+    final dir = await Directory.systemTemp.createTemp('yucai_exp_io');
+    final p = '${dir.path}${Platform.pathSeparator}c.pdf';
+    await File(p).writeAsBytes([1, 2, 3]);
+    final before = File(p).lastModifiedSync();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await writeExportedBytesGuarded(p, [1, 2, 3]);
+    // 等长跳过:文件未被重写(mtime 不前进)。
+    expect(!File(p).lastModifiedSync().isAfter(before), isTrue,
+        reason: '等长时应跳过写入(幂等)');
+    await dir.delete(recursive: true);
+  });
+});
 }
