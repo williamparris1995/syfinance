@@ -15,3 +15,13 @@ T1→T2→T3 串行;每 task 两轴评审+修复回路。
 ## 验收映射
 
 FR-1→T2;FR-2/FR-3→T1;FR-4→T2;FR-5→T1(布局树单源)+评审;NFR-1→T1;NFR-2/3→T3。
+
+## T1 评审 R1 backlog(2026-09-28,记录在案不修)
+
+| 项 | 说明 | 归属 |
+|---|---|---|
+| 展示侧聚合现算 ×5 | 收支/现金流合计 fold、净资产 delta 等展示镜像现算(与页面同构);根因 = ReportDocument VO 未收口合计/变动派生字段 | ReportDocument 契约 follow-up(动 F43 契约,单独票) |
+| fmtCents 第三份拷贝 | chart_helpers/mdaYuan/export fmtExportCents 三处同口径内联;抽 core 单点需跨层公共库决策 | core 工具收口票 |
+| 字体缓存 fontSource 不区分 | `_cachedFont` 进程级单例,多字体源场景会吃首载;当前仅 Noto 一源,无实际影响 | 需要第二字体时再改 |
+| 预算 90 阈值共享常量 | export `_budgetSection` 与 presentation BudgetBars 各自内联 90(临界 warn 线);抽共享常量需跨层位置 | mda/presentation 语义阈值统一票 |
+| dbus lock 顺带刷新 | pub get 顺带刷新(评审环境观察),与本票无关 | 无需动作 |

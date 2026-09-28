@@ -177,22 +177,26 @@ class ReportExportLayout {
     required String title,
     required List<CategoryAmount> rows,
     required int totalCents,
-  }) =>
-      ReportBarsBlock(
-        title: title,
-        totalCents: totalCents,
-        bars: [
-          for (final r in rows)
-            ReportExportBar(
-              label: (r.name == null || r.name!.isEmpty)
-                  ? _categoryLabel(r.category)
-                  : r.name!,
-              amountCents: r.amountCents,
-              sharePct: r.pct,
-              maxCents: rows.isEmpty ? null : rows.first.amountCents,
-            ),
-        ],
-      );
+  }) {
+    // 满条基准提升到循环外求一次:空表 bars 为空、基准不求值(行内三元
+    // 是死分支 —— 评审 R1 清理)。
+    final maxCents = rows.isEmpty ? null : rows.first.amountCents;
+    return ReportBarsBlock(
+      title: title,
+      totalCents: totalCents,
+      bars: [
+        for (final r in rows)
+          ReportExportBar(
+            label: (r.name == null || r.name!.isEmpty)
+                ? _categoryLabel(r.category)
+                : r.name!,
+            amountCents: r.amountCents,
+            sharePct: r.pct,
+            maxCents: maxCents,
+          ),
+      ],
+    );
+  }
 
   /// 收支:支出分类/收入构成(bars)→ 摘要(日均结余 + 环比/首期)。
   static List<ReportExportBlock> _incomeSection(ReportDocument doc) {
@@ -605,12 +609,19 @@ String fmtExportPctSigned(double pct) =>
 
 /// 报告期 → 文件名安全段(FR-1 默认文件名「御财财务报告-{段}.pdf」)。
 ///
-/// 安全化 = 去路径非法字符(Windows `\ / : * ? " < > |` 与控制符)与
-/// 空白;月报月份补零对齐 spec 示例「2026年08月」(period.label 为
-/// 「2026 年 8 月」带空格不补零形态)。
+/// 安全化见 [sanitizeFileStem];月报月份补零对齐 spec 示例「2026年08月」
+/// (period.label 为「2026 年 8 月」带空格不补零形态)。
 String safeFileStem(ReportPeriod period) {
   final raw = period is ReportMonthly
       ? '${period.year}年${period.month.toString().padLeft(2, '0')}月'
       : period.label; // 「2025 年度」
-  return raw.replaceAll(RegExp(r'[\\/:*?"<>|\p{Cc}\s]'), '');
+  return sanitizeFileStem(raw);
 }
+
+/// 文件名安全化核心:去路径非法字符(Windows `\ / : * ? " < > |`)、
+/// 控制符(Cc)与空白;其余字符(含字面 'p'/'C' 等)原样保留。
+///
+/// 正则须 `unicode: true`:`\p{Cc}` 属性转义仅在 unicode 模式生效,
+/// 默认模式下会被当作字面 p/C/c/{/} 字符类(评审 R1 实证)。
+String sanitizeFileStem(String raw) =>
+    raw.replaceAll(RegExp(r'[\\/:*?"<>|\p{Cc}\s]', unicode: true), '');

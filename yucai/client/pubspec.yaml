@@ -62,8 +62,10 @@ dependencies:
   # 9.x 上限:file_picker 11 锁 win32 ^5.x,10.x 需 win32 ^6 冲突。
   package_info_plus: ^9.0.1
   # F45 报告导出(ADR-1):PDF 直绘渲染器(pdf-agnostic 布局树→pw.Widget)。
-  # 纯 Dart 零原生零传递平台插件(依赖仅 archive/barcode/vector_math 数学
-  # 库),桌面/测试环境无 channel;3.x 当前稳定线,3.13.1 实测解析。
+  # 纯 Dart 零原生零传递平台插件(传递依赖 archive/barcode/bidi/crypto/
+  # image/meta/path_parsing/vector_math/xml≥7.0.1 全为纯 Dart 数学/解析
+  # 库,pub cache 实证),桌面/测试环境无 channel;3.x 当前稳定线,3.13.1
+  # 实测解析。
   pdf: ^3.13.1
 dev_dependencies:
   flutter_test:
@@ -100,6 +102,7 @@ flutter:
     # F45 报告导出(ADR-1):PDF 内嵌中文字形全量 Noto Sans SC Regular
     # static 实例 ttf(非 variable;pdf 包 ttf 解析对 fvar 支持不稳)。
     # 来源 Google Fonts 静态版(~10MB,一次性;粗细层次用字号+颜色区分)。
+    # 许可:OFL-1.1,全文见 assets/fonts/OFL.txt(再分发合规随包携带)。
     - assets/fonts/NotoSansSC-Regular.ttf
   # assets:
   #   - images/a_dot_burr.jpeg

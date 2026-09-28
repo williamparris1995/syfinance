@@ -19,7 +19,7 @@ prototype: none(本票唯一 UI=报告页 page-head「导出」按钮+toast,复�
 - **ADR-2 一份布局树,两个后端**:`ReportExportLayout`(pdf-agnostic 纯 Dart 布局树:Section{title,blocks},Block=text|kv|table|bars|note)由 ReportDocument 构建一次;PDF 渲染器(布局树→pdf bytes)与 Markdown 渲染器(布局树→string)共吃——**同源保证的结构化落地**(FR-5:布局树构建是唯一允许"遍历 VO"的地方,两后端零数字计算)。
 - **ADR-3 导出器域位置=`lib/report/export/`**:布局树+两渲染器+编排 service 纯 Dart(渲染器仅 import pdf 包+report domain);presentation 只加按钮与 handler。**无新 bloc**(导出是瞬时动作非状态机):page handler+按钮禁用 spinner,照 settings `_showExportArchive` 先例。
 - **ADR-4 文件 IO 与打开走注入缝**:`ReportExportService.saveBytes/writeString` 与 `launchUrlFn`(照 feedback_launcher LaunchUrlFn)可测;FilePicker.saveFile 在 service 外包一层 FileSavePickerFn 缝(测试零 FilePicker 依赖)。
-- **ADR-5 测试策略=布局树内容断言+bytes 层 smoke**:布局树单测覆盖全部章节/数字(手算 oracle);PDF bytes 层断言非空+页数+字体嵌入(smoke,不做 byte-golden——pdf 元数据含时间戳不稳定);Markdown 直接字符串断言(可 golden);NFR-2 计时。
+- **ADR-5 测试策略=布局树内容断言+bytes 层内容锚点断言(ToUnicode)+smoke**:布局树单测覆盖全部章节/数字(手算 oracle);PDF bytes 层断言非空+页数+字体嵌入+内容锚点断言(ToUnicode 反查重建绘制文本:净资产数字/勾稽脚注/诊断计数)(smoke,不做 byte-golden——pdf 元数据含时间戳不稳定);Markdown 直接字符串断言(可 golden);NFR-2 计时。
 
 ## HLD
 

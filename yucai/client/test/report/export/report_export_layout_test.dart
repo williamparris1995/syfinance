@@ -282,6 +282,15 @@ void main() {
       expect(safeFileStem(ReportPeriod.monthly(2026, 11)), '2026年11月');
       expect(safeFileStem(ReportPeriod.yearly(2025)), '2025年度');
     });
+
+    test('sanitizeFileStem_控制符被剥_字面字母保留', () {
+      // 评审 R1:非 unicode 模式下 \p{Cc} 不是属性转义(剥的是字面
+      // p/C/c/{/})——控制符必须被剥、字母必须保留,方向钉死。
+      expect(sanitizeFileStem('御财\u0001报告pC'), '御财报告pC');
+      expect(sanitizeFileStem('a\u0000\u001f/b\\c:d*e?f"g<h>i|j'), 'abcdefghij');
+      // {/} 是合法文件名字符,保留(旧缺陷把 \p{Cc} 误当字面类时曾错剥)。
+      expect(sanitizeFileStem('x {Cc} y'), 'x{Cc}y', reason: '空白剥除,{/}/C/c 保留');
+    });
   });
 
   group('资产负债章节(构成 bars + 变动表)', () {
