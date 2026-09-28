@@ -85,34 +85,13 @@ class _DotState extends State<_Dot> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            // 标签 chip 以 Positioned 悬浮在圆点左侧,不占布局空间
+            // (历史 bug:AnimatedOpacity 隐藏的标签仍占宽,各标签长短
+            // 不一把圆点列挤得左右参差);Stack 尺寸=圆点,标签越界
+            // 可见(clipBehavior: Clip.none)。
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                // 悬停/激活标签 chip(左侧弹出;IgnorePointer 防抢点击)。
-                IgnorePointer(
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    opacity: showLabel ? 1 : 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: context.yucai.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: context.yucai.border),
-                      ),
-                      child: Text(
-                        widget.label,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: context.yucai.fg,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   width: 10,
@@ -133,6 +112,36 @@ class _DotState extends State<_Dot> {
                             ),
                           ]
                         : null,
+                  ),
+                ),
+                Positioned(
+                  right: 18,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        opacity: showLabel ? 1 : 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: context.yucai.surface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: context.yucai.border),
+                          ),
+                          child: Text(
+                            widget.label,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: context.yucai.fg,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],

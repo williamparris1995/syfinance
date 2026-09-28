@@ -467,20 +467,22 @@ void main() {
         reason: '未启用 → 配置行被罩住(v9 pointer-events:none)');
 
     // —— 报告页:「AI 解读」入口未启用缺席。入口门 = ready && Loaded,
-    // 未启用(ready=false)门主导 → Initial 与 Loaded 两态都缺席
-    //(与 Loaded 无关:Loaded 也补不出未启用的入口)。
+    // 未启用(ready=false):Initial 态(非 Loaded)缺席;Loaded 态恒显灰态
+    // 引导按钮(热修 2026-09-28 反馈④:可发现性优先,点击无副作用)。
     await goPage(t, '报表分析');
     await t.pumpAndSettle(const Duration(seconds: 2));
     await t.tap(find.byKey(const ValueKey('financialReportEntryButton')));
     await t.pumpAndSettle(const Duration(seconds: 2));
     expect(find.byKey(const ValueKey('analystNarrateButton')), findsNothing,
-        reason: '未启用 → Initial 态无「AI 解读」按钮');
-    expect(find.text('AI 解读'), findsNothing, reason: '按钮文案同缺(Initial)');
+        reason: '未启用 → Initial 态(非 Loaded)无「AI 解读」按钮');
     await t.tap(find.text('生成报告').first);
     await t.pumpAndSettle(const Duration(seconds: 2));
-    expect(find.byKey(const ValueKey('analystNarrateButton')), findsNothing,
-        reason: '未启用 → Loaded 态仍无「AI 解读」按钮(与 Loaded 无关)');
-    expect(find.text('AI 解读'), findsNothing, reason: '按钮文案同缺(Loaded)');
+    expect(find.byKey(const ValueKey('analystNarrateButton')), findsOneWidget,
+        reason: '未启用 → Loaded 态灰态按钮可见(可发现性热修)');
+    await t.tap(find.byKey(const ValueKey('analystNarrateButton')));
+    await t.pump();
+    expect(find.text('解读生成中…'), findsNothing,
+        reason: '灰态点击零 LLM 调用');
     expect(find.text('分析师解读'), findsNothing,
         reason: '解读小节 idle 自隐(从未触发 narrate,零 LLM 调用)');
   });

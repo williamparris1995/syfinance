@@ -211,11 +211,18 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  group('按钮可见性(仅 LlmConfig.ready 且 Loaded)', () {
-    testWidgets('未配置(not ready):Loaded 后仍无「AI 解读」按钮', (t) async {
-      await pumpLoaded(t, llm: _StubLlmSettings(const LlmConfig()));
-      expect(find.byKey(const ValueKey('analystNarrateButton')), findsNothing);
-      expect(find.text('AI 解读'), findsNothing);
+  group('按钮可见性(热修 2026-09-28 反馈④:Loaded 恒显,ready 才可用)', () {
+    testWidgets('未配置(not ready):Loaded 后按钮灰态可见+点击零调用', (t) async {
+      final narrator = _FakeNarrator();
+      await pumpLoaded(t,
+          llm: _StubLlmSettings(const LlmConfig()), narrator: narrator);
+      // 灰态可见(可发现性),onTap=null 点击无副作用。
+      expect(find.byKey(const ValueKey('analystNarrateButton')), findsOneWidget);
+      expect(find.text('AI 解读'), findsOneWidget);
+      await t.tap(find.byKey(const ValueKey('analystNarrateButton')));
+      await t.pump();
+      expect(narrator.calls, isEmpty);
+      expect(find.text('解读生成中…'), findsNothing);
     });
 
     testWidgets('ready 但未生成(非 Loaded):无按钮;生成后出现', (t) async {
@@ -238,13 +245,14 @@ void main() {
       expect(find.text('AI 解读'), findsOneWidget);
     });
 
-    testWidgets('ready→关掉配置:按钮实时消失(listenable 驱动)', (t) async {
+    testWidgets('ready→关掉配置:按钮实时转灰态(listenable 驱动,不再消失)', (t) async {
       final llm = _StubLlmSettings(_readyCfg);
       await pumpLoaded(t, llm: llm);
       expect(find.byKey(const ValueKey('analystNarrateButton')), findsOneWidget);
       llm.update(const LlmConfig()); // enabled=false → not ready
       await t.pump();
-      expect(find.byKey(const ValueKey('analystNarrateButton')), findsNothing);
+      // 热修后:恒显,仅灰化(引导文案经 Tooltip,不占视觉主体)。
+      expect(find.byKey(const ValueKey('analystNarrateButton')), findsOneWidget);
     });
 
     testWidgets('守卫对称(评审 R2):narrator 未注入未注册 → 点击零异常零小节',

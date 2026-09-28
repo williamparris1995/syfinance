@@ -791,17 +791,20 @@ class _PageHead extends StatelessWidget {
             onPrev: onPrev,
             onNext: onNext,
           ),
-          // F46 T2:「AI 解读」次按钮(原型 v9 页头:期控件与生成按钮之间;
-          // 仅 LlmConfig.ready 且 Loaded 可见,listenable 驱动实时刷新)。
-          if (llmListenable != null && onNarrate != null)
+          // F46 T2:「AI 解读」次按钮(原型 v9 页头:期控件与生成按钮之间)。
+          // 热修(2026-09-28 用户反馈④):未配置 ready 时不再整钮消失——
+          // Loaded 态恒显灰态按钮+悬停引导「在设置中启用 AI 分析师」,
+          // 可发现性优先(点击无副作用;配置入口在设置页)。
+          if (llmListenable != null && onNarrate != null && canExport)
             ValueListenableBuilder<LlmConfig>(
               valueListenable: llmListenable!,
-              builder: (_, cfg, __) => cfg.ready && canExport
-                  ? Padding(
-                      padding: const EdgeInsets.only(left: AppSpacing.sm),
-                      child: _AnalystButton(onTap: onNarrate!),
-                    )
-                  : const SizedBox.shrink(),
+              builder: (_, cfg, __) => Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.sm),
+                child: _AnalystButton(
+                  onTap: cfg.ready ? onNarrate : null,
+                  hint: cfg.ready ? null : '在设置中启用 AI 分析师',
+                ),
+              ),
             ),
           const SizedBox(width: AppSpacing.sm),
           _GenerateButton(onTap: onGenerate, loading: generating),
@@ -1002,36 +1005,51 @@ class _GenerateButton extends StatelessWidget {
 /// F46 T2「AI 解读」次按钮(原型 v9 .btn-ghost + zap 图标;surface 底 +
 /// border 形态照 _ExportButton)。仅 ready 且 Loaded 时由 _PageHead 渲染。
 class _AnalystButton extends StatelessWidget {
-  const _AnalystButton({required this.onTap});
+  const _AnalystButton({required this.onTap, this.hint});
 
-  final VoidCallback onTap;
+  /// null = 未配置灰态(点击无副作用,悬停出 [hint] 引导)。
+  final VoidCallback? onTap;
+
+  /// 未配置时的悬停引导文案(如「在设置中启用 AI 分析师」)。
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      key: const ValueKey('analystNarrateButton'),
-      onTap: onTap,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          decoration: BoxDecoration(
-            color: context.yucai.surface,
-            borderRadius: AppRadius.smBorder,
-            border: Border.all(color: context.yucai.border),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(LucideIcons.zap, size: 15, color: context.yucai.accent),
-              const SizedBox(width: 6),
-              Text('AI 解读',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: context.yucai.fg,
-                  )),
-            ],
+    final enabled = onTap != null;
+    final fg = enabled ? context.yucai.fg : context.yucai.muted;
+    return Tooltip(
+      message: hint ?? '',
+      waitDuration: const Duration(milliseconds: 300),
+      child: GestureDetector(
+        key: const ValueKey('analystNarrateButton'),
+        onTap: onTap,
+        child: MouseRegion(
+          cursor:
+              enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            decoration: BoxDecoration(
+              color: context.yucai.surface,
+              borderRadius: AppRadius.smBorder,
+              border: Border.all(color: context.yucai.border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(LucideIcons.zap,
+                    size: 15,
+                    color: enabled
+                        ? context.yucai.accent
+                        : context.yucai.muted),
+                const SizedBox(width: 6),
+                Text('AI 解读',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: fg,
+                    )),
+              ],
+            ),
           ),
         ),
       ),
