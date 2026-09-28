@@ -1,6 +1,6 @@
 # Design: F46 LLM 分析师
 
-prototype: v9(OD 增量 run 待跑:report.html 解读小节+settings.html AI 卡+免责对话框;用户确认后 CURRENT→v9)
+prototype: v9(OD run `c1b24569` 两页增量;用户 2026-09-28 确认;CURRENT→v9)
 
 ## Context
 
