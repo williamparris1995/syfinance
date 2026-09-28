@@ -1,10 +1,13 @@
-/// F43 财务报告全链 E2E(T6,管道链路,真实本地数据源 + 真实 UI 走查)。
+/// F43 财务报告全链 E2E(T6,管道链路,真实本地数据源 + 真实 UI 走查)
+/// + F45 T3 导出入口可达断言。
 ///
 /// 链路:种子(账户+分录+预算+持仓+闲置模板最小集)→ 侧栏「报表分析」
 /// → 顶栏「财务报告」入口(/reports)→ /reports/full 选期(上一期步进
 /// 到种子月)→「生成报告」→ 断言七章节关键数值与诊断发现(手算 oracle)
 /// + 自适应缺席(种子缺预算的月:预算/投资章缺席 + 未包含项附注)
-/// → 测后清库。
+/// + F45 导出入口(Loaded 态「导出」按钮 + 格式菜单 PDF/Markdown 两项;
+/// 真实 saveFile 原生对话框不可 e2e 自动化,断言到菜单层 —— 见报链③
+/// 注释边界)→ 测后清库。
 ///
 /// 夹具月固定 2026-06(过去月):demo 种子的交易/借入/持仓买入全部写在
 /// 真实运行当月(≥ 2026-09 > 六月),六月窗口与六月末回放天然不含 demo
@@ -369,5 +372,37 @@ void main() {
         reason: '健康卡通过项(runway 无基数 trailing3m=0 → 第三段省略)');
     expect(find.text('查看全部 ↓'), findsNothing,
         reason: '零发现态无 top-3 摘要卡(整卡降级为徽章)');
+  });
+
+  testWidgets('报链③导出入口:Loaded 态「导出」按钮 + 格式菜单 PDF/Markdown 两项',
+      (t) async {
+    await openReport(t, year: 2026, month: 6);
+
+    // —— F45 T2 入口(FR-1):Loaded 态页头「导出」按钮在列 ——
+    // key 与 tooltip 双锚(tooltip 与保存对话框标题同词,文案统一)。
+    expect(find.byKey(const ValueKey('reportExportButton')), findsOneWidget,
+        reason: 'Loaded 态导出按钮在列(Initial 态缺席由 widget 测试钉)');
+    expect(find.byTooltip('导出财务报告'), findsOneWidget);
+
+    // —— 格式菜单可弹:PDF/Markdown 两项(桌面单后缀形态的格式切换层)——
+    await t.tap(find.byKey(const ValueKey('reportExportButton')));
+    await t.pumpAndSettle(const Duration(milliseconds: 600));
+    expect(find.byKey(const ValueKey('reportExportFormatPdf')), findsOneWidget,
+        reason: '格式菜单 PDF 项');
+    expect(find.byKey(const ValueKey('reportExportFormatMarkdown')),
+        findsOneWidget,
+        reason: '格式菜单 Markdown 项');
+
+    // —— 边界(钉死):选中格式后会唤起 FilePicker.saveFile 原生保存
+    // 对话框 —— 系统级 UI 无 e2e 句柄,不可自动化;本链断言到格式菜单
+    // 层为止。选中后的完整导出流(默认文件名「御财财务报告-2026年06月」/
+    // 落盘 bytes/toast/打开)由 widget 测试以注入缝全覆盖
+    // (financial_report_page_export_test,e2e 不重复)。
+    // 此处点空白处收起菜单(full_audit 范式),零副作用退出 —— 不触
+    // 真实对话框、零文件写入。
+    await t.tapAt(const Offset(5, 400));
+    await t.pumpAndSettle(const Duration(milliseconds: 400));
+    expect(find.byKey(const ValueKey('reportExportFormatPdf')), findsNothing,
+        reason: '菜单已收起(未选中任何格式,导出链未触发)');
   });
 }
