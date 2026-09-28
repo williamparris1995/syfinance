@@ -16,16 +16,21 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/llm/llm_settings.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/report/domain/mda/mda_narrator.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/export/report_export_service.dart';
 import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
 import 'package:yucai_client/report/presentation/report_export_io.dart';
+import 'package:yucai_client/report/presentation/widgets/analyst_note.dart';
 import 'package:yucai_client/report/presentation/widgets/budget_bars.dart';
 import 'package:yucai_client/report/presentation/widgets/cashflow_table.dart';
 import 'package:yucai_client/report/presentation/widgets/category_bars.dart';
@@ -43,6 +48,8 @@ class FinancialReportPage extends StatefulWidget {
     super.key,
     this.initialPeriod,
     this.exportService,
+    this.narrator,
+    this.llmSettings,
   });
 
   /// 初始报告期(测试注入固定期;缺省 = 当前自然月)。
@@ -51,6 +58,14 @@ class FinancialReportPage extends StatefulWidget {
   /// F45 T2:导出服务注入缝(测试以 fake 四缝替换;缺省 = 生产平台
   /// 接线,见 report_export_io.dart —— export 域保持纯 Dart)。
   final ReportExportService? exportService;
+
+  /// F46 T2:MdaNarrator 注入缝(domain port;缺省 = getIt 主绑定
+  /// LlmMdaNarrator,测试以 fake 替换 —— narrate 零真实网络)。
+  final MdaNarrator? narrator;
+
+  /// F46 T2:LlmSettings 注入缝(「AI 解读」入口 ready 门 + chip 模型名;
+  /// 缺省 = getIt 注册件,isRegistered 守卫让无 DI 图的挂页测试不炸)。
+  final LlmSettings? llmSettings;
 
   @override
   State<FinancialReportPage> createState() => _FinancialReportPageState();
@@ -77,6 +92,57 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
 
   // —— F45 T2:导出进行中(按钮禁用 + spinner;页面本地,不新 bloc)。——
   bool _exporting = false;
+
+  // —— F46 T2:分析师解读旁挂(ADR-5:照 F45 导出 page-handler 哲学,
+  // 不新 bloc)。_narrationSession 会话令牌:期变更/重新生成 → idle 清空
+  // 时递增,在途 narrate 迟到完成按令牌丢弃(零陈旧回填)。——
+  AnalystNoteState _analyst = const AnalystNoteState.idle();
+  int _narrationSession = 0;
+  LlmSettings? _prodLlmSettings;
+  MdaNarrator? _prodNarrator;
+
+  /// BYOK 配置(ready 门 + chip 模型名);测试注入优先,缺省 getIt
+  /// (isRegistered 守卫:无 DI 图的挂页测试 → null = 入口恒隐)。
+  LlmSettings? get _llmSettings => widget.llmSettings ??
+      (_prodLlmSettings ??= (getIt.isRegistered<LlmSettings>()
+          ? getIt<LlmSettings>()
+          : null));
+
+  /// 叙事者(domain port;生产 = LlmMdaNarrator 主绑定)。
+  MdaNarrator get _narratorRef =>
+      widget.narrator ?? (_prodNarrator ??= getIt<MdaNarrator>());
+
+  /// 解读小节回 idle(期变更/重新生成/健康态切换;ADR-1)。
+  void _resetAnalyst() {
+    _narrationSession++;
+    if (!_analyst.isIdle) {
+      setState(() => _analyst = const AnalystNoteState.idle());
+    }
+  }
+
+  /// 「AI 解读」点击:调 narrate(doc, findings) —— UI 不阻塞(旁挂
+  /// loading 态),[NarrationFailure] → error 态可重试;健康态零发现直接
+  /// 返回(原型 mood-healthy 隐藏解读小节)。
+  Future<void> _narrate() async {
+    final st = context.read<FinancialReportBloc>().state;
+    if (st is! FinancialReportLoaded) return;
+    final doc = st.document;
+    final mda = doc.mda;
+    if (mda == null || mda.findings.isEmpty) return;
+    final model = _llmSettings?.value.model ?? '';
+    final session = ++_narrationSession;
+    setState(() => _analyst = const AnalystNoteState.loading());
+    try {
+      final text = await _narratorRef.narrate(doc, mda.findings);
+      if (!mounted || session != _narrationSession) return; // 在途丢弃
+      setState(() => _analyst = text.isEmpty
+          ? const AnalystNoteState.idle() // 未配置降级空串 → 隐藏
+          : AnalystNoteState.done(text, model));
+    } on NarrationFailure catch (e) {
+      if (!mounted || session != _narrationSession) return;
+      setState(() => _analyst = AnalystNoteState.error(e.message));
+    }
+  }
 
   @override
   void initState() {
@@ -112,6 +178,9 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
       : ReportPeriod.monthly(_year, _month);
 
   void _prevPeriod() => setState(() {
+        // F46:期变更 → 解读小节清空(ADR-1,快照三态一致)。
+        _narrationSession++;
+        _analyst = const AnalystNoteState.idle();
         if (_yearly) {
           _year--;
         } else if (_month == 1) {
@@ -123,6 +192,9 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
       });
 
   void _nextPeriod() => setState(() {
+        // F46:期变更 → 解读小节清空(ADR-1)。
+        _narrationSession++;
+        _analyst = const AnalystNoteState.idle();
         if (_yearly) {
           _year++;
         } else if (_month == 12) {
@@ -200,6 +272,8 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
           setState(() => _progressDetailVisible = true);
         }
       });
+      // F46:新一次生成开始 → 解读小节清空(ADR-1 重新生成语义)。
+      _resetAnalyst();
     } else if (!loading && _loadingSession) {
       _loadingSession = false;
       _progressGate?.cancel();
@@ -284,11 +358,18 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
                     generating: state is FinancialReportLoading,
                     canExport: doc != null,
                     exporting: _exporting,
-                    onScopeChanged: (yearly) => setState(() => _yearly = yearly),
+                    llmListenable: _llmSettings?.listenable,
+                    onScopeChanged: (yearly) => setState(() {
+                      // F46:月/年口径切换 → 解读小节清空(ADR-1)。
+                      _narrationSession++;
+                      _analyst = const AnalystNoteState.idle();
+                      _yearly = yearly;
+                    }),
                     onPrev: _prevPeriod,
                     onNext: _nextPeriod,
                     onGenerate: _generate,
                     onExportFormat: _export,
+                    onNarrate: _narrate,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   _GenZone(
@@ -378,8 +459,22 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
       if (doc.investment != null)
         _ChapterSpec('投资绩效', _investmentChapter(doc)),
       // F44 第七章节(mda 恒非空语义;仅期外异常 null → 整章缺席)。
+      // F46 T2:章尾挂「分析师解读」小节(旁挂三态;零发现健康态按原型
+      // mood-healthy 缺席)。
       if (mda != null)
-        _ChapterSpec('诊断与建议', MdaChapter(section: mda, doc: doc)),
+        _ChapterSpec(
+          '诊断与建议',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MdaChapter(section: mda, doc: doc),
+              if (mda.findings.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                AnalystNote(state: _analyst, onRegenerate: _narrate),
+              ],
+            ],
+          ),
+        ),
     ];
   }
 
@@ -642,6 +737,8 @@ class _PageHead extends StatelessWidget {
     required this.onNext,
     required this.onGenerate,
     required this.onExportFormat,
+    this.llmListenable,
+    this.onNarrate,
   });
 
   final bool yearly;
@@ -653,11 +750,19 @@ class _PageHead extends StatelessWidget {
 
   /// F45 T2:导出进行中(按钮禁用 + spinner)。
   final bool exporting;
+
+  /// F46 T2:BYOK 配置 listenable(「AI 解读」入口 ready 门;null = 无
+  /// DI 图挂页测试 → 按钮恒隐)。
+  final ValueListenable<LlmConfig>? llmListenable;
+
   final ValueChanged<bool> onScopeChanged;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final VoidCallback onGenerate;
   final ValueChanged<ReportExportFormat> onExportFormat;
+
+  /// F46 T2:「AI 解读」点击 → 页面旁挂 narrate。
+  final VoidCallback? onNarrate;
 
   @override
   Widget build(BuildContext context) {
@@ -673,6 +778,18 @@ class _PageHead extends StatelessWidget {
             onPrev: onPrev,
             onNext: onNext,
           ),
+          // F46 T2:「AI 解读」次按钮(原型 v9 页头:期控件与生成按钮之间;
+          // 仅 LlmConfig.ready 且 Loaded 可见,listenable 驱动实时刷新)。
+          if (llmListenable != null && onNarrate != null)
+            ValueListenableBuilder<LlmConfig>(
+              valueListenable: llmListenable!,
+              builder: (_, cfg, __) => cfg.ready && canExport
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.sm),
+                      child: _AnalystButton(onTap: onNarrate!),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           const SizedBox(width: AppSpacing.sm),
           _GenerateButton(onTap: onGenerate, loading: generating),
           // F45 T2:导出按钮(仅 Loaded;小菜单选格式,桌面单后缀形态)。
@@ -862,6 +979,46 @@ class _GenerateButton extends StatelessWidget {
                     )),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// F46 T2「AI 解读」次按钮(原型 v9 .btn-ghost + zap 图标;surface 底 +
+/// border 形态照 _ExportButton)。仅 ready 且 Loaded 时由 _PageHead 渲染。
+class _AnalystButton extends StatelessWidget {
+  const _AnalystButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: const ValueKey('analystNarrateButton'),
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: context.yucai.surface,
+            borderRadius: AppRadius.smBorder,
+            border: Border.all(color: context.yucai.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.zap, size: 15, color: context.yucai.accent),
+              const SizedBox(width: 6),
+              Text('AI 解读',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: context.yucai.fg,
+                  )),
+            ],
           ),
         ),
       ),

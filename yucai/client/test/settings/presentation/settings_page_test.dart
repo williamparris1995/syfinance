@@ -24,6 +24,7 @@ import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/feedback/feedback_launcher.dart';
 import 'package:yucai_client/core/feedback/feedback_submit_service.dart';
+import 'package:yucai_client/core/llm/llm_settings.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
@@ -218,6 +219,7 @@ Widget _harness(
   AuthState? authState,
   TraySettings? traySettings,
   AppExitPort? appExitPort,
+  LlmSettings? llmSettings,
 }) {
   final bloc = _StubCurrencyBloc(state);
   final getIt = GetIt.instance;
@@ -251,7 +253,8 @@ Widget _harness(
         BlocProvider<CurrencyBloc>.value(value: bloc),
         BlocProvider<AuthBloc>.value(value: authBloc),
       ],
-      child: SettingsPage(authRemote: authRemote),
+      child: SettingsPage(
+          authRemote: authRemote, llmSettings: llmSettings),
     ),
   );
 }
@@ -816,8 +819,59 @@ group('F41 意见反馈行', () {
     // Mail channel done → dialog closed.
     expect(find.widgetWithText(AlertDialog, '意见反馈'), findsNothing);
   });
+
+  group('F46 AI 分析师卡(2026-09-28,prototype v9)', () {
+    testWidgets('挂载:卡标题+启用行+服务商 pills(经 llmSettings 注入缝)',
+        (t) async {
+      const state = CurrencyState(
+        currencies: _currencies,
+        preferred: 'CNY',
+        intervalHours: 8,
+        status: CurrencyStatus.loaded,
+      );
+      final llm = _FakeLlmSettingsForPage(const LlmConfig());
+      await t.pumpWidget(_harness(state, authRemote, currencySettings,
+          llmSettings: llm));
+      await t.pumpAndSettle();
+
+      expect(find.text('AI 分析师'), findsOneWidget);
+      expect(find.text('启用 AI 分析师'), findsOneWidget);
+      expect(find.text('服务商'), findsOneWidget);
+      expect(find.byKey(const ValueKey('llmEnableSwitch')), findsOneWidget);
+    });
+
+    testWidgets('未注入且未注册:卡整体缺席(isRegistered 守卫,无 DI 图不炸)',
+        (t) async {
+      const state = CurrencyState(
+        currencies: _currencies,
+        preferred: 'CNY',
+        intervalHours: 8,
+        status: CurrencyStatus.loaded,
+      );
+      await t.pumpWidget(_harness(state, authRemote, currencySettings));
+      await t.pumpAndSettle();
+      expect(find.text('AI 分析师'), findsNothing);
+      expect(getIt.isRegistered<LlmSettings>(), isFalse); // 前提:本文件未注册
+    });
+  });
 });
 } // main
+
+/// Fake LlmSettings(F46 设置页挂载测试):只读 listenable,零写入需求。
+class _FakeLlmSettingsForPage extends Fake implements LlmSettings {
+  _FakeLlmSettingsForPage(LlmConfig initial)
+      : _notifier = ValueNotifier<LlmConfig>(initial);
+  final ValueNotifier<LlmConfig> _notifier;
+
+  @override
+  LlmConfig get value => _notifier.value;
+
+  @override
+  ValueListenable<LlmConfig> get listenable => _notifier;
+
+  @override
+  Future<void> setConfig(LlmConfig config) async => _notifier.value = config;
+}
 
 /// Fills the feedback form (type 问题 + body) and taps 提交反馈.
 Future<void> _fillAndSubmitFeedbackForm(WidgetTester t) async {

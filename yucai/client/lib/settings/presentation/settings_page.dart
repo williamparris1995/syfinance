@@ -19,6 +19,7 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' hide Currency;
 import 'package:yucai_client/core/feedback/feedback_launcher.dart';
+import 'package:yucai_client/core/llm/llm_settings.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
 import 'package:yucai_client/core/session_mode/bound_marker.dart';
@@ -31,6 +32,7 @@ import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/settings/data/data_reset_controller.dart';
 import 'package:yucai_client/settings/data/local_snapshot_service.dart';
+import 'package:yucai_client/settings/widgets/llm_settings_card.dart';
 
 /// 设置页 —— 偏好货币 + 本位币 + 汇率同步频率。
 ///
@@ -55,6 +57,7 @@ class SettingsPage extends StatelessWidget {
     BoundMarker? boundMarker,
     DataResetController? resetController,
     LocalSnapshotService? snapshotService,
+    LlmSettings? llmSettings,
   })  : _authRemote = authRemote,
         _currencySettings = currencySettings,
         _themeSettings = themeSettings,
@@ -64,7 +67,9 @@ class SettingsPage extends StatelessWidget {
         _resetController = // ignore: prefer_initializing_formals
             resetController,
         _snapshotService = // ignore: prefer_initializing_formals
-            snapshotService;
+            snapshotService,
+        _llmSettings = // ignore: prefer_initializing_formals
+            llmSettings;
 
   final AuthRemoteDataSource? _authRemote;
   final CurrencySettings? _currencySettings;
@@ -73,6 +78,7 @@ class SettingsPage extends StatelessWidget {
   final BoundMarker? _boundMarker;
   final DataResetController? _resetController;
   final LocalSnapshotService? _snapshotService;
+  final LlmSettings? _llmSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +101,10 @@ class SettingsPage extends StatelessWidget {
         (getIt.isRegistered<LocalSnapshotService>()
             ? getIt<LocalSnapshotService>()
             : null);
+    // F46 AI 分析师卡:同款 isRegistered 守卫(测试挂页无 DI 图时整卡
+    // 隐藏,不炸 build);显式注入优先,供 widget 测试用 fake。
+    final llm = _llmSettings ??
+        (getIt.isRegistered<LlmSettings>() ? getIt<LlmSettings>() : null);
     return Scaffold(
       backgroundColor: context.yucai.bg,
       // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
@@ -402,6 +412,12 @@ class SettingsPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    // F46「AI 分析师」卡(prototype v9 设置页:提醒区之后、
+                    // 数据区之前;六行 + 首启用免责 + 未启用禁用态)。
+                    if (llm != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      LlmSettingsCard(settings: llm),
+                    ],
                     const SizedBox(height: AppSpacing.md),
                     _SettingsCard(
                       child: Column(
