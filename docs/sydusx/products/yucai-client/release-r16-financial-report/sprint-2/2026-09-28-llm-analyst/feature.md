@@ -13,11 +13,11 @@ keywords: [LLM, AI 分析师, BYOK, 脱敏, 叙述, 解读, 智谱, OpenAI 兼�
 
 ## Stories(粗,analysis 细化)
 
-- [ ] S1: 设置卡+配置存取(Key 走 secure storage)
-- [ ] S2: 脱敏包构造+prompt 管线
-- [ ] S3: LLM client(注入缝)+响应解析
-- [ ] S4: 报告页入口+确认流+解读章节呈现
-- [ ] S5: 测试与门
+- [x] S1: 设置卡+配置存取(Key 走 secure storage)
+- [x] S2: 脱敏包构造+prompt 管线
+- [x] S3: LLM client(注入缝)+响应解析
+- [x] S4: 报告页入口+确认流+解读章节呈现
+- [x] S5: 测试与门
 
 ## Keywords
 
