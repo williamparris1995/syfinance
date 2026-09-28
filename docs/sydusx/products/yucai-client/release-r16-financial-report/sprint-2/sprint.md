@@ -8,7 +8,7 @@
 
 ## Feature roster
 
-- [ ] **feature F45** report-export — 报告导出(格式与渲染管线 spec 定:PDF/Markdown/HTML;报告页导出入口+保存/打开) `claimed: zcode-r16-f45 2026-09-28`
+- [x] **feature F45** report-export — 报告导出(PDF[pdf 直绘+Noto 全量字体]+Markdown 双格式;格式菜单+保存对话框+打开反馈) ✅ done(2026-09-28,ff 合并:grill 一决策[PDF 直绘+Noto 全量~10MB+Markdown,HTML 否决因 printing 桌面缺位]→design[prototype:none,一份布局树两后端同源]→execute T1-T3[两回合两轴评审+修复:正则 unicode 真 bug RED 修复+PDF ToUnicode 文本锚点断言+OFL 许可+exists 前置]→feature 门 PASS[零 blocker];门:2304 测全绿/e2e 15 套件/analyze 446/PDF 233ms<2s/proto 零 diff;新依赖仅 pdf 纯 Dart+xml 被动 major;backlog:展示聚合 VO 收口/格式化拷贝抽 core/FR-5 import 面单测)
 - [ ] **feature F46** llm-analyst — LLM 分析师(BYOK 设置+脱敏数据包+prompt 管线+免责声明+城市档位语境;消费 F44 narrative port;规则版恒本地不受影响)
 
 ## status: pending
