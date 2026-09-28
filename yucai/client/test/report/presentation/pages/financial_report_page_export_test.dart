@@ -21,6 +21,8 @@ import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/export/report_export_service.dart';
 import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
 import 'package:yucai_client/report/presentation/pages/financial_report_page.dart';
+import 'package:yucai_client/report/presentation/report_export_io.dart'
+    show kReportFontAssetPath;
 
 import '../../export/export_fixture.dart';
 
@@ -60,10 +62,10 @@ class _ExportRecorder {
           return true;
         },
         // widget 测试跑在 FakeAsync:真异步 IO(readAsBytes)的完成回调
-        // 永不触发 —— 用同步直读返回已完成的 Future。
-        fontSource: () async => ByteData.sublistView(File(
-                'assets/fonts/NotoSansSC-Regular.ttf')
-            .readAsBytesSync()),
+        // 永不触发 —— 用同步直读返回已完成的 Future;路径与生产 rootBundle
+        // 同源(kReportFontAssetPath,report_export_io 已导出)。
+        fontSource: () async => ByteData.sublistView(
+            File(kReportFontAssetPath).readAsBytesSync()),
       );
 }
 
@@ -129,6 +131,8 @@ void main() {
     await t.tap(find.byKey(const ValueKey('generateReportButton')));
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('reportExportButton')), findsOneWidget);
+    // tooltip 与保存对话框标题同词(文案统一)。
+    expect(find.byTooltip('导出财务报告'), findsOneWidget);
   });
 
   testWidgets('格式菜单:PDF/Markdown 两项;选择即按该格式弹保存对话框',

@@ -1,6 +1,6 @@
 # Design: F45 报告导出
 
-prototype: none(本票唯一 UI=报告页 page-head「导出」按钮+toast,复用 v8 既有 page-head 按钮形态与 AppToast 惯例,零新布局面——照 F41 prototype:none 先例;管线为主)
+prototype: none(本票唯一 UI=报告页 page-head「导出」按钮+toast,复用 v8 既有 page-head 按钮形态,导出流程反馈照 settings _showExportArchive 的 SnackBar 惯例(带 action 场景 AppToast 无能力),零新布局面——照 F41 prototype:none 先例;管线为主)
 
 ## Context
 

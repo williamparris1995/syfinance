@@ -45,8 +45,11 @@ ReportExportService createReportExportService() => ReportExportService(
           await File(path).writeAsBytes(bytes);
         }
       },
-      // externalApplication:系统默认应用打开导出文件(PDF 阅读器等)。
-      launchUrl: (url) =>
-          launchUrl(url, mode: LaunchMode.externalApplication),
+      // FR-4 exists 前置(照 debt_detail _openAttachment 先例):文件被
+      // 移动/删除 → 直接失败(false)走页面兜底 toast,不触 url_launcher。
+      launchUrl: (url) async {
+        if (!File.fromUri(url).existsSync()) return false;
+        return launchUrl(url, mode: LaunchMode.externalApplication);
+      },
       fontSource: () => rootBundle.load(kReportFontAssetPath),
     );

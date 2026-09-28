@@ -882,7 +882,7 @@ class _ExportButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<ReportExportFormat>(
       key: const ValueKey('reportExportButton'),
-      tooltip: '导出报告',
+      tooltip: '导出财务报告', // 与保存对话框标题同词(文案统一)。
       enabled: !exporting, // 导出中禁用:菜单不再弹。
       onSelected: onFormat,
       itemBuilder: (_) => const [
