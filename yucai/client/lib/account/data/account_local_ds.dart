@@ -31,6 +31,14 @@ class AccountLocalDataSource {
   Future<List<Account>> list() async =>
       (await _dao.getAllAccounts()).map(_toEntity).toList();
 
+  /// Reactive tail of the accounts table (dev 反馈⑧b): drift watch mapped to
+  /// domain entities. First emission carries the current rows; any later
+  /// local write (category creation, balance update, mirror rebuild) fires
+  /// again. Failures never surface — the stream is a live cache, callers
+  /// keep their one-shot [list] path for first paint / error handling.
+  Stream<List<Account>> watchList() =>
+      _dao.watchAllAccounts().map((rows) => rows.map(_toEntity).toList());
+
   /// [markPending] 三态语义(F10 FR-3):guest 路由缺省 false → 行 synced
   /// (无上行语义);boundOfflineLocal / boundRemote 降级分支传 true →
   /// 行 pending 待回网上行(repo `_routedWrite` 落点)。

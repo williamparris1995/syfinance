@@ -9,6 +9,11 @@
 // amount; quick chips append to amount; tags chip-row toggles; preview is live.
 //
 // The bloc is wired via BlocProvider with a fake repo pair (no DI / no gRPC).
+//
+// dev 反馈⑧ 分类两连坑回归:b) watch 流刷新下拉(分类页新建 → 表单实时可见);
+// a) 表单内「+ 新建分类」入口 → 小对话框 → 创建 → 自动选中。
+import 'dart:async';
+
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +22,7 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
@@ -81,6 +87,39 @@ final _expenseAccount = Account(
   status: AccountStatus.active,
 );
 
+/// 反馈⑧ 场景:表单打开期间新建的支出分类(宠物)。
+const _petExpense = Account(
+  id: 'pet',
+  name: '宠物',
+  accountType: AccountType.expense,
+  category: AccountCategory.otherAsset,
+  currencyCode: 'CNY',
+  initialBalanceCents: 0,
+  currentBalanceCents: 0,
+  ownership: Ownership.personal,
+  status: AccountStatus.active,
+);
+
+/// 反馈⑧ 场景:表单内新建的收入分类(外快)。
+const _sideIncome = Account(
+  id: 'side',
+  name: '外快',
+  accountType: AccountType.income,
+  category: AccountCategory.otherAsset,
+  currencyCode: 'CNY',
+  initialBalanceCents: 0,
+  currentBalanceCents: 0,
+  ownership: Ownership.personal,
+  status: AccountStatus.active,
+);
+
+final _baseAccounts = [
+  _assetAccount,
+  _assetAccount2,
+  _expenseAccount,
+  _cardAccount,
+];
+
 const _tagDaily = Tag(id: 't-daily', name: '日常', color: '#3B82F6', version: 1);
 const _tagBiz = Tag(id: 't-biz', name: '出差', color: '#EF4444', version: 1);
 final _allTags = [_tagDaily, _tagBiz];
@@ -127,6 +166,22 @@ void main() {
         .thenAnswer((_) async => dartz.Right(<Template>[]));
     when(() => accountRepo.list()).thenAnswer(
         (_) async => dartz.Right([_assetAccount, _assetAccount2, _expenseAccount, _cardAccount]));
+    // 反馈⑧b:watch 缺省静默流(不发射 → 既有用例行为不变);watch 用例
+    // 单独覆写为 StreamController 驱动。
+    when(() => accountRepo.watchAccounts())
+        .thenAnswer((_) => const Stream.empty());
+    // 反馈⑧a:表单内新建分类走分类页同一创建服务(CreateAccountUseCase →
+    // AccountRepository.create)。注册与生产 DI 同构的实例。
+    getIt.registerSingleton<CreateAccountUseCase>(
+        CreateAccountUseCase(accountRepo));
+    registerFallbackValue(const CreateAccountParams(
+      name: '',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      ownership: Ownership.personal,
+    ));
     when(() => tagRepo.list()).thenAnswer((_) async => dartz.Right(_allTags));
     registerFallbackValue(
       RecordExpenseParams(
@@ -543,6 +598,136 @@ void main() {
       await tester.tap(find.text('钱从哪来').first, warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(find.text('招商信用卡'), findsNothing);
+    });
+  });
+
+  // ───────── dev 反馈⑧:分类两连坑 ─────────
+
+  group('反馈⑧b 分类下拉 watch 流实时刷新', () {
+    testWidgets('表单打开状态下新建分类(页别处落库)→ watch 发射 → 下拉出现并可选中',
+        (tester) async {
+      final watch = StreamController<List<Account>>.broadcast();
+      addTearDown(() => watch.close());
+      when(() => accountRepo.watchAccounts()).thenAnswer((_) => watch.stream);
+      await pumpPage(tester, 1440);
+
+      // 初始:支出分类下拉无 宠物。
+      await tester.tap(find.text('例如：餐饮、交通').first, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('宠物'), findsNothing);
+      // 点 barrier 关闭下拉,再模拟分类页新建后本地库变更(watch 发射)。
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+
+      watch.add([..._baseAccounts, _petExpense]);
+      await tester.pumpAndSettle();
+
+      // 下拉出现新分类并可选中。
+      await tester.tap(find.text('例如：餐饮、交通').first, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('宠物'), findsOneWidget);
+      await tester.tap(find.text('宠物').last, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      // 选中后字段本体显示 宠物(菜单已关,仅剩字段文本)。
+      expect(find.text('宠物'), findsOneWidget);
+    });
+  });
+
+  group('反馈⑧a 表单内新建分类入口', () {
+    testWidgets('支出分类「+」→ 对话框 → 创建 expense 分类账户 → 自动选中', (tester) async {
+      final watch = StreamController<List<Account>>.broadcast();
+      addTearDown(() => watch.close());
+      when(() => accountRepo.watchAccounts()).thenAnswer((_) => watch.stream);
+      when(() => accountRepo.create(any()))
+          .thenAnswer((_) async => const dartz.Right(_petExpense));
+      await pumpPage(tester, 1440);
+
+      // 入口仅挂在分类字段上(支出模式 1 个,资金账户字段无)。
+      expect(find.byKey(const ValueKey('txn_form_new_category')), findsOneWidget);
+
+      await tester
+          .tap(find.byKey(const ValueKey('txn_form_new_category')));
+      await tester.pumpAndSettle();
+      // 对话框:标题按表单方向(支出)。
+      expect(find.text('新建支出分类'), findsOneWidget);
+      await tester.enterText(
+          find.byKey(const ValueKey('txn_form_new_category_name')), '宠物');
+      await tester
+          .tap(find.byKey(const ValueKey('txn_form_new_category_submit')));
+      await tester.pumpAndSettle();
+
+      // 走分类页同一创建链:CreateAccountUseCase → AccountRepository.create,
+      // 参数与 CategoryBloc 新建分支同构(expense 分类账户)。
+      final captured =
+          verify(() => accountRepo.create(captureAny())).captured.single
+              as CreateAccountParams;
+      expect(captured.name, '宠物');
+      expect(captured.accountType, AccountType.expense);
+      expect(captured.ownership, Ownership.personal);
+      expect(captured.initialBalanceCents, 0);
+      expect(captured.currencyCode, 'CNY');
+
+      // 建完自动选中:watch 发射新列表 → 字段显示 宠物。
+      watch.add([..._baseAccounts, _petExpense]);
+      await tester.pumpAndSettle();
+      expect(find.text('宠物'), findsOneWidget);
+      // 成功 toast 的 overlay 定时器排空(照 v6 markRecorded 用例先例)。
+      await tester.pump(const Duration(seconds: 4));
+    });
+
+    testWidgets('收入方向 → 创建 income 分类;转账模式无入口', (tester) async {
+      final watch = StreamController<List<Account>>.broadcast();
+      addTearDown(() => watch.close());
+      when(() => accountRepo.watchAccounts()).thenAnswer((_) => watch.stream);
+      when(() => accountRepo.create(any()))
+          .thenAnswer((_) async => const dartz.Right(_sideIncome));
+      await pumpPage(tester, 1440);
+
+      // 切到收入 tab → 收入分类字段同样有入口。
+      await tester.tap(find.text('收入').last);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('txn_form_new_category')), findsOneWidget);
+
+      await tester
+          .tap(find.byKey(const ValueKey('txn_form_new_category')));
+      await tester.pumpAndSettle();
+      expect(find.text('新建收入分类'), findsOneWidget);
+      await tester.enterText(
+          find.byKey(const ValueKey('txn_form_new_category_name')), '外快');
+      await tester
+          .tap(find.byKey(const ValueKey('txn_form_new_category_submit')));
+      await tester.pumpAndSettle();
+
+      final captured =
+          verify(() => accountRepo.create(captureAny())).captured.single
+              as CreateAccountParams;
+      expect(captured.name, '外快');
+      expect(captured.accountType, AccountType.income);
+
+      watch.add([..._baseAccounts, _sideIncome]);
+      await tester.pumpAndSettle();
+      expect(find.text('外快'), findsOneWidget);
+      // 成功 toast 定时器排空。
+      await tester.pump(const Duration(seconds: 4));
+
+      // 转账模式无分类字段 → 无入口。
+      await tester.tap(find.text('转账').last);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('txn_form_new_category')), findsNothing);
+    });
+
+    testWidgets('对话框留空直接创建 → 不落库(名称必填)', (tester) async {
+      when(() => accountRepo.watchAccounts())
+          .thenAnswer((_) => const Stream.empty());
+      await pumpPage(tester, 1440);
+      await tester.tap(find.byKey(const ValueKey('txn_form_new_category')));
+      await tester.pumpAndSettle();
+      await tester
+          .tap(find.byKey(const ValueKey('txn_form_new_category_submit')));
+      await tester.pumpAndSettle();
+      verifyNever(() => accountRepo.create(any()));
+      // 对话框仍开着(等有效输入)。
+      expect(find.text('新建支出分类'), findsOneWidget);
     });
   });
 }

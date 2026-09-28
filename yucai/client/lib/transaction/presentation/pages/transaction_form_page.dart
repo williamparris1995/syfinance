@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/data_refresh.dart';
@@ -38,7 +39,12 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 ///
 /// account-as-category：分类下拉是按 [AccountType] 过滤的账户（支出→expense
 /// 账户、收入→income 账户）。服务端 FindByAccountType 未在客户端 stub 中生成，
-/// 故这里走 list() 客户端过滤 —— 同结果。
+/// 故这里走 list() 客户端过滤 —— 同结果。dev 反馈⑧:
+///   - ⑧b 分类选项由 bloc 订阅 [AccountRepository.watchAccounts] 本地漂移
+///     watch 实时刷新 —— 表单打开期间别处新建的分类下拉即时出现;
+///   - ⑧a 支出/收入分类字段带「+ 新建分类」入口(小对话框:名称,账类按表单
+///     方向),走分类页同一创建链([CreateAccountUseCase] → AccountRepository
+///     .create,参数与 CategoryBloc 新建分支同构),建完自动选中。
 ///
 /// 标签 chip-row：真 tag 多选 + 持久化（ListTags 加载、编辑预选 GetTransactionTags、
 /// 保存 diff → AddTag/RemoveTag）。色取自 [Tag.color]。
@@ -364,6 +370,42 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
         _selectedTagIds.add(tagId);
       }
     });
+  }
+
+  /// dev 反馈⑧a:表单内新建分类。小对话框只收名称;账类按当前表单方向
+  /// (支出→Expense 账户 / 收入→Income 账户),创建走分类页同一服务
+  /// ([CreateAccountUseCase],参数与 CategoryBloc 新建分支同构),成功后
+  /// 自动选中 —— 选项列表本身由 ⑧b 的 watch 流自动补上该新分类。
+  Future<void> _showNewCategoryDialog() async {
+    final isIncome = _type == TxnType.income;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _NewCategoryDialog(isIncome: isIncome),
+    );
+    if (name == null || name.isEmpty) return; // 取消/留空不落库
+    final result = await getIt<CreateAccountUseCase>()(
+      CreateAccountParams(
+        name: name,
+        accountType: isIncome ? AccountType.income : AccountType.expense,
+        // 与 CategoryBloc 新建分支同构:expense/income 分类账户走
+        // NewCategoryAccount(category 字段对分类账户无意义,服务端忽略)。
+        category: AccountCategory.otherAsset,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        ownership: Ownership.personal,
+      ),
+    );
+    if (!mounted) return;
+    result.fold(
+      (failure) =>
+          AppToast.show(context, failure.displayMessage, type: ToastType.error),
+      (created) {
+        // 建完自动选中;下拉选项由 watch 流(watchAccounts)即时补上。
+        setState(() => _categoryAccountId = created.id);
+        AppToast.show(context, '分类「${created.name}」已创建并选中',
+            type: ToastType.success);
+      },
+    );
   }
 
   List<TransactionEntry> _buildEntries() {
@@ -831,7 +873,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
               allAccounts: allAccounts),
           _accountField('支出分类', '例如：餐饮、交通', expenseAccounts,
               _categoryAccountId, (v) => setState(() => _categoryAccountId = v),
-              allAccounts: allAccounts),
+              allAccounts: allAccounts, onNew: _showNewCategoryDialog),
           // v6 关联订阅(可选):提交成功后推进该订阅的下次续费。
           // 金额/账户以表单为准 —— 优惠券实付、储值卡付款均直接成立。
           if (_linkableTemplates.isNotEmpty)
@@ -858,7 +900,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
               allAccounts: allAccounts),
           _accountField('收入分类', '例如：工资、理财收益', incomeAccounts,
               _categoryAccountId, (v) => setState(() => _categoryAccountId = v),
-              allAccounts: allAccounts),
+              allAccounts: allAccounts, onNew: _showNewCategoryDialog),
         ];
         break;
       case TxnType.transfer:
@@ -892,6 +934,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   }
 
   /// 单个账户字段：label(标题 + 类型 tag) + 下拉 + bal-hint。
+  /// [onNew] 非空 = 分类字段(dev 反馈⑧a):下拉尾部附「+ 新建分类」入口。
   Widget _accountField(
     String title,
     String hint,
@@ -900,6 +943,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     ValueChanged<String?> onChanged, {
     String? excludeId,
     required List<Account> allAccounts,
+    VoidCallback? onNew,
   }) {
     final items = options.where((a) => a.id != excludeId).toList();
     Account? selectedAcct;
@@ -933,6 +977,20 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            // ⑧a:「+」新建分类入口 —— suffix 常驻下拉框内右侧,零裸色(accent)。
+            suffixIcon: onNew == null
+                ? null
+                : IconButton(
+                    key: const ValueKey('txn_form_new_category'),
+                    tooltip: '新建分类',
+                    icon: Icon(LucideIcons.plus,
+                        size: 17, color: context.yucai.accent),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                        minWidth: 34, minHeight: 34),
+                    onPressed: onNew,
+                  ),
             border: OutlineInputBorder(
               borderRadius: AppRadius.smBorder,
               borderSide: BorderSide(color: context.yucai.border),
@@ -2010,6 +2068,108 @@ class _HintCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// ⑧a 新建分类小对话框:名称输入 + 方向 tag(只读,按表单方向)。
+/// 自持 [TextEditingController](route 退出动画期间仍被引用,须由本
+/// StatefulWidget 的 dispose 释放,不能在 showDialog 调用方手动 dispose)。
+/// 空名称点创建 → 不出栈(等有效输入);取消/回车提交 → pop(trimmed|nil)。
+class _NewCategoryDialog extends StatefulWidget {
+  const _NewCategoryDialog({required this.isIncome});
+
+  final bool isIncome;
+
+  @override
+  State<_NewCategoryDialog> createState() => _NewCategoryDialogState();
+}
+
+class _NewCategoryDialogState extends State<_NewCategoryDialog> {
+  final _nameCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_nameCtrl.text.trim().isEmpty) return; // 名称必填:留空不出栈
+    Navigator.of(context).pop(_nameCtrl.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isIncome = widget.isIncome;
+    return AlertDialog(
+      backgroundColor: context.yucai.surface,
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.lgBorder),
+      title: Text(
+        '新建${isIncome ? '收入' : '支出'}分类',
+        style: TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w700, color: context.yucai.fg),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            key: const ValueKey('txn_form_new_category_name'),
+            controller: _nameCtrl,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: '分类名称',
+              hintText: isIncome ? '例如：工资、理财收益' : '例如：餐饮、交通',
+              border:
+                  const OutlineInputBorder(borderRadius: AppRadius.smBorder),
+              isDense: true,
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: context.yucai.accentSoft,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(isIncome ? '收入' : '支出',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: context.yucai.accent)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '与当前表单方向一致 · 图标与颜色可稍后在「分类管理」中补充',
+                  style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          style: TextButton.styleFrom(foregroundColor: context.yucai.muted),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          key: const ValueKey('txn_form_new_category_submit'),
+          style: FilledButton.styleFrom(
+            backgroundColor: context.yucai.accent,
+            foregroundColor: context.yucai.onAccent,
+          ),
+          onPressed: _submit,
+          child: const Text('创建'),
+        ),
+      ],
     );
   }
 }

@@ -4,6 +4,11 @@
 // recordTransfer. Success → RecordSuccess (page pops); failure → RecordError
 // (stays on page, surfaces message). Initial state exposes loaded accounts so
 // the category dropdown can render options.
+//
+// dev 反馈⑧b 回归:账户选项在首次 list() 后改为持续订阅
+// AccountRepository.watchAccounts(本地漂移 watch)—— 表单打开期间分类页
+// (或表单内入口)新建分类,Ready.accounts 实时合并,下拉即时出现。
+import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter_test/flutter_test.dart';
@@ -47,6 +52,19 @@ final _expense = Account(
   status: AccountStatus.active,
 );
 
+/// 反馈⑧b 场景:表单打开后新建的支出分类(宠物)。
+const _expenseNew = Account(
+  id: 'e2',
+  name: '宠物',
+  accountType: AccountType.expense,
+  category: AccountCategory.otherAsset,
+  currencyCode: 'CNY',
+  initialBalanceCents: 0,
+  currentBalanceCents: 0,
+  ownership: Ownership.personal,
+  status: AccountStatus.active,
+);
+
 final _recorded = Transaction(
   transactionDate: DateTime(2026, 6, 19),
   description: '午餐',
@@ -65,6 +83,9 @@ void main() {
     accountRepo = _MockAccountRepo();
     when(() => accountRepo.list())
         .thenAnswer((_) async => dartz.Right([_asset, _expense]));
+    // watch 流缺省静默(不订阅触发的既有用例不受影响;订阅用例单独覆写)。
+    when(() => accountRepo.watchAccounts())
+        .thenAnswer((_) => const Stream.empty());
     registerFallbackValue(
       RecordExpenseParams(
         transactionDate: _dummyDate,
@@ -254,6 +275,82 @@ void main() {
       isA<TransactionFormReady>()
           .having((s) => s.error, 'error', 'boom'),
     ],
+  );
+
+  // ───────── dev 反馈⑧b:账户选项 watch 流 ─────────
+
+  StreamController<List<Account>>? watchCtrl;
+
+  tearDown(() async {
+    final c = watchCtrl;
+    watchCtrl = null;
+    if (c != null && !c.isClosed) {
+      await c.close();
+    }
+  });
+
+  blocTest<TransactionFormBloc, TransactionFormState>(
+    'watch 发射新账户列表 → Ready 实时合并(表单打开时新建分类 → 下拉可见)',
+    build: () {
+      watchCtrl = StreamController<List<Account>>();
+      when(() => accountRepo.watchAccounts()).thenAnswer((_) => watchCtrl!.stream);
+      return TransactionFormBloc(txnRepo, accountRepo);
+    },
+    act: (b) {
+      b.add(const LoadAccountsRequested());
+      // 单订阅流缓冲:bloc 稍后订阅仍能收到(模拟分类页新建后本地库变更)。
+      watchCtrl!.add([_asset, _expense, _expenseNew]);
+    },
+    wait: const Duration(milliseconds: 100),
+    expect: () => [
+      isA<TransactionFormLoading>(),
+      isA<TransactionFormReady>()
+          .having((s) => s.accounts.length, 'accounts', 2),
+      isA<TransactionFormReady>()
+          .having((s) => s.accounts.length, 'accounts', 3)
+          .having((s) => s.accounts.any((a) => a.id == 'e2'),
+              'contains new category', isTrue),
+    ],
+  );
+
+  blocTest<TransactionFormBloc, TransactionFormState>(
+    'Submitting/Success 期间 watch 发射不打断提交(余额写库触发 watch 的竞态守卫)',
+    build: () {
+      watchCtrl = StreamController<List<Account>>();
+      when(() => accountRepo.watchAccounts()).thenAnswer((_) => watchCtrl!.stream);
+      when(() => txnRepo.recordExpense(any())).thenAnswer((_) async {
+        // RPC 在途 80ms:制造 watch 发射落在 Submitting 窗口内的竞态
+        // (记账会更新账户余额 → 本地 accounts 表变更 → watch 触发)。
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        return dartz.Right(_recorded);
+      });
+      return TransactionFormBloc(txnRepo, accountRepo);
+    },
+    act: (b) async {
+      b.add(const LoadAccountsRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      b.add(RecordExpenseRequested(
+        transactionDate: _dummyDate,
+        expenseAccountId: 'e1',
+        assetAccountId: 'a1',
+        amountCents: 100,
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      // 此刻 state == Submitting:发射必须被跳过,不得回到 Ready。
+      watchCtrl!.add([_asset, _expense, _expenseNew]);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    },
+    wait: const Duration(milliseconds: 50),
+    expect: () => [
+      isA<TransactionFormLoading>(),
+      isA<TransactionFormReady>(),
+      isA<TransactionFormSubmitting>(),
+      isA<TransactionFormSuccess>(),
+      // 没有第 5 个状态 —— watch 发射在提交窗口内被守卫吞掉。
+    ],
+    verify: (b) {
+      verify(() => txnRepo.recordExpense(any())).called(1);
+    },
   );
 }
 

@@ -7,6 +7,16 @@ import 'package:yucai_client/core/error/failures.dart';
 /// Port interface for account operations. Data layer implements this.
 abstract class AccountRepository {
   Future<Either<Failure, List<Account>>> list();
+
+  /// Reactive account list (dev 反馈⑧b): local drift watch stream, fires on
+  /// every local accounts-table change. Across all three data routes the
+  /// local table is authoritative-or-mirrored (guest/offline = source of
+  /// truth; bound-online = BoundMirror keeps it fresh on login + per write),
+  /// so consumers (e.g. the 记一笔 form category dropdown) see category
+  /// creations made elsewhere in the app in real time. One-shot [list]
+  /// remains the first-paint path; this stream is the live tail.
+  Stream<List<Account>> watchAccounts();
+
   Future<Either<Failure, Account>> create(CreateAccountParams params);
   Future<Either<Failure, void>> delete(String id);
   Future<Either<Failure, Account>> getById(String id);

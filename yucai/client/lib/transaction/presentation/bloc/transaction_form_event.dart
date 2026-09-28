@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 
 /// Events for [TransactionFormBloc].
@@ -21,6 +22,20 @@ abstract class TransactionFormEvent extends Equatable {
 
 class LoadAccountsRequested extends TransactionFormEvent {
   const LoadAccountsRequested();
+}
+
+/// Local accounts-table change observed via [AccountRepository.watchAccounts]
+/// (dev 反馈⑧b): e.g. a category created on the 分类管理 page or via the
+/// form's own「+ 新建分类」dialog while this form is open. The bloc merges the
+/// fresh list into the current Ready state so the category dropdown reflects
+/// it immediately — no reopen required.
+class AccountsChanged extends TransactionFormEvent {
+  const AccountsChanged(this.accounts);
+
+  final List<Account> accounts;
+
+  @override
+  List<Object?> get props => [accounts];
 }
 
 class RecordExpenseRequested extends TransactionFormEvent {

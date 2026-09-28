@@ -5,10 +5,11 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/account/data/account_local_ds.dart';
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/error/failures.dart';
-import 'package:yucai_client/core/localdb/app_database.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' hide Account;
 
 void main() {
   late AppDatabase db;
@@ -137,5 +138,24 @@ void main() {
       throwsA(isA<ServerFailure>()),
     );
     expect((await ds.list()).map((a) => a.id), contains(nonZero.id));
+  });
+
+  // dev 反馈⑧b 数据源:watchList = DAO watchAllAccounts 的实体映射流,
+  // 表单/页面订阅后本地库任何账户变更(分类页新建分类等)实时再发射。
+  test('watchList:首发射当前行,insert 后自动再发射(实体映射)', () async {
+    await ds.create(params(name: 'A'));
+    final emissions = <List<Account>>[];
+    final sub = ds.watchList().listen(emissions.add);
+    await pumpEventQueue();
+
+    await ds.create(params(name: 'B')); // 模拟分类页新建分类
+    await pumpEventQueue();
+    await sub.cancel();
+
+    expect(emissions.length, greaterThanOrEqualTo(2));
+    expect(emissions.first, hasLength(1));
+    expect(emissions.first.first.name, 'A'); // 行 → 域实体映射
+    expect(emissions.last, hasLength(2));
+    expect(emissions.last.map((a) => a.name), contains('B'));
   });
 }

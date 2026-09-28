@@ -36,6 +36,13 @@ class AccountRepositoryImpl implements AccountRepository {
   Future<Either<Failure, List<Account>>> list() async =>
       _guard(() => _useLocalDs ? _local.list() : _remote.list());
 
+  /// dev 反馈⑧b:恒挂本地表 —— guest/offline 本地即数据源;bound 在线时
+  /// BoundMirror 于 login refreshAll + 每次远端写成功后 refreshModule 恒定
+  /// 保鲜本地镜像,故任何路由下的账户变更(分类页/表单内新建分类)都会
+  /// 实时发射。不做 Either 包裹:流是活缓存尾迹,首屏与错误面仍走 [list]。
+  @override
+  Stream<List<Account>> watchAccounts() => _local.watchList();
+
   @override
   Future<Either<Failure, Account>> create(CreateAccountParams params) =>
       _routedWrite(MirrorModule.account, () => _remote.create(params),

@@ -146,4 +146,36 @@ void main() {
       );
     });
   });
+
+  // dev 反馈⑧b:账户 watch 端口。本地漂移表在三条路由下都是权威/镜像
+  // (guest/offline=数据源,bound 在线=login refreshAll + 每次写后
+  // refreshModule 恒保鲜),watch 恒定挂本地表 → 任何路由新建分类都实时发射。
+  group('watchAccounts (dev feedback 8b)', () {
+    test('exposes local rows reactively — create fires a new emission',
+        () async {
+      tracker.isGuest = true;
+      const params = CreateAccountParams(
+        name: '宠物', accountType: AccountType.expense,
+        category: AccountCategory.otherAsset,
+        currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
+      );
+      final created = await repo.create(params);
+
+      final first = await repo.watchAccounts().first;
+      expect(first, hasLength(1));
+      expect(first.single.id, created.fold((_) => '', (a) => a.id));
+      expect(first.single.accountType, AccountType.expense);
+    });
+
+    test('non-guest route watches the same local mirror (bound 在线恒挂本地)',
+        () async {
+      tracker.isGuest = false;
+      when(() => remote.list()).thenAnswer((_) async => <Account>[sample]);
+      await repo.list(); // bound 在线首拉走远端
+
+      final first = await repo.watchAccounts().first; // watch 仍读本地镜像
+      expect(first, isEmpty); // memory db 尚未镜像(无写触发 refreshModule)
+      verify(() => remote.list()).called(1); // watch 不追加远端调用
+    });
+  });
 }
