@@ -8,7 +8,7 @@
 
 ## Feature roster
 
-- [ ] **feature F45** report-export — 报告导出(格式与渲染管线 spec 定:PDF/Markdown/HTML;报告页导出入口+保存/打开)
+- [ ] **feature F45** report-export — 报告导出(格式与渲染管线 spec 定:PDF/Markdown/HTML;报告页导出入口+保存/打开) `claimed: zcode-r16-f45 2026-09-28`
 - [ ] **feature F46** llm-analyst — LLM 分析师(BYOK 设置+脱敏数据包+prompt 管线+免责声明+城市档位语境;消费 F44 narrative port;规则版恒本地不受影响)
 
 ## status: pending
