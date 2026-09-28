@@ -60,14 +60,15 @@ class AnalystNote extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // v9 .llm-head:标题左、chip 右两端对齐(评审 R3)。
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('分析师解读',
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: context.yucai.fg)),
-            const SizedBox(width: AppSpacing.sm),
             if (state.model != null)
               Container(
                 padding:

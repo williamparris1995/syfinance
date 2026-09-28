@@ -108,9 +108,13 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
           ? getIt<LlmSettings>()
           : null));
 
-  /// 叙事者(domain port;生产 = LlmMdaNarrator 主绑定)。
-  MdaNarrator get _narratorRef =>
-      widget.narrator ?? (_prodNarrator ??= getIt<MdaNarrator>());
+  /// 叙事者(domain port;生产 = LlmMdaNarrator 主绑定)。评审 R2:与
+  /// [_llmSettings] 同款 isRegistered 守卫 —— 无 DI 图的挂页测试 → null,
+  /// 调用侧直接返回(按钮本就不可见),不在点击路径上炸 getIt。
+  MdaNarrator? get _narratorRef => widget.narrator ??
+      (_prodNarrator ??= (getIt.isRegistered<MdaNarrator>()
+          ? getIt<MdaNarrator>()
+          : null));
 
   /// 解读小节回 idle(期变更/重新生成/健康态切换;ADR-1)。
   void _resetAnalyst() {
@@ -124,6 +128,8 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
   /// loading 态),[NarrationFailure] → error 态可重试;健康态零发现直接
   /// 返回(原型 mood-healthy 隐藏解读小节)。
   Future<void> _narrate() async {
+    final narrator = _narratorRef;
+    if (narrator == null) return; // 未注册(测试无 DI 图):零动作。
     final st = context.read<FinancialReportBloc>().state;
     if (st is! FinancialReportLoaded) return;
     final doc = st.document;
@@ -133,7 +139,7 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
     final session = ++_narrationSession;
     setState(() => _analyst = const AnalystNoteState.loading());
     try {
-      final text = await _narratorRef.narrate(doc, mda.findings);
+      final text = await narrator.narrate(doc, mda.findings);
       if (!mounted || session != _narrationSession) return; // 在途丢弃
       setState(() => _analyst = text.isEmpty
           ? const AnalystNoteState.idle() // 未配置降级空串 → 隐藏
@@ -141,6 +147,11 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
     } on NarrationFailure catch (e) {
       if (!mounted || session != _narrationSession) return;
       setState(() => _analyst = AnalystNoteState.error(e.message));
+    } catch (_) {
+      // 评审 R4 catch-all:未来实现逃逸的非 NarrationFailure 异常兜底为
+      // error 态(防卡 loading);固定文案零底层细节(隐私红线同源)。
+      if (!mounted || session != _narrationSession) return;
+      setState(() => _analyst = const AnalystNoteState.error('请重试'));
     }
   }
 
@@ -177,33 +188,35 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
       ? ReportPeriod.yearly(_year)
       : ReportPeriod.monthly(_year, _month);
 
-  void _prevPeriod() => setState(() {
-        // F46:期变更 → 解读小节清空(ADR-1,快照三态一致)。
-        _narrationSession++;
-        _analyst = const AnalystNoteState.idle();
-        if (_yearly) {
-          _year--;
-        } else if (_month == 1) {
-          _month = 12;
-          _year--;
-        } else {
-          _month--;
-        }
-      });
+  void _prevPeriod() {
+    // F46:期变更 → 解读小节清空(ADR-1,快照三态一致)。
+    _resetAnalyst(); // 评审 R5:收拢复用(内部自带 setState 守卫)。
+    setState(() {
+      if (_yearly) {
+        _year--;
+      } else if (_month == 1) {
+        _month = 12;
+        _year--;
+      } else {
+        _month--;
+      }
+    });
+  }
 
-  void _nextPeriod() => setState(() {
-        // F46:期变更 → 解读小节清空(ADR-1)。
-        _narrationSession++;
-        _analyst = const AnalystNoteState.idle();
-        if (_yearly) {
-          _year++;
-        } else if (_month == 12) {
-          _month = 1;
-          _year++;
-        } else {
-          _month++;
-        }
-      });
+  void _nextPeriod() {
+    // F46:期变更 → 解读小节清空(ADR-1)。
+    _resetAnalyst();
+    setState(() {
+      if (_yearly) {
+        _year++;
+      } else if (_month == 12) {
+        _month = 1;
+        _year++;
+      } else {
+        _month++;
+      }
+    });
+  }
 
   void _generate() =>
       context.read<FinancialReportBloc>().add(GenerateRequested(_period));
@@ -359,12 +372,12 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
                     canExport: doc != null,
                     exporting: _exporting,
                     llmListenable: _llmSettings?.listenable,
-                    onScopeChanged: (yearly) => setState(() {
-                      // F46:月/年口径切换 → 解读小节清空(ADR-1)。
-                      _narrationSession++;
-                      _analyst = const AnalystNoteState.idle();
-                      _yearly = yearly;
-                    }),
+                    onScopeChanged: (yearly) {
+                      // F46:月/年口径切换 → 解读小节清空(ADR-1;评审 R5
+                      // 收拢复用)。
+                      _resetAnalyst();
+                      setState(() => _yearly = yearly);
+                    },
                     onPrev: _prevPeriod,
                     onNext: _nextPeriod,
                     onGenerate: _generate,

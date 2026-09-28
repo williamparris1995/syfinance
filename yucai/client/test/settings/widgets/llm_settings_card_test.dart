@@ -227,7 +227,7 @@ void main() {
       expect(fake.saved.last.baseUrl, 'https://api.deepseek.com/v1');
     });
 
-    testWidgets('切自定义:模型名清空 + 出现服务端点输入行,输入即持久化',
+    testWidgets('切自定义:模型名清空 + 出现服务端点输入行,回车提交后持久化',
         (tester) async {
       final fake = _FakeLlmSettings(_ackd);
       await tester.pumpWidget(_host(fake));
@@ -239,6 +239,10 @@ void main() {
       expect(find.text('服务端点'), findsOneWidget, reason: '自定义出 base_url 行');
       await tester.enterText(
           find.byKey(const ValueKey('llmBaseUrlInput')), 'https://my.llm/v1');
+      await tester.pump();
+      // 输入过程不落存储(失焦+回车提交,评审 R1)。
+      expect(fake.saved.last.baseUrl, isNot('https://my.llm/v1'));
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(fake.saved.last.baseUrl, 'https://my.llm/v1');
       expect(fake.saved.last.resolvedBaseUrl, 'https://my.llm/v1');
@@ -264,22 +268,31 @@ void main() {
   });
 
   group('其余行写入(全部走 LlmSettings.setConfig)', () {
-    testWidgets('API Key 输入即持久化(secure storage 经 setConfig)', (tester) async {
+    testWidgets('API Key:输入过程不落存储;失焦后落(评审 R1)', (tester) async {
       final fake = _FakeLlmSettings(_ackd);
       await tester.pumpWidget(_host(fake));
       await tester.pumpAndSettle();
       await tester.enterText(
           find.byKey(const ValueKey('llmApiKeyInput')), 'sk-xyz');
+      await tester.pump();
+      // 击键中:零 setConfig(不每击键写 secure storage)。
+      expect(fake.saved, isEmpty, reason: '输入过程不落存储');
+      // 失焦(点卡片外非交互区不可靠,直用 FocusManager)→ 提交。
+      FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
+      expect(fake.saved, hasLength(1));
       expect(fake.saved.last.apiKey, 'sk-xyz');
     });
 
-    testWidgets('模型名可改(覆盖预填默认)', (tester) async {
+    testWidgets('模型名:回车(done)提交覆盖预填默认(评审 R1)', (tester) async {
       final fake = _FakeLlmSettings(_ackd);
       await tester.pumpWidget(_host(fake));
       await tester.pumpAndSettle();
       await tester.enterText(
           find.byKey(const ValueKey('llmModelInput')), 'glm-4-flash');
+      await tester.pump();
+      expect(fake.saved, isEmpty, reason: '输入过程不落存储');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(fake.saved.last.model, 'glm-4-flash');
     });

@@ -5,8 +5,10 @@
 /// 四选(切换预填 base_url + 默认模型名,自定义出「服务端点」输入行)/
 /// API Key obscured 输入(仅存本机安全存储)/模型名/城市规模档位/
 /// 订阅名明文 Switch。全部写入经 [LlmSettings.setConfig](secure storage
-/// 家法);首启用弹 [showLlmDisclaimerDialog],确认才落 enabled+ack,
-/// 取消回弹零持久化。
+/// 家法);文本三字段**失焦+回车提交**(评审 R1:不每击键写 secure
+/// storage —— FocusNode 失焦监听 + onSubmitted 双缝,离散控件变更仍即时
+/// 落盘并顺带携带输入框现值);首启用弹 [showLlmDisclaimerDialog],确认
+/// 才落 enabled+ack,取消回弹零持久化。
 library;
 
 import 'package:flutter/material.dart';
@@ -40,6 +42,11 @@ class _LlmSettingsCardState extends State<LlmSettingsCard> {
   late final TextEditingController _model;
   late final TextEditingController _baseUrl;
 
+  // 评审 R1:失焦提交缝(与 onSubmitted「回车」双通道);不加防抖——
+  // 定时器在 FakeAsync 测试与页面生命周期引入不确定性,失焦+回车与
+  // 对话框表单先例语义一致。
+  late final List<FocusNode> _commitOnBlur;
+
   @override
   void initState() {
     super.initState();
@@ -47,10 +54,25 @@ class _LlmSettingsCardState extends State<LlmSettingsCard> {
     _apiKey = TextEditingController(text: cfg.apiKey);
     _model = TextEditingController(text: cfg.model);
     _baseUrl = TextEditingController(text: cfg.baseUrl);
+    _commitOnBlur = [FocusNode(), FocusNode(), FocusNode()];
+    for (final node in _commitOnBlur) {
+      // 仅「真失焦」沿触发:上一拍 hasFocus=true 且本拍 false。裸听
+      // !hasFocus 会在 enabled 过渡(禁用输入触发的 canRequestFocus 等
+      // 通知,字段从未聚焦)误提交 —— hadFocus 守卫排除。
+      var hadFocus = node.hasFocus;
+      node.addListener(() {
+        final hasFocus = node.hasFocus;
+        if (hadFocus && !hasFocus) _save();
+        hadFocus = hasFocus;
+      });
+    }
   }
 
   @override
   void dispose() {
+    for (final node in _commitOnBlur) {
+      node.dispose();
+    }
     _apiKey.dispose();
     _model.dispose();
     _baseUrl.dispose();
@@ -190,6 +212,7 @@ class _LlmSettingsCardState extends State<LlmSettingsCard> {
                           key: const ValueKey('llmApiKeyInput'),
                           hint: '••••••••••••••',
                           controller: _apiKey,
+                          focusNode: _commitOnBlur[0],
                           enabled: enabled,
                           obscure: true,
                         ),
@@ -201,6 +224,7 @@ class _LlmSettingsCardState extends State<LlmSettingsCard> {
                           key: const ValueKey('llmModelInput'),
                           hint: 'glm-4.6',
                           controller: _model,
+                          focusNode: _commitOnBlur[1],
                           enabled: enabled,
                         ),
                       ),
@@ -215,6 +239,7 @@ class _LlmSettingsCardState extends State<LlmSettingsCard> {
                             key: const ValueKey('llmBaseUrlInput'),
                             hint: 'https://api.example.com/v1',
                             controller: _baseUrl,
+                            focusNode: _commitOnBlur[2],
                             enabled: enabled,
                           ),
                         ),
@@ -269,6 +294,7 @@ class _LlmSettingsCardState extends State<LlmSettingsCard> {
     required Key key,
     required String hint,
     required TextEditingController controller,
+    required FocusNode focusNode,
     required bool enabled,
     bool obscure = false,
   }) =>
@@ -277,6 +303,7 @@ class _LlmSettingsCardState extends State<LlmSettingsCard> {
         child: TextField(
           key: key,
           controller: controller,
+          focusNode: focusNode,
           enabled: enabled,
           obscureText: obscure,
           style: const TextStyle(fontSize: 12.5),
@@ -284,7 +311,8 @@ class _LlmSettingsCardState extends State<LlmSettingsCard> {
             hintText: hint,
             isDense: true,
           ),
-          onChanged: (_) => _save(),
+          // 回车提交(失焦提交见 FocusNode 监听;评审 R1 双通道)。
+          onSubmitted: (_) => _save(),
         ),
       );
 }

@@ -101,6 +101,20 @@ void main() {
   });
 
   group('守门(硬约束)', () {
+    testWidgets('小节头:标题左、chip 右(评审 R3,对齐 v9 .llm-head)',
+        (tester) async {
+      await tester.pumpWidget(
+          _host(const AnalystNoteState.done('t', 'glm-4.6')));
+      await tester.pump();
+      // chip 的最近 Row 祖先 = 小节头 Row;断言 spaceBetween 撑开两端。
+      final headRow = tester.widget<Row>(find
+          .ancestor(
+              of: find.text('由 glm-4.6 生成'),
+              matching: find.byType(Row))
+          .first);
+      expect(headRow.mainAxisAlignment, MainAxisAlignment.spaceBetween);
+    });
+
     test('源码静态检查:无裸色/AppColors/不 import data 层(llm_http 等)', () {
       final src = File('lib/report/presentation/widgets/analyst_note.dart')
           .readAsStringSync();

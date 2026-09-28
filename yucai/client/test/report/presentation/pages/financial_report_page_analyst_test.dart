@@ -246,6 +246,18 @@ void main() {
       await t.pump();
       expect(find.byKey(const ValueKey('analystNarrateButton')), findsNothing);
     });
+
+    testWidgets('守卫对称(评审 R2):narrator 未注入未注册 → 点击零异常零小节',
+        (t) async {
+      final llm = _StubLlmSettings(_readyCfg);
+      await pumpLoaded(t, llm: llm); // narrator 不注入,本文件 getIt 未注册
+      await t.tap(find.byKey(const ValueKey('analystNarrateButton')));
+      await t.pump();
+      expect(t.takeException(), isNull,
+          reason: '_narratorRef isRegistered 守卫(与 _llmSettings 对称)');
+      expect(find.text('分析师解读'), findsNothing);
+      expect(find.text('解读生成中…'), findsNothing);
+    });
   });
 
   group('旁挂三态(点击 → narrate → 小节)', () {
@@ -295,6 +307,17 @@ void main() {
       await t.pump();
       expect(narrator.calls, hasLength(2));
       expect(find.textContaining('总体评价:'), findsOneWidget);
+    });
+
+    testWidgets('逃逸异常(评审 R4):非 NarrationFailure → 兜底错误态,不卡 loading',
+        (t) async {
+      final narrator = _FakeNarrator()..error = StateError('boom');
+      await pumpLoaded(t, llm: _StubLlmSettings(_readyCfg), narrator: narrator);
+      await t.tap(find.byKey(const ValueKey('analystNarrateButton')));
+      await t.pump();
+      expect(find.text('解读失败:请重试'), findsOneWidget,
+          reason: 'catch-all 兜底:固定文案,不带底层细节');
+      expect(find.text('解读生成中…'), findsNothing, reason: '不卡 loading');
     });
 
     testWidgets('重新解读:done 态脚注「重新解读」→ 再次 narrate', (t) async {
