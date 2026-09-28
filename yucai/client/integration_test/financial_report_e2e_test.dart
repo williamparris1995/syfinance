@@ -1,5 +1,7 @@
 /// F43 财务报告全链 E2E(T6,管道链路,真实本地数据源 + 真实 UI 走查)
-/// + F45 T3 导出入口可达断言。
+/// + F45 T3 导出入口可达断言 + F46 T3 AI 分析师缺省面断言(报链④:设置
+/// 卡可达+六行+未启用禁用态;报告页「AI 解读」未启用缺席 —— 真实 LLM
+/// 调用绝不进 e2e,边界注释见该链)。
 ///
 /// 链路:种子(账户+分录+预算+持仓+闲置模板最小集)→ 侧栏「报表分析」
 /// → 顶栏「财务报告」入口(/reports)→ /reports/full 选期(上一期步进
@@ -62,6 +64,7 @@
 /// 运行:`flutter test integration_test/financial_report_e2e_test.dart -d windows --dart-define=YUCAI_DB_FILE=yucai_test.db`
 library;
 
+import 'package:flutter/material.dart' show IgnorePointer, Switch, TextField;
 import 'package:flutter/widgets.dart' show ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -404,5 +407,81 @@ void main() {
     await t.pumpAndSettle(const Duration(milliseconds: 400));
     expect(find.byKey(const ValueKey('reportExportFormatPdf')), findsNothing,
         reason: '菜单已收起(未选中任何格式,导出链未触发)');
+  });
+
+  // F46 T3:AI 分析师缺省面(两页)。种子库 = bootstrap load 后 secure
+  // storage 无 llm.* 键 → LlmConfig 缺省 enabled=false → ready=false。
+  testWidgets('报链④AI 分析师缺省面:设置卡六行+未启用禁用态;报告页「AI 解读」未启用缺席',
+      (t) async {
+    // —— 边界(钉死):真实 LLM 调用绝不进 e2e —— BYOK 出站 = 网络 +
+    // 计费 + 用户 API Key,自动化回归零触网。本链只断言「未启用」缺省
+    // 面,不扳启用开关、零网络;启用流(免责对话框)/配置写入/narrate
+    // 三态由 widget 测试以注入缝全覆盖(llm_settings_card_test /
+    // financial_report_page_analyst_test),e2e 不重复。
+    await t.pumpWidget(const YuCaiApp());
+    await t.pumpAndSettle(const Duration(seconds: 3));
+
+    // —— 设置页:卡可达 + 六行(默认服务商=智谱 → 无「服务端点」行)——
+    await goPage(t, '设置');
+    final card = find.text('AI 分析师');
+    await t.ensureVisible(card);
+    await t.pumpAndSettle();
+    expect(card.evaluate(), isNotEmpty, reason: '设置页「AI 分析师」卡可达');
+    for (final label in [
+      '启用 AI 分析师',
+      '服务商',
+      'API Key',
+      '模型名',
+      '城市规模',
+      '订阅名明文',
+    ]) {
+      final row = find.text(label);
+      await t.ensureVisible(row.first);
+      await t.pumpAndSettle();
+      expect(row.evaluate(), isNotEmpty, reason: '设置卡行「$label」渲染');
+    }
+    expect(find.text('服务端点'), findsNothing,
+        reason: '默认智谱 → 自定义端点输入行缺席(恰六行)');
+
+    // —— 未启用禁用态(v9 .llm-cfg.off):开关关 + 输入框禁用 + 配置区罩住 ——
+    expect(
+        t.widget<Switch>(find.byKey(const ValueKey('llmEnableSwitch'))).value,
+        isFalse,
+        reason: '种子库默认未启用(Migration Plan 缺省关)');
+    expect(
+        t.widget<TextField>(find.byKey(const ValueKey('llmApiKeyInput')))
+            .enabled,
+        isFalse,
+        reason: '未启用 → API Key 输入禁用');
+    expect(
+        t.widget<TextField>(find.byKey(const ValueKey('llmModelInput')))
+            .enabled,
+        isFalse,
+        reason: '未启用 → 模型名输入禁用');
+    expect(
+        t.widgetList<IgnorePointer>(find.ancestor(
+                of: find.byKey(const ValueKey('llmProviderSeg')),
+                matching: find.byType(IgnorePointer)))
+            .any((w) => w.ignoring),
+        isTrue,
+        reason: '未启用 → 配置行被罩住(v9 pointer-events:none)');
+
+    // —— 报告页:「AI 解读」入口未启用缺席。入口门 = ready && Loaded,
+    // 未启用(ready=false)门主导 → Initial 与 Loaded 两态都缺席
+    //(与 Loaded 无关:Loaded 也补不出未启用的入口)。
+    await goPage(t, '报表分析');
+    await t.pumpAndSettle(const Duration(seconds: 2));
+    await t.tap(find.byKey(const ValueKey('financialReportEntryButton')));
+    await t.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.byKey(const ValueKey('analystNarrateButton')), findsNothing,
+        reason: '未启用 → Initial 态无「AI 解读」按钮');
+    expect(find.text('AI 解读'), findsNothing, reason: '按钮文案同缺(Initial)');
+    await t.tap(find.text('生成报告').first);
+    await t.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.byKey(const ValueKey('analystNarrateButton')), findsNothing,
+        reason: '未启用 → Loaded 态仍无「AI 解读」按钮(与 Loaded 无关)');
+    expect(find.text('AI 解读'), findsNothing, reason: '按钮文案同缺(Loaded)');
+    expect(find.text('分析师解读'), findsNothing,
+        reason: '解读小节 idle 自隐(从未触发 narrate,零 LLM 调用)');
   });
 }
