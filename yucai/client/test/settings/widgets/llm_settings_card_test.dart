@@ -263,7 +263,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(fake.saved.last.provider, LlmProvider.zhipu);
       expect(fake.saved.last.model, 'glm-4.6');
-      expect(fake.saved.last.baseUrl, 'https://open.bigmodel.cn/api/paas');
+      expect(fake.saved.last.baseUrl, 'https://open.bigmodel.cn/api/paas/v4');
     });
   });
 

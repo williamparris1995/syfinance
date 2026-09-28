@@ -31,7 +31,7 @@ extension LlmCityTierLabel on LlmCityTier {
 /// 预设端点映射(provider → 默认 base_url;custom = 用户填写)。
 abstract final class LlmEndpoints {
   static const Map<LlmProvider, String> preset = {
-    LlmProvider.zhipu: 'https://open.bigmodel.cn/api/paas',
+    LlmProvider.zhipu: 'https://open.bigmodel.cn/api/paas/v4',
     LlmProvider.openai: 'https://api.openai.com/v1',
     LlmProvider.deepseek: 'https://api.deepseek.com/v1',
   };

@@ -163,7 +163,7 @@ void main() {
         () {
       expect(
         const LlmConfig(provider: LlmProvider.zhipu).resolvedBaseUrl,
-        'https://open.bigmodel.cn/api/paas',
+        'https://open.bigmodel.cn/api/paas/v4',
       );
       expect(
         const LlmConfig(provider: LlmProvider.openai).resolvedBaseUrl,

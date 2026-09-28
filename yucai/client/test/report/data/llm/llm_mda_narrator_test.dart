@@ -162,9 +162,9 @@ void main() {
 
       await LlmMdaNarrator(settings, fakeHttp).narrate(buildDoc(), findings);
 
-      // 端点 = 预设 base_url(智谱)+ /chat/completions
+      // 端点 = 预设 base_url(智谱,含 /v4)+ /chat/completions
       expect(request!.url.toString(),
-          'https://open.bigmodel.cn/api/paas/chat/completions');
+          'https://open.bigmodel.cn/api/paas/v4/chat/completions');
       // Bearer Key 走请求头(且只在这里出现)
       expect(request!.headers['Authorization'], 'Bearer sk-secret-key');
       expect(request!.headers['Content-Type'], 'application/json');
