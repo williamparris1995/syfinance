@@ -47,6 +47,16 @@
 - [.claude/hooks/verify-commit.ps1](../../../.claude/hooks/verify-commit.ps1) — PreToolUse(git commit)跑 `go test ./...`(全绿 block)+ `flutter test`(基线容忍:account_detail_page_test / receivable_detail_page_test drift 放行)。注册于 `.claude/settings.json`。
 - **已 e2e 验证**:go test 全绿 + flutter 仅剩 baseline 2 文件 drift(容忍)→ exit 0。
 
+## R16 dev 实测反馈批次(2026-09-28,用户真机 9 条)
+
+**已修(main 热修)**:① 章节锚点参差(隐藏标签占布局→Positioned 悬浮);④ AI 解读按钮未配置改灰态引导(Loaded 恒显);③ PDF 截断**取证定案为查看器问题**(导出文件 58,086B 与全新渲染逐字节同尺寸/5 页结构完好)+落盘守卫长度校验加固(纵深);② 余额对不上**取证定案数据层漂移**(2026-09-17 裸 SQL 结转修复绕过余额更新器,3 账户漂移精确到分;修复代理在途:rebalanceFromLedger 一次性重推导);⑧ 分类两连坑修复代理在途(表单 watch 流+表单内新建入口)。⑤ 趋势图澄清:报表分析页有(LiveChart tooltip 已修),财务报告页设计即无折线图(可选 F47:收支章迷你趋势图)。
+
+**Backlog 立票(下一 release 候选 sprint-3)**:
+- ⑥ 桌面文本体验票:应用级 SelectionArea(展示文本可选/复制)+右键菜单
+- ⑦ 表单历史填写票:描述/对方字段「最近使用」建议(本地 drift 查询)
+- ⑨ 导航增强票(用户选 A+B 组合):侧栏分组折叠+区块高亮 + 命令面板 Ctrl+K(全局搜索账户/债/订阅/报表+直达动作);启动时先 OD 原型定稿
+- F47 候选:财务报告收支章迷你趋势图;②配套:报告与账户页对账一致性 e2e
+
 ## 备注
 
 - 本地 main 与 origin 已同步(2026-08-01 push `ec7dcb2` 后;此前 memory 说"346+ 未 push"已过时)。
