@@ -13,13 +13,13 @@ keywords: [MD&A, 诊断, 建议, 规则引擎, 消费习惯, 问题诊断, 优�
 
 ## Stories
 
-- [ ] S1: 规则引擎骨架(MdaRule 接口+MdaFinding 模型+执行器;MdaSupplement 输入通道+ReportLedgerStore port 三点小扩:templates[expectedDates 预推演]/transactions[含 description]/trailing3m+现金时点;FR-1)
-- [ ] S2: 规则集 R1-R6+H1-H2(阈值具名常量单点;每规则 scenario 测试;FR-2)
-- [ ] S3: 闲置订阅近似口径+四道防御(疑问文案/grace/级别/actionLink;FR-3)
-- [ ] S4: 建议映射(规则→可执行建议,含跳转链接;并入 S2 各规则实现)
-- [ ] S5: 「诊断与建议」第七章节+总览自适应摘要卡(top-3/健康徽章;UI 原型走设计阶段;FR-4)
-- [ ] S6: AI narrative 预留接口(port+注入缝+fake 替换测试;FR-5)
-- [ ] S7: 测试与门(flutter 全绿+analyze 基线+client-e2e 新成员+零 proto+≤500ms;NFR-1/2/3)
+- [x] S1: 规则引擎骨架(MdaRule 接口+MdaFinding 模型+执行器;MdaSupplement 输入通道+ReportLedgerStore port 三点小扩:templates[expectedDates 预推演]/transactions[含 description]/trailing3m+现金时点;FR-1)
+- [x] S2: 规则集 R1-R6+H1-H2(阈值具名常量单点;每规则 scenario 测试;FR-2)
+- [x] S3: 闲置订阅近似口径+四道防御(疑问文案/grace/级别/actionLink;FR-3)
+- [x] S4: 建议映射(规则→可执行建议,含跳转链接;并入 S2 各规则实现)
+- [x] S5: 「诊断与建议」第七章节+总览自适应摘要卡(top-3/健康徽章;UI 原型走设计阶段;FR-4)
+- [x] S6: AI narrative 预留接口(port+注入缝+fake 替换测试;FR-5)
+- [x] S7: 测试与门(flutter 全绿+analyze 基线+client-e2e 新成员+零 proto+≤500ms;NFR-1/2/3)
 
 ## Keywords
 
