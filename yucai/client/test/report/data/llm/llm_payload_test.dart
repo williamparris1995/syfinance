@@ -297,4 +297,132 @@ void main() {
       expect(finding['severity'], 'warn');
     });
   });
+
+  group('H1/H2 empty-name gating (review R1 Important)', () {
+    /// H1/H2 真实规则在 name null/空时回退内嵌 category(= 科目账户 id,
+    /// 负面清单第一项)——任一 expense 行缺名 → 两规则整条门禁。
+    const hFindingsUnnamed = [
+      MdaFinding(
+        ruleId: 'H1',
+        severity: MdaSeverity.warn,
+        conclusion: '支出集中于「acct-food-002」类别:本期 ¥5,000.00,'
+            '占当期总支出 50.6%',
+        advice: '可结合该类明细确认集中是否来自少数高频/大额场景,无需立刻削减',
+      ),
+      MdaFinding(
+        ruleId: 'H2',
+        severity: MdaSeverity.warn,
+        conclusion: '「acct-food-002」支出环比突增:较 2026 年 7 月 +80.0%',
+        advice: '核对突增是否来自一次性场景,连续两期再关注',
+      ),
+      MdaFinding(
+        ruleId: 'R1',
+        severity: MdaSeverity.info,
+        conclusion: '储蓄率 20.0%,达到 20.0%',
+        advice: '保持',
+      ),
+    ];
+
+    /// 同形状但结论内嵌科目名(name 在场时真实规则的产物)。
+    const hFindingsNamed = [
+      MdaFinding(
+        ruleId: 'H1',
+        severity: MdaSeverity.warn,
+        conclusion: '支出集中于「餐饮」类别:本期 ¥5,000.00,'
+            '占当期总支出 50.6%',
+        advice: '可结合该类明细确认集中是否来自少数高频/大额场景,无需立刻削减',
+      ),
+      MdaFinding(
+        ruleId: 'H2',
+        severity: MdaSeverity.warn,
+        conclusion: '「餐饮」支出环比突增:较 2026 年 7 月 +80.0%',
+        advice: '核对突增是否来自一次性场景,连续两期再关注',
+      ),
+    ];
+
+    ReportDocument docWithUnnamedExpense() => ReportDocument(
+          period: ReportPeriod.monthly(2026, 8),
+          generatedAt: DateTime.utc(2026, 9, 1),
+          overview: OverviewSection.create(
+            netWorthStartCents: 0,
+            netWorthEndCents: 0,
+            incomeCents: 987_654,
+            expenseCents: 987_654,
+            cashDeltaCents: 0,
+            notes: const [],
+          ),
+          balanceSheet: BalanceSheetSection.create(
+            assets: const [],
+            liabilities: const [],
+            changes: const [],
+          ),
+          incomeStatement: IncomeStatementSection(
+            income: const [],
+            expense: [
+              CategoryAmount.create(
+                category: 'acct-food-002', // name 缺省 → H1/H2 回退内嵌它
+                amountCents: 500_000,
+                totalCents: 987_654,
+              ),
+            ],
+            dailyAvgCents: 0,
+          ),
+          cashFlow: const CashFlowSection(
+            operating:
+                ActivityFlow(inflowCents: 0, outflowCents: 0, netCents: 0),
+            investing:
+                ActivityFlow(inflowCents: 0, outflowCents: 0, netCents: 0),
+            financing:
+                ActivityFlow(inflowCents: 0, outflowCents: 0, netCents: 0),
+            netDeltaCents: 0,
+            reconciled: true,
+          ),
+          excludedSections: const [],
+        );
+
+    test('H1/H2 are dropped entirely when any expense row lacks a name', () {
+      final text = jsonEncode(sanitizedPayload(
+          docWithUnnamedExpense(),
+          MdaSection.create(findings: hFindingsUnnamed),
+          baseConfig));
+
+      // accountId 双缺席:byCategory 走占位名 + H1/H2 整条门禁
+      expect(text.contains('acct-food-002'), isFalse);
+      expect(text.contains('支出集中于'), isFalse);
+      expect(text.contains('环比突增'), isFalse);
+      // 无关 finding 不受门禁牵连
+      expect(text.contains('储蓄率 20.0%'), isTrue);
+    });
+
+    test('H1/H2 pass through when every expense row is named', () {
+      final doc = docWithUnnamedExpense();
+      final named = ReportDocument(
+        period: doc.period,
+        generatedAt: doc.generatedAt,
+        overview: doc.overview,
+        balanceSheet: doc.balanceSheet,
+        incomeStatement: IncomeStatementSection(
+          income: const [],
+          expense: [
+            CategoryAmount.create(
+              category: 'acct-food-002',
+              name: '餐饮',
+              amountCents: 500_000,
+              totalCents: 987_654,
+            ),
+          ],
+          dailyAvgCents: 0,
+        ),
+        cashFlow: doc.cashFlow,
+        excludedSections: doc.excludedSections,
+      );
+
+      final text = jsonEncode(sanitizedPayload(
+          named, MdaSection.create(findings: hFindingsNamed), baseConfig));
+
+      expect(text.contains('支出集中于「餐饮」'), isTrue);
+      expect(text.contains('「餐饮」支出环比突增'), isTrue);
+      expect(text.contains('acct-food-002'), isFalse);
+    });
+  });
 }

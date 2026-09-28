@@ -14,11 +14,7 @@ List<Map<String, String>> buildMessages(
   String payloadJson,
   LlmCityTier cityTier,
 ) {
-  final tierLabel = switch (cityTier) {
-    LlmCityTier.tier1 => '一线',
-    LlmCityTier.tier2 => '新一线',
-    LlmCityTier.tier3 => '二三线',
-  };
+  final tierLabel = cityTier.label; // 单点:core/llm LlmCityTierLabel
   return [
     {
       'role': 'system',

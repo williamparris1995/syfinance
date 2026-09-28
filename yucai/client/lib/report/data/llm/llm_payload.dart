@@ -67,18 +67,14 @@ Map<String, Object?> sanitizedPayload(
       },
     'findings': [
       for (final f in mda.findings)
-        if (_findingAllowed(f, cfg))
+        if (_findingAllowed(f, cfg, doc))
           {
             'severity': f.severity.name,
             'conclusion': f.conclusion,
             'advice': f.advice,
           },
     ],
-    'cityTier': switch (cfg.cityTier) {
-      LlmCityTier.tier1 => '一线',
-      LlmCityTier.tier2 => '新一线',
-      LlmCityTier.tier3 => '二三线',
-    },
+    'cityTier': cfg.cityTier.label,
   };
 }
 
@@ -99,10 +95,22 @@ Map<String, Object?> _breakdown(int totalCents, List<CategoryAmount> rows) => {
       ],
     };
 
-/// 负面清单过滤:R5(交易描述内嵌)恒排除;R4(模板名内嵌)仅
-/// includeNames 开启时放行;其余规则结论只含数字与科目名,安全。
-bool _findingAllowed(MdaFinding f, LlmConfig cfg) => switch (f.ruleId) {
+/// 负面清单过滤:
+/// - R5(交易描述内嵌)恒排除——无开关红线;
+/// - R4(模板名内嵌)仅 includeNames 开启时放行;
+/// - H1/H2(conclusion 在科目 name null/空时回退内嵌 category=
+///   科目账户 id)——expense 构成任一行缺名即整条门禁(fail-closed,
+///   评审 R1 Important:无法从自由文本外科摘除,宁缺勿泄);
+/// - 其余规则结论只含数字与科目名,安全。
+bool _findingAllowed(MdaFinding f, LlmConfig cfg, ReportDocument doc) =>
+    switch (f.ruleId) {
       'R5' => false,
       'R4' => cfg.includeNames,
+      'H1' || 'H2' => _expenseNamesComplete(doc),
       _ => true,
     };
+
+/// expense 构成全部行都带非空展示名(H1/H2 放行前置)。
+bool _expenseNamesComplete(ReportDocument doc) =>
+    doc.incomeStatement.expense
+        .every((r) => r.name != null && r.name!.trim().isNotEmpty);

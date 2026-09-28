@@ -14,6 +14,41 @@ void main() {
     expect(llmHttpTimeout, const Duration(seconds: 30));
   });
 
+  test('overall deadline cuts a slow endpoint within budget (评审 R1)', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    // 慢端点:延迟 1.5s 才回响应头(远超 150ms 预算)。
+    server.listen((request) async {
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      request.response.statusCode = 200;
+      request.response.write('{}');
+      await request.response.close();
+    });
+
+    final url =
+        Uri.parse('http://127.0.0.1:${server.port}/chat/completions');
+    final watch = Stopwatch()..start();
+    await expectLater(
+      llmHttpPost(
+        url,
+        {'Authorization': 'Bearer sk-loopback'},
+        '{}',
+        timeout: const Duration(milliseconds: 150),
+      ),
+      throwsA(
+        isA<NarrationFailure>()
+            .having((e) => e.message, 'message', contains('127.0.0.1'))
+            .having(
+                (e) => e.message, 'message', isNot(contains('sk-loopback'))),
+      ),
+    );
+    watch.stop();
+    // 整体预算语义:~150ms 即断言失败,绝不等满慢端点的 1.5s
+    // (各段共用同一预算,最坏全链 = timeout 而非分段叠加)。
+    expect(watch.elapsed, lessThan(const Duration(seconds: 1)));
+  });
+
   test('posts body with headers and returns the 200 response body', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));

@@ -46,9 +46,16 @@ class LlmMdaNarrator implements MdaNarrator {
     final payloadJson = jsonEncode(sanitizedPayload(doc, mda, cfg));
     final messages = buildMessages(payloadJson, cfg.cityTier);
 
-    // 端点 = resolvedBaseUrl(预设钉死/custom 用户填)去尾斜杠 + 固定路径。
+    // 端点 = resolvedBaseUrl(预设钉死/custom 用户填)去尾斜杠 + 固定路径;
+    // 畸形 base_url(评审 R1)预包防御 → NarrationFailure,不逃裸
+    // FormatException(消息不含用户串,零 Key)。
     final base = cfg.resolvedBaseUrl.replaceAll(RegExp(r'/+$'), '');
-    final url = Uri.parse('$base/chat/completions');
+    final Uri url;
+    try {
+      url = Uri.parse('$base/chat/completions');
+    } on FormatException {
+      throw const NarrationFailure('LLM 端点地址无效');
+    }
     final body = jsonEncode({'model': cfg.model, 'messages': messages});
 
     try {

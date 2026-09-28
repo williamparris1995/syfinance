@@ -18,6 +18,16 @@ enum LlmProvider { zhipu, openai, deepseek, custom }
 /// 城市规模档位(FR-1,LLM 生活成本语境:一线/新一线/二三线)。
 enum LlmCityTier { tier1, tier2, tier3 }
 
+/// 档位 → 中文标签(payload `cityTier` 字段与 prompt 语境行共用单点,
+/// 评审 R1 收口:两处重复 switch 合一)。
+extension LlmCityTierLabel on LlmCityTier {
+  String get label => switch (this) {
+        LlmCityTier.tier1 => '一线',
+        LlmCityTier.tier2 => '新一线',
+        LlmCityTier.tier3 => '二三线',
+      };
+}
+
 /// 预设端点映射(provider → 默认 base_url;custom = 用户填写)。
 abstract final class LlmEndpoints {
   static const Map<LlmProvider, String> preset = {

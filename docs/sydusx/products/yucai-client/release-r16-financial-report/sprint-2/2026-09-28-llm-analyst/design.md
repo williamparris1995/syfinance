@@ -40,6 +40,7 @@ lib/core/di/injection.config.dart     # regen(MdaNarrator 主绑定替换)
 
 - `LlmSettings`:`LlmConfig{enabled, baseUrl(preset 枚举→url 解析), apiKey, model, tier(一线/新一线/二三线), includeNames, disclaimerAck}`;`ValueNotifier<LlmConfig>`;`ready` 派生(enabled&&baseUrl&&apiKey&&model 非空)。
 - `sanitizedPayload`:字段={period, netWorth{start,end,changePct}, savingsRate, income{total,byCategory[name,amount,pct]}, expense 同, cashFlow{三活动 net}, budget{items[name,actual,limit,pct]}, investment{mvStart,mvEnd,netBuy,estGain,twrPct}?, findings[{severity,conclusion,advice}], cityTier, subscriptions?[](includeNames 开时)};**负面清单**:无 accountId/无交易描述/无模板名(订阅名=用户选择加入)。
+  - LLD 偏差(2026-09-28 T1 评审 R1 裁定):`subscriptions?[]` 独立字段不实现——MdaNarrator port 只送 (doc, findings),订阅名经 R4 conclusion 承载(includeNames 两态,合规);R5 conclusion 内嵌交易描述无开关,fail-closed 恒排除;H1/H2 conclusion 在科目空名时回退内嵌 accountId,expense 任一行缺名即整条门禁。
 - `buildMessages`:system=spec FR-3 文案逐字;user=payload JSON(金额以元两位小数字符串,复用 mdaCny 口径)。
 - `LlmMdaNarrator.narrate(doc, findings)`:!ready→'';payload(取 doc.mda findings)→messages→httpFn→parse content;超时/异常→`NarrationFailure(message)` 抛给页面(页面 error 态)——**spec FR-3「降级空串或错误态」二态:未配置=空串(隐藏),已配置调用失败=错误态(可见可重试)**。
 - 页面旁挂:`_AnalystState{idle, loading, done(text, model), error(msg)}`;期变更/重新生成→idle。

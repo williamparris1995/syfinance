@@ -244,6 +244,26 @@ void main() {
       );
     });
 
+    test('malformed custom base_url fails as NarrationFailure, not bare '
+        'FormatException (评审 R1)', () async {
+      await settings.setConfig(readyConfig.copyWith(
+        provider: LlmProvider.custom,
+        baseUrl: 'ht!tp://[::1', // Uri.parse 抛 Illegal scheme character
+      ));
+
+      final narrator = LlmMdaNarrator(settings, fakeHttp);
+      await expectLater(
+        narrator.narrate(buildDoc(), findings),
+        throwsA(
+          isA<NarrationFailure>()
+              .having(
+                  (e) => e.message, 'message', contains('端点地址无效'))
+              .having((e) => e.message, 'message', isNot(contains('sk-'))),
+        ),
+      );
+      expect(request, isNull); // 未触网即失败
+    });
+
     test('response missing choices/content maps to NarrationFailure',
         () async {
       respondWith = jsonEncode({'choices': []});
