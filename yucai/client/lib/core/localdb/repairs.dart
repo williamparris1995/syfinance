@@ -15,6 +15,7 @@ import 'package:yucai_client/transaction/domain/repositories/transaction_reposit
 Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
   await _repaymentHistorySettlementOnce(db);
   await runF36LiabilityBalanceRepair(db);
+  await rebalanceFromLedger(db);
 }
 
 /// F36 存量迁移(2026-09-18,design ADR-3/6):负债账户余额漂移修复。
@@ -87,6 +88,99 @@ Future<void> runF36LiabilityBalanceRepair(AppDatabase db) async {
         AppMetaCompanion.insert(key: markerKey, value: 'done'),
         mode: InsertMode.insertOrIgnore,
       );
+}
+
+/// 余额重推导一次性修复(2026-09-28,用户 dev 实测反馈②,取证定案):
+/// `_repaymentHistorySettlementOnce`(2026-09-17)用裸 SQL 改账绕过了
+/// BalanceLocalUpdater —— 删 20 笔旧还款交易未回滚余额、插 40 条
+/// settle-* 结转分录未应用余额 —— 致 3 账户 current_balance_cents 漂移
+/// (工行储蓄卡少 5,552,960 / 广发财智金多 218,328 / sys-hist-settlement
+/// 少 5,771,288;其余 25 账户一致)。报告页回放口径(initial + Σ分录)是
+/// 对的、账户页存储值是偏的 —— 故以回放口径为准对**全部账户**重推:
+///   current_balance_cents = initial_balance_cents + Σ delta(存活分录)
+/// delta 规则照抄 balance_updater._entryDelta(= balance_replay /
+/// server ApplyEntryDirection 同款):asset(1)/expense(5) → debit−credit;
+/// liability(2)/equity(3)/income(4) → credit−debit;未知类型 → 0。
+///
+/// 软删/版本口径核验(与既有余额更新器逐字一致,**无**过滤):
+///  - transactions 表无 deletedAt 列 —— 删除是硬删:delete() 先
+///    applyEntries(old, −1) 回滚余额,再随 FK cascade 掉头行+分录;墓碑
+///    只进 sync_tombstones 旁表,不参与余额。故「存活分录」=
+///    transaction_entries INNER JOIN transactions(FK cascade 保证无孤儿
+///    分录),不存在也不需要 deleteAt 过滤。
+///  - 不滤 sync_state / version:BalanceLocalUpdater 对每条分录无条件
+///    应用(pending 行余额已联动,上行成功只改状态列);version 是乐观锁
+///    序号,与余额真值无关。
+///
+/// 恰好执行一次:AppMeta 标记 'repair_rebalance_from_ledger_v1';聚合 +
+/// 改余额 + 置标记在**单个 drift 事务**内 —— 中断安全(要么全落要么全
+/// 无,失败下次打开重试),重跑对已对齐账户 delta=0 自然跳过。只改
+/// current_balance_cents / updated_at:不 bump version、不置 pending
+/// (账户余额是派生值非上行事实;bound 模式镜像 rebuild 走 delete-all
+/// synced 不看本地 version,不制造上行信号)。
+Future<void> rebalanceFromLedger(AppDatabase db) async {
+  const markerKey = 'repair_rebalance_from_ledger_v1';
+  final done = await (db.select(db.appMeta)
+        ..where((t) => t.key.equals(markerKey)))
+      .getSingleOrNull();
+  if (done != null) return;
+
+  await db.transaction(() async {
+    // 按账户聚合存活分录的 Σdebit/Σcredit(INNER JOIN transactions 钉死
+    // 「存活头行下的分录」口径;账户类型规则在 Dart 侧套用,与
+    // _entryDelta 逐字同源)。孤儿账户分录随 JOIN accounts 自然剔除
+    // (报告回放同款:type 0 → delta 0,且本无账户行可写)。
+    final rows = await db.customSelect('''
+      SELECT a.id AS acc_id, a.account_type AS atype,
+             a.initial_balance_cents AS initial,
+             a.current_balance_cents AS bal,
+             COALESCE(s.dsum, 0) AS dsum, COALESCE(s.csum, 0) AS csum
+      FROM accounts a
+      LEFT JOIN (
+        SELECT e.account_id AS aid,
+               SUM(e.debit_cents) AS dsum, SUM(e.credit_cents) AS csum
+        FROM transaction_entries e
+        JOIN transactions t ON t.id = e.transaction_id
+        GROUP BY e.account_id
+      ) s ON s.aid = a.id
+    ''').get();
+
+    // customStatement 不做 DateTime 绑定转换;本项目 drift 存储口径 =
+    // ISO 文本(与 _settlementAccountId 同款)。
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    for (final r in rows) {
+      final target = r.read<int>('initial') +
+          _entryDelta(r.read<int>('atype'), r.read<int>('dsum'),
+              r.read<int>('csum'));
+      if (target == r.read<int>('bal')) continue; // 已对齐账户不动
+      await db.customStatement(
+          'UPDATE accounts SET current_balance_cents = ?, updated_at = ? '
+          'WHERE id = ?',
+          [target, nowIso, r.read<String>('acc_id')]);
+    }
+
+    await db.into(db.appMeta).insert(
+          AppMetaCompanion.insert(key: markerKey, value: 'done'),
+          mode: InsertMode.insertOrIgnore,
+        );
+  });
+}
+
+/// 分录对账户余额的增量(照抄 balance_updater._entryDelta /
+/// balance_replay._entryDelta:asset(1)/expense(5) → debit−credit;
+/// liability(2)/equity(3)/income(4) → credit−debit;未知类型 → 0)。
+int _entryDelta(int accountType, int debitCents, int creditCents) {
+  switch (accountType) {
+    case 1: // asset
+    case 5: // expense
+      return debitCents - creditCents;
+    case 2: // liability
+    case 3: // equity
+    case 4: // income
+      return creditCents - debitCents;
+    default:
+      return 0;
+  }
 }
 
 /// 权益户「历史还款结转」兜底(照 debt_local_ds._ensureSettlementAccount
