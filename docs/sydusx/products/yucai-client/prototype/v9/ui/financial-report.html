@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · 财务报告</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:财务报告 */
+  /* —— 报告期控件 —— */
+  .period-nav{display:flex;align-items:center;gap:6px}
+  .period-label{min-width:96px;text-align:center;font-weight:700;font-size:13.5px}
+  .btn-primary:disabled{opacity:.55;cursor:default;filter:none}
+
+  /* —— 生成进度区(固定高度防跳动) —— */
+  .gen-zone{min-height:132px;margin-bottom:18px}
+  .gen-zone.done{display:none}
+  .gen-zone>.card{min-height:132px;display:flex;flex-direction:column;justify-content:center;gap:12px}
+  .gen-zone>.card[hidden]{display:none}
+  .gen-idle p{color:var(--muted);font-size:12.5px}
+  .g-title{display:flex;align-items:center;justify-content:space-between}
+  .g-title b{color:var(--fg)}
+  .gen-steps{display:flex}
+  .g-step{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+  .g-step::before{content:"";position:absolute;top:13px;left:calc(-50% + 24px);width:calc(100% - 48px);height:2px;background:var(--border)}
+  .g-step:first-child::before{display:none}
+  .g-step.done::before{background:var(--acc)}
+  .g-dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:grid;place-items:center;font-weight:700}
+  .g-step.on .g-dot{border-color:var(--acc);color:var(--acc);animation:gpulse 1.2s ease-out infinite}
+  .g-step.done .g-dot{border-color:var(--acc);background:var(--acc);color:var(--acc-text)}
+  .g-step.done .g-dot::after{content:"✓"}
+  .g-step.on span,.g-step.done span{color:var(--fg);font-weight:600}
+  @keyframes gpulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 45%,transparent)}100%{box-shadow:0 0 0 9px color-mix(in srgb,var(--acc) 0%,transparent)}}
+  .gen-prog{transition:opacity .45s ease}
+  .gen-prog.fade-out{opacity:0}
+
+  /* —— 报告体 —— */
+  .report-body{display:none}
+  .report-body.show{display:block;animation:repIn .5s ease}
+  @keyframes repIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+  /* —— 章节锚点条(变体A:顶部 sticky 横条) —— */
+  .chapter-bar{position:sticky;top:65px;z-index:15;display:flex;gap:8px;overflow-x:auto;padding:10px 0;margin-bottom:20px;background:var(--topbar-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+  .chapter-bar a{flex:none;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:999px;padding:6px 14px}
+  .chapter-bar a.on{color:var(--nav-active-fg);background:var(--nav-active-bg);border-color:transparent}
+
+  /* —— 章节圆点导航(变体B:右缘竖排,悬停出标签) —— */
+  .dot-nav{display:none;position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:25;flex-direction:column;gap:12px}
+  .dot-nav a{position:relative;display:block;width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--muted) 45%,transparent)}
+  .dot-nav a.on{background:var(--acc);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 22%,transparent)}
+  .dot-nav a span{position:absolute;right:20px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11.5px;font-weight:600;color:var(--fg);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px 10px;opacity:0;pointer-events:none;transition:opacity .15s}
+  .dot-nav a:hover span,.dot-nav a:focus span,.dot-nav a.on span{opacity:1}
+  body.variant-b .dot-nav{display:flex}
+  body.variant-b .chapter-bar{display:none}
+
+  /* —— 章节 —— */
+  .chapter{margin-bottom:28px;scroll-margin-top:132px}
+  .ch-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .ch-no{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);border-radius:7px;padding:3px 8px}
+  .ch-head h2{font-size:17px;font-weight:700}
+  .ch-head::after{content:"";flex:1;height:1px;background:var(--border)}
+
+  /* —— 01 总览 —— */
+  .nw-cap{font-size:11.5px;color:var(--muted)}
+  .nw-arrow{margin-bottom:10px;color:var(--muted)}
+  .hero-row .delta{margin-bottom:8px}
+  .sum-strip.four{grid-template-columns:repeat(4,1fr)}
+  .cash-slim{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 20px;margin-bottom:18px}
+  .cash-slim .cs-sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .cash-val{font-size:20px;font-weight:800;color:var(--pos)}
+  .notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .note-card .n-line{color:var(--muted);font-size:12.5px;line-height:1.9}
+  .note-card .n-line b{color:var(--fg);font-weight:600}
+
+  /* —— 通用条目清单(02 构成 / 03 收支) —— */
+  .rows-list .r-row{display:grid;grid-template-columns:92px 1fr 100px 48px;gap:12px;align-items:center;font-size:13px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .rows-list .r-row:last-child{border-bottom:0}
+  .rows-list .r-name{font-weight:600}
+  .rows-list .r-bar{height:8px;border-radius:999px;background:var(--bar-track);overflow:hidden}
+  .rows-list .r-bar i{display:block;height:100%;border-radius:999px;background:var(--bar-fill)}
+  .rows-list .r-bar i.neg{background:color-mix(in srgb,var(--neg) 65%,var(--bar-track))}
+  .rows-list .r-amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+  .rows-list .r-amt.pos{color:var(--pos)}
+  .rows-list .r-pct{text-align:right;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+
+  /* —— 02 资产负债 —— */
+  .bs-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-bottom:18px}
+  .mv-table .grid-head,.mv-table .grid-row{grid-template-columns:1.2fr 1fr 1fr .9fr}
+  .mv-table .grid-head span:nth-child(n+2),.mv-table .grid-row span:nth-child(n+2){text-align:right}
+  .mv-table .chg{color:var(--pos)}
+
+  /* —— 03 收支 —— */
+  .io-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start}
+  .col{display:grid;gap:18px}
+  .sum-line{display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--muted)}
+  .sum-line b{color:var(--fg);font-weight:700}
+
+  /* —— 04 现金流 —— */
+  .cf-table .grid-head,.cf-table .grid-row{grid-template-columns:.9fr .8fr .8fr .8fr 1.7fr}
+  .cf-table .c-rt{text-align:right}
+  .cf-det{color:var(--muted);font-size:12px}
+  .cf-table .grid-row.total{background:var(--surface-2);border-bottom:0}
+  .recon{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:12.5px;margin-top:12px;line-height:1.7}
+  .recon b{color:var(--fg)}
+
+  /* —— 05 预算执行 —— */
+  .bdg-row{display:grid;grid-template-columns:92px 1fr 178px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+  .bdg-row:last-child{border-bottom:0}
+  .bdg-name{font-weight:600;font-size:13px}
+  .bdg-bar{height:8px;border-radius:999px;background:var(--bar-track);overflow:hidden}
+  .bdg-bar i{display:block;height:100%;border-radius:999px;background:var(--bar-fill)}
+  .bdg-side{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .bdg-amt{font-weight:700;font-variant-numeric:tabular-nums;font-size:13px}
+  .bdg-amt small{color:var(--muted);font-weight:500}
+
+  /* —— 06 投资绩效 —— */
+  .metric-five{display:grid;grid-template-columns:repeat(5,1fr);gap:18px}
+
+  /* —— 变体切换浮动条 —— */
+  .var-bar{position:fixed;right:20px;bottom:20px;z-index:40;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 10px;box-shadow:var(--shadow)}
+  .var-bar .var-label{font-size:11.5px;color:var(--muted);font-weight:600}
+  .var-bar .pills{gap:6px}
+  .var-bar .pills a{padding:4px 11px;font-size:11.5px}
+  .var-sep{width:1px;height:16px;background:var(--border)}
+
+  /* —— 诊断摘要卡(BRIEF2 · 两态) —— */
+  .diag-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .diag-row:last-of-type{border-bottom:0}
+  .sev-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none;font-weight:800;font-size:14px}
+  .sev-ic.warn{background:color-mix(in srgb,var(--warn) 13%,transparent);color:var(--warn)}
+  .sev-ic.info{background:color-mix(in srgb,var(--cyan) 13%,transparent);color:var(--cyan)}
+  .diag-main{flex:1;min-width:0}
+  .diag-t{font-size:13px;font-weight:600}
+  .diag-s{font-size:12px;color:var(--muted);margin-top:2px}
+  .diag-foot-link{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12.5px;font-weight:600;color:var(--link)}
+  .diag-ok{display:none;align-items:center;gap:10px;background:var(--pos-soft);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600}
+  .diag-ok .ok-ic{width:26px;height:26px;border-radius:50%;background:var(--pos);color:var(--bg);display:grid;place-items:center;font-size:13px;flex:none}
+  body.mood-healthy .diag-full{display:none}
+  body.mood-healthy .diag-ok{display:flex}
+
+  /* —— 07 诊断与建议 —— */
+  #ch-7 .ch-head{flex-wrap:wrap}
+  .fg-label{font-size:11px;color:var(--muted);letter-spacing:2px;font-weight:600;margin-bottom:8px}
+  .f-list{display:grid;gap:12px;margin-bottom:16px}
+  .fcard{display:flex;gap:14px;align-items:flex-start}
+  .fcard .f-main{flex:1;min-width:0}
+  .f-conc{font-size:13.5px;font-weight:600;line-height:1.5}
+  .f-sub{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.6}
+  .f-adv{margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:600}
+  .f-link{font-size:12.5px;font-weight:600;color:var(--link)}
+  .f-sev{flex:none}
+  .ch7-healthy{display:none;text-align:center;padding:34px 20px}
+  .hl-check{width:44px;height:44px;border-radius:50%;background:var(--pos-soft);color:var(--pos);display:grid;place-items:center;font-size:20px;font-weight:800;margin:0 auto 12px}
+  .ch7-healthy .h-t{font-size:15px;font-weight:700}
+  .ch7-healthy .h-s{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.7}
+  body.mood-healthy .ch7-findings{display:none}
+  body.mood-healthy .ch7-healthy{display:block}
+
+  /* —— 分析师解读(BRIEF3 · done/loading/error 三态) —— */
+  .ch7-llm{margin-top:6px}
+  body.mood-healthy .ch7-llm{display:none}
+  .llm-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  .llm-head h3{font-size:13px;font-weight:700}
+  .llm-body p{font-size:13px;line-height:1.8}
+  .llm-body p + p{margin-top:10px}
+  .llm-load{color:var(--muted)}
+  .llm-err-t{color:var(--neg)}
+  .llm-link,.llm-retry{border:0;background:none;padding:0;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--link);flex:none}
+  .llm-retry{margin-left:6px}
+  .llm-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;color:var(--muted);font-size:11.5px;line-height:1.6;flex-wrap:wrap}
+
+  @media (max-width:900px){
+    .sum-strip.four{grid-template-columns:repeat(2,1fr)}
+    .notes-grid,.bs-grid,.io-grid{grid-template-columns:1fr}
+    .metric-five{grid-template-columns:repeat(2,1fr)}
+    .metric-five .card:nth-child(5){grid-column:1/-1}
+    .rows-list .r-row{grid-template-columns:70px 1fr 92px 42px;gap:8px}
+    .mv-table .grid-head{display:none}
+    .mv-table .grid-row{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
+    .mv-table .grid-row span:nth-child(n+2){text-align:left}
+    .cf-table .grid-head{display:none}
+    .cf-table .grid-row{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
+    .cf-table .c-rt{text-align:left}
+    .cf-det{width:100%}
+    .bdg-row{grid-template-columns:80px 1fr;row-gap:6px}
+    .bdg-side{grid-column:1/-1}
+    .chapter-bar{top:61px}
+    .var-bar{right:12px;bottom:88px}
+    .var-bar .var-label{display:none}
+    .page-head-actions{flex-wrap:wrap}
+    .period-label{min-width:84px}
+  }
+</style>
+<noscript><style>.report-body{display:block}.gen-zone,.var-bar{display:none}</style></noscript>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item active" href="../../../../../../../design-output-v2/ab/report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb"><a href="../../../../../../../design-output-v2/ab/report.html">报表分析</a> <span class="sep">›</span> <b>财务报告</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>财务报告</h1>
+        <p class="date">按月或按年,汇编一份完整的个人财务报告</p>
+      </div>
+      <div class="page-head-actions">
+        <div class="pills" id="segMode">
+          <a class="on" href="#" data-mode="m">月</a>
+          <a href="#" data-mode="y">年</a>
+        </div>
+        <div class="period-nav">
+          <button class="icon-btn" id="prevPeriod" aria-label="上一期"><svg class="ic"><use href="#i-left"/></svg></button>
+          <span class="period-label num" id="periodLabel">2026 年 8 月</span>
+          <button class="icon-btn" id="nextPeriod" aria-label="下一期"><svg class="ic"><use href="#i-right"/></svg></button>
+        </div>
+        <button class="btn-ghost" id="aiBtn"><svg class="ic"><use href="#i-zap"/></svg>AI 解读</button>
+        <button class="btn-primary" id="genBtn"><svg class="ic"><use href="#i-file"/></svg><span id="genBtnText">生成报告</span></button>
+      </div>
+    </div>
+
+    <div class="gen-zone" id="genZone">
+      <div class="card gen-idle" id="genIdle">
+        <div class="mini-title">报告尚未生成</div>
+        <p>选择报告期后点击「生成报告」,将读取账本、回放余额、汇编章节并计算绩效,生成六章节完整报告。</p>
+        <div><button class="btn-primary" id="genBtn2"><svg class="ic"><use href="#i-file"/></svg>生成报告</button></div>
+      </div>
+      <div class="card gen-prog" id="genProg" hidden>
+        <div class="g-title">
+          <span class="mini-title">正在生成 · <b id="genStageName">读取账本</b></span>
+          <span class="chip num" id="genStepNo">1/4</span>
+        </div>
+        <div class="gen-steps" id="genSteps">
+          <div class="g-step on"><i class="g-dot"></i><span>读取账本</span></div>
+          <div class="g-step"><i class="g-dot"></i><span>回放余额</span></div>
+          <div class="g-step"><i class="g-dot"></i><span>汇编章节</span></div>
+          <div class="g-step"><i class="g-dot"></i><span>计算绩效</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-body" id="reportBody">
+      <nav class="chapter-bar" id="chapterBar" aria-label="章节导航">
+        <a class="on" href="#ch-1">总览</a>
+        <a href="#ch-2">资产负债</a>
+        <a href="#ch-3">收支</a>
+        <a href="#ch-4">现金流</a>
+        <a href="#ch-5">预算执行</a>
+        <a href="#ch-6">投资绩效</a>
+        <a href="#ch-7">诊断与建议</a>
+      </nav>
+      <nav class="dot-nav" id="dotNav" aria-label="章节导航">
+        <a class="on" href="#ch-1"><span>总览</span></a>
+        <a href="#ch-2"><span>资产负债</span></a>
+        <a href="#ch-3"><span>收支</span></a>
+        <a href="#ch-4"><span>现金流</span></a>
+        <a href="#ch-5"><span>预算执行</span></a>
+        <a href="#ch-6"><span>投资绩效</span></a>
+        <a href="#ch-7"><span>诊断与建议</span></a>
+      </nav>
+
+      <section class="chapter" id="ch-1">
+        <div class="ch-head"><span class="ch-no num">01</span><h2>总览</h2></div>
+
+        <section class="hero">
+          <div class="hero-label">净资产变动 · 2026 年 8 月</div>
+          <div class="hero-row num">
+            <div>
+              <div class="nw-cap">期初净资产</div>
+              <div class="hero-amount sm">¥286,450.00</div>
+            </div>
+            <span class="nw-arrow">→</span>
+            <div>
+              <div class="nw-cap">期末净资产</div>
+              <div class="hero-amount">¥301,280.00</div>
+            </div>
+            <span class="delta up">+¥14,830.00 +5.2%</span>
+          </div>
+          <div class="hero-foot num">
+            <span>储蓄率 <b>45.6%</b></span>
+            <span>现金及等价物净变动 <b style="color:var(--pos)">+¥8,530.00</b></span>
+            <span>本位币 <b>CNY</b></span>
+          </div>
+        </section>
+
+        <section class="sum-strip four num">
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">本月收入</span><span class="chip">8月</span></div>
+            <div class="mini-big" style="color:var(--pos)">¥32,500.00</div>
+            <div class="mini-foot">工资 + 理财收益 + 其他</div>
+          </div>
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">本月支出</span><span class="chip">8 大类</span></div>
+            <div class="mini-big">¥17,670.00</div>
+            <div class="mini-foot">居住占比最高 · 35.1%</div>
+          </div>
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">本月结余</span><span class="chip">= 收入 − 支出</span></div>
+            <div class="mini-big" style="color:var(--pos)">+¥14,830.00</div>
+            <div class="mini-foot">结余率 45.6%</div>
+          </div>
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">储蓄率</span><span class="chip">月口径</span></div>
+            <div class="mini-big" style="color:var(--pos)">45.6%</div>
+            <div class="mini-foot">结余 ¥14,830 / 收入 ¥32,500</div>
+          </div>
+        </section>
+
+        <div class="card cash-slim num">
+          <div>
+            <div class="g-strong">现金及等价物净变动</div>
+            <div class="cs-sub">经营 + 投资 + 融资 三类活动净额</div>
+          </div>
+          <div class="cash-val">+¥8,530.00</div>
+        </div>
+
+        <div class="card diag-card" id="diagCard">
+          <div class="diag-full num">
+            <div class="card-head"><h2>诊断摘要 · 0 风险 2 提示 1 关注</h2><span class="chip">基于本期数据</span></div>
+            <div class="diag-row">
+              <span class="sev-ic warn">⚠</span>
+              <div class="diag-main">
+                <div class="diag-t">购物超预算:4,120/3,500(118%)</div>
+              </div>
+              <span class="chip neg">超支 620.00</span>
+            </div>
+            <div class="diag-row">
+              <span class="sev-ic warn">⚠</span>
+              <div class="diag-main">
+                <div class="diag-t">可能闲置订阅:XX 音乐会员(年付 288.00,月度等价 24.00)</div>
+                <div class="diag-s">若仍在使用,记一笔时请关联该订阅</div>
+              </div>
+            </div>
+            <div class="diag-row">
+              <span class="sev-ic info">ℹ</span>
+              <div class="diag-main">
+                <div class="diag-t">大额单笔:9 月 2 日单笔 3,600.00(年卡)</div>
+                <div class="diag-s">若为年付/预付类支出属正常现象</div>
+              </div>
+              <span class="chip">≥ 日均支出×3</span>
+            </div>
+            <a class="diag-foot-link" id="diagMore" href="#ch-7">查看全部 ↓</a>
+          </div>
+          <div class="diag-ok num"><span class="ok-ic">✓</span>本期诊断:0 风险 0 提示 0 关注 · 未发现需关注项 ✓</div>
+        </div>
+
+        <div class="notes-grid">
+          <div class="card note-card">
+            <div class="card-head"><h2>📋 口径附注</h2></div>
+            <div class="n-line num">· 时点数由交易回放重建,含汇率近似</div>
+            <div class="n-line num">· 现金及等价物 = 活期与钱包类账户</div>
+            <div class="n-line num">· 定期存款按投资活动列示</div>
+          </div>
+          <div class="card note-card">
+            <div class="card-head"><h2>📭 未包含项</h2></div>
+            <div class="n-line">· 未包含:<b>目标回顾</b>(本期暂不提供)</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch-2">
+        <div class="ch-head"><span class="ch-no num">02</span><h2>资产负债</h2></div>
+
+        <div class="bs-grid num">
+          <div class="card">
+            <div class="card-head"><h2>资产构成 · 期末</h2><span class="chip">合计 ¥412,300.00</span></div>
+            <div class="rows-list">
+              <div class="r-row"><span class="r-name">活期与钱包</span><span class="r-bar"><i style="width:19%"></i></span><span class="r-amt">¥53,730.00</span><span class="r-pct">13.0%</span></div>
+              <div class="r-row"><span class="r-name">定期存款</span><span class="r-bar"><i style="width:11%"></i></span><span class="r-amt">¥32,000.00</span><span class="r-pct">7.8%</span></div>
+              <div class="r-row"><span class="r-name">储值卡</span><span class="r-bar"><i style="width:1%"></i></span><span class="r-amt">¥800.00</span><span class="r-pct">0.2%</span></div>
+              <div class="r-row"><span class="r-name">投资持仓</span><span class="r-bar"><i style="width:16%"></i></span><span class="r-amt">¥45,770.00</span><span class="r-pct">11.1%</span></div>
+              <div class="r-row"><span class="r-name">自有房产</span><span class="r-bar"><i style="width:100%"></i></span><span class="r-amt">¥280,000.00</span><span class="r-pct">67.9%</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>负债构成 · 期末</h2><span class="chip">合计 ¥111,020.00</span></div>
+            <div class="rows-list">
+              <div class="r-row"><span class="r-name">信用卡</span><span class="r-bar"><i class="neg" style="width:3%"></i></span><span class="r-amt">¥3,180.00</span><span class="r-pct">2.9%</span></div>
+              <div class="r-row"><span class="r-name">房贷</span><span class="r-bar"><i class="neg" style="width:100%"></i></span><span class="r-amt">¥107,840.00</span><span class="r-pct">97.1%</span></div>
+            </div>
+            <div class="mini-foot num" style="margin-top:10px">资产负债率 26.9% · 期末负债 / 期末资产</div>
+          </div>
+        </div>
+
+        <div class="card mv-table num">
+          <div class="card-head"><h2>期初 → 期末 变动</h2><span class="chip">本报告期</span></div>
+          <div class="grid-head"><span>项目</span><span>期初</span><span>期末</span><span>变动</span></div>
+          <div class="grid-row">
+            <span class="g-strong">净资产</span>
+            <span class="g-num">¥286,450.00</span>
+            <span class="g-num">¥301,280.00</span>
+            <span class="g-num chg">+¥14,830.00</span>
+          </div>
+          <div class="grid-row">
+            <span class="g-strong">资产</span>
+            <span class="g-num">¥398,540.00</span>
+            <span class="g-num">¥412,300.00</span>
+            <span class="g-num chg">+¥13,760.00</span>
+          </div>
+          <div class="grid-row">
+            <span class="g-strong">负债</span>
+            <span class="g-num">¥112,090.00</span>
+            <span class="g-num">¥111,020.00</span>
+            <span class="g-num chg">−¥1,070.00</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch-3">
+        <div class="ch-head"><span class="ch-no num">03</span><h2>收支</h2></div>
+
+        <div class="io-grid num">
+          <div class="card">
+            <div class="card-head"><h2>支出分类</h2><span class="chip">合计 ¥17,670.00</span></div>
+            <div class="rows-list">
+              <div class="r-row"><span class="r-name">🍜 餐饮</span><span class="r-bar"><i style="width:46%"></i></span><span class="r-amt">¥2,850.00</span><span class="r-pct">16.1%</span></div>
+              <div class="r-row"><span class="r-name">🛍️ 购物</span><span class="r-bar"><i style="width:66%"></i></span><span class="r-amt">¥4,120.00</span><span class="r-pct">23.3%</span></div>
+              <div class="r-row"><span class="r-name">🏠 居住</span><span class="r-bar"><i style="width:100%"></i></span><span class="r-amt">¥6,200.00</span><span class="r-pct">35.1%</span></div>
+              <div class="r-row"><span class="r-name">🚇 交通</span><span class="r-bar"><i style="width:11%"></i></span><span class="r-amt">¥680.00</span><span class="r-pct">3.8%</span></div>
+              <div class="r-row"><span class="r-name">🎬 娱乐</span><span class="r-bar"><i style="width:19%"></i></span><span class="r-amt">¥1,150.00</span><span class="r-pct">6.5%</span></div>
+              <div class="r-row"><span class="r-name">📺 订阅服务</span><span class="r-bar"><i style="width:6%"></i></span><span class="r-amt">¥380.00</span><span class="r-pct">2.1%</span></div>
+              <div class="r-row"><span class="r-name">💊 医疗</span><span class="r-bar"><i style="width:10%"></i></span><span class="r-amt">¥640.00</span><span class="r-pct">3.6%</span></div>
+              <div class="r-row"><span class="r-name">⋯ 其他</span><span class="r-bar"><i style="width:27%"></i></span><span class="r-amt">¥1,650.00</span><span class="r-pct">9.3%</span></div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <div class="card-head"><h2>收入构成</h2><span class="chip">合计 ¥32,500.00</span></div>
+              <div class="rows-list">
+                <div class="r-row"><span class="r-name">💼 工资</span><span class="r-bar"><i style="width:100%"></i></span><span class="r-amt pos">¥28,000.00</span><span class="r-pct">86.2%</span></div>
+                <div class="r-row"><span class="r-name">📈 理财收益</span><span class="r-bar"><i style="width:9%"></i></span><span class="r-amt pos">¥2,500.00</span><span class="r-pct">7.7%</span></div>
+                <div class="r-row"><span class="r-name">⋯ 其他</span><span class="r-bar"><i style="width:7%"></i></span><span class="r-amt pos">¥2,000.00</span><span class="r-pct">6.2%</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>摘要</h2></div>
+              <div class="sum-line num">
+                <span>日均支出 <b>¥570.00</b></span>
+                <span>环比上月支出 <b style="color:var(--neg)">+8.4%</b></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch-4">
+        <div class="ch-head"><span class="ch-no num">04</span><h2>现金流</h2></div>
+
+        <div class="card cf-table num">
+          <div class="card-head"><h2>三类活动现金流</h2><span class="chip">2026 年 8 月</span></div>
+          <div class="grid-head"><span>活动</span><span>流入</span><span>流出</span><span>净额</span><span>明细</span></div>
+          <div class="grid-row">
+            <span class="g-strong">经营活动</span>
+            <span class="g-num c-rt">¥32,500.00</span>
+            <span class="g-num c-rt">¥16,970.00</span>
+            <span class="g-num c-rt" style="color:var(--pos)">+¥15,530.00</span>
+            <span class="cf-det">工资等日常收入 · 日常消费支出</span>
+          </div>
+          <div class="grid-row">
+            <span class="g-strong">投资活动</span>
+            <span class="g-num c-rt">¥0.00</span>
+            <span class="g-num c-rt">¥5,000.00</span>
+            <span class="g-num c-rt" style="color:var(--neg)">−¥5,000.00</span>
+            <span class="cf-det">基金定投 ¥2,000.00 + 定期存入 ¥3,000.00</span>
+          </div>
+          <div class="grid-row">
+            <span class="g-strong">融资活动</span>
+            <span class="g-num c-rt">¥0.00</span>
+            <span class="g-num c-rt">¥2,000.00</span>
+            <span class="g-num c-rt" style="color:var(--neg)">−¥2,000.00</span>
+            <span class="cf-det">信用卡还款</span>
+          </div>
+          <div class="grid-row total">
+            <span class="g-strong">合计</span>
+            <span class="g-num c-rt">¥32,500.00</span>
+            <span class="g-num c-rt">¥23,970.00</span>
+            <span class="g-num c-rt" style="color:var(--pos)">+¥8,530.00</span>
+            <span class="cf-det">—</span>
+          </div>
+          <div class="recon num">🔗 <span><b>勾稽</b> 三类净额合计 +8,530.00 = 期末现金 53,730.00 − 期初现金 45,200.00</span></div>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch-5">
+        <div class="ch-head"><span class="ch-no num">05</span><h2>预算执行</h2></div>
+
+        <div class="card num">
+          <div class="card-head"><h2>预算执行 · 2026 年 8 月</h2><span class="chip">4 项预算 · 1 项超支</span></div>
+          <div class="bdg-row">
+            <span class="bdg-name">🍜 餐饮</span>
+            <span class="bdg-bar"><i class="warn" style="width:95%"></i></span>
+            <span class="bdg-side"><span class="bdg-amt">¥2,850.00 <small>/ ¥3,000.00</small></span><span class="chip warn">95%</span></span>
+          </div>
+          <div class="bdg-row">
+            <span class="bdg-name">🛍️ 购物</span>
+            <span class="bdg-bar"><i class="neg" style="width:100%"></i></span>
+            <span class="bdg-side"><span class="bdg-amt">¥4,120.00 <small>/ ¥3,500.00</small></span><span class="chip neg">118% 超支</span></span>
+          </div>
+          <div class="bdg-row">
+            <span class="bdg-name">🚇 交通</span>
+            <span class="bdg-bar"><i style="width:68%"></i></span>
+            <span class="bdg-side"><span class="bdg-amt">¥680.00 <small>/ ¥1,000.00</small></span><span class="chip pos">68%</span></span>
+          </div>
+          <div class="bdg-row">
+            <span class="bdg-name">🎬 娱乐</span>
+            <span class="bdg-bar"><i style="width:77%"></i></span>
+            <span class="bdg-side"><span class="bdg-amt">¥1,150.00 <small>/ ¥1,500.00</small></span><span class="chip pos">77%</span></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch-6">
+        <div class="ch-head"><span class="ch-no num">06</span><h2>投资绩效</h2></div>
+
+        <div class="metric-five num">
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">期初市值</span></div>
+            <div class="mini-big">¥42,770.00</div>
+            <div class="mini-foot">报告期起点持仓价值</div>
+          </div>
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">期末市值</span></div>
+            <div class="mini-big">¥45,770.00</div>
+            <div class="mini-foot">报告期终点持仓价值</div>
+          </div>
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">当期净买入</span></div>
+            <div class="mini-big">¥2,000.00</div>
+            <div class="mini-foot">基金定投入账</div>
+          </div>
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">估算收益</span></div>
+            <div class="mini-big" style="color:var(--pos)">+¥1,000.00</div>
+            <div class="mini-foot">= 期末 − 期初 − 净买入</div>
+          </div>
+          <div class="card">
+            <div class="mini-head"><span class="mini-title">区间 TWR</span><span class="chip">时间加权</span></div>
+            <div class="mini-big" style="color:var(--pos)">+2.3%</div>
+            <div class="mini-foot">剔除现金流影响的收益率</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch-7">
+        <div class="ch-head"><span class="ch-no num">07</span><h2>诊断与建议</h2><span class="chip">0 风险</span><span class="chip warn">2 提示</span><span class="chip">1 关注</span></div>
+
+        <div class="ch7-findings num">
+          <div class="f-group">
+            <div class="fg-label">提示 · 2</div>
+            <div class="f-list">
+              <div class="card fcard">
+                <span class="sev-ic warn">⚠</span>
+                <div class="f-main">
+                  <div class="f-conc">购物超预算:4,120/3,500(118%),超支 620.00</div>
+                  <div class="f-sub">建议复盘该类别或上调预算至实际水平</div>
+                </div>
+                <span class="chip warn f-sev">提示</span>
+              </div>
+              <div class="card fcard">
+                <span class="sev-ic warn">⚠</span>
+                <div class="f-main">
+                  <div class="f-conc">可能闲置订阅:XX 音乐会员(年付 288.00,月度等价 24.00)</div>
+                  <div class="f-sub">若仍在使用,记一笔时请关联该订阅</div>
+                  <div class="f-adv"><a class="f-link" href="../../v6/ui/subscription-center.html">前往订阅中心 →</a></div>
+                </div>
+                <span class="chip warn f-sev">提示</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="f-group">
+            <div class="fg-label">关注 · 1</div>
+            <div class="f-list">
+              <div class="card fcard">
+                <span class="sev-ic info">ℹ</span>
+                <div class="f-main">
+                  <div class="f-conc">大额单笔:9 月 2 日单笔 3,600.00(年卡),≥ 日均支出×3</div>
+                  <div class="f-sub">若为年付/预付类支出属正常现象</div>
+                </div>
+                <span class="chip f-sev">关注</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ch7-llm" id="ch7Llm">
+          <div class="llm-head"><h3>分析师解读</h3><span class="chip">由 glm-4.6 生成</span></div>
+          <div class="card llm-body num" id="llmDone">
+            <p><b>总体评价:</b>本期储蓄率 45.6%,高于 20% 的健康线,财务状况稳健…</p>
+            <p><b>主要风险:</b>购物类别超预算 17.7%,且存在一笔可能闲置的视频订阅…</p>
+            <p><b>可执行建议:</b>建议优先处理闲置订阅(月度等价约 24.00 元),并对购物类别设定复盘节奏…</p>
+          </div>
+          <div class="card llm-body num" id="llmLoading" hidden>
+            <p class="llm-load">解读生成中…</p>
+          </div>
+          <div class="card llm-body num" id="llmError" hidden>
+            <p class="llm-err-t">解读失败:网络错误(超时)。<button class="llm-retry" id="llmRetry" type="button">重试</button></p>
+          </div>
+          <div class="llm-foot">
+            <span>以上解读由 AI 基于脱敏汇总数据生成,仅供参考,不构成投资建议;数字以报告为准。</span>
+            <button class="llm-link" id="llmRegen" type="button">重新解读</button>
+          </div>
+        </div>
+
+        <div class="card ch7-healthy num">
+          <div class="hl-check">✓</div>
+          <div class="h-t">本期诊断未发现需关注项</div>
+          <div class="h-s">储蓄率 45.6%、资产负债率 26.9%、现金可支撑约 3.2 个月,均在健康区间</div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="foot">御财 v2 设计原型 · A+B 亮暗双主题 · 财务报告 · 演示数据</footer>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a class="active" href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="../../../../../../../design-output-v2/ab/transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<div class="var-bar" id="varBar">
+  <span class="var-label">章节导航</span>
+  <div class="pills">
+    <a href="#" data-v="a" class="on">A 横条</a>
+    <a href="#" data-v="b">B 圆点</a>
+  </div>
+  <span class="var-sep"></span>
+  <span class="var-label">示例</span>
+  <div class="pills">
+    <a href="#" id="moodBtn">健康态</a>
+  </div>
+</div>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)};
+  var $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+
+  /* —— 章节导航变体 A/B(?variant=) —— */
+  function applyVariant(v){
+    document.body.classList.toggle('variant-b',v==='b');
+    $$('#varBar a').forEach(function(a){a.classList.toggle('on',a.dataset.v===v)});
+  }
+  var vp=new URLSearchParams(location.search);
+  applyVariant((vp.get('variant')||'a').toLowerCase()==='b'?'b':'a');
+  $$('#varBar a').forEach(function(a){
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      var v=a.dataset.v;
+      applyVariant(v);
+      try{var u=new URL(location.href);u.searchParams.set('variant',v);history.replaceState(null,'',u);}catch(err){}
+    });
+  });
+
+  /* —— 诊断健康态(?mood=healthy) —— */
+  var moodBtn=$('#moodBtn');
+  function applyMood(h){
+    document.body.classList.toggle('mood-healthy',h);
+    if(moodBtn)moodBtn.classList.toggle('on',h);
+  }
+  applyMood(new URLSearchParams(location.search).get('mood')==='healthy');
+  if(moodBtn)moodBtn.addEventListener('click',function(e){
+    e.preventDefault();
+    var h=!document.body.classList.contains('mood-healthy');
+    applyMood(h);
+    try{
+      var u=new URL(location.href);
+      if(h){u.searchParams.set('mood','healthy')}else{u.searchParams.delete('mood')}
+      history.replaceState(null,'',u);
+    }catch(err){}
+  });
+
+  /* —— 报告期控件(演示) —— */
+  var mode='m',yy=2026,mm=8,label=$('#periodLabel');
+  function fmt(){label.textContent=mode==='m'?(yy+' 年 '+mm+' 月'):(yy+' 年')}
+  $$('#segMode a').forEach(function(a){
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      $$('#segMode a').forEach(function(x){x.classList.remove('on')});
+      a.classList.add('on');mode=a.dataset.mode;fmt();
+    });
+  });
+  $('#prevPeriod').addEventListener('click',function(){if(mode==='m'){mm--;if(mm<1){mm=12;yy--}}else{yy--}fmt()});
+  $('#nextPeriod').addEventListener('click',function(){if(mode==='m'){mm++;if(mm>12){mm=1;yy++}}else{yy++}fmt()});
+
+  /* —— 生成进度四阶段 → 报告体淡入 —— */
+  var zone=$('#genZone'),idle=$('#genIdle'),prog=$('#genProg'),steps=$$('#genSteps .g-step'),
+      names=['读取账本','回放余额','汇编章节','计算绩效'],
+      report=$('#reportBody'),btn=$('#genBtn'),btn2=$('#genBtn2'),btnText=$('#genBtnText'),
+      stageName=$('#genStageName'),stageNo=$('#genStepNo'),running=false;
+  function start(){
+    if(running)return;running=true;
+    btn.disabled=true;
+    zone.classList.remove('done');idle.hidden=true;
+    prog.classList.remove('fade-out');prog.hidden=false;
+    report.classList.remove('show');
+    steps.forEach(function(s){s.className='g-step'});
+    steps[0].classList.add('on');
+    stageName.textContent=names[0];stageNo.textContent='1/4';
+    var i=0;
+    var timer=setInterval(function(){
+      steps[i].classList.remove('on');steps[i].classList.add('done');
+      i++;
+      if(i<steps.length){
+        steps[i].classList.add('on');
+        stageName.textContent=names[i];stageNo.textContent=(i+1)+'/4';
+      }else{
+        clearInterval(timer);
+        stageName.textContent='完成';stageNo.textContent='4/4';
+        setTimeout(function(){
+          prog.classList.add('fade-out');
+          setTimeout(function(){
+            prog.hidden=true;zone.classList.add('done');
+            report.classList.add('show');
+            btn.disabled=false;btnText.textContent='重新生成';running=false;
+          },460);
+        },420);
+      }
+    },700);
+  }
+  btn.addEventListener('click',start);
+  btn2.addEventListener('click',start);
+
+  /* —— 章节锚点:点击平滑滚动 + 滚动高亮当前章 —— */
+  var chs=$$('.chapter'),links=$$('#chapterBar a'),dots=$$('#dotNav a');
+  function active(i){
+    links.forEach(function(a,k){a.classList.toggle('on',k===i)});
+    dots.forEach(function(a,k){a.classList.toggle('on',k===i)});
+  }
+  function go(i,e){
+    if(e)e.preventDefault();
+    var el=chs[i];if(!el)return;
+    window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-128,behavior:'smooth'});
+    active(i);
+  }
+  links.forEach(function(a,i){a.addEventListener('click',function(e){go(i,e)})});
+  dots.forEach(function(a,i){a.addEventListener('click',function(e){go(i,e)})});
+  var more=$('#diagMore');
+  if(more)more.addEventListener('click',function(e){go(6,e)});
+
+  /* —— 分析师解读状态(?llm=done|loading|error,BRIEF3) —— */
+  var llmDone=$('#llmDone'),llmLoad=$('#llmLoading'),llmErr=$('#llmError');
+  function llmState(s){
+    if(!llmDone)return;
+    llmDone.hidden=s!=='done';
+    llmLoad.hidden=s!=='loading';
+    llmErr.hidden=s!=='error';
+  }
+  llmState(new URLSearchParams(location.search).get('llm')||'done');
+  function llmRegen(){
+    llmState('loading');
+    setTimeout(function(){llmState('done')},900);
+  }
+  var regenBtn=$('#llmRegen'),retryBtn=$('#llmRetry');
+  if(regenBtn)regenBtn.addEventListener('click',llmRegen);
+  if(retryBtn)retryBtn.addEventListener('click',llmRegen);
+  var ticking=false;
+  window.addEventListener('scroll',function(){
+    if(ticking)return;ticking=true;
+    requestAnimationFrame(function(){
+      var cur=0,line=window.scrollY+150;
+      chs.forEach(function(s,i){if(s.getBoundingClientRect().top+window.scrollY<=line)cur=i});
+      active(cur);ticking=false;
+    });
+  },{passive:true});
+})();
+</script>
+</body>
+</html>
