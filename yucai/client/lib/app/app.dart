@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:yucai_client/app/router.dart';
@@ -10,7 +7,7 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/theme/app_theme.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
-import 'package:yucai_client/core/widgets/app_title_bar.dart';
+import 'package:yucai_client/core/widgets/app_chrome.dart';
 
 class YuCaiApp extends StatelessWidget {
   const YuCaiApp({super.key});
@@ -43,22 +40,10 @@ class YuCaiApp extends StatelessWidget {
           darkTheme: AppTheme.dark(),
           themeMode: mode,
           routerConfig: router,
-          // F29 自定义标题栏(ADR-2 取舍:builder 层统一挂,而非 app_shell):
-          // 登录前(guest)无 shell 的窗口同样要有标题栏,shell 层挂会漏登录页;
-          // builder 包住整个 Navigator,所有路由(含窄屏底导形态)顶部一致,
-          // chrome 全断点不缺席(FR-5),亦不与 app_shell 布局叠加(无双标题栏)。
-          // 仅 Windows 桌面非 web(移动/web 无原生窗口概念,系统标题栏保留)。
-          builder: (context, child) {
-            if (kIsWeb || !Platform.isWindows) {
-              return child ?? const SizedBox.shrink();
-            }
-            return Column(
-              children: [
-                const AppTitleBar(),
-                Expanded(child: child ?? const SizedBox.shrink()),
-              ],
-            );
-          },
+          // F29 自定义标题栏 + 反馈⑥全局文本选择(展示文本可选/可复制):
+          // 两层 chrome 统一在 AppChrome(builder 层挂,取舍与依据见其
+          // 文档注释;抽出独立 widget 以便可直接 widget 测试)。
+          builder: (context, child) => AppChrome(child: child),
         ),
       ),
     );
