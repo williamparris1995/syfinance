@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -665,5 +666,44 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('筛选交易'), findsNothing,
         reason: 'tap 应用筛选 应关闭 sheet');
+  });
+
+  // ─────────── 反馈1a(反馈⑥ 回归):页身选区 scope 的真实鼠标拖选 ───────────
+  // 根因:全局/路由层 scope 与多滚动容器并存 = 拖选边沿更新被静默丢弃
+  // (Flutter #153004 家族);修法 = TransactionsPage 页身自包
+  // CurrentRouteSelectionArea。本测用真实按下-拖动-抬起序列(完整手势
+  // 竞技场)断言行内描述可选 —— 真机链路由 integration e2e 双面钉死。
+  testWidgets('反馈1a:desktop 行内描述真实鼠标拖选 → 选区非空', (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+
+    final row = find.text('交易 t1');
+    expect(row.evaluate(), isNotEmpty, reason: '夹具行在列');
+    // 行文本落在页身 scope 内(层级自查:SelectionArea 祖先)。
+    expect(
+      find.descendant(of: find.byType(SelectionArea), matching: row),
+      findsOneWidget,
+      reason: '行文本应在页身 CurrentRouteSelectionArea scope 内',
+    );
+
+    final region = tester.state<SelectableRegionState>(
+        find.byType(SelectableRegion).first);
+    final center = tester.getCenter(row);
+    final gesture = await tester.startGesture(center.translate(-6, 0),
+        kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 100));
+    for (var i = 0; i < 6; i++) {
+      await gesture.moveBy(const Offset(8, 0));
+      await tester.pump(const Duration(milliseconds: 30));
+    }
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      region.contextMenuButtonItems
+          .any((i) => i.type == ContextMenuButtonType.copy),
+      isTrue,
+      reason: '反馈1a:拖选后选区非空(全局 scope 时代此处恒空)',
+    );
+    expect(region.selectionEndpoints.length, 2);
   });
 }

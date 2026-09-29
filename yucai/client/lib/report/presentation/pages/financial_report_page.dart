@@ -25,6 +25,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/llm/llm_settings.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/current_route_selection_area.dart';
 import 'package:yucai_client/report/domain/mda/mda_narrator.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
 import 'package:yucai_client/report/export/report_export_service.dart';
@@ -338,10 +339,15 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
         children: [
           const _ReportTopBar(),
           Divider(height: 1, color: context.yucai.border),
+          // 反馈1a 修复:shell 外顶层路由 —— 报告正文(反馈⑥ 拖选主面①)
+          // 在此 scope 内可选可复制;isCurrent 门取舍见组件头注
+          // (current_route_selection_area.dart)。
           Expanded(
-            child: BlocConsumer<FinancialReportBloc, FinancialReportState>(
-              listener: (_, state) => _onState(state),
-              builder: (context, state) => _body(context, state),
+            child: CurrentRouteSelectionArea(
+              child: BlocConsumer<FinancialReportBloc, FinancialReportState>(
+                listener: (_, state) => _onState(state),
+                builder: (context, state) => _body(context, state),
+              ),
             ),
           ),
         ],

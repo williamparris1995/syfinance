@@ -40,9 +40,9 @@ class YuCaiApp extends StatelessWidget {
           darkTheme: AppTheme.dark(),
           themeMode: mode,
           routerConfig: router,
-          // F29 自定义标题栏 + 反馈⑥全局文本选择(展示文本可选/可复制):
-          // 两层 chrome 统一在 AppChrome(builder 层挂,取舍与依据见其
-          // 文档注释;抽出独立 widget 以便可直接 widget 测试)。
+          // F29 自定义标题栏(AppChrome);反馈⑥/反馈1a 文本选择 scope
+          // 已下沉到内容区(AppShell 内容区 + shell 外报表页),根因与
+          // 取舍见 app_chrome.dart 头注 —— 本层不再持全局 SelectionArea。
           builder: (context, child) => AppChrome(child: child),
         ),
       ),

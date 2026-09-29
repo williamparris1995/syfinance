@@ -7,8 +7,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
-import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/app/route_observer.dart';
+import 'package:yucai_client/core/widgets/current_route_selection_area.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/pager_bar.dart';
@@ -296,11 +297,21 @@ class _Content extends StatelessWidget {
         // Task 4: mobile 分支判定 —— 与 accounts_page 同断点(Breakpoints mobileUpper=600)。
         final isMobile = Breakpoints.of(context) == Breakpoint.mobile;
 
-        return RefreshIndicator(
-          onRefresh: () async => context
-              .read<TransactionBloc>()
-              .add(LoadTransactionsRequested(filter: _filter)),
-          child: SingleChildScrollView(
+        // 反馈⑥(桌面文本选择)+ 反馈1a 修复:页身自包 [SelectionArea]
+        // (行内描述/金额可选可拖选)。取舍:全局 scope(builder 层包整个
+        // Router)在多滚动容器并存时拖选边沿更新被静默丢弃(Flutter
+        // #153004 家族,真机拖选全废);修法 = scope 下沉到**页面体**,
+        // 每页一个、随页生灭 —— 无跨页/跨滚动容器注册,拖选真实工作
+        // (integration e2e 双面钉死);表头/顶栏等 chrome 不选,与标题
+        // 栏同口径。TextField/表单自持选择系统不受影响(本页无表单)。
+        // 注意:不要上移到 shell/路由层 —— 路由 push 过场中注册会触发
+        // SelectionContainer 排序对未布局盒的断言(router_test 回归)。
+        return CurrentRouteSelectionArea(
+          child: RefreshIndicator(
+            onRefresh: () async => context
+                .read<TransactionBloc>()
+                .add(LoadTransactionsRequested(filter: _filter)),
+            child: SingleChildScrollView(
             padding: isMobile
                 ? const EdgeInsets.fromLTRB(4, 4, 4, 96)
                 : const EdgeInsets.fromLTRB(
@@ -416,6 +427,7 @@ class _Content extends StatelessWidget {
               ),
             ),
           ),
+        ),
         );
       },
     );

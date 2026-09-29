@@ -38,6 +38,7 @@ import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/holding/data/networth_ds.dart';
@@ -367,6 +368,20 @@ void main() {
 
     expect(find.widgetWithText(AlertDialog, '意见反馈'), findsOneWidget);
     expect(find.text('提交反馈'), findsOneWidget);
+  });
+
+  // ── 反馈1a(反馈⑥ 回归):shell 层不再持选区 scope ─────────────────────
+  // 根因:全局/内容区 scope 与多滚动容器并存 = 拖选边沿更新被静默丢弃
+  // (Flutter #153004 家族);修法 = scope 下沉到页面体(CurrentRoute-
+  // SelectionArea,见 core/widgets)。shell 层(chrome)不得再包
+  // SelectionArea —— 一回来就复发。拖选正向契约见
+  // transactions_page_test(页身 scope 真手势)与 integration e2e(真机)。
+  testWidgets('反馈1a 回归锚:AppShell 内容区无 SelectionArea(scope 在页身)',
+      (tester) async {
+    await pumpShell(tester);
+    expect(find.byType(SelectionArea), findsNothing,
+        reason: 'scope 已下沉页面体(CurrentRouteSelectionArea);'
+            'shell/路由层 scope = #153004 拖选失效复发点');
   });
 }
 

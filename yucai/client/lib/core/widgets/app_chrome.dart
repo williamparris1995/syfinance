@@ -5,15 +5,20 @@
 ///   builder 包住整个 Navigator,所有路由(含窄屏底导形态)顶部一致,
 ///   chrome 全断点不缺席(FR-5),亦不与 app_shell 布局叠加(无双标题栏)。
 ///   仅 Windows 桌面非 web(移动/web 无原生窗口概念,系统标题栏保留)。
-/// - 反馈⑥(桌面文本体验):展示类文本(金额/摘要/标签/报告正文)全局
-///   可选可复制 —— [SelectionArea] 包住 Navigator 内容,静态 [Text] 即选;
-///   桌面右键 context menu 为 Flutter 内建 adaptiveTextSelectionToolbar
-///   (Copy/Select All),不引第三方。
 ///
-/// 挂载细节(反馈⑥):SelectionArea 需 [Overlay] 祖先(选区 toolbar/handles
-/// 的挂载点),而 builder 层在 Navigator/其 Overlay 之上 —— 故自供一个
-/// Overlay 承载(照 framework 内部 _WrappingOverlay 同构:持久 entry,
-/// didUpdateWidget 时 markNeedsBuild 透传新 child,theme 切换不致 stale)。
+/// - 反馈⑥(桌面文本体验)曾在此全局包 [SelectionArea] —— 反馈1a 真机
+///   实测拖选完全无效,根因(诊断 e2e + widget 矩阵复现,2026-09-29):
+///   **单一 SelectionArea scope 内并存多个可见滚动容器**(侧栏 ListView
+///   + 各页面滚动 + shell 外报表页)时,选区边沿更新(edge update)在
+///   SelectionContainer 层级间被静默丢弃 —— 手势竞技场本身全胜
+///   (TapAndPanGestureRecognizer 独成员默认胜出,onDragStart 亦达),
+///   但 forEnd 派发零效果;对应 Flutter 上游开放缺陷 #153004
+///   (P2, SelectableRegion Improvements)。嵌套 scope(全局+页内)同样坏。
+///   故本层不再持选区;scope 下沉到**页面体**(ADR):
+///   展示型大页面页身自包 [CurrentRouteSelectionArea](core/widgets,
+///   含过渡期摘除防注册排序断言)—— 先例面:交易记录页(行内描述/
+///   金额)与财务报告页(报告正文);侧栏/顶栏等 chrome 不选,与标题
+///   栏同口径。TextField/SelectableText 自持选择系统,不受影响。
 library;
 
 import 'dart:io';
@@ -23,57 +28,22 @@ import 'package:flutter/material.dart';
 
 import 'package:yucai_client/core/widgets/app_title_bar.dart';
 
-/// [MaterialApp.builder] 的实现体:全局文本选择(反馈⑥)+ Windows 标题栏(F29)。
-class AppChrome extends StatefulWidget {
+/// [MaterialApp.builder] 的实现体:Windows 标题栏(F29)。
+class AppChrome extends StatelessWidget {
   const AppChrome({super.key, required this.child});
 
   /// builder 的 child = 整个 Navigator(Router),全部路由/对话框在内。
   final Widget? child;
 
   @override
-  State<AppChrome> createState() => _AppChromeState();
-}
-
-class _AppChromeState extends State<AppChrome> {
-  late final OverlayEntry _entry = OverlayEntry(
-    canSizeOverlay: true,
-    opaque: true,
-    builder: (BuildContext context) => _selectableContent(),
-  );
-
-  @override
-  void didUpdateWidget(covariant AppChrome oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.child != widget.child) {
-      _entry.markNeedsBuild();
-    }
-  }
-
-  @override
-  void dispose() {
-    _entry
-      ..remove()
-      ..dispose();
-    super.dispose();
-  }
-
-  /// 反馈⑥:SelectionArea 包内容不包标题栏 —— 标题栏是 chrome 非内容,
-  /// 其整行拖拽/双击最大化手势与选区手势无谓同场。表单不受影响:
-  /// TextField/SelectableText 不消费祖先 SelectionRegistrar(自持选择
-  /// 系统),analyst_note ADR-5 的 SelectableText 嵌套在内亦独立。
-  Widget _selectableContent() =>
-      SelectionArea(child: widget.child ?? const SizedBox.shrink());
-
-  @override
   Widget build(BuildContext context) {
-    final content = Overlay(initialEntries: <OverlayEntry>[_entry]);
     if (kIsWeb || !Platform.isWindows) {
-      return content;
+      return child ?? const SizedBox.shrink();
     }
     return Column(
       children: [
         const AppTitleBar(),
-        Expanded(child: content),
+        Expanded(child: child ?? const SizedBox.shrink()),
       ],
     );
   }

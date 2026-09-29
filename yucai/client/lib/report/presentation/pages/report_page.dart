@@ -13,6 +13,7 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/current_route_selection_area.dart';
 import 'package:yucai_client/report/presentation/widgets/category_breakdown_pie.dart';
 import 'package:yucai_client/report/presentation/widgets/income_expense_trend_chart.dart';
 import 'package:yucai_client/report/presentation/widgets/monthly_comparison_bar.dart';
@@ -159,7 +160,10 @@ class _ReportPageState extends State<ReportPage> {
             onBack: () => context.go('/home'),
           ),
           Divider(height: 1, color: context.yucai.border),
-          Expanded(child: _body()),
+          // 反馈1a 修复:本页为 shell 外顶层路由(自带顶栏)—— 页身
+          // 自包选区;/reports/full 压栈时 isCurrent=false 摘除(取舍
+          // 见 current_route_selection_area.dart 头注)。
+          Expanded(child: CurrentRouteSelectionArea(child: _body())),
         ],
       ),
     );
