@@ -117,12 +117,13 @@ class _DotState extends State<_Dot> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 标签 chip:固定槽宽内左对齐 + 透明度动画(不占位/越界
-                // 两版历史问题的终版形态)。
+                // 标签 chip:固定槽宽内**右对齐贴住圆点**(三版反馈修订:
+                // 左对齐时短标签距圆点过远)+单行强制(maxLines 1,槽宽
+                // 按最长标签预留,正常不截断,ell 属防御)。
                 SizedBox(
                   width: widget.slotWidth,
                   child: Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: Alignment.centerRight,
                     child: IgnorePointer(
                       child: AnimatedOpacity(
                         duration: const Duration(milliseconds: 150),
@@ -137,6 +138,9 @@ class _DotState extends State<_Dot> {
                           ),
                           child: Text(
                             widget.label,
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
