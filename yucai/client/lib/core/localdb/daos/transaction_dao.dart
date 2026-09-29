@@ -120,9 +120,11 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
   ///
   /// 口径:GROUP BY description,组内按 MAX(created_at)(该描述最近一次
   /// 记录时间)倒序 —— 「最近使用」= 最近记录过;空串/纯空白行过滤
-  /// (SQLite 裸 TRIM 只去空格,显式字符集覆盖 \t\n\r);[limit] 截断
-  /// (调用方约定 ≤8)。纯本地读,不参与三态数据路由。
-  Future<List<String>> recentDistinctDescriptions(int limit) {
+  /// (SQLite 裸 TRIM 只去空格,显式字符集覆盖 \t\n\r)。[limit] 缺省 200:
+  /// 改版「输入全显」口径的内存过滤数据面(表单打开一次拉全,击键只过滤),
+  /// 200 封顶防极端库(百万行 distinct 描述无截断直拉会拖垮表单)。
+  /// 纯本地读,不参与三态数据路由。
+  Future<List<String>> recentDistinctDescriptions([int limit = 200]) {
     final query = selectOnly(transactions)
       ..addColumns([transactions.description])
       ..where(const CustomExpression<bool>(

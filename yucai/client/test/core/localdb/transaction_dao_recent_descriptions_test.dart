@@ -6,7 +6,8 @@
 //  - 排序:按每组「最近一次记录时间」(MAX(created_at))倒序 —— 最近用过的
 //    描述排最前;
 //  - 空过滤:空串与纯空白描述不进入建议;
-//  - limit 截断;空库返回空表。
+//  - limit 截断;缺省 200(全显口径的内存过滤数据面,封顶防极端库);
+//  - 空库返回空表。
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -69,7 +70,20 @@ void main() {
     expect(result, ['desc-9', 'desc-8', 'desc-7', 'desc-6', 'desc-5']);
   });
 
+  test('缺省 limit = 200(全显口径数据面封顶,防极端库)', () async {
+    final t0 = DateTime.utc(2026, 9, 1);
+    for (var i = 0; i < 205; i++) {
+      await seedRow('t$i', 'desc-$i', t0.add(Duration(minutes: i)));
+    }
+
+    // 无参调用走默认 200:205 行 distinct 描述封顶取 200,最新在前。
+    final result = await db.transactionDao.recentDistinctDescriptions();
+    expect(result.length, 200);
+    expect(result.first, 'desc-204');
+  });
+
   test('空库返回空表', () async {
     expect(await db.transactionDao.recentDistinctDescriptions(8), isEmpty);
+    expect(await db.transactionDao.recentDistinctDescriptions(), isEmpty);
   });
 }

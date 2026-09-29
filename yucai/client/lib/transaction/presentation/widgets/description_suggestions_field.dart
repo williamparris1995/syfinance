@@ -4,25 +4,29 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
 /// 反馈⑦(表单历史填写票):「最近使用」描述建议下拉的过滤规则 ——
-/// 纯内存过滤,表单打开时经 bloc 拉一次全量([suggestions]),击键只过滤,
-/// 绝不在每次击键打 DB。
+/// 纯内存过滤,表单打开时经 bloc 拉一次全量([suggestions],数据面由 DAO
+/// 缺省 200 封顶防极端库),击键只过滤,绝不在每次击键打 DB。
 ///
-/// 交互决定(钉):**空值聚焦弹最近 [kEmptyQueryLimit] 条**(聚焦即可见,
-/// 唤起方便);输入非空 → contains 大小写不敏感匹配(前缀匹配是 contains
-/// 的子集,不单独分档),上限 [kTypedQueryLimit]。无匹配 → 不弹
-/// (RawAutocomplete 空选项自动隐藏)。
-const int kEmptyQueryLimit = 3;
-const int kTypedQueryLimit = 8;
+/// 改版口径(输入全显+聚焦前十+两列,注释钉):
+/// - **空值聚焦弹最近 [kEmptyQueryLimit] = 10 条**(聚焦即可见,唤起方便);
+/// - 输入非空 → contains 大小写不敏感(前缀匹配是 contains 的子集,不单独
+///   分档)**匹配全显、无截断** —— 上限交给数据面(DAO 200)与面板封顶
+///   高度(内部滚动),过滤函数不再截 8;
+/// - 无匹配 → 不弹(RawAutocomplete 空选项自动隐藏)。
+const int kEmptyQueryLimit = 10;
 
 /// [suggestions] 须已是 distinct + 最近倒序(DAO 口径);[query] 为输入框
-/// 当前文本(原样传入,内部 trim + 小写)。
+/// 当前文本(原样传入,内部 trim + 小写)。聚焦前十取自本函数(空查询
+/// take(kEmptyQueryLimit)),两列展示与封顶高度在字段层 `_SuggestionsPanel`。
 List<String> filterDescriptionSuggestions(
     List<String> suggestions, String query) {
   final q = query.trim().toLowerCase();
-  final Iterable<String> matched = q.isEmpty
-      ? suggestions.take(kEmptyQueryLimit)
-      : suggestions.where((s) => s.toLowerCase().contains(q));
-  return matched.take(kTypedQueryLimit).toList(growable: false);
+  if (q.isEmpty) {
+    return suggestions.take(kEmptyQueryLimit).toList(growable: false);
+  }
+  return suggestions
+      .where((s) => s.toLowerCase().contains(q))
+      .toList(growable: false);
 }
 
 /// 「交易对象 / 商户」输入框 + 「最近使用」历史建议下拉(反馈⑦)。
@@ -111,9 +115,18 @@ class _DescriptionSuggestionsFieldState
   }
 }
 
-/// 建议浮层面板:surface 底 + border 描边 + sm 圆角;行 = 时钟 icon(muted)
-/// + 描述(fg);键盘高亮行 = surfaceAlt 底。宽度自适应内容,上限 360、
-/// 高度上限 ~8 行,超出滚动。
+/// 建议浮层面板(改版:两列 + 封顶高度内部滚动):
+/// - surface 底 + border 描边 + sm 圆角;
+/// - **两列等宽**(GridView.count,childAspectRatio 6.0 ≈ 行高 1/6 列宽,
+///   desktop 面板 520 宽 → 列 ~250、行高 ~42);单条文本超长省略号;
+/// - **封顶高度 [kSuggestionsPanelMaxHeight] = 320**(design-v2 视觉:留出
+///   ~7-8 行双列 ≈ 14-16 条可视,不遮表单下半屏;钉死)超出内部滚动;
+/// - 键盘高亮 = 整格 surfaceAlt 背景(RawAutocomplete 线性 index,↓/↑ 逐格
+///   移动,两列下沿行推进);
+/// - 宽度自适应内容上限 520(窄视口自动收窄,不溢出屏幕)。
+const double kSuggestionsPanelMaxWidth = 520;
+const double kSuggestionsPanelMaxHeight = 320;
+
 class _SuggestionsPanel extends StatelessWidget {
   const _SuggestionsPanel({required this.options, required this.onSelected});
 
@@ -133,9 +146,19 @@ class _SuggestionsPanel extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360, maxHeight: 336),
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+          constraints: const BoxConstraints(
+              maxWidth: kSuggestionsPanelMaxWidth,
+              maxHeight: kSuggestionsPanelMaxHeight),
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              // 行高 = 列宽 / 6(desktop 520 面板 → 列 ~250 / 行 ~42);
+              // 间距 6 与表单 grid 一档。
+              childAspectRatio: 6.0,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+            ),
+            padding: const EdgeInsets.all(8),
             shrinkWrap: true,
             itemCount: options.length,
             itemBuilder: (BuildContext context, int index) {
@@ -144,10 +167,12 @@ class _SuggestionsPanel extends StatelessWidget {
               return InkWell(
                 onTap: () => onSelected(option),
                 child: ColoredBox(
-                  color: highlighted ? context.yucai.surfaceAlt : Colors.transparent,
+                  color: highlighted
+                      ? context.yucai.surfaceAlt
+                      : Colors.transparent,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 9),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12),
                     child: Row(
                       children: [
                         Icon(LucideIcons.clock,

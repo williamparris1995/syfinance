@@ -53,11 +53,12 @@ abstract class TransactionRepository {
 
   /// 反馈⑦(表单历史填写票):近期交易的 distinct 描述 —— 表单「交易对象/
   /// 商户」字段的「最近使用」建议数据。本地 drift 口径:GROUP BY
-  /// description + 每组最近记录时间(MAX created_at)倒序 + 空白过滤,
-  /// [limit] 截断(缺省 8)。纯本地读:建议只是输入辅助,bound 在线时本地
-  /// 镜像亦随远端写后刷新(见 TransactionRepositoryImpl 路由注释),不走
-  /// 三态数据路由,也无对应服务端 RPC。
-  Future<Either<Failure, List<String>>> recentDescriptions({int limit = 8});
+  /// description + 每组最近记录时间(MAX created_at)倒序 + 空白过滤。
+  /// [limit] 缺省 200(改版「输入全显」口径:一次拉全做内存过滤,封顶防
+  /// 极端库)。纯本地读:建议只是输入辅助,bound 在线时本地镜像亦随远端
+  /// 写后刷新(见 TransactionRepositoryImpl 路由注释),不走三态数据路由,
+  /// 也无对应服务端 RPC。
+  Future<Either<Failure, List<String>>> recentDescriptions({int limit = 200});
 
   /// Income/expense/net/dailyAvg summary. `accountId` optional scopes to one
   /// account (account-detail view). `scope` (Task 9) selects the aggregation

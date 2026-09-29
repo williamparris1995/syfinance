@@ -733,24 +733,40 @@ void main() {
       expect(find.text('新建支出分类'), findsOneWidget);
     });
 
-    // ───────── 反馈⑦:描述「最近使用」建议(页面接线) ─────────
+    // ───────── 反馈⑦:描述「最近使用」建议(页面接线,改版口径) ─────────
 
-    testWidgets('表单描述字段:bloc 建议入页 → 聚焦弹最近 3 条 → 点击填入',
+    testWidgets('表单描述字段:bloc 建议入页 → 聚焦弹最近 10 条 → 点击填入',
         (tester) async {
       when(() => txnRepo.recentDescriptions()).thenAnswer((_) async =>
-          const dartz.Right(
-              ['永辉超市', '美团外卖', '地铁通勤', '午餐']));
+          const dartz.Right([
+            '永辉超市',
+            '美团外卖',
+            '地铁通勤',
+            '午餐',
+            '山姆会员店',
+            '星巴克',
+            '滴滴出行',
+            '水电燃气',
+            '京东购物',
+            'Apple Store',
+            '瑞幸咖啡', // 第 11 条:不弹
+          ]));
       await pumpPage(tester, 1440);
 
       final field = find.byKey(const ValueKey('txn_form_payee_field'));
       await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
-      // 空值聚焦 → 最近 3 条(第 4 条不弹)。
+      // 空值聚焦 → 最近 10 条(第 11 条不弹)。
       expect(find.text('永辉超市'), findsOneWidget);
-      expect(find.text('美团外卖'), findsOneWidget);
-      expect(find.text('地铁通勤'), findsOneWidget);
-      expect(find.text('午餐'), findsNothing);
+      expect(find.text('Apple Store'), findsOneWidget);
+      expect(find.text('瑞幸咖啡'), findsNothing);
+      // 两列面板(GridView,相邻两条同行)。
+      expect(find.byType(GridView), findsOneWidget);
+      final a = tester.getTopLeft(find.text('永辉超市'));
+      final b = tester.getTopLeft(find.text('美团外卖'));
+      expect(a.dy, b.dy);
+      expect(a.dx, lessThan(b.dx));
 
       // 鼠标点击建议 → 填入描述字段。
       await tester.tap(find.text('美团外卖'));

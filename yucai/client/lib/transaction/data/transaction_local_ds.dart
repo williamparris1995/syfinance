@@ -170,9 +170,9 @@ class TransactionLocalDataSource {
   // ---- reads ----
 
   /// 反馈⑦(表单历史填写票):distinct 近期描述(建议数据),查询单点在
-  /// [TransactionDao.recentDistinctDescriptions](distinct/排序/空白过滤
-  /// 口径见其 doc)。
-  Future<List<String>> recentDescriptions({int limit = 8}) =>
+  /// [TransactionDao.recentDistinctDescriptions](distinct/排序/空白过滤/缺省
+  /// 200 数据面口径见其 doc)。
+  Future<List<String>> recentDescriptions({int limit = 200}) =>
       _dao.recentDistinctDescriptions(limit);
 
   Future<ListTransactionsResult> list(ListTransactionsParams p) async {
