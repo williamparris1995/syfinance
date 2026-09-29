@@ -4,22 +4,17 @@
 /// 演示种子)→ 逐页导航 → 断言关键数值。手算 oracle 见 demo_seed.dart 文档。
 ///
 /// Windows 桌面注意:请单独运行本文件(两个集成文件同跑会有设备启动竞争,第二个文件 loading 失败)。
-/// 运行:`flutter test integration_test -d windows`
-/// 前置:本地库含演示数据(seedDemoData 幂等;首次运行自动注入)。
+/// 运行:`flutter test integration_test -d windows --dart-define=YUCAI_DB_FILE=yucai_test.db`
+/// 前置:删库重种(resetTestDb;裸跑缺 dart-define 时被其 NFR-1 守卫拒绝
+/// —— 否则 AppDatabase 缺省打开用户真实库,种子 oracle 全错位)。
 library;
-
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/app/app.dart';
-import 'package:yucai_client/core/demo/demo_seed.dart';
-import 'package:yucai_client/core/di/injection.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:yucai_client/core/localdb/app_database.dart';
 
-import 'link_support.dart' show deleteTestDb;
+import 'link_support.dart' show deleteTestDb, resetTestDb;
 
 Future<void> _pumpPage(WidgetTester t, String label) async {
   await t.tap(find.text(label));
@@ -48,12 +43,9 @@ void main() {
 
   setUpAll(() async {
     WidgetsFlutterBinding.ensureInitialized();
-    // 确定性起点:删除本地库 → 种子全新注入(账户数等绝对断言才成立)。
-    final support = await getApplicationSupportDirectory();
-    final dbFile = File('${support.path}/yucai_test.db');
-    if (await dbFile.exists()) await dbFile.delete();
-    await configureDependencies();
-    await seedDemoData(getIt<AppDatabase>());
+    // 确定性起点:删库重种(NFR-1 守卫经 resetTestDb 单一 choke point,
+    // 与 link_* 全系同款;绝对断言(账户数等)才成立,真实库永不被触碰)。
+    await resetTestDb();
   });
 
   // 测试数据生命周期收尾:close 后删独立测试库(Windows 句柄修复版,

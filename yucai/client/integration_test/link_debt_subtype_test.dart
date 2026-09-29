@@ -5,24 +5,22 @@
 /// ② 空串更新保持原值(旧 client 兼容,NFR-2 端到端)。
 ///
 /// 自包含夹具:`链路信用贷` 账户 + `链路银行` 债务,与演示数据零耦合。
-/// 运行:`flutter test integration_test/link_debt_subtype_test.dart -d windows`
+/// 运行:`flutter test integration_test/link_debt_subtype_test.dart -d windows --dart-define=YUCAI_DB_FILE=yucai_test.db`
 library;
-
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
-import 'package:yucai_client/core/demo/demo_seed.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
+
+import 'link_support.dart' show resetTestDb;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -34,12 +32,9 @@ void main() {
   late String debtId;
 
   setUpAll(() async {
-    // 确定性起点:删除本地库(含种子/演示数据),随后按需重建。
-    final support = await getApplicationSupportDirectory();
-    final dbFile = File('${support.path}/yucai_test.db');
-    if (await dbFile.exists()) await dbFile.delete();
-    await configureDependencies();
-    await seedDemoData(getIt<AppDatabase>()); // 幂等;夹具独立于演示数据
+    // 确定性起点:删 yucai_test.db → 重建 DI → 幂等种子(NFR-1 守卫经
+    // resetTestDb,裸跑拒绝)。夹具独立于演示数据,零耦合。
+    await resetTestDb();
     db = getIt<AppDatabase>();
     final txns = TransactionLocalDataSource(db, BalanceLocalUpdater(db));
     debts = DebtLocalDataSource(db, txns);

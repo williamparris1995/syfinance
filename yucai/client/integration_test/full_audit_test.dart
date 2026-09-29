@@ -7,8 +7,12 @@
 ///   C. 未实现/占位/错误提示(记入 FINDINGS,不失败 —— 产品待办清单)
 /// 另:实测「更多」菜单相对触发按钮的偏移(125% 缩放嵌入层)。
 ///
-/// 运行:`flutter test integration_test/full_audit_test.dart -d windows`
-/// 前置:删库重种(与 app_pages_test 同款确定性起点)。
+/// 运行:`flutter test integration_test/full_audit_test.dart -d windows
+///     --dart-define=YUCAI_DB_FILE=yucai_test.db`(与 make client-e2e 同参)。
+/// 前置:删库重种(resetTestDb)。裸跑(缺 dart-define)会被其 NFR-1 守卫
+/// 直接拒绝 —— 不带 define 时 AppDatabase 缺省打开用户真实库 yucai.db,
+/// oracle/金图全拿真实数据比对(2026-09-29「菜单飞位」假回归即此:
+/// A2 金图挂因真库 20 账户渲染,非锚定问题)。
 library;
 
 import 'dart:io';
@@ -18,12 +22,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/app/app.dart';
-import 'package:yucai_client/core/demo/demo_seed.dart';
-import 'package:yucai_client/core/di/injection.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:yucai_client/core/localdb/app_database.dart';
 
-import 'link_support.dart' show deleteTestDb;
+import 'link_support.dart' show deleteTestDb, resetTestDb;
 
 /// 审计发现(C 类):占位/未实现/可疑提示。
 final findings = <String>[];
@@ -101,11 +102,11 @@ Future<void> main() async {
 
   setUpAll(() async {
     WidgetsFlutterBinding.ensureInitialized();
-    final support = await getApplicationSupportDirectory();
-    final dbFile = File('${support.path}/yucai_test.db');
-    if (await dbFile.exists()) await dbFile.delete();
-    await configureDependencies();
-    await seedDemoData(getIt<AppDatabase>());
+    // NFR-1(经 link_support.resetTestDb 单一 choke point,与 link_* 全系
+    // 同款):裸跑时 YUCAI_DB_FILE 缺省为用户真实库 yucai.db —— 种子幂等
+    // 跳过后 app 直接渲染真实数据,A1 oracle/A2 金图全错位,且 A11 主题
+    // 切换还会写真实偏好。守卫直接拒绝执行,真实库永不被测试触碰。
+    await resetTestDb();
   });
 
   // 测试数据生命周期收尾(F14-T2 补):close 后删独立测试库
@@ -139,14 +140,18 @@ Future<void> main() async {
       await t.tap(moreFinder.first);
       await t.pumpAndSettle(const Duration(milliseconds: 600));
 
-      final editFinder = find.text('编辑');
-      final opened = editFinder.evaluate().isNotEmpty;
+      // opened 判据 + 实测均用菜单专属项「删除账户」:find.text('编辑') 恒真
+      // —— 首卡操作栏本就有「编辑」按钮且树序先于弹层,弹层没开也会误报
+      // PASS(2026-09-29 假回归复盘补正;此前 MEASURE 量的实为操作栏
+      // 「编辑」「更多」两标签的固定行内间距 ~-262px,与菜单落位无关)。
+      final menuFinder = find.text('删除账户');
+      final opened = menuFinder.evaluate().isNotEmpty;
       record(opened, '账户卡:更多菜单打开(125% 嵌入层)');
       if (opened) {
-        final itemRect = t.getRect(editFinder.first);
+        final itemRect = t.getRect(menuFinder.first);
         final off = itemRect.topLeft - btnRect.topLeft;
         menuOffsets.add(
-            '账户卡更多: item(编辑) topLeft=${itemRect.topLeft} '
+            '账户卡更多: item(删除账户) topLeft=${itemRect.topLeft} '
             'button topLeft=${btnRect.topLeft} offset=$off');
         // 合成后像素(含 follower 层变换)= 用户真实所见。
         // F9 变更说明(T4):F9-T3 给账户管理页头部加了搜索框(FR-5),首卡
