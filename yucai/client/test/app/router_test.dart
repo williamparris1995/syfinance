@@ -88,6 +88,7 @@ import 'package:yucai_client/transaction/presentation/pages/transactions_page.da
 import 'package:yucai_client/report/domain/report_assembly_service.dart';
 import 'package:yucai_client/report/presentation/financial_report_bloc.dart';
 import 'package:yucai_client/report/presentation/pages/financial_report_page.dart';
+import 'package:yucai_client/report/presentation/pages/report_page.dart';
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
@@ -485,8 +486,95 @@ void main() {
         reason: 'shell 顶栏面包屑 section = 报表分析');
   });
 
+  testWidgets('/reports resolves to the report page inside shell branch 10 '
+      '(面包屑单级「报表分析」+ 侧栏高亮)', (tester) async {
+    // 本票(挂回 shell):/reports 从 shell 外顶层路由并入 branch 10 索引
+    // 位(与 /reports/full 同 branch)—— 双页形态一致。宽屏视口挂侧栏,
+    // 断言面包屑/侧栏高亮两处 shell 形态。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/reports');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/reports');
+    expect(find.byType(ReportPage), findsOneWidget);
+    expect(find.byType(AppShell), findsOneWidget,
+        reason: '/reports 应在 StatefulShellRoute 内(branch 10 索引页)');
+    // 「报表分析」三处:侧栏 nav + 顶栏面包屑(单级,section 空)+
+    // 页头标题(页面自带顶栏退役,标题收进页头 —— 照财务报告页先例)。
+    expect(find.text('报表分析'), findsNWidgets(3),
+        reason: '侧栏 nav + 顶栏面包屑 + 页头标题各一处');
+    // 侧栏 active 态:「报表分析」高亮(branch 10 = 当前 branch)。
+    final tile = tester.widget<AnimatedContainer>(find
+        .ancestor(
+            of: find.text('报表分析'),
+            matching: find.byType(AnimatedContainer))
+        .first);
+    expect((tile.decoration as BoxDecoration).color,
+        isNot(equals(Colors.transparent)),
+        reason: '/reports 下「报表分析」应高亮');
+  });
+
+  testWidgets('/reports/full 下侧栏「报表分析」保持高亮(F43 原设计)',
+      (tester) async {
+    // 报表分析/财务报告同属 branch 10:进入财务报告时「报表分析」nav 项
+    // (route startsWith '/reports')保持高亮 —— F43 原设计语义,本票并入
+    // 同 branch 后钉住不回归。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/reports/full');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pumpAndSettle();
+
+    // 「报表分析」两处:侧栏 nav + 顶栏面包屑 section(财务报告页自身
+    // 无「报表分析」串 —— 自带顶栏已退役)。
+    expect(find.text('报表分析'), findsNWidgets(2));
+    final tile = tester.widget<AnimatedContainer>(find
+        .ancestor(
+            of: find.text('报表分析'),
+            matching: find.byType(AnimatedContainer))
+        .first);
+    expect((tile.decoration as BoxDecoration).color,
+        isNot(equals(Colors.transparent)),
+        reason: '/reports/full 下「报表分析」应保持高亮(F43 原设计)');
+  });
+
+  testWidgets('sidebar 报表分析 tap navigates to /reports within the shell '
+      '(branch 10)', (tester) async {
+    // 侧栏「报表分析」点击应停留在 shell 内导航到 branch 10(此前为 shell
+    // 外顶层路由,整页跳出)。宽屏显侧栏;tap 后 shell 常驻、ReportPage 渲染。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/home');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('报表分析'), findsOneWidget);
+    await tester.tap(find.text('报表分析'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/reports');
+    expect(find.byType(ReportPage), findsOneWidget);
+    expect(find.byType(AppShell), findsOneWidget,
+        reason: '报表分析 tap 是 shell 内 branch 导航,外壳不重建');
+  });
+
   test('router has eleven StatefulShell branches '
-      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals/settings/inbox/reports-full)',
+      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals/settings/inbox/reports)',
       () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
@@ -495,8 +583,18 @@ void main() {
     expect(shell.branches.length, 11,
         reason: 'settings branch (index 8) must be registered; '
             'inbox branch (index 9, 2026-09 到期常显提醒 T4) 追加于末尾; '
-            'reports/full branch (index 10, 视觉对齐批次 2026-09-29) 再追加 '
-            '于末尾(既有索引零移位)');
+            'reports branch (index 10) = /reports 索引页 + /reports/full '
+            '子路由(本票两页并入同一 branch,URL 树不变)');
+    // branch 10 结构钉:/reports 索引 + full 子路由。
+    final reportsRoutes =
+        shell.branches[10].routes.whereType<GoRoute>().toList();
+    expect(reportsRoutes.map((r) => r.path), contains('/reports'));
+    expect(
+        reportsRoutes.firstWhere((r) => r.path == '/reports').routes
+            .whereType<GoRoute>()
+            .map((r) => r.path),
+        contains('full'),
+        reason: '/reports/full 是 /reports 的子路由(同 branch)');
   });
 
   testWidgets(

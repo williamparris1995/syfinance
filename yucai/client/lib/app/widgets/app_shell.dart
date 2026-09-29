@@ -75,10 +75,16 @@ import 'package:yucai_client/core/theme/app_design.dart';
       // branch 元数据呈现;section 空 → 单级面包屑(对齐仪表盘先例)。
       return (section: '', page: '提醒中心', rootPath: '/inbox', createLabel: null, createRoute: null);
     case 10:
-      // 财务报告(视觉对齐批次 2026-09-29):/reports/full 挂回 shell 内页,
-      // 面包屑「报表分析 › 财务报告」(原型 v9 .crumb 同串);列表页创建
-      // 按钮语义不适用(rootPath 仅为 create 按钮的显隐判定,无按钮)。
-      return (section: '报表分析', page: '财务报告', rootPath: '/reports/full', createLabel: null, createRoute: null);
+      // 报表分析 branch(branch 10 = /reports 索引页 + /reports/full 子路由,
+      // 本票两页并入同一 branch):location 区分两级面包屑 —— 索引页单级
+      // 「报表分析」(section 空,对齐仪表盘/提醒中心先例),财务报告页
+      // 两级「报表分析 › 财务报告」(F43 FR-1,原型 v9 .crumb 同串)。
+      // 列表页创建按钮语义不适用(rootPath 仅为 create 按钮的显隐判定,
+      // 无按钮)。
+      if (location.startsWith('/reports/full')) {
+        return (section: '报表分析', page: '财务报告', rootPath: '/reports/full', createLabel: null, createRoute: null);
+      }
+      return (section: '', page: '报表分析', rootPath: '/reports', createLabel: null, createRoute: null);
     default:
       return (section: '', page: '御财', rootPath: '/', createLabel: null, createRoute: null);
   }
@@ -285,15 +291,22 @@ const _navGroups = <_NavGroup>[
     _NavItem('债权管理', LucideIcons.arrowUpRight, 4, route: '/receivables'),
   ]),
   _NavGroup('工具', [
-    _NavItem('报表分析', LucideIcons.barChart, null, route: '/reports'),
+    // branch 10 + route(本票 /reports 挂回 shell,对齐投资组合/预算管理
+    // 「branchIndex + route」双字段先例):tap 走 context.go('/reports')
+    // = shell 内 branch 导航;高亮走 route startsWith —— /reports/full
+    // 下「报表分析」保持高亮(F43 原设计语义)。
+    _NavItem('报表分析', LucideIcons.barChart, 10, route: '/reports'),
     _NavItem('设置', LucideIcons.settings, 8),
   ]),
 ];
 
-/// route-only 导航项(branchIndex 为 null,自定义 route:分类管理 /reports 等)
-/// 声称的路径前缀下,branch 索引项不高亮(route 项自身按 startsWith 高亮)——
-/// 否则同屏双高亮:/accounts/templates 在 accounts branch,「账户管理」与
-/// 「订阅管理」会同时亮;/categories 同理(原 /categories 特判的泛化)。
+/// route-only 导航项(branchIndex 为 null,自定义 route:分类管理/订阅
+/// 管理等他 branch 内自定义页)声称的路径前缀下,branch 索引项不高亮
+/// (route 项自身按 startsWith 高亮)—— 否则同屏双高亮:/accounts/
+/// templates 在 accounts branch,「账户管理」与「订阅管理」会同时亮;
+/// /categories 同理(原 /categories 特判的泛化)。注:报表分析自本票
+/// 起为 branch 10 索引项(非 route-only),高亮走 route startsWith,
+/// /reports* 下无双亮(branch 10 无第二个 nav 项)。
 bool _claimedByRouteOnlyNav(String location) => _navGroups
     .expand((g) => g.items)
     .any((i) =>

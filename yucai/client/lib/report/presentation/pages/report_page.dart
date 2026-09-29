@@ -1,7 +1,8 @@
-/// 报表分析页(/reports,sidebar「工具 › 报表分析」):月/年 summary 汇总条 +
-/// 三图表(收支趋势 / 支出分类占比 / 近 6 月对比)+ 标签口径筛选(F8)与
-/// 历史日期切换(P0-2)。顶栏含 F43「财务报告」入口按钮(→ /reports/full,
-/// FR-1 面包屑「报表分析 › 财务报告」);类级说明见下方 ReportPage 文档。
+/// 报表分析页(/reports,sidebar「工具 › 报表分析」,shell branch 10 索引页):
+/// 月/年 summary 汇总条 + 三图表(收支趋势 / 支出分类占比 / 近 6 月对比)+
+/// 标签口径筛选(F8)与历史日期切换(P0-2)。页头含 F43「财务报告」入口
+/// 按钮(→ /reports/full,FR-1 面包屑「报表分析 › 财务报告」);类级说明
+/// 见下方 ReportPage 文档。
 library;
 
 import 'package:dartz/dartz.dart' hide State;
@@ -23,20 +24,25 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 /// 报表分析页（sidebar「工具 › 报表分析」）。
 ///
-/// 顶层路由 /reports（StatefulShellRoute 之外，与 /login /register 同级），
-/// 故无 shell sidebar/topbar —— 本页自带顶栏（返回 chevronLeft + 标题 +
-/// 日期选择按钮 + 月/年 period segmented）。body 用 FutureBuilder 拉
-/// [TransactionRepository.summary]（[MonthlySummary]：income/expense/net/
-/// dailyAvg + byDay + byCategory），为 Task 3 三图表预留 section 占位：
-///   1. 收支趋势（LineChart，byDay）   — 占位「趋势图待实现」
-///   2. 分类占比（PieChart，byCategory）— 占位「分类图待实现」
-///   3. 月度对比（BarChart，多月）      — 占位「对比图待实现」
+/// shell branch 10 索引页（router.dart：/reports；/reports/full 财务报告
+/// 为其子路由，两页同 branch 双形态一致 —— 本票把原 shell 外顶层路由挂回
+/// 应用内页）。侧栏/顶栏由 AppShell 承载（顶栏面包屑单级「报表分析」），
+/// 页面自带顶栏（返回 + 标题条）退役，照财务报告页先例；口径控件（标签
+/// 下拉 + 日期按钮 + 月/年 period segmented）与「财务报告」入口按钮收进
+/// 页头 [_PageHead]（滚动内容首行，随内容滚动）。
+///
+/// body 用 FutureBuilder 拉 [TransactionRepository.summary]
+/// （[MonthlySummary]：income/expense/net/dailyAvg + byDay + byCategory），
+/// 渲染三图表 section：
+///   1. 收支趋势（LineChart，byDay）
+///   2. 分类占比（PieChart，byCategory）
+///   3. 月度对比（BarChart，多月）
 ///
 /// period 切换：[SummaryScope.month]（默认，按日聚合当月）↔
 /// [SummaryScope.year]（按月聚合当年）。切换时重建 Future 重新拉取。
 ///
 /// **历史日期切换**（P0-2）：[_selectedDate]（默认 `DateTime.now()`）作为
-/// summary 与近 6 月对比的「锚点」月份/年份。顶栏日期按钮触发
+/// summary 与近 6 月对比的「锚点」月份/年份。页头日期按钮触发
 /// [showDatePicker]：month scope 取年月（日忽略 → `'YYYY 年 M 月'`）；
 /// year scope 以 [DatePickerMode.year] 起步（取年 → `'YYYY 年'`）。选日期后
 /// 同时重载 summary 与月度对比，让两图对齐到同一锚点。
@@ -138,69 +144,18 @@ class _ReportPageState extends State<ReportPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 本票(挂回 shell,照财务报告页先例):顶栏(面包屑/搜索/主题钮)
+    // 由 AppShell 承载,页面不再自带返回条;页头(标题 + 口径控件 +
+    // 「财务报告」入口)随内容滚动(见 _PageHead)。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      body: Column(
-        children: [
-          _ReportTopBar(
-            scope: _scope,
-            selectedDate: _selectedDate,
-            // F8 FR-4/ADR-5:头部标签下拉(复用 ADR-3 TxnTagPicker)。boundRemote
-            // 态整体不挂载(交付物 4:外层定宽 SizedBox 一并条件化,控件自身
-            // 也兜底自隐藏,避免空白占位)。
-            tagPicker: tagFilterAvailable()
-                ? SizedBox(
-                    width: 170,
-                    child: TxnTagPicker(
-                        value: _selectedTagId, onChanged: _setTag),
-                  )
-                : null,
-            onScopeChanged: _switchScope,
-            onPickDate: _pickDate,
-            onBack: () => context.go('/home'),
-          ),
-          Divider(height: 1, color: context.yucai.border),
-          // 反馈1a 修复:本页为 shell 外顶层路由(自带顶栏)—— 页身
-          // 自包选区;/reports/full 压栈时 isCurrent=false 摘除(取舍
-          // 见 current_route_selection_area.dart 头注)。
-          Expanded(child: CurrentRouteSelectionArea(child: _body())),
-        ],
-      ),
+      // 反馈1a 修复:页身自包选区;/reports/full 压栈时 isCurrent=false
+      // 摘除(取舍见 current_route_selection_area.dart 头注)。
+      body: CurrentRouteSelectionArea(child: _body()),
     );
   }
 
   Widget _body() {
-    return FutureBuilder<Either<Failure, MonthlySummary>>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return Center(
-            child: CircularProgressIndicator(color: context.yucai.muted),
-          );
-        }
-        if (!snap.hasData) {
-          return _StateView(
-            icon: LucideIcons.alertCircle,
-            message: '加载失败',
-            onRetry: () => setState(() => _future = _load()),
-          );
-        }
-        return snap.data!.fold(
-          (f) => _StateView(
-            icon: LucideIcons.alertCircle,
-            message: f.message.isEmpty ? '加载失败' : f.message,
-            onRetry: () => setState(() => _future = _load()),
-          ),
-          (summary) => _content(summary),
-        );
-      },
-    );
-  }
-
-  Widget _content(MonthlySummary summary) {
-    final periodLabel = _scope == SummaryScope.year
-        ? '${summary.year} 年'
-        : '${summary.year} 年 ${summary.month} 月';
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
@@ -210,41 +165,57 @@ class _ReportPageState extends State<ReportPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _SummaryStrip(summary: summary, periodLabel: periodLabel),
-              const SizedBox(height: AppSpacing.md),
-              _ChartSection(
-                title: '收支趋势',
-                child: IncomeExpenseTrendChart(
-                  byDay: summary.byDay,
-                  scope: summary.scope ?? _scope,
-                ),
+              _PageHead(
+                scope: _scope,
+                selectedDate: _selectedDate,
+                // F8 FR-4/ADR-5:头部标签下拉(复用 ADR-3 TxnTagPicker)。boundRemote
+                // 态整体不挂载(交付物 4:外层定宽 SizedBox 一并条件化,控件自身
+                // 也兜底自隐藏,避免空白占位)。
+                tagPicker: tagFilterAvailable()
+                    ? SizedBox(
+                        width: 170,
+                        child: TxnTagPicker(
+                            value: _selectedTagId, onChanged: _setTag),
+                      )
+                    : null,
+                onScopeChanged: _switchScope,
+                onPickDate: _pickDate,
               ),
               const SizedBox(height: AppSpacing.md),
-              _ChartSection(
-                title: '支出分类占比',
-                child: CategoryBreakdownPie(
-                  slices: aggregateCategorySlices(summary),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _ChartSection(
-                title: '近 6 月对比',
-                child: FutureBuilder<List<MonthlySummary>>(
-                  future: _monthlyComparison,
-                  builder: (context, snap) {
-                    if (snap.connectionState != ConnectionState.done) {
-                      return SizedBox(
-                        height: 220,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                              color: context.yucai.muted),
-                        ),
-                      );
-                    }
-                    final months = snap.data ?? const [];
-                    return MonthlyComparisonBar(months: months);
-                  },
-                ),
+              FutureBuilder<Either<Failure, MonthlySummary>>(
+                future: _future,
+                builder: (context, snap) {
+                  if (snap.connectionState != ConnectionState.done) {
+                    return SizedBox(
+                      height: 320,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                            color: context.yucai.muted),
+                      ),
+                    );
+                  }
+                  if (!snap.hasData) {
+                    return SizedBox(
+                      height: 320,
+                      child: _StateView(
+                        icon: LucideIcons.alertCircle,
+                        message: '加载失败',
+                        onRetry: () => setState(() => _future = _load()),
+                      ),
+                    );
+                  }
+                  return snap.data!.fold(
+                    (f) => SizedBox(
+                      height: 320,
+                      child: _StateView(
+                        icon: LucideIcons.alertCircle,
+                        message: f.message.isEmpty ? '加载失败' : f.message,
+                        onRetry: () => setState(() => _future = _load()),
+                      ),
+                    ),
+                    (summary) => _content(summary),
+                  );
+                },
               ),
             ],
           ),
@@ -252,17 +223,68 @@ class _ReportPageState extends State<ReportPage> {
       ),
     );
   }
+
+  Widget _content(MonthlySummary summary) {
+    final periodLabel = _scope == SummaryScope.year
+        ? '${summary.year} 年'
+        : '${summary.year} 年 ${summary.month} 月';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SummaryStrip(summary: summary, periodLabel: periodLabel),
+        const SizedBox(height: AppSpacing.md),
+        _ChartSection(
+          title: '收支趋势',
+          child: IncomeExpenseTrendChart(
+            byDay: summary.byDay,
+            scope: summary.scope ?? _scope,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _ChartSection(
+          title: '支出分类占比',
+          child: CategoryBreakdownPie(
+            slices: aggregateCategorySlices(summary),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _ChartSection(
+          title: '近 6 月对比',
+          child: FutureBuilder<List<MonthlySummary>>(
+            future: _monthlyComparison,
+            builder: (context, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return SizedBox(
+                  height: 220,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                        color: context.yucai.muted),
+                  ),
+                );
+              }
+              final months = snap.data ?? const [];
+              return MonthlyComparisonBar(months: months);
+            },
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-// ───────────────────────── 顶栏（返回 + 标题 + 日期按钮 + period segmented）
+// ───────────────── 页头:标题 + 口径控件 + 财务报告入口(原型 .page-head)
+//
+// 本票(挂回 shell,照财务报告页 _PageHead 先例):原自带顶栏(返回 +
+// 标题 + 底色条的 60px chrome)退役,功能性控件收进滚动内容首行的页头
+// —— 标题(24 档,与财务报告页同款)+ 副题 + 右侧控件组(标签下拉 +
+// 日期按钮 + 月/年 segmented + 「财务报告」入口按钮)。
 
-class _ReportTopBar extends StatelessWidget {
-  const _ReportTopBar({
+class _PageHead extends StatelessWidget {
+  const _PageHead({
     required this.scope,
     required this.selectedDate,
     required this.onScopeChanged,
     required this.onPickDate,
-    required this.onBack,
     this.tagPicker,
   });
 
@@ -270,7 +292,6 @@ class _ReportTopBar extends StatelessWidget {
   final DateTime selectedDate;
   final ValueChanged<SummaryScope> onScopeChanged;
   final VoidCallback onPickDate;
-  final VoidCallback onBack;
 
   /// 标签筛选下拉槽位(F8 FR-4;null = boundRemote 态隐藏,不占位)。
   final Widget? tagPicker;
@@ -282,83 +303,105 @@ class _ReportTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      // 对齐 shell _TopBar 底色（OD .topbar rgba(247,246,242,.85)）。
-      color: context.yucai.bg.withValues(alpha: 0.85),
-      child: Row(children: [
-        IconButton(
-          tooltip: '返回',
-          icon: Icon(LucideIcons.chevronLeft,
-              size: 20, color: context.yucai.fg),
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            hoverColor: context.yucai.accentSoft.withValues(alpha: 0.4),
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(36, 36),
+    return LayoutBuilder(builder: (context, c) {
+      // 宽度门槛 860(财务报告页用 760):本页控件组多 170 定宽标签下拉,
+      // 760 档下 title(副题 ~286px)+ controls(~490px)临界溢出;860 起
+      // 同行排布才稳,以下走窄列(标题在上、控件组在下)。
+      final wide = c.maxWidth > 860;
+      final controls = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // F8 FR-4:标签口径筛选,与日期/period 同属「口径」控件组
+          //(null = boundRemote 隐藏时整体不渲染)。
+          if (tagPicker != null) ...[
+            tagPicker!,
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          _DateButton(
+            key: const ValueKey('reportDateButton'),
+            label: _dateLabel,
+            onTap: onPickDate,
           ),
-          onPressed: onBack,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          '报表分析',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: context.yucai.fg,
-            fontFamily: AppTypography.displayFamily,
-            fontFamilyFallback: AppTypography.displayFallback,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        // F43 T5(FR-1):「财务报告」入口按钮 → /reports/full
-        // (面包屑语义:报表分析 › 财务报告)。
-        GestureDetector(
-          onTap: () => context.go('/reports/full'),
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: Container(
-              key: const ValueKey('financialReportEntryButton'),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: context.yucai.accentSoft,
-                borderRadius: AppRadius.smBorder,
-                border: Border.all(color: context.yucai.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(LucideIcons.fileText,
-                      size: 14, color: context.yucai.accentDeep),
-                  const SizedBox(width: 6),
-                  Text('财务报告',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: context.yucai.accentDeep,
-                      )),
-                ],
-              ),
+          const SizedBox(width: AppSpacing.sm),
+          _PeriodSegmented(scope: scope, onChanged: onScopeChanged),
+          const SizedBox(width: AppSpacing.sm),
+          const _FinancialReportEntry(),
+        ],
+      );
+      final title = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '报表分析',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: context.yucai.fg,
+              fontFamily: AppTypography.displayFamily,
+              fontFamilyFallback: AppTypography.displayFallback,
             ),
           ),
-        ),
-        const Spacer(),
-        // 标签口径筛选(F8 FR-4):置于日期按钮左侧,与日期/period 同属
-        // 「口径」控件组。null(boundRemote 隐藏)时整体不渲染。
-        if (tagPicker != null) ...[
-          tagPicker!,
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(height: 4),
+          Text('按月或按年,纵览收支趋势、分类占比与月度对比',
+              style: TextStyle(fontSize: 13, color: context.yucai.muted)),
         ],
-        _DateButton(
-          key: const ValueKey('reportDateButton'),
-          label: _dateLabel,
-          onTap: onPickDate,
+      );
+      if (wide) {
+        return Row(
+          children: [
+            title,
+            const Spacer(),
+            controls,
+          ],
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          title,
+          const SizedBox(height: AppSpacing.sm),
+          controls,
+        ],
+      );
+    });
+  }
+}
+
+/// F43 T5(FR-1):「财务报告」入口按钮 → /reports/full(同 branch 子路由;
+/// 面包屑语义:报表分析 › 财务报告)。
+class _FinancialReportEntry extends StatelessWidget {
+  const _FinancialReportEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.go('/reports/full'),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          key: const ValueKey('financialReportEntryButton'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: context.yucai.accentSoft,
+            borderRadius: AppRadius.smBorder,
+            border: Border.all(color: context.yucai.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.fileText,
+                  size: 14, color: context.yucai.accentDeep),
+              const SizedBox(width: 6),
+              Text('财务报告',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: context.yucai.accentDeep,
+                  )),
+            ],
+          ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        _PeriodSegmented(scope: scope, onChanged: onScopeChanged),
-      ]),
+      ),
     );
   }
 }

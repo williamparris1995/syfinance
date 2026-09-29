@@ -4,8 +4,9 @@
 /// 调用绝不进 e2e,边界注释见该链)。
 ///
 /// 链路:种子(账户+分录+预算+持仓+闲置模板最小集)→ 侧栏「报表分析」
-/// → 顶栏「财务报告」入口(/reports)→ /reports/full(视觉对齐批次:shell
-/// 内页)选期(上一期步进到种子月,翻期自动重生成)→ 断言七章节关键数值
+/// → 页头「财务报告」入口(/reports)→ /reports/full(报表分析/财务报告
+/// 同 branch 10,双页均 shell 内页)选期(上一期步进到种子月,翻期自动
+/// 重生成)→ 断言七章节关键数值
 /// 与诊断发现(手算 oracle)+ 自适应缺席(种子缺预算的月:预算/投资章
 /// 缺席 + 未包含项附注)+ F45 导出入口(Loaded 态「导出」按钮 + 格式
 /// 菜单 PDF/Markdown 两项;真实 saveFile 原生对话框不可 e2e 自动化,断言
@@ -206,9 +207,9 @@ void main() {
   // 测试数据生命周期收尾:close 后删独立测试库(种子+夹具全清)。
   tearDownAll(deleteTestDb);
 
-  /// 真实启动 app → 侧栏「报表分析」→ 顶栏「财务报告」→ /reports/full
-  /// (视觉对齐批次:shell 内页,侧栏/顶栏常驻)→ 期控件步进到
-  /// [year] 年 [month] 月。
+  /// 真实启动 app → 侧栏「报表分析」→ 页头「财务报告」→ /reports/full
+  /// (报表分析/财务报告同 branch 10,双页均 shell 内页,侧栏/顶栏常驻)
+  /// → 期控件步进到 [year] 年 [month] 月。
   ///
   /// 范式(视觉对齐批次同步,a647b72a 反馈②之后):翻期**自动重新生成**
   /// —— Initial 态直接步进,第一步即触发上一期的完整生成(Loading→
@@ -221,7 +222,8 @@ void main() {
     await t.pumpAndSettle(const Duration(seconds: 3));
     await goPage(t, '报表分析');
     await t.pumpAndSettle(const Duration(seconds: 2));
-    // F43 T5(FR-1)入口:报表分析顶栏「财务报告」按钮 → /reports/full。
+    // F43 T5(FR-1)入口:报表分析页头「财务报告」按钮 → /reports/full
+    // (同 branch 子路由,shell 常驻)。
     await t.tap(find.byKey(const ValueKey('financialReportEntryButton')));
     await t.pumpAndSettle(const Duration(seconds: 2));
     // 选期:页面缺省 = 当前自然月;步进(上一期/下一期)到种子月

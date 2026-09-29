@@ -283,9 +283,11 @@ void main() {
     expect(tagCalls, 7);
   });
 
-  // F43 T5(FR-1):顶栏「财务报告」入口按钮(导航 /reports/full;
+  // F43 T5(FR-1):页头「财务报告」入口按钮(导航 /reports/full;
   // 此处仅断言存在——导航需 go_router,路由接线由 router_test 覆盖)。
-  testWidgets('顶栏含「财务报告」入口按钮(FR-1)', (t) async {
+  // 本票(挂回 shell,照财务报告页先例):自带顶栏(返回 + 标题条)退役
+  // —— 无返回钮;标题/日期/period 控件与入口按钮收进页头。
+  testWidgets('页头含「财务报告」入口按钮(FR-1),自带顶栏退役', (t) async {
     final repo = _MockTxnRepo();
     when(() => repo.summary(any(), any(),
             scope: any(named: 'scope'), tagId: any(named: 'tagId')))
@@ -296,5 +298,11 @@ void main() {
     final entry = find.byKey(const ValueKey('financialReportEntryButton'));
     expect(entry, findsOneWidget);
     expect(find.text('财务报告'), findsOneWidget);
+    // 自带顶栏退役:无返回钮(shell 侧栏承担导航);页头标题一处
+    //(挂页 harness 无 shell,生产面包屑由 AppShell 顶栏承载)。
+    expect(find.byTooltip('返回'), findsNothing,
+        reason: 'shell 内页无自带返回钮(照财务报告页先例)');
+    expect(find.text('报表分析'), findsOneWidget,
+        reason: '页头标题(24 档)一处,顶栏面包屑由 shell 承载');
   });
 }

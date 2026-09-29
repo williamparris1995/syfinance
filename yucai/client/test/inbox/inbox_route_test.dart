@@ -46,12 +46,13 @@ void main() {
     final router = buildRouter(_SeededAuthedBloc());
     final shell =
         router.configuration.routes.whereType<StatefulShellRoute>().first;
-    // 视觉对齐批次(2026-09-29):/reports/full 追加为 branch 10(末尾),
+    // 视觉对齐批次(2026-09-29):reports branch 追加为 branch 10(末尾,
+    // = /reports 索引页 + /reports/full 子路由,本票两页并入同一 branch),
     // inbox 仍在 index 9、0..8 硬编码索引零移位 —— 本断言钉的正是这一点。
     expect(shell.branches.length, 11,
         reason: 'inbox branch (index 9) must follow settings (index 8); '
-            '0..8 硬编码索引不得移位;视觉对齐批次末尾追加 reports/full '
-            '(index 10) 不移位 inbox');
+            '0..8 硬编码索引不得移位;末尾追加 reports branch (index 10) '
+            '不移位 inbox');
     final branchRoutes = shell.branches[9].routes.whereType<GoRoute>().toList();
     expect(branchRoutes.map((r) => r.path), contains('/inbox'));
   });

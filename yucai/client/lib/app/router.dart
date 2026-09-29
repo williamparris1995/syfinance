@@ -1035,40 +1035,43 @@ GoRouter buildRouter(
               ),
             ],
           ),
-          // 财务报告页(branch 10,视觉对齐批次 2026-09-29):挂回应用内页
-          // —— 侧栏/顶栏由 shell 承载(原型 v9 财务报告即应用内页:左侧栏
-          // + 顶栏面包屑「报表分析 › 财务报告」),页面自带顶栏退役。
-          // 取舍(最小侵入):新增末尾 branch 而非把 /reports 整树搬入 ——
-          // /reports(报表分析)本票不动,仍为 shell 外顶层路由;GoRouter
-          // 全树路径唯一(/reports/full 仅在此声明),两树不冲突。branch
-          // 索引末尾追加(10),侧栏/底栏/面包屑的既有索引(0..9)零移位
-          // (同 inbox 先例);侧栏「报表分析」route-only 项经 startsWith
-          // 在 /reports/full 下照常高亮,无双亮(branch 无对应 nav 项)。
+          // 报表分析 branch(branch 10):branch = /reports 索引页(报表分析)
+          // + full 子路由(财务报告)—— 视觉对齐批次(2026-09-29)先把
+          // /reports/full 挂回 shell;同日用户反馈「两页形态不一」(财务
+          // 报告有侧栏、报表分析还是全屏自带顶栏),本票把 /reports 索引页
+          // 并入**同一 branch**(照 /holdings「列表页 + 静态子路由」结构),
+          // 双页形态一致(侧栏/顶栏面包屑均由 shell 承载,页面自带顶栏退役)。
+          // 取舍(对独立 branch 11):合并零增 branch、URL 树不变
+          // (/reports/full 路径逐字不动),侧栏「报表分析」route '/reports'
+          // 点击 = shell 内 branch 导航(不再整页跳出 shell 外顶层路由)。
+          // 窄屏底栏无 reports 槽 → _slotIndexOf 回退 0 高亮(同 inbox
+          // branch 9 先例,不构成误导:窄屏主入口是仪表盘快捷操作)。
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/reports/full',
-                // F43 财务报告(FR-1「报表分析 › 财务报告」)。bloc 照
-                // /holdings 模式路由层 provide:getIt 工厂每次新实例,
-                // 页面 Initial 态(用户选期后点「生成报告」才触发汇编;
-                // Loaded 后翻期/切口径自动重生成,反馈②)。
-                builder: (_, __) => BlocProvider<FinancialReportBloc>(
-                  create: (_) => getIt<FinancialReportBloc>(),
-                  child: const FinancialReportPage(),
-                ),
+                path: '/reports',
+                // 报表分析索引页:月/年 summary 汇总条 + 三图表 + 标签口径
+                // 筛选(F8)+ 历史日期切换(P0-2);数据经 getIt
+                // TransactionRepository 页内 FutureBuilder 拉取(无路由层
+                // bloc),页面无参构造。
+                builder: (_, __) => const ReportPage(),
+                routes: [
+                  GoRoute(
+                    path: 'full',
+                    // F43 财务报告(FR-1「报表分析 › 财务报告」)。bloc 照
+                    // /holdings 模式路由层 provide:getIt 工厂每次新实例,
+                    // 页面 Initial 态(用户选期后点「生成报告」才触发汇编;
+                    // Loaded 后翻期/切口径自动重生成,反馈②)。
+                    builder: (_, __) => BlocProvider<FinancialReportBloc>(
+                      create: (_) => getIt<FinancialReportBloc>(),
+                      child: const FinancialReportPage(),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ],
-      ),
-      // 报表分析（顶层路由，shell 外）：自带顶栏（返回 + 标题 + 月/年
-      // period segmented），不挂 StatefulShellRoute 分支。对齐 /categories
-      // 「custom route 非 branch」模式，但 /reports 不归属任一 branch，故置于
-      // branches 外（与 /login /register 同级）。Task 3 在 ReportPage 内补 3 图表。
-      // 注:子路由 /reports/full 已移入上方 branch 10(视觉对齐批次,取舍见注)。
-      GoRoute(
-        path: '/reports',
-        builder: (_, __) => const ReportPage(),
       ),
     ],
     initialLocation: '/home',
