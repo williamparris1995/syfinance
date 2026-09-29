@@ -54,6 +54,11 @@ class OverviewHero extends StatelessWidget {
             final wide = c.maxWidth > 620;
             final Widget row = wide
                 ? Row(
+                    // 原型 .hero-row{align-items:flex-end}:双数字基线对齐
+                    //(38/46px 两档字号,居中会对齐致基线错位 4px——hero
+                    // 诊断 P1);箭头/chip 随行底对齐,收在大数字基线旁
+                    //(P2),照原型 margin-bottom 8/10 加垫。
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Flexible(
                         child: Column(
@@ -66,8 +71,10 @@ class OverviewHero extends StatelessWidget {
                             ]),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm),
+                        padding: const EdgeInsets.only(
+                            left: AppSpacing.sm,
+                            right: AppSpacing.sm,
+                            bottom: 10),
                         child: Icon(LucideIcons.moveRight,
                             size: 20, color: context.yucai.muted),
                       ),
@@ -82,7 +89,8 @@ class OverviewHero extends StatelessWidget {
                             ]),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      Flexible(
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: _deltaChip(
                             context, deltaColor, fmtCentsSigned(delta), pct),
                       ),
