@@ -300,7 +300,10 @@ GoRouter buildRouter(
                     create: (_) {
                       final b =
                           TransactionBloc(getIt<TransactionRepository>());
-                      b.add(LoadTransactionsRequested(filter: initialFilter));
+                      // #2-B 无限滚动:首页 50 条(与本页筛选/追加同口径)。
+                      b.add(LoadTransactionsRequested(
+                          filter: initialFilter,
+                          pageSize: TransactionsPage.listPageSize));
                       return b;
                     },
                     child: TransactionsPage(initialFilter: initialFilter),

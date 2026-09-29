@@ -57,14 +57,14 @@ Widget _harness({required Widget child, required Size size}) {
   );
 }
 
-/// F7 FR-4 分页条按钮断言辅助:byTooltip 命中 Tooltip 节点,上溯宿主
-/// IconButton 才能读到 onPressed 禁用态。
-IconButton _pagerButton(WidgetTester tester, String tooltip) {
-  return tester.widget<IconButton>(find.ancestor(
-    of: find.byTooltip(tooltip),
-    matching: find.byType(IconButton),
-  ));
-}
+/// 页面主滚动(虚拟化 ListView 的 Scrollable;first 排除筛选输入框等
+/// 内嵌 scrollable —— 树序在前)。
+final _pageScrollable = find
+    .descendant(
+      of: find.byType(RefreshIndicator),
+      matching: find.byType(Scrollable),
+    )
+    .first;
 
 void main() {
   late _FakeTxnRepo txnRepo;
@@ -102,7 +102,9 @@ void main() {
       child: BlocProvider<TransactionBloc>(
         create: (_) {
           final b = TransactionBloc(txnRepo);
-          b.add(const LoadTransactionsRequested());
+          // 与路由层同口径:首页 50 条(#2-B 无限滚动)。
+          b.add(const LoadTransactionsRequested(
+              pageSize: TransactionsPage.listPageSize));
           return b;
         },
         child: const TransactionsPage(),
@@ -131,6 +133,13 @@ void main() {
       (tester) async {
     await pumpPage(tester, const Size(1024, 768));
 
+    // 虚拟化列表(#2-B):tablet 头块较高(SummaryCard 双列),表头/首行在
+    // 折叠线下 —— 滚动到首行(表头在其上方,仍在构建区)。
+    await tester.scrollUntilVisible(
+      find.text('交易 t1'),
+      300,
+      scrollable: _pageScrollable,
+    );
     expect(find.text('日期'), findsOneWidget);
     expect(find.text('交易 t1'), findsOneWidget);
   });
@@ -150,6 +159,13 @@ void main() {
 
     // Two distinct day groups: 06-19 (t1, t2) and 06-18 (t3).
     expect(find.text('06-19'), findsWidgets);
+    // 虚拟化:06-18 组在折叠线下,滚动到该组行(t3 唯一;『06-18』文本
+    // 在组头与行日期列各一处,不能作 scrollUntilVisible 目标)。
+    await tester.scrollUntilVisible(
+      find.text('交易 t3'),
+      200,
+      scrollable: _pageScrollable,
+    );
     expect(find.text('06-18'), findsWidgets);
   });
 
@@ -166,89 +182,177 @@ void main() {
   });
 
   testWidgets(
-      '分页条(F7 FR-4):hasMore 显示第 1 页可下一页,tap 携带 cursor 翻到第 2 页',
+      '月份组头(#2-B):跨月分组渲染「YYYY年M月」组头 + 当月收入/支出小计',
       (tester) async {
+    // 账户元数据供小计口径(a3 income / a2 expense / a1 asset)。
+    final accountRepo = _FakeAccountRepo();
+    const cash = Account(
+      id: 'a1', name: '现金', accountType: AccountType.asset,
+      category: AccountCategory.savings, currencyCode: 'CNY',
+      initialBalanceCents: 0, currentBalanceCents: 0,
+      ownership: Ownership.personal, status: AccountStatus.active);
+    const food = Account(
+      id: 'a2', name: '餐饮', accountType: AccountType.expense,
+      category: AccountCategory.otherAsset, currencyCode: 'CNY',
+      initialBalanceCents: 0, currentBalanceCents: 0,
+      ownership: Ownership.personal, status: AccountStatus.active);
+    const salary = Account(
+      id: 'a3', name: '工资', accountType: AccountType.income,
+      category: AccountCategory.otherAsset, currencyCode: 'CNY',
+      initialBalanceCents: 0, currentBalanceCents: 0,
+      ownership: Ownership.personal, status: AccountStatus.active);
+    when(() => accountRepo.list())
+        .thenAnswer((_) async => const dartz.Right([cash, food, salary]));
     when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
-        ListTransactionsResult(
-            transactions: [_txn('t1', DateTime(2026, 6, 19))],
-            nextPageToken: 'cursor1')));
+        ListTransactionsResult(transactions: [
+          // 6 月:收入 ¥100.00(credit income 账户)。
+          Transaction(
+            id: 'i1',
+            transactionDate: DateTime(2026, 6, 19),
+            description: '工资入账',
+            entries: const [
+              TransactionEntry(
+                  accountId: 'a1', debitCents: 10000, creditCents: 0),
+              TransactionEntry(
+                  accountId: 'a3', debitCents: 0, creditCents: 10000),
+            ],
+          ),
+          // 6 月:支出 ¥42.00。腿向照 server 口径(SimpleExpense = debit
+          // expense + credit asset):expense 账户记借方。
+          Transaction(
+            id: 'e1',
+            transactionDate: DateTime(2026, 6, 18),
+            description: '午餐',
+            entries: const [
+              TransactionEntry(
+                  accountId: 'a2', debitCents: 4200, creditCents: 0),
+              TransactionEntry(
+                  accountId: 'a1', debitCents: 0, creditCents: 4200),
+            ],
+          ),
+          // 5 月:支出 ¥10.00。
+          Transaction(
+            id: 'e2',
+            transactionDate: DateTime(2026, 5, 20),
+            description: '五月打车',
+            entries: const [
+              TransactionEntry(
+                  accountId: 'a2', debitCents: 1000, creditCents: 0),
+              TransactionEntry(
+                  accountId: 'a1', debitCents: 0, creditCents: 1000),
+            ],
+          ),
+        ], nextPageToken: '')));
 
-    await pumpPage(tester, const Size(1440, 900));
-
-    // 多页:分页条可见;第 1 页禁用上一页。
-    expect(find.text('第 1 页'), findsOneWidget);
-    expect(_pagerButton(tester, '上一页').onPressed, isNull,
-        reason: '第 1 页禁用上一页');
-
-    // Tapping 下一页 triggers a second list call with the cursor(切片替换)。
-    when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
-        ListTransactionsResult(
-            transactions: [_txn('t2', DateTime(2026, 6, 18))],
-            nextPageToken: '')));
-    await tester.tap(find.byTooltip('下一页'));
+    await tester.pumpWidget(_harness(
+      size: const Size(1440, 900),
+      child: RepositoryProvider<AccountRepository>.value(
+        value: accountRepo,
+        child: BlocProvider<TransactionBloc>(
+          create: (_) {
+            final b = TransactionBloc(txnRepo);
+            b.add(const LoadTransactionsRequested(
+                pageSize: TransactionsPage.listPageSize));
+            return b;
+          },
+          child: const TransactionsPage(),
+        ),
+      ),
+    ));
     await tester.pumpAndSettle();
 
-    final calls = verify(() => txnRepo.list(captureAny())).captured
-        .cast<ListTransactionsParams>();
-    expect(calls.length, 2);
-    expect(calls[1].pageToken, 'cursor1');
-    // 第 2 页:页码指示更新;末页禁用下一页。
-    expect(find.text('第 2 页'), findsOneWidget);
-    expect(_pagerButton(tester, '下一页').onPressed, isNull,
-        reason: '末页禁用下一页');
-    expect(_pagerButton(tester, '上一页').onPressed, isNotNull,
-        reason: '第 2 页应可回上一页');
-  });
-
-  testWidgets('分页条(F7 FR-4):单页(hasMore=false)整个分页条隐藏',
-      (tester) async {
-    // 默认桩:3 条、nextPageToken 空 → 单页,分页条不渲染。
-    await pumpPage(tester, const Size(1440, 900));
-    expect(find.text('第 1 页'), findsNothing, reason: '单页无需分页控件');
-    expect(find.byTooltip('下一页'), findsNothing);
-    expect(find.byTooltip('上一页'), findsNothing);
+    // 两个月 → 两个月份组头(先 6 月后 5 月,输入序保持)。虚拟化:组头
+    // 随滚动离场即销毁 —— 6 月组头(含小计)在滚动前断言,5 月组滚动到位
+    // 后断言。
+    expect(find.text('2026年6月'), findsOneWidget);
+    // 组头小计(6 月):收入 ¥100.00 / 支出 ¥42.00。
+    expect(find.textContaining('收入 ¥100.00'), findsOneWidget);
+    expect(find.textContaining('支出 ¥42.00'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('2026年5月'),
+      200,
+      scrollable: _pageScrollable,
+    );
+    expect(find.text('2026年5月'), findsOneWidget);
+    // 组头小计(5 月):支出 ¥10.00(无收入 → ¥0.00 不特判,小计恒展示)。
+    expect(find.textContaining('支出 ¥10.00'), findsOneWidget);
   });
 
   testWidgets(
-      '分页条(F7 FR-4):翻页请求中保持显示不瞬闪隐藏(LoadingMore 双禁,fix round 1)',
+      '无限滚动(#2-B):滚到底(距底<400px)自动加载下一页 —— 追加不替换,'
+      '加载中列表保留 + spinner,完成后页脚累计',
       (tester) async {
+    // 记录式桩:收集每次 list 参数(首查 + 追加)。
+    final calls = <ListTransactionsParams>[];
+    final page2 =
+        Completer<dartz.Either<Failure, ListTransactionsResult>>();
     when(() => txnRepo.list(any())).thenAnswer((invocation) async {
-      final p =
-          invocation.positionalArguments.single as ListTransactionsParams;
-      return (p.pageToken ?? '').isEmpty
-          ? dartz.Right(ListTransactionsResult(
-              transactions: [_txn('t1', DateTime(2026, 6, 19))],
-              nextPageToken: 'cursor1'))
-          : dartz.Right(ListTransactionsResult(
-              transactions: [_txn('t2', DateTime(2026, 6, 18))],
-              nextPageToken: ''));
+      final p = invocation.positionalArguments.single as ListTransactionsParams;
+      calls.add(p);
+      if ((p.pageToken ?? '').isEmpty) {
+        // 首页 60 条(超 50/页阈值,撑出滚动距离),hasMore=true。
+        return dartz.Right(ListTransactionsResult(
+            transactions: [
+              for (var i = 0; i < 60; i++)
+                _txn('p1-$i', DateTime(2026, 6, 19))
+            ],
+            nextPageToken: 'c1'));
+      }
+      return page2.future; // 第 2 页挂起,便于断言 LoadingMore 中间态。
     });
 
     await pumpPage(tester, const Size(1440, 900));
-    await tester.tap(find.byTooltip('下一页'));
-    await tester.pumpAndSettle();
-    expect(find.text('第 2 页'), findsOneWidget);
+    expect(calls.length, 1, reason: '初始只查首页');
 
-    // prev 回第 1 页:挂起请求 → LoadingMore 态(该页 token 为空 → hasMore
-    // 推出 false;修复前 _showPager 会瞬闪隐藏整个分页条)。
-    final prevDone = Completer<dartz.Either<Failure, ListTransactionsResult>>();
-    when(() => txnRepo.list(any())).thenAnswer((_) => prevDone.future);
-    await tester.tap(find.byTooltip('上一页'));
-    await tester.pump(); // 不 settle:处于 TransactionsLoadingMore。
+    // 一大步滚到底(越过 400px 阈值)。拖动后的惯性收敛需要数帧,收尾
+    // (ScrollEnd)通知在布局定形后才评估距底 —— 连续泵帧至收敛。
+    await tester.drag(find.byType(ListView), const Offset(0, -4000));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(calls.length, 2, reason: '距底<400px 应自动请求下一页');
+    expect(calls[1].pageToken, 'c1', reason: '追加携带上一页游标');
+    expect(calls[1].pageSize, TransactionsPage.listPageSize,
+        reason: '追加沿用首页 pageSize');
 
-    // 分页条不隐藏:显示目标页「第 1 页」+ loading,双按钮禁用。
-    expect(find.text('第 1 页'), findsOneWidget,
-        reason: '翻页请求中分页条应保持显示,不瞬闪隐藏');
-    expect(_pagerButton(tester, '上一页').onPressed, isNull);
-    expect(_pagerButton(tester, '下一页').onPressed, isNull);
+    // LoadingMore 中间态:首页尾部行仍在列(虚拟化:断言视口内的尾部行,
+    // 首行 p1-0 已随滚动离场销毁),页脚 spinner。
+    expect(find.text('交易 p1-59'), findsOneWidget,
+        reason: '加载中不替换已加载列表');
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-    // 完成回第 1 页(单页)→ 分页条隐藏。
-    prevDone.complete(dartz.Right(ListTransactionsResult(
-        transactions: [_txn('t1', DateTime(2026, 6, 19))],
+    // 第 2 页返回(1 条 5 月数据,末页)→ 追加渲染 + 页脚累计 61 条。
+    page2.complete(dartz.Right(ListTransactionsResult(
+        transactions: [_txn('p2-0', DateTime(2026, 5, 3))],
         nextPageToken: '')));
     await tester.pumpAndSettle();
-    expect(find.text('第 1 页'), findsNothing,
-        reason: '回到单页后分页条应隐藏');
+    // 内容在尾部增长后,惰性布局需要再一次滚动展开新增区(虚拟化列表
+    // 特性;此时 hasMore=false,该滚动不会再发请求)。
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(find.text('交易 p2-0'), findsOneWidget, reason: '追加不替换');
+    expect(find.text('交易 p1-59'), findsWidgets, reason: '旧页保留');
+    expect(find.text('已全部加载 · 共 61 条'), findsOneWidget);
+    expect(calls.length, 2, reason: '防抖:无重复请求');
+  });
+
+  testWidgets(
+      '末页页脚(#2-B):hasMore=false 显示「已全部加载 · 共 N 条」,PagerBar 退出本页',
+      (tester) async {
+    // 默认桩:3 条、nextPageToken 空 → 末页。虚拟化:页脚在折叠线下,
+    // scrollUntilVisible 滚到位(即断言其存在)。
+    await pumpPage(tester, const Size(1440, 900));
+    await tester.scrollUntilVisible(
+      find.text('已全部加载 · 共 3 条'),
+      200,
+      scrollable: _pageScrollable,
+    );
+    expect(find.text('已全部加载 · 共 3 条'), findsOneWidget,
+        reason: '末页页脚显示累计条数');
+    // 页条分页(F7 FR-4)已被无限滚动取代:PagerBar 不再出现在本页。
+    expect(find.text('第 1 页'), findsNothing);
+    expect(find.byTooltip('上一页'), findsNothing);
+    expect(find.byTooltip('下一页'), findsNothing);
   });
 
   testWidgets(

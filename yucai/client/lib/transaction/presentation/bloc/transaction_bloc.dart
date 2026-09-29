@@ -66,7 +66,8 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     // clear() 内含「第 0 页空串」重置,与原 clear()+add('') 逐位等价。
     _pageTokens.clear();
     emit(TransactionsLoading(filter: filter));
-    final result = await _txnRepo.list(_params(filter: filter));
+    final result =
+        await _txnRepo.list(_params(filter: filter, pageSize: event.pageSize));
     result.fold(
       (failure) =>
           emit(TransactionsError(failure.displayMessage, filter: filter)),
@@ -203,24 +204,27 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
   Future<void> _onLoadMore(
       LoadMoreTransactionsRequested event, Emitter<TransactionState> emit) async {
     final s = state;
+    // 反馈#2-B 重入防抖:追加请求在途(LoadingMore)时忽略后续 LoadMore ——
+    // 滚动触发在近底每帧点火,不防会重复请求并重复追加同页。
+    // (旧实现「从 LoadingMore 续传」会把在途页 token 再发一次 = 重复追加。)
+    if (s is TransactionsLoadingMore) return;
     final loaded = s is TransactionsLoaded ? s : null;
-    // LoadingMore also carries a nextToken; support resuming from it.
-    final loadingMore = s is TransactionsLoadingMore ? s : null;
-    final token = loaded?.nextPageToken ?? loadingMore?.nextPageToken ?? '';
-    final prior = loaded?.transactions ?? loadingMore?.transactions ?? const [];
-    final filter = loaded?.filter ?? loadingMore?.filter ?? const TxnFilterState();
-    final pageIndex = loaded?.pageIndex ?? loadingMore?.pageIndex ?? 0;
-    final summary = loaded?.summary ?? loadingMore?.summary;
-    if (token.isEmpty) return; // nothing more to fetch
+    if (loaded == null) return;
+    final token = loaded.nextPageToken;
+    final prior = loaded.transactions;
+    final filter = loaded.filter;
+    final pageIndex = loaded.pageIndex;
+    final summary = loaded.summary;
+    if (token.isEmpty) return; // nothing more to fetch(末页终止)
     emit(TransactionsLoadingMore(
       transactions: prior,
       filter: filter,
       nextPageToken: token,
-      pageIndex: pageIndex, // 追加 load-more 不换页,页码保持。
+      pageIndex: pageIndex,
       summary: summary,
     ));
-    final result =
-        await _txnRepo.list(_params(filter: filter, pageToken: token));
+    final result = await _txnRepo
+        .list(_params(filter: filter, pageToken: token, pageSize: event.pageSize));
     result.fold(
       (failure) =>
           emit(TransactionsError(failure.displayMessage, filter: filter)),
@@ -228,7 +232,8 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         transactions: [...prior, ...page.transactions],
         filter: filter,
         nextPageToken: page.nextPageToken,
-        pageIndex: pageIndex,
+        // 反馈#2-B:追加 = pageIndex+1(已加载页数,供「已全部加载」累计口径)。
+        pageIndex: pageIndex + 1,
         summary: summary,
       )),
     );
@@ -314,6 +319,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
   ListTransactionsParams _params({
     required TxnFilterState filter,
     String? pageToken,
+    int pageSize = 100,
   }) {
     final flavour = _flavourOf(filter.type);
     return ListTransactionsParams(
@@ -322,6 +328,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
       dateFrom: filter.month != null ? _monthStart(filter.month!) : null,
       dateTo: filter.month != null ? _monthEnd(filter.month!) : null,
       pageToken: pageToken,
+      pageSize: pageSize,
       typeFilter: flavour,
       // F7 FR-1:分类下拉 value 是 AccountCategory.name 串,反查回枚举。
       category: _categoryOf(filter.category),

@@ -15,8 +15,6 @@ import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:yucai_client/core/widgets/yucai_context_menu.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
-import 'package:yucai_client/core/widgets/data_card.dart';
-import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -29,14 +27,16 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 import 'package:yucai_client/transaction/presentation/widgets/summary_card.dart';
 import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.dart';
 
-/// 交易列表页。对齐 OD 原型 `yucai-transaction-trisize-9d3e/transactions.html`：
-///   - 页头：H1 + 副标题（月份 · 共 N 笔）+ 导出按钮 + 新增交易
+/// 交易列表页。对齐 YNAB/MoneyWiz 式桌面主流形态(反馈#2-B 无限滚动改版):
+///   - 页头：H1 + 副标题（月份 · 共 N 笔）+ 导出按钮
 ///   - 汇总四卡（SummaryCard）—— 本月收入/支出/净额/日均
 ///   - TxnFilterBar（搜索框 + 类型分段 + 账户/分类/月份下拉 + 排序 + 重置，F7）
-///   - 单张 tx-card 内按日分组：day-row 分隔条 + 表格行
+///   - 单一 ListView.builder 虚拟化列表,数据 = 分组展开模型：
+///     月份组头（「YYYY年M月」+ 当月收入/支出小计）→ 日分隔条 → 表格行
 ///     （日期 / 交易详情（图标+描述）/ 分类 chip / 账户标签 / 金额 / ⋯ 操作）
-///   - 分页页脚（F7 FR-4）：上一页/下一页 + 「第 N 页」；单页整体隐藏
-///   - Mobile：卡片堆叠 + 汇总四宫格（TxnRow 移动分支）
+///   - 滚动加载：距底 <400px 自动追加下一页（首页 [listPageSize] 条，追加
+///     同页大小）；hasMore=false 页脚显示「已全部加载 · 共 N 条」（N=累计）
+///   - Mobile：卡片堆叠 + 汇总四宫格（TxnRow 移动分支），同一分组展开模型
 ///
 /// 三尺寸响应式（Desktop ≥1200 / Tablet 600–1200 / Mobile ≤600）。
 ///
@@ -45,6 +45,11 @@ import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.
 ///   2. 路由层 BlocProvider —— 生产路径（见 router.dart `/transactions` 分支）。
 class TransactionsPage extends StatelessWidget {
   const TransactionsPage({super.key, this.bloc, this.initialFilter});
+
+  /// 无限滚动首页/追加页大小（反馈#2-B 拍板 50）。路由层首查与本页内的
+  /// 筛选/回拉/滚动追加共用同一常量;account_detail 近期交易不经过本页,
+  /// 仍走事件默认 pageSize 100(F9 口径,见 TransactionBloc)。
+  static const int listPageSize = 50;
 
   /// 测试可注入预构造 bloc；生产路径留空，bloc 由路由层 BlocProvider 提供。
   final TransactionBloc? bloc;
@@ -130,10 +135,11 @@ class _TransactionsViewState extends State<_TransactionsView> with RouteAware {
   }
 
   /// FilterBar 受控状态：任何变化都重新发起 LoadTransactionsRequested +
-  /// LoadSummaryRequested。
+  /// LoadSummaryRequested。Load = 重置第 1 页(#2-B:追加页清零)。
   void _onFilterChanged(TxnFilterState next) {
     final bloc = context.read<TransactionBloc>();
-    bloc.add(LoadTransactionsRequested(filter: next));
+    bloc.add(LoadTransactionsRequested(
+        filter: next, pageSize: TransactionsPage.listPageSize));
     _requestSummary(next);
   }
 
@@ -158,7 +164,8 @@ class _TransactionsViewState extends State<_TransactionsView> with RouteAware {
     final filter = state is TransactionsLoaded
         ? state.filter
         : (state is TransactionsError ? state.filter : const TxnFilterState());
-    bloc.add(LoadTransactionsRequested(filter: filter));
+    bloc.add(LoadTransactionsRequested(
+        filter: filter, pageSize: TransactionsPage.listPageSize));
     _requestSummary(filter);
   }
 
@@ -215,11 +222,6 @@ class _TransactionsViewState extends State<_TransactionsView> with RouteAware {
             onOpenDetail: _openDetail,
             // 反馈1b:右键删除后回拉(保留筛选,同 didPopNext 语义)。
             onRowDeleted: _reloadAfterMutation,
-            // F7 FR-4:页码分页(prev/next)。翻页不触发 summary 重算。
-            onPrevPage: () => context.read<TransactionBloc>().add(
-                const GoToTransactionsPageRequested(TxnPageDirection.prev)),
-            onNextPage: () => context.read<TransactionBloc>().add(
-                const GoToTransactionsPageRequested(TxnPageDirection.next)),
           );
         },
       ),
@@ -228,8 +230,13 @@ class _TransactionsViewState extends State<_TransactionsView> with RouteAware {
 }
 
 // ───────────────────────── 主内容 ─────────────────────────
+//
+// #2-B 无限滚动:列表区改为单一 ListView.builder(虚拟化),数据 = 分组
+// 展开模型(头块 → 月份组头 → 日分隔 → 行 … 页脚)。滚动控制器归 _Content
+// State 持有:距底 <400px 发 LoadMoreTransactionsRequested(页面侧仅
+// Loaded+hasMore 才发,bloc 侧 LoadingMore 再兜一道防抖)。
 
-class _Content extends StatelessWidget {
+class _Content extends StatefulWidget {
   const _Content({
     required this.state,
     required this.loadingMore,
@@ -238,8 +245,6 @@ class _Content extends StatelessWidget {
     required this.onExport,
     required this.onOpenDetail,
     this.onRowDeleted,
-    required this.onPrevPage,
-    required this.onNextPage,
   });
 
   /// TransactionsLoaded or TransactionsLoadingMore (both carry the list).
@@ -250,44 +255,85 @@ class _Content extends StatelessWidget {
   final VoidCallback onExport;
   final ValueChanged<String> onOpenDetail;
 
-  /// 反馈1b:行右键删除成功后的回拉(透传 _TxCard → _TxTableRow)。
+  /// 反馈1b:行右键删除成功后的回拉(透传至 _TxTableRow)。
   final VoidCallback? onRowDeleted;
 
-  /// F7 FR-4:翻页回调(filter 不变,bloc 内部换 token 重查)。
-  final VoidCallback onPrevPage;
-  final VoidCallback onNextPage;
+  @override
+  State<_Content> createState() => _ContentState();
+}
 
-  List<Transaction> get _txns => state is TransactionsLoaded
-      ? (state as TransactionsLoaded).transactions
-      : (state as TransactionsLoadingMore).transactions;
+class _ContentState extends State<_Content> {
+  /// 滚动加载触发阈值(#2-B):距底不足 400px 时追加下一页(预取一段
+  /// 滚动余量,避免用户看到加载底)。
+  static const double _loadMoreEdge = 400;
 
-  TxnFilterState get _filter => state is TransactionsLoaded
-      ? (state as TransactionsLoaded).filter
-      : (state as TransactionsLoadingMore).filter;
+  /// 附着页面主滚动,仅用于读取**定形后**的距底 extent(见
+  /// [_onScrollNotification] 的估值坑)。
+  final ScrollController _scrollController = ScrollController();
 
-  String get _nextToken => state is TransactionsLoaded
-      ? (state as TransactionsLoaded).nextPageToken
-      : (state as TransactionsLoadingMore).nextPageToken;
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// 距底触发追加(#2-B)。评估时机:
+  ///  - [ScrollUpdateNotification]:滚动途中持续评估(真实设备连续拖动,
+  ///    extent 估值随布局收敛,近底即触发);
+  ///  - [ScrollEndNotification] + 帧后回调:滚动收尾时通知携带的 metrics
+  ///    取自**布局刷新前**(ListView 的 maxExtent 是估值,大步拖动只发
+  ///    一次 update 且估值偏大,通知口径会漏判)—— 帧后布局定形,按
+  ///    controller 活值再评一次。
+  ///
+  /// 防抖:仅 Loaded 且 hasMore 才发;LoadingMore 在途期间 bloc 侧兜底
+  /// 忽略(见 TransactionBloc._onLoadMore)。
+  bool _onScrollNotification(ScrollNotification n) {
+    // depth==0:只看本页滚动(过滤筛选输入框等内嵌 scrollable)。
+    if (n.depth != 0) return false;
+    switch (n) {
+      case ScrollUpdateNotification():
+        _maybeRequestLoadMore();
+      case ScrollEndNotification():
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _maybeRequestLoadMore();
+        });
+      default:
+        break;
+    }
+    return false;
+  }
+
+  void _maybeRequestLoadMore() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.extentAfter >= _loadMoreEdge) return;
+    final bloc = context.read<TransactionBloc>();
+    final s = bloc.state;
+    if (s is! TransactionsLoaded || !s.hasMore) return;
+    bloc.add(const LoadMoreTransactionsRequested(
+        pageSize: TransactionsPage.listPageSize));
+  }
+
+  TransactionState get _state => widget.state;
+
+  List<Transaction> get _txns => _state is TransactionsLoaded
+      ? (_state as TransactionsLoaded).transactions
+      : (_state as TransactionsLoadingMore).transactions;
+
+  TxnFilterState get _filter => _state is TransactionsLoaded
+      ? (_state as TransactionsLoaded).filter
+      : (_state as TransactionsLoadingMore).filter;
+
+  String get _nextToken => _state is TransactionsLoaded
+      ? (_state as TransactionsLoaded).nextPageToken
+      : (_state as TransactionsLoadingMore).nextPageToken;
 
   bool get _hasMore => _nextToken.isNotEmpty;
 
-  /// 当前页码(0 起;两 list-bearing 状态同构)。
-  int get _pageIndex => state is TransactionsLoaded
-      ? (state as TransactionsLoaded).pageIndex
-      : (state as TransactionsLoadingMore).pageIndex;
-
-  /// 单页(hasMore==false 且 pageIndex==0)整个分页条隐藏。
-  ///
-  /// 翻页请求中([loadingMore])保持显示(fix round 1):LoadingMore 态的
-  /// nextPageToken 是"正在取的页"token(prev 回第 1 页时为空 → hasMore
-  /// 推出 false),若不含 loading 态分页条会瞬闪隐藏;loading 双禁已防连点。
-  bool get _showPager => _hasMore || _pageIndex > 0 || loadingMore;
-
   /// This month's summary. null until the parallel `TransactionSummary` RPC
   /// resolves; the card falls back to zeros.
-  MonthlySummary? get _summary => state is TransactionsLoaded
-      ? (state as TransactionsLoaded).summary
-      : (state as TransactionsLoadingMore).summary;
+  MonthlySummary? get _summary => _state is TransactionsLoaded
+      ? (_state as TransactionsLoaded).summary
+      : (_state as TransactionsLoadingMore).summary;
 
   @override
   Widget build(BuildContext context) {
@@ -297,16 +343,34 @@ class _Content extends StatelessWidget {
       future: _loadAccounts(context),
       builder: (context, snapshot) {
         final accounts = snapshot.data ?? const <Account>[];
-        final accountOptions = [
-          for (final a in accounts) FilterOption(a.id, a.name),
-        ];
-        final categoryOptions = _categoryOptions(accounts);
-        final monthOptions = _monthOptions();
-
-        final groups = _groupByDay(_txns);
 
         // Task 4: mobile 分支判定 —— 与 accounts_page 同断点(Breakpoints mobileUpper=600)。
         final isMobile = Breakpoints.of(context) == Breakpoint.mobile;
+
+        // #2-B 分组展开模型:月份组 → 日组 → 行,序保持输入序(默认日期倒序)。
+        final months = _groupByMonth(_txns, accounts);
+        final items = <_TxnListItem>[
+          _TxnListItem.headerBlock(),
+          if (months.isEmpty)
+            _TxnListItem.emptyHint()
+          else ...[
+            // 表头带仅 desktop/tablet(mobile 卡片堆叠无表格头)。
+            if (!isMobile) _TxnListItem.tableHeader(),
+            for (final m in months) ...[
+              _TxnListItem.monthHeader(m),
+              for (final d in m.days.entries) ...[
+                _TxnListItem.dayHeader(d.key, d.value.length),
+                for (final t in d.value) _TxnListItem.row(t),
+              ],
+            ],
+          ],
+          if (months.isNotEmpty)
+            _TxnListItem.listEnd(
+              loadingMore: widget.loadingMore,
+              hasMore: _hasMore,
+              totalCount: _txns.length,
+            ),
+        ];
 
         // 反馈⑥(桌面文本选择)+ 反馈1a 修复:页身自包 [SelectionArea]
         // (行内描述/金额可选可拖选)。取舍:全局 scope(builder 层包整个
@@ -319,130 +383,175 @@ class _Content extends StatelessWidget {
         // SelectionContainer 排序对未布局盒的断言(router_test 回归)。
         return CurrentRouteSelectionArea(
           child: RefreshIndicator(
-            onRefresh: () async => context
-                .read<TransactionBloc>()
-                .add(LoadTransactionsRequested(filter: _filter)),
-            child: SingleChildScrollView(
-            padding: isMobile
-                ? const EdgeInsets.fromLTRB(4, 4, 4, 96)
-                : const EdgeInsets.fromLTRB(
-                    AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 96),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                    maxWidth: isMobile ? double.infinity : 1120),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (isMobile) ...[
-                      _MobileAppBar(
-                        onFilter: () => _showMobileFilterSheet(
-                          context,
-                          accountOptions: accountOptions,
-                          categoryOptions: categoryOptions,
-                          monthOptions: monthOptions,
-                        ),
-                      ),
-                      MobileHeader(
-                        filter: _filter,
-                        count: _txns.length,
-                        summary: _summary,
-                        onFilterChanged: onFilterChanged,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TxnTypeSeg(
-                        type: _filter.type,
-                        onChanged: (tf) =>
-                            onFilterChanged(_filter.copyWith(type: tf)),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                    ] else ...[
-                      _Header(
-                        count: _txns.length,
-                        monthLabel: _currentMonthLabel(_filter),
-                        onCreate: onCreate,
-                        onExport: onExport,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      SummaryCard(
-                        incomeCents: _summary?.incomeCents ?? 0,
-                        expenseCents: _summary?.expenseCents ?? 0,
-                        netCents: _summary?.netCents ?? 0,
-                        dailyAvgCents: _summary?.dailyAvgCents ?? 0,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TxnTypeSeg(
-                        type: _filter.type,
-                        onChanged: (tf) =>
-                            onFilterChanged(_filter.copyWith(type: tf)),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TxnFilterBar(
-                        state: _filter,
-                        onChanged: onFilterChanged,
-                        accountOptions: accountOptions,
-                        categoryOptions: categoryOptions,
-                        monthOptions: monthOptions,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                    if (groups.isEmpty)
-                      _EmptyListHint(onCreate: onCreate)
-                    else
-                      ResponsiveLayout(
-                        mobile: _MobileList(
-                          groups: groups,
-                          accounts: accounts,
-                          onOpenDetail: onOpenDetail,
-                        ),
-                        tablet: _TxCard(
-                          groups: groups,
-                          accounts: accounts,
-                          onOpenDetail: onOpenDetail,
-                          onDeleted: onRowDeleted,
-                          showPager: _showPager,
-                          pageIndex: _pageIndex,
-                          hasMore: _hasMore,
-                          loadingMore: loadingMore,
-                          onPrevPage: onPrevPage,
-                          onNextPage: onNextPage,
-                          totalCount: _txns.length,
-                        ),
-                        desktop: _TxCard(
-                          groups: groups,
-                          accounts: accounts,
-                          onOpenDetail: onOpenDetail,
-                          onDeleted: onRowDeleted,
-                          showPager: _showPager,
-                          pageIndex: _pageIndex,
-                          hasMore: _hasMore,
-                          loadingMore: loadingMore,
-                          onPrevPage: onPrevPage,
-                          onNextPage: onNextPage,
-                          totalCount: _txns.length,
-                        ),
-                      ),
-                    // F7 FR-4:mobile 分支无卡片页脚,分页条独立渲染在列表下方;
-                    // 单页(hasMore==false 且 pageIndex==0)整个分页条隐藏。
-                    if (isMobile && _showPager)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.sm),
-                        child: PagerBar(
-                          pageIndex: _pageIndex,
-                          hasMore: _hasMore,
-                          loading: loadingMore,
-                          onPrev: onPrevPage,
-                          onNext: onNextPage,
-                        ),
-                      ),
-                  ],
-                ),
+            onRefresh: () async => context.read<TransactionBloc>().add(
+                LoadTransactionsRequested(
+                    filter: _filter,
+                    pageSize: TransactionsPage.listPageSize)),
+            // #2-B:单一虚拟化列表(ListView.builder)承载整页滚动 ——
+            // 头块/分组/行/页脚都是列表项,超长数据只构建视口内元素。
+            // NotificationListener 承接滚动加载(见 _onScrollNotification);
+            // AlwaysScrollable:空/短列表也可下拉刷新。
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _onScrollNotification,
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: isMobile
+                    ? const EdgeInsets.fromLTRB(4, 4, 4, 96)
+                    : const EdgeInsets.fromLTRB(
+                        AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 96),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final cell = _buildItem(
+                    context,
+                    items[index],
+                    accounts: accounts,
+                    isMobile: isMobile,
+                  );
+                  // 与旧版 Center+ConstrainedBox 同宽约束:桌面/平板内容列
+                  // ≤1120 居中;mobile 全宽。
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                          maxWidth: isMobile ? double.infinity : 1120),
+                      child: cell,
+                    ),
+                  );
+                },
               ),
             ),
           ),
-        ),
         );
       },
+    );
+  }
+
+  /// 单个列表项渲染(分组展开模型 → 具体 widget)。
+  Widget _buildItem(
+    BuildContext context,
+    _TxnListItem item, {
+    required List<Account> accounts,
+    required bool isMobile,
+  }) {
+    switch (item) {
+      case _TxnHeaderBlock():
+        return _buildHeaderBlock(
+          context,
+          accounts: accounts,
+          isMobile: isMobile,
+        );
+      case _TxnEmptyHint():
+        return _EmptyListHint(onCreate: widget.onCreate);
+      case _TxnTableHeaderBandItem():
+        return const _TableHeaderBand();
+      case _TxnMonthHeader(:final month):
+        return _MonthRow(month: month);
+      case _TxnDayHeader(:final label, :final count):
+        return isMobile
+            ? _DayHeader(label: label, count: count)
+            : _DayRow(label: label, count: count);
+      case _TxnRow(:final txn):
+        return isMobile
+            ? _MobileTxnCard(
+                txn: txn,
+                accountNameOf: (id) => _accountNameOf(accounts, id),
+                accountOf: (id) => _accountOf(accounts, id),
+                onTap: () => widget.onOpenDetail(txn.id),
+              )
+            // 无整卡包裹后,行落在 surface 色带上(与 surfaceAlt 分隔条
+            // 交替),视觉沿用卡片内景;右键菜单接线不变(反馈1b)。
+            : ColoredBox(
+                color: context.yucai.surface,
+                child: _TxTableRow(
+                  txn: txn,
+                  accountNameOf: (id) => _accountNameOf(accounts, id),
+                  accountOf: (id) => _accountOf(accounts, id),
+                  onOpenDetail: widget.onOpenDetail,
+                  onDeleted: widget.onRowDeleted,
+                ),
+              );
+      case _TxnListEnd(:final loadingMore, :final hasMore, :final totalCount):
+        return _ListFooter(
+          loadingMore: loadingMore,
+          hasMore: hasMore,
+          totalCount: totalCount,
+          surfaceBand: !isMobile,
+        );
+    }
+  }
+
+  /// 头块(列表首项):desktop/tablet = 页头 + SummaryCard + 类型段 + 筛选
+  /// 条;mobile = appbar + MobileHeader + 类型段。与旧版 Column 头部逐位
+  /// 同构,只是从外层 Column 挪进列表首项。
+  Widget _buildHeaderBlock(
+    BuildContext context, {
+    required List<Account> accounts,
+    required bool isMobile,
+  }) {
+    final accountOptions = [
+      for (final a in accounts) FilterOption(a.id, a.name),
+    ];
+    final categoryOptions = _categoryOptions(accounts);
+    final monthOptions = _monthOptions();
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _MobileAppBar(
+            onFilter: () => _showMobileFilterSheet(
+              context,
+              accountOptions: accountOptions,
+              categoryOptions: categoryOptions,
+              monthOptions: monthOptions,
+            ),
+          ),
+          MobileHeader(
+            filter: _filter,
+            count: _txns.length,
+            summary: _summary,
+            onFilterChanged: widget.onFilterChanged,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TxnTypeSeg(
+            type: _filter.type,
+            onChanged: (tf) =>
+                widget.onFilterChanged(_filter.copyWith(type: tf)),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Header(
+          count: _txns.length,
+          monthLabel: _currentMonthLabel(_filter),
+          onCreate: widget.onCreate,
+          onExport: widget.onExport,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SummaryCard(
+          incomeCents: _summary?.incomeCents ?? 0,
+          expenseCents: _summary?.expenseCents ?? 0,
+          netCents: _summary?.netCents ?? 0,
+          dailyAvgCents: _summary?.dailyAvgCents ?? 0,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TxnTypeSeg(
+          type: _filter.type,
+          onChanged: (tf) => widget.onFilterChanged(_filter.copyWith(type: tf)),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TxnFilterBar(
+          state: _filter,
+          onChanged: widget.onFilterChanged,
+          accountOptions: accountOptions,
+          categoryOptions: categoryOptions,
+          monthOptions: monthOptions,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+      ],
     );
   }
 
@@ -467,7 +576,7 @@ class _Content extends StatelessWidget {
         categoryOptions: categoryOptions,
         monthOptions: monthOptions,
         onApply: (next) {
-          onFilterChanged(next);
+          widget.onFilterChanged(next);
           Navigator.of(context).pop();
         },
       ),
@@ -534,17 +643,66 @@ class _Content extends StatelessWidget {
     return '${now.year}年${now.month}月';
   }
 
-  /// 按天分组：key = 「MM-DD」（展示用），保留顺序（输入已按日期倒序，这里
-  /// 用 LinkedHashMap 保序）。
-  Map<String, List<Transaction>> _groupByDay(List<Transaction> txns) {
-    final groups = <String, List<Transaction>>{};
+  /// 按月分组(#2-B):外层月份组、组内按日分组,组序保持输入序(输入默认
+  /// 日期倒序;按金额排序时同样保首次出现序)。
+  ///
+  /// 月小计口径:income = Σ income 账户侧 credit;expense = Σ expense
+  /// 账户侧 debit(与行内 flavour 判定同账户元数据源;转账 asset↔asset
+  /// 两侧均不计入,复合多腿交易按腿累计)。账户元数据未就绪(列表先于
+  /// accounts 到达)时小计为 0,accounts 到位后整页重建自然补齐。
+  List<_MonthGroup> _groupByMonth(
+      List<Transaction> txns, List<Account> accounts) {
+    final months = <String, _MonthGroup>{};
     for (final t in txns) {
-      final key =
-          '${t.transactionDate.month.toString().padLeft(2, '0')}-${t.transactionDate.day.toString().padLeft(2, '0')}';
-      groups.putIfAbsent(key, () => []).add(t);
+      final d = t.transactionDate;
+      final monthKey = '${d.year}-${d.month.toString().padLeft(2, '0')}';
+      final group =
+          months.putIfAbsent(monthKey, () => _MonthGroup(d.year, d.month));
+      for (final e in t.entries) {
+        final a = _accountOf(accounts, e.accountId);
+        if (a == null) continue;
+        if (a.accountType == AccountType.income) {
+          group.incomeCents += e.creditCents;
+        } else if (a.accountType == AccountType.expense) {
+          group.expenseCents += e.debitCents;
+        }
+      }
+      final dayKey =
+          '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      group.days.putIfAbsent(dayKey, () => <Transaction>[]).add(t);
     }
-    return groups;
+    return months.values.toList();
   }
+
+  Account? _accountOf(List<Account> accounts, String id) {
+    for (final a in accounts) {
+      if (a.id == id) return a;
+    }
+    return null;
+  }
+
+  String _accountNameOf(List<Account> accounts, String id) {
+    for (final a in accounts) {
+      if (a.id == id) return a.name;
+    }
+    return id.length > 6 ? '#${id.substring(0, 6)}' : '#$id';
+  }
+}
+
+/// 月份组(#2-B 分组展开模型的组节点):年月 + 当月小计 + 组内按日分组
+/// (LinkedHashMap 保序)。
+class _MonthGroup {
+  _MonthGroup(this.year, this.month)
+      : days = <String, List<Transaction>>{};
+
+  final int year;
+  final int month;
+  int incomeCents = 0;
+  int expenseCents = 0;
+  final Map<String, List<Transaction>> days;
+
+  int get count =>
+      days.values.fold(0, (sum, txns) => sum + txns.length);
 }
 
 class _Header extends StatelessWidget {
@@ -661,90 +819,208 @@ class _ExportButton extends StatelessWidget {
   }
 }
 
-// ───────────────────────── 桌面/平板：单张 tx-card 表格 ─────────────────────────
+// ───────────────────────── 分组展开模型 + 列表项(#2-B) ─────────────────────────
 //
-// 对齐原型：单张白底卡片包裹表头 + day-row 分隔条 + 表格行 + 分页页脚。
-// 不再为每个日期生成独立 DataCard —— 原型把所有日期合在一张 tx-card 内，
-// day-row 作为视觉分隔条（淡背景 + 上下细边）。
+// ListView.builder 的数据源:头块 → (desktop 表头带) → [月份组头 → 日分隔
+// → 行]* → 页脚(加载 spinner / 「已全部加载 · 共 N 条」)。sealed 小类
+// 区分项类型,itemBuilder 按类型分发(虚拟化:只构建视口内项)。
+// 旧「单张 tx-card 包裹 + 分页页脚」形态已随无限滚动改版退役(DataCard/
+// PagerBar 组件本体保留,其它列表页仍在用)。
 
-class _TxCard extends StatelessWidget {
-  const _TxCard({
-    required this.groups,
-    required this.accounts,
-    required this.onOpenDetail,
-    this.onDeleted,
-    required this.showPager,
-    required this.pageIndex,
-    required this.hasMore,
+sealed class _TxnListItem {
+  const _TxnListItem();
+
+  /// 页头块(desktop 页头+汇总+筛选 / mobile appbar+MobileHeader+类型段)。
+  factory _TxnListItem.headerBlock() = _TxnHeaderBlock;
+
+  /// 空列表提示(保留 header,列表区空态)。
+  factory _TxnListItem.emptyHint() = _TxnEmptyHint;
+
+  /// desktop/tablet 表头带(日期/交易详情/分类/账户/金额)。
+  factory _TxnListItem.tableHeader() = _TxnTableHeaderBandItem;
+
+  /// 月份组头(YYYY年M月 + 当月收入/支出小计)。
+  factory _TxnListItem.monthHeader(_MonthGroup month) = _TxnMonthHeader;
+
+  /// 日分隔(MM-DD + 当日笔数)。
+  factory _TxnListItem.dayHeader(String label, int count) = _TxnDayHeader;
+
+  /// 交易行(desktop 表格行 / mobile 卡片)。
+  factory _TxnListItem.row(Transaction txn) = _TxnRow;
+
+  /// 列表页脚:加载中 spinner;hasMore=false 时「已全部加载 · 共 N 条」。
+  factory _TxnListItem.listEnd({
+    required bool loadingMore,
+    required bool hasMore,
+    required int totalCount,
+  }) = _TxnListEnd;
+}
+
+class _TxnHeaderBlock extends _TxnListItem {
+  const _TxnHeaderBlock();
+}
+
+class _TxnEmptyHint extends _TxnListItem {
+  const _TxnEmptyHint();
+}
+
+class _TxnTableHeaderBandItem extends _TxnListItem {
+  const _TxnTableHeaderBandItem();
+}
+
+class _TxnMonthHeader extends _TxnListItem {
+  const _TxnMonthHeader(this.month);
+  final _MonthGroup month;
+}
+
+class _TxnDayHeader extends _TxnListItem {
+  const _TxnDayHeader(this.label, this.count);
+  final String label;
+  final int count;
+}
+
+class _TxnRow extends _TxnListItem {
+  const _TxnRow(this.txn);
+  final Transaction txn;
+}
+
+class _TxnListEnd extends _TxnListItem {
+  const _TxnListEnd({
     required this.loadingMore,
-    required this.onPrevPage,
-    required this.onNextPage,
+    required this.hasMore,
     required this.totalCount,
   });
 
-  final Map<String, List<Transaction>> groups;
-  final List<Account> accounts;
-  final ValueChanged<String> onOpenDetail;
-
-  /// 反馈1b:行右键删除成功后的列表回拉(透传至 _TxTableRow)。
-  final VoidCallback? onDeleted;
-
-  /// F7 FR-4:是否渲染分页页脚(单页隐藏整个分页条)。
-  final bool showPager;
-  final int pageIndex;
-  final bool hasMore;
   final bool loadingMore;
-  final VoidCallback onPrevPage;
-  final VoidCallback onNextPage;
+  final bool hasMore;
+
+  /// 累计条数(已加载各页之和,非本页条数)。
   final int totalCount;
+}
 
-  String _nameOf(String id) {
-    for (final a in accounts) {
-      if (a.id == id) return a.name;
-    }
-    return id.length > 6 ? '#${id.substring(0, 6)}' : '#$id';
-  }
+/// 月份组头(#2-B):「YYYY年M月」+ 当月笔数 + 收入/支出小计。
+/// 样式照 design-v2 卡片分隔条先例:surfaceAlt 色带 + 上下细边,零裸色
+/// (全部走 context.yucai 语义令牌;收入 positive / 支出 negative)。
+class _MonthRow extends StatelessWidget {
+  const _MonthRow({required this.month});
 
-  Account? _accountOf(String id) {
-    for (final a in accounts) {
-      if (a.id == id) return a;
-    }
-    return null;
-  }
+  final _MonthGroup month;
 
   @override
   Widget build(BuildContext context) {
-    return DataCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
+      decoration: BoxDecoration(
+        color: context.yucai.surfaceAlt,
+        border: Border(
+          top: BorderSide(color: context.yucai.border),
+          bottom: BorderSide(color: context.yucai.border),
+        ),
+      ),
+      child: Row(
         children: [
-          _TableHeader(),
-          Divider(height: 1, color: context.yucai.border),
-          for (final entry in groups.entries) ...[
-            _DayRow(label: entry.key, count: entry.value.length),
-            for (final t in entry.value)
-              _TxTableRow(
-                txn: t,
-                accountNameOf: _nameOf,
-                accountOf: _accountOf,
-                onOpenDetail: onOpenDetail,
-                onDeleted: onDeleted,
-              ),
-          ],
-          _PagerFooter(
-            showing: totalCount,
-            showPager: showPager,
-            pager: PagerBar(
-              pageIndex: pageIndex,
-              hasMore: hasMore,
-              loading: loadingMore,
-              onPrev: onPrevPage,
-              onNext: onNextPage,
+          Text('${month.year}年${month.month}月',
+              style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: AppTypography.tabularFigures)),
+          const SizedBox(width: 8),
+          Text('${month.count} 笔',
+              style: TextStyle(color: context.yucai.muted, fontSize: 11)),
+          const Spacer(),
+          // 小计右对齐;窄屏(mobile)下超长金额省略号兜底。
+          Flexible(
+            child: Text(
+              '收入 ${_formatCents(month.incomeCents)}',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: context.yucai.positive,
+                  fontSize: 11.5,
+                  fontFeatures: AppTypography.tabularFigures),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Flexible(
+            child: Text(
+              '支出 ${_formatCents(month.expenseCents)}',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: context.yucai.negative,
+                  fontSize: 11.5,
+                  fontFeatures: AppTypography.tabularFigures),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// desktop/tablet 表头带:无整卡包裹后表头落在 surface 色带上,收顶细边
+/// (下沿分隔线由首个月份组头的上边提供,避免双线)。
+class _TableHeaderBand extends StatelessWidget {
+  const _TableHeaderBand();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.yucai.surface,
+        border: Border(top: BorderSide(color: context.yucai.border)),
+      ),
+      child: _TableHeader(),
+    );
+  }
+}
+
+/// 列表页脚(#2-B):加载中 spinner;hasMore=false 显示「已全部加载 · 共
+/// N 条」(N=累计);还有下一页且不在加载中收一条窄 surface 带(保持底部
+/// 细边不因加载态切换瞬闪)。
+class _ListFooter extends StatelessWidget {
+  const _ListFooter({
+    required this.loadingMore,
+    required this.hasMore,
+    required this.totalCount,
+    required this.surfaceBand,
+  });
+
+  final bool loadingMore;
+  final bool hasMore;
+  final int totalCount;
+
+  /// desktop/tablet:surface 色带 + 底部细边;mobile 无卡片 chrome。
+  final bool surfaceBand;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget content;
+    if (loadingMore) {
+      content = const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    } else if (!hasMore) {
+      content = Text('已全部加载 · 共 $totalCount 条',
+          style: TextStyle(color: context.yucai.muted, fontSize: 12));
+    } else {
+      content = const SizedBox(height: 6);
+    }
+    if (!surfaceBand) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm + 2),
+        child: Center(child: content),
+      );
+    }
+    return Container(
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm + 2),
+      decoration: BoxDecoration(
+        color: context.yucai.surface,
+        border: Border(bottom: BorderSide(color: context.yucai.border)),
+      ),
+      child: content,
     );
   }
 }
@@ -1287,48 +1563,14 @@ class _RowOpMenu extends StatelessWidget {
   }
 }
 
-class _PagerFooter extends StatelessWidget {
-  const _PagerFooter({
-    required this.showing,
-    required this.showPager,
-    required this.pager,
-  });
-
-  final int showing;
-
-  /// 单页(hasMore==false 且 pageIndex==0)整个页脚隐藏。
-  final bool showPager;
-
-  /// 页脚右侧的分页条([PagerBar],F9 提升至 core/widgets,由调用方装配回调)。
-  final Widget pager;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!showPager) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: context.yucai.border)),
-      ),
-      child: Row(
-        children: [
-          Text('本页 $showing 条',
-              style: TextStyle(color: context.yucai.muted, fontSize: 13)),
-          const Spacer(),
-          pager,
-        ],
-      ),
-    );
-  }
-}
-
-// ───────────────────────── F7 FR-4 分页条:F9 已提升为共享 PagerBar ─────────────────────────
-// TxnPagerBar(原 _PagerFooter 页脚/mobile 列表下方装配)已泛化迁移至
-// `core/widgets/pager_bar.dart` 的通用 [PagerBar],各列表页复用 —— 本页仅
-// 保留装配,语义/测试断言随迁移保绿(F9 FR-1 / ADR-1,行为逐位不变)。
+// 旧「分页页脚」(_PagerFooter + F7 FR-4 页条装配)已随 #2-B 无限滚动改版
+// 退役:分页条语义由滚动加载(距底自动追加)与列表页脚(_ListFooter:
+// spinner / 「已全部加载 · 共 N 条」)接管。共享 PagerBar 组件保留在
+// core/widgets,其它列表页(账户详情近期交易/持仓)仍在用。
 
 // ───────────────────────── 移动端：卡片堆叠 ─────────────────────────
+// (#2-B:旧 _MobileList Column 装配已并入分组展开模型的 itemBuilder ——
+// mobile 与 desktop 同一 ListView,行项分发到 _MobileTxnCard。)
 
 /// 类型 segmented(全部/收入/支出/转账)——对齐 OD typeSeg,复用 TxnTypeFilter。
 /// mobile + tablet/desktop 共用(mobile 在 sum-card 后;tablet/desktop 在 SummaryCard 后)。
@@ -1375,52 +1617,6 @@ class TxnTypeSeg extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _MobileList extends StatelessWidget {
-  const _MobileList({
-    required this.groups,
-    required this.accounts,
-    required this.onOpenDetail,
-  });
-
-  final Map<String, List<Transaction>> groups;
-  final List<Account> accounts;
-  final ValueChanged<String> onOpenDetail;
-
-  String _nameOf(String id) {
-    for (final a in accounts) {
-      if (a.id == id) return a.name;
-    }
-    return id.length > 6 ? '#${id.substring(0, 6)}' : '#$id';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final entry in groups.entries) ...[
-          _DayHeader(label: entry.key, count: entry.value.length),
-          for (final t in entry.value)
-            _MobileTxnCard(
-              txn: t,
-              accountNameOf: _nameOf,
-              accountOf: _accountOf,
-              onTap: () => onOpenDetail(t.id),
-            ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
-    );
-  }
-
-  Account? _accountOf(String id) {
-    for (final a in accounts) {
-      if (a.id == id) return a;
-    }
-    return null;
   }
 }
 

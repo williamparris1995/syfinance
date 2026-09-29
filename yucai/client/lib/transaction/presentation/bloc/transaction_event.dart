@@ -26,13 +26,22 @@ abstract class TransactionEvent extends Equatable {
 ///
 /// 语义 = **重置第 1 页**(F7 FR-4):任一筛选/搜索/排序变化触发时 token 清空、
 /// pageIndex 归 0。
+///
+/// [pageSize] 默认 100(F9 标准口径,account_detail 近期交易共享本 bloc 依赖
+/// 该默认);交易列表页无限滚动(反馈#2-B)传 50 —— 首屏/追加共用同一值。
 class LoadTransactionsRequested extends TransactionEvent {
-  const LoadTransactionsRequested({this.filter = const TxnFilterState()});
+  const LoadTransactionsRequested({
+    this.filter = const TxnFilterState(),
+    this.pageSize = 100,
+  });
 
   final TxnFilterState filter;
 
+  /// 每页条数,原样透传 repo.list(页大小由调用方口径决定)。
+  final int pageSize;
+
   @override
-  List<Object?> get props => [filter];
+  List<Object?> get props => [filter, pageSize];
 }
 
 /// 翻页方向(F7 FR-4):prev=上一页,next=下一页。
@@ -51,8 +60,19 @@ class GoToTransactionsPageRequested extends TransactionEvent {
 }
 
 /// Fetch the next page and append to the current list. Ignored when the
-/// current state has no `nextPageToken`.
-class LoadMoreTransactionsRequested extends TransactionEvent {}
+/// current state has no `nextPageToken`, or while a load-more is already in
+/// flight(反馈#2-B 重入防抖:滚动触发会在近底连续点火,加载中重发 = 重复
+/// 请求/重复追加)。
+class LoadMoreTransactionsRequested extends TransactionEvent {
+  const LoadMoreTransactionsRequested({this.pageSize = 100});
+
+  /// 每页条数,默认 100(与 [LoadTransactionsRequested.pageSize] 同口径;
+  /// 无限滚动调用方首页传 50 则追加也传 50)。
+  final int pageSize;
+
+  @override
+  List<Object?> get props => [pageSize];
+}
 
 /// Retry the last load (typically after a [TransactionsError]).
 class RetryTransactionsRequested extends TransactionEvent {}
