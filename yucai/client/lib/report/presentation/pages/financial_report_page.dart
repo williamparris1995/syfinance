@@ -201,6 +201,9 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
         _month--;
       }
     });
+    // 反馈②(2026-09-28 二轮):期变更自动重新生成(Loaded 态已无
+    // 「生成报告」按钮,翻期/切口径即出报告,进度区承接反馈)。
+    _generate();
   }
 
   void _nextPeriod() {
@@ -216,6 +219,7 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
         _month++;
       }
     });
+    _generate();
   }
 
   void _generate() =>
@@ -369,6 +373,8 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
                     yearly: _yearly,
                     period: _period,
                     generating: state is FinancialReportLoading,
+                    showGenerate: state is FinancialReportInitial ||
+                        state is FinancialReportError,
                     canExport: doc != null,
                     exporting: _exporting,
                     llmListenable: _llmSettings?.listenable,
@@ -377,6 +383,8 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
                       // 收拢复用)。
                       _resetAnalyst();
                       setState(() => _yearly = yearly);
+                      // 反馈②(二轮):口径切换同翻期,自动重新生成。
+                      _generate();
                     },
                     onPrev: _prevPeriod,
                     onNext: _nextPeriod,
@@ -743,6 +751,7 @@ class _PageHead extends StatelessWidget {
     required this.yearly,
     required this.period,
     required this.generating,
+    required this.showGenerate,
     required this.canExport,
     required this.exporting,
     required this.onScopeChanged,
@@ -757,6 +766,10 @@ class _PageHead extends StatelessWidget {
   final bool yearly;
   final ReportPeriod period;
   final bool generating;
+
+  /// 反馈②(二轮):Loaded/Loading 态不显示「生成报告」(期变更已自动
+  /// 生成);Initial 首次进入与 Error 重试场景仍显示。
+  final bool showGenerate;
 
   /// F45 T2:Loaded 态才有可导出文档(否则导出按钮整钮缺席)。
   final bool canExport;
@@ -806,8 +819,10 @@ class _PageHead extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(width: AppSpacing.sm),
-          _GenerateButton(onTap: onGenerate, loading: generating),
+          if (showGenerate) ...[
+            const SizedBox(width: AppSpacing.sm),
+            _GenerateButton(onTap: onGenerate, loading: generating),
+          ],
           // F45 T2:导出按钮(仅 Loaded;小菜单选格式,桌面单后缀形态)。
           if (canExport) ...[
             const SizedBox(width: AppSpacing.sm),

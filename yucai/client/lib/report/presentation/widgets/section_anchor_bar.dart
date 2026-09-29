@@ -4,6 +4,11 @@
 /// 交互契约(照原型脚本):点击圆点 → 平滑滚动到对应章节;滚动时高亮
 /// 当前章(active);悬停/激活显示左侧标签 chip。滚动驱动由页面侧
 /// ScrollController 完成,本组件纯展示(active + onTap 回调)。
+///
+/// 对齐实现(2026-09-28 二轮反馈①修订):全部行共用**固定标签槽宽**
+/// (=最长标签 chip 宽,TextPainter 预测量)——标签在槽内做透明度
+/// 动画,始终处于常规布局流(首版 AnimatedOpacity 不占位致圆点参差,
+/// 次版 Positioned 悬浮在部分渲染路径被裁致标签丢失,本版两者兼治)。
 library;
 
 import 'package:flutter/material.dart';
@@ -25,11 +30,11 @@ class SectionDotNav extends StatelessWidget {
   /// 当前高亮章索引。
   final int active;
 
-  /// 点击圆点回调(索引)。
   final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
+    final slotWidth = _labelSlotWidth(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -39,6 +44,7 @@ class SectionDotNav extends StatelessWidget {
             child: _Dot(
               key: ValueKey('sectionDot-$i'),
               label: labels[i],
+              slotWidth: slotWidth,
               active: i == active,
               onTap: () => onTap(i),
             ),
@@ -46,18 +52,41 @@ class SectionDotNav extends StatelessWidget {
       ],
     );
   }
+
+  /// 最长标签 chip 的渲染宽度(文本 + 横 padding 20 + 边框 2),
+  /// 各行共用 → 圆点恒定右对齐。
+  double _labelSlotWidth(BuildContext context) {
+    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final tp = TextPainter(textDirection: TextDirection.ltr, textScaler: scaler);
+    var widest = 0.0;
+    for (final label in labels) {
+      tp.text = TextSpan(
+          text: label,
+          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600));
+      tp.layout();
+      if (tp.width > widest) widest = tp.width;
+    }
+    tp.dispose();
+    return widest + 20 + 2;
+  }
 }
 
 class _Dot extends StatefulWidget {
   const _Dot({
     super.key,
     required this.label,
+    required this.slotWidth,
     required this.active,
     required this.onTap,
   });
 
   final String label;
+
+  /// 标签槽宽(SectionDotNav 预测量,全行一致)。
+  final double slotWidth;
+
   final bool active;
+
   final VoidCallback onTap;
 
   @override
@@ -85,41 +114,16 @@ class _DotState extends State<_Dot> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,
-            // 标签 chip 以 Positioned 悬浮在圆点左侧,不占布局空间
-            // (历史 bug:AnimatedOpacity 隐藏的标签仍占宽,各标签长短
-            // 不一把圆点列挤得左右参差);Stack 尺寸=圆点,标签越界
-            // 可见(clipBehavior: Clip.none)。
-            child: Stack(
-              clipBehavior: Clip.none,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    // 激活:accent 实心 + accent 22% 光环(原型 .on box-shadow)。
-                    color: widget.active
-                        ? context.yucai.accent
-                        : context.yucai.muted.withValues(alpha: 0.45),
-                    boxShadow: widget.active
-                        ? [
-                            BoxShadow(
-                              color:
-                                  context.yucai.accent.withValues(alpha: 0.22),
-                              spreadRadius: 4,
-                              blurRadius: 0,
-                            ),
-                          ]
-                        : null,
-                  ),
-                ),
-                Positioned(
-                  right: 18,
-                  top: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: Center(
+                // 标签 chip:固定槽宽内左对齐 + 透明度动画(不占位/越界
+                // 两版历史问题的终版形态)。
+                SizedBox(
+                  width: widget.slotWidth,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: IgnorePointer(
                       child: AnimatedOpacity(
                         duration: const Duration(milliseconds: 150),
                         opacity: showLabel ? 1 : 0,
@@ -142,6 +146,29 @@ class _DotState extends State<_Dot> {
                         ),
                       ),
                     ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    // 激活:accent 实心 + accent 22% 光环(原型 .on box-shadow)。
+                    color: widget.active
+                        ? context.yucai.accent
+                        : context.yucai.muted.withValues(alpha: 0.45),
+                    boxShadow: widget.active
+                        ? [
+                            BoxShadow(
+                              color:
+                                  context.yucai.accent.withValues(alpha: 0.22),
+                              spreadRadius: 4,
+                              blurRadius: 0,
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
               ],

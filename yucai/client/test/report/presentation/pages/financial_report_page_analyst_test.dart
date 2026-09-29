@@ -362,7 +362,8 @@ void main() {
       await t.tap(find.byKey(const ValueKey('analystNarrateButton')));
       await t.pump();
       expect(find.textContaining('总体评价:'), findsOneWidget);
-      await t.tap(find.byKey(const ValueKey('generateReportButton')));
+      // 反馈②(二轮):Loaded 态已无「生成报告」按钮——期变更自动重生成。
+      await t.tap(find.byTooltip('上一期'));
       await t.pumpAndSettle();
       expect(find.text('分析师解读'), findsNothing, reason: '重新生成 → idle 清空');
     });
