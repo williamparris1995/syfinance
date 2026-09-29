@@ -169,6 +169,12 @@ class TransactionLocalDataSource {
 
   // ---- reads ----
 
+  /// 反馈⑦(表单历史填写票):distinct 近期描述(建议数据),查询单点在
+  /// [TransactionDao.recentDistinctDescriptions](distinct/排序/空白过滤
+  /// 口径见其 doc)。
+  Future<List<String>> recentDescriptions({int limit = 8}) =>
+      _dao.recentDistinctDescriptions(limit);
+
   Future<ListTransactionsResult> list(ListTransactionsParams p) async {
     // 分类过滤(F7 FR-1)需要 accountId→category 映射:仅当带分类参数时才查
     // (默认路径零额外查询,保证 NFR-1 执行路径与现状一致)。

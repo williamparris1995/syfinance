@@ -23,6 +23,7 @@ import 'package:yucai_client/transaction/domain/repositories/transaction_reposit
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_event.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_state.dart';
+import 'package:yucai_client/transaction/presentation/widgets/description_suggestions_field.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 
 /// 记一笔表单页（支出 / 收入 / 转账）—— 严格对齐 OD `form-transaction.html`。
@@ -650,6 +651,11 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
               : (state is TransactionFormSubmitting
                   ? state.accounts
                   : const <Account>[]);
+          // 反馈⑦:描述「最近使用」建议(Ready 一次性快照;Submitting 期
+          // AbsorbPointer 已锁表单,空表即可)。
+          final suggestions = state is TransactionFormReady
+              ? state.descriptionSuggestions
+              : const <String>[];
           final submitting = state is TransactionFormSubmitting;
           final inlineError =
               state is TransactionFormReady ? state.error : null;
@@ -669,9 +675,9 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                   child: AbsorbPointer(
                     absorbing: submitting,
                     child: ResponsiveLayout(
-                      mobile: _stacked(accounts, inlineError),
-                      tablet: _stacked(accounts, inlineError),
-                      desktop: _twoColumn(accounts, inlineError),
+                      mobile: _stacked(accounts, suggestions, inlineError),
+                      tablet: _stacked(accounts, suggestions, inlineError),
+                      desktop: _twoColumn(accounts, suggestions, inlineError),
                     ),
                   ),
                 ),
@@ -700,7 +706,8 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   // ───────────────────────── 响应式布局 ─────────────────────────
 
   /// Mobile/tablet：1-col 堆叠（form 各 card → preview → hint）。
-  Widget _stacked(List<Account> accounts, String? inlineError) {
+  Widget _stacked(
+      List<Account> accounts, List<String> suggestions, String? inlineError) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xl),
@@ -710,7 +717,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildForm(accounts, inlineError),
+              _buildForm(accounts, suggestions, inlineError),
               const SizedBox(height: AppSpacing.md),
               _buildPreview(accounts),
               const SizedBox(height: AppSpacing.md),
@@ -724,7 +731,8 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
 
   /// Desktop：2-col —— 左 form(流体 1fr) 自行滚动 + 右 preview(360px 固定 sticky)
   /// 独立滚动。form 滚动时 preview 钉在顶部（OD position:sticky top:84px 语义）。
-  Widget _twoColumn(List<Account> accounts, String? inlineError) {
+  Widget _twoColumn(
+      List<Account> accounts, List<String> suggestions, String? inlineError) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
@@ -737,7 +745,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
               // 左：form（流体，可滚动）
               Expanded(
                 child: SingleChildScrollView(
-                  child: _buildForm(accounts, inlineError),
+                  child: _buildForm(accounts, suggestions, inlineError),
                 ),
               ),
               const SizedBox(width: AppSpacing.lg),
@@ -764,7 +772,8 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
 
   // ───────────────────────── LEFT: form ─────────────────────────
 
-  Widget _buildForm(List<Account> accounts, String? inlineError) {
+  Widget _buildForm(
+      List<Account> accounts, List<String> suggestions, String? inlineError) {
     final assetAccounts =
         accounts.where((a) => a.accountType == AccountType.asset).toList();
     // F34:支出支付方式放开信用卡——支付账户 = asset ∪ 信用卡类负债
@@ -840,7 +849,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
             child: _NumberedSection(
               number: 2,
               title: '交易详情',
-              child: _detailsFields(),
+              child: _detailsFields(suggestions),
             ),
           ),
           if (inlineError != null) ...[
@@ -1090,7 +1099,8 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   }
 
   /// card2 字段：field-grid(日期 | 时间) + 商户 + 备注 textarea + 标签 chip-row。
-  Widget _detailsFields() {
+  /// [suggestions]:描述(交易对象/商户)字段的「最近使用」历史建议(反馈⑦)。
+  Widget _detailsFields(List<String> suggestions) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1116,13 +1126,10 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        // 交易对象 / 商户
-        TextFormField(
+        // 交易对象 / 商户(反馈⑦:输入时下拉「最近使用」历史建议,点击/回车填入)
+        DescriptionSuggestionsField(
           controller: _payeeCtrl,
-          decoration: const InputDecoration(
-            labelText: '交易对象 / 商户',
-            hintText: '例如：永辉超市、美团外卖',
-          ),
+          suggestions: suggestions,
         ),
         const SizedBox(height: AppSpacing.md),
         // 备注 textarea

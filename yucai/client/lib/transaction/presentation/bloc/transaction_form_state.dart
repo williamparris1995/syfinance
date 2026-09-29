@@ -21,18 +21,25 @@ class TransactionFormLoading extends TransactionFormState {}
 
 /// Form is ready for input. [accounts] drives both the asset-account dropdown
 /// and the category dropdown (filtered by [AccountType] in the page).
+/// [descriptionSuggestions] (反馈⑦) is the one-shot「最近使用」distinct 描述
+/// list pulled when the form opens — the page filters it in memory per keystroke
+/// (never re-queries the DB on typing).
 class TransactionFormReady extends TransactionFormState {
   const TransactionFormReady({
     this.accounts = const [],
+    this.descriptionSuggestions = const [],
     this.error,
   });
 
   final List<Account> accounts;
+  /// 反馈⑦:描述历史建议(distinct 近期描述,倒序)。加载失败降级为空
+  /// (表单照常可用,只是无建议下拉)。
+  final List<String> descriptionSuggestions;
   /// Inline submit / load error message. null = no error shown.
   final String? error;
 
   @override
-  List<Object?> get props => [accounts, error];
+  List<Object?> get props => [accounts, descriptionSuggestions, error];
 }
 
 class TransactionFormSubmitting extends TransactionFormState {

@@ -78,6 +78,15 @@ class TransactionRepositoryImpl implements TransactionRepository {
       _routedWrite(MirrorModule.transaction, () => _remote.delete(id),
           (markPending) => _local.delete(id, writeTombstone: markPending));
 
+  /// 反馈⑦(表单历史填写票):描述建议恒读本地 drift —— 无对应服务端 RPC,
+  /// 且 bound 在线时远端写成功后 [BoundMirror.refreshModule] 已同步本地镜像
+  /// (guest/boundOffline 本地即真相),故不走 [_useLocalDs] 三态路由;
+  /// 建议只是输入辅助,读陈旧一拍可接受。失败经 [_guard] 转 Left(调用方
+  /// 静默降级为空建议)。
+  @override
+  Future<Either<Failure, List<String>>> recentDescriptions({int limit = 8}) =>
+      _guard(() => _local.recentDescriptions(limit: limit));
+
   @override
   Future<Either<Failure, MonthlySummary>> summary(
     int year,

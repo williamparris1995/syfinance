@@ -175,6 +175,10 @@ void main() {
               _txn('t1', DateTime(now.year, now.month, 19)),
               _txn('t2', DateTime(now.year, now.month, 18)),
             ], nextPageToken: '')));
+    // 反馈⑦:记一笔 push 出来的 TransactionFormPage 打开时拉描述建议;
+    // 空表 stub(表单照常,无建议下拉)。
+    when(() => txnRepo.recentDescriptions())
+        .thenAnswer((_) async => const dartz.Right(<String>[]));
     // MonthlySummary scoped to this account (Task 5.1 accountId scope).
     when(() => txnRepo.summary(any(), any(),
             accountId: any(named: 'accountId'),

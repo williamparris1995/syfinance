@@ -317,6 +317,10 @@ void main() {
 
     when(() => accountRepo.list()).thenAnswer(
         (_) async => dartz.Right([_account()]));
+    // 反馈⑦:TransactionFormPage(自建 bloc)打开时拉描述「最近使用」建议;
+    // 全局 stub 空表(表单照常,无建议下拉)。
+    when(() => txnRepo.recentDescriptions())
+        .thenAnswer((_) async => const dartz.Right(<String>[]));
     // /debts branch root fires LoadDebtsRequested on entry; stub globally so
     // any /debts/* navigation (including /debts/new) doesn't hit a null return.
     when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))

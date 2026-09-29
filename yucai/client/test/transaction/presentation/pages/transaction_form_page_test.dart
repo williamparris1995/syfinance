@@ -166,6 +166,9 @@ void main() {
         .thenAnswer((_) async => dartz.Right(<Template>[]));
     when(() => accountRepo.list()).thenAnswer(
         (_) async => dartz.Right([_assetAccount, _assetAccount2, _expenseAccount, _cardAccount]));
+    // 反馈⑦:描述建议缺省空表(既有用例不受影响;建议用例单独覆写)。
+    when(() => txnRepo.recentDescriptions())
+        .thenAnswer((_) async => const dartz.Right(<String>[]));
     // 反馈⑧b:watch 缺省静默流(不发射 → 既有用例行为不变);watch 用例
     // 单独覆写为 StreamController 驱动。
     when(() => accountRepo.watchAccounts())
@@ -728,6 +731,48 @@ void main() {
       verifyNever(() => accountRepo.create(any()));
       // 对话框仍开着(等有效输入)。
       expect(find.text('新建支出分类'), findsOneWidget);
+    });
+
+    // ───────── 反馈⑦:描述「最近使用」建议(页面接线) ─────────
+
+    testWidgets('表单描述字段:bloc 建议入页 → 聚焦弹最近 3 条 → 点击填入',
+        (tester) async {
+      when(() => txnRepo.recentDescriptions()).thenAnswer((_) async =>
+          const dartz.Right(
+              ['永辉超市', '美团外卖', '地铁通勤', '午餐']));
+      await pumpPage(tester, 1440);
+
+      final field = find.byKey(const ValueKey('txn_form_payee_field'));
+      await tester.ensureVisible(field);
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      // 空值聚焦 → 最近 3 条(第 4 条不弹)。
+      expect(find.text('永辉超市'), findsOneWidget);
+      expect(find.text('美团外卖'), findsOneWidget);
+      expect(find.text('地铁通勤'), findsOneWidget);
+      expect(find.text('午餐'), findsNothing);
+
+      // 鼠标点击建议 → 填入描述字段。
+      await tester.tap(find.text('美团外卖'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextFormField>(field).controller!.text, '美团外卖');
+
+      // 键入过滤(contains):「午」只留 午餐。
+      await tester.enterText(field, '午');
+      await tester.pumpAndSettle();
+      expect(find.text('午餐'), findsOneWidget);
+      expect(find.text('永辉超市'), findsNothing);
+    });
+
+    testWidgets('空历史(建议空表)→ 描述字段为普通输入框,无建议浮层',
+        (tester) async {
+      await pumpPage(tester, 1440); // setUp 缺省 stub:Right([])
+      // 降级分支:整页不出现 RawAutocomplete(描述字段退化为普通输入框)。
+      expect(find.byType(RawAutocomplete<String>), findsNothing);
+      final field = find.byKey(const ValueKey('txn_form_payee_field'));
+      expect(field, findsNothing); // 降级分支无该 key(仅在建议分支挂)
+      // 描述 label 仍在,手输不受影响。
+      expect(find.text('交易对象 / 商户'), findsOneWidget);
     });
   });
 }

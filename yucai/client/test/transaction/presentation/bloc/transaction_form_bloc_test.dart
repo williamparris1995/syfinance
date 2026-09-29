@@ -83,6 +83,9 @@ void main() {
     accountRepo = _MockAccountRepo();
     when(() => accountRepo.list())
         .thenAnswer((_) async => dartz.Right([_asset, _expense]));
+    // 反馈⑦:描述建议缺省空表(既有用例不受影响;建议用例单独覆写)。
+    when(() => txnRepo.recentDescriptions())
+        .thenAnswer((_) async => const dartz.Right(<String>[]));
     // watch 流缺省静默(不订阅触发的既有用例不受影响;订阅用例单独覆写)。
     when(() => accountRepo.watchAccounts())
         .thenAnswer((_) => const Stream.empty());
@@ -120,6 +123,80 @@ void main() {
     expect: () => [
       isA<TransactionFormLoading>(),
       isA<TransactionFormReady>(),
+    ],
+  );
+
+  // ───────── 反馈⑦:描述「最近使用」建议加载 ─────────
+
+  blocTest<TransactionFormBloc, TransactionFormState>(
+    'Load 拉取描述建议并入 Ready(打开表单时一次,DB 不再被打)',
+    build: () {
+      when(() => txnRepo.recentDescriptions()).thenAnswer(
+          (_) async => const dartz.Right(['永辉超市', '地铁通勤', '午餐']));
+      return TransactionFormBloc(txnRepo, accountRepo);
+    },
+    act: (b) => b.add(const LoadAccountsRequested()),
+    wait: const Duration(milliseconds: 100),
+    expect: () => [
+      isA<TransactionFormLoading>(),
+      isA<TransactionFormReady>()
+          .having((s) => s.descriptionSuggestions, 'suggestions',
+              ['永辉超市', '地铁通勤', '午餐']),
+    ],
+    verify: (b) {
+      // 只拉一次(后续击键为内存过滤,不打 DB)。
+      verify(() => txnRepo.recentDescriptions()).called(1);
+    },
+  );
+
+  blocTest<TransactionFormBloc, TransactionFormState>(
+    '建议加载失败(Left)静默降级为空,表单照常 Ready',
+    build: () {
+      when(() => txnRepo.recentDescriptions())
+          .thenAnswer((_) async => const dartz.Left(ServerFailure('db down')));
+      return TransactionFormBloc(txnRepo, accountRepo);
+    },
+    act: (b) => b.add(const LoadAccountsRequested()),
+    wait: const Duration(milliseconds: 100),
+    expect: () => [
+      isA<TransactionFormLoading>(),
+      isA<TransactionFormReady>()
+          .having((s) => s.descriptionSuggestions, 'suggestions', isEmpty),
+    ],
+  );
+
+  blocTest<TransactionFormBloc, TransactionFormState>(
+    '提交失败回退的 Ready 前向保留建议(不清空下拉)',
+    build: () {
+      when(() => txnRepo.recentDescriptions())
+          .thenAnswer((_) async => const dartz.Right(['午餐']));
+      when(() => txnRepo.recordExpense(any()))
+          .thenAnswer((_) async => const dartz.Left(ServerFailure('boom')));
+      return TransactionFormBloc(txnRepo, accountRepo);
+    },
+    act: (b) async {
+      b.add(const LoadAccountsRequested());
+      // 与本文件竞态用例同款节奏:先让 load 完成(Ready 带上建议),
+      // 再提交失败 —— 断言失败回退的 Ready 不清空建议。
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      b.add(RecordExpenseRequested(
+        transactionDate: _dummyDate,
+        expenseAccountId: 'e1',
+        assetAccountId: 'a1',
+        amountCents: 100,
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    },
+    wait: const Duration(milliseconds: 50),
+    expect: () => [
+      isA<TransactionFormLoading>(),
+      isA<TransactionFormReady>()
+          .having((s) => s.descriptionSuggestions, 'suggestions', ['午餐']),
+      isA<TransactionFormSubmitting>(),
+      isA<TransactionFormReady>()
+          .having((s) => s.error, 'error', 'boom')
+          .having((s) => s.descriptionSuggestions, 'suggestions kept',
+              ['午餐']),
     ],
   );
 
@@ -292,6 +369,9 @@ void main() {
   blocTest<TransactionFormBloc, TransactionFormState>(
     'watch 发射新账户列表 → Ready 实时合并(表单打开时新建分类 → 下拉可见)',
     build: () {
+      // 反馈⑦回归:账户 watch 合并不得冲掉已加载的描述建议(前向保留)。
+      when(() => txnRepo.recentDescriptions())
+          .thenAnswer((_) async => const dartz.Right(['午餐']));
       watchCtrl = StreamController<List<Account>>();
       when(() => accountRepo.watchAccounts()).thenAnswer((_) => watchCtrl!.stream);
       return TransactionFormBloc(txnRepo, accountRepo);
@@ -305,11 +385,14 @@ void main() {
     expect: () => [
       isA<TransactionFormLoading>(),
       isA<TransactionFormReady>()
-          .having((s) => s.accounts.length, 'accounts', 2),
+          .having((s) => s.accounts.length, 'accounts', 2)
+          .having((s) => s.descriptionSuggestions, 'suggestions', ['午餐']),
       isA<TransactionFormReady>()
           .having((s) => s.accounts.length, 'accounts', 3)
           .having((s) => s.accounts.any((a) => a.id == 'e2'),
-              'contains new category', isTrue),
+              'contains new category', isTrue)
+          .having((s) => s.descriptionSuggestions, 'suggestions kept',
+              ['午餐']),
     ],
   );
 

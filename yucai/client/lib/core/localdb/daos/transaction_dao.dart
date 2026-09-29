@@ -114,4 +114,22 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
       (update(transactions)..where((t) => t.syncState.equals(SyncState.synced)))
           .write(
               const TransactionsCompanion(syncState: Value(SyncState.pending)));
+
+  /// 反馈⑦(表单历史填写票):近期交易的 distinct 描述 —— 表单「交易对象/
+  /// 商户」字段的历史建议数据。
+  ///
+  /// 口径:GROUP BY description,组内按 MAX(created_at)(该描述最近一次
+  /// 记录时间)倒序 —— 「最近使用」= 最近记录过;空串/纯空白行过滤
+  /// (SQLite 裸 TRIM 只去空格,显式字符集覆盖 \t\n\r);[limit] 截断
+  /// (调用方约定 ≤8)。纯本地读,不参与三态数据路由。
+  Future<List<String>> recentDistinctDescriptions(int limit) {
+    final query = selectOnly(transactions)
+      ..addColumns([transactions.description])
+      ..where(const CustomExpression<bool>(
+          "TRIM(description, ' \t\n\r') != ''"))
+      ..groupBy([transactions.description])
+      ..orderBy([OrderingTerm.desc(transactions.createdAt.max())])
+      ..limit(limit);
+    return query.map((row) => row.read(transactions.description)!).get();
+  }
 }

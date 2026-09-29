@@ -41,10 +41,18 @@ class TransactionFormBloc
   Future<void> _onLoad(
       LoadAccountsRequested event, Emitter<TransactionFormState> emit) async {
     emit(TransactionFormLoading());
+    // 反馈⑦(表单历史填写票):描述「最近使用」建议与账户同一事件拉取,
+    // 表单打开一次成型;建议失败静默降级为空(Left → const [])—— 表单
+    // 本体仍可用,绝不因建议挂掉而挡住记账。
+    final suggestions = (await _txnRepo.recentDescriptions())
+        .fold((_) => const <String>[], (list) => list);
     final result = await _accountRepo.list();
     result.fold(
       (failure) => emit(TransactionFormError(failure.displayMessage)),
-      (accounts) => emit(TransactionFormReady(accounts: accounts)),
+      (accounts) => emit(TransactionFormReady(
+        accounts: accounts,
+        descriptionSuggestions: suggestions,
+      )),
     );
     _startAccountsWatch();
   }
@@ -72,13 +80,21 @@ class TransactionFormBloc
   /// accounts watch mid-submit; resurrecting Ready there would un-absorb the
   /// form during flight (and after Success the page is already popping). An
   /// inline [TransactionFormReady.error] is preserved so a failed submit's
-  /// message stays visible while the options refresh.
+  /// message stays visible while the options refresh. 反馈⑦的
+  /// [TransactionFormReady.descriptionSuggestions] 同样前向保留(建议是打开
+  /// 时的一次性快照,账户刷新不清空)。
   Future<void> _onAccountsChanged(
       AccountsChanged event, Emitter<TransactionFormState> emit) async {
     final s = state;
     if (s is TransactionFormSubmitting || s is TransactionFormSuccess) return;
     final prevError = s is TransactionFormReady ? s.error : null;
-    emit(TransactionFormReady(accounts: event.accounts, error: prevError));
+    final prevSuggestions =
+        s is TransactionFormReady ? s.descriptionSuggestions : const <String>[];
+    emit(TransactionFormReady(
+      accounts: event.accounts,
+      descriptionSuggestions: prevSuggestions,
+      error: prevError,
+    ));
   }
 
   @override
@@ -90,6 +106,8 @@ class TransactionFormBloc
   Future<void> _onExpense(
       RecordExpenseRequested e, Emitter<TransactionFormState> emit) async {
     final accounts = _readyAccounts;
+    // 反馈⑦:建议随失败回退的 Ready 前向保留(提交失败不清空建议下拉)。
+    final suggestions = _readySuggestions;
     emit(TransactionFormSubmitting(accounts));
     final params = RecordExpenseParams(
       transactionDate: e.transactionDate,
@@ -103,7 +121,9 @@ class TransactionFormBloc
     final result = await _txnRepo.recordExpense(params);
     result.fold(
       (failure) => emit(TransactionFormReady(
-          accounts: accounts, error: failure.displayMessage)),
+          accounts: accounts,
+          descriptionSuggestions: suggestions,
+          error: failure.displayMessage)),
       (txn) => emit(TransactionFormSuccess(transactionId: txn.id)),
     );
   }
@@ -111,6 +131,8 @@ class TransactionFormBloc
   Future<void> _onIncome(
       RecordIncomeRequested e, Emitter<TransactionFormState> emit) async {
     final accounts = _readyAccounts;
+    // 反馈⑦:建议随失败回退的 Ready 前向保留(提交失败不清空建议下拉)。
+    final suggestions = _readySuggestions;
     emit(TransactionFormSubmitting(accounts));
     final params = RecordIncomeParams(
       transactionDate: e.transactionDate,
@@ -124,7 +146,9 @@ class TransactionFormBloc
     final result = await _txnRepo.recordIncome(params);
     result.fold(
       (failure) => emit(TransactionFormReady(
-          accounts: accounts, error: failure.displayMessage)),
+          accounts: accounts,
+          descriptionSuggestions: suggestions,
+          error: failure.displayMessage)),
       (txn) => emit(TransactionFormSuccess(transactionId: txn.id)),
     );
   }
@@ -132,6 +156,8 @@ class TransactionFormBloc
   Future<void> _onTransfer(
       RecordTransferRequested e, Emitter<TransactionFormState> emit) async {
     final accounts = _readyAccounts;
+    // 反馈⑦:建议随失败回退的 Ready 前向保留(提交失败不清空建议下拉)。
+    final suggestions = _readySuggestions;
     emit(TransactionFormSubmitting(accounts));
     final params = RecordTransferParams(
       transactionDate: e.transactionDate,
@@ -145,7 +171,9 @@ class TransactionFormBloc
     final result = await _txnRepo.recordTransfer(params);
     result.fold(
       (failure) => emit(TransactionFormReady(
-          accounts: accounts, error: failure.displayMessage)),
+          accounts: accounts,
+          descriptionSuggestions: suggestions,
+          error: failure.displayMessage)),
       (txn) => emit(TransactionFormSuccess(transactionId: txn.id)),
     );
   }
@@ -153,6 +181,8 @@ class TransactionFormBloc
   Future<void> _onUpdate(
       UpdateTransactionRequested e, Emitter<TransactionFormState> emit) async {
     final accounts = _readyAccounts;
+    // 反馈⑦:建议随失败回退的 Ready 前向保留(提交失败不清空建议下拉)。
+    final suggestions = _readySuggestions;
     emit(TransactionFormSubmitting(accounts));
     final params = UpdateTransactionParams(
       id: e.id,
@@ -164,9 +194,19 @@ class TransactionFormBloc
     final result = await _txnRepo.update(params);
     result.fold(
       (failure) => emit(TransactionFormReady(
-          accounts: accounts, error: failure.displayMessage)),
+          accounts: accounts,
+          descriptionSuggestions: suggestions,
+          error: failure.displayMessage)),
       (_) => emit(TransactionFormSuccess(transactionId: e.id)),
     );
+  }
+
+  /// Snapshot of description suggestions (反馈⑦) from the most recent Ready
+  /// state, so a failed submit's Ready fallback keeps the suggestion dropdown.
+  List<String> get _readySuggestions {
+    final s = state;
+    if (s is TransactionFormReady) return s.descriptionSuggestions;
+    return const [];
   }
 
   /// Snapshot of accounts from the most recent Ready state, so the submitting
