@@ -4,12 +4,12 @@
 /// 调用绝不进 e2e,边界注释见该链)。
 ///
 /// 链路:种子(账户+分录+预算+持仓+闲置模板最小集)→ 侧栏「报表分析」
-/// → 顶栏「财务报告」入口(/reports)→ /reports/full 选期(上一期步进
-/// 到种子月)→「生成报告」→ 断言七章节关键数值与诊断发现(手算 oracle)
-/// + 自适应缺席(种子缺预算的月:预算/投资章缺席 + 未包含项附注)
-/// + F45 导出入口(Loaded 态「导出」按钮 + 格式菜单 PDF/Markdown 两项;
-/// 真实 saveFile 原生对话框不可 e2e 自动化,断言到菜单层 —— 见报链③
-/// 注释边界)→ 测后清库。
+/// → 顶栏「财务报告」入口(/reports)→ /reports/full(视觉对齐批次:shell
+/// 内页)选期(上一期步进到种子月,翻期自动重生成)→ 断言七章节关键数值
+/// 与诊断发现(手算 oracle)+ 自适应缺席(种子缺预算的月:预算/投资章
+/// 缺席 + 未包含项附注)+ F45 导出入口(Loaded 态「导出」按钮 + 格式
+/// 菜单 PDF/Markdown 两项;真实 saveFile 原生对话框不可 e2e 自动化,断言
+/// 到菜单层 —— 见报链③注释边界)→ 测后清库。
 ///
 /// 夹具月固定 2026-06(过去月):demo 种子的交易/借入/持仓买入全部写在
 /// 真实运行当月(≥ 2026-09 > 六月),六月窗口与六月末回放天然不含 demo
@@ -33,9 +33,12 @@
 ///
 /// 六月 oracle(手算):
 ///   收支:收入 400,000 / 支出 200,000(debit 单边)/ 结余 200,000 /
-///         储蓄率 50.0% / 活跃日 3(05/12/22)→ 日均 66,666
+///         储蓄率 50.0% / 日均支出 = 200,000 ~/ 30 自然日 = 6,666(视觉
+///         对齐批次口径,原型「日均支出」同式)
 ///   现金流:经营 +400,000 / −200,000;投资 −230,000;融资 +200,000;
-///           三类净额 +170,000(= 期末−期初现金,勾稽不变式)
+///           三类净额 +170,000(= 期末−期初现金,勾稽不变式);明细列:
+///           经营 = 语义文案(双侧);投资 =「投资 ¥2,300.00」;融资 =
+///           「贷款 ¥2,000.00」(对手分类净额,视觉对齐批次)
 ///   资产负债(期末,折 CNY):资产 1,800,000[demo 储蓄 1,000,000 + 报链资金
 ///         570,000 = 储蓄类 1,570,000;投资类 230,000]/ 负债 200,000 /
 ///         资产负债率 11.1%
@@ -204,7 +207,14 @@ void main() {
   tearDownAll(deleteTestDb);
 
   /// 真实启动 app → 侧栏「报表分析」→ 顶栏「财务报告」→ /reports/full
-  /// → 期控件步进到 [year] 年 [month] 月 →「生成报告」。
+  /// (视觉对齐批次:shell 内页,侧栏/顶栏常驻)→ 期控件步进到
+  /// [year] 年 [month] 月。
+  ///
+  /// 范式(视觉对齐批次同步,a647b72a 反馈②之后):翻期**自动重新生成**
+  /// —— Initial 态直接步进,第一步即触发上一期的完整生成(Loading→
+  /// Loaded),步进到目标月即得该月报告;不再「步进后点生成报告」
+  /// (Loaded 态无生成按钮,旧范式已不可用)。GlobalKey 重叠异常由
+  /// 章节锚 key 池按文档令牌换池修复(widget 测试钉死),翻期链路零异常。
   Future<void> openReport(WidgetTester t,
       {required int year, required int month}) async {
     await t.pumpWidget(const YuCaiApp());
@@ -215,19 +225,17 @@ void main() {
     await t.tap(find.byKey(const ValueKey('financialReportEntryButton')));
     await t.pumpAndSettle(const Duration(seconds: 2));
     // 选期:页面缺省 = 当前自然月;步进(上一期/下一期)到种子月
-    //(运行日任意,步数 = 月差,方向随目标在过去/未来)。
+    //(运行日任意,步数 = 月差,方向随目标在过去/未来);每步自动重生成,
+    // 每步等生成 + 过渡收尾再步下一步。
     final now = DateTime.now();
     final diff = (now.year * 12 + now.month) - (year * 12 + month);
     final tooltip = diff >= 0 ? '上一期' : '下一期';
     for (var i = 0; i < diff.abs(); i++) {
       await t.tap(find.byTooltip(tooltip).first);
-      await t.pumpAndSettle(const Duration(milliseconds: 400));
+      await t.pumpAndSettle(const Duration(milliseconds: 800));
     }
     expect(find.text('$year 年 $month 月'), findsOneWidget,
-        reason: '期标签已步进到 $year 年 $month 月');
-    // 生成(Initial 态页头与引导卡各一枚按钮,取树序首个 = 页头)。
-    await t.tap(find.text('生成报告').first);
-    await t.pumpAndSettle(const Duration(seconds: 2));
+        reason: '期标签已步进到 $year 年 $month 月(自动重生成完毕)');
   }
 
   testWidgets('报链①六月全量:七章在列 + 关键数值与诊断发现(手算 oracle)', (t) async {
@@ -262,25 +270,35 @@ void main() {
     expect(find.text('+¥1,700.00'), findsWidgets,
         reason: '现金净变动(slim 卡 + 现金流合计 + 储蓄类变动行)');
 
-    // —— 收支:金额 + 科目名 + 日均 + 首期对比缺席 ——
+    // —— 收支:金额 + 科目名 + 日均支出 + 首期对比缺席 ——
     expect(find.text('¥4,000.00'), findsWidgets,
         reason: '收入 400,000(指标卡 + 经营流入 + 收入构成)');
     expect(find.text('¥2,000.00'), findsWidgets, reason: '支出 200,000');
     expect(find.text('+¥2,000.00'), findsWidgets, reason: '结余 200,000');
-    expect(find.text('¥666.66'), findsOneWidget,
-        reason: '日均结余 = 200,000 ~/ 3 活跃日');
+    expect(find.text('日均支出'), findsOneWidget, reason: '摘要行口径 = 日均支出');
+    expect(find.text('¥66.66'), findsOneWidget,
+        reason: '日均支出 = 200,000 ~/ 30 自然日(视觉对齐批次口径)');
     expect(find.text('首期无对比数据'), findsOneWidget,
         reason: '五月(对比期)无收支 → 首期');
     expect(find.text('报链工资'), findsOneWidget,
         reason: '收入科目名(T5-R1 分类名称契约)');
     expect(find.text('报链餐饮'), findsWidgets, reason: '支出科目名 + 预算行名');
 
-    // —— 现金流:三类活动 + 合计 + 勾稽脚注 ——
+    // —— 现金流:三类活动 + 合计 + 明细列 + 勾稽脚注 ——
     expect(find.text('¥6,000.00'), findsOneWidget,
         reason: '合计流入 = 经营 4,000 + 融资 2,000');
     expect(find.text('¥4,300.00'), findsOneWidget,
         reason: '合计流出 = 经营 2,000 + 投资 2,300');
     expect(find.text('-¥2,300.00'), findsOneWidget, reason: '投资净额 −230,000');
+    // 明细列(视觉对齐批次,原型 v9 五列):经营 = 矩阵语义文案;投资/
+    // 融资 = 对手分类净额(investment/loan 唯一对手)。
+    expect(find.text('明细'), findsOneWidget, reason: '明细列表头在列');
+    expect(find.text('工资等日常收入 · 日常消费支出'), findsOneWidget,
+        reason: '经营明细 = 分类器矩阵语义(双侧在场)');
+    expect(find.text('投资 ¥2,300.00'), findsOneWidget,
+        reason: '投资明细 = 对手分类净额(报链证券账户 investment)');
+    expect(find.text('贷款 ¥2,000.00'), findsOneWidget,
+        reason: '融资明细 = 对手分类净额(报链房贷 loan)');
     // 注:textContainingRich 对 Text.rich 会同时命中其内部 RichText
     //(同一处文案两个 widget),故用 findsWidgets 而非单数。
     expect(textContainingRich('与期末−期初现金余额一致'), findsWidgets,
@@ -335,6 +353,10 @@ void main() {
         reason: 'R5 午餐笔(120,000 = 日均 6,667 的 18.0 倍/占 60.0%)');
     expect(textContainingRich('「报链晚餐」¥800.00'), findsNWidgets(2),
         reason: 'R5 晚餐笔(12.0 倍/占 40.0%,top-3 容量外仅第七章)');
+    // 行尾语义 chip(视觉对齐批次):R5 午餐笔在 top-3 → 摘要卡 1 枚中性
+    // chip「≥ 日均支出×3」;R4/H1 无 chip,R5 晚餐笔不在 top-3。
+    expect(find.text('≥ 日均支出×3'), findsOneWidget,
+        reason: 'R5 行尾中性 chip(阈值标签,仅摘要卡渲染)');
     expect(find.text('查看全部 ↓'), findsOneWidget,
         reason: '摘要卡「查看全部」锚滚入口(mdaViewAllLink)');
   });
@@ -402,8 +424,12 @@ void main() {
     // 落盘 bytes/toast/打开)由 widget 测试以注入缝全覆盖
     // (financial_report_page_export_test,e2e 不重复)。
     // 此处点空白处收起菜单(full_audit 范式),零副作用退出 —— 不触
-    // 真实对话框、零文件写入。
-    await t.tapAt(const Offset(5, 400));
+    // 真实对话框、零文件写入。视觉对齐批次:页面挂 shell branch 后,
+    // 菜单 route 推在 **branch 嵌套 navigator**(覆盖面 = 内容区,不含
+    // 侧栏)——收起点击须落在内容区内(旧坐标 (5,400) 落在侧栏 nav
+    // 项上,会切走分支且菜单不收);取内容区中部空白(两种布局皆在
+    // 页身,无交互件)。
+    await t.tapAt(const Offset(500, 300));
     await t.pumpAndSettle(const Duration(milliseconds: 400));
     expect(find.byKey(const ValueKey('reportExportFormatPdf')), findsNothing,
         reason: '菜单已收起(未选中任何格式,导出链未触发)');

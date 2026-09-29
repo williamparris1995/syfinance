@@ -1035,27 +1035,40 @@ GoRouter buildRouter(
               ),
             ],
           ),
+          // 财务报告页(branch 10,视觉对齐批次 2026-09-29):挂回应用内页
+          // —— 侧栏/顶栏由 shell 承载(原型 v9 财务报告即应用内页:左侧栏
+          // + 顶栏面包屑「报表分析 › 财务报告」),页面自带顶栏退役。
+          // 取舍(最小侵入):新增末尾 branch 而非把 /reports 整树搬入 ——
+          // /reports(报表分析)本票不动,仍为 shell 外顶层路由;GoRouter
+          // 全树路径唯一(/reports/full 仅在此声明),两树不冲突。branch
+          // 索引末尾追加(10),侧栏/底栏/面包屑的既有索引(0..9)零移位
+          // (同 inbox 先例);侧栏「报表分析」route-only 项经 startsWith
+          // 在 /reports/full 下照常高亮,无双亮(branch 无对应 nav 项)。
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/reports/full',
+                // F43 财务报告(FR-1「报表分析 › 财务报告」)。bloc 照
+                // /holdings 模式路由层 provide:getIt 工厂每次新实例,
+                // 页面 Initial 态(用户选期后点「生成报告」才触发汇编;
+                // Loaded 后翻期/切口径自动重生成,反馈②)。
+                builder: (_, __) => BlocProvider<FinancialReportBloc>(
+                  create: (_) => getIt<FinancialReportBloc>(),
+                  child: const FinancialReportPage(),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       // 报表分析（顶层路由，shell 外）：自带顶栏（返回 + 标题 + 月/年
       // period segmented），不挂 StatefulShellRoute 分支。对齐 /categories
       // 「custom route 非 branch」模式，但 /reports 不归属任一 branch，故置于
       // branches 外（与 /login /register 同级）。Task 3 在 ReportPage 内补 3 图表。
+      // 注:子路由 /reports/full 已移入上方 branch 10(视觉对齐批次,取舍见注)。
       GoRoute(
         path: '/reports',
         builder: (_, __) => const ReportPage(),
-        routes: [
-          // F43 财务报告（静态子路由，FR-1「报表分析 › 财务报告」）。
-          // bloc 照 /holdings 模式路由层 provide：getIt 工厂每次新实例,
-          // 页面 Initial 态(用户选期后点「生成报告」才触发汇编)。
-          GoRoute(
-            path: 'full',
-            builder: (_, __) => BlocProvider<FinancialReportBloc>(
-              create: (_) => getIt<FinancialReportBloc>(),
-              child: const FinancialReportPage(),
-            ),
-          ),
-        ],
       ),
     ],
     initialLocation: '/home',

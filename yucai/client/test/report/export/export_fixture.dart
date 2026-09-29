@@ -94,9 +94,9 @@ ReportDocument fullDocument() => ReportDocument(
         ],
         dailyAvgCents: 250000, // ¥2,500.00
         priorComparison: PriorComparison.create(
-          label: '较 2026 年 7 月',
-          surplusCents: 8000000,
-          priorSurplusCents: 6000000,
+          label: '环比上月支出',
+          expenseCents: 8000000,
+          priorExpenseCents: 6000000,
         ),
       ),
       cashFlow: CashFlowSection(

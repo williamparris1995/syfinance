@@ -47,6 +47,10 @@ class CashFlowClassifier {
 
     final inflow = <_Activity, int>{};
     final outflow = <_Activity, int>{};
+    // 明细列数据源(视觉对齐批次 2026-09-29):投资/融资活动的对手分类
+    // 净额聚合(category → signed contribution)。经营对手 = 收支科目,
+    // category 无语义,不聚合(明细走矩阵语义文案,见 cashflow_table)。
+    final counterparties = <_Activity, Map<String, int>>{};
     for (final group in byTxn.values) {
       final hasCash = group.any((e) => _isCash(e));
       // 非现金×非现金 → 整笔不计(如储值卡消费)。
@@ -62,12 +66,17 @@ class CashFlowClassifier {
         } else {
           outflow[activity] = (outflow[activity] ?? 0) - contribution;
         }
+        if (activity != _Activity.operating) {
+          final byCat = counterparties.putIfAbsent(activity, () => {});
+          final key = cp.category ?? '未分类';
+          byCat[key] = (byCat[key] ?? 0) + contribution;
+        }
       }
     }
 
-    final operating = _flow(_Activity.operating, inflow, outflow);
-    final investing = _flow(_Activity.investing, inflow, outflow);
-    final financing = _flow(_Activity.financing, inflow, outflow);
+    final operating = _flow(_Activity.operating, inflow, outflow, counterparties);
+    final investing = _flow(_Activity.investing, inflow, outflow, counterparties);
+    final financing = _flow(_Activity.financing, inflow, outflow, counterparties);
     final netDelta =
         operating.netCents + investing.netCents + financing.netCents;
 
@@ -127,9 +136,12 @@ class CashFlowClassifier {
     _Activity activity,
     Map<_Activity, int> inflow,
     Map<_Activity, int> outflow,
+    Map<_Activity, Map<String, int>> counterparties,
   ) =>
       ActivityFlow.create(
         inflowCents: inflow[activity] ?? 0,
         outflowCents: outflow[activity] ?? 0,
+        counterpartyCents:
+            Map.unmodifiable(counterparties[activity] ?? const {}),
       );
 }

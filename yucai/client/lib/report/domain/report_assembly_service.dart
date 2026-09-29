@@ -87,8 +87,8 @@ class ReportAssemblyService {
       income: _withNames(incomeByCategory(entries, period), nameByAccountId),
       expense: _withNames(
           _expenseBasis.expenseByCategory(entries, period), nameByAccountId),
-      dailyAvgCents: _dailyAvgCents(entries, period, income, expense),
-      priorComparison: _priorComparison(entries, period, income - expense),
+      dailyAvgCents: _dailyAvgCents(period, expense),
+      priorComparison: _priorComparison(entries, period, expense),
     );
     final cashFlow = const CashFlowClassifier().classify(
       entries: entries,
@@ -250,33 +250,12 @@ class ReportAssemblyService {
     return byAccount;
   }
 
-  /// 日均:
-  /// - 月报 = 结余 ~/ 活跃天数(TransactionSummary 同款:活跃日 = 期内
-  ///   有 income/expense 分录的自然日,截断除法,无活跃日 → 0);
-  /// - 年报 = 全年支出 ~/ 当年自然天数(365/366)——**报告定案口径**。
-  ///   差异理由:TransactionSummary 仅月 scope 计算 dailyAvg(结余/活跃
-  ///   日),年报无既成规则;全年视角下「活跃日」随记账频次漂移(记 10
-  ///   天与记 300 天差 30 倍,日均失义),自然天数分母稳定可比,且取
-  ///   「日均支出」符合年度报告的阅读预期(审视角,结余波动大)。
-  static int _dailyAvgCents(
-    List<LedgerEntryRow> entries,
-    ReportPeriod period,
-    int income,
-    int expense,
-  ) {
-    if (period is ReportYearly) {
-      final days =
-          DateTime(period.year + 1).difference(DateTime(period.year)).inDays;
-      return expense ~/ days;
-    }
-    final activeDays = <String>{};
-    for (final e in entries) {
-      if (e.accountType != 4 && e.accountType != 5) continue;
-      if (!period.contains(e.date)) continue;
-      activeDays.add('${e.date.year}-${e.date.month}-${e.date.day}');
-    }
-    if (activeDays.isEmpty) return 0;
-    return (income - expense) ~/ activeDays.length;
+  /// 日均支出 = 期内支出 / 期内自然天数(含首尾,截断除法)——视觉对齐
+  /// 批次(2026-09-29)报告定案口径,原型 v9「日均支出 ¥570.00」同式;
+  /// 月/年统一自然天数分母(活跃日随记账频次漂移,理由见 model 字段注)。
+  static int _dailyAvgCents(ReportPeriod period, int expense) {
+    final days = period.endInclusive.difference(period.start).inDays + 1;
+    return expense ~/ days;
   }
 
   /// 对比期(月报=环比上月,1 月回上年 12 月;年报=同比上年)。
@@ -291,20 +270,21 @@ class ReportAssemblyService {
       };
 
   /// 对比期(月报=环比上月,1 月回上年 12 月;年报=同比上年):同一份
-  /// entries 重过滤前期重算结余;前期无任何收支数据 → null(首期)。
+  /// entries 重过滤前期重算**支出**(视觉对齐批次:口径从结余换为支出,
+  /// 标签「环比上月/上年支出」);前期无任何收支数据 → null(首期)。
   PriorComparison? _priorComparison(
     List<LedgerEntryRow> entries,
     ReportPeriod period,
-    int surplus,
+    int expense,
   ) {
     final prior = _priorPeriod(period);
     final priorIncome = totalIncome(entries, prior);
     final priorExpense = _expenseBasis.totalExpense(entries, prior);
     if (priorIncome == 0 && priorExpense == 0) return null;
     return PriorComparison.create(
-      label: '较 ${prior.label}',
-      surplusCents: surplus,
-      priorSurplusCents: priorIncome - priorExpense,
+      label: period is ReportYearly ? '环比上年支出' : '环比上月支出',
+      expenseCents: expense,
+      priorExpenseCents: priorExpense,
     );
   }
 

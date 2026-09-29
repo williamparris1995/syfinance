@@ -58,13 +58,14 @@ class MdaSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Divider(height: 1, color: context.yucai.border),
-          // top-3(按 findings 序;结论主行 + 建议副行,原型 .diag-row 的
-          // diag-t/diag-s 双行形态,各单行截断)。
+          // top-3(按 findings 序;结论主行 + 建议副行单行截断,原型
+          // .diag-row 形态)+ 行尾语义 chip(视觉对齐批次:R2 neg「超支
+          // 620.00」/ R5 中性「≥ 日均支出×3」,null = 无 chip)。
           for (var i = 0; i < section.findings.length && i < 3; i++)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   _SevIcon(severity: section.findings[i].severity),
                   const SizedBox(width: AppSpacing.md - 2),
@@ -95,6 +96,10 @@ class MdaSummaryCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (section.findings[i].chip != null) ...[
+                    const SizedBox(width: AppSpacing.md - 2),
+                    _FindingChip(chip: section.findings[i].chip!),
+                  ],
                 ],
               ),
             ),
@@ -183,6 +188,40 @@ class _SevIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Icon(severity.icon, size: 16, color: color),
+    );
+  }
+}
+
+/// 行尾语义 chip(视觉对齐批次,原型 .diag-row 尾部 .chip.neg/.chip):
+/// negative → neg 字 + 10% neg 底;neutral → muted 字 + surfaceAlt 底;
+/// 999 圆角 + 11px/600,与四卡条 chip 语言一致(零新令牌)。
+class _FindingChip extends StatelessWidget {
+  const _FindingChip({required this.chip});
+
+  final MdaChip chip;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.yucai;
+    final neg = chip.tone == MdaChipTone.negative;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+      decoration: BoxDecoration(
+        color: neg
+            ? t.negative.withValues(alpha: 0.10)
+            : t.surfaceAlt,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        chip.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: neg ? t.negative : t.muted,
+        ),
+      ),
     );
   }
 }

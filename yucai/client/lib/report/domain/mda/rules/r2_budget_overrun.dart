@@ -43,6 +43,10 @@ class R2BudgetOverrun extends MdaRule {
       advice: severity == MdaSeverity.risk
           ? '超支已超两成,建议重设该类预算基线或立刻压减支出'
           : '小幅超支:核对是否一次性支出,连续超支再调预算额度',
+      // 行尾语义 chip(原型 .chip.neg「超支 620.00」,金额不带 ¥)。
+      chip: MdaChip(
+          label: '超支 ${mdaYuan(overCents)}',
+          tone: MdaChipTone.negative),
     );
   }
 }

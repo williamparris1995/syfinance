@@ -1,5 +1,11 @@
 /// 现金流三活动表(T5,04 章节,原型 .cf-table):经营/投资/融资 三行 +
 /// 合计行(surfaceAlt 强调)+ 勾稽脚注(.recon)。
+///
+/// 视觉对齐批次(2026-09-29):补「明细」列(原型 v9 五列
+/// `.9fr .8fr .8fr .8fr 1.7fr`)—— 经营活动 = 分类器矩阵语义文案
+/// (income/expense 科目两侧,按流入/流出在场的侧自适应);投资/融资
+/// 活动 = 对手方分类净额([ActivityFlow.counterpartyCents],按绝对额
+/// 降序,「标签 ¥金额 + …」措辞照原型 fixture 风格);合计行 = '—'。
 library;
 
 import 'package:flutter/material.dart';
@@ -7,6 +13,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
+import 'package:yucai_client/report/presentation/widgets/category_bars.dart'
+    show categoryLabelOf;
 import 'package:yucai_client/report/presentation/widgets/chart_helpers.dart';
 
 /// 三类活动现金流表(净额正负着色;合计行底色强调)。
@@ -28,14 +36,38 @@ class CashFlowTable extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _head(context),
-        _row(context, '经营活动', section.operating),
-        _row(context, '投资活动', section.investing),
-        _row(context, '融资活动', section.financing),
+        _row(context, '经营活动', section.operating, _operatingDetail),
+        _row(context, '投资活动', section.investing, _breakdownDetail),
+        _row(context, '融资活动', section.financing, _breakdownDetail),
         _total(context, '合计', totalIn, totalOut, section.netDeltaCents),
         const SizedBox(height: AppSpacing.sm),
         _reconFoot(context),
       ],
     );
+  }
+
+  /// 经营活动明细:分类器矩阵语义(对手 = income/expense 科目),按在场
+  /// 侧自适应 —— 双侧「工资等日常收入 · 日常消费支出」,单侧只出该侧,
+  /// 零流量 '—'(原型 fixture「工资等日常收入 · 日常消费支出」措辞)。
+  String _operatingDetail(ActivityFlow f) {
+    final hasIn = f.inflowCents > 0;
+    final hasOut = f.outflowCents > 0;
+    if (hasIn && hasOut) return '工资等日常收入 · 日常消费支出';
+    if (hasIn) return '工资等日常收入';
+    if (hasOut) return '日常消费支出';
+    return '—';
+  }
+
+  /// 投资/融资活动明细:对手分类净额 → 「标签 ¥金额」按绝对额降序,
+  /// ' + ' 连接(原型「基金定投 ¥2,000.00 + 定期存入 ¥3,000.00」风格;
+  /// 流出侧取绝对值 —— 「定期存入 ¥3,000.00」同为正数呈现)。
+  String _breakdownDetail(ActivityFlow flow) {
+    final parts = flow.counterpartyCents.entries.toList()
+      ..sort((a, b) => b.value.abs().compareTo(a.value.abs()));
+    if (parts.isEmpty) return '—';
+    return [
+      for (final p in parts) '${categoryLabelOf(p.key)} ${fmtCents(p.value.abs())}',
+    ].join(' + ');
   }
 
   Widget _head(BuildContext context) => _gridRow(
@@ -45,10 +77,16 @@ class CashFlowTable extends StatelessWidget {
           _num(context, null, header: true, text: '流入'),
           _num(context, null, header: true, text: '流出'),
           _num(context, null, header: true, text: '净额'),
+          _cell(context, '明细', header: true),
         ],
       );
 
-  Widget _row(BuildContext context, String name, ActivityFlow flow) =>
+  Widget _row(
+    BuildContext context,
+    String name,
+    ActivityFlow flow,
+    String Function(ActivityFlow) detailOf,
+  ) =>
       _gridRow(
         context,
         cells: [
@@ -56,6 +94,7 @@ class CashFlowTable extends StatelessWidget {
           _num(context, flow.inflowCents),
           _num(context, flow.outflowCents),
           _num(context, flow.netCents, signed: true),
+          _detail(context, detailOf(flow)),
         ],
       );
 
@@ -79,6 +118,7 @@ class CashFlowTable extends StatelessWidget {
             _num(context, inflow),
             _num(context, outflow),
             _num(context, net, signed: true),
+            _detail(context, '—'),
           ],
         ),
       );
@@ -120,17 +160,20 @@ class CashFlowTable extends StatelessWidget {
     );
   }
 
+  /// 五列栅格(原型 .9/.8/.8/.8/1.7fr;明细列最宽承载解释文本)。
   Widget _gridRow(BuildContext context,
       {bool emphasize = false, required List<Widget> cells}) {
     return Padding(
       padding: EdgeInsets.symmetric(
           horizontal: emphasize ? 6 : 0, vertical: emphasize ? 8 : 7),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(flex: 2, child: cells[0]),
-          Expanded(flex: 2, child: cells[1]),
-          Expanded(flex: 2, child: cells[2]),
-          Expanded(flex: 2, child: cells[3]),
+          Expanded(flex: 9, child: cells[0]),
+          Expanded(flex: 8, child: cells[1]),
+          Expanded(flex: 8, child: cells[2]),
+          Expanded(flex: 8, child: cells[3]),
+          Expanded(flex: 17, child: cells[4]),
         ],
       ),
     );
@@ -149,6 +192,14 @@ class CashFlowTable extends StatelessWidget {
           fontWeight: header || strong ? FontWeight.w600 : FontWeight.w500,
           color: header ? context.yucai.muted : context.yucai.fg,
         ),
+      );
+
+  /// 明细单元格(原型 .cf-det:12px muted,超宽省略)。
+  Widget _detail(BuildContext context, String text) => Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: context.yucai.muted),
       );
 
   Widget _num(

@@ -94,7 +94,7 @@ class PerfCards extends StatelessWidget {
               child: Text(
                 value,
                 style: TextStyle(
-                  fontSize: 19,
+                  fontSize: 22, // 视觉对齐批次:19 → 22(原型 .mini-big)
                   fontWeight: FontWeight.w800,
                   color: valueColor ?? context.yucai.fg,
                   letterSpacing: -0.3,

@@ -74,6 +74,11 @@ import 'package:yucai_client/core/theme/app_design.dart';
       // (spec FR-7 入口唯二 = 聚合条「查看全部」+ 托盘),仅面包屑按
       // branch 元数据呈现;section 空 → 单级面包屑(对齐仪表盘先例)。
       return (section: '', page: '提醒中心', rootPath: '/inbox', createLabel: null, createRoute: null);
+    case 10:
+      // 财务报告(视觉对齐批次 2026-09-29):/reports/full 挂回 shell 内页,
+      // 面包屑「报表分析 › 财务报告」(原型 v9 .crumb 同串);列表页创建
+      // 按钮语义不适用(rootPath 仅为 create 按钮的显隐判定,无按钮)。
+      return (section: '报表分析', page: '财务报告', rootPath: '/reports/full', createLabel: null, createRoute: null);
     default:
       return (section: '', page: '御财', rootPath: '/', createLabel: null, createRoute: null);
   }

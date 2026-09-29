@@ -377,7 +377,7 @@ void main() {
     expect(changes['creditCard']!.deltaCents, -5000);
   });
 
-  test('收支:income/expense 构成+日均(活跃日口径)+月报环比上月', () async {
+  test('收支:income/expense 构成+日均支出(自然天数口径)+月报环比上月支出', () async {
     final l = _Ledger();
     final doc = await _service(
       FakeStore(accountList: l.accounts, entryList: l.entries),
@@ -402,22 +402,23 @@ void main() {
     expect(stmt.expense[1].pct, 25.0);
     expect(stmt.expense[1].name, '交通');
 
-    // 活跃日 = 有 income/expense 分录的日(08-02/06/09;08-20 投资与
-    // 08-25 还款不涉收支科目):460,000 ~/ 3 = 153,333(截断,summary 同款)。
-    expect(stmt.dailyAvgCents, 153333);
+    // 日均支出 = 40,000 ~/ 31 自然日 = 1,290(截断;视觉对齐批次口径,
+    // 原型「日均支出 ¥570.00」= 支出/自然天数同式)。
+    expect(stmt.dailyAvgCents, 1290);
 
-    // 环比上月:7 月 surplus = 300,000−28,000 = 272,000;
-    // (460,000−272,000)/272,000 = 69.1%。
+    // 环比上月支出:7 月 expense 28,000;(40,000−28,000)/28,000 = 42.9%。
     expect(stmt.priorComparison, isNotNull);
-    expect(stmt.priorComparison!.label, '较 2026 年 7 月');
-    expect(stmt.priorComparison!.deltaPct, 69.1);
+    expect(stmt.priorComparison!.label, '环比上月支出');
+    expect(stmt.priorComparison!.deltaPct, 42.9);
   });
 
-  test('收支:年报同比上年;对比期无数据 → priorComparison null', () async {
+  test('收支:年报环比上年支出;对比期无数据 → priorComparison null', () async {
     final l = _Ledger();
-    // 2025 年对比期数据:06-15 收入 400,000(借 cash/贷 salary)。
+    // 2025 年对比期数据:06-15 收入 400,000(借 cash/贷 salary)+
+    // 06-20 支出 food 50,000(借 food/贷 cash,现金口径)。
     final entries = [
       ..._doubleEntry('p1', l.cash, l.salary, DateTime(2025, 6, 15), 400000),
+      ..._doubleEntry('p2', l.food, l.cash, DateTime(2025, 6, 20), 50000),
       ...l.entries,
     ];
 
@@ -425,12 +426,12 @@ void main() {
       FakeStore(accountList: l.accounts, entryList: entries),
       perf: null,
     ).generate(ReportPeriod.yearly(2026));
-    // 2026 年度:income 800,000 / expense 68,000 → surplus 732,000;
-    // 同比 2025 surplus 400,000 → (732,000−400,000)/400,000 = 83.0%。
+    // 2026 年度 expense 68,000;环比上年支出 (68,000−50,000)/50,000 =
+    // 36.0%(视觉对齐批次:口径从结余换为支出)。
     final stmt = doc.incomeStatement;
     expect(stmt.priorComparison, isNotNull);
-    expect(stmt.priorComparison!.label, '较 2025 年度');
-    expect(stmt.priorComparison!.deltaPct, 83.0);
+    expect(stmt.priorComparison!.label, '环比上年支出');
+    expect(stmt.priorComparison!.deltaPct, 36.0);
 
     // 首期无对比数据(2025 报告,2024 无分录)→ null。
     final first = await _service(
@@ -461,6 +462,27 @@ void main() {
     expect(cf.netDeltaCents, 375000); // == 期末−期初现金(classifier assert)
     expect(cf.reconciled, true);
     expect(doc.overview.cashDeltaCents, cf.netDeltaCents); // 同源勾稽
+  });
+
+  test('现金流明细:分类器按对手方分类聚合 counterpartyCents(明细列数据源)',
+      () async {
+    // 视觉对齐批次(2026-09-29,原型 v9 .cf-det「明细」列):投资/融资
+    // 活动的对手分类净额(category → signed cents,正=现金流入侧)。
+    final l = _Ledger();
+    final doc = await _service(
+      FakeStore(accountList: l.accounts, entryList: l.entries),
+      perf: null,
+    ).generate(ReportPeriod.monthly(2026, 8));
+
+    final cf = doc.cashFlow;
+    // 投资:对手 invest(investment)净 −80,000(08-20 投资转入流出)。
+    expect(cf.investing.counterpartyCents['investment'], -80000);
+    // 融资:对手 card(creditCard)净 −5,000(08-25 信用卡还款)。
+    expect(cf.financing.counterpartyCents['creditCard'], -5000);
+    // 经营:对手 = 收支科目(category 无语义)→ 不聚合,明细走语义文案。
+    expect(cf.operating.counterpartyCents, isEmpty);
+    // 不涉现金的对手(07-20 刷卡 food↔card)不计入任何活动。
+    expect(cf.financing.counterpartyCents['otherAsset'], isNull);
   });
 
   test('预算执行:月报=当月各 item(actuals=max(Σd,Σc)),他月预算不计', () async {
@@ -806,8 +828,8 @@ void main() {
       3000,
     );
 
-    // 收支:prior 环比 69.1%;现金流净 375,000。
-    expect(doc.incomeStatement.priorComparison!.deltaPct, 69.1);
+    // 收支:prior 支出环比 42.9%(40,000 vs 28,000);现金流净 375,000。
+    expect(doc.incomeStatement.priorComparison!.deltaPct, 42.9);
     expect(doc.cashFlow.netDeltaCents, 375000);
 
     // 预算:food 30,000/50,000;transport 10,000/8,000(超支)。
@@ -904,6 +926,7 @@ void main() {
     final expense = _acct('expense', 5, 'otherAsset');
     final entries = [
       ..._doubleEntry('p1', cash, income, DateTime(2025, 12, 20), 100000),
+      ..._doubleEntry('p0', expense, cash, DateTime(2025, 12, 25), 40000),
       ..._doubleEntry('t1', cash, income, DateTime(2026, 1, 10), 200000),
       ..._doubleEntry('t2', expense, cash, DateTime(2026, 1, 15), 50000),
     ];
@@ -913,11 +936,11 @@ void main() {
       perf: null,
     ).generate(ReportPeriod.monthly(2026, 1));
 
-    // 1 月 surplus = 150,000;prior=2025 年 12 月 surplus = 100,000
-    // → +50.0%。
+    // 1 月 expense 50,000;prior = 2025 年 12 月 expense 40,000
+    // → 支出环比 +25.0%(视觉对齐批次:口径从结余换为支出)。
     final prior = doc.incomeStatement.priorComparison!;
-    expect(prior.label, '较 2025 年 12 月');
-    expect(prior.deltaPct, 50.0);
+    expect(prior.label, '环比上月支出');
+    expect(prior.deltaPct, 25.0);
   });
 
   test('收支:年报 dailyAvg=全年支出/当年自然天数(定案口径)', () async {
@@ -928,8 +951,7 @@ void main() {
     ).generate(ReportPeriod.yearly(2026));
 
     // 2026 年支出 68,000 / 365 天 = 186(截断)。
-    // 非 TransactionSummary 月 scope 规则(结余/活跃日):报告年报口径
-    // 定案为日均支出/自然天数,差异理由见服务注释。
+    // 报告定案口径 = 日均支出/自然天数(视觉对齐批次起月/年统一)。
     expect(doc.incomeStatement.dailyAvgCents, 186);
   });
 

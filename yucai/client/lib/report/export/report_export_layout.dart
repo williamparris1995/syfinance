@@ -198,7 +198,10 @@ class ReportExportLayout {
     );
   }
 
-  /// 收支:支出分类/收入构成(bars)→ 摘要(日均结余 + 环比/首期)。
+  /// 收支:支出分类/收入构成(bars)→ 摘要(日均支出 + 支出环比/首期)。
+  ///
+  /// 口径随视觉对齐批次(2026-09-29):dailyAvg = 支出/自然天数;
+  /// prior = 支出环比(涨 = negative 色调,与页面摘要卡一致)。
   static List<ReportExportBlock> _incomeSection(ReportDocument doc) {
     final ist = doc.incomeStatement;
     final prior = ist.priorComparison;
@@ -207,25 +210,27 @@ class ReportExportLayout {
         title: '支出分类',
         rows: ist.expense,
         // 合计为展示 fold(页面 _incomeChapter 同式;收支章节 VO 不带合计)。
-        totalCents: ist.expense.fold<int>(0, (s, r) => s + r.amountCents),
+        totalCents: ist.expense.fold<int>(0, (s, c) => s + c.amountCents),
       ),
       _compositionBars(
         title: '收入构成',
         rows: ist.income,
-        totalCents: ist.income.fold<int>(0, (s, r) => s + r.amountCents),
+        totalCents: ist.income.fold<int>(0, (s, c) => s + c.amountCents),
       ),
       ReportKvBlock(title: '摘要', rows: [
         ReportExportKvRow(
-            label: '日均结余',
+            label: '日均支出',
             value: fmtExportCents(ist.dailyAvgCents),
             tone: ReportExportTone.neutral),
         if (prior != null)
           ReportExportKvRow(
               label: prior.label,
               value: fmtExportPctSigned(prior.deltaPct),
-              tone: prior.deltaPct >= 0
-                  ? ReportExportTone.positive
-                  : ReportExportTone.negative)
+              tone: prior.deltaPct > 0
+                  ? ReportExportTone.negative
+                  : (prior.deltaPct < 0
+                      ? ReportExportTone.positive
+                      : ReportExportTone.neutral))
         else
           const ReportExportKvRow(label: '对比期', value: '首期无对比数据'),
       ]),

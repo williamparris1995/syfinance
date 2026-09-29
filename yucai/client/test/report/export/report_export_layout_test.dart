@@ -136,11 +136,11 @@ void main() {
       expect(kv.title, '摘要');
       expect(kv.rows, [
         const ReportExportKvRow(
-            label: '日均结余', value: '¥2,500.00', tone: ReportExportTone.neutral),
+            label: '日均支出', value: '¥2,500.00', tone: ReportExportTone.neutral),
         const ReportExportKvRow(
-            label: '较 2026 年 7 月',
+            label: '环比上月支出',
             value: '+33.3%',
-            tone: ReportExportTone.positive),
+            tone: ReportExportTone.negative),
       ]);
     });
 

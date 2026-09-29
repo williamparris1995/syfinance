@@ -200,7 +200,36 @@ Future<void> main() async {
   testWidgets('A4 交易记录 + 交易详情:更多菜单打开', (t) async {
     await pumpApp(t);
     await goPage(t, '交易记录');
-    record(richText('工资').evaluate().isNotEmpty, '交易记录:工资入列');
+    // 反馈#2-B 无限滚动(b2acee32):列表按月分组+滚动加载,种子「工资」
+    // 行可能在首屏折叠线下 → 滚动至可见再断言(A10「生成报表」同款
+    // scrollUntilVisible 范式;视觉对齐批次 e2e 同步)。滚动目标 = 页面主
+    // ListView 的 Scrollable(RefreshIndicator 子树;transactions_page_test
+    // 同款 —— 裸 byType(Scrollable).first 会命中树序在前的筛选内嵌
+    // scrollable,拖动无效)。
+    final salary = richText('工资');
+    if (salary.evaluate().isEmpty) {
+      // SDK dragUntilVisible 的双重约束不可兼得:轮询要求 finder 空集
+      // 安全(.first 包装在折叠线下抛「No element」),收尾 element()
+      // 又要求唯一(裸 finder 多命中抛「Too many elements」;「工资」
+      // 在行描述/分类等多处命中,seed + demo 追加)→ 自驱拖动循环
+      //(同 SDK 语义:任一命中已构建即停),再 ensureVisible 把首个
+      // 命中行拖进视口(cacheExtent 下「已构建 ≠ 可点」,后续 tap 依赖)。
+      final listScrollable = find
+          .descendant(
+            of: find.byType(RefreshIndicator),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      for (var i = 0; i < 50 && salary.evaluate().isEmpty; i++) {
+        await t.drag(listScrollable, const Offset(0, -150));
+        await t.pumpAndSettle();
+      }
+      if (salary.evaluate().isNotEmpty) {
+        await t.ensureVisible(salary.first);
+        await t.pumpAndSettle();
+      }
+    }
+    record(salary.evaluate().isNotEmpty, '交易记录:工资入列');
     sweepMarkers(t, '交易记录');
 
     // 进第一笔交易详情(点行内文本)。

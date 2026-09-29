@@ -12,8 +12,25 @@ import 'package:yucai_client/report/domain/report_document.dart';
 /// 渲染层负责,本域只表达级别序。
 enum MdaSeverity { risk, warn, info }
 
+/// 行尾语义 chip 的色调(视觉对齐批次 2026-09-29,原型 v9 .diag-row):
+/// negative → 警示红(neg-soft 底,如 R2「超支 620.00」);neutral →
+/// 中性 chip(muted 字,如 R5「≥ 日均支出×3」阈值标签)。着色在渲染层。
+enum MdaChipTone { negative, neutral }
+
+/// 单条发现的行尾语义 chip(可选;null = 无 chip):浓缩一行可扫读的
+/// 关键数值/触发阈值(原型「超支 620.00」「≥ 日均支出×3」)。
+class MdaChip {
+  const MdaChip({required this.label, required this.tone});
+
+  /// chip 文案(如「超支 620.00」,金额直写不带 ¥,照原型)。
+  final String label;
+
+  /// 色调。
+  final MdaChipTone tone;
+}
+
 /// 单条诊断发现(FR-1):规则 id + 级别 + 中文结论(含溯源数字)+
-/// 可执行建议 + 可选跳转路由。
+/// 可执行建议 + 可选跳转路由 + 可选行尾语义 chip。
 class MdaFinding {
   const MdaFinding({
     required this.ruleId,
@@ -21,6 +38,7 @@ class MdaFinding {
     required this.conclusion,
     required this.advice,
     this.actionLink,
+    this.chip,
   });
 
   /// 规则标识,如 'R1'(储蓄率)/ 'H2'(环比突增)。
@@ -37,6 +55,9 @@ class MdaFinding {
 
   /// 可选跳转路由(如 R4 闲置订阅 → 订阅中心 /accounts/subscriptions)。
   final String? actionLink;
+
+  /// 可选行尾语义 chip(总览摘要卡行尾;第七章节卡不渲染,原型同形)。
+  final MdaChip? chip;
 }
 
 /// 「诊断与建议」章节模型(FR-4):排序后的发现列表 + 三级计数汇总 +

@@ -11,6 +11,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/report/domain/mda/mda_models.dart';
 import 'package:yucai_client/report/domain/report_assembly_service.dart';
 import 'package:yucai_client/report/domain/report_document.dart';
@@ -31,10 +32,11 @@ ReportDocument _fullDoc({
   bool includeBudget = true,
   bool includeInvestment = true,
   MdaSection? mda,
+  DateTime? generatedAt,
 }) =>
     ReportDocument(
       period: _fixPeriod,
-      generatedAt: DateTime.utc(2026, 9, 1),
+      generatedAt: generatedAt ?? DateTime.utc(2026, 9, 1),
       overview: OverviewSection.create(
         netWorthStartCents: 28645000,
         netWorthEndCents: 30128000,
@@ -93,15 +95,24 @@ ReportDocument _fullDoc({
         ],
         dailyAvgCents: 57000,
         priorComparison: PriorComparison.create(
-            label: '较 2026 年 7 月',
-            surplusCents: 1483000,
-            priorSurplusCents: 1200000),
+            label: '环比上月支出',
+            expenseCents: 1767000,
+            priorExpenseCents: 1630000),
       ),
       cashFlow: CashFlowSection(
         operating:
             ActivityFlow.create(inflowCents: 3250000, outflowCents: 1697000),
-        investing: ActivityFlow.create(inflowCents: 0, outflowCents: 500000),
-        financing: ActivityFlow.create(inflowCents: 0, outflowCents: 200000),
+        investing: ActivityFlow.create(
+          inflowCents: 0,
+          outflowCents: 500000,
+          // 明细列数据源(视觉对齐批次):定期 300,000 + 投资 200,000。
+          counterpartyCents: {'fixedDeposit': 300000, 'investment': 200000},
+        ),
+        financing: ActivityFlow.create(
+          inflowCents: 0,
+          outflowCents: 200000,
+          counterpartyCents: {'creditCard': 200000},
+        ),
         netDeltaCents: 853000,
         reconciled: true,
       ),
@@ -135,6 +146,7 @@ MdaSection _mda({bool empty = false}) => MdaSection.create(
             severity: MdaSeverity.warn,
             conclusion: '购物超预算:4,120/3,500(118%),超支 620.00',
             advice: '建议复盘该类别或上调预算至实际水平',
+            chip: MdaChip(label: '超支 620.00', tone: MdaChipTone.negative),
           ),
           MdaFinding(
             ruleId: 'R4',
@@ -148,6 +160,7 @@ MdaSection _mda({bool empty = false}) => MdaSection.create(
             severity: MdaSeverity.info,
             conclusion: '大额单笔:9 月 2 日单笔 3,600.00(年卡),≥ 日均支出×3',
             advice: '若为年付/预付类支出属正常现象',
+            chip: MdaChip(label: '≥ 日均支出×3', tone: MdaChipTone.neutral),
           ),
         ],
       healthyRunwayMonths: empty ? 3.2 : null,
@@ -199,9 +212,11 @@ void main() {
     await t.pumpWidget(harness());
     await t.pumpAndSettle();
 
-    // 顶栏面包屑「报表分析 › 财务报告」。
-    expect(find.text('报表分析'), findsOneWidget);
-    expect(find.text('财务报告'), findsAtLeastNWidgets(1));
+    // 视觉对齐批次:自带顶栏退役(面包屑由 shell 承载,生产经 branch 10
+    // 的 AppShell 顶栏渲染;挂页 harness 无 shell)——页面内不再有
+    // 「报表分析」串;「财务报告」= 页头标题一处。
+    expect(find.text('报表分析'), findsNothing);
+    expect(find.text('财务报告'), findsOneWidget);
     // Initial 引导(gen-idle)。
     expect(find.text('报告尚未生成'), findsOneWidget);
     // 默认期显示(initialPeriod 注入 2026-08)。
@@ -261,14 +276,38 @@ void main() {
     // 01 总览:hero 期初→期末 + 变动 chip + 四卡 + 现金净变动 + 附注两卡。
     // (hero 期初/期末值同时出现在「期初→期末变动」表 → 各 2 处;结余/现金
     // 净变动在 hero chip、四卡、变动表多处重复 → 按实际布局计份数。)
-    expect(find.text('¥286,450.00'), findsNWidgets(2));
-    expect(find.text('¥301,280.00'), findsNWidgets(2));
+    // 视觉对齐批次:hero 大数字升档(期初 38 / 期末 46)+ 小数「.00」24px
+    // 分段着色 → hero 金额拆整数/小数两段文本,变动表仍为全串。
+    expect(find.text('¥286,450'), findsOneWidget); // hero 期初整数段
+    expect(find.text('¥301,280'), findsOneWidget); // hero 期末整数段
+    expect(find.text('.00'), findsNWidgets(2)); // hero 两金额小数段
+    expect(find.text('¥286,450.00'), findsOneWidget); // 变动表净资产行
+    expect(find.text('¥301,280.00'), findsOneWidget);
     expect(find.text('+¥14,830.00'), findsNWidgets(3)); // hero chip+结余卡+变动表
     expect(find.text('+5.2%'), findsOneWidget); // 净资产变动 %
+    // hero 档位钉死:期初 38px / 期末 46px / 小数 24px(原型 v9 .hero-amount)。
+    expect(
+        t.widget<Text>(find.text('¥286,450')).style?.fontSize, 38,
+        reason: 'hero 期初档位 38px(原型 .hero-amount.sm)');
+    expect(
+        t.widget<Text>(find.text('¥301,280')).style?.fontSize, 46,
+        reason: 'hero 期末档位 46px(原型 .hero-amount)');
+    expect(t.widget<Text>(find.text('.00').first).style?.fontSize, 24,
+        reason: 'hero 小数段 24px(原型 .hero-amount .cents)');
+    // 数字本体 = 令牌渐变(accent→accentDeep,暗金/亮绿同式,零裸色)。
+    expect(
+        find
+            .ancestor(
+                of: find.text('¥301,280'),
+                matching: find.byType(ShaderMask))
+            .evaluate(),
+        isNotEmpty,
+        reason: 'hero 整数段经 ShaderMask 渐变着色');
     // 收入值 4 处:收入卡 + 收入构成合计 + 现金流(经营流入/合计流入)。
     expect(find.text('¥32,500.00'), findsNWidgets(4));
     expect(find.text('¥17,670.00'), findsNWidgets(2)); // 支出卡 + 支出分类合计
-    expect(find.text('45.6%'), findsOneWidget); // 储蓄率
+    // 储蓄率 2 处:hero-foot(视觉对齐批次第三项)+ 四卡储蓄率卡。
+    expect(find.text('45.6%'), findsNWidgets(2));
     // 现金净变动 4 处:hero foot + slim 卡 + 变动行 + 现金流合计净额。
     expect(find.text('+¥8,530.00'), findsNWidgets(4));
     expect(find.text('口径说明'), findsOneWidget);
@@ -285,23 +324,72 @@ void main() {
     expect(find.text('工资'), findsOneWidget);
     expect(find.text('伙食费'), findsOneWidget);
     expect(find.text('income-salary'), findsNothing); // id 不再上屏
-    expect(find.text('¥570.00'), findsOneWidget); // 日均结余
-    expect(find.text('较 2026 年 7 月'), findsOneWidget);
-    expect(find.text('+23.6%'), findsOneWidget); // (1483000-1200000)/1200000
+    expect(find.text('¥570.00'), findsOneWidget); // 日均支出
+    expect(find.text('环比上月支出'), findsOneWidget);
+    expect(find.text('+8.4%'), findsOneWidget); // (1,767,000−1,630,000)/1,630,000
 
     // 04 现金流:三行 + 合计 + 勾稽。
     expect(find.text('经营活动'), findsOneWidget);
     expect(find.text('+¥15,530.00'), findsOneWidget); // 经营净额
     expect(find.text('-¥5,000.00'), findsOneWidget); // 投资净额
+    // 明细列(视觉对齐批次,原型 v9 五列):表头 + 各行解释文本 ——
+    // 经营 = 分类器矩阵语义(收支科目两侧);投资/融资 = 对手分类净额
+    // (按绝对额降序,原型「定期存入 ¥3,000.00 + …」措辞风格)。
+    expect(find.text('明细'), findsOneWidget);
+    expect(find.text('工资等日常收入 · 日常消费支出'), findsOneWidget);
+    expect(find.text('定期 ¥3,000.00 + 投资 ¥2,000.00'), findsOneWidget);
+    expect(find.text('信用卡 ¥2,000.00'), findsOneWidget);
 
     // 05 预算执行:使用率 + 超支警示。
     expect(find.text('95.0%'), findsOneWidget);
     expect(find.text('117.7% 超支'), findsOneWidget);
 
-    // 06 投资绩效:五数值卡。
+    // 06 投资绩效:五数值卡(值档 22,视觉对齐批次 L1)。
     expect(find.text('¥42,770.00'), findsOneWidget); // 期初市值
     expect(find.text('+¥1,000.00'), findsOneWidget); // 估算收益
     expect(find.text('+2.3%'), findsOneWidget); // 区间 TWR
+    expect(t.widget<Text>(find.text('¥42,770.00')).style?.fontSize, 22,
+        reason: 'perf 值档 22(原型 .mini-big)');
+
+    // 卡头标题档 15(原型 .card-head h2;「三类活动现金流」仅现金流卡头)。
+    expect(t.widget<Text>(find.text('三类活动现金流')).style?.fontSize, 15,
+        reason: '章节卡头标题档 15');
+  });
+
+  testWidgets('视觉对齐批次:页标题 24 档 + 内容列 980 + 月/年 segmented 淡金选中态',
+      (t) async {
+    _stubGenerate(assembly, _fullDoc());
+    await t.pumpWidget(harness());
+    await t.tap(find.byKey(const ValueKey('generateReportButton')));
+    await t.pumpAndSettle();
+
+    // 页标题档 24(原型 .page-head h1;仅页头一处,顶栏已并入 shell)。
+    expect(t.widget<Text>(find.text('财务报告')).style?.fontSize, 24,
+        reason: '页标题档 24(原型 24px)');
+
+    // 内容列宽 ≈976-1000(原型 ≈976;980 落区间)。
+    final boxes =
+        t.widgetList<ConstrainedBox>(find.byType(ConstrainedBox));
+    expect(
+        boxes.any((b) => b.constraints.maxWidth == 980), isTrue,
+        reason: '内容列 980(1120 → 原型 ≈976-1000)');
+
+    // 月/年 segmented 选中态:淡金底 + 金字描边(原型 .pills a.on =
+    // nav-active 9% 底 + nav-active-fg 字;非实心金)。
+    final theme = YucaiTheme.light(); // harness 无 extension → 亮色回落。
+    final monthSeg = t.widget<AnimatedContainer>(
+        find.byKey(const ValueKey('reportScopeSegMonth')));
+    expect((monthSeg.decoration as BoxDecoration).color, theme.sidebarActiveBg,
+        reason: '选中段底 = nav-active 淡金(9%)');
+    final monthLabel = t.widget<Text>(find.descendant(
+        of: find.byKey(const ValueKey('reportScopeSegMonth')),
+        matching: find.text('月')));
+    expect(monthLabel.style?.color, theme.sidebarActiveFg,
+        reason: '选中段字 = nav-active-fg 金');
+    // 未选段:透明底 + muted 字(对照)。
+    final yearSeg = t.widget<AnimatedContainer>(
+        find.byKey(const ValueKey('reportScopeSegYear')));
+    expect((yearSeg.decoration as BoxDecoration).color, Colors.transparent);
   });
 
   testWidgets('变体 B 锚点:全量文档 6 圆点;点击滚动到目标章', (t) async {
@@ -415,6 +503,10 @@ void main() {
     expect(find.text('购物超预算:4,120/3,500(118%),超支 620.00'),
         findsNWidgets(2));
     expect(find.byKey(const ValueKey('mdaViewAllLink')), findsOneWidget);
+    // 行尾语义 chip(视觉对齐批次,原型 .diag-row):R2 neg「超支 620.00」+
+    // R5 中性「≥ 日均支出×3」各只在摘要卡渲染一处;R4 无 chip。
+    expect(find.text('超支 620.00'), findsOneWidget);
+    expect(find.text('≥ 日均支出×3'), findsOneWidget);
 
     // 第七章体:actionLink 跳转按钮渲染(R4)。
     expect(find.byKey(const ValueKey('mdaActionLink')), findsOneWidget);
@@ -509,5 +601,36 @@ void main() {
       expect(dy, greaterThanOrEqualTo(0), reason: 'b=$b,i=$i 章头在视口内');
       expect(dy + head.size.height, lessThanOrEqualTo(2000));
     }
+  });
+
+  testWidgets(
+      '回归:期变更自动重生成不触发 GlobalKey 重叠(AnimatedSwitcher 过渡)',
+      (t) async {
+    // 世界:两次生成各返回不同 generatedAt 的文档(翻期即新文档);
+    // Loaded → 翻期 → 自动重生成(反馈②),新报告体在旧体 300ms 淡出
+    // 完成前入场 —— 旧实现章节锚 GlobalKey 池跨文档复用,过渡帧内同一
+    // GlobalKey 同时挂在淡出旧体与入场新体 → 「Duplicate keys」异常。
+    var n = 0;
+    when(() => assembly.generate(any(), onPhase: any(named: 'onPhase')))
+        .thenAnswer((inv) async {
+      for (final p in ReportPhase.values) {
+        _onPhaseOf(inv)?.call(p);
+      }
+      n++;
+      return _fullDoc(generatedAt: DateTime.utc(2026, 9, 1, 0, 0, n));
+    });
+    await t.pumpWidget(harness());
+    await t.tap(find.byKey(const ValueKey('generateReportButton')));
+    await t.pumpAndSettle();
+    expect(find.text('2026 年 8 月'), findsOneWidget);
+
+    // 翻期:同步桩一帧内直达新 Loaded;随后推进过渡中段帧 + 收尾。
+    await t.tap(find.byTooltip('上一期'));
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 150)); // 淡出/入场交叠帧
+    await t.pumpAndSettle();
+    expect(find.text('2026 年 7 月'), findsOneWidget);
+    // 报告体健在(新文档七章渲染)。
+    expect(find.text('总览'), findsNWidgets(2));
   });
 }

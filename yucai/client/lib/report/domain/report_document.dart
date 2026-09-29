@@ -322,41 +322,45 @@ class IncomeStatementSection {
   /// 支出分类构成(expense 科目维度,经 ExpenseBasis)。
   final List<CategoryAmount> expense;
 
-  /// 日均:月报 = 结余/活跃日(TransactionSummary 同款);年报 = 全年
-  /// 支出/当年自然天数(**报告定案口径**,TransactionSummary 仅月 scope
-  /// 计算——差异理由见汇编服务 _dailyAvgCents 注释)。
+  /// 日均支出 = 期内支出 / 期内自然天数(含首尾,截断除法;视觉对齐批次
+  /// 2026-09-29 口径定案,原型 v9「日均支出 ¥570.00」= 17,670/31 同式;
+  /// 不再区分月报活跃日/年报自然日 —— 全视角统一自然天数分母,活跃日随
+  /// 记账频次漂移(记 10 天与记 300 天差 30 倍,日均失义),自然天数
+  /// 稳定可比。MdaRule R5 的日均门槛另用同式自算(单点在规则内,不互相
+  /// 引用)。TransactionSummary 的「结余/活跃日」是交易页口径,互不影响。
   final int dailyAvgCents;
 
   /// 对比期(月报=环比上月;年报=同比上年);首期无对比数据 → null。
   final PriorComparison? priorComparison;
 }
 
-/// 对比期环比/同比(收支章节用)。
+/// 对比期支出环比/同比(收支章节用;视觉对齐批次:口径从结余换为支出)。
 class PriorComparison {
   const PriorComparison({
     required this.label,
     required this.deltaPct,
   });
 
-  /// 构造时算环比/同比 %(1 位小数):本期结余 vs 对比期结余;
-  /// 对比期结余 ≤ 0 → 0(基准无意义,不除零/不除负)。
+  /// 构造时算支出变动 %(1 位小数):本期支出 vs 对比期支出;对比期
+  /// 支出 ≤ 0 → 0(基数无意义,不除零/不除负)。
   factory PriorComparison.create({
     required String label,
-    required int surplusCents,
-    required int priorSurplusCents,
+    required int expenseCents,
+    required int priorExpenseCents,
   }) =>
       PriorComparison(
         label: label,
-        deltaPct: priorSurplusCents <= 0
+        deltaPct: priorExpenseCents <= 0
             ? 0.0
             : _round1(
-                (surplusCents - priorSurplusCents) * 100 / priorSurplusCents),
+                (expenseCents - priorExpenseCents) * 100 / priorExpenseCents),
       );
 
-  /// 对比期标签,如「较 2026 年 7 月」「较 2025 年度」。
+  /// 对比期标签,如「环比上月支出」「环比上年支出」。
   final String label;
 
-  /// 结余变动 %(1 位小数,正=改善;构造时算)。
+  /// 支出变动 %(1 位小数,正=支出上涨;着色语义(涨=警示)由渲染层定,
+  /// 构造时算)。
   final double deltaPct;
 }
 
@@ -395,17 +399,20 @@ class ActivityFlow {
     required this.inflowCents,
     required this.outflowCents,
     required this.netCents,
+    this.counterpartyCents = const {},
   });
 
   /// 构造时算 net = inflow − outflow。
   factory ActivityFlow.create({
     required int inflowCents,
     required int outflowCents,
+    Map<String, int> counterpartyCents = const {},
   }) =>
       ActivityFlow(
         inflowCents: inflowCents,
         outflowCents: outflowCents,
         netCents: inflowCents - outflowCents,
+        counterpartyCents: counterpartyCents,
       );
 
   /// 流入(int cents,恒 ≥ 0)。
@@ -416,6 +423,13 @@ class ActivityFlow {
 
   /// 净额 = inflow − outflow(构造时算)。
   final int netCents;
+
+  /// 期内对手方分类净额(category → signed cents,正=现金流入侧)——
+  /// 现金流表「明细」列数据源(视觉对齐批次 2026-09-29,原型 .cf-det)。
+  /// 仅投资/融资活动聚合(对手 = 资产/负债/权益分类,语义明确);经营
+  /// 活动对手 = 收支科目,category 无语义 → 恒空,明细走分类器矩阵的
+  /// 语义文案。渲染层转译分类代码 + 格式化金额。
+  final Map<String, int> counterpartyCents;
 }
 
 /// 预算执行章节(FR-3 #5;本期无预算 → null 隐藏 + 附注披露)。

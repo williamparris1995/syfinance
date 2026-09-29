@@ -29,6 +29,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/app/router.dart';
+import 'package:yucai_client/app/widgets/app_shell.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
@@ -466,8 +467,7 @@ void main() {
         '/transactions/t-42');
   });
 
-  testWidgets('/reports/full resolves to the financial report page',
-      (tester) async {
+  testWidgets('/reports/full resolves to the financial report page', (tester) async {
     final authBloc = _seededAuthBloc();
     final router = buildRouter(authBloc);
     router.go('/reports/full');
@@ -477,18 +477,26 @@ void main() {
     expect(router.routerDelegate.currentConfiguration.uri.toString(),
         '/reports/full');
     expect(find.byType(FinancialReportPage), findsOneWidget);
+    // 视觉对齐批次(2026-09-29):财务报告页挂回应用内页 —— 侧栏/顶栏
+    // 由 shell 承载(面包屑「报表分析 › 财务报告」),页面不再自带顶栏。
+    expect(find.byType(AppShell), findsOneWidget,
+        reason: '/reports/full 应在 StatefulShellRoute 内(原型 v9 应用内页)');
+    expect(find.text('报表分析'), findsWidgets,
+        reason: 'shell 顶栏面包屑 section = 报表分析');
   });
 
-  test('router has ten StatefulShell branches '
-      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals/settings/inbox)',
+  test('router has eleven StatefulShell branches '
+      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals/settings/inbox/reports-full)',
       () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
         .whereType<StatefulShellRoute>()
         .first;
-    expect(shell.branches.length, 10,
+    expect(shell.branches.length, 11,
         reason: 'settings branch (index 8) must be registered; '
-            'inbox branch (index 9, 2026-09 到期常显提醒 T4) 追加于末尾');
+            'inbox branch (index 9, 2026-09 到期常显提醒 T4) 追加于末尾; '
+            'reports/full branch (index 10, 视觉对齐批次 2026-09-29) 再追加 '
+            '于末尾(既有索引零移位)');
   });
 
   testWidgets(

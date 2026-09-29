@@ -36,6 +36,10 @@ void main() {
     expect(findings.single.conclusion, contains('购物'));
     expect(findings.single.conclusion, contains('¥620.00'));
     expect(findings.single.conclusion, contains('117.7%'));
+    // 视觉对齐批次(原型 v9 .diag-row 行尾 chip.neg「超支 620.00」)。
+    expect(findings.single.chip, isNotNull);
+    expect(findings.single.chip!.label, '超支 620.00');
+    expect(findings.single.chip!.tone, MdaChipTone.negative);
   });
 
   test('超支 ≥20% → risk(购物 4,200/3,500 = 超支 20.0%)', () {

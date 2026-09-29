@@ -56,9 +56,9 @@ void main() {
           ],
           dailyAvgCents: 31_861,
           priorComparison: PriorComparison.create(
-            label: '较 2026 年 7 月',
-            surplusCents: 246_913,
-            priorSurplusCents: 200_000,
+            label: '环比上月支出',
+            expenseCents: 246_913,
+            priorExpenseCents: 200_000,
           ),
         ),
         cashFlow: CashFlowSection(

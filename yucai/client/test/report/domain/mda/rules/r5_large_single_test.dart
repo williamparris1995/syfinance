@@ -35,6 +35,11 @@ void main() {
     expect(findings.single.conclusion, contains('18.6'));
     expect(findings.single.conclusion, contains('60.0%'));
     expect(findings.single.conclusion, contains('若为年付/预付类支出属正常现象'));
+    // 视觉对齐批次(原型 v9 .diag-row 行尾中性 chip「≥ 日均支出×3」:
+    // 阈值标签复用 [MdaThresholds.largeSingleDayAvgX],单点不重写)。
+    expect(findings.single.chip, isNotNull);
+    expect(findings.single.chip!.label, '≥ 日均支出×3');
+    expect(findings.single.chip!.tone, MdaChipTone.neutral);
   });
 
   test('门槛单边:¥1,500 达 3 倍日均(4.6 倍)但占比 15% <20% → 不触发', () {

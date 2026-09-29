@@ -1,14 +1,16 @@
 /// F43 财务报告页(T5,/reports/full,ADR-5:单页滚动章节+变体 B 锚点)。
 ///
 /// UI 事实源 = 原型 v7 financial-report.html(变体 B = 实现终态)+ F44
-/// v8 增量(总览诊断摘要卡 + 第七章节「诊断与建议」):顶栏面包屑
-/// 「报表分析 › 财务报告」;页头 = 标题/副题 + 月/年 segmented +
-/// 上一期/下一期 + 期标签([ReportPeriod.label])+ 「生成报告」主按钮 +
-/// F45 T2「导出」按钮(仅 Loaded;小菜单选 PDF/Markdown → 保存对话框 →
-/// 成功 toast「打开」,页面 handler 注入缝接线,见 [createReportExportService]);
-/// gen-zone = Initial 引导卡 / 四阶段进度(FR-8,>300ms 才展开阶段明细,
-/// 判定在页面侧,见 [_progressGate] 注释);报告体 = 单页滚动章节 +
-/// 右缘圆点锚点([SectionDotNav]:悬停标签/点击平滑滚动/滚动高亮当前章)。
+/// v8 增量(总览诊断摘要卡 + 第七章节「诊断与建议」)。视觉对齐批次
+/// (2026-09-29):页面挂回 shell 内页(router branch 10)——顶栏面包屑
+/// 「报表分析 › 财务报告」由 AppShell 承载,页面自带返回条退役;页头 =
+/// 标题(24 档)/副题 + 月/年 segmented(淡金选中态)+ 上一期/下一期 +
+/// 期标签([ReportPeriod.label])+ F45 T2「导出」按钮(仅 Loaded;小菜单
+/// 选 PDF/Markdown → 保存对话框 → 成功 toast「打开」,页面 handler 注入缝
+/// 接线,见 [createReportExportService]);gen-zone = Initial 引导卡 /
+/// 四阶段进度(FR-8,>300ms 才展开阶段明细,判定在页面侧,见
+/// [_progressGate] 注释);报告体 = 单页滚动章节 + 右缘圆点锚点
+/// ([SectionDotNav]:悬停标签/点击平滑滚动/滚动高亮当前章)。
 ///
 /// 自适应章节(FR-3):预算执行/投资绩效 null → 章节与锚点一并缺席;
 /// F44 诊断与建议章节(mda 恒非空语义,仅期外异常 null)挂链尾。
@@ -19,7 +21,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/di/injection.dart';
@@ -81,6 +82,14 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
   // —— 报告体滚动/锚点 ——
   final _scroll = ScrollController();
   final List<GlobalKey> _chapterKeys = [];
+
+  /// 章节锚 key 池所属文档的令牌(generatedAt)。翻期自动重生成(反馈②)
+  /// 时 AnimatedSwitcher 300ms 淡出旧报告体与入场新报告体同帧并存 ——
+  /// 若 key 池跨文档复用,同一 GlobalKey 会同时挂在两棵子树上(「Duplicate
+  /// GlobalKeys」炸树,2026-09-29 取证回填)。故令牌变更即换新池:旧体持
+  /// 旧键退场、新体持新键入场,过渡帧零重叠;同文档重绘令牌不变,锚点
+  /// 稳定(滚动高亮/锚滚不因无关 setState 换键)。
+  Object? _chapterKeysToken;
   int _activeChapter = 0;
 
   // —— >300ms 进度门(FR-8):页面侧计时。
@@ -333,24 +342,17 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 视觉对齐批次(2026-09-29):页面挂回 shell 内页(branch 10)——
+    // 顶栏(面包屑/搜索/主题钮)由 AppShell 承载,页面不再自带返回条。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      body: Column(
-        children: [
-          const _ReportTopBar(),
-          Divider(height: 1, color: context.yucai.border),
-          // 反馈1a 修复:shell 外顶层路由 —— 报告正文(反馈⑥ 拖选主面①)
-          // 在此 scope 内可选可复制;isCurrent 门取舍见组件头注
-          // (current_route_selection_area.dart)。
-          Expanded(
-            child: CurrentRouteSelectionArea(
-              child: BlocConsumer<FinancialReportBloc, FinancialReportState>(
-                listener: (_, state) => _onState(state),
-                builder: (context, state) => _body(context, state),
-              ),
-            ),
-          ),
-        ],
+      // 反馈1a 修复:报告正文(反馈⑥ 拖选主面①)在此 scope 内可选可复制;
+      // isCurrent 门取舍见组件头注(current_route_selection_area.dart)。
+      body: CurrentRouteSelectionArea(
+        child: BlocConsumer<FinancialReportBloc, FinancialReportState>(
+          listener: (_, state) => _onState(state),
+          builder: (context, state) => _body(context, state),
+        ),
       ),
     );
   }
@@ -358,7 +360,13 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
   Widget _body(BuildContext context, FinancialReportState state) {
     final doc = state is FinancialReportLoaded ? state.document : null;
     final chapters = doc == null ? const <_ChapterSpec>[] : _chapters(doc);
-    // 章节锚 key 池:只增不减,索引稳定。
+    // 章节锚 key 池:按文档令牌换池(见 _chapterKeysToken 注释),池内只增
+    // 不减、索引稳定。
+    final docToken = doc?.generatedAt;
+    if (_chapterKeysToken != docToken) {
+      _chapterKeysToken = docToken;
+      _chapterKeys.clear();
+    }
     while (_chapterKeys.length < chapters.length) {
       _chapterKeys.add(GlobalKey());
     }
@@ -371,7 +379,9 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
               AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1120),
+              // 视觉对齐批次:1120 → 980(原型 ≈976 内容列,任务区间 976-1000;
+              // shell 内页内容区收窄对齐其他报表页阅读密度)。
+              constraints: const BoxConstraints(maxWidth: 980),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -637,14 +647,18 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SummaryLine(label: '日均结余', value: fmtCents(ist.dailyAvgCents)),
+          // 视觉对齐批次(原型 v9 .sum-line):日均口径定案为「日均支出」
+          // (domain dailyAvgCents 已换支出/自然天数口径)。
+          _SummaryLine(label: '日均支出', value: fmtCents(ist.dailyAvgCents)),
           if (prior != null)
             _SummaryLine(
               label: prior.label,
               value: fmtPctSigned(prior.deltaPct),
-              valueColor: prior.deltaPct >= 0
-                  ? context.yucai.positive
-                  : context.yucai.negative,
+              // 支出环比着色反转:涨 = 警示(negative)、降 = 改善(positive)、
+              // 0 = 中性(原型「环比上月支出 +8.4%」红字同语义)。
+              valueColor: prior.deltaPct > 0
+                  ? context.yucai.negative
+                  : (prior.deltaPct < 0 ? context.yucai.positive : null),
             )
           else
             Text('首期无对比数据',
@@ -704,50 +718,6 @@ class _ChapterSpec {
   const _ChapterSpec(this.title, this.child);
   final String title;
   final Widget child;
-}
-
-// ───────────────────────── 顶栏:返回 + 面包屑「报表分析 › 财务报告」
-
-class _ReportTopBar extends StatelessWidget {
-  const _ReportTopBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      color: context.yucai.bg.withValues(alpha: 0.85),
-      child: Row(children: [
-        IconButton(
-          tooltip: '返回',
-          icon: Icon(LucideIcons.chevronLeft,
-              size: 20, color: context.yucai.fg),
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            hoverColor: context.yucai.accentSoft.withValues(alpha: 0.4),
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(36, 36),
-          ),
-          onPressed: () => context.go('/reports'),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text('报表分析',
-            style: TextStyle(fontSize: 14, color: context.yucai.muted)),
-        const SizedBox(width: 6),
-        Icon(LucideIcons.chevronRight, size: 14, color: context.yucai.muted),
-        const SizedBox(width: 6),
-        Text('财务报告',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: context.yucai.fg,
-              fontFamily: AppTypography.displayFamily,
-              fontFamilyFallback: AppTypography.displayFallback,
-            )),
-      ]),
-    );
-  }
 }
 
 // ───────────────────────── 页头:标题 + 期控件 + 生成按钮(原型 .page-head)
@@ -841,7 +811,7 @@ class _PageHead extends StatelessWidget {
         children: [
           Text('财务报告',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 24, // 视觉对齐批次:22 → 24(原型 .page-head h1)
                 fontWeight: FontWeight.w700,
                 color: context.yucai.fg,
                 fontFamily: AppTypography.displayFamily,
@@ -874,6 +844,10 @@ class _PageHead extends StatelessWidget {
 }
 
 /// 月/年 segmented(pill,照抄 report_page._PeriodSegmented 形态)。
+///
+/// 视觉对齐批次:选中态从实心金改为**淡金底 + 金字**(原型 v9 .pills a.on
+/// = nav-active:9% 金底 + nav-active-fg 字 + 透明描边;视觉重量弱于实心,
+/// 亮色同式走 nav-active 令牌)。
 class _ModeSegmented extends StatelessWidget {
   const _ModeSegmented({required this.yearly, required this.onChanged});
 
@@ -892,24 +866,33 @@ class _ModeSegmented extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _segment(context, '月', !yearly, () => onChanged(false)),
-          _segment(context, '年', yearly, () => onChanged(true)),
+          _segment(context, '月', !yearly, () => onChanged(false),
+              key: const ValueKey('reportScopeSegMonth')),
+          _segment(context, '年', yearly, () => onChanged(true),
+              key: const ValueKey('reportScopeSegYear')),
         ],
       ),
     );
   }
 
   Widget _segment(
-      BuildContext context, String label, bool selected, VoidCallback onTap) {
+    BuildContext context,
+    String label,
+    bool selected,
+    VoidCallback onTap, {
+    Key? key,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: AnimatedContainer(
+          key: key,
           duration: const Duration(milliseconds: 140),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
           decoration: BoxDecoration(
-            color: selected ? context.yucai.accent : Colors.transparent,
+            // nav-active 令牌:暗 9% 金底 / 亮 accentSoft(原型 .pills a.on)。
+            color: selected ? context.yucai.sidebarActiveBg : Colors.transparent,
             borderRadius: AppRadius.smBorder,
           ),
           child: Text(
@@ -917,7 +900,9 @@ class _ModeSegmented extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: selected ? context.yucai.onAccent : context.yucai.muted,
+              color: selected
+                  ? context.yucai.sidebarActiveFg
+                  : context.yucai.muted,
             ),
           ),
         ),
@@ -1486,7 +1471,7 @@ class _SectionCard extends StatelessWidget {
             children: [
               Text(title,
                   style: TextStyle(
-                    fontSize: 14.5,
+                    fontSize: 15, // 视觉对齐批次:14.5 → 15(原型 .card-head h2)
                     fontWeight: FontWeight.w600,
                     color: context.yucai.fg,
                   )),
@@ -1640,7 +1625,7 @@ class _MetricCard extends StatelessWidget {
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 22, // 视觉对齐批次:20 → 22(原型 .mini-big)
                 fontWeight: FontWeight.w800,
                 color: valueColor ?? context.yucai.fg,
                 letterSpacing: -0.3,

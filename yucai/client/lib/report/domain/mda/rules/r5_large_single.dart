@@ -48,6 +48,12 @@ class R5LargeSingle extends MdaRule {
           '若为年付/预付类支出属正常现象',
       advice: '确认该笔是否年付/预付类一次性支出;若是,按年均摊口径'
           '观察更合理',
+      // 行尾中性 chip:触发阈值标签(原型「≥ 日均支出×3」,倍数单点
+      // [MdaThresholds.largeSingleDayAvgX])。
+      chip: MdaChip(
+          label: '≥ 日均支出×'
+              '${MdaThresholds.largeSingleDayAvgX.toStringAsFixed(0)}',
+          tone: MdaChipTone.neutral),
     );
   }
 }

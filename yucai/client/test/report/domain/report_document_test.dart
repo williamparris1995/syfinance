@@ -214,27 +214,39 @@ void main() {
     });
   });
 
-  group('PriorComparison 环比/同比(factory 由原始结余算 %,1 位小数)', () {
+  group('PriorComparison 支出环比/同比(factory 由原始支出算 %,1 位小数)', () {
+    // 视觉对齐批次(2026-09-29,原型 v9 .sum-line「环比上月支出」):
+    // 对比口径从结余换为支出 —— 支出涨 = 变动 % 为正(着色语义反转由
+    // 渲染层负责,model 只带数值)。
     test('3000.00 vs 2400.00 → +25.0;4000 vs 3000 → 33.3(四舍五入)', () {
       final pc = PriorComparison.create(
-        label: '较 2026 年 7 月',
-        surplusCents: 300000,
-        priorSurplusCents: 240000,
+        label: '环比上月支出',
+        expenseCents: 300000,
+        priorExpenseCents: 240000,
       );
       expect(pc.deltaPct, 25.0);
       final r = PriorComparison.create(
-        label: '较 2025 年度',
-        surplusCents: 4000,
-        priorSurplusCents: 3000,
+        label: '环比上年支出',
+        expenseCents: 4000,
+        priorExpenseCents: 3000,
       );
       expect(r.deltaPct, 33.3);
     });
 
-    test('对比期结余为 0 → deltaPct 0(不除零)', () {
+    test('支出下降 → 负 %(如 -14.3)', () {
       final pc = PriorComparison.create(
-        label: '较 2026 年 7 月',
-        surplusCents: 500,
-        priorSurplusCents: 0,
+        label: '环比上月支出',
+        expenseCents: 2400000,
+        priorExpenseCents: 2800000,
+      );
+      expect(pc.deltaPct, -14.3);
+    });
+
+    test('对比期支出为 0 → deltaPct 0(不除零)', () {
+      final pc = PriorComparison.create(
+        label: '环比上月支出',
+        expenseCents: 500,
+        priorExpenseCents: 0,
       );
       expect(pc.deltaPct, 0.0);
     });
