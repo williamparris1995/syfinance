@@ -1,10 +1,14 @@
+import 'dart:async' show unawaited;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/app/nav_settings.dart';
+import 'package:yucai_client/app/widgets/command_palette.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
@@ -233,7 +237,7 @@ class AppShell extends StatelessWidget {
     final syncTracker = getIt.isRegistered<SessionModeTracker>()
         ? getIt<SessionModeTracker>()
         : null;
-    return (syncTracker != null &&
+    final wrapped = (syncTracker != null &&
             !syncTracker.isGuest &&
             getIt.isRegistered<SyncCoordinatorBloc>())
         ? BlocProvider<SyncCoordinatorBloc>.value(
@@ -241,9 +245,69 @@ class AppShell extends StatelessWidget {
             child: shell,
           )
         : shell;
+    // ⑨ 导航增强 B:Ctrl+K 全局命令面板挂载(Shortcuts/Actions + 遮罩
+    // Stack),包裹整个 shell(宽/窄两形态均可唤起)。
+    return _ShellCommandSurface(child: wrapped);
   }
 
   // branch 元数据(面包屑 section › page + list 页创建按钮)见顶层 _branchMetaOf。
+}
+
+/// ⑨ 导航增强 B:shell 级命令面板面(机制取舍见任务书 B1:Flutter 内建
+/// Shortcuts/Actions 优先于 window_manager 键盘钩子 —— 路由/焦点链内即可
+/// 达,免平台通道)。Ctrl+K(Win/Linux)与 Cmd+K(mac 等价键)挂同一
+/// intent;开面板态再触发 = 关闭(原型 toggle)。[Focus] autofocus 兜底
+/// 启动零焦点期(无焦点时键事件自根 scope 起泡不经子树;持有焦点后事件
+/// 自本节点向上可达 Shortcuts,页面控件聚焦时本节点为其祖先,链路同通)。
+class _ShellCommandSurface extends StatefulWidget {
+  const _ShellCommandSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ShellCommandSurface> createState() => _ShellCommandSurfaceState();
+}
+
+class _ShellCommandSurfaceState extends State<_ShellCommandSurface> {
+  bool _paletteOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.keyK, control: true):
+            OpenCommandPaletteIntent(),
+        SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+            OpenCommandPaletteIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          OpenCommandPaletteIntent:
+              CallbackAction<OpenCommandPaletteIntent>(
+            onInvoke: (_) {
+              setState(() => _paletteOpen = !_paletteOpen);
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(child: widget.child),
+              if (_paletteOpen)
+                Positioned.fill(
+                  child: CommandPalette(
+                    onClose: () => setState(() => _paletteOpen = false),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ───────────────────────── 侧边栏 ─────────────────────────
@@ -317,7 +381,11 @@ bool _claimedByRouteOnlyNav(String location) => _navGroups
     // 仍属其下钻范围,继续让位 branch 高亮(防「账户管理」双亮)。
     _isSubscriptionManagement(location);
 
-class _Sidebar extends StatelessWidget {
+/// ⑨ 导航增强 A:侧栏分组可折叠 + 折叠态记忆(NavSettings 家法持久化)。
+/// 记忆通道 = getIt 注入缝(guarded,照 OfflineBadge 先例):测试 stripped
+/// harness 未注册 NavSettings 时退化为会话内状态(不落盘),生产恒注册
+/// (injection.dart 1j + 2e load)。
+class _Sidebar extends StatefulWidget {
   const _Sidebar({
     required this.currentIndex,
     required this.userName,
@@ -333,6 +401,71 @@ class _Sidebar extends StatelessWidget {
   /// F41 feedback entry (nav list tail row, fix-2).
   final VoidCallback onFeedback;
   final VoidCallback onLogout;
+
+  @override
+  State<_Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<_Sidebar> {
+  Set<String> _collapsed = {};
+  NavSettings? _navSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    if (getIt.isRegistered<NavSettings>()) {
+      _navSettings = getIt<NavSettings>();
+      _collapsed = Set<String>.of(_navSettings!.collapsedGroups);
+    }
+  }
+
+  void _toggleGroup(String title) {
+    setState(() {
+      final next = Set<String>.of(_collapsed);
+      if (!next.add(title)) next.remove(title);
+      _collapsed = next;
+    });
+    // 家法通道落盘(fire-and-forget;写入集恒由现行组名构成 → 陈旧
+    // 组名残留自愈)。未注册(测试)时纯会话内。
+    unawaited(_navSettings?.setCollapsed(_collapsed));
+  }
+
+  /// 项选中判定(route 项:当前路径在其前缀下时高亮(非 branch index);
+  /// branch 项在 route-only 项声称的路径下让位(防双高亮))—— 原 build
+  /// 内联逻辑提取,分组头 hasActive(⑨A 活动组高亮)与项 tile 共用同源。
+  bool _isSelected(BuildContext context, _NavItem item) {
+    final location = GoRouterState.of(context).matchedLocation;
+    if (item.route != null) {
+      // v6:订阅管理在模板下钻页 /accounts/templates 也保持高亮
+      // (同一功能的两个视图)。
+      return location.startsWith(item.route!) ||
+          (item.route == '/accounts/subscriptions' &&
+              _isSubscriptionManagement(location));
+    }
+    return item.branchIndex == widget.currentIndex &&
+        !_claimedByRouteOnlyNav(location);
+  }
+
+  void _onItemTap(_NavItem item) {
+    if (item.route != null) {
+      context.go(item.route!);
+    } else if (item.branchIndex != null) {
+      widget.onSelect(item.branchIndex!);
+    }
+  }
+
+  /// ⑨A 常用置顶钉位:v1 硬编码三钉(仪表盘/交易记录/报表分析;拖拽自定义
+  /// = backlog)—— 按标签从 [_navGroups] 查**同源** [_NavItem](名/图标/
+  /// 导航语义与分组项一致,避免双源漂移),钉位不参与折叠、不显选中态
+  /// (原型 v10 nav-sidebar .pin-block 形态:选中态在分组项)。
+  static const _pinnedLabels = ['仪表盘', '交易记录', '报表分析'];
+
+  List<_NavItem> _pinnedNavItems() => [
+        for (final label in _pinnedLabels)
+          _navGroups
+              .expand((g) => g.items)
+              .firstWhere((i) => i.label == label),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -390,57 +523,34 @@ class _Sidebar extends StatelessWidget {
               ),
             ]),
           ),
+          // 常用置顶区(⑨A)固定区:不随列表滚动 —— 原型 v10 明示「滚动与
+          // 折叠状态下始终可见」,高频路径点击成本恒定一次;亦规避懒构建
+          // ListView 深滚后置顶钉位离树(视口短于列表是 720p 常态)。
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+            child: _PinBlock(
+              items: _pinnedNavItems(),
+              onItemTap: _onItemTap,
+            ),
+          ),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               children: [
-                for (final g in _navGroups) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 14, 8, 4),
-                    child: Text(
-                      g.title,
-                      style: TextStyle(
-                        color: t.sidebarFg.withValues(alpha: 0.6),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
+                for (final g in _navGroups)
+                  _NavGroupSection(
+                    group: g,
+                    collapsed: _collapsed.contains(g.title),
+                    hasActive: g.items.any((item) => _isSelected(context, item)),
+                    isSelected: (item) => _isSelected(context, item),
+                    onToggleHead: () => _toggleGroup(g.title),
+                    onItemTap: _onItemTap,
                   ),
-                  for (final item in g.items)
-                    _NavItemTile(
-                      item: item,
-                      // route 项:当前路径在其前缀下时高亮(非 branch index);
-                      // branch 项在 route-only 项声称的路径下让位(防双高亮)。
-                      selected: item.route != null
-                          ? GoRouterState.of(context)
-                                  .matchedLocation
-                                  .startsWith(item.route!) ||
-                              // v6:订阅管理在模板下钻页 /accounts/templates
-                              // 也保持高亮(同一功能的两个视图)。
-                              (item.route == '/accounts/subscriptions' &&
-                                  _isSubscriptionManagement(
-                                      GoRouterState.of(context)
-                                          .matchedLocation))
-                          : item.branchIndex == currentIndex &&
-                              !_claimedByRouteOnlyNav(
-                                  GoRouterState.of(context).matchedLocation),
-                      onTap: item.branchIndex == null && item.route == null
-                          ? null
-                          : () {
-                              if (item.route != null) {
-                                context.go(item.route!);
-                              } else if (item.branchIndex != null) {
-                                onSelect(item.branchIndex!);
-                              }
-                            },
-                    ),
-                ],
                 // F41 反馈行(fix-2):导航列表尾部,随列表滚动 —— 固定区增高
                 // 会把债务/债权等导航项挤出 720p 视口;入列表尾后固定区零
                 // 增高,1080p+ 全列表可见即常驻。与最后一组以小顶距分隔。
                 const SizedBox(height: AppSpacing.xs),
-                _SidebarFeedbackRow(onTap: onFeedback),
+                _SidebarFeedbackRow(onTap: widget.onFeedback),
               ],
             ),
           ),
@@ -455,7 +565,9 @@ class _Sidebar extends StatelessWidget {
                 radius: 16,
                 backgroundColor: t.accentSoft,
                 child: Text(
-                  userName.isNotEmpty ? userName.characters.first : '财',
+                  widget.userName.isNotEmpty
+                      ? widget.userName.characters.first
+                      : '财',
                   style: TextStyle(color: t.sidebarActiveFg, fontSize: 13),
                 ),
               ),
@@ -464,7 +576,7 @@ class _Sidebar extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(userName,
+                    Text(widget.userName,
                         style: TextStyle(
                             color: t.fg,
                             fontSize: 13,
@@ -479,11 +591,256 @@ class _Sidebar extends StatelessWidget {
                 tooltip: '退出登录',
                 icon: Icon(LucideIcons.logOut,
                     color: t.sidebarFg, size: 18),
-                onPressed: onLogout,
+                onPressed: widget.onLogout,
               ),
             ]),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// ⑨ 导航增强 A:常用置顶区(原型 v10 .pin-block)—— 「常用」标签 +
+/// 三钉(复用 [_NavItemTile] 样式语言,恒常可见、不参与折叠)+ 底部
+/// 分隔线(原型为 dashed;Flutter 无内建虚线,v1 以 1px 实线近似)。
+class _PinBlock extends StatelessWidget {
+  const _PinBlock({required this.items, required this.onItemTap});
+
+  final List<_NavItem> items;
+  final void Function(_NavItem) onItemTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.yucai;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+          child: Text(
+            '常用',
+            style: TextStyle(
+              color: t.sidebarFg.withValues(alpha: 0.6),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        for (final item in items)
+          _NavItemTile(
+            item: item,
+            // 钉位不承载选中态(原型形态);导航语义与分组项同源。
+            selected: false,
+            onTap: () => onItemTap(item),
+          ),
+        Container(
+          margin: const EdgeInsets.fromLTRB(8, 6, 8, 2),
+          height: 1,
+          color: t.sidebarBorder,
+        ),
+      ],
+    );
+  }
+}
+
+/// ⑨ 导航增强 A:分组段 = 可点组头(折叠箭头 + 组内项数徽标,原型 v10
+/// nav-sidebar .grp-head 形态)+ 高度动画组体(250ms ease,原型 grid-rows
+/// 1fr→0fr 过渡的 Flutter 等价:ClipRect + Align heightFactor)。
+/// 折叠完成(controller.value == 0)后组体换 SizedBox.shrink —— 组内项
+/// **离开元素树**(不可见/不可点,find.text 亦不可达),与原型 display
+/// 语义对齐且免零高 hit-test 假命中。
+class _NavGroupSection extends StatefulWidget {
+  const _NavGroupSection({
+    required this.group,
+    required this.collapsed,
+    required this.hasActive,
+    required this.isSelected,
+    required this.onToggleHead,
+    required this.onItemTap,
+  });
+
+  final _NavGroup group;
+  final bool collapsed;
+
+  /// 组内含当前项(⑨A 活动组高亮:组头标签与项数徽标以强调色点亮,
+  /// 原型 .has-active 形态)。
+  final bool hasActive;
+  final bool Function(_NavItem) isSelected;
+  final VoidCallback onToggleHead;
+  final void Function(_NavItem) onItemTap;
+
+  @override
+  State<_NavGroupSection> createState() => _NavGroupSectionState();
+}
+
+class _NavGroupSectionState extends State<_NavGroupSection>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+    value: widget.collapsed ? 0 : 1,
+  );
+
+  @override
+  void didUpdateWidget(_NavGroupSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.collapsed != oldWidget.collapsed) {
+      widget.collapsed ? _controller.reverse() : _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _GroupHead(
+          // 态后缀 key(展开无后缀/折叠 -collapsed):测试与 e2e 断言折叠
+          // 态的可观测契约(见 goPage 折叠感知适配)。
+          key: ValueKey(
+              'navGroupHead-${widget.group.title}${widget.collapsed ? '-collapsed' : ''}'),
+          title: widget.group.title,
+          count: widget.group.items.length,
+          active: widget.hasActive,
+          collapsed: widget.collapsed,
+          onTap: widget.onToggleHead,
+        ),
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            if (_controller.value == 0) return const SizedBox.shrink();
+            return ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: _controller.value,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final item in widget.group.items)
+                      _NavItemTile(
+                        item: item,
+                        selected: widget.isSelected(item),
+                        onTap:
+                            item.branchIndex == null && item.route == null
+                                ? null
+                                : () => widget.onItemTap(item),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// 组头行(原型 .grp-head):小标签 + [项数徽标 + 折叠箭头];hover 面色、
+/// 活动组(组内含当前项)标签/徽标以 sidebarActive* 点亮。
+class _GroupHead extends StatefulWidget {
+  const _GroupHead({
+    super.key,
+    required this.title,
+    required this.count,
+    required this.active,
+    required this.collapsed,
+    required this.onTap,
+  });
+
+  final String title;
+  final int count;
+  final bool active;
+  final bool collapsed;
+  final VoidCallback onTap;
+
+  @override
+  State<_GroupHead> createState() => _GroupHeadState();
+}
+
+class _GroupHeadState extends State<_GroupHead> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.yucai;
+    final fg = widget.active
+        ? t.sidebarActiveFg
+        : t.sidebarFg.withValues(alpha: 0.6);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 14, 8, 4),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: _hover ? t.sidebarHover : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                // 项数徽标(原型 .cnt pill);活动组换用强调色底/字。
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: widget.active
+                        ? t.sidebarActiveBg
+                        : t.surfaceAlt.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: widget.active
+                          ? Colors.transparent
+                          : t.border,
+                    ),
+                  ),
+                  child: Text(
+                    '${widget.count}',
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 折叠箭头(原型 .chev-sm):展开朝下(90°)/收起朝右(0°),
+                // 220ms 旋转过渡。
+                AnimatedRotation(
+                  turns: widget.collapsed ? 0 : 0.25,
+                  duration: const Duration(milliseconds: 220),
+                  child: Icon(LucideIcons.chevronRight,
+                      size: 14, color: fg),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

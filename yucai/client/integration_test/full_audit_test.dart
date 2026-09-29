@@ -24,7 +24,8 @@ import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/app/app.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'link_support.dart' show deleteTestDb, resetTestDb;
+import 'link_support.dart'
+    show deleteTestDb, expandCollapsedNavGroups, resetTestDb;
 
 /// 审计发现(C 类):占位/未实现/可疑提示。
 final findings = <String>[];
@@ -65,11 +66,32 @@ void sweepMarkers(WidgetTester t, String where) {
 Future<void> goPage(WidgetTester t, String sidebarLabel) async {
   var finder = find.text(sidebarLabel);
   if (finder.evaluate().isEmpty) {
+    // ⑨导航增强 A:折叠组体不构建(折叠态可被持久化残留)→ 先展开
+    // 全部折叠组(link_support.expandCollapsedNavGroups,组头态后缀
+    // key 契约),无折叠时 no-op。
+    await expandCollapsedNavGroups(t);
+    finder = find.text(sidebarLabel);
+  }
+  if (finder.evaluate().isEmpty) {
     // 侧栏分组多时目标项可能在视口外(如「债权管理」)→ 滚侧栏露出再点。
     try {
       await t.scrollUntilVisible(
         finder,
         80,
+        scrollable: find.byType(Scrollable).first,
+        duration: const Duration(milliseconds: 150),
+      );
+    } catch (_) {}
+    await t.pumpAndSettle();
+    finder = find.text(sidebarLabel);
+  }
+  if (finder.evaluate().isEmpty) {
+    // ⑨A 双向滚动:浅组项位于已下滚列表上方(懒构建滚出 cacheExtent
+    // 即离树)→ 负 delta 反向找。
+    try {
+      await t.scrollUntilVisible(
+        finder,
+        -80,
         scrollable: find.byType(Scrollable).first,
         duration: const Duration(milliseconds: 150),
       );

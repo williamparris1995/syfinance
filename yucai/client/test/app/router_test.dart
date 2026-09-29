@@ -491,7 +491,11 @@ void main() {
     // 本票(挂回 shell):/reports 从 shell 外顶层路由并入 branch 10 索引
     // 位(与 /reports/full 同 branch)—— 双页形态一致。宽屏视口挂侧栏,
     // 断言面包屑/侧栏高亮两处 shell 形态。
-    tester.view.physicalSize = const Size(1400, 900);
+    // ⑨导航增强 A 适配:加高视口(1500)使侧栏全量入树(置顶区占高后
+    // 「工具」组在 900 高落入懒构建折叠线);「报表分析」四处 = 常用钉位 +
+    // 分组项 + 顶栏面包屑 + 页头标题;active 断言取分组项(树序 .last,
+    // 钉位不承载选中态)。
+    tester.view.physicalSize = const Size(1400, 1500);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     final authBloc = _seededAuthBloc();
@@ -505,14 +509,17 @@ void main() {
     expect(find.byType(ReportPage), findsOneWidget);
     expect(find.byType(AppShell), findsOneWidget,
         reason: '/reports 应在 StatefulShellRoute 内(branch 10 索引页)');
-    // 「报表分析」三处:侧栏 nav + 顶栏面包屑(单级,section 空)+
-    // 页头标题(页面自带顶栏退役,标题收进页头 —— 照财务报告页先例)。
-    expect(find.text('报表分析'), findsNWidgets(3),
-        reason: '侧栏 nav + 顶栏面包屑 + 页头标题各一处');
-    // 侧栏 active 态:「报表分析」高亮(branch 10 = 当前 branch)。
+    // 「报表分析」四处:常用钉位(⑨A)+ 侧栏 nav + 顶栏面包屑(单级,
+    // section 空)+ 页头标题(页面自带顶栏退役,标题收进页头 —— 照财务
+    // 报告页先例)。
+    expect(find.text('报表分析'), findsNWidgets(4),
+        reason: '常用钉位 + 侧栏 nav + 顶栏面包屑 + 页头标题各一处');
+    // 侧栏 active 态:「报表分析」分组项高亮(branch 10 = 当前 branch);
+    // 树序 pin → 分组项 → 面包屑 → 页头标题 → 分组项 = .at(1)(钉位
+    // 无选中态,原型 v10 形态;页头/面包屑文本非 tile)。
     final tile = tester.widget<AnimatedContainer>(find
         .ancestor(
-            of: find.text('报表分析'),
+            of: find.text('报表分析').at(1),
             matching: find.byType(AnimatedContainer))
         .first);
     expect((tile.decoration as BoxDecoration).color,
@@ -525,7 +532,10 @@ void main() {
     // 报表分析/财务报告同属 branch 10:进入财务报告时「报表分析」nav 项
     // (route startsWith '/reports')保持高亮 —— F43 原设计语义,本票并入
     // 同 branch 后钉住不回归。
-    tester.view.physicalSize = const Size(1400, 900);
+    // ⑨导航增强 A 适配:同上加高视口全量入树;「报表分析」三处 = 常用
+    // 钉位 + 侧栏 nav + 顶栏面包屑 section(财务报告页自身无「报表分析」
+    // 串 —— 自带顶栏已退役)。
+    tester.view.physicalSize = const Size(1400, 1500);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     final authBloc = _seededAuthBloc();
@@ -534,12 +544,11 @@ void main() {
     await tester.pumpWidget(app(router, authBloc));
     await tester.pumpAndSettle();
 
-    // 「报表分析」两处:侧栏 nav + 顶栏面包屑 section(财务报告页自身
-    // 无「报表分析」串 —— 自带顶栏已退役)。
-    expect(find.text('报表分析'), findsNWidgets(2));
+    // 树序 pin → 分组项 → 面包屑 → 分组项 = .at(1)(钉位无选中态)。
+    expect(find.text('报表分析'), findsNWidgets(3));
     final tile = tester.widget<AnimatedContainer>(find
         .ancestor(
-            of: find.text('报表分析'),
+            of: find.text('报表分析').at(1),
             matching: find.byType(AnimatedContainer))
         .first);
     expect((tile.decoration as BoxDecoration).color,
@@ -551,6 +560,10 @@ void main() {
       '(branch 10)', (tester) async {
     // 侧栏「报表分析」点击应停留在 shell 内导航到 branch 10(此前为 shell
     // 外顶层路由,整页跳出)。宽屏显侧栏;tap 后 shell 常驻、ReportPage 渲染。
+    // ⑨导航增强 A 适配:900 高视口下「工具」组分组项在懒构建折叠线下,
+    // 树内「报表分析」= 常用钉位(置顶区恒可见)—— 钉位 tap 走同源
+    // context.go('/reports'),与分组项点击等价;分组项 tap 由
+    // app_shell_test 分组分支覆盖。
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

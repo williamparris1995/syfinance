@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/app/nav_settings.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/oidc_authenticator.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
@@ -192,6 +193,13 @@ Future<void> configureDependencies() async {
   //     IndexedStack 分支的页面级缓存(HomePage),见 core/data_refresh.dart。
   getIt.registerLazySingleton<DataRefreshNotifier>(DataRefreshNotifier.new);
 
+  // 1j. ⑨ 导航增强 A(2026-09-29):侧栏分组展开态记忆 —— 手工注册
+  //     lazySingleton(照 1i 先例,免 build_runner 重生成;构造依赖 =
+  //     1a 的 FlutterSecureStorage const 实例)。消费点 = AppShell 侧栏
+  //     (guarded getIt);load 挂 2e。
+  getIt.registerLazySingleton<NavSettings>(
+      () => NavSettings(getIt<FlutterSecureStorage>()));
+
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.
   getIt.init();
@@ -215,6 +223,12 @@ Future<void> configureDependencies() async {
   //     the settings card read persisted truth synchronously. Default
   //     off = zero behavior change (Migration Plan).
   await getIt<LlmSettings>().load();
+
+  // 2e. ⑨ 导航增强 A (2026-09-29): sync the persisted sidebar collapsed-group
+  //     set (NavSettings, ThemeSettings 家法镜像) so the shell sidebar starts
+  //     on the user's saved expand/collapse state. Default empty = all groups
+  //     expanded (zero behavior change for first run).
+  await getIt<NavSettings>().load();
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
   final refreshTokenUseCase = getIt<RefreshTokenUseCase>();

@@ -14,11 +14,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:yucai_client/app/app.dart';
 
-import 'link_support.dart' show deleteTestDb, resetTestDb;
+import 'link_support.dart'
+    show deleteTestDb, expandCollapsedNavGroups, goPage, resetTestDb;
 
 Future<void> _pumpPage(WidgetTester t, String label) async {
-  await t.tap(find.text(label));
-  await t.pumpAndSettle(const Duration(seconds: 2));
+  // ⑨导航增强 A:改用共享 goPage(折叠组展开 + 双向滚动 + tap settle)
+  // —— 置顶区占高后列表高于视口是常态(本机 682 逻辑高即超),下位
+  // 组项(债务管理等)需滚动露出;.first 兼容「常用」钉位与分组项同名
+  // 两处(树序钉位先,导航同源)。
+  await goPage(t, label);
 }
 
 /// 富文本感知 finder:Text.rich(StyledSpan)的 data 为 null,
@@ -89,12 +93,37 @@ void main() {
   testWidgets('交易记录:演示收支入列', (t) async {
     await t.pumpWidget(const YuCaiApp());
     await t.pumpAndSettle(const Duration(seconds: 3));
-    await _pumpPage(t, '交易');
+    // ⑨导航增强 A 适配:先展开可能持久化残留的折叠组,再按形态取导航
+    // 目标 —— 宽屏点「交易记录」(常用钉位;侧栏「交易」是分组头 =
+    // 折叠开关,不再是导航目标),窄屏点底栏「交易」。此前宽屏误点分组
+    // 标签(无导航副作用)滞留仪表盘,断言靠首页卡片文本假通过;现在
+    // 真实进列表页,断言回归本测名义(演示收支入列)。
+    await expandCollapsedNavGroups(t);
+    final wide = find.text('交易记录').evaluate().isNotEmpty;
+    await _pumpPage(t, wide ? '交易记录' : '交易');
     await t.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(find.textContaining('工资'), findsWidgets,
+    // b2acee32 无限滚动:种子行可能在首屏折叠线下,拖至可见再断言
+    // (full_audit A4 同款;页面主 ListView = RefreshIndicator 子树)。
+    final needles = ['工资', '午餐'];
+    final listScrollable = find
+        .descendant(
+          of: find.byType(RefreshIndicator),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    for (var i = 0;
+        i < 50 &&
+            needles
+                .any((n) => textContainingRich(n).evaluate().isEmpty);
+        i++) {
+      await t.drag(listScrollable, const Offset(0, -150));
+      await t.pumpAndSettle();
+    }
+
+    expect(textContainingRich('工资').evaluate(), isNotEmpty,
         reason: '工资交易应入列');
-    expect(find.textContaining('午餐'), findsWidgets);
+    expect(textContainingRich('午餐').evaluate(), isNotEmpty);
   });
 
   testWidgets('投资组合:本地收益引擎出数值(离线口径)', (t) async {

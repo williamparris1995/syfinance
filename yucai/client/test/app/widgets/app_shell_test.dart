@@ -11,12 +11,18 @@
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/app/nav_settings.dart';
+import 'package:yucai_client/app/widgets/command_palette.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/delete_account_usecase.dart';
@@ -72,6 +78,9 @@ class _MockGoalRepo extends Mock implements GoalRepository {}
 /// F12 T2:SyncCoordinatorBloc 替身(照 backup_page_test 的 mock bloc 形态,
 /// state/stream 桩)—— AppShell.build 首个生产 resolve 点的挂载验证用。
 class _MockSyncBloc extends Mock implements SyncCoordinatorBloc {}
+
+/// ⑨A 折叠记忆通道后端(NavSettings 注入缝,照 theme_settings_test 形态)。
+class _MockSecureStorage extends Mock implements FlutterSecureStorage {}
 
 /// Fake NetWorthDataSource — HomePage _loadNetWorth reads getIt<NetWorthDataSource>
 /// at initState (68508b2); register a fake so /home resolves. Mirrors router_test.
@@ -368,6 +377,184 @@ void main() {
 
     expect(find.widgetWithText(AlertDialog, '意见反馈'), findsOneWidget);
     expect(find.text('提交反馈'), findsOneWidget);
+  });
+
+  // ── ⑨ 导航增强 A:侧栏分组折叠 / 活动组高亮 / 常用置顶 ─────────────────
+  // 宽屏挂侧栏(默认 800x600 走底栏);置顶区新增同名钉位后,
+  // 仪表盘/交易记录/报表分析 在侧栏两处(pin + 分组项)。
+
+  Future<void> pumpWideShell(WidgetTester tester,
+      {double logicalHeight = 900}) async {
+    tester.view.physicalSize = Size(2400, logicalHeight * 2); // logical 1200xH
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await pumpShell(tester);
+  }
+
+  testWidgets('⑨A 分组折叠:点组头收起分组,组内项离树;再点展开复原',
+      (tester) async {
+    await pumpWideShell(tester);
+
+    // 默认全展开:资产组项可见。
+    expect(find.text('账户管理'), findsOneWidget);
+
+    // 组头可点(key 携带折叠态后缀,供测试/e2e 断言态)。
+    await tester.tap(find.byKey(const ValueKey('navGroupHead-资产')));
+    await tester.pumpAndSettle();
+
+    // 折叠后:组内项离开树(不可见不可点),组头仍在;key 翻到折叠态。
+    expect(find.byKey(const ValueKey('navGroupHead-资产')), findsNothing);
+    expect(find.byKey(const ValueKey('navGroupHead-资产-collapsed')),
+        findsOneWidget);
+    expect(find.text('账户管理'), findsNothing);
+    expect(find.text('投资组合'), findsNothing);
+
+    // 再点折叠态组头:展开复原。
+    await tester.tap(find.byKey(const ValueKey('navGroupHead-资产-collapsed')));
+    await tester.pumpAndSettle();
+    expect(find.text('账户管理'), findsOneWidget);
+    expect(find.text('投资组合'), findsOneWidget);
+  });
+
+  testWidgets('⑨A 折叠记忆:收起分组经 NavSettings 落 secure storage', (tester) async {
+    // 家法通道:NavSettings(ThemeSettings 同款)mock 后端注册进 getIt;
+    // AppShell 折叠切换应写全量折叠组集合。
+    final storage = _MockSecureStorage();
+    when(() => storage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
+    when(() => storage.write(key: any(named: 'key'), value: any(named: 'value')))
+        .thenAnswer((_) async {});
+    getIt.registerSingleton<NavSettings>(NavSettings(storage));
+
+    await pumpWideShell(tester);
+
+    await tester.tap(find.byKey(const ValueKey('navGroupHead-借贷')));
+    await tester.pumpAndSettle();
+
+    verify(() => storage.write(key: 'nav_collapsed_groups', value: '借贷'))
+        .called(1);
+    expect(find.text('债务管理'), findsNothing);
+  });
+
+  testWidgets('⑨A 活动组高亮:/home 下「概览」组头以强调色点亮', (tester) async {
+    await pumpWideShell(tester);
+
+    // 概览组含当前项(仪表盘,branch 0)→ 组头标签换强调色(裸 MaterialApp
+    // harness 无 extension → context.yucai 回落亮色令牌,独立断言期望值)。
+    final label = tester.widget<Text>(find.text('概览'));
+    expect(
+      label.style?.color,
+      equals(YucaiTheme.light().sidebarActiveFg),
+      reason: '活动组组头标签应以 sidebarActiveFg 点亮(原型 .has-active)',
+    );
+    // 非活动组(资产)保持 muted。
+    final idle = tester.widget<Text>(find.text('资产'));
+    expect(idle.style?.color, isNot(equals(YucaiTheme.light().sidebarActiveFg)));
+  });
+
+  testWidgets('⑨A 常用置顶区:三钉常显,钉位点击导航,钉位不显选中态', (tester) async {
+    // 加高视口(1500 逻辑高):置顶区占高后「工具」组在 900 高视口下落入
+    // 懒构建折叠线下 —— 加高使全侧栏入树,断言 pin+分组项两处同名。
+    await pumpWideShell(tester, logicalHeight: 1500);
+
+    // 置顶区标签 + 三钉(硬编码 v1:仪表盘/交易记录/报表分析;拖拽自定义=
+    // backlog)。侧栏同名两处(pin + 分组项);/home 面包屑另含「仪表盘」
+    // → 仪表盘全树三处。
+    expect(find.text('常用'), findsOneWidget);
+    expect(find.text('仪表盘'), findsNWidgets(3),
+        reason: 'pin + 分组项 + 顶栏面包屑');
+    expect(find.text('交易记录'), findsNWidgets(2));
+    expect(find.text('报表分析'), findsNWidgets(2));
+
+    // 当前页 = 仪表盘(/home):分组项高亮,钉位不显选中态(原型形态:
+    // pin-block 无 active class)。树序 pin 先于分组项 → .first 即钉位。
+    final pinTile = tester.widget<AnimatedContainer>(
+      find
+          .ancestor(
+              of: find.text('仪表盘').first,
+              matching: find.byType(AnimatedContainer))
+          .first,
+    );
+    expect((pinTile.decoration as BoxDecoration).color,
+        equals(Colors.transparent),
+        reason: '钉位不承载选中态(选中态在分组项,原型 v10 pin-block)');
+
+    // 钉位点击导航:报表分析钉(pin 在置顶区,恒可见)→ /reports。
+    await tester.tap(find.text('报表分析').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final ctx = tester.element(find.byType(Navigator).first);
+    expect(
+        GoRouter.of(ctx).routerDelegate.currentConfiguration.uri.toString(),
+        '/reports');
+  });
+
+  // ── ⑨ 导航增强 B:Ctrl+K 全局命令面板(shell 级挂载) ────────────────────
+  // 机制取舍(钉):Flutter 内建 Shortcuts/Actions 挂 AppShell 层(任务书
+  // B1 选型,非 window_manager 键盘钩子)—— shell 内任意焦点(含文本框,
+  // Ctrl+K 非文本默认键位,冒泡可达)触发;Focus(autofocus) 兜底启动
+  // 零焦点期。面板组件级行为见 command_palette_test。
+
+  testWidgets('⑨B Ctrl+K 唤起命令面板,Esc 关闭,再 Ctrl+K 切换(toggle)',
+      (tester) async {
+    await pumpShell(tester);
+    expect(find.byType(CommandPalette), findsNothing);
+
+    // Ctrl+K 唤起。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyK);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.byType(CommandPalette), findsOneWidget);
+    expect(find.text('记一笔'), findsOneWidget, reason: '面板应显操作组条目');
+
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+    // Esc 关闭。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byType(CommandPalette), findsNothing);
+
+    // 再 Ctrl+K = 重新唤起;开面板态 Ctrl+K = 关闭(toggle,原型语义)。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyK);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.byType(CommandPalette), findsOneWidget);
+
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyK);
+    await tester.pump();
+    expect(find.byType(CommandPalette), findsNothing);
+  });
+
+  testWidgets('⑨B 面板内 Enter 导航:↓ 选中报表分析后 ↵ 跳 /reports(shell 内)',
+      (tester) async {
+    await pumpShell(tester);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyK);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+    // ↓ → 第二项(报表分析),↵ 执行 → shell 内 branch 10。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final ctx = tester.element(find.byType(Navigator).first);
+    expect(
+        GoRouter.of(ctx).routerDelegate.currentConfiguration.uri.toString(),
+        '/reports');
+    expect(find.byType(CommandPalette), findsNothing, reason: '执行后关闭');
   });
 
   // ── 反馈1a(反馈⑥ 回归):shell 层不再持选区 scope ─────────────────────

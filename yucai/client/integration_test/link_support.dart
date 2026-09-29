@@ -108,19 +108,57 @@ Finder textContainingRich(String needle) =>
       return false;
     });
 
+/// 侧栏分组标题(⑨导航增强 A 折叠感知用;与 app_shell._navGroups 同源
+/// 维护 —— 组名变更时同步此表)。
+const kNavGroupTitles = ['概览', '资产', '交易', '规划', '借贷', '工具'];
+
+/// ⑨导航增强 A:展开所有折叠组。侧栏分组可折叠且折叠态经 NavSettings
+/// 持久化(secure storage)—— 开发机真实存储可能残留折叠态(与主题偏好
+/// 同泄漏面,见 full_audit NFR-1 注),折叠组体不构建 → find.text 不可达。
+/// 组头 key 后缀 -collapsed 即折叠态(app_shell 态后缀 key 契约);无
+/// 折叠时本函数为 no-op。
+Future<void> expandCollapsedNavGroups(WidgetTester t) async {
+  for (final title in kNavGroupTitles) {
+    final head = find.byKey(ValueKey('navGroupHead-$title-collapsed'));
+    if (head.evaluate().isNotEmpty) {
+      await t.tap(head.first);
+      await t.pumpAndSettle(const Duration(milliseconds: 400));
+    }
+  }
+}
+
 /// 侧栏导航 helper:目标项在视口外时先滚侧栏露出再点,点后 settle。
 /// 来源:自 12 个 ui_*_test.dart 的逐字重复副本收口(F14-T2)——祖源
 /// full_audit_test.goPage 的严格断言变体,F6 UI 链 11 文件首次复制,
 /// F9 code-ledger 首次记为测试债(~200 行),F10/F8 新增文件同款沿用;
 /// 全部副本 diff 逐位相同,无漂移,故单一共享版、签名与行为逐位不变
 /// (scrollUntilVisible 80px/步、150ms/步长、tap 后 pumpAndSettle 2s)。
+/// ⑨A 增补:找不到时先展开折叠组(持久化残留);滚动双向 —— 先向下
+/// (新目标在折叠线下方),再向上(浅组项位于已下滚列表的上方;懒构建
+/// 下滚出 cacheExtent 即离树,默认方向够不着,需负 delta 反向找)。
 Future<void> goPage(WidgetTester t, String sidebarLabel) async {
   var finder = find.text(sidebarLabel);
+  if (finder.evaluate().isEmpty) {
+    await expandCollapsedNavGroups(t);
+    finder = find.text(sidebarLabel);
+  }
   if (finder.evaluate().isEmpty) {
     try {
       await t.scrollUntilVisible(
         finder,
         80,
+        scrollable: find.byType(Scrollable).first,
+        duration: const Duration(milliseconds: 150),
+      );
+    } catch (_) {}
+    await t.pumpAndSettle();
+    finder = find.text(sidebarLabel);
+  }
+  if (finder.evaluate().isEmpty) {
+    try {
+      await t.scrollUntilVisible(
+        finder,
+        -80,
         scrollable: find.byType(Scrollable).first,
         duration: const Duration(milliseconds: 150),
       );
