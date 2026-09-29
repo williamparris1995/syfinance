@@ -10,10 +10,15 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/widgets/current_route_selection_area.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:yucai_client/core/widgets/yucai_context_menu.dart';
+import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
+import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
@@ -208,6 +213,8 @@ class _TransactionsViewState extends State<_TransactionsView> with RouteAware {
             onCreate: _openCreateForm,
             onExport: _export,
             onOpenDetail: _openDetail,
+            // 反馈1b:右键删除后回拉(保留筛选,同 didPopNext 语义)。
+            onRowDeleted: _reloadAfterMutation,
             // F7 FR-4:页码分页(prev/next)。翻页不触发 summary 重算。
             onPrevPage: () => context.read<TransactionBloc>().add(
                 const GoToTransactionsPageRequested(TxnPageDirection.prev)),
@@ -230,6 +237,7 @@ class _Content extends StatelessWidget {
     required this.onCreate,
     required this.onExport,
     required this.onOpenDetail,
+    this.onRowDeleted,
     required this.onPrevPage,
     required this.onNextPage,
   });
@@ -241,6 +249,9 @@ class _Content extends StatelessWidget {
   final VoidCallback onCreate;
   final VoidCallback onExport;
   final ValueChanged<String> onOpenDetail;
+
+  /// 反馈1b:行右键删除成功后的回拉(透传 _TxCard → _TxTableRow)。
+  final VoidCallback? onRowDeleted;
 
   /// F7 FR-4:翻页回调(filter 不变,bloc 内部换 token 重查)。
   final VoidCallback onPrevPage;
@@ -388,6 +399,7 @@ class _Content extends StatelessWidget {
                           groups: groups,
                           accounts: accounts,
                           onOpenDetail: onOpenDetail,
+                          onDeleted: onRowDeleted,
                           showPager: _showPager,
                           pageIndex: _pageIndex,
                           hasMore: _hasMore,
@@ -400,6 +412,7 @@ class _Content extends StatelessWidget {
                           groups: groups,
                           accounts: accounts,
                           onOpenDetail: onOpenDetail,
+                          onDeleted: onRowDeleted,
                           showPager: _showPager,
                           pageIndex: _pageIndex,
                           hasMore: _hasMore,
@@ -659,6 +672,7 @@ class _TxCard extends StatelessWidget {
     required this.groups,
     required this.accounts,
     required this.onOpenDetail,
+    this.onDeleted,
     required this.showPager,
     required this.pageIndex,
     required this.hasMore,
@@ -671,6 +685,9 @@ class _TxCard extends StatelessWidget {
   final Map<String, List<Transaction>> groups;
   final List<Account> accounts;
   final ValueChanged<String> onOpenDetail;
+
+  /// 反馈1b:行右键删除成功后的列表回拉(透传至 _TxTableRow)。
+  final VoidCallback? onDeleted;
 
   /// F7 FR-4:是否渲染分页页脚(单页隐藏整个分页条)。
   final bool showPager;
@@ -712,6 +729,7 @@ class _TxCard extends StatelessWidget {
                 accountNameOf: _nameOf,
                 accountOf: _accountOf,
                 onOpenDetail: onOpenDetail,
+                onDeleted: onDeleted,
               ),
           ],
           _PagerFooter(
@@ -800,12 +818,60 @@ class _TxTableRow extends StatelessWidget {
     required this.accountNameOf,
     required this.accountOf,
     required this.onOpenDetail,
+    this.onDeleted,
   });
 
   final Transaction txn;
   final String Function(String id) accountNameOf;
   final Account? Function(String id) accountOf;
   final ValueChanged<String> onOpenDetail;
+
+  /// 反馈1b:右键删除成功后的列表回拉(页面注入 _reloadAfterMutation,
+  /// 保留当前筛选 —— 与 didPopNext 回拉同语义)。
+  final VoidCallback? onDeleted;
+
+  /// 反馈1b:右键「复制备注」—— Clipboard 直写(先例 feedback_launcher
+  /// Clipboard.setData;本文件 TagRepository/TransactionRepository getIt
+  /// 直取同款 widget 层先例)。
+  void _copyNote(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: txn.description));
+    AppToast.show(context, '已复制备注', type: ToastType.success);
+  }
+
+  /// 反馈1b:右键「删除」—— 确认对话框文案同详情页 _delete(冲销语义),
+  /// 执行走 repo.delete(直连;列表 bloc 的 _onDelete 是详情页状态机,
+  /// 不复用),成功后 toast + 回拉列表。
+  Future<void> _delete(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('删除交易'),
+        content: Text('删除「${txn.description.isEmpty ? '此交易' : txn.description}」'
+            '将生成一条冲销分录，撤销该笔借贷记录。此操作不可撤销。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text('删除',
+                style: TextStyle(color: context.yucai.negative)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final result = await getIt<TransactionRepository>().delete(txn.id);
+    if (!context.mounted) return;
+    result.fold(
+      (failure) => AppToast.show(context, failure.displayMessage,
+          type: ToastType.error),
+      (_) {
+        AppToast.show(context, '已删除', type: ToastType.success);
+        onDeleted?.call();
+      },
+    );
+  }
 
   /// 转账判定（两条 entry 且两端账户都是 asset）。
   bool get _isTransfer {
@@ -834,7 +900,30 @@ class _TxTableRow extends StatelessWidget {
     final amount = txn.totalDebitCents; // 表格用主金额（借方合计）展示
     final cell = _resolveAccountCell();
 
-    return InkWell(
+    // 反馈1b:行右键场景菜单(「编辑」「删除」「复制备注」)—— 编辑复用
+    // 既有 /transactions/:id/edit 路由;复制/删除见上;共享组件
+    // YucaiContextMenuRegion(translucent 不进主键竞技场,行 tap/悬停
+    // 既有测试零扰动)。两类先例面之一,不铺开。
+    return YucaiContextMenuRegion(
+      items: [
+        YucaiMenuItemData(
+          label: '编辑',
+          icon: LucideIcons.pencil,
+          onTap: () => context.push('/transactions/${txn.id}/edit'),
+        ),
+        YucaiMenuItemData(
+          label: '删除',
+          icon: LucideIcons.trash2,
+          destructive: true,
+          onTap: () => _delete(context),
+        ),
+        YucaiMenuItemData(
+          label: '复制备注',
+          icon: LucideIcons.copy,
+          onTap: () => _copyNote(context),
+        ),
+      ],
+      child: InkWell(
       onTap: () => onOpenDetail(txn.id),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -900,6 +989,7 @@ class _TxTableRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

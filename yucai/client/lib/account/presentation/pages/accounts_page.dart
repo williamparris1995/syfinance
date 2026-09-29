@@ -29,6 +29,7 @@ import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
+import 'package:yucai_client/core/widgets/yucai_context_menu.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 
 /// 账户管理列表页。对齐 OD 原型 CSS 1:1：
@@ -1545,7 +1546,24 @@ class _AccountCardState extends State<_AccountCard> {
       ),
     );
     if (archived) card = Opacity(opacity: 0.55, child: card);
-    return card;
+    // 反馈1b:账户卡右键场景菜单(「账户详情」「记一笔」—— 动作复用
+    // 本卡既有 onTap 详情路由与 _recordTxn 快捷记账;共享组件
+    // YucaiContextMenuRegion,取舍见其头注。两类先例面之一,不铺开。
+    return YucaiContextMenuRegion(
+      items: [
+        YucaiMenuItemData(
+          label: '账户详情',
+          icon: LucideIcons.info,
+          onTap: () => context.go('/accounts/${a.id}'),
+        ),
+        YucaiMenuItemData(
+          label: '记一笔',
+          icon: LucideIcons.plus,
+          onTap: () => _recordTxn(context),
+        ),
+      ],
+      child: card,
+    );
   }
 
   /// desktop/tablet 完整卡（对齐 tablet.html .card）。

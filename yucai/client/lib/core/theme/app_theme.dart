@@ -79,6 +79,18 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
       ),
+      // 反馈1b:右键场景菜单(showMenu)面色令牌 —— surface 面 + 圆角 10 +
+      // elevation 6,黑阴影豁免同 yucaiMenuStyle 注释口径(暗底不可见 ≈
+      // 无阴影);surfaceTint 清零保令牌面原色。既有长按快捷菜单
+      // (accounts _showQuickMenu)同源受益。
+      popupMenuTheme: PopupMenuThemeData(
+        color: t.surface,
+        elevation: 6,
+        shadowColor: const Color(0x1F000000),
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10))),
+      ),
       cardTheme: CardThemeData(
         color: t.surface,
         elevation: isDark ? 0 : 4,
