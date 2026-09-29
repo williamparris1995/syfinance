@@ -55,14 +55,18 @@ class SectionDotNav extends StatelessWidget {
 
   /// 最长标签 chip 的渲染宽度(文本 + 横 padding 20 + 边框 2),
   /// 各行共用 → 圆点恒定右对齐。
+  ///
+  /// 测算样式必须**带主题字体**(继承 DefaultTextStyle 的 fontFamily):
+  /// TextPainter 裸 TextStyle 走默认字体,中文宽度普遍小于微软雅黑
+  /// 实测,曾致最宽标签被 ellipsis 截断(反馈①三版)。
   double _labelSlotWidth(BuildContext context) {
     final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final base = DefaultTextStyle.of(context).style;
+    final style = base.copyWith(fontSize: 11.5, fontWeight: FontWeight.w600);
     final tp = TextPainter(textDirection: TextDirection.ltr, textScaler: scaler);
     var widest = 0.0;
     for (final label in labels) {
-      tp.text = TextSpan(
-          text: label,
-          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600));
+      tp.text = TextSpan(text: label, style: style);
       tp.layout();
       if (tp.width > widest) widest = tp.width;
     }
