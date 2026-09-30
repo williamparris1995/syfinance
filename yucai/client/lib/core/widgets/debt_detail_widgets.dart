@@ -1308,7 +1308,27 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
           Icon(sem.isReceivable ? LucideIcons.check : LucideIcons.check,
               size: 12, color: context.yucai.positive),
           const SizedBox(width: 4),
-          Text(sem.schedulePaidLabel,
+          Text(
+              widget.debt.subtype == DebtSubtypes.cardLoan
+                  ? '已并入账单'
+                  : sem.schedulePaidLabel,
+              style: TextStyle(fontSize: 11, color: context.yucai.muted)),
+        ],
+      );
+    }
+    // 卡贷(F48):两回调置空 = 期次由账单日自动并入卡账单、随卡还款 ——
+    // 不渲染手工确认按钮(从储蓄卡手工还会双重支付),以状态文案呈现。
+    final isAutoMerged = widget.debt.subtype == DebtSubtypes.cardLoan ||
+        (widget.onConfirmInline == null && widget.onOpenDialog == null);
+    if (isAutoMerged) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.creditCard,
+              size: 12, color: context.yucai.muted),
+          const SizedBox(width: 4),
+          Text('待并入账单',
+              key: const ValueKey('cardLoanPendingMerge'),
               style: TextStyle(fontSize: 11, color: context.yucai.muted)),
         ],
       );
@@ -1316,13 +1336,9 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     final overdue = e.status == PaymentStatus.overdue;
     final hasCollection = widget.collectionAccountId != null &&
         widget.collectionAccountId!.isNotEmpty;
-    // 卡贷(F48):两回调置空 = 期次自动并入账单,手工确认按钮不渲染
-    // (从储蓄卡手工还会双重支付);已并入期次上方 paid 分支照旧。
-    final onPressed = (hasCollection ? widget.onConfirmInline : widget.onOpenDialog) == null
-        ? null
-        : (hasCollection
-            ? () => widget.onConfirmInline!(e)
-            : () => widget.onOpenDialog!(e));
+    final onPressed = hasCollection
+        ? () => widget.onConfirmInline!(e)
+        : () => widget.onOpenDialog!(e);
     // Wrap(非 Row):主/副按钮在窄列(平板 table cell)自动换行,避免溢出。
     return Wrap(
       spacing: 4,

@@ -12,6 +12,7 @@ import 'package:yucai_client/core/demo/demo_seed.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/notifications_bootstrap.dart';
 import 'package:yucai_client/core/notifications/window_state.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/settings/data/local_snapshot_service.dart';
 
 /// 全局错误落盘(用户验收辅助):release 无控制台,报错写
@@ -101,6 +102,15 @@ Future<void> main() async {
   // F22「关闭=hide 到托盘」与真 exit 均天然覆盖 —— 保存不依赖关闭时机,
   // 几何每次变更后即持久化,关闭时无需补存。
   windowState.start();
+  // F48 卡贷并账 catchup:到账单日的期次自动并入挂接卡账单 —— 触发点原在
+  // DebtRepository.list/get,但用户可能整天不进债务页;启动即催一次
+  // (repo.list 内部幂等 catchup,guestLocal 路由生效)。fire-and-forget
+  // 不阻塞首屏,失败静默(进债务页仍会重催)。
+  unawaited(() async {
+    try {
+      await getIt<DebtRepository>().list();
+    } catch (_) {}
+  }());
   runApp(const YuCaiApp());
   // Windows debug 下偶发首帧不呈现(2026-09-24 复现:窗口纯白、isolate 空闲
   // 无异常,VM service 触发 reassemble 一催即恢复;engine vsync/AXTree 时序

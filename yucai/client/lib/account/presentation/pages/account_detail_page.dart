@@ -199,14 +199,21 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   }
 
   /// F35:「还款计划」面板数据管道 —— 借入债务 list(typeFilter: borrowedIn)
-  /// → 本账户 accountId 过滤 → 逐笔 repo.get(id) 取 schedule → 未还期次按
-  /// paymentDate 升序取前 3。失败/未注册(测试 harness)静默保持空面板。
+  /// → 本账户 accountId 过滤(卡贷 F48 另经 collectionAccountId 挂卡:期次
+  /// 并入该卡账单,计划在卡页呈现)→ 逐笔 repo.get(id) 取 schedule → 未还
+  /// 期次按 paymentDate 升序取前 3。失败/未注册(测试 harness)静默保持空面板。
   Future<void> _loadRepaymentPlans() async {
     try {
       final repo = getIt<DebtRepository>();
       final r = await repo.list(typeFilter: DebtType.borrowedIn);
-      final linked =
-          r.fold((_) => <Debt>[], (l) => l.where((d) => d.accountId == widget.id).toList());
+      final linked = r.fold(
+          (_) => <Debt>[],
+          (l) => l
+              .where((d) =>
+                  d.accountId == widget.id ||
+                  (d.subtype == DebtSubtypes.cardLoan &&
+                      d.collectionAccountId == widget.id))
+              .toList());
       final plans = <({Debt debt, List<PaymentEntry> upcoming})>[];
       for (final d in linked) {
         final det = await repo.get(d.id);

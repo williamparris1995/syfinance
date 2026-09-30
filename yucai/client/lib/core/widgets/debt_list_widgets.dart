@@ -12,6 +12,7 @@ import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:yucai_client/core/widgets/gold_amount.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 // F9-T3:列表筛选/排序纯函数收编至 domain(DebtListFilter 等),export 转发。
 import 'package:yucai_client/debt/domain/debt_query.dart';
 export 'package:yucai_client/debt/domain/debt_query.dart'
@@ -1564,8 +1565,17 @@ class DebtCardFootCallout extends StatelessWidget {
           TextButton.icon(
             onPressed: () =>
                 context.push('${sem.listRoutePrefix}/${debt.id}'),
-            icon: Icon(sem.footCtaIcon, size: 14),
-            label: Text(sem.footCtaLabel,
+            // 卡贷:还款不在债务侧 —— 期次自动并入卡账单,随卡还款(入口
+            // 仍跳详情看排期/挂接卡)。
+            icon: Icon(
+                debt.subtype == DebtSubtypes.cardLoan
+                    ? LucideIcons.creditCard
+                    : sem.footCtaIcon,
+                size: 14),
+            label: Text(
+                debt.subtype == DebtSubtypes.cardLoan
+                    ? '随卡还款'
+                    : sem.footCtaLabel,
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: TextButton.styleFrom(
               foregroundColor: context.yucai.accentDeep,
