@@ -646,7 +646,7 @@ class DebtLocalDataSource {
             debtId: row.id,
             scheduleEntryId: e.id,
             fromAccountId: card,
-            description: '卡贷并入账单 ${row.counterparty}',
+            description: '卡贷分期入账 ${row.counterparty}',
           );
         } on Failure catch (_) {
           // 单期失败(账户冻结等)不阻断其余期次,下一轮 catchup 重试。
