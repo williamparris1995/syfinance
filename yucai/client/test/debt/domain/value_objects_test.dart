@@ -42,7 +42,7 @@ void main() {
       expect(DebtSubtypes.labels[DebtSubtypes.consumptionLoan], '消费贷');
       expect(DebtSubtypes.labels[DebtSubtypes.businessLoan], '经营贷');
       expect(DebtSubtypes.labels[DebtSubtypes.creditCard], '信用卡');
-      expect(DebtSubtypes.labels[DebtSubtypes.cardLoan], '信用卡贷款');
+      expect(DebtSubtypes.labels[DebtSubtypes.cardLoan], '信用卡分期');
       expect(DebtSubtypes.labels[DebtSubtypes.family], '亲友借款');
       expect(DebtSubtypes.labels[DebtSubtypes.other], '其他');
     });

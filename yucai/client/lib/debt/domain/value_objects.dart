@@ -23,7 +23,7 @@ abstract final class DebtSubtypes {
   static const consumptionLoan = 'consumption_loan';
   static const businessLoan = 'business_loan';
   static const creditCard = 'credit_card';
-  /// 信用卡贷款/卡贷(e招贷·万用金类):额度外独立分期,期次按信用卡账单日
+  /// 信用卡分期/卡贷(e招贷·万用金·财智通类,卡内分期):期次按信用卡账单日
   /// 锚定、自动并入信用卡账单(F48)。
   static const cardLoan = 'card_loan';
   static const family = 'family';
@@ -48,7 +48,7 @@ abstract final class DebtSubtypes {
     consumptionLoan: '消费贷',
     businessLoan: '经营贷',
     creditCard: '信用卡',
-    cardLoan: '信用卡贷款',
+    cardLoan: '信用卡分期',
     family: '亲友借款',
     other: '其他',
   };
