@@ -8,7 +8,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
-import 'package:yucai_client/debt/domain/debt_query.dart' show cardLoanOccupationCents;
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
@@ -679,8 +678,6 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                       accounts: entry.value,
                       formatCents: _formatCents,
                       debtInfoFor: _debtInfoFor,
-                      occupationFor: (a) =>
-                          cardLoanOccupationCents(_debts, a.id),
                       onEdit: _openEditForm,
                       onDuplicate: _openCopyForm,
                       onClose: _confirmClose,
@@ -1141,15 +1138,12 @@ class _ChipState extends State<_Chip> {
 
 // ───────────────────────── 分组 ─────────────────────────
 
-int _zeroOccupation(Account _) => 0;
-
 class _GroupBlock extends StatelessWidget {
   const _GroupBlock({
     required this.type,
     required this.accounts,
     required this.formatCents,
     required this.debtInfoFor,
-    this.occupationFor = _zeroOccupation,
     required this.onEdit,
     required this.onDuplicate,
     required this.onClose,
@@ -1161,9 +1155,6 @@ class _GroupBlock extends StatelessWidget {
   final List<Account> accounts;
   final String Function(int, String) formatCents;
   final AccountDebtInfo? Function(Account) debtInfoFor;
-
-  /// 卡贷未出账占用(分)查询(信用卡卡片已用/利用率计入;缺省 0)。
-  final int Function(Account) occupationFor;
   final void Function(Account) onEdit;
   final void Function(Account) onDuplicate;
   final void Function(Account) onClose;
@@ -1297,7 +1288,6 @@ class _GroupBlock extends StatelessWidget {
                   for (var i = 0; i < accounts.length; i++) ...[
                     _AccountCard(
                       account: accounts[i],
-                      cardLoanOccupationCents: occupationFor(accounts[i]),
                       formatCents: formatCents,
                       debtInfoFor: debtInfoFor,
                       onEdit: () => onEdit(accounts[i]),
@@ -1333,7 +1323,6 @@ class _GroupBlock extends StatelessWidget {
               itemCount: accounts.length,
               itemBuilder: (_, i) => _AccountCard(
                 account: accounts[i],
-                cardLoanOccupationCents: occupationFor(accounts[i]),
                 formatCents: formatCents,
                 debtInfoFor: debtInfoFor,
                 onEdit: () => onEdit(accounts[i]),
@@ -1358,7 +1347,6 @@ class _GroupBlock extends StatelessWidget {
 class _AccountCard extends StatefulWidget {
   const _AccountCard({
     required this.account,
-    this.cardLoanOccupationCents = 0,
     required this.formatCents,
     required this.debtInfoFor,
     required this.onEdit,
@@ -1369,9 +1357,6 @@ class _AccountCard extends StatefulWidget {
   });
 
   final Account account;
-
-  /// 卡贷未出账占用(银行口径:剩余分期全额占额度;信用卡卡片的已用/利用率计入)。
-  final int cardLoanOccupationCents;
   final String Function(int, String) formatCents;
   final AccountDebtInfo? Function(Account) debtInfoFor;
   final VoidCallback onEdit;
@@ -1713,7 +1698,7 @@ class _AccountCardState extends State<_AccountCard> {
                 Flexible(
                   child: Text(
                     a.category == AccountCategory.creditCard
-                        ? '已用 ${formatCents(a.currentBalanceCents.abs() + widget.cardLoanOccupationCents, a.currencyCode)} / ${formatCents(a.creditLimitCents, a.currencyCode)}'
+                        ? '已用 ${formatCents(a.currentBalanceCents.abs(), a.currencyCode)} / ${formatCents(a.creditLimitCents, a.currencyCode)}'
                         : '已还 ${formatCents((a.loanOriginalCents ?? 0) - (a.loanRemainingCents ?? 0), a.currencyCode)} / ${formatCents(a.loanOriginalCents ?? 0, a.currencyCode)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -2131,9 +2116,7 @@ class _AccountCardState extends State<_AccountCard> {
     switch (a.category) {
       case AccountCategory.creditCard:
         if (a.creditLimitCents <= 0) return null;
-        // 已用含卡贷未出账占用(银行口径:剩余分期全额占额度)。
-        final v = ((a.currentBalanceCents.abs() + widget.cardLoanOccupationCents) /
-                a.creditLimitCents)
+        final v = (a.currentBalanceCents.abs() / a.creditLimitCents)
             .clamp(0.0, 1.0);
         return (v, context.yucai.negative);
       case AccountCategory.loan:

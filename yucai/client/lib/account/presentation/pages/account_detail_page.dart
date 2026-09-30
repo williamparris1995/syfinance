@@ -1313,14 +1313,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     switch (a.category) {
       case AccountCategory.creditCard:
         final limit = a.creditLimitCents;
-        // 已用 = 欠款 + 卡贷未出账占用(银行口径:剩余分期全额占额度,未出账也扣)。
-        final occupation = _debtPlans
-            .where((p) =>
-                p.debt.subtype == DebtSubtypes.cardLoan &&
-                p.debt.collectionAccountId == a.id)
-            .fold<int>(0,
-                (s, p) => s + p.debt.remainingPrincipalCents + p.debt.unpaidInterestCents);
-        final used = a.currentBalanceCents.abs() + occupation;
+        final used = a.currentBalanceCents.abs(); // 欠款为负，取绝对值
         // v5 原型页面级对齐:breakdown 已算出 → 四卡换账单周期语义卡
         //(上期剩余(应还) = 还款日应还,accent 强调 —— 原型 sum-strip 第二卡;
         // 本期新增 = 未出账,第三卡)。未算出/未设账单日 → 回退额度四卡。
