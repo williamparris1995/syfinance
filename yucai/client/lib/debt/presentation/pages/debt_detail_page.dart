@@ -430,8 +430,8 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
           Expanded(
             child: Text(
               cardName == null
-                  ? '卡贷:每期在挂接卡的账单日自动并入账单,随该卡还款日一起还(不占信用额度)'
-                  : '卡贷:每期在「$cardName」的账单日自动并入账单,随该卡还款日一起还(不占信用额度)',
+                  ? '卡贷:每期在挂接卡的账单日并入账单(占用该卡额度),随还款日一起还'
+                  : '卡贷:每期在「$cardName」的账单日并入账单(占用该卡额度),随还款日一起还',
               style: TextStyle(
                   fontSize: 12, color: context.yucai.accentDeep, height: 1.5),
             ),

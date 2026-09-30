@@ -876,7 +876,7 @@ void main() {
       }
       // 到期日 = 末个发生日。
       expect(detail.debt.dueDate, DateTime.utc(2026, 12, 5));
-      // 放款双写:借 到账现金 / 贷 卡贷负债户(卡余额不动 → 不占额度)。
+      // 放款双写:借 到账现金 / 贷 卡贷负债户(放款不直接上卡;卡额度随每期并入占用)。
       final txns =
           await database.select(database.transactions).get();
       final disburse = txns
@@ -891,7 +891,7 @@ void main() {
       final card =
           await accounts.getAccountById(cardId);
       expect(card!.currentBalanceCents, 0,
-          reason: '卡贷不占信用额度:并账前卡余额不动');
+          reason: '放款不直接计入卡余额;卡额度随每期并入逐步占用');
     });
 
     test('catchup:到账单日的期次自动并入挂接卡,幂等且债务余额递减', () async {

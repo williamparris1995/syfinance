@@ -11,6 +11,7 @@ import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
@@ -52,6 +53,9 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
   DebtSortKey _sortKey = DebtSortKey.dueDate;
   DebtSortDir _sortDir = DebtSortDir.asc;
 
+  /// 账户名缓存(卡贷分区按挂接卡分组显示用);测试 harness 缺注册时为空。
+  Map<String, String> _accountNames = const {};
+
   static const _sem = DebtViewSemantics.debt;
 
   @override
@@ -64,6 +68,19 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
     // 跨 branch/表单变更广播(账户余额、总览数字随之变):债务保存/还款/
     // 标记已还等都会 bump,本页监听后重拉 —— 路由观察者只覆盖本分支 push/pop。
     _dataRefresh.addListener(_onDataRefresh);
+    _loadAccountNames();
+  }
+
+  Future<void> _loadAccountNames() async {
+    // 卡贷「归到卡名下」展示需要挂接卡名;失败静默(测试 harness 无注册)。
+    try {
+      final accounts = await getIt<AccountRepository>().list();
+      if (mounted) {
+        setState(() => _accountNames = {
+              for (final a in accounts.getOrElse(() => const [])) a.id: a.name,
+            });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -254,22 +271,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
                             TextStyle(color: context.yucai.muted, fontSize: 12)),
                   ),
                 )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < filtered.length; i++) ...[
-                      DebtListCard(
-                        sem: _sem,
-                        debt: filtered[i],
-                        preferred: preferred,
-                        badgeFor: _badgeFor,
-                        avatarColorFor: _avatarColorFor,
-                      ),
-                      if (i < filtered.length - 1) const SizedBox(height: 10),
-                    ],
-                  ],
-                ),
+              else ..._debtListSections(filtered, preferred),
               const SizedBox(height: AppSpacing.lg),
               // debt 专属附录:雪崩法 advice banner(receivables 无;不破坏主结构镜像)。
               if (debts.where((d) => d.remainingPrincipalCents > 0).length >= 2)
@@ -279,6 +281,89 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
         ),
       ),
     );
+  }
+
+  /// 列表分区(用户口径 2026-09-30):普通债务原样;卡贷单独成区**按挂接卡
+  /// 分组**展示 ——「保留但归到卡名下」,每期并入卡账单、随卡还款。
+  List<Widget> _debtListSections(List<Debt> filtered, String preferred) {
+    final normal =
+        filtered.where((d) => d.subtype != DebtSubtypes.cardLoan).toList();
+    final cardLoans =
+        filtered.where((d) => d.subtype == DebtSubtypes.cardLoan).toList();
+    final out = <Widget>[];
+    if (normal.isNotEmpty) {
+      out.add(Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < normal.length; i++) ...[
+            DebtListCard(
+              sem: _sem,
+              debt: normal[i],
+              preferred: preferred,
+              badgeFor: _badgeFor,
+              avatarColorFor: _avatarColorFor,
+            ),
+            if (i < normal.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      ));
+    }
+    if (cardLoans.isEmpty) return out;
+    // 按挂接卡分组(未解析到卡名的归「未挂接」)。
+    final byCard = <String, List<Debt>>{};
+    for (final d in cardLoans) {
+      final card = _accountNames[d.collectionAccountId ?? ''] ?? '未挂接卡';
+      byCard.putIfAbsent(card, () => []).add(d);
+    }
+    out.add(const SizedBox(height: AppSpacing.lg));
+    out.add(Row(children: [
+      Icon(LucideIcons.creditCard, size: 16, color: context.yucai.accent),
+      const SizedBox(width: 6),
+      Text('信用卡账单分期',
+          style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              fontFamily: AppTypography.displayFamily,
+              fontFamilyFallback: AppTypography.displayFallback)),
+      const SizedBox(width: 6),
+      Text('每期账单日自动并入卡账单,随卡还款',
+          style: TextStyle(fontSize: 11.5, color: context.yucai.muted)),
+    ]));
+    out.add(const SizedBox(height: AppSpacing.sm));
+    for (final entry in byCard.entries) {
+      final remaining = entry.value.fold<int>(
+          0, (s, d) => s + d.remainingPrincipalCents + d.unpaidInterestCents);
+      out.add(Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 4),
+        child: Row(children: [
+          Text(entry.key,
+              style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: context.yucai.fg)),
+          const SizedBox(width: 8),
+          Text('${entry.value.length} 笔 · 待还 ${sharedFmtSymbol(remaining, preferred)}',
+              style:
+                  TextStyle(fontSize: 11.5, color: context.yucai.muted)),
+        ]),
+      ));
+      out.add(Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < entry.value.length; i++) ...[
+            DebtListCard(
+              sem: _sem,
+              debt: entry.value[i],
+              preferred: preferred,
+              badgeFor: _badgeFor,
+              avatarColorFor: _avatarColorFor,
+            ),
+            if (i < entry.value.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      ));
+    }
+    return out;
   }
 
   /// L2 stat strip 4 卡(本地算):债务笔数 / 总借款本金 / 累计已还本息(绿)/ 待还本金(逾期红)。
@@ -376,6 +461,14 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
   // ───────────────────────── 类型 badge / avatar 色(DebtSubtypes 专属) ─────────────────────────
 
   DebtBadgeStyle _badgeFor(Debt debt) {
+    // 卡贷:徽章 = 挂接卡名(「归到卡名下」口径, subtype 语义可见于分区头)。
+    if (debt.subtype == DebtSubtypes.cardLoan) {
+      final card = _accountNames[debt.collectionAccountId ?? ''];
+      return DebtBadgeStyle(
+          label: card == null ? '信用卡分期' : '$card · 分期',
+          fg: context.yucai.accentDeep,
+          bg: context.yucai.accentSoft);
+    }
     if (debt.subtype.isNotEmpty) {
       final label = DebtSubtypes.labels[debt.subtype];
       if (label != null) {

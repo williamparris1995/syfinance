@@ -1283,9 +1283,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
         padding: const EdgeInsets.only(top: 6),
         child: Text(
           card == null
-              ? '卡贷不占信用额度;期次在挂接卡的账单日自动并入账单,随还款日一起还'
+              ? '期次在挂接卡的账单日并入账单(占用该卡额度),随还款日一起还'
               : (_cardBillingDay > 0
-                  ? '每期于该卡账单日(每月 $_cardBillingDay 日)并入账单,随还款日一起还'
+                  ? '每期于该卡账单日(每月 $_cardBillingDay 日)并入账单(占用该卡额度),随还款日一起还'
                   : '该卡未设置账单日,期次将按起始日每月同日出账;可在账户管理为该卡设置账单日'),
           style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
         ),
