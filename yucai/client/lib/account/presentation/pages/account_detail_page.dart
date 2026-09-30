@@ -1319,8 +1319,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         // 本期新增 = 未出账,第三卡)。未算出/未设账单日 → 回退额度四卡。
         final b = _statementBreakdown;
         if (b != null) {
+          // 可用额度(而非静态信用额度):分期/消费入账即扣减,还款日还清恢复
+          // —— 静态额度在信息卡字段里已有展示。
+          final avail = (limit - used).clamp(0, limit);
           return [
-            ('信用额度', _fmtSigned(limit, a.currencyCode)),
+            ('可用额度', _fmtSigned(avail, a.currencyCode)),
             ('已用额度', _fmtSigned(used, a.currencyCode)),
             ('上期剩余(应还)', _fmtSigned(b.remainingCents, a.currencyCode)),
             ('本期新增(未出账)', _fmtSigned(b.cycleNewCents, a.currencyCode)),
