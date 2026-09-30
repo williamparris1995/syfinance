@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:yucai_client/core/widgets/debt_delete_confirm.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/core/widgets/search_field.dart';
@@ -2010,8 +2011,16 @@ class DebtListCard extends StatelessWidget {
             label: sem.deleteMenuItem,
             icon: LucideIcons.trash2,
             destructive: true,
-            onTap: () =>
-                context.read<DebtBloc>().add(DeleteDebtRequested(debt.id))),
+            onTap: () async {
+              // 二次确认:删除不可恢复(误触保护,与详情页「更多」同口径)。
+              final ok =
+                  await confirmDeleteDebt(context, sem, debt.counterparty);
+              if (ok && context.mounted) {
+                context
+                    .read<DebtBloc>()
+                    .add(DeleteDebtRequested(debt.id));
+              }
+            }),
       ],
       builder: (menuContext, open) => DebtCardActionBtn(
         expanded: false,

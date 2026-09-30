@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -682,6 +683,119 @@ void main() {
       (t.state(find.byType(ReceivableDetailPage)) as dynamic).didPopNext();
       await t.pumpAndSettle();
       expect(find.textContaining('王五'), findsWidgets);
+    });
+  });
+
+  // ───────────────────────── 更多菜单(删除) ─────────────────────────
+  // 修复「更多菜单待接入」占位:更多 → 删除债权 → 二次确认 → 成功回列表。
+  // 删除成功信号是 DebtsLoaded(bloc 删除后刷新列表态),页面需 go 回
+  // /receivables —— harness 换 GoRouter(静态 /receivables 在 /:id 前)。
+  group('更多菜单删除', () {
+    Widget routerHarness(_MockDebtRepo debtRepo) {
+      final router = GoRouter(
+        initialLocation: '/receivables/r1',
+        routes: [
+          GoRoute(
+            path: '/receivables',
+            builder: (_, __) => const Scaffold(
+                body: Center(child: Text('RECEIVABLES_LIST'))),
+          ),
+          GoRoute(
+            path: '/receivables/:id',
+            builder: (_, __) => const ReceivableDetailPage(id: 'r1'),
+          ),
+        ],
+      );
+      return MultiBlocProvider(
+        providers: [
+          BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+          BlocProvider<CurrencyBloc>.value(
+              value: _FakeCurrencyBloc(const CurrencyState())),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      );
+    }
+
+    testWidgets('更多 → 删除债权 → 确认 → repo.delete + 返回列表页', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(DebtType.borrowedIn);
+      final detail = _detail();
+      when(() => debtRepo.get(any()))
+          .thenAnswer((_) async => dartz.Right(detail));
+      var deletedId = '';
+      when(() => debtRepo.delete(any())).thenAnswer((inv) async {
+        deletedId = inv.positionalArguments.single as String;
+        return const dartz.Right(null);
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_assetAccount()]));
+      GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+
+      await t.pumpWidget(routerHarness(debtRepo));
+      await t.pumpAndSettle();
+      // 1. 更多菜单(不再弹「更多菜单待接入」)
+      expect(find.textContaining('待接入'), findsNothing);
+      await t.tap(find.byTooltip('更多'));
+      await t.pumpAndSettle();
+      expect(find.text('删除债权'), findsOneWidget);
+      // 2. 删除项 → 二次确认弹窗(收款语义文案)。
+      // 菜单经 CompositedTransformFollower 绘制,finder 报告的是 overlay
+      // 布局原点坐标(左上角),按 finder tap 必 miss —— 以触发按钮矩形
+      // 推算真实绘制位(菜单 padding 6 + 单项 ~33 高,锚 bottomLeft+6)。
+      final anchor = t.getRect(find.byTooltip('更多'));
+      await t.tapAt(anchor.bottomLeft + const Offset(40, 24));
+      await t.pumpAndSettle();
+      expect(find.text('删除债权'), findsOneWidget); // 弹窗标题(菜单已关)
+      expect(find.textContaining('收款计划将一并删除'), findsOneWidget);
+      expect(find.textContaining('已记录的收款交易保留'), findsOneWidget);
+      // 3. 确认删除
+      await t.tap(find.widgetWithText(FilledButton, '删除'));
+      for (var i = 0; i < 10 && deletedId.isEmpty; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      await t.pumpAndSettle();
+      expect(deletedId, 'r1');
+      // 4. 成功回列表路由
+      expect(find.text('RECEIVABLES_LIST'), findsOneWidget);
+      // AppToast Timer 推进避免 teardown 报 timersPending。
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('确认弹窗 取消 → 不删除', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(DebtType.borrowedIn);
+      when(() => debtRepo.get(any()))
+          .thenAnswer((_) async => dartz.Right(_detail()));
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_assetAccount()]));
+      GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+
+      await t.pumpWidget(routerHarness(debtRepo));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('更多'));
+      await t.pumpAndSettle();
+      final anchor = t.getRect(find.byTooltip('更多'));
+      await t.tapAt(anchor.bottomLeft + const Offset(40, 24));
+      await t.pumpAndSettle();
+      await t.tap(find.text('取消'));
+      await t.pumpAndSettle();
+      // 弹窗关闭、停留在详情页、未触发删除。
+      expect(find.text('取消'), findsNothing);
+      expect(find.byType(ReceivableDetailPage), findsOneWidget);
+      verifyNever(() => debtRepo.delete(any()));
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
     });
   });
 }

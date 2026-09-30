@@ -85,6 +85,8 @@ class DebtViewSemantics {
     required this.footCtaIcon,
     required this.editMenuItem,
     required this.deleteMenuItem,
+    required this.deleteConfirmTitle,
+    required this.deletedToast,
     required this.detailTopCrumb,
     required this.detailHeroKicker,
     required this.detailHeroRemainingLabel,
@@ -194,6 +196,10 @@ class DebtViewSemantics {
   final String editMenuItem;
   /// 更多菜单:删除债权/债务。
   final String deleteMenuItem;
+  /// 删除确认对话框标题:删除债权 / 删除债务。
+  final String deleteConfirmTitle;
+  /// 删除成功 toast:已删除债权 / 已删除债务。
+  final String deletedToast;
 
   // ── 详情 topbar 面包屑根标签 ──
   /// receivable「债权管理」/ debt「债务管理」。
@@ -295,6 +301,8 @@ class DebtViewSemantics {
     footCtaIcon: LucideIcons.handCoins,
     editMenuItem: '编辑债权',
     deleteMenuItem: '删除债权',
+    deleteConfirmTitle: '删除债权',
+    deletedToast: '已删除债权',
     detailTopCrumb: '债权管理',
     detailHeroKicker: '剩余应收（本金）',
     detailHeroRemainingLabel: '剩余应收（本金）',
@@ -375,6 +383,8 @@ class DebtViewSemantics {
     footCtaIcon: LucideIcons.penLine,
     editMenuItem: '编辑债务',
     deleteMenuItem: '删除债务',
+    deleteConfirmTitle: '删除债务',
+    deletedToast: '已删除债务',
     detailTopCrumb: '债务管理',
     detailHeroKicker: '剩余本金（待还）',
     detailHeroRemainingLabel: '剩余本金（待还）',

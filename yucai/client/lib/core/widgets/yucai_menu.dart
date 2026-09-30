@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 
-import 'package:yucai_client/core/theme/app_design.dart';
-
 /// v2 卡片操作菜单统一样式（MenuAnchor）。
 ///
 /// 所有卡片「更多」菜单统一走 MenuAnchor 锚定按钮本体 —— 自动翻转/钳制于
@@ -94,7 +92,10 @@ class _YucaiAnchoredMenuState extends State<YucaiAnchoredMenu> {
           followerAnchor: Alignment.topLeft,
           offset: widget.offset,
           child: Material(
-            color: Theme.of(context).extension<YucaiTheme>()!.surface,
+            // context.yucai(带亮色兜底)而非裸 extension!:Overlay 构建
+            // 用的 State context 在裸 MaterialApp 测试下无 extension,
+            // 裸 `!` 会崩(生产恒注入不受影响,同 YucaiThemeX 注释口径)。
+            color: context.yucai.surface,
             elevation: 6,
             // 黑阴影豁免(见 yucaiMenuStyle 注释,同值同口径)。
             shadowColor: const Color(0x1F000000),

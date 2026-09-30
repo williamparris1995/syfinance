@@ -12,9 +12,11 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
+import 'package:yucai_client/core/widgets/debt_delete_confirm.dart';
 import 'package:yucai_client/core/widgets/debt_detail_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
+import 'package:yucai_client/core/widgets/yucai_menu.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/data/contract_attachment_store.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -46,6 +48,9 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage>
     with RouteAware {
   List<Account> _accounts = const [];
   bool _recordPending = false;
+  // 更多菜单删除流:成功信号是 DebtsLoaded(bloc 删除后刷新列表态),区别于
+  // 收款流的 DebtDetailLoaded。
+  bool _deletePending = false;
   // 合同文件附件(本地 v1):进页读取,编辑页替换后返回经 didPopNext 重读。
   ContractAttachment? _attachment;
 
@@ -198,19 +203,36 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage>
                   },
                 ),
                 const SizedBox(width: 8),
-                IconButton(
-                  tooltip: '更多',
-                  icon: Icon(LucideIcons.moreHorizontal,
-                      size: 17, color: context.yucai.muted),
-                  style: IconButton.styleFrom(
-                    backgroundColor: context.yucai.surface,
-                    side: BorderSide(color: context.yucai.border),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    minimumSize: const Size(38, 38),
-                  ),
-                  onPressed: () => AppToast.show(context, '更多菜单待接入',
-                      type: ToastType.warning),
+                BlocBuilder<DebtBloc, DebtState>(
+                  builder: (context, state) {
+                    final debt = state is DebtDetailLoaded
+                        ? state.detail.debt
+                        : null;
+                    return YucaiAnchoredMenu(
+                      items: [
+                        YucaiMenuItemData(
+                          label: _sem.deleteMenuItem,
+                          icon: LucideIcons.trash2,
+                          destructive: true,
+                          enabled: debt != null,
+                          onTap: () => _confirmDelete(debt),
+                        ),
+                      ],
+                      builder: (menuContext, open) => IconButton(
+                        tooltip: '更多',
+                        icon: Icon(LucideIcons.moreHorizontal,
+                            size: 17, color: context.yucai.muted),
+                        style: IconButton.styleFrom(
+                          backgroundColor: context.yucai.surface,
+                          side: BorderSide(color: context.yucai.border),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          minimumSize: const Size(38, 38),
+                        ),
+                        onPressed: debt != null ? open : null,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -219,8 +241,16 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage>
       ),
       body: BlocListener<DebtBloc, DebtState>(
         listenWhen: (p, c) =>
-            _recordPending && (c is DebtDetailLoaded || c is DebtError),
+            (_recordPending && (c is DebtDetailLoaded || c is DebtError)) ||
+            (_deletePending && (c is DebtsLoaded || c is DebtError)),
         listener: (context, state) {
+          if (_deletePending && state is DebtsLoaded) {
+            setState(() => _deletePending = false);
+            AppToast.show(context, _sem.deletedToast,
+                type: ToastType.success);
+            context.go(_sem.listRoutePrefix);
+            return;
+          }
           if (state is DebtDetailLoaded) {
             setState(() => _recordPending = false);
             _loadAccounts();
@@ -228,6 +258,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage>
                 type: ToastType.success);
           } else if (state is DebtError) {
             setState(() => _recordPending = false);
+            setState(() => _deletePending = false);
             AppToast.show(context, state.message, type: ToastType.error);
           }
         },
@@ -322,6 +353,16 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage>
         ],
       ],
     );
+  }
+
+  // ───────────────────────── 更多菜单(删除) ─────────────────────────
+
+  Future<void> _confirmDelete(Debt? debt) async {
+    if (debt == null) return;
+    final ok = await confirmDeleteDebt(context, _sem, debt.counterparty);
+    if (!ok || !mounted) return;
+    setState(() => _deletePending = true);
+    context.read<DebtBloc>().add(DeleteDebtRequested(debt.id));
   }
 
   // ───────────────────────── 确认收款 ─────────────────────────
