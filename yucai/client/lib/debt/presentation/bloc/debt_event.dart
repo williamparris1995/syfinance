@@ -50,6 +50,8 @@ class CreateDebtParams extends Equatable {
     this.nth = 0,
     this.termPeriods = 0,
     this.interestWaivedCents = 0,
+    this.billingDay = 0,
+    this.flatFeeCents = 0,
   });
   final String accountId;
   final String counterparty;
@@ -86,6 +88,11 @@ class CreateDebtParams extends Equatable {
   final int termPeriods;
   /// 一次性利息减免(分,银行优惠;0 = 无)。
   final int interestWaivedCents;
+  /// 卡贷(F48):月度账单日锚点 1-31(0 = 锚起始日旧行为)。普通债务恒 0。
+  final int billingDay;
+  /// 卡贷(F48):每期固定手续费(分,银行现金分期口径 = 按全额本金计;
+  /// 0 = 常规摊销)。普通债务恒 0。
+  final int flatFeeCents;
 
   @override
   List<Object?> get props => [
@@ -111,6 +118,8 @@ class CreateDebtParams extends Equatable {
         nth,
         termPeriods,
         interestWaivedCents,
+        billingDay,
+        flatFeeCents,
       ];
 }
 

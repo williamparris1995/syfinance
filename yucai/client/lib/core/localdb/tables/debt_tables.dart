@@ -16,6 +16,10 @@ class Debts extends Table {
   IntColumn get weekdayMask => integer().withDefault(const Constant(0))();
   IntColumn get monthlyMode => integer().withDefault(const Constant(0))();
   IntColumn get nth => integer().withDefault(const Constant(0))();
+  // 卡贷(F48):月度账单日锚点 1-31(0 = 锚起始日,旧语义);每期固定手续费
+  // (分,0 = 常规摊销口径)。普通债务恒 0,行为不变。
+  IntColumn get billingDay => integer().withDefault(const Constant(0))();
+  IntColumn get flatFeeCents => integer().withDefault(const Constant(0))();
   // 一次性利息减免(分,银行优惠):生成计划时从最早几期利息依次扣减。
   IntColumn get interestWaivedCents => integer().withDefault(const Constant(0))();
   DateTimeColumn get startDate => dateTime()();

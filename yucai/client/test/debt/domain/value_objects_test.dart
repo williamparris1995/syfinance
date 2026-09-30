@@ -12,8 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 
 void main() {
-  group('DebtSubtypes 9 类 const', () {
-    test('all 按原型 v3 顺序暴露 9 个 key', () {
+  group('DebtSubtypes 10 类 const(F48 增 cardLoan)', () {
+    test('all 按原型 v3 顺序 + cardLoan(信用卡后)暴露 10 个 key', () {
       expect(DebtSubtypes.all, [
         DebtSubtypes.mortgage, // 房贷
         DebtSubtypes.autoLoan, // 车贷
@@ -22,18 +22,19 @@ void main() {
         DebtSubtypes.consumptionLoan, // 消费贷
         DebtSubtypes.businessLoan, // 经营贷
         DebtSubtypes.creditCard, // 信用卡
+        DebtSubtypes.cardLoan, // 信用卡贷款(卡贷,F48)
         DebtSubtypes.family, // 亲友借款
         DebtSubtypes.other, // 其他
       ]);
     });
 
-    test('labels 完整覆盖 9 类中文映射', () {
-      expect(DebtSubtypes.all.length, 9);
+    test('labels 完整覆盖 10 类中文映射', () {
+      expect(DebtSubtypes.all.length, 10);
       for (final key in DebtSubtypes.all) {
         expect(DebtSubtypes.labels.containsKey(key), isTrue,
             reason: 'labels 缺 key=$key');
       }
-      expect(DebtSubtypes.labels.length, 9);
+      expect(DebtSubtypes.labels.length, 10);
       expect(DebtSubtypes.labels[DebtSubtypes.mortgage], '房贷');
       expect(DebtSubtypes.labels[DebtSubtypes.autoLoan], '车贷');
       expect(DebtSubtypes.labels[DebtSubtypes.creditLoan], '信用贷款');
@@ -41,6 +42,7 @@ void main() {
       expect(DebtSubtypes.labels[DebtSubtypes.consumptionLoan], '消费贷');
       expect(DebtSubtypes.labels[DebtSubtypes.businessLoan], '经营贷');
       expect(DebtSubtypes.labels[DebtSubtypes.creditCard], '信用卡');
+      expect(DebtSubtypes.labels[DebtSubtypes.cardLoan], '信用卡贷款');
       expect(DebtSubtypes.labels[DebtSubtypes.family], '亲友借款');
       expect(DebtSubtypes.labels[DebtSubtypes.other], '其他');
     });

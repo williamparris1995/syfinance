@@ -118,6 +118,9 @@ Map<String, dynamic> debtRowToEnvelope(
       'WeekdayMask': d.weekdayMask,
       'MonthlyMode': d.monthlyMode,
       'Nth': d.nth,
+      // 卡贷(F48):账单日锚点 + 每期固定手续费(旧 envelope 缺键 → 0 旧行为)。
+      'BillingDay': d.billingDay,
+      'FlatFeeCents': d.flatFeeCents,
       'InterestWaivedCents': d.interestWaivedCents,
       'StartDate': envelopeTimestamp(d.startDate),
       'DueDate': envelopeTimestamp(d.dueDate),

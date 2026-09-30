@@ -322,6 +322,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
     // F4-P2:buildDebtDetailStats 语义色经 context.yucai 解析,补 context 形参。
     final stats = DebtDetailStatsRow(
         stats: buildDebtDetailStats(context, detail, preferred, _sem));
+    final isCardLoan = debt.subtype == DebtSubtypes.cardLoan;
     final schedule = DebtDetailSchedule(
       sem: _sem,
       schedule: detail.schedule,
@@ -330,11 +331,14 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
       isMobile: isMobile,
       // debt 无 collection 账户:行内确认不启用 → 一律 dialog fallback(从账户转出)。
       collectionAccountId: debt.collectionAccountId,
-      onConfirmInline: (e) => _confirmInline(e, preferred),
-      onOpenDialog: _openRecordPayment,
-      onEditDate: (e) => _editPaymentDate(e),
-      onMarkPaid: (e) => _markEntryPaid(e),
-      onMarkPaidBatch: (entries) => _markEntryPaidBatch(entries),
+      // 卡贷(F48):期次由账单日自动并入挂接卡,手工「记账/标记/改日」
+      // 全部停用(手工从储蓄卡还会造成双重支付)。
+      onConfirmInline: isCardLoan ? null : (e) => _confirmInline(e, preferred),
+      onOpenDialog: isCardLoan ? null : _openRecordPayment,
+      onEditDate: isCardLoan ? null : (e) => _editPaymentDate(e),
+      onMarkPaid: isCardLoan ? null : (e) => _markEntryPaid(e),
+      onMarkPaidBatch:
+          isCardLoan ? null : (entries) => _markEntryPaidBatch(entries),
       // 未还清也可停掉本期催办(挂失=本地 ReminderDismissals,按期次 id)。
       onDismissReminder: (e) => _dismissEntryReminder(e),
     );
@@ -350,10 +354,12 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
       onOpenAttachment: _attachment == null ? null : _openAttachment,
     );
 
-    // debt 专属附录:信用卡 StatRow(only subtype==creditCard)。
-    final creditCardRow = (debt.subtype == DebtSubtypes.creditCard)
-        ? _CreditCardStats(debt: debt, allAccounts: _allAccounts)
-        : const SizedBox.shrink();
+    // debt 专属附录:信用卡 StatRow(subtype==creditCard;卡贷经挂接卡
+    // collectionAccountId 同样展示账单日/还款日/额度/利用率)。
+    final creditCardRow =
+        (debt.subtype == DebtSubtypes.creditCard || isCardLoan)
+            ? _CreditCardStats(debt: debt, allAccounts: _allAccounts)
+            : const SizedBox.shrink();
 
     return ListView(
       padding: isMobile
@@ -367,6 +373,10 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
           if (creditCardRow is! SizedBox) ...[
             const SizedBox(height: 12),
             creditCardRow,
+          ],
+          if (isCardLoan) ...[
+            const SizedBox(height: 12),
+            _cardLoanBanner(context),
           ],
           const SizedBox(height: 12),
           Row(
@@ -385,12 +395,49 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
             const SizedBox(height: 12),
             creditCardRow,
           ],
+          if (isCardLoan) ...[
+            const SizedBox(height: 12),
+            _cardLoanBanner(context),
+          ],
           const SizedBox(height: 12),
           schedule,
           const SizedBox(height: 18),
           side,
         ],
       ],
+    );
+  }
+
+  /// 卡贷并账说明条(F48):解释「期次到账单日自动并入挂接卡」的机制,
+  /// 避免用户在还款计划里找不到手工记账入口而困惑。
+  Widget _cardLoanBanner(BuildContext context) {
+    final cardName = _lookupAccountName(
+        (context.read<DebtBloc>().state as DebtDetailLoaded)
+            .detail
+            .debt
+            .collectionAccountId);
+    return Container(
+      key: const ValueKey('cardLoanBanner'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.yucai.accentSoft,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.creditCard, size: 15, color: context.yucai.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              cardName == null
+                  ? '卡贷:每期在挂接卡的账单日自动并入账单,随该卡还款日一起还(不占信用额度)'
+                  : '卡贷:每期在「$cardName」的账单日自动并入账单,随该卡还款日一起还(不占信用额度)',
+              style: TextStyle(
+                  fontSize: 12, color: context.yucai.accentDeep, height: 1.5),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -591,9 +638,14 @@ class _CreditCardStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 卡贷(F48):账单日/额度等取挂接卡(collectionAccountId);消费分期
+    // (creditCard)债务本身就挂在卡账户上,取 accountId。
+    final cardId = debt.subtype == DebtSubtypes.cardLoan
+        ? debt.collectionAccountId
+        : debt.accountId;
     final acct = allAccounts.firstWhere(
-      (a) => a.id == debt.accountId,
-      orElse: () => _emptyAccount(debt.accountId),
+      (a) => a.id == cardId,
+      orElse: () => _emptyAccount(cardId ?? ''),
     );
     final billingDay = acct.creditBillingDay;
     final repaymentDay = acct.creditRepaymentDay;

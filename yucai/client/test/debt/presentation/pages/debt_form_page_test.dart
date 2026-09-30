@@ -200,7 +200,7 @@ void main() {
       expect(find.textContaining('到期日期'), findsOneWidget);
     });
 
-    testWidgets('renders 9 debt-type radio cards keyed by DebtSubtypes.all',
+    testWidgets('renders 10 debt-type radio cards keyed by DebtSubtypes.all',
         (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
@@ -213,9 +213,10 @@ void main() {
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
-      // 9 个债务类型卡(F33-T3 扩容)—— ValueKey 用 const key（DebtSubtypes.all），
-      // 非中文 label。否定硬编码 _debtTypes：选项必须来自 DebtSubtypes.all。
-      expect(DebtSubtypes.all.length, 9);
+      // 10 个债务类型卡(F33-T3 扩容 + F48 卡贷)—— ValueKey 用 const key
+      // （DebtSubtypes.all），非中文 label。否定硬编码 _debtTypes：选项必须
+      // 来自 DebtSubtypes.all。
+      expect(DebtSubtypes.all.length, 10);
       for (final key in DebtSubtypes.all) {
         expect(find.byKey(ValueKey('debtType-$key')), findsOneWidget);
         expect(find.text(DebtSubtypes.labels[key]!), findsOneWidget);
@@ -1090,8 +1091,8 @@ void main() {
 
     testWidgets('negative: hardcoded _debtTypes list is gone (options from DebtSubtypes.all)',
         (t) async {
-      // 静态保证：DebtSubtypes.all 与 labels 覆盖 9 项（F33-T3 扩容），且 key≠中文 label。
-      expect(DebtSubtypes.all.toSet().length, 9);
+      // 静态保证：DebtSubtypes.all 与 labels 覆盖 10 项（F33-T3 扩容 + F48 卡贷），且 key≠中文 label。
+      expect(DebtSubtypes.all.toSet().length, 10);
       for (final key in DebtSubtypes.all) {
         expect(DebtSubtypes.labels.containsKey(key), isTrue);
         // key 是英文 snake_case，不是中文（防止把 label 当 key 存）。

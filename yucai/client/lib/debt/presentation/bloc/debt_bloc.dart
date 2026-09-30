@@ -98,9 +98,11 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       weekdayMask: p.weekdayMask,
       monthlyMode: p.monthlyMode,
       nth: p.nth,
-      termPeriods: p.termPeriods,
-      interestWaivedCents: p.interestWaivedCents,
-    );
+        termPeriods: p.termPeriods,
+        interestWaivedCents: p.interestWaivedCents,
+        billingDay: p.billingDay,
+        flatFeeCents: p.flatFeeCents,
+      );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
       (debt) {

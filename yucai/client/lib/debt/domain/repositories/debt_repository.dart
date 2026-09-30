@@ -30,6 +30,11 @@ abstract class DebtRepository {
     int nth = 0,
     int termPeriods = 0,
     int interestWaivedCents = 0,
+    // 卡贷(F48):月度账单日锚点(0=锚起始日)+ 每期固定手续费(分,
+    // 0=常规摊销)。guest-local v1 —— proto CreateDebtRequest 无对应字段,
+    // bound 路由不透传(见 DebtRepositoryImpl 注)。
+    int billingDay = 0,
+    int flatFeeCents = 0,
     // 信用卡分期重构:负债余额已含本金,跳过开账双写(否则欠款翻倍)。
     // 仅 borrowedIn;与 sourceAccountId 互斥。
     bool restructureOnly = false,

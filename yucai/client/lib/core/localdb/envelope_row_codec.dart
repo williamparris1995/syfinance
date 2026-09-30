@@ -116,6 +116,9 @@ db.DebtsCompanion debtRowFromEnvelope(Map<dynamic, dynamic> d) =>
       weekdayMask: Value(d['WeekdayMask'] as int? ?? 0),
       monthlyMode: Value(d['MonthlyMode'] as int? ?? 0),
       nth: Value(d['Nth'] as int? ?? 0),
+      // 卡贷(F48):旧 envelope 缺键 → 0(锚起始日/常规摊销,旧行为)。
+      billingDay: Value(d['BillingDay'] as int? ?? 0),
+      flatFeeCents: Value(d['FlatFeeCents'] as int? ?? 0),
       interestWaivedCents: Value(d['InterestWaivedCents'] as int? ?? 0),
       startDate: envelopeTimestampOf(d['StartDate']) ?? DateTime.now().toUtc(),
       dueDate: envelopeTimestampOf(d['DueDate']) ?? DateTime.now().toUtc(),

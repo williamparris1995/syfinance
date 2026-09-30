@@ -120,6 +120,10 @@ class DebtLocalDataSource {
     int nth = 0,
     int termPeriods = 0,
     int interestWaivedCents = 0,
+    // 卡贷(F48):billingDay = 月度账单日锚点(0=锚起始日);flatFeeCents
+    // >0 时走银行现金分期口径(每期 = 本金/N + 固定手续费,忽略摊销方法)。
+    int billingDay = 0,
+    int flatFeeCents = 0,
     bool markPending = false,
     bool restructureOnly = false,
   }) async {
@@ -131,12 +135,17 @@ class DebtLocalDataSource {
         interval: interval,
         weekdayMask: weekdayMask,
         monthlyMode: monthlyMode,
-        nth: nth);
+        nth: nth,
+        billingDay: billingDay);
     // 按期数模式:due 由末个发生日推导(镜像 server CreateDebt)。
     var due = DateTime.utc(dueDate.year, dueDate.month, dueDate.day);
     if (termPeriods > 0) {
-      final dates = scheduleDatesFrom(rule, start, due, termPeriods);
-      due = dates.last;
+      // 卡贷(flat):日期经 _cardLoanScheduleDates(同月账单日命中,银行
+      // 「下个账单日前放款 → 首期落当期账单」语义);普通路径沿用引擎
+      // scheduleDatesFrom(byDate 契约 = 从次月起跳,pinned)。
+      due = flatFeeCents > 0
+          ? _cardLoanScheduleDates(rule, start, termPeriods).last
+          : scheduleDatesFrom(rule, start, due, termPeriods).last;
     }
     await _database.transaction(() async {
       await _dao.insertDebt(db.DebtsCompanion.insert(
@@ -150,6 +159,8 @@ class DebtLocalDataSource {
         weekdayMask: Value(weekdayMask),
         monthlyMode: Value(monthlyMode),
         nth: Value(nth),
+        billingDay: Value(billingDay),
+        flatFeeCents: Value(flatFeeCents),
         interestWaivedCents: Value(interestWaivedCents),
         startDate: start,
         dueDate: due,
@@ -168,8 +179,18 @@ class DebtLocalDataSource {
       ));
       // Amortization schedule at create (rule-driven;镜像 server 新
       // AmortizationCalculator:日期 = scheduleDatesFrom,金额 = 期利率公式,
-      // 月度 interval=1 与旧算法逐位一致)。
-      final generated = _generateSchedule(
+      // 月度 interval=1 与旧算法逐位一致)。卡贷(flatFeeCents>0)走银行
+      // 现金分期口径:每期 = 本金/N(末期吸收余数)+ 固定手续费,与银行
+      // 账单逐分一致,忽略摊销方法。
+      final generated = flatFeeCents > 0
+          ? _flatFeeSchedule(
+              debtId: id,
+              rule: rule,
+              startDate: start,
+              termPeriods: termPeriods,
+              totalPrincipalCents: totalPrincipalCents,
+              flatFeeCents: flatFeeCents)
+          : _generateSchedule(
         debtId: id,
         method: amortizationIndex,
         rule: rule,
@@ -299,17 +320,22 @@ class DebtLocalDataSource {
         weekdayMask: newWeekdayMask,
         monthlyMode: newMonthlyMode,
         nth: newNth);
-    final scheduleChanged = newMethod != row.amortizationMethod - 1 ||
-        interestRate != row.interestRate ||
-        rule != RecurrenceRule.fromInts(
-            cycle: row.cycle,
-            interval: row.interval,
-            weekdayMask: row.weekdayMask,
-            monthlyMode: row.monthlyMode,
-            nth: row.nth) ||
-        (dueDate != null && newDue != row.dueDate) ||
-        termPeriods > 0 ||
-        newWaiver != row.interestWaivedCents;
+    final scheduleChanged = row.subtype == DebtSubtypes.cardLoan
+        // 卡贷(F48):排期创建时按银行口径(账单日锚定+固定手续费)生成,
+        // 编辑不重排 —— 重排会退化为常规摊销丢失口径;改期/改费走删除重建。
+        ? false
+        : (newMethod != row.amortizationMethod - 1 ||
+            interestRate != row.interestRate ||
+            rule !=
+                RecurrenceRule.fromInts(
+                    cycle: row.cycle,
+                    interval: row.interval,
+                    weekdayMask: row.weekdayMask,
+                    monthlyMode: row.monthlyMode,
+                    nth: row.nth) ||
+            (dueDate != null && newDue != row.dueDate) ||
+            termPeriods > 0 ||
+            newWaiver != row.interestWaivedCents);
 
     var effectiveDue = newDue;
     // F36 FR-2:capture 旧 totalPrincipalCents(row 于 update 前);Δ = 新−旧。
@@ -595,6 +621,40 @@ class DebtLocalDataSource {
     });
   }
 
+  /// 卡贷并账 catchup(F48,guest-local v1):subtype==card_loan 且经
+  /// collectionAccountId 挂接信用卡的借入债,已到账单日(paymentDate ≤ 今日)
+  /// 未并入的期次自动 recordPayment(from: 挂接卡)—— 分录 = 借卡贷负债 /
+  /// 贷信用卡,使该期并入账单应还、债务余额同额递减。幂等 = 期次 paid;
+  /// 单期失败不阻断其余(缺卡/账户异常静默跳过,下轮重试)。
+  Future<void> catchupCardLoanMerges() async {
+    final rows = await _dao.watchAllDebts().first;
+    final today = DateTime.now().toUtc();
+    final todayStart = DateTime.utc(today.year, today.month, today.day);
+    for (final row in rows) {
+      if (row.subtype != DebtSubtypes.cardLoan) continue;
+      if (row.debtType != DebtType.borrowedIn.index + 1) continue;
+      final card = row.collectionAccountId;
+      if (card == null || card.isEmpty) continue;
+      final entries = await _dao.getScheduleByDebt(row.id);
+      final due = entries
+          .where((e) => !e.paid && !e.paymentDate.isAfter(todayStart))
+          .toList()
+        ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+      for (final e in due) {
+        try {
+          await recordPayment(
+            debtId: row.id,
+            scheduleEntryId: e.id,
+            fromAccountId: card,
+            description: '卡贷并入账单 ${row.counterparty}',
+          );
+        } on Failure catch (_) {
+          // 单期失败(账户冻结等)不阻断其余期次,下一轮 catchup 重试。
+        }
+      }
+    }
+  }
+
   /// [markPending]:复合写(FR-3)—— 还款双分录交易头行与债务头行在同一
   /// 事务内置 pending(债务头行本身未变字段,但期次已还的本地事实须由
   /// pending 状态保护,镜像刷新不得抹掉;T3 收集器按头行收集整包)。
@@ -603,6 +663,9 @@ class DebtLocalDataSource {
     required String scheduleEntryId,
     required String fromAccountId,
     bool markPending = false,
+    // 卡贷并账复用本入口:分录语义 = 借债务/贷信用卡(账单 +),描述区别
+    // 于手工还款;缺省维持既有「还款 X」。
+    String? description,
   }) async {
     final row = await _require(debtId);
     final schedule = await _dao.watchScheduleByDebt(debtId).first;
@@ -619,7 +682,7 @@ class DebtLocalDataSource {
       final txn = await _txns.recordTransaction(
           RecordTransactionParams(
         transactionDate: entry.paymentDate,
-        description: '还款 ${row.counterparty}',
+        description: description ?? '还款 ${row.counterparty}',
         entries: [
           TransactionEntry(
               accountId: isBorrowedIn ? row.accountId : fromAccountId,
@@ -685,6 +748,62 @@ class DebtLocalDataSource {
       principalCents: totalPrincipalCents,
       annualRate: interestRate,
     );
+  }
+
+  /// 卡贷期次日期(F48):首期 = 起始日所在月若命中账单日(严格晚于起始日)
+  /// 则当月账单日,否则 nextAfter(下一账单日);此后逐月推进。引擎 nextAfter
+  /// 的 byDate 分支按「from 的次月」推进(pinned 契约,月末钳制),同月命中
+  /// 由本层补齐;起始日恰为账单日 → 本期账单已出,首期顺延下期(银行语义)。
+  List<DateTime> _cardLoanScheduleDates(
+      RecurrenceRule rule, DateTime start, int n) {
+    if (n <= 0) return const [];
+    DateTime first;
+    final day = rule.billingDay;
+    if (day > 0) {
+      final lastDay = DateTime.utc(start.year, start.month + 1, 0).day;
+      final clamped = day > lastDay ? lastDay : day;
+      final sameMonth = DateTime.utc(start.year, start.month, clamped);
+      first = sameMonth.isAfter(start) ? sameMonth : nextAfter(start, rule);
+    } else {
+      first = nextAfter(start, rule);
+    }
+    final out = <DateTime>[first];
+    for (var i = 1; i < n; i++) {
+      out.add(nextAfter(out.last, rule));
+    }
+    return out;
+  }
+
+  /// 卡贷排期(银行现金分期口径):每期 = 本金/N + 固定手续费,末期本金
+  /// 吸收取整余数(Σ本金 = 总额);手续费按全额本金计、逐期等额(银行
+  /// 账单口径)。日期由 rule(账单日锚点)驱动。
+  List<db.PaymentScheduleEntriesCompanion> _flatFeeSchedule({
+    required String debtId,
+    required RecurrenceRule rule,
+    required DateTime startDate,
+    required int termPeriods,
+    required int totalPrincipalCents,
+    required int flatFeeCents,
+  }) {
+    final dates = _cardLoanScheduleDates(rule, startDate, termPeriods);
+    final n = dates.length;
+    if (n == 0) return const [];
+    final base = totalPrincipalCents ~/ n;
+    final out = <db.PaymentScheduleEntriesCompanion>[];
+    for (var i = 0; i < n; i++) {
+      final principalPart = i == n - 1 ? totalPrincipalCents - base * (n - 1) : base;
+      out.add(db.PaymentScheduleEntriesCompanion.insert(
+        id: _uuid.v4(),
+        debtId: debtId,
+        paymentDate: dates[i],
+        principalCents: principalPart,
+        interestCents: flatFeeCents,
+        totalCents: principalPart + flatFeeCents,
+        paidCents: 0,
+        paid: false,
+      ));
+    }
+    return out;
   }
 
   /// 编辑重排:未来期次 = 剩余本金按新参数生成(冻结期次由调用方保留)。

@@ -159,6 +159,8 @@ void main() {
         weekdayMask: 0,
         monthlyMode: 0,
         nth: 0,
+        billingDay: 0,
+        flatFeeCents: 0,
         interestWaivedCents: 0,
         startDate: DateTime.utc(2026, 9, 1),
         dueDate: DateTime.utc(2026, 10, 1),

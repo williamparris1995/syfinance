@@ -769,4 +769,184 @@ void main() {
       await expectLiabilityInvariant();
     });
   });
+
+  // ───────────────────────── 卡贷 F48 ─────────────────────────
+  // 银行现金分期口径(e招贷/万用金):期次锚挂接卡账单日,每期 = 本金/N +
+  // 固定手续费;到账单日自动 recordPayment(from: 卡)并入账单,幂等 = paid。
+  group('卡贷 F48(账单日锚定 + flat 手续费 + 自动并账)', () {
+    late String cardId;
+    late String cardLoanAccount;
+
+    setUp(() async {
+      cardId = 'acc-cc';
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: cardId,
+        name: '招行信用卡',
+        accountType: 2, // liability
+        category: 2, // creditCard
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '8888',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+        creditBillingDay: const Value(5),
+        creditRepaymentDay: const Value(23),
+      ));
+      cardLoanAccount = 'acc-cardloan';
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: cardLoanAccount,
+        name: 'e招贷 · 卡贷',
+        accountType: 2,
+        category: 7, // loan
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+    });
+
+    Future<Debt> createCardLoan({
+      required DateTime start,
+      int periods = 3,
+      int principal = 5000000, // ¥50,000 = 5,000,000 分
+      int fee = 30000, // 每期 ¥300
+      int billingDay = 5,
+    }) =>
+        debts.create(
+          accountId: cardLoanAccount,
+          counterparty: 'e招贷',
+          interestRate: 0.072,
+          amortizationIndex: 0,
+          startDate: start,
+          dueDate: start, // 按期数模式由 DS 推导覆写
+          totalPrincipalCents: principal,
+          type: DebtType.borrowedIn,
+          subtype: DebtSubtypes.cardLoan,
+          sourceAccountId: cash,
+          collectionAccountId: cardId,
+          cycle: 2,
+          termPeriods: periods,
+          billingDay: billingDay,
+          flatFeeCents: fee,
+        );
+
+    test('排期锚账单日:首期=起始日后首个 5 日,每期=本金/N+固定手续费,末期吸收余数',
+        () async {
+      final d = await createCardLoan(start: DateTime.utc(2026, 9, 10));
+      final detail = await debts.get(d.id);
+      expect(
+          detail.schedule.map((e) => e.paymentDate).toList(),
+          [DateTime.utc(2026, 10, 5), DateTime.utc(2026, 11, 5), DateTime.utc(2026, 12, 5)],
+          reason: '放款 9/10 → 首期 10/5(下一账单日),此后每月 5 日');
+      // 500000/3:base=166666,末期=500000-2×166666=166668;fee=30000。
+      final principals =
+          detail.schedule.map((e) => e.principalCents).toList();
+      expect(principals[0], 1666666);
+      expect(principals[1], 1666666);
+      expect(principals[2], 1666668, reason: '末期吸收取整余数,Σ本金=总额');
+      for (final e in detail.schedule) {
+        expect(e.interestCents, 30000, reason: '银行口径手续费按全额本金每期固定');
+        expect(e.totalCents, e.principalCents + 30000);
+        expect(e.paid, isFalse);
+      }
+      // 到期日 = 末个发生日。
+      expect(detail.debt.dueDate, DateTime.utc(2026, 12, 5));
+      // 放款双写:借 到账现金 / 贷 卡贷负债户(卡余额不动 → 不占额度)。
+      final txns =
+          await database.select(database.transactions).get();
+      final disburse = txns
+          .firstWhere((t) => t.description == '借入 e招贷 到账');
+      final legs = await legsOf(disburse.id);
+      expect(legs.any((e) => e.accountId == cash && e.debitCents == 5000000),
+          isTrue);
+      expect(
+          legs.any((e) =>
+              e.accountId == cardLoanAccount && e.creditCents == 5000000),
+          isTrue);
+      final card =
+          await accounts.getAccountById(cardId);
+      expect(card!.currentBalanceCents, 0,
+          reason: '卡贷不占信用额度:并账前卡余额不动');
+    });
+
+    test('catchup:到账单日的期次自动并入挂接卡,幂等且债务余额递减', () async {
+      final now = DateTime.now().toUtc();
+      final today = DateTime.utc(now.year, now.month, now.day);
+      // 起始 = 今日-5 天,账单日 = 今日的日号 → 首期恰为今日(已到),第 2/3 期未到。
+      final d = await createCardLoan(
+          start: today.subtract(const Duration(days: 5)),
+          billingDay: today.day);
+      await debts.catchupCardLoanMerges();
+      var detail = await debts.get(d.id);
+      final merged = detail.schedule
+          .where((e) => !e.paymentDate.isAfter(today))
+          .toList();
+      expect(merged, isNotEmpty);
+      for (final e in merged) {
+        expect(e.paid, isTrue, reason: '账单日已到的期次应自动并入');
+        expect(e.transactionId.isNotEmpty, isTrue);
+      }
+      // 并入分录:借 卡贷负债户 / 贷 信用卡(账单 +当期本息)。
+      final card = await accounts.getAccountById(cardId);
+      final expectedCard =
+          merged.fold<int>(0, (s, e) => s + e.totalCents);
+      expect(card!.currentBalanceCents, expectedCard,
+          reason: '信用卡余额(credit-正)应含并入期次本息 → 计入账单应还');
+      // 幂等:再跑一轮无新分录、余额不变。
+      await debts.catchupCardLoanMerges();
+      final card2 = await accounts.getAccountById(cardId);
+      expect(card2!.currentBalanceCents, expectedCard);
+      // 债务余额递减 = 已并入期次本息(模块口径:remaining = 总额 − ΣpaidCents,
+      // 与负债账户余额不变式一致;普通债务还款含利息同理)。
+      final expectedRemaining =
+          5000000 - merged.fold<int>(0, (s, e) => s + e.totalCents);
+      expect(detail.debt.remainingPrincipalCents, expectedRemaining);
+    });
+
+    test('未到账单日的期次不并入( catchup 零动作)', () async {
+      final now = DateTime.now().toUtc();
+      final d = await createCardLoan(
+          start: DateTime.utc(now.year, now.month, now.day));
+      // 今日放款,账单日 5 日且首个 5 日必在未来(或今天=5 号时首期=今日会并入,
+      // 断言宽松:所有已并入期次都 ≤ 今日)。
+      await debts.catchupCardLoanMerges();
+      final detail = await debts.get(d.id);
+      for (final e in detail.schedule) {
+        if (e.paid) {
+          expect(e.paymentDate.isAfter(DateTime.now().toUtc()), isFalse);
+        }
+      }
+      final card = await accounts.getAccountById(cardId);
+      final mergedTotal = detail
+          .schedule
+          .where((e) => e.paid)
+          .fold<int>(0, (s, e) => s + e.totalCents);
+      expect(card!.currentBalanceCents, mergedTotal);
+    });
+  });
 }

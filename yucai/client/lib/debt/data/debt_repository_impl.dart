@@ -32,12 +32,26 @@ class DebtRepositoryImpl implements DebtRepository {
   }
 
   @override
-  Future<Either<Failure, List<Debt>>> list({DebtType? typeFilter}) =>
-      _guard(() => _useLocalDs ? _local.list(typeFilter: typeFilter) : _remote.list(typeFilter: typeFilter));
+  Future<Either<Failure, List<Debt>>> list({DebtType? typeFilter}) async {
+    await _catchupCardLoans();
+    return _guard(() => _useLocalDs ? _local.list(typeFilter: typeFilter) : _remote.list(typeFilter: typeFilter));
+  }
 
   @override
-  Future<Either<Failure, DebtDetail>> get(String id) =>
-      _guard(() => _useLocalDs ? _local.get(id) : _remote.get(id));
+  Future<Either<Failure, DebtDetail>> get(String id) async {
+    await _catchupCardLoans();
+    return _guard(() => _useLocalDs ? _local.get(id) : _remote.get(id));
+  }
+
+  /// 卡贷并账 catchup(F48):到账单日未并入的期次自动 recordPayment 并入
+  /// 挂接信用卡(幂等 = 期次 paid)。仅 guestLocal 跑 —— boundOffline 的
+  /// pending 上行与镜像重建均不识别卡贷语义,写了会漂移;失败静默不阻断读。
+  Future<void> _catchupCardLoans() async {
+    if (_tracker.resolveDataRoute() != DataRoute.guestLocal) return;
+    try {
+      await _local.catchupCardLoanMerges();
+    } catch (_) {}
+  }
 
   @override
   Future<Either<Failure, Debt>> create({
@@ -63,9 +77,14 @@ class DebtRepositoryImpl implements DebtRepository {
     int nth = 0,
     int termPeriods = 0,
     int interestWaivedCents = 0,
+    int billingDay = 0,
+    int flatFeeCents = 0,
     bool restructureOnly = false,
   }) =>
       _routedWrite(MirrorModule.debt,
+          // 卡贷 billingDay/flatFeeCents 不透传 remote:proto CreateDebtRequest
+          // 无对应字段(照 totalPrincipalCents 先例);bound 在线创建卡贷会
+          // 退化为常规摊销 —— guest-local v1 已知限制。
           () => _remote.create(
             accountId: accountId,
             counterparty: counterparty,
@@ -115,6 +134,8 @@ class DebtRepositoryImpl implements DebtRepository {
             nth: nth,
             termPeriods: termPeriods,
             interestWaivedCents: interestWaivedCents,
+            billingDay: billingDay,
+            flatFeeCents: flatFeeCents,
             restructureOnly: restructureOnly,
           ));
 

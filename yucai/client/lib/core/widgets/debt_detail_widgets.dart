@@ -677,8 +677,8 @@ class DebtDetailSchedule extends StatefulWidget {
   final String preferred;
   final bool isMobile;
   final String? collectionAccountId;
-  final void Function(PaymentEntry entry) onConfirmInline;
-  final void Function(PaymentEntry entry) onOpenDialog;
+  final void Function(PaymentEntry entry)? onConfirmInline;
+  final void Function(PaymentEntry entry)? onOpenDialog;
   final ValueChanged<PaymentEntry>? onEditDate;
   final ValueChanged<PaymentEntry>? onMarkPaid;
   final ValueChanged<List<PaymentEntry>>? onMarkPaidBatch;
@@ -1316,9 +1316,13 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     final overdue = e.status == PaymentStatus.overdue;
     final hasCollection = widget.collectionAccountId != null &&
         widget.collectionAccountId!.isNotEmpty;
-    final onPressed = hasCollection
-        ? () => widget.onConfirmInline(e)
-        : () => widget.onOpenDialog(e);
+    // 卡贷(F48):两回调置空 = 期次自动并入账单,手工确认按钮不渲染
+    // (从储蓄卡手工还会双重支付);已并入期次上方 paid 分支照旧。
+    final onPressed = (hasCollection ? widget.onConfirmInline : widget.onOpenDialog) == null
+        ? null
+        : (hasCollection
+            ? () => widget.onConfirmInline!(e)
+            : () => widget.onOpenDialog!(e));
     // Wrap(非 Row):主/副按钮在窄列(平板 table cell)自动换行,避免溢出。
     return Wrap(
       spacing: 4,

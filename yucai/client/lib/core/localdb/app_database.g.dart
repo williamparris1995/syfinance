@@ -4320,6 +4320,30 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _billingDayMeta = const VerificationMeta(
+    'billingDay',
+  );
+  @override
+  late final GeneratedColumn<int> billingDay = GeneratedColumn<int>(
+    'billing_day',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _flatFeeCentsMeta = const VerificationMeta(
+    'flatFeeCents',
+  );
+  @override
+  late final GeneratedColumn<int> flatFeeCents = GeneratedColumn<int>(
+    'flat_fee_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _interestWaivedCentsMeta =
       const VerificationMeta('interestWaivedCents');
   @override
@@ -4499,6 +4523,8 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     weekdayMask,
     monthlyMode,
     nth,
+    billingDay,
+    flatFeeCents,
     interestWaivedCents,
     startDate,
     dueDate,
@@ -4607,6 +4633,21 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       context.handle(
         _nthMeta,
         nth.isAcceptableOrUnknown(data['nth']!, _nthMeta),
+      );
+    }
+    if (data.containsKey('billing_day')) {
+      context.handle(
+        _billingDayMeta,
+        billingDay.isAcceptableOrUnknown(data['billing_day']!, _billingDayMeta),
+      );
+    }
+    if (data.containsKey('flat_fee_cents')) {
+      context.handle(
+        _flatFeeCentsMeta,
+        flatFeeCents.isAcceptableOrUnknown(
+          data['flat_fee_cents']!,
+          _flatFeeCentsMeta,
+        ),
       );
     }
     if (data.containsKey('interest_waived_cents')) {
@@ -4786,6 +4827,14 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         DriftSqlType.int,
         data['${effectivePrefix}nth'],
       )!,
+      billingDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}billing_day'],
+      )!,
+      flatFeeCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}flat_fee_cents'],
+      )!,
       interestWaivedCents: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}interest_waived_cents'],
@@ -4866,6 +4915,8 @@ class Debt extends DataClass implements Insertable<Debt> {
   final int weekdayMask;
   final int monthlyMode;
   final int nth;
+  final int billingDay;
+  final int flatFeeCents;
   final int interestWaivedCents;
   final DateTime startDate;
   final DateTime dueDate;
@@ -4894,6 +4945,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     required this.weekdayMask,
     required this.monthlyMode,
     required this.nth,
+    required this.billingDay,
+    required this.flatFeeCents,
     required this.interestWaivedCents,
     required this.startDate,
     required this.dueDate,
@@ -4923,6 +4976,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['weekday_mask'] = Variable<int>(weekdayMask);
     map['monthly_mode'] = Variable<int>(monthlyMode);
     map['nth'] = Variable<int>(nth);
+    map['billing_day'] = Variable<int>(billingDay);
+    map['flat_fee_cents'] = Variable<int>(flatFeeCents);
     map['interest_waived_cents'] = Variable<int>(interestWaivedCents);
     map['start_date'] = Variable<DateTime>(startDate);
     map['due_date'] = Variable<DateTime>(dueDate);
@@ -4955,6 +5010,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       weekdayMask: Value(weekdayMask),
       monthlyMode: Value(monthlyMode),
       nth: Value(nth),
+      billingDay: Value(billingDay),
+      flatFeeCents: Value(flatFeeCents),
       interestWaivedCents: Value(interestWaivedCents),
       startDate: Value(startDate),
       dueDate: Value(dueDate),
@@ -4991,6 +5048,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       weekdayMask: serializer.fromJson<int>(json['weekdayMask']),
       monthlyMode: serializer.fromJson<int>(json['monthlyMode']),
       nth: serializer.fromJson<int>(json['nth']),
+      billingDay: serializer.fromJson<int>(json['billingDay']),
+      flatFeeCents: serializer.fromJson<int>(json['flatFeeCents']),
       interestWaivedCents: serializer.fromJson<int>(
         json['interestWaivedCents'],
       ),
@@ -5028,6 +5087,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       'weekdayMask': serializer.toJson<int>(weekdayMask),
       'monthlyMode': serializer.toJson<int>(monthlyMode),
       'nth': serializer.toJson<int>(nth),
+      'billingDay': serializer.toJson<int>(billingDay),
+      'flatFeeCents': serializer.toJson<int>(flatFeeCents),
       'interestWaivedCents': serializer.toJson<int>(interestWaivedCents),
       'startDate': serializer.toJson<DateTime>(startDate),
       'dueDate': serializer.toJson<DateTime>(dueDate),
@@ -5057,6 +5118,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     int? weekdayMask,
     int? monthlyMode,
     int? nth,
+    int? billingDay,
+    int? flatFeeCents,
     int? interestWaivedCents,
     DateTime? startDate,
     DateTime? dueDate,
@@ -5083,6 +5146,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     weekdayMask: weekdayMask ?? this.weekdayMask,
     monthlyMode: monthlyMode ?? this.monthlyMode,
     nth: nth ?? this.nth,
+    billingDay: billingDay ?? this.billingDay,
+    flatFeeCents: flatFeeCents ?? this.flatFeeCents,
     interestWaivedCents: interestWaivedCents ?? this.interestWaivedCents,
     startDate: startDate ?? this.startDate,
     dueDate: dueDate ?? this.dueDate,
@@ -5123,6 +5188,12 @@ class Debt extends DataClass implements Insertable<Debt> {
           ? data.monthlyMode.value
           : this.monthlyMode,
       nth: data.nth.present ? data.nth.value : this.nth,
+      billingDay: data.billingDay.present
+          ? data.billingDay.value
+          : this.billingDay,
+      flatFeeCents: data.flatFeeCents.present
+          ? data.flatFeeCents.value
+          : this.flatFeeCents,
       interestWaivedCents: data.interestWaivedCents.present
           ? data.interestWaivedCents.value
           : this.interestWaivedCents,
@@ -5166,6 +5237,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('weekdayMask: $weekdayMask, ')
           ..write('monthlyMode: $monthlyMode, ')
           ..write('nth: $nth, ')
+          ..write('billingDay: $billingDay, ')
+          ..write('flatFeeCents: $flatFeeCents, ')
           ..write('interestWaivedCents: $interestWaivedCents, ')
           ..write('startDate: $startDate, ')
           ..write('dueDate: $dueDate, ')
@@ -5197,6 +5270,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     weekdayMask,
     monthlyMode,
     nth,
+    billingDay,
+    flatFeeCents,
     interestWaivedCents,
     startDate,
     dueDate,
@@ -5227,6 +5302,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.weekdayMask == this.weekdayMask &&
           other.monthlyMode == this.monthlyMode &&
           other.nth == this.nth &&
+          other.billingDay == this.billingDay &&
+          other.flatFeeCents == this.flatFeeCents &&
           other.interestWaivedCents == this.interestWaivedCents &&
           other.startDate == this.startDate &&
           other.dueDate == this.dueDate &&
@@ -5255,6 +5332,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<int> weekdayMask;
   final Value<int> monthlyMode;
   final Value<int> nth;
+  final Value<int> billingDay;
+  final Value<int> flatFeeCents;
   final Value<int> interestWaivedCents;
   final Value<DateTime> startDate;
   final Value<DateTime> dueDate;
@@ -5282,6 +5361,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.weekdayMask = const Value.absent(),
     this.monthlyMode = const Value.absent(),
     this.nth = const Value.absent(),
+    this.billingDay = const Value.absent(),
+    this.flatFeeCents = const Value.absent(),
     this.interestWaivedCents = const Value.absent(),
     this.startDate = const Value.absent(),
     this.dueDate = const Value.absent(),
@@ -5310,6 +5391,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.weekdayMask = const Value.absent(),
     this.monthlyMode = const Value.absent(),
     this.nth = const Value.absent(),
+    this.billingDay = const Value.absent(),
+    this.flatFeeCents = const Value.absent(),
     this.interestWaivedCents = const Value.absent(),
     required DateTime startDate,
     required DateTime dueDate,
@@ -5352,6 +5435,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<int>? weekdayMask,
     Expression<int>? monthlyMode,
     Expression<int>? nth,
+    Expression<int>? billingDay,
+    Expression<int>? flatFeeCents,
     Expression<int>? interestWaivedCents,
     Expression<DateTime>? startDate,
     Expression<DateTime>? dueDate,
@@ -5380,6 +5465,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (weekdayMask != null) 'weekday_mask': weekdayMask,
       if (monthlyMode != null) 'monthly_mode': monthlyMode,
       if (nth != null) 'nth': nth,
+      if (billingDay != null) 'billing_day': billingDay,
+      if (flatFeeCents != null) 'flat_fee_cents': flatFeeCents,
       if (interestWaivedCents != null)
         'interest_waived_cents': interestWaivedCents,
       if (startDate != null) 'start_date': startDate,
@@ -5413,6 +5500,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<int>? weekdayMask,
     Value<int>? monthlyMode,
     Value<int>? nth,
+    Value<int>? billingDay,
+    Value<int>? flatFeeCents,
     Value<int>? interestWaivedCents,
     Value<DateTime>? startDate,
     Value<DateTime>? dueDate,
@@ -5441,6 +5530,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       weekdayMask: weekdayMask ?? this.weekdayMask,
       monthlyMode: monthlyMode ?? this.monthlyMode,
       nth: nth ?? this.nth,
+      billingDay: billingDay ?? this.billingDay,
+      flatFeeCents: flatFeeCents ?? this.flatFeeCents,
       interestWaivedCents: interestWaivedCents ?? this.interestWaivedCents,
       startDate: startDate ?? this.startDate,
       dueDate: dueDate ?? this.dueDate,
@@ -5492,6 +5583,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     }
     if (nth.present) {
       map['nth'] = Variable<int>(nth.value);
+    }
+    if (billingDay.present) {
+      map['billing_day'] = Variable<int>(billingDay.value);
+    }
+    if (flatFeeCents.present) {
+      map['flat_fee_cents'] = Variable<int>(flatFeeCents.value);
     }
     if (interestWaivedCents.present) {
       map['interest_waived_cents'] = Variable<int>(interestWaivedCents.value);
@@ -5559,6 +5656,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('weekdayMask: $weekdayMask, ')
           ..write('monthlyMode: $monthlyMode, ')
           ..write('nth: $nth, ')
+          ..write('billingDay: $billingDay, ')
+          ..write('flatFeeCents: $flatFeeCents, ')
           ..write('interestWaivedCents: $interestWaivedCents, ')
           ..write('startDate: $startDate, ')
           ..write('dueDate: $dueDate, ')
@@ -20240,6 +20339,8 @@ typedef $$DebtsTableCreateCompanionBuilder =
       Value<int> weekdayMask,
       Value<int> monthlyMode,
       Value<int> nth,
+      Value<int> billingDay,
+      Value<int> flatFeeCents,
       Value<int> interestWaivedCents,
       required DateTime startDate,
       required DateTime dueDate,
@@ -20269,6 +20370,8 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<int> weekdayMask,
       Value<int> monthlyMode,
       Value<int> nth,
+      Value<int> billingDay,
+      Value<int> flatFeeCents,
       Value<int> interestWaivedCents,
       Value<DateTime> startDate,
       Value<DateTime> dueDate,
@@ -20375,6 +20478,16 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
 
   ColumnFilters<int> get nth => $composableBuilder(
     column: $table.nth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get billingDay => $composableBuilder(
+    column: $table.billingDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get flatFeeCents => $composableBuilder(
+    column: $table.flatFeeCents,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20539,6 +20652,16 @@ class $$DebtsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get billingDay => $composableBuilder(
+    column: $table.billingDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get flatFeeCents => $composableBuilder(
+    column: $table.flatFeeCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get interestWaivedCents => $composableBuilder(
     column: $table.interestWaivedCents,
     builder: (column) => ColumnOrderings(column),
@@ -20664,6 +20787,16 @@ class $$DebtsTableAnnotationComposer
   GeneratedColumn<int> get nth =>
       $composableBuilder(column: $table.nth, builder: (column) => column);
 
+  GeneratedColumn<int> get billingDay => $composableBuilder(
+    column: $table.billingDay,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get flatFeeCents => $composableBuilder(
+    column: $table.flatFeeCents,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get interestWaivedCents => $composableBuilder(
     column: $table.interestWaivedCents,
     builder: (column) => column,
@@ -20786,6 +20919,8 @@ class $$DebtsTableTableManager
                 Value<int> weekdayMask = const Value.absent(),
                 Value<int> monthlyMode = const Value.absent(),
                 Value<int> nth = const Value.absent(),
+                Value<int> billingDay = const Value.absent(),
+                Value<int> flatFeeCents = const Value.absent(),
                 Value<int> interestWaivedCents = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime> dueDate = const Value.absent(),
@@ -20813,6 +20948,8 @@ class $$DebtsTableTableManager
                 weekdayMask: weekdayMask,
                 monthlyMode: monthlyMode,
                 nth: nth,
+                billingDay: billingDay,
+                flatFeeCents: flatFeeCents,
                 interestWaivedCents: interestWaivedCents,
                 startDate: startDate,
                 dueDate: dueDate,
@@ -20842,6 +20979,8 @@ class $$DebtsTableTableManager
                 Value<int> weekdayMask = const Value.absent(),
                 Value<int> monthlyMode = const Value.absent(),
                 Value<int> nth = const Value.absent(),
+                Value<int> billingDay = const Value.absent(),
+                Value<int> flatFeeCents = const Value.absent(),
                 Value<int> interestWaivedCents = const Value.absent(),
                 required DateTime startDate,
                 required DateTime dueDate,
@@ -20869,6 +21008,8 @@ class $$DebtsTableTableManager
                 weekdayMask: weekdayMask,
                 monthlyMode: monthlyMode,
                 nth: nth,
+                billingDay: billingDay,
+                flatFeeCents: flatFeeCents,
                 interestWaivedCents: interestWaivedCents,
                 startDate: startDate,
                 dueDate: dueDate,

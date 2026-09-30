@@ -142,7 +142,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   /// 幂等加列:先查 PRAGMA table_info,列已存在则跳过。
   /// 背景:库文件可能被不同版本的 App 触碰(安装版/调试版/手工恢复备份),
@@ -248,6 +248,13 @@ class AppDatabase extends _$AppDatabase {
           // (design ADR-4)。仅建表,无损;无数据回填(候选入窗起记)。
           if (from < 11) {
             await m.createTable(inboxEntries);
+          }
+          // v11→v12(卡贷):Debts 加 billing_day(月度账单日锚点,0=锚起始
+          // 日旧行为)与 flat_fee_cents(每期固定手续费,0=常规摊销)两列。
+          // 仅加列,存量行零迁移;普通债务恒 0,行为不变。
+          if (from < 12) {
+            await _addColumnIfAbsent(debts, debts.billingDay);
+            await _addColumnIfAbsent(debts, debts.flatFeeCents);
           }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)
