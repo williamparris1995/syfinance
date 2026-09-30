@@ -326,7 +326,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
               fontFamily: AppTypography.displayFamily,
               fontFamilyFallback: AppTypography.displayFallback)),
       const SizedBox(width: 6),
-      Text('每期账单日自动并入卡账单,随卡还款',
+      Text('每期放款对应日自动入卡,随卡还款',
           style: TextStyle(fontSize: 11.5, color: context.yucai.muted)),
     ]));
     out.add(const SizedBox(height: AppSpacing.sm));

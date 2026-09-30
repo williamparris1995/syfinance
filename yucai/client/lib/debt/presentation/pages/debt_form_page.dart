@@ -219,26 +219,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
       .where((a) => a.category == AccountCategory.creditCard)
       .toList();
 
-  /// 已选挂接卡(未选 = null)。
-  Account? get _cardLoanCard {
-    final id = _cardLoanCardId;
-    if (id == null) return null;
-    for (final a in _accounts) {
-      if (a.id == id) return a;
-    }
-    return null;
-  }
-
-  /// 卡贷账单日锚点:挂接卡账单日(1-31);未设/未选 = 0(锚起始日)。
-  int get _cardBillingDay => (_cardLoanCard?.creditBillingDay ?? 0).clamp(0, 31);
-
-  /// 卡贷生效规则:月度按日,锚挂接卡账单日(普通路径沿用 [_rule])。
+  /// 卡贷生效规则:月度按日,锚放款日(起始日日号;普通路径沿用 [_rule])。
   RecurrenceRule get _effectiveRule => _isCardLoan
       ? RecurrenceRule(
           cycle: RecurrenceCycle.monthly,
           interval: 1,
-          monthlyMode: RecurrenceMonthlyMode.byDate,
-          billingDay: _cardBillingDay)
+          monthlyMode: RecurrenceMonthlyMode.byDate)
       : _rule;
 
   /// 卡贷名义年化 %(仅展示/落库):月费率 × 12(银行现金分期口径)。
@@ -763,7 +749,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
         nth: effRule.nth,
         termPeriods: _byPeriods ? dates.length : 0,
         interestWaivedCents: _waiverCents(),
-        billingDay: _isCardLoan ? _cardBillingDay : 0,
+        billingDay: 0,
         flatFeeCents: _isCardLoan ? _cardLoanFeeCents() : 0,
       )));
     }
@@ -1238,7 +1224,6 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // ===================== 卡贷字段区(F48) =====================
 
   List<Widget> _cardLoanFields() {
-    final card = _cardLoanCard;
     return [
       const SizedBox(height: AppSpacing.sm),
       _ODGrid2(children: [
@@ -1282,11 +1267,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
         key: const ValueKey('cardLoanAnchorHint'),
         padding: const EdgeInsets.only(top: 6),
         child: Text(
-          card == null
-              ? '期次在挂接卡的账单日并入账单(占用该卡额度),随还款日一起还'
-              : (_cardBillingDay > 0
-                  ? '每期于该卡账单日(每月 $_cardBillingDay 日)并入账单(占用该卡额度),随还款日一起还'
-                  : '该卡未设置账单日,期次将按起始日每月同日出账;可在账户管理为该卡设置账单日'),
+          '每期于放款对应日(起始日每月同日)入卡占用额度,随该卡还款日一起还',
           style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
         ),
       ),
@@ -1434,7 +1415,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
           key: const ValueKey('cardLoanScheduleHint'),
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: Text(
-              '出账节奏:首期 = 起始日之后的下一个账单日,此后每账单一期;到期日按末期推导',
+              '出账节奏:首期 = 放款日的下个每月对应日,此后每月一期;到期日按末期推导',
               style:
                   TextStyle(fontSize: 11.5, color: context.yucai.muted)),
         ),
