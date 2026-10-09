@@ -11,7 +11,7 @@
 
 - **编号 = R17**:账户扩展性包用 R17;R16 立项时「待摊引擎 R17 候选」仅为备忘,顺延为 R18 候选。
 - **Sprint = 两段,治欠账先行**:sprint-1 = F49/F50/F51 三张独立小票(依赖 `b6205457` 的 e招贷解挂);sprint-2 = F52 预设层(含花呗/白条产品口径调研,体量独立)。小票先落地不被大票阻塞。
-- **前置 WIP 处置 = 验证后落 main**:`b6205457`(e招贷独立账单账户 + design_kit 治理复合提交;2496 测全绿 + analyze 20 error 全 pbserver 基线;design_kit 生成产物已出索引+包级 .gitignore)。
+- **前置 WIP 处置 = 验证后落 main**:`ee57fefa`(e招贷独立账单账户 + design_kit 治理复合提交;2496 测全绿 + analyze 20 error 全 pbserver 基线;design_kit 生成产物已出索引+包级 .gitignore)。
 - **结构定案(对谈+调研+审计支撑)**:账户体系与分类不重构;花呗/白条走 creditCard 类别+预设,零 schema 改动;per-product 属性(如「不参与支付推荐」)不加 STI 列,metadata JSON 方向仅在 F52 spec 评估(需 proto 变更,默认不做)。依据存项目记忆 `account-fields-audit`。
 
 ## Sprint roster
