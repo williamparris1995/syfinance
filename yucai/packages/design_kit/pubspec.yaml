@@ -1,0 +1,22 @@
+name: design_kit
+description: >-
+  Product-neutral shared UI primitives (anchored/context menus + minimal
+  semantic design tokens) for embedding into any Flutter product.
+  Kit components depend ONLY on these tokens — host products map their own
+  design system onto DesignTokens (dependency inversion, YuCai ADR-007).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

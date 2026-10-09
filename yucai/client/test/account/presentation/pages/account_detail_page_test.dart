@@ -43,6 +43,7 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
@@ -705,6 +706,53 @@ void main() {
     expect(find.text('已还比例'), findsOneWidget);
     expect(find.text('10.0%'), findsOneWidget);
   });
+
+  testWidgets(
+    'loan stats(挂债): 四卡读债务实时聚合而非空静态字段 (dev 反馈:挂债贷款统计恒 0)',
+    (tester) async {
+      // 卡贷/挂债账户静态 loan_* 字段全空(债务模块建户不写),修复前四卡
+      // 恒 ¥0.00/0.0%。挂 1 笔债:原始 ¥200,000、剩余 ¥120,000、月供 ¥509.62。
+      final debt = Debt(
+        id: 'd1',
+        accountId: 'a1',
+        counterparty: '工商银行',
+        interestRate: 3.9,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2024, 1, 1),
+        dueDate: DateTime(2054, 12, 1),
+        totalPrincipalCents: 20000000,
+        remainingPrincipalCents: 12000000,
+        nextPaymentDate: DateTime(2026, 11, 1),
+        nextPaymentAmountCents: 50962,
+        version: 1,
+        createdAt: DateTime(2024, 1, 1),
+        updatedAt: DateTime(2024, 1, 1),
+      );
+      await pumpPage(
+        tester,
+        account: _account(
+          name: '融e借',
+          category: AccountCategory.loan,
+          accountType: AccountType.liability,
+          currentBalanceCents: 1203288,
+        ),
+        debts: [debt],
+      );
+
+      await tester.scrollUntilVisible(
+        find.textContaining('已还比例'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // 四卡与 hero 字段区同源(hero 也渲染同名行 → findsWidgets)。
+      expect(find.textContaining('200,000.00'), findsWidgets,
+          reason: '原始本金取债务合计而非空静态字段');
+      expect(find.textContaining('120,000.00'), findsWidgets,
+          reason: '剩余本金取债务合计');
+      expect(find.textContaining('509.62'), findsWidgets, reason: '月供取最早到期期次');
+      expect(find.text('40.0%'), findsWidgets, reason: '已还比例=(20w-12w)/20w');
+    },
+  );
 
   testWidgets('savings stats: 本月收入/本月支出/本月净流入/本月交易（默认 month）',
       (tester) async {
@@ -2148,5 +2196,169 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('账单周期'), findsNothing);
+  });
+
+  testWidgets(
+    '账单制贷款面板:向前窗口本期账单/上期未结/下期预计 + 一键整单还款 (e招贷银行口径)',
+    (tester) async {
+      final now = DateTime.now();
+      // 最近已过账单日 D(账单日 5)。银行口径:账单**向前**覆盖 (D, 下个D]。
+      var billDate = DateTime(now.year, now.month, 5);
+      if (billDate.isAfter(DateTime(now.year, now.month, now.day))) {
+        billDate = DateTime(now.year, now.month - 1, 5);
+      }
+      final loan = _account(
+        name: '招行e招贷',
+        category: AccountCategory.loan,
+        accountType: AccountType.liability,
+      ).copyWith(creditBillingDay: 5, creditRepaymentDay: 23);
+      final debt = debtFixture(id: 'd-bill');
+      // 本期账单(未来周期)1 期;上期未结(已过账单日未还)1 期;下期 1 期。
+      final inBill = entryFixture(
+          'e-in', billDate.add(const Duration(days: 3)),
+          totalCents: 900000);
+      final arrears = entryFixture(
+          'e-arrears', billDate.subtract(const Duration(days: 2)),
+          totalCents: 70000);
+      final nextBill = entryFixture(
+          'e-next', billDate.add(const Duration(days: 35)),
+          totalCents: 800000);
+
+      await pumpPage(
+        tester,
+        account: loan,
+        accounts: [
+          loan,
+          _account().copyWith(id: 'sav1', name: '现金'),
+        ],
+        debts: [debt],
+        debtSchedules: {'d-bill': [inBill, arrears, nextBill]},
+      );
+
+      // 面板:本期账单 ¥9,000(向前窗口)+ 上期未结 ¥700 + 下期预计 ¥8,000。
+      expect(find.byKey(const ValueKey('loanBillPanel')), findsOneWidget);
+      expect(find.text('本期账单'), findsOneWidget);
+      expect(find.textContaining('9000.00'), findsWidgets,
+          reason: '本期账单 = 未来周期期次');
+      expect(find.textContaining('上期未结'), findsOneWidget);
+      expect(find.textContaining(r'¥ 700.00'), findsOneWidget,
+          reason: '上期未结(带货币符,区别于按钮 9700.00)');
+      expect(find.textContaining('8000.00'), findsOneWidget,
+          reason: '下期预计(未出账)');
+      expect(find.textContaining('前还清'), findsOneWidget);
+
+      // 一键还款:本期 9,000 + 上期未结 700 = 9,700,单笔整单。
+      when(() => debtRepo.repayBill(
+              loanAccountId: any(named: 'loanAccountId'),
+              items: any(named: 'items'),
+              fromAccountId: any(named: 'fromAccountId'),
+              description: any(named: 'description')))
+          .thenAnswer((_) async => const dartz.Right(null));
+      await tester.scrollUntilVisible(
+        find.textContaining('一键还清'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('一键还清'));
+      await tester.pumpAndSettle();
+      expect(find.text('账单还款'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, '还款'));
+      await tester.pumpAndSettle();
+
+      final captured = verify(() => debtRepo.repayBill(
+              loanAccountId: captureAny(named: 'loanAccountId'),
+              items: captureAny(named: 'items'),
+              fromAccountId: captureAny(named: 'fromAccountId'),
+              description: captureAny(named: 'description')))
+          .captured;
+      expect(captured[0], 'a1', reason: '贷款账户');
+      final items = captured[1] as List;
+      expect(items.length, 2, reason: '本期 + 上期未结一并还');
+      expect(items.contains((debtId: 'd-bill', entryId: 'e-in')), isTrue);
+      expect(items.contains((debtId: 'd-bill', entryId: 'e-arrears')), isTrue);
+      expect(captured[2], 'sav1', reason: '还款来源 = 选中的储蓄账户');
+
+      // AppToast Timer 走完。
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    },
+  );
+
+  // ───── 删除账户失败反馈(dev 反馈:详情页删除被守卫拒绝时完全无提示)─────
+
+  testWidgets('删除被守卫拒绝:toast 透出原因并留在本页(不再 dispatch 后静默 pop)',
+      (tester) async {
+    final getUc = _MockGet();
+    when(() => getUc.call(any()))
+        .thenAnswer((_) async => dartz.Right(_account()));
+    final listUc = _MockList();
+    when(() => listUc.call())
+        .thenAnswer((_) async => dartz.Right([_account()]));
+    final createUc = _MockCreate();
+    final deleteUc = _MockDelete();
+    // 余额非零守卫(guest local ds 与远端 _mapGrpcError 同文案)。
+    when(() => deleteUc.call(any())).thenAnswer((_) async => const dartz.Left(
+        ServerFailure('账户余额非零，无法删除，请先清空余额或转账后再试')));
+    final updateUc = _MockUpdate();
+
+    await tester.pumpWidget(_harness(
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AccountBloc>(
+            create: (_) {
+              final b =
+                  AccountBloc(listUc, createUc, deleteUc, getUc, updateUc);
+              b.add(const GetAccountRequested('a1'));
+              return b;
+            },
+          ),
+          BlocProvider<TransactionBloc>(
+            create: (_) {
+              final b = TransactionBloc(txnRepo);
+              b.add(const LoadTransactionsRequested(
+                  filter: TxnFilterState(accountId: 'a1')));
+              b.add(LoadSummaryRequested(
+                  year: DateTime.now().year,
+                  month: DateTime.now().month,
+                  accountId: 'a1'));
+              return b;
+            },
+          ),
+        ],
+        child: const AccountDetailPage(id: 'a1'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // 更多操作 → 删除账户 → 确认对话框「删除」。
+    final more = find.byTooltip('更多操作');
+    expect(more, findsOneWidget);
+    await tester.tap(more);
+    await tester.pumpAndSettle();
+    // 锚定菜单自按钮左下向右展开 180px,而触发器是 AppBar 最右项 →
+    // 菜单项 Text 的中心在视口边缘外(tap 中心必落空);改 tapAt 点
+    // 菜单项的可见左缘。
+    final itemText = find.text('删除账户');
+    expect(itemText, findsOneWidget);
+    // 菜单水平自适应(2026-10-08):右缘触发器锚点翻转、向左展开 → 菜单
+    // 项完整落在视口内,可直接按文本点击。
+    final itemRect = tester.getRect(itemText);
+    final view = tester.view;
+    final winW =
+        view.physicalSize.width / view.devicePixelRatio;
+    expect(itemRect.right <= winW, isTrue, reason: '菜单项不得超出窗口右缘');
+    await tester.tap(itemText);
+    await tester.pumpAndSettle();
+    expect(find.text('删除「现金」？此操作不可恢复。'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, '删除'));
+    await tester.pumpAndSettle();
+
+    // 守卫原因经 AppToast 透出(修复前:dispatch 后立即 pop,零反馈)。
+    expect(find.textContaining('账户余额非零'), findsWidgets);
+
+    // AppToast 3 秒自动消失的 Timer 须在测试内走完,否则 pending timer 断言失败。
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
   });
 }

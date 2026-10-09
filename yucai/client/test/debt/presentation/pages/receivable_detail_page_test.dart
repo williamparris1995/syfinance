@@ -748,8 +748,7 @@ void main() {
       // 菜单经 CompositedTransformFollower 绘制,finder 报告的是 overlay
       // 布局原点坐标(左上角),按 finder tap 必 miss —— 以触发按钮矩形
       // 推算真实绘制位(菜单 padding 6 + 单项 ~33 高,锚 bottomLeft+6)。
-      final anchor = t.getRect(find.byTooltip('更多'));
-      await t.tapAt(anchor.bottomLeft + const Offset(40, 24));
+      await t.tap(find.text('删除债权'));
       await t.pumpAndSettle();
       expect(find.text('删除债权'), findsOneWidget); // 弹窗标题(菜单已关)
       expect(find.textContaining('收款计划将一并删除'), findsOneWidget);
@@ -785,8 +784,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.byTooltip('更多'));
       await t.pumpAndSettle();
-      final anchor = t.getRect(find.byTooltip('更多'));
-      await t.tapAt(anchor.bottomLeft + const Offset(40, 24));
+      await t.tap(find.text('删除债权'));
       await t.pumpAndSettle();
       await t.tap(find.text('取消'));
       await t.pumpAndSettle();

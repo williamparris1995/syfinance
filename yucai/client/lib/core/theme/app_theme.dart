@@ -1,3 +1,4 @@
+import 'package:design_kit/design_kit.dart';
 import 'package:flutter/material.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -40,7 +41,21 @@ class AppTheme {
       fontFamilyFallback: AppTypography.bodyFallback,
       visualDensity: VisualDensity.standard,
       splashFactory: InkSparkle.splashFactory,
-      extensions: [t],
+      // design_kit 令牌适配(YuCai ADR-007 依赖倒置):kit 组件只读
+      // DesignTokens,此处从 YucaiTheme 同源映射 —— 双主题下 kit 组件
+      // 跟随宿主主题,视觉零变化。
+      extensions: [
+        t,
+        DesignTokens(
+          surface: t.surface,
+          border: t.border,
+          fg: t.fg,
+          muted: t.muted,
+          accent: t.accent,
+          positive: t.positive,
+          negative: t.negative,
+        ),
+      ],
       dividerTheme: DividerThemeData(
         color: t.border,
         thickness: 1,

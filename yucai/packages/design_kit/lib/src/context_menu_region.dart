@@ -1,8 +1,8 @@
 /// 反馈1b:桌面右键场景菜单(共享组件)。
 ///
-/// [YucaiContextMenuRegion] 包住目标面(交易行/账户卡),鼠标右键按下
+/// [ContextMenuRegion] 包住目标面(交易行/账户卡),鼠标右键按下
 /// ([GestureDetector.onSecondaryTapDown])即在该位置弹菜单 —— 项数据复用
-/// [YucaiMenuItemData](图标/文案/destructive 语义色),渲染走 [showMenu]
+/// [MenuItemData](图标/文案/destructive 语义色),渲染走 [showMenu]
 /// (自动钳制于窗口内,免手算翻转)+ design-v2 语义令牌(零裸色)。
 ///
 /// 定位注意(F5 前车之鉴,同 accounts_page._showQuickMenu):**必须
@@ -17,12 +17,12 @@ library;
 
 import 'package:flutter/material.dart';
 
-import 'package:yucai_client/core/theme/app_design.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'anchored_menu.dart';
+import 'design_tokens.dart';
 
 /// 右键场景菜单挂载区:右键在指针处弹出 [items]。
-class YucaiContextMenuRegion extends StatelessWidget {
-  const YucaiContextMenuRegion({
+class ContextMenuRegion extends StatelessWidget {
+  const ContextMenuRegion({
     super.key,
     required this.child,
     required this.items,
@@ -31,14 +31,14 @@ class YucaiContextMenuRegion extends StatelessWidget {
   final Widget child;
 
   /// 菜单项;为空数组时不挂手势(右键无菜单的面零扰动)。
-  final List<YucaiMenuItemData> items;
+  final List<MenuItemData> items;
 
   Future<void> _show(BuildContext context, Offset anchor) async {
     // 根 Overlay:窗口坐标系(分支 Overlay 原点被 chrome 偏移,F5 教训)。
     final overlay = Overlay.of(context, rootOverlay: true)
         .context
         .findRenderObject() as RenderBox;
-    final t = context.yucai;
+    final t = context.designTokens;
     await showMenu<String>(
       context: context,
       useRootNavigator: true,
@@ -49,7 +49,7 @@ class YucaiContextMenuRegion extends StatelessWidget {
         overlay.size.height - anchor.dy,
       ),
       // design-v2 令牌:菜单面走主题 popupMenuTheme(AppTheme 配好
-      // surface/圆角/黑阴影豁免);项内图标/文案色全部 context.yucai
+      // surface/圆角/黑阴影豁免);项内图标/文案色全部 context.designTokens
       // 语义令牌(零裸色)。
       items: [
         for (final item in items)

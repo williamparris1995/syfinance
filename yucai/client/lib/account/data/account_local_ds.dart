@@ -180,6 +180,16 @@ class AccountLocalDataSource {
     if (row.currentBalanceCents != 0) {
       throw const ServerFailure('账户余额非零，无法删除，请先清空余额或转账后再试');
     }
+    // 引用守卫(镜像 server DeleteAccount R5-E decision 5):交易分录引用
+    // 该账户时拒绝删除 —— 此前 guest 路径漏此检查,零余额但带历史交易的
+    // 账户被删后分录成孤儿,触发启动自检「悬挂引用」横幅(2026-10-08)。
+    // 归档(关闭账户)是带历史账户的正确归宿。
+    final n = await _db.customSelect(
+        'SELECT COUNT(*) AS n FROM transaction_entries WHERE account_id = ?',
+        variables: [Variable.withString(id)]).getSingle();
+    if ((n.data['n'] as int? ?? 0) > 0) {
+      throw const ServerFailure('该账户有交易记录，无法删除；可改用「关闭账户」归档');
+    }
     await _db.transaction(() async {
       await _dao.deleteAccountById(id);
       if (writeTombstone) {

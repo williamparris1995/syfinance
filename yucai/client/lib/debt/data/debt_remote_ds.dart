@@ -236,6 +236,24 @@ class DebtRemoteDataSource {
     });
   }
 
+  /// 账单制整单还款:proto 无批量 RPC → 逐期 recordPayment(远端为 N 笔
+  /// 交易,合计口径一致;单笔整单语义为 guest-local 能力,bound 已知限制,
+  /// 照卡贷 billingDay/flatFeeCents 不透传先例)。
+  Future<void> repayBill({
+    required String loanAccountId,
+    required List<({String debtId, String entryId})> items,
+    required String fromAccountId,
+    String? description,
+  }) async {
+    for (final it in items) {
+      await recordPayment(
+        debtId: it.debtId,
+        scheduleEntryId: it.entryId,
+        fromAccountId: fromAccountId,
+      );
+    }
+  }
+
   /// 单期改日(Google-Calendar 式;冻结期次服务端拒绝)。
   Future<PaymentEntry> setPaymentDate({
     required String debtId,

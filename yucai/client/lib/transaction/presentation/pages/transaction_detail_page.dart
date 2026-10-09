@@ -10,7 +10,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
@@ -982,25 +982,25 @@ class _MoreMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // F5e:YucaiAnchoredMenu(CompositedTransformFollower)—— 跨分支
+    // F5e:AnchoredMenu(CompositedTransformFollower)—— 跨分支
     // Navigator 边界像素级贴合,替代 MenuAnchor。
-    return YucaiAnchoredMenu(
+    return AnchoredMenu(
       items: [
-        YucaiMenuItemData(
+        MenuItemData(
             label: '复制交易',
             icon: LucideIcons.copy,
             onTap: () => context.push('/transactions/new')),
-        YucaiMenuItemData(
+        MenuItemData(
             label: '标记已对账',
             icon: LucideIcons.check,
             onTap: () =>
                 AppToast.show(context, '对账功能待接入', type: ToastType.warning)),
-        YucaiMenuItemData(
+        MenuItemData(
             label: '导出凭证',
             icon: LucideIcons.download,
             onTap: () =>
                 AppToast.show(context, '导出凭证待接入', type: ToastType.warning)),
-        YucaiMenuItemData(
+        MenuItemData(
             label: '删除交易',
             icon: LucideIcons.trash2,
             destructive: true,

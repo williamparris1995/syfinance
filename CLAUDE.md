@@ -59,16 +59,17 @@ design-output/      # OD 原型(holding + accounts-responsive)
 
 1. **English 结构化日志** — slog(`slog.Error("op", "key", val)`)/ `console.error`,**无 CJK 在 log 串**
 2. **wire 工具链坏** — `wire_gen.go` **手改**(镜像现有 provider 声明顺序,消费方在依赖方之后声明),不跑 wire CLI(详见 memory `yucai-wire-handmaintained`)
-3. **复用第一** — 新模块照现有 holding/debt DDD 范式;先查 `lib/` + `hooks/` + `components/` 复用,不重复
+3. **复用第一** — 新模块照现有 holding/debt DDD 范式;**UI 组件先查 `design_kit` 包**(ADR-007,有则直接用),再查 `core/widgets/` 与既有模块,不重复
 4. **DDD 边界** — domain → application → infrastructure → presentation;跨模块走 port(不跨层 import)
 5. **proto regen** — protoc_plugin **25.0.0**(Dart);改 proto 后 Go + Dart stub 都要 regen
 6. **interface 加方法** — grep 全 implementer(**含 test fake**);implementer 跑**全量 suite** 非 scoped(否则跨包 fake 漏改致 build fail)
 7. **路由优先级** — 静态子路由(`/new` `/edit`)必须在 `/:id` 前(否则 "new" 被当 :id)
+8. **组件命名三层**(ADR-007,公共组件库方向)——**共享 UI 原语产品中立命名,禁 `Yucai` 前缀**,归 **`yucai/packages/design_kit/`** 独立 pub 包(app 以 path 依赖引用;组件只读包内 `DesignTokens`,宿主经 AppTheme 映射注入,依赖倒置):`AnchoredMenu`/`ContextMenuRegion`;`App` 前缀 = 应用级部件(`AppToast`);领域前缀 = 模块部件(`AccountRepaymentPlanPanel`)。产品身份类(`YucaiApp`/`YucaiTheme`/`context.yucai`)属产品侧,抽取组件库时再参数化(见 ADR-007)。**组件选取次序(用户拍板 2026-10-08)**:① 需要组件 → 先查 `design_kit`,有则直接用;② 通用新组件**先进包**(中立命名 + 只读 `DesignTokens`,测试随包),不落 app;③ 仅产品特定(读业务模型/路由/bloc)才放 app
 
 ## 测试
 - server:Go 单测 + 集成测(enttest SQLite)+ e2e(grpcurl,需 auth token)
 - client:widget test(mocktail `Mock`/`Fake`;pump 而非 pumpAndSettle 当有永不完成的 Future)
-- 预存 fail:**3 测 / 2 文件**(test drift,断言过时非生产 bug,out-of-scope):account_detail_page_test(收支统计交易数 — 时间 scope 漂移,fixture txn 日期 vs `_txnCountInScope` 当前月)+ receivable_detail_page_test(StatRow "1 期" + 筛选日期 — redesign 漂移)。注:① 原 router_test 3 sidebar 导航 fail 已修 `5d3e8f0`(dashboard `68508b2` mock 回归,真 bug);② P0-1(`d431b02`)给 home_page 加 getIt 依赖时 router_test/app_shell_test 漏注册 NetWorthDataSource 等(repo stub)→ 4 fail(app_shell 曾误标 BackdropFilter drift,实为 getIt 回归),`8f54ef9` 补齐 → 基线回 3 fail
+- client 基线:**全绿**(2026-10-08 起,2500+;此前 3-4 fail 的 test drift 已随菜单自适应修复清零,含 receivables_page 2026-08-21 漂移)
 
 ## 工作流(SDD)
 - 创造性工作(新功能/模块)走 brainstorming → spec(`docs/superpowers/specs/`)→ plan(`docs/superpowers/plans/`)→ subagent-driven 实现

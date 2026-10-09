@@ -713,6 +713,66 @@ class DebtLocalDataSource {
     return paid;
   }
 
+  /// 账单制整单还款(独立账单卡贷,如 e招贷):账单周期内全部到期未还期次
+  /// 合并为**一笔**还款交易(借贷款账户/贷还款来源;银行「X日出账、Y日前
+  /// 一次还清」口径),期次批量标记已还并挂到同一交易。复合写语义照
+  /// [recordPayment]:期次已还事实与债务头行 pending 同事务保护。
+  Future<void> repayBill({
+    required String loanAccountId,
+    required List<({String debtId, String entryId})> items,
+    required String fromAccountId,
+    bool markPending = false,
+    String? description,
+  }) async {
+    if (items.isEmpty) throw const ValidationFailure('账单没有可还期次');
+    await _database.transaction(() async {
+      var total = 0;
+      final debtIds = <String>{};
+      for (final it in items) {
+        final row = await _require(it.debtId);
+        if (row.accountId != loanAccountId) {
+          throw const ValidationFailure('期次不属于该贷款账户');
+        }
+        final entry =
+            (await _dao.getScheduleEntryById(it.entryId));
+        if (entry == null) throw const ServerFailure('还款期次不存在');
+        if (entry.paid) throw const ServerFailure('该期次已还款');
+        total += entry.totalCents;
+        debtIds.add(it.debtId);
+      }
+      if (total <= 0) throw const ValidationFailure('账单金额必须大于零');
+      final now = DateTime.now();
+      final txn = await _txns.recordTransaction(
+          RecordTransactionParams(
+        transactionDate: DateTime(now.year, now.month, now.day),
+        description: description ?? '账单还款',
+        entries: [
+          TransactionEntry(
+              accountId: loanAccountId, debitCents: total, creditCents: 0),
+          TransactionEntry(
+              accountId: fromAccountId, debitCents: 0, creditCents: total),
+        ],
+      ), markPending: markPending);
+      for (final it in items) {
+        final entry = (await _dao.getScheduleEntryById(it.entryId))!;
+        await _dao.updateScheduleEntry(db.PaymentScheduleEntriesCompanion(
+          id: Value(it.entryId),
+          paid: const Value(true),
+          paidCents: Value(entry.totalCents),
+          transactionId: Value(txn.id),
+        ));
+      }
+      if (markPending) {
+        for (final id in debtIds) {
+          await _dao.updateDebt(db.DebtsCompanion(
+            id: Value(id),
+            syncState: const Value(SyncState.pending),
+          ));
+        }
+      }
+    });
+  }
+
   Future<List<Debt>> upcomingPayments(int daysAhead) async {
     final rows = await _dao.watchAllDebts().first;
     final deadline = DateTime.now().toUtc().add(Duration(days: daysAhead));
@@ -988,6 +1048,11 @@ class DebtLocalDataSource {
     // 本息口径:未还期次利息合计(镜像 server RemainingInterest)。
     final unpaidInterest =
         unpaid.fold(0, (a, s) => a + s.interestCents);
+    // 剩余本金 = 未还期次本金部分合计(银行口径;排期自带 principal/interest
+    // 拆分)。此前 = 总本金 − Σ已还全额(paidCents 含利息)——把利息混冲进
+    // 本金,比银行口径少「已还期次的利息合计」(dev 2026-10-08 反馈:7-5 贷
+    // 款 app 11,333.96 vs 银行 11,913.22,差 579.24 = 已还 4 期利息)。
+    final unpaidPrincipal = unpaid.fold(0, (a, s) => a + s.principalCents);
     return Debt(
       id: r.id,
       accountId: r.accountId,
@@ -997,7 +1062,7 @@ class DebtLocalDataSource {
       startDate: r.startDate,
       dueDate: r.dueDate,
       totalPrincipalCents: r.totalPrincipalCents,
-      remainingPrincipalCents: r.totalPrincipalCents - paidCents,
+      remainingPrincipalCents: unpaidPrincipal,
       version: r.version,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,

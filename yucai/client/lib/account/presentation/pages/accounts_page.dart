@@ -27,9 +27,9 @@ import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/search_field.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
-import 'package:yucai_client/core/widgets/yucai_context_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 
 /// 账户管理列表页。对齐 OD 原型 CSS 1:1：
@@ -556,10 +556,9 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
         0,
         (s, a) => s +
             toPreferredCents(_displayValueCents(a), a.currencyCode, cstate.rates, cstate.preferred));
-    // 负债类用 currentBalanceCents（欠款/余额，负值），不用 _displayValueCents：
-    // loan 的 loanRemainingCents 是正数（剩余本金），若 fold 进 netCents(=asset+liab)
-    // 会把负债误加成资产。资产类才用 _displayValueCents（含估值字段）。
-    // 负债 = 非债务负债账户余额 + Σ 借入债务剩余未还本金(按各自账户币种
+    // 负债类用 currentBalanceCents（欠款，credit-正不变式），不用 _displayValueCents：
+    // loan 的 loanRemainingCents 已由下方债务实时聚合取代。
+    // 负债 = 非债务负债账户欠款 + Σ 借入债务剩余未还本金(按各自账户币种
     // 换算)。债务账户余额不参与(可能从未入账或仅剩已还冲减),保证总负债
     // 恒等于「真实的剩余应还」。
     final debtAccountIds = _debts.map((d) => d.accountId).toSet();
@@ -579,11 +578,19 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
               .firstOrNull
               ?.currencyCode ??
           'CNY';
-      debtRemainingCents +=
-          toPreferredCents(d.remainingPrincipalCents, code, cstate.rates, cstate.preferred);
+      // Principal + interest (same semantics as group subtotal AccountDebtInfo /
+      // debt page card) — total liability = sum of true remaining amounts to be repaid.
+      debtRemainingCents += toPreferredCents(
+          d.remainingPrincipalCents + d.unpaidInterestCents,
+          code,
+          cstate.rates,
+          cstate.preferred);
     }
-    final liabCents = otherLiabCents - debtRemainingCents;
-    final netCents = assetCents + liabCents; // 负债余额为负，相加得净资产
+    // credit-正不变式(欠款=正):总负债 = 非债务欠款 + 债务剩余,两者同号
+    // 相加;净资产 = 资产 − 总负债。此前沿用旧「欠款为负」约定做减法,把
+    // 总负债算成负数、净资产虚低约 2×债务剩余(dev 反馈:总计不正确)。
+    final liabCents = otherLiabCents + debtRemainingCents;
+    final netCents = assetCents - liabCents;
     final scoped = _showArchived ? balanceSheet.toList() : active;
     // F9 FR-5 搜索（页面层，见 _search 字段注释）：作用域 = 归档开关后的
     // scoped 集合;分类 chips 与分组列表都基于搜索后的集合（搜索空 = 全量，
@@ -1168,9 +1175,12 @@ class _GroupBlock extends StatelessWidget {
         0,
         (s, a) {
           final info = debtInfoFor(a);
+          // 负债小计 = 正数欠款口径(不变式:欠款=正)。债务账户取剩余应还,
+          // 其余取余额 —— 与卡面主数字同源同号(此前债务取负、卡取正,组内
+          // 混号,小计互相抵扣失真)。
           final cents = (a.accountType == AccountType.liability)
               ? (info != null
-                  ? -info.remainingCents // 债务账户:剩余应还的负数(与卡面同源)
+                  ? info.remainingCents
                   : a.currentBalanceCents)
               : _displayValueCents(a);
           return s + toPreferredCents(cents, a.currencyCode, cstate.rates, cstate.preferred);
@@ -1548,15 +1558,15 @@ class _AccountCardState extends State<_AccountCard> {
     if (archived) card = Opacity(opacity: 0.55, child: card);
     // 反馈1b:账户卡右键场景菜单(「账户详情」「记一笔」—— 动作复用
     // 本卡既有 onTap 详情路由与 _recordTxn 快捷记账;共享组件
-    // YucaiContextMenuRegion,取舍见其头注。两类先例面之一,不铺开。
-    return YucaiContextMenuRegion(
+    // ContextMenuRegion,取舍见其头注。两类先例面之一,不铺开。
+    return ContextMenuRegion(
       items: [
-        YucaiMenuItemData(
+        MenuItemData(
           label: '账户详情',
           icon: LucideIcons.info,
           onTap: () => context.go('/accounts/${a.id}'),
         ),
-        YucaiMenuItemData(
+        MenuItemData(
           label: '记一笔',
           icon: LucideIcons.plus,
           onTap: () => _recordTxn(context),
@@ -1774,32 +1784,32 @@ class _AccountCardState extends State<_AccountCard> {
           // 更多：MenuAnchor 锚定按钮本体（自动翻转/钳制窗口内，
           // 不做任何手算坐标 —— F5 前复用长按陈旧锚点导致菜单飞位）。
           Expanded(
-            child: YucaiAnchoredMenu(
+            child: AnchoredMenu(
               items: [
-                YucaiMenuItemData(
+                MenuItemData(
                     label: '编辑',
                     icon: LucideIcons.pencil,
                     onTap: widget.onEdit),
-                YucaiMenuItemData(
+                MenuItemData(
                     label: '记一笔',
                     icon: LucideIcons.plus,
                     onTap: () => _recordTxn(context)),
-                YucaiMenuItemData(
+                MenuItemData(
                     label:
                         a.category == AccountCategory.creditCard ? '还款' : '转账',
                     icon: a.category == AccountCategory.creditCard
                         ? LucideIcons.creditCard
                         : LucideIcons.arrowLeftRight,
                     onTap: () => _repayOrTransfer(context)),
-                YucaiMenuItemData(
+                MenuItemData(
                     label: '复制',
                     icon: LucideIcons.copy,
                     onTap: widget.onDuplicate),
-                YucaiMenuItemData(
+                MenuItemData(
                     label: archived ? '重新激活' : '关闭账户',
                     icon: LucideIcons.archive,
                     onTap: archived ? widget.onReactivate : widget.onClose),
-                YucaiMenuItemData(
+                MenuItemData(
                     label: '删除账户',
                     icon: LucideIcons.trash2,
                     destructive: true,

@@ -155,6 +155,10 @@ void main() {
     // The form's initState reads TagRepository from getIt (ListTags +, on edit,
     // GetTransactionTags). Register a mock so the chip-row loads real tags.
     getIt.registerSingleton<TagRepository>(tagRepo);
+    // 编辑模式推断(_inferTypeAndAccountsFromExisting)经 getIt 取
+    // AccountRepository(与生产 DI 同构);不注册则静默降级空账户表 →
+    // 推断全落 _anon 兜底(误判转账),编辑提交用例会静默早退。
+    getIt.registerSingleton<AccountRepository>(accountRepo);
     // 保存成功 listener bump DataRefreshNotifier(跨页刷新广播)。
     getIt.registerSingleton<DataRefreshNotifier>(DataRefreshNotifier());
     // v6 关联订阅:表单 initState 读 TemplateRepository(空列表 → 下拉不渲染)。
@@ -384,6 +388,143 @@ void main() {
     // 日常 预选(✓),出差 未选
     expect(find.text('✓'), findsOneWidget);
   });
+
+  testWidgets(
+    'edit mode prefills 备注 from first non-empty entry note (dev 反馈:编辑不带入历史备注)',
+    (tester) async {
+      final existing = Transaction(
+        id: 'txn-1',
+        transactionDate: _date,
+        version: 3,
+        entries: const [
+          TransactionEntry(
+              accountId: 'food', debitCents: 100, creditCents: 0),
+          TransactionEntry(
+              accountId: 'cash',
+              debitCents: 0,
+              creditCents: 100,
+              note: '李校长、嫂子聚餐'),
+        ],
+      );
+      when(() => tagRepo.getTransactionTags('txn-1'))
+          .thenAnswer((_) async => const dartz.Right(<Tag>[]));
+
+      await tester.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final bloc = TransactionFormBloc(txnRepo, accountRepo)
+        ..add(const LoadAccountsRequested());
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 1000)),
+          child: MaterialApp(
+            home: TransactionFormPage(bloc: bloc, existing: existing),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 备注 textarea 带出首条非空 entry note(find.text 同样命中
+      // EditableText 的内容)。
+      expect(find.text('李校长、嫂子聚餐'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'edit save carries the note on every entry (update 全量替换不冲掉备注)',
+    (tester) async {
+      final existing = Transaction(
+        id: 'txn-1',
+        transactionDate: _date,
+        version: 3,
+        entries: const [
+          TransactionEntry(
+              accountId: 'food',
+              debitCents: 100,
+              creditCents: 0,
+              note: '报销费用'),
+          TransactionEntry(
+              accountId: 'cash',
+              debitCents: 0,
+              creditCents: 100,
+              note: '报销费用'),
+        ],
+      );
+      when(() => tagRepo.getTransactionTags('txn-1'))
+          .thenAnswer((_) async => const dartz.Right(<Tag>[]));
+      when(() => txnRepo.update(any()))
+          .thenAnswer((_) async => dartz.Right(existing));
+
+      await tester.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final bloc = TransactionFormBloc(txnRepo, accountRepo)
+        ..add(const LoadAccountsRequested());
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 1000)),
+          child: MaterialApp(
+            home: TransactionFormPage(bloc: bloc, existing: existing),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 推断应已完成:支出类型,分类/账户下拉显示选中值(food=餐饮,cash=现金)。
+      expect(find.text('餐饮'), findsWidgets, reason: '编辑推断分类应选中');
+      expect(find.text('现金'), findsWidgets, reason: '编辑推断账户应选中');
+
+      await tester.ensureVisible(find.text('保存'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+
+      final captured = verify(() => txnRepo.update(captureAny())).captured;
+      final p = captured.single as UpdateTransactionParams;
+      // 保存是全分录替换 —— 每条 entry 都必须带 note,否则原备注被冲掉。
+      expect(p.entries, isNotEmpty);
+      expect(p.entries.every((e) => e.note == '报销费用'), isTrue,
+          reason: '编辑保存应把预填/编辑后的备注写回全部分录');
+    },
+  );
+
+  testWidgets(
+    '标签行恒渲染:无 tag 时「+ 新建」chip 可见,内联创建后自动选中 (dev 反馈:无法新建/选择标签)',
+    (tester) async {
+      // ListTags 空 → 修复前整行不渲染,无任何新建/选择入口。
+      when(() => tagRepo.list())
+          .thenAnswer((_) async => const dartz.Right(<Tag>[]));
+      when(() => tagRepo.create(name: any(named: 'name'), color: any(named: 'color')))
+          .thenAnswer((_) async =>
+              const dartz.Right(Tag(id: 't-new', name: '聚餐', color: '#2E7D32', version: 1)));
+
+      await pumpPage(tester, 1440);
+      // 行头 + 新建 chip 恒在(即使 0 tag)。
+      expect(find.text('标签'), findsOneWidget);
+      expect(find.text('新建'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('新建'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('新建'));
+      await tester.pumpAndSettle();
+      expect(find.text('新建标签'), findsOneWidget, reason: '创建对话框应打开');
+
+      await tester.enterText(
+          find.descendant(
+              of: find.byType(AlertDialog), matching: find.byType(TextField)),
+          '聚餐');
+      await tester.tap(find.widgetWithText(FilledButton, '创建'));
+      await tester.pumpAndSettle();
+
+      // repo.create 被调用;新 chip 出现且自动选中(✓)。
+      verify(() => tagRepo.create(name: '聚餐', color: any(named: 'color')))
+          .called(1);
+      expect(find.text('聚餐'), findsOneWidget);
+      expect(find.text('✓'), findsOneWidget);
+
+      // AppToast 3 秒自动消失的 Timer 须在测试内走完,否则 pending timer 断言失败。
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets(
       'create submits transaction then attaches selected tag via AddTag (Task 5)',

@@ -13,8 +13,7 @@ import 'package:yucai_client/core/widgets/current_route_selection_area.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
-import 'package:yucai_client/core/widgets/yucai_context_menu.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -1178,22 +1177,22 @@ class _TxTableRow extends StatelessWidget {
 
     // 反馈1b:行右键场景菜单(「编辑」「删除」「复制备注」)—— 编辑复用
     // 既有 /transactions/:id/edit 路由;复制/删除见上;共享组件
-    // YucaiContextMenuRegion(translucent 不进主键竞技场,行 tap/悬停
+    // ContextMenuRegion(translucent 不进主键竞技场,行 tap/悬停
     // 既有测试零扰动)。两类先例面之一,不铺开。
-    return YucaiContextMenuRegion(
+    return ContextMenuRegion(
       items: [
-        YucaiMenuItemData(
+        MenuItemData(
           label: '编辑',
           icon: LucideIcons.pencil,
           onTap: () => context.push('/transactions/${txn.id}/edit'),
         ),
-        YucaiMenuItemData(
+        MenuItemData(
           label: '删除',
           icon: LucideIcons.trash2,
           destructive: true,
           onTap: () => _delete(context),
         ),
-        YucaiMenuItemData(
+        MenuItemData(
           label: '复制备注',
           icon: LucideIcons.copy,
           onTap: () => _copyNote(context),

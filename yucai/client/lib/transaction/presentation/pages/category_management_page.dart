@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_event.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_state.dart';
@@ -1062,15 +1062,15 @@ class _CatRow extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 // ⋯ context menu
-                // F5e:YucaiAnchoredMenu 锚定按钮本体(拖拽排序行内
+                // F5e:AnchoredMenu 锚定按钮本体(拖拽排序行内
                 // PopupMenuButton/MenuAnchor 的坐标计算会偏)。
-                YucaiAnchoredMenu(
+                AnchoredMenu(
                   items: [
-                    YucaiMenuItemData(
+                    MenuItemData(
                         label: '编辑',
                         icon: LucideIcons.pencil,
                         onTap: onEdit),
-                    YucaiMenuItemData(
+                    MenuItemData(
                         label: item.isSystem ? '删除（系统禁用）' : '删除分类',
                         icon: LucideIcons.trash2,
                         destructive: !item.isSystem,

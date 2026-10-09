@@ -9,18 +9,19 @@
 |---|---|---|
 | 1 | English 结构化日志 | slog / console.error,**无 CJK 在 log 串** |
 | 2 | wire 工具链坏 | `wire_gen.go` 手改(镜像 provider 顺序),不跑 wire CLI |
-| 3 | 复用第一 | 新模块照 holding/debt 范式;先查 `lib/`+`hooks/`+`components/` |
+| 3 | 复用第一 | 新模块照 holding/debt 范式;UI 组件**先查 design_kit 包**(ADR-007),再查 core/widgets |
 | 4 | DDD 边界 | domain→application→infra→presentation;跨模块走 port |
 | 5 | proto regen | 改 proto 后 Go+Dart stub 都 regen(Dart **protoc_plugin 25.0.0**) |
 | 6 | interface 加方法 | grep 全 implementer(含 test fake)→ 跑**全量 suite**(非 scoped) |
 | 7 | 路由优先级 | 静态子路由(`/new` `/edit`)必须在 `/:id` 前 |
+| 8 | 组件命名三层 | 共享原语**产品中立**归 `design_kit` 包,**选取次序:design_kit 优先 → 通用进包 → 产品特定留 app**;App/=应用级,领域前缀=模块部件([ADR-007](../products/yucai-client/adr/index.md#adr-007)) |
 
 > 详见 [`CLAUDE.md` 关键约束](../../../CLAUDE.md)。**这些约束 OVERRIDE 默认行为,必须严格遵守。**
 
 ## 测试基线(不可破坏)
 
 - **server**:`go test ./...` 全量绿 + `go build ./...`。
-- **client**:`flutter test` 基线 = **4 fail / 3 文件**(account_detail_page_test 1 + receivable_detail_page_test 2 + receivables_page_test 1;均 test drift,断言过时非生产 bug;receivables_page 为 2026-08-21 确认的 main 既有漂移,stash-compare 证实,已同步 hook 容忍名单)。`flutter analyze` 基线 = 22 error 全 `*.pbserver.dart`(客户端未用)。
+- **client**:`flutter test` 基线 = **全绿**(2026-10-08 起,2500+;此前的 4 fail test drift 已随菜单自适应/硬编码坐标测试修复清零)。`flutter analyze` 基线 = 22 error 全 `*.pbserver.dart`(客户端未用)。
 - 改动**不得**新增 fail / error。
 
 ## sydusx 通用原则(与项目约束的映射)

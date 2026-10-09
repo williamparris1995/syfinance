@@ -167,8 +167,9 @@ void main() {
       // 列表卡菜单两项:编辑在上(中心 ~24),删除在下(中心 ~56)。)
       await t.tap(find.text('更多'));
       await t.pumpAndSettle();
-      final anchor = t.getRect(find.text('更多'));
-      await t.tapAt(anchor.bottomLeft + const Offset(40, 56));
+      // 菜单水平自适应(2026-10-08):按菜单项文本直接点击(列表卡菜单项
+      // 是语义标签「删除债务」而非裸「删除」)。
+      await t.tap(find.text('删除债务'));
       await t.pumpAndSettle();
       expect(find.textContaining('删除后无法恢复'), findsOneWidget);
       await t.tap(find.text('取消'));
@@ -178,8 +179,7 @@ void main() {
       // 第二轮:确认 → 删除 dispatch 到 repo。
       await t.tap(find.text('更多'));
       await t.pumpAndSettle();
-      final anchor2 = t.getRect(find.text('更多'));
-      await t.tapAt(anchor2.bottomLeft + const Offset(40, 56));
+      await t.tap(find.text('删除债务'));
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(FilledButton, '删除'));
       for (var i = 0; i < 10; i++) {

@@ -377,6 +377,18 @@ List<Widget> categoryFieldsWidget(
           initialValue: b.loanNextPaymentDate,
           onSaved: (v) => b.loanNextPaymentDate = v,
         ),
+        // 账单制(独立账单卡贷,如 e招贷):复用信用卡账单日/还款日列,
+        // 提交链路本就无条件携带 creditBillingDay/creditRepaymentDay。
+        _dayPicker(b.creditBillingDayCtrl, '账单日(选填)'),
+        _dayPicker(b.creditRepaymentDayCtrl, '还款日(选填)'),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            '账单制贷款(如 e招贷):每月账单日合并出账,还款日前一次还清。'
+            '填写后账户详情按账单制显示;留空则按普通贷款逐期还款。',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+        ),
       ];
     case AccountCategory.otherAsset:
     case AccountCategory.otherLiability:

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -18,6 +19,7 @@ import 'package:yucai_client/core/widgets/time_picker_input.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/tag/domain/tag_color.dart';
+import 'package:yucai_client/tag/presentation/widgets/tag_color_picker.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_bloc.dart';
@@ -189,10 +191,22 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
       if (ex.transactionTime != null) {
         _time = TimeOfDay.fromDateTime(ex.transactionTime!);
       }
+      // dev 反馈:编辑不带入历史备注。取值口径 = 详情页 meta-list「备注」
+      // 行(首条非空 entry note)——详情看到什么,编辑就带出什么;且必须带出:
+      // 保存是全分录替换,不带出会把原 note 冲掉(数据丢失)。
+      _noteCtrl.text = _firstNoteOf(ex);
       _inferTypeAndAccountsFromExisting(ex);
       _loadTransactionTags(ex.id);
     }
   }
+
+  /// 首条非空 entry note(与详情页 meta-list「备注」/rel-row sub 同口径)。
+  String _firstNoteOf(Transaction t) => t.entries.isEmpty
+      ? ''
+      : t.entries
+          .firstWhere((e) => e.note.isNotEmpty,
+              orElse: () => t.entries.first)
+          .note;
 
   /// v6 关联订阅:支出向、未暂停的模板 = 可关联订阅。失败静默(下拉不渲染)。
   Future<void> _loadLinkableTemplates() async {
@@ -411,39 +425,48 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
 
   List<TransactionEntry> _buildEntries() {
     final amt = _amountCents;
+    // update 是全分录替换(本地/远端同语义),note 必须随包携带 —— 否则编辑
+    // 保存会把原 entry note 冲掉。新建路径不走这里(note 经各 Record* 事件传)。
+    final note = _noteCtrl.text.trim();
     switch (_type) {
       case TxnType.expense:
         return [
           TransactionEntry(
               accountId: _categoryAccountId ?? '',
               debitCents: amt,
-              creditCents: 0),
+              creditCents: 0,
+              note: note),
           TransactionEntry(
               accountId: _assetAccountId ?? '',
               debitCents: 0,
-              creditCents: amt),
+              creditCents: amt,
+              note: note),
         ];
       case TxnType.income:
         return [
           TransactionEntry(
               accountId: _assetAccountId ?? '',
               debitCents: amt,
-              creditCents: 0),
+              creditCents: 0,
+              note: note),
           TransactionEntry(
               accountId: _categoryAccountId ?? '',
               debitCents: 0,
-              creditCents: amt),
+              creditCents: amt,
+              note: note),
         ];
       case TxnType.transfer:
         return [
           TransactionEntry(
               accountId: _toAccountId ?? '',
               debitCents: amt,
-              creditCents: 0),
+              creditCents: 0,
+              note: note),
           TransactionEntry(
               accountId: _assetAccountId ?? '',
               debitCents: 0,
-              creditCents: amt),
+              creditCents: amt,
+              note: note),
         ];
     }
   }
@@ -1151,9 +1174,10 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
 
   /// OD .tag-row：真 tag multi-select toggle。chip 背景/边框/文字色取自
   /// [Tag.color](#RRGGBB)；选中 = 实色背景 + ✓，未选 = 透明背景 + 彩色边框。
-  /// _allTags 为空(ListTags 失败/无 tag)→ 整行不渲染(降级)。
+  /// dev 反馈:此前 _allTags 为空(ListTags 失败/无 tag)时整行不渲染 →
+  /// 没有任何入口能新建/选中标签。现恒渲染:trailing「+ 新建」chip 内联
+  /// 创建(建完自动选中),行尾「管理」进 /settings/tags 编辑/删除。
   Widget _tagsChipRow() {
-    if (_allTags.isEmpty) return SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1164,6 +1188,26 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
             SizedBox(width: 6),
             Text('（可多选）',
                 style: TextStyle(color: context.yucai.muted, fontSize: 12)),
+            const Spacer(),
+            InkWell(
+              onTap: () => context.push('/settings/tags'),
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.settings2,
+                        size: 12, color: context.yucai.muted),
+                    const SizedBox(width: 3),
+                    Text('管理',
+                        style: TextStyle(
+                            color: context.yucai.muted, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -1177,9 +1221,85 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                 on: _selectedTagIds.contains(tag.id),
                 onTap: () => _toggleTag(tag.id),
               ),
+            _AddTagChip(onTap: _showCreateTagDialog),
           ],
         ),
       ],
+    );
+  }
+
+  /// 表单内新建标签(小对话框:名称 + 颜色,与标签管理页同构)。表单无
+  /// TagBloc,直接走 [TagRepository.create](与 _loadTags 的取数同源);
+  /// 成功后追加进 _allTags 并自动选中 —— 闭环「创建即选择」。
+  Future<void> _showCreateTagDialog() async {
+    final nameCtrl = TextEditingController();
+    var color = '#b08d57';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setSt) => AlertDialog(
+          title: const Text('新建标签'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('名称',
+                  style:
+                      TextStyle(color: context.yucai.muted, fontSize: 12)),
+              const SizedBox(height: AppSpacing.xs),
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    hintText: '例如：日常'),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text('颜色',
+                  style:
+                      TextStyle(color: context.yucai.muted, fontSize: 12)),
+              const SizedBox(height: AppSpacing.xs),
+              TagColorPicker(
+                  selected: color, onChanged: (c) => setSt(() => color = c)),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dctx, false),
+                child: const Text('取消')),
+            FilledButton(
+              onPressed: () {
+                if (nameCtrl.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(dctx).showSnackBar(
+                      const SnackBar(content: Text('名称不能为空')));
+                  return;
+                }
+                Navigator.pop(dctx, true);
+              },
+              child: const Text('创建'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    // nameCtrl 不手动 dispose:对话框 pop 动画期间 TextField 仍挂树,提前
+    // dispose 会触发 used-after-dispose 断言(标签管理页对话框同款惯例)。
+    final name = nameCtrl.text.trim();
+    final result =
+        await getIt<TagRepository>().create(name: name, color: color);
+    if (!mounted) return;
+    result.fold(
+      (f) => AppToast.show(context, f.displayMessage, type: ToastType.error),
+      (tag) {
+        setState(() {
+          _allTags = [..._allTags, tag];
+          _selectedTagIds.add(tag.id);
+        });
+        AppToast.show(context, '标签「${tag.name}」已创建并选中',
+            type: ToastType.success);
+      },
     );
   }
 
@@ -1666,6 +1786,44 @@ class _NumberedSection extends StatelessWidget {
 
 /// OD .tag（card2 标签 chip-row 单元）：on/off toggle，色取自 [Tag.color]。
 /// on = 实色背景 + 白字 + ✓；off = 透明背景 + 彩色边框/文字。
+/// 「+ 新建」ghost chip —— 标签行 trailing 的内联创建入口(尺寸/圆角对齐
+/// [_RealTagChip];虚线边框在 Flutter 无原生支持,以 muted 细边框近似)。
+class _AddTagChip extends StatelessWidget {
+  const _AddTagChip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            border: Border.all(color: context.yucai.border),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.plus,
+                  size: 13, color: context.yucai.muted),
+              const SizedBox(width: 6),
+              Text('新建',
+                  style: TextStyle(
+                      color: context.yucai.muted, fontSize: 13)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _RealTagChip extends StatelessWidget {
   const _RealTagChip({
     required this.tag,

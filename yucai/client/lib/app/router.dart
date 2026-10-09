@@ -293,9 +293,19 @@ GoRouter buildRouter(
                   final extraTagId = state.extra is Map
                       ? (state.extra as Map)['tagId'] as String?
                       : null;
-                  final initialFilter = extraTagId == null || extraTagId.isEmpty
-                      ? const TxnFilterState()
-                      : TxnFilterState(tagId: extraTagId);
+                  // 账户详情「查看全部」携 accountId 预筛(照 tagId 先例;
+                  // 调用方须 push —— go 复用 IndexedStack 已建分支会忽略
+                  // extra)。
+                  final extraAccountId = state.extra is Map
+                      ? (state.extra as Map)['accountId'] as String?
+                      : null;
+                  var initialFilter = const TxnFilterState();
+                  if (extraTagId != null && extraTagId.isNotEmpty) {
+                    initialFilter = TxnFilterState(tagId: extraTagId);
+                  } else if (extraAccountId != null &&
+                      extraAccountId.isNotEmpty) {
+                    initialFilter = TxnFilterState(accountId: extraAccountId);
+                  }
                   return BlocProvider<TransactionBloc>(
                     create: (_) {
                       final b =

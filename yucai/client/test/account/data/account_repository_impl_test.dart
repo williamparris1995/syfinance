@@ -3,6 +3,7 @@
 // source (zero remote calls); every other session keeps the remote path.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dartz/dartz.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:grpc/grpc.dart';
 import 'package:mocktail/mocktail.dart';
@@ -87,6 +88,41 @@ void main() {
       final result = await repo.delete('x');
       expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
     });
+
+    test('delete non-zero balance guard maps to the Chinese wording',
+        () async {
+      when(() => remote.delete(any())).thenThrow(const GrpcError.failedPrecondition(
+          'cannot delete account with non-zero balance'));
+      final result = await repo.delete('a1');
+      expect(
+        result.fold((l) => l, (_) => null),
+        isA<ServerFailure>().having((f) => f.message, 'message',
+            '账户余额非零，无法删除，请先清空余额或转账后再试'),
+      );
+    });
+
+    test('delete referenced-by guard maps to the Chinese wording', () async {
+      when(() => remote.delete(any())).thenThrow(const GrpcError.failedPrecondition(
+          'cannot delete account: referenced by 3 transaction(s) record(s)'));
+      final result = await repo.delete('a1');
+      expect(
+        result.fold((l) => l, (_) => null),
+        isA<ServerFailure>().having((f) => f.message, 'message',
+            '无法删除该账户：仍被 3 条交易记录引用，请先处理或转移相关记录'),
+      );
+    });
+
+    test('delete referenced-by guard on category keeps the category noun',
+        () async {
+      when(() => remote.delete(any())).thenThrow(const GrpcError.failedPrecondition(
+          'cannot delete category: referenced by 2 budget(s) record(s)'));
+      final result = await repo.delete('c1');
+      expect(
+        result.fold((l) => l, (_) => null),
+        isA<ServerFailure>().having((f) => f.message, 'message',
+            '无法删除该分类：仍被 2 条预算记录引用，请先处理或转移相关记录'),
+      );
+    });
   });
 
   group('routing (FR-1)', () {
@@ -125,6 +161,34 @@ void main() {
         expect(account.id, isNotEmpty); // client-generated UUID
       });
       verifyNever(() => remote.create(any()));
+    });
+
+    test('guest delete with transaction references is refused (悬挂引用守卫)',
+        () async {
+      tracker.isGuest = true;
+      // 零余额账户 + 一条引用它的分录(直插库,守卫只数分录行)。
+      const params = CreateAccountParams(
+        name: '有历史的账户', accountType: AccountType.asset, category: AccountCategory.savings,
+        currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
+      );
+      await repo.create(params);
+      final listed = await repo.list();
+      final histId = listed.fold((_) => '', (l) =>
+          l.firstWhere((a) => a.name == '有历史的账户').id);
+      await db.customInsert(
+          'INSERT INTO transactions (id, transaction_date, description, version, created_at, updated_at, sync_state) '
+          "VALUES ('t-x', '2026-10-08', '任意', 1, '2026-10-08', '2026-10-08', 1)");
+      await db.customInsert(
+          'INSERT INTO transaction_entries (id, transaction_id, account_id, chart_of_account_code, debit_cents, credit_cents, note) '
+          "VALUES ('e-x', 't-x', ?, '', 0, 0, '')",
+          variables: [Variable.withString(histId)]);
+
+      final result = await repo.delete(histId);
+      expect(
+        result.fold((l) => l, (_) => null),
+        isA<ServerFailure>().having((f) => f.message, 'message', '该账户有交易记录，无法删除；可改用「关闭账户」归档'),
+        reason: '有分录引用的零余额账户必须拒绝删除(镜像 server 守卫)',
+      );
     });
 
     test('guest delete with non-zero balance fails with the remote wording',

@@ -1,4 +1,4 @@
-// 反馈1b regression:共享右键场景菜单(YucaiContextMenuRegion)+ 两类
+// 反馈1b regression:共享右键场景菜单(ContextMenuRegion)+ 两类
 // 先例面接入 —— ①交易记录行(编辑/删除/复制备注)②账户卡(账户详情/
 // 记一笔)。
 //
@@ -17,7 +17,7 @@
 // 无 gRPC/无 DI:交易行面用页面级 harness(transactions_page_test 同源
 // mock repo + getIt TagRepository);账户卡面直接构造 _AccountCard 不可
 // (私有)—— 走 accounts_page 可行但依赖重,改用组件级「同构面」断言
-// (菜单项/回调经 YucaiContextMenuRegion 参数化,接线的正确性由
+// (菜单项/回调经 ContextMenuRegion 参数化,接线的正确性由
 // accounts_page_test 既有面 + 本文件组件测钉)。
 import 'dart:async';
 
@@ -36,8 +36,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_theme.dart';
-import 'package:yucai_client/core/widgets/yucai_context_menu.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -157,13 +156,13 @@ void main() {
     await tester.pumpWidget(_host(
       Scaffold(
         body: Center(
-          child: YucaiContextMenuRegion(
+          child: ContextMenuRegion(
             items: [
-              YucaiMenuItemData(
+              MenuItemData(
                   label: '账户详情',
                   icon: LucideIcons.info,
                   onTap: () => hit++),
-              const YucaiMenuItemData(
+              const MenuItemData(
                   label: '记一笔', icon: LucideIcons.plus),
             ],
             child: const Padding(

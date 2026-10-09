@@ -23,7 +23,7 @@ import 'package:yucai_client/core/localdb/app_database.dart' show AppDatabase;
 import 'package:yucai_client/core/notifications/credit_card_statement.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/repayment_plan_panel.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
@@ -109,6 +109,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// F35:贷款账户「还款计划」面板数据(每笔债一节:债务 + 未来未还期次
   /// 前 3 条)。空 = 名下无借入债务,面板不渲染(FR-2 隐藏优于空占位)。
   List<({Debt debt, List<PaymentEntry> upcoming})> _debtPlans = const [];
+  /// 全量期次(含已还;账单制面板的本期账单窗口要含已还期次 —— 银行账单
+  /// 口径:全周期应还 + 已还 + 剩余应还,_debtPlans 的 upcoming 只有未还)。
+  List<({String debtId, List<PaymentEntry> all})> _allSchedules = const [];
 
   /// T8:信用卡「账单周期」面板数据(共享推导 breakdown)。null = 未算/
   /// 账单日未设(面板自行降级提示)。随 AccountDetailLoaded 每次到达重算
@@ -215,15 +218,22 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       d.collectionAccountId == widget.id))
               .toList());
       final plans = <({Debt debt, List<PaymentEntry> upcoming})>[];
+      final all = <({String debtId, List<PaymentEntry> all})>[];
       for (final d in linked) {
         final det = await repo.get(d.id);
         det.fold((_) {}, (detail) {
           final unpaid = detail.schedule.where((e) => !e.paid).toList()
             ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
           plans.add((debt: detail.debt, upcoming: unpaid.take(3).toList()));
+          all.add((debtId: detail.debt.id, all: detail.schedule));
         });
       }
-      if (mounted) setState(() => _debtPlans = plans);
+      if (mounted) {
+        setState(() {
+          _debtPlans = plans;
+          _allSchedules = all;
+        });
+      }
     } catch (_) {}
   }
 
@@ -338,15 +348,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       ),
                     ],
                   ],
-                  // F5e:YucaiAnchoredMenu(CompositedTransformFollower)——
+                  // F5e:AnchoredMenu(CompositedTransformFollower)——
                   // 跨分支 Navigator 边界像素级贴合,替代 MenuAnchor。
-                  YucaiAnchoredMenu(
+                  AnchoredMenu(
                     items: [
-                      YucaiMenuItemData(
+                      MenuItemData(
                           label: '复制账户',
                           icon: LucideIcons.copy,
                           onTap: a == null ? null : () => _copy(a)),
-                      YucaiMenuItemData(
+                      MenuItemData(
                           label: archived ? '重新激活账户' : '关闭账户',
                           icon: archived
                               ? LucideIcons.rotateCcw
@@ -354,7 +364,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                           onTap: a == null
                               ? null
                               : () => archived ? _reactivate(a) : _close(a)),
-                      YucaiMenuItemData(
+                      MenuItemData(
                           label: '删除账户',
                           icon: LucideIcons.trash2,
                           destructive: true,
@@ -385,7 +395,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
           }
         },
         child: BlocListener<AccountBloc, AccountState>(
-          // 仅在关闭写操作进行中时，对终态（成功 AccountsLoaded / 失败 AccountError）反应。
+          // 仅在写操作进行中时（关闭/重新激活/删除），对终态（成功
+          // AccountsLoaded / 失败 AccountError）反应。
           listenWhen: (p, c) =>
               _closePending && (c is AccountsLoaded || c is AccountError),
           listener: (context, state) {
@@ -447,6 +458,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         _hero(a, summary?.netCents ?? 0),
         const SizedBox(height: 18),
         _statsRow(a, txns, summary),
+        // 账单制贷款面板(独立账单卡贷,如 e招贷):账单日已设且挂债时,
+        // 显示本期账单/到期还款日/下期预计 + 一键整单还款 —— 对齐银行
+        // 「X日合并出账、Y日前一次还清」口径(dev 2026-10-08 定案)。
+        if (a.category == AccountCategory.loan &&
+            a.creditBillingDay != null &&
+            _allSchedules.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _loanBillPanel(a, txns),
+        ],
         // T8:信用卡「账单周期」面板(v5 原型拍板 B「应还拆解」)—— 欠款
         // hero 与额度 stats 之下、近期交易之上(信用卡区就近欠款/额度概览;
         // 账单日未设面板内部降级提示 +「去设置」直达编辑)。
@@ -468,8 +488,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
           ],
         ],
         const SizedBox(height: 18),
-        // OD .cols：>900 双栏（交易 1.5fr + 饼图 1fr）/ ≤900 堆叠单列。
-        if (isTablet)
+        // OD .cols:>900 双栏(交易 1.5fr + 饼图 1fr)/ ≤900 堆叠单列。
+        // 贷款类账户隐藏收支饼图:其流水(放款/还款)全为转账性质,收支
+        // 恒为 0,饼图只余「暂无收支」占位(dev 2026-10-08 反馈:疑似没
+        // 接数据)——信息由账单面板 + 四卡承载,位置让给近期交易。
+        if (a.category == AccountCategory.loan) ...[
+          _recentTxnPanel(txnState, a.currencyCode),
+        ] else if (isTablet)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1337,6 +1362,27 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
           ('账单日', '${a.creditBillingDay ?? '-'}日'),
         ];
       case AccountCategory.loan:
+        // 挂债贷款(卡贷/借入)静态字段全空(债务模块建户不写 loan_* 列),
+        // 四卡与 hero 字段区/信息卡同口径:优先债务实时聚合;无挂债才回退
+        // 静态字段。此前只读静态 → 挂债贷款四卡恒 ¥0.00(dev 反馈:统计不对)。
+        if (_linkedDebts.isNotEmpty) {
+          final first = _linkedDebts.reduce((x, y) =>
+              (x.nextPaymentDate ?? DateTime(9999))
+                      .isBefore(y.nextPaymentDate ?? DateTime(9999))
+                  ? x
+                  : y);
+          final orig = _linkedDebts
+              .fold<int>(0, (s, d) => s + d.totalPrincipalCents);
+          final remain = _linkedDebts
+              .fold<int>(0, (s, d) => s + d.remainingPrincipalCents);
+          final repaidPct = orig > 0 ? ((orig - remain) / orig * 100) : 0.0;
+          return [
+            ('原始本金', _fmtSigned(orig, a.currencyCode)),
+            ('剩余本金', _fmtSigned(remain, a.currencyCode)),
+            ('月供', _fmtSigned(first.nextPaymentAmountCents, a.currencyCode)),
+            ('已还比例', '${repaidPct.toStringAsFixed(1)}%'),
+          ];
+        }
         final orig = a.loanOriginalCents ?? 0;
         final remain = a.loanRemainingCents ?? 0;
         final repaidPct = orig > 0 ? ((orig - remain) / orig * 100) : 0.0;
@@ -1504,10 +1550,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       style: TextStyle(
                           color: context.yucai.muted, fontSize: 12)),
                   const SizedBox(width: AppSpacing.md),
-                  // 查看全部 → 交易列表（/transactions 在独立 branch，context.go
-                  // 切换 branch；route 不支持 account 预筛 query，故仅导航）。
+                  // 查看全部 → 交易列表(/transactions 在独立 branch)。携
+                  // accountId 预筛,只看本账户交易;必须 push(go 复用
+                  // IndexedStack 已建分支会忽略 extra,照标签页卡先例)。
                   InkWell(
-                    onTap: () => context.go('/transactions'),
+                    onTap: () =>
+                        context.push('/transactions', extra: {
+                      'accountId': widget.id,
+                    }),
                     child: Text('查看全部 →',
                         style: TextStyle(
                             color: context.yucai.accent, fontSize: 12)),
@@ -2055,6 +2105,388 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
 
   /// 切周期粒度（Task 10）。更新 `_scope`/`_day` 后重载 summary。
   /// DAY scope 时把 `_day` 钉到今天 day-of-month。
+  /// 账单制贷款面板数据。**窗口方向 = 银行(e招贷)口径:账单日向前覆盖** ——
+  /// D 日出账列示 (D, nextD] 内到期的期次,还款日前整单还(取证:2025-04-22
+  /// 首笔还款 2,399.70 = 04-05 账单所列 04-28 期次;各月还款额
+  /// 与向前窗口逐月精确吻合)。上期未结 = D 及更早的未还期次(欠账尾差)。
+  ({DateTime d, DateTime prevD, DateTime nextD, DateTime nextNextD,
+      DateTime? dueDate,
+      List<({String debtId, String entryId, int totalCents})> unpaidItems,
+      List<({DateTime date, int principal, int interest, int total, bool paid})> items,
+      int billedTotal, int billedPrincipal, int billedInterest,
+      int paidTotal, int unpaidTotal, int arrearsTotal,
+      int nextTotal})? _loanBill(Account a) {
+    final billDay = a.creditBillingDay;
+    if (billDay == null || _allSchedules.isEmpty) return null;
+    DateTime clamp(int y, int m, int d) =>
+        CreditCardStatementDue.clampDay(y, m, d);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final thisBill = clamp(today.year, today.month, billDay);
+    final d = thisBill.isAfter(today)
+        ? clamp(today.year, today.month - 1, billDay)
+        : thisBill;
+    final prevD = clamp(d.year, d.month - 1, billDay);
+    final nextD = clamp(d.year, d.month + 1, billDay);
+    final nextNextD = clamp(d.year, d.month + 2, billDay);
+    DateTime? due;
+    final repayDay = a.creditRepaymentDay;
+    if (repayDay != null) {
+      due = clamp(d.year, d.month, repayDay);
+      if (!due.isAfter(d)) due = clamp(d.year, d.month + 1, repayDay);
+    }
+    final unpaidItems = <({String debtId, String entryId, int totalCents})>[];
+    // 逐期明细(银行账单列示:日期/本金/利息/合计)。
+    final items = <({DateTime date, int principal, int interest, int total, bool paid})>[];
+    var billedTotal = 0, paidTotal = 0, unpaidTotal = 0, arrearsTotal = 0;
+    var billedPrincipal = 0, billedInterest = 0;
+    var nextTotal = 0;
+    for (final p in _allSchedules) {
+      for (final e in p.all) {
+        final day = DateTime(
+            e.paymentDate.year, e.paymentDate.month, e.paymentDate.day);
+        if (day.isAfter(d) && !day.isAfter(nextD)) {
+          // 本期账单(向前窗口):D 出账列示的未来周期期次。
+          billedTotal += e.totalCents;
+          billedPrincipal += e.principalCents;
+          billedInterest += e.interestCents;
+          items.add((date: day, principal: e.principalCents,
+              interest: e.interestCents, total: e.totalCents, paid: e.paid));
+          if (e.paid) {
+            paidTotal += e.totalCents;
+          } else {
+            unpaidTotal += e.totalCents;
+            unpaidItems.add(
+                (debtId: p.debtId, entryId: e.id, totalCents: e.totalCents));
+          }
+        } else if (!day.isAfter(d) && !e.paid) {
+          // 上期未结:D 及更早的未还期次(欠账尾差,随本期一并还)。
+          arrearsTotal += e.totalCents;
+          unpaidItems.add(
+              (debtId: p.debtId, entryId: e.id, totalCents: e.totalCents));
+        } else if (day.isAfter(nextD) && !day.isAfter(nextNextD)) {
+          nextTotal += e.totalCents;
+        }
+      }
+    }
+    items.sort((x, y) => x.date.compareTo(y.date));
+    return (
+      d: d,
+      prevD: prevD,
+      nextD: nextD,
+      nextNextD: nextNextD,
+      dueDate: due,
+      unpaidItems: unpaidItems,
+      items: items,
+      billedTotal: billedTotal,
+      billedPrincipal: billedPrincipal,
+      billedInterest: billedInterest,
+      paidTotal: paidTotal,
+      unpaidTotal: unpaidTotal,
+      arrearsTotal: arrearsTotal,
+      nextTotal: nextTotal,
+    );
+  }
+
+  /// 一键整单还款:选储蓄账户 → 单笔交易还清本期账单,批量标记期次已还。
+  Future<void> _repayLoanBill(
+      Account a,
+      List<({String debtId, String entryId, int totalCents})> items,
+      int total) async {
+    final assets = _accountsMap.values
+        .where((x) => x.accountType == AccountType.asset)
+        .toList()
+      ..sort((x, y) => x.name.compareTo(y.name));
+    if (assets.isEmpty) {
+      AppToast.show(context, '无储蓄账户可扣款', type: ToastType.warning);
+      return;
+    }
+    String? from = assets.first.id;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setSt) => AlertDialog(
+          title: const Text('账单还款'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('本期账单 ${_fmt(total, a.currencyCode)}(${items.length} 期)'
+                  '${_loanBill(a)?.dueDate == null ? '' : ' · ${_fmtDate(_loanBill(a)!.dueDate!)}前'}'),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<String>(
+                initialValue: from,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: '还款账户'),
+                items: [
+                  for (final acc in assets)
+                    DropdownMenuItem(value: acc.id, child: Text(acc.name)),
+                ],
+                onChanged: (v) => setSt(() => from = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dctx, false),
+                child: const Text('取消')),
+            FilledButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('还款'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || from == null || !mounted) return;
+    final r = await getIt<DebtRepository>().repayBill(
+      loanAccountId: a.id,
+      items: [
+        for (final it in items) (debtId: it.debtId, entryId: it.entryId),
+      ],
+      fromAccountId: from!,
+      description: '账单还款 ${a.name}',
+    );
+    if (!mounted) return;
+    r.fold(
+      (f) => AppToast.show(context, f.displayMessage, type: ToastType.error),
+      (_) {
+        AppToast.show(context, '账单已还清 ${_fmt(total, a.currencyCode)}',
+            type: ToastType.success);
+        GetIt.instance<DataRefreshNotifier>().bump();
+        setState(() {});
+        context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+        _loadLinkedDebt();
+        _loadRepaymentPlans();
+      },
+    );
+  }
+
+  /// 历史账单(近 [months] 期,不含本期):出账日/期数/本金/利息/合计/对应
+  /// 还款(窗口内「账单还款」交易匹配;账单=推导视图,还款=真实流水)。
+  List<({DateTime billDate, int count, int principal, int interest,
+      int billed, DateTime? repayDate, int repaid})> _billHistory(
+      Account a, List<Transaction> txns,
+      {int months = 6}) {
+    final billDay = a.creditBillingDay;
+    if (billDay == null || _allSchedules.isEmpty) return const [];
+    DateTime clamp(int y, int m, int d) =>
+        CreditCardStatementDue.clampDay(y, m, d);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    var d0 = clamp(today.year, today.month, billDay);
+    if (d0.isAfter(today)) d0 = clamp(today.year, today.month - 1, billDay);
+    final repays = txns
+        .where((t) => t.description.contains('账单还款'))
+        .toList()
+      ..sort((x, y) => x.transactionDate.compareTo(y.transactionDate));
+    final out = <({DateTime billDate, int count, int principal, int interest,
+        int billed, DateTime? repayDate, int repaid})>[];
+    for (var k = 1; k <= months; k++) {
+      final dThis = clamp(d0.year, d0.month - k, billDay);
+      final dNext = clamp(d0.year, d0.month - k + 1, billDay);
+      var count = 0, principal = 0, interest = 0, billed = 0;
+      for (final p in _allSchedules) {
+        for (final e in p.all) {
+          final day = DateTime(
+              e.paymentDate.year, e.paymentDate.month, e.paymentDate.day);
+          if (day.isAfter(dThis) && !day.isAfter(dNext)) {
+            count++;
+            principal += e.principalCents;
+            interest += e.interestCents;
+            billed += e.totalCents;
+          }
+        }
+      }
+      if (count == 0) continue;
+      Transaction? repay;
+      for (final t in repays) {
+        final td = DateTime(t.transactionDate.year, t.transactionDate.month,
+            t.transactionDate.day);
+        if (td.isAfter(dThis) && !td.isAfter(dNext)) repay = t;
+      }
+      var repaid = 0;
+      for (final e in repay?.entries ?? const <TransactionEntry>[]) {
+        if (e.accountId == a.id && e.debitCents > 0) repaid += e.debitCents;
+      }
+      out.add((billDate: dThis, count: count, principal: principal,
+          interest: interest, billed: billed,
+          repayDate: repay == null ? null : DateTime(
+              repay.transactionDate.year, repay.transactionDate.month,
+              repay.transactionDate.day),
+          repaid: repaid));
+    }
+    return out;
+  }
+
+  Widget _billItemRow(
+      DateTime date, int principal, int interest, int total, bool paid,
+      String currencyCode) {
+    final style = TextStyle(
+        color: context.yucai.muted,
+        fontSize: 12,
+        fontFeatures: AppTypography.tabularFigures);
+    return Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: Row(children: [
+        Text('${date.month}月${date.day}日', style: style),
+        const Spacer(),
+        Text('本金 ${_fmt(principal, currencyCode)}', style: style),
+        const SizedBox(width: 10),
+        Text('利息 ${_fmt(interest, currencyCode)}', style: style),
+        const SizedBox(width: 10),
+        Text('${_fmt(total, currencyCode)}${paid ? ' ✓' : ''}',
+            style: style.copyWith(
+                color: paid ? context.yucai.positive : context.yucai.fg,
+                fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
+  /// 账单制贷款面板:本期账单(向前窗口,银行口径,逐期明细)+ 上期未结 +
+  /// 下期预计 + 一键还清 + 近几期历史账单(出账/明细汇总/对应还款)。
+  Widget _loanBillPanel(Account a, List<Transaction> txns) {
+    final b = _loanBill(a);
+    if (b == null) return const SizedBox.shrink();
+    final repayTotal = b.unpaidTotal + b.arrearsTotal;
+    final settled = repayTotal == 0;
+    final history = _billHistory(a, txns);
+    return Container(
+      key: const ValueKey('loanBillPanel'),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.yucai.surface,
+        borderRadius: AppRadius.lgBorder,
+        border: Border.all(color: context.yucai.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(LucideIcons.receipt, size: 15, color: context.yucai.accent),
+            const SizedBox(width: 7),
+            Text('本期账单',
+                style: TextStyle(
+                    color: context.yucai.muted,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8)),
+            const Spacer(),
+            Text('${a.creditBillingDay}日出账',
+                style:
+                    TextStyle(color: context.yucai.muted, fontSize: 12)),
+          ]),
+          const SizedBox(height: 10),
+          Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+            Text(
+              _fmt(b.billedTotal, a.currencyCode),
+              style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: AppTypography.displayFamily,
+                  fontFamilyFallback: AppTypography.displayFallback,
+                  color: b.billedTotal == 0 ? context.yucai.muted : context.yucai.fg),
+            ),
+            const SizedBox(width: 10),
+            if (settled)
+              Text('已还清', style: TextStyle(color: context.yucai.muted, fontSize: 13))
+            else if (b.dueDate != null)
+              Text('${_fmtDate(b.dueDate!)}前还清', style: TextStyle(color: context.yucai.negative, fontSize: 13)),
+          ]),
+          Text(
+              '含本金 ${_fmt(b.billedPrincipal, a.currencyCode)} + 利息 ${_fmt(b.billedInterest, a.currencyCode)} · ${b.items.length} 期',
+              style: TextStyle(color: context.yucai.muted, fontSize: 12)),
+          if (b.paidTotal > 0) ...[
+            const SizedBox(height: 4),
+            Text.rich(TextSpan(children: [
+              const TextSpan(text: '已还 '),
+              TextSpan(
+                  text: _fmt(b.paidTotal, a.currencyCode),
+                  style: TextStyle(color: context.yucai.positive)),
+              const TextSpan(text: ' · 剩余应还 '),
+              TextSpan(
+                  text: _fmt(b.unpaidTotal, a.currencyCode),
+                  style: TextStyle(
+                      color: b.unpaidTotal == 0
+                          ? context.yucai.muted
+                          : context.yucai.negative,
+                      fontWeight: FontWeight.w600)),
+            ]), style: TextStyle(color: context.yucai.muted, fontSize: 12)),
+          ],
+          if (b.arrearsTotal > 0) ...[
+            const SizedBox(height: 4),
+            Text.rich(TextSpan(children: [
+              const TextSpan(text: '上期未结 '),
+              TextSpan(
+                  text: _fmt(b.arrearsTotal, a.currencyCode),
+                  style: TextStyle(
+                      color: context.yucai.negative,
+                      fontWeight: FontWeight.w600)),
+              const TextSpan(text: ' · 随本期一并还清'),
+            ]), style: TextStyle(color: context.yucai.muted, fontSize: 12)),
+          ],
+          const SizedBox(height: 6),
+          Text('下期预计(未出账)${_fmt(b.nextTotal, a.currencyCode)} · ${b.nextD.month}月${b.nextD.day}日出账',
+              style: TextStyle(color: context.yucai.muted, fontSize: 12)),
+          if (!settled) ...[
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: () => _repayLoanBill(a, b.unpaidItems, repayTotal),
+              icon: const Icon(LucideIcons.check, size: 15),
+              label: Text('一键还清 ${_fmt(repayTotal, a.currencyCode)}'),
+            ),
+          ],
+          // 本期账单逐期明细(银行账单列示:日期/本金/利息/合计)。
+          if (b.items.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Divider(height: 1, color: context.yucai.border),
+            const SizedBox(height: 8),
+            Text('账单明细',
+                style: TextStyle(
+                    color: context.yucai.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700)),
+            for (final it in b.items)
+              _billItemRow(it.date, it.principal, it.interest, it.total,
+                  it.paid, a.currencyCode),
+          ],
+          // 历史账单(近6期:出账/汇总/对应还款)。
+          if (history.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Divider(height: 1, color: context.yucai.border),
+            const SizedBox(height: 8),
+            Text('历史账单',
+                style: TextStyle(
+                    color: context.yucai.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700)),
+            for (final h in history)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(children: [
+                  Expanded(
+                    child: Text(
+                        '${h.billDate.month}月${h.billDate.day}日出账 · ${h.count}期 · 本金 ${_fmt(h.principal, a.currencyCode)} + 利息 ${_fmt(h.interest, a.currencyCode)}',
+                        style: TextStyle(
+                            color: context.yucai.muted,
+                            fontSize: 12,
+                            fontFeatures: AppTypography.tabularFigures)),
+                  ),
+                  if (h.repaid > 0)
+                    Text(
+                        '${h.repayDate?.month ?? ''}月${h.repayDate?.day ?? ''}日已还${h.repaid >= h.billed ? '✓' : ''}',
+                        style: TextStyle(
+                            color: context.yucai.positive,
+                            fontSize: 12,
+                            fontFeatures: AppTypography.tabularFigures)),
+                ]),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
   void _changeScope(SummaryScope next) {
     if (next == _scope) return;
     setState(() {
@@ -2211,8 +2643,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
       ),
     ).then((ok) {
       if (ok == true && mounted) {
+        // 同 _close：由 BlocListener 在 AccountsLoaded 时 toast + pop；
+        // 删除被守卫拒绝（余额非零/被引用）时 AccountError 留在本页 toast
+        // 原因 —— 此前 dispatch 后立即 pop，失败完全无反馈（dev 反馈：
+        // 储蓄卡删不掉却看不到任何报错）。
+        setState(() {
+          _closePending = true;
+          _pendingSuccessMsg = '账户已删除';
+        });
         context.read<AccountBloc>().add(DeleteAccountRequested(a.id));
-        context.pop();
       }
     });
   }

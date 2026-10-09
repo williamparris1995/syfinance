@@ -7,7 +7,7 @@
 //
 // 夹具:内存 drift 库 + DS.create 建 5 笔(4 笔 borrowedIn + 1 笔
 // borrowedOut),其中 1 笔经 recordPayment 还清(lumpSum 单期)做「已结清」。
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -921,10 +921,10 @@ void main() {
       await debts.catchupCardLoanMerges();
       final card2 = await accounts.getAccountById(cardId);
       expect(card2!.currentBalanceCents, expectedCard);
-      // 债务余额递减 = 已并入期次本息(模块口径:remaining = 总额 − ΣpaidCents,
-      // 与负债账户余额不变式一致;普通债务还款含利息同理)。
+      // 债务剩余本金 = 未还期次本金部分合计(银行口径;2026-10-08 修正:
+      // 此前 总额−Σ已还全额 把利息混冲本金,与银行拆分对不上)。
       final expectedRemaining =
-          5000000 - merged.fold<int>(0, (s, e) => s + e.totalCents);
+          5000000 - merged.fold<int>(0, (s, e) => s + e.principalCents);
       expect(detail.debt.remainingPrincipalCents, expectedRemaining);
     });
 
@@ -947,6 +947,75 @@ void main() {
           .where((e) => e.paid)
           .fold<int>(0, (s, e) => s + e.totalCents);
       expect(card!.currentBalanceCents, mergedTotal);
+    });
+  });
+
+  group('repayBill(账单制整单还款,e招贷口径)', () {
+    test('多债多期合并为单笔交易,期次批量已还,余额联动', () async {
+      final list = await debts.list();
+      final loanDebts = list
+          .where((d) => d.accountId == 'acc-loan' && !d.subtype.contains('card'))
+          .toList();
+      // 取两笔未结清借入债的期次(lumpSum:各 1 期)。
+      final items = <({String debtId, String entryId, int totalCents})>[];
+      var total = 0;
+      for (final d in loanDebts.take(2)) {
+        final detail = await debts.get(d.id);
+        final e = detail.schedule.where((e) => !e.paid).first;
+        items.add((debtId: d.id, entryId: e.id, totalCents: e.totalCents));
+        total += e.totalCents;
+      }
+      expect(items.length, 2);
+      expect(total, 900000 + 150000);
+
+      await debts.repayBill(
+        loanAccountId: 'acc-loan',
+        items: [
+          for (final it in items) (debtId: it.debtId, entryId: it.entryId),
+        ],
+        fromAccountId: cash,
+        description: '账单还款 招行e招贷',
+      );
+
+      // 单笔交易:借贷款账户/贷现金,金额 = 期次合计。
+      final txns = await database.customSelect(
+          "SELECT COUNT(*) c FROM transactions WHERE description = '账单还款 招行e招贷'")
+          .getSingle();
+      expect(txns.read<int>('c'), 1, reason: '整单还款=一笔交易');
+      final loanEntry = await database.customSelect(
+          "SELECT debit_cents d, credit_cents c FROM transaction_entries "
+          "WHERE account_id = 'acc-loan' AND transaction_id IN "
+          "(SELECT id FROM transactions WHERE description = '账单还款 招行e招贷')")
+          .getSingle();
+      expect(loanEntry.read<int>('d'), total);
+      expect(loanEntry.read<int>('c'), 0);
+
+      // 期次全部已还并挂同一交易。
+      for (final it in items) {
+        final row = await database.customSelect(
+            'SELECT paid, paid_cents, transaction_id FROM payment_schedule_entries WHERE id = ?',
+            variables: [Variable.withString(it.entryId)]).getSingle();
+        expect(row.read<bool>('paid'), isTrue);
+        expect(row.read<int>('paid_cents'), it.totalCents);
+        expect(row.read<String>('transaction_id'), isNotNull);
+      }
+
+      // 余额:贷款账户 credit-正口径递减,现金同额流出。
+      final loan = await accounts.getAccountById('acc-loan');
+      final cashRow = await accounts.getAccountById(cash);
+      // 建债时放款已贷记账户(6,250,000) - settle 5,000,000 - 本单 1,050,000
+      // = 200,000(credit-正,剩余未还的 d3 Bank B)。
+      expect(loan!.currentBalanceCents, 200000, reason: 'credit-正:整单还款后剩未还期次');
+            // cash 期初 100 万 - settle 5,000,000 - 本单 1,050,000。
+      expect(cashRow!.currentBalanceCents, 100000000 - 5000000 - total);
+    });
+
+    test('已还期次拒绝;空单拒绝', () async {
+      const items = <({String debtId, String entryId})>[];
+      await expectLater(
+          debts.repayBill(
+              loanAccountId: 'acc-loan', items: items, fromAccountId: cash),
+          throwsA(isA<ValidationFailure>()));
     });
   });
 }

@@ -16,7 +16,7 @@ import 'package:yucai_client/core/widgets/debt_delete_confirm.dart';
 import 'package:yucai_client/core/widgets/debt_detail_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/data/contract_attachment_store.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -208,9 +208,9 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage>
                     final debt = state is DebtDetailLoaded
                         ? state.detail.debt
                         : null;
-                    return YucaiAnchoredMenu(
+                    return AnchoredMenu(
                       items: [
-                        YucaiMenuItemData(
+                        MenuItemData(
                           label: _sem.deleteMenuItem,
                           icon: LucideIcons.trash2,
                           destructive: true,

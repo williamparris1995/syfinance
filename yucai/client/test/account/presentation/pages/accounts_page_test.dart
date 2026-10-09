@@ -43,12 +43,36 @@ import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart'
+    show AmortizationMethod;
 
 class _MockList extends Mock implements ListAccountsUseCase {}
 class _MockCreate extends Mock implements CreateAccountUseCase {}
 class _MockDelete extends Mock implements DeleteAccountUseCase {}
 class _MockGet extends Mock implements GetAccountUseCase {}
 class _MockUpdate extends Mock implements UpdateAccountUseCase {}
+class _MockDebtRepo extends Mock implements DebtRepository {}
+
+/// 挂借入债夹具(credit-正:remaining/unpaidInterest 均正数)。
+Debt _debt(String id, String accountId,
+        {int remaining = 50000000, int unpaidInterest = 3000000}) =>
+    Debt(
+      id: id,
+      accountId: accountId,
+      counterparty: '工商银行',
+      interestRate: 3.9,
+      amortization: AmortizationMethod.equalPrincipalInterest,
+      startDate: DateTime(2024, 1, 1),
+      dueDate: DateTime(2054, 12, 1),
+      totalPrincipalCents: 100000000,
+      remainingPrincipalCents: remaining,
+      unpaidInterestCents: unpaidInterest,
+      version: 1,
+      createdAt: DateTime(2024, 1, 1),
+      updatedAt: DateTime(2024, 1, 1),
+    );
 
 /// 到期候选可变 fake 源(照 due_candidate_provider_test 范式)。
 class _FakeDueSource implements DueScheduleSource {
@@ -435,6 +459,44 @@ void main() {
     expect(find.text('总资产'), findsOneWidget);
     expect(find.text('总负债'), findsOneWidget);
   });
+
+  testWidgets(
+    'desktop header: 总负债=卡欠款+债务本息剩余(credit-正),净资产=资产−总负债 (dev 反馈:总计不正确)',
+    (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      when(() => debtRepo.list())
+          .thenAnswer((_) async => dartz.Right([_debt('d1', 'l1')]));
+      GetIt.instance.registerSingleton<DebtRepository>(debtRepo);
+
+      await t.pumpWidget(_harness([
+        // 资产 ¥10,000。
+        _account('a1', '储蓄', cat: AccountCategory.savings, bal: 1000000),
+        // 信用卡欠款 ¥300(credit-正)。
+        _account('c1', '信用卡',
+            cat: AccountCategory.creditCard,
+            type: AccountType.liability,
+            bal: 30000),
+        // 挂债贷款账户:余额不参与总负债,由债务本息剩余(¥500,000+¥30,000)
+        // 计入。
+        _account('l1', '融e借',
+            cat: AccountCategory.loan,
+            type: AccountType.liability,
+            bal: 400000),
+      ]));
+      await t.pumpAndSettle();
+
+      // 总资产 ¥10,000.00;总负债 ¥530,300.00;净资产 −¥520,300.00(注意
+      // _fmtSymbol 的负号在货币符号之前,'-520,300.00' 不是子串)。
+      expect(find.textContaining('10,000.00'), findsWidgets);
+      expect(find.textContaining('530,300.00'), findsOneWidget,
+          reason: '总负债 = 卡欠款300 + 债务本息剩余530,000');
+      expect(find.text('-¥520,300.00'), findsOneWidget,
+          reason: '净资产 = 资产10,000 − 总负债530,300');
+    },
+  );
 
   testWidgets('mobile header: compact 净资产 + 资产·负债 meta, no count', (t) async {
     t.view.physicalSize = const Size(390, 844);

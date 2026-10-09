@@ -125,9 +125,35 @@ class AccountRepositoryImpl implements AccountRepository {
           return const ServerFailure(
               '账户余额非零，无法删除，请先清空余额或转账后再试');
         }
+        if (msg.contains('referenced by')) {
+          return ServerFailure(_deleteGuardMessage(msg));
+        }
         return ServerFailure(msg.isNotEmpty ? msg : '操作无法完成');
       default:
         return ServerFailure(e.message ?? e.codeName);
     }
+  }
+
+  /// 删除守卫「被引用」文案中文化。服务端格式（application/service.go
+  /// rejectIfReferenced，mapError 归到 FailedPrecondition）：
+  /// `cannot delete <account|category>: referenced by <n> <module>(s) record(s)`。
+  static final _referencedBy = RegExp(r'referenced by (\d+) (\w+)');
+
+  static const _moduleNames = {
+    'transaction': '交易',
+    'budget': '预算',
+    'debt': '负债',
+    'goal': '目标',
+    'holding': '持仓',
+    'template': '模板',
+  };
+
+  String _deleteGuardMessage(String msg) {
+    final noun = msg.contains('delete category') ? '分类' : '账户';
+    final m = _referencedBy.firstMatch(msg);
+    if (m == null) return msg; // 格式对不上时原样透出，至少保留原因
+    final module = _moduleNames[m.group(2)] ?? m.group(2)!;
+    return '无法删除该$noun：仍被 ${m.group(1)} 条$module记录引用，'
+        '请先处理或转移相关记录';
   }
 }

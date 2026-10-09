@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -346,6 +347,79 @@ class _AccountFormPageState extends State<AccountFormPage> {
     TypeOption(AccountCategory.storedValue, '储值卡', LucideIcons.gift),
   ];
 
+  /// 创建模式下的分叉引导(dev 反馈:用户面对「信用卡/贷款」二选一全靠猜)。
+  /// 心智口诀:银行每月告诉你「该还多少」→ 债务;只是一个余额 → 账户。
+  Widget? get _categoryGuidance {
+    if (_isEdit) return null;
+    switch (_category) {
+      case AccountCategory.loan:
+        return Container(
+          key: const ValueKey('loanGuidanceCard'),
+          margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: context.yucai.accentSoft,
+            border: Border.all(color: context.yucai.accentSoft),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(LucideIcons.lightbulb,
+                  size: 16, color: context.yucai.accent),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(children: [
+                        TextSpan(
+                            text:
+                                '房贷、车贷、现金分期、e招贷这类有固定还款计划的借款,建议从 '),
+                        TextSpan(
+                            text: '债务 → 借入',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: context.yucai.accentDeep)),
+                        const TextSpan(
+                            text:
+                                ' 创建:自动生成还款计划、到期提醒,支持按期或按账单还款。此处仅适合只记总额、不记计划的贷款。'),
+                      ]),
+                      style: TextStyle(
+                          color: context.yucai.muted,
+                          fontSize: 12.5,
+                          height: 1.6),
+                    ),
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: () => context.push('/debts/new'),
+                      icon: const Icon(LucideIcons.arrowRight, size: 14),
+                      label: const Text('去债务创建',
+                          style: TextStyle(fontSize: 12.5)),
+                      style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      case AccountCategory.creditCard:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+          child: Text(
+            '卡上的现金分期 / e招贷属于独立授信借款,请从 债务 → 借入(卡贷) 创建',
+            style: TextStyle(color: context.yucai.muted, fontSize: 12),
+          ),
+        );
+      default:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -436,6 +510,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
                             ],
                           ),
                         ),
+                        if (_categoryGuidance != null) _categoryGuidance!,
                         Divider(height: 1, color: context.yucai.border),
                         const SizedBox(height: AppSpacing.lg),
                         FormSection(

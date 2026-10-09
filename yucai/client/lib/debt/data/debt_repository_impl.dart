@@ -267,6 +267,28 @@ class DebtRepositoryImpl implements DebtRepository {
           ));
 
   @override
+  Future<Either<Failure, void>> repayBill({
+    required String loanAccountId,
+    required List<({String debtId, String entryId})> items,
+    required String fromAccountId,
+    String? description,
+  }) =>
+      _routedWrite(MirrorModule.debt,
+          () => _remote.repayBill(
+            loanAccountId: loanAccountId,
+            items: items,
+            fromAccountId: fromAccountId,
+            description: description,
+          ),
+          (markPending) => _local.repayBill(
+            markPending: markPending,
+            loanAccountId: loanAccountId,
+            items: items,
+            fromAccountId: fromAccountId,
+            description: description,
+          ));
+
+  @override
   Future<Either<Failure, List<Debt>>> upcomingPayments(int daysAhead) =>
       _guard(() => _useLocalDs ? _local.upcomingPayments(daysAhead) : _remote.upcomingPayments(daysAhead));
 

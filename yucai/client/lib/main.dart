@@ -122,4 +122,13 @@ Future<void> main() async {
   Future.delayed(const Duration(milliseconds: 300), () {
     WidgetsBinding.instance.scheduleForcedFrame();
   });
+  // 2026-10-06 复现:scheduleForcedFrame 兜底后仍偶发纯白 —— VM service
+  // reassemble 一催即恢复(engine vsync/AXTree 呈现层卡,非调度层)。加
+  // Windows debug 限定的一次性延迟 performReassemble(整树重建,幂等无副作用;
+  // 仅 debug,release 无此问题时序)。
+  if (!kReleaseMode && Platform.isWindows) {
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      WidgetsBinding.instance.performReassemble();
+    });
+  }
 }

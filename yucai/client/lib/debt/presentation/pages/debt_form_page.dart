@@ -101,6 +101,13 @@ class _DebtFormPageState extends State<DebtFormPage> {
   final _termPeriodsCtrl = TextEditingController(text: '12');
   // 卡贷(F48):挂接信用卡(并账卡)+ 每期手续费。
   String? _cardLoanCardId;
+  // 出账方式(dev 2026-10-08,e招贷口径):false = 并入挂接卡账单(平安/
+  // 广发现金分期);true = 独立账单 —— 每月账单日合并出账、还款日前整单
+  // 还(招行 e招贷)。账单日/还款日落在挂靠贷款账户(creditBillingDay/
+  // creditRepaymentDay 列),创建时随自动建户写入,编辑经账户表单修改。
+  bool _cardLoanIndependent = false;
+  final _clBillDayCtrl = TextEditingController();
+  final _clRepayDayCtrl = TextEditingController();
   final _ccFeeCtrl = TextEditingController();
   // 一次性利息减免(元输入;存储为分)。
   final _waiverCtrl = TextEditingController();
@@ -145,6 +152,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
       }
       _accountId = e.accountId;
       _subtypeKey = e.subtype.isEmpty ? DebtSubtypes.mortgage : e.subtype;
+      // 出账方式回填:无挂接卡 = 独立账单(e招贷口径,2026-10-08 解挂存量)。
+      if (_subtypeKey == DebtSubtypes.cardLoan) {
+        _cardLoanIndependent = (e.collectionAccountId ?? '').isEmpty;
+      }
       // 卡贷编辑:回填挂接卡(collectionAccountId 语义 = 并账信用卡)。
       if (_subtypeKey == DebtSubtypes.cardLoan &&
           (e.collectionAccountId ?? '').isNotEmpty) {
@@ -180,6 +191,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _ccAnnualFeeCtrl.dispose();
     _termPeriodsCtrl.dispose();
     _ccFeeCtrl.dispose();
+    _clBillDayCtrl.dispose();
+    _clRepayDayCtrl.dispose();
     _waiverCtrl.dispose();
     _guarantorNameCtrl.dispose();
     _guarantorContactCtrl.dispose();
@@ -199,6 +212,17 @@ class _DebtFormPageState extends State<DebtFormPage> {
             list.where((a) => a.accountType == AccountType.asset).toList();
         _accountsLoading = false;
         _refillCreditCardFields();
+        // 独立账单卡贷(如 e招贷)编辑:账单日/还款日回填自挂靠贷款账户
+        //(账户列 creditBillingDay/creditRepaymentDay,账户编辑可改)。
+        if (_isCardLoan && _cardLoanIndependent && _existing != null) {
+          final acc = list
+              .where((a) => a.id == _existing!.accountId)
+              .firstOrNull;
+          if (acc != null) {
+            _clBillDayCtrl.text = acc.creditBillingDay?.toString() ?? '';
+            _clRepayDayCtrl.text = acc.creditRepaymentDay?.toString() ?? '';
+          }
+        }
       });
     } catch (_) {
       if (!mounted) return;
@@ -622,10 +646,22 @@ class _DebtFormPageState extends State<DebtFormPage> {
       AppToast.show(context, '请选择关联账户', type: ToastType.warning);
       return;
     }
-    if (_isCardLoan && (_cardLoanCardId == null || _cardLoanCardId!.isEmpty)) {
+    if (_isCardLoan &&
+        !_cardLoanIndependent &&
+        (_cardLoanCardId == null || _cardLoanCardId!.isEmpty)) {
       AppToast.show(context, '请选择挂接的信用卡(每期并入其账单)',
           type: ToastType.warning);
       return;
+    }
+    if (_isCardLoan && _cardLoanIndependent && !_isEdit) {
+      final bill = int.tryParse(_clBillDayCtrl.text);
+      final repay = int.tryParse(_clRepayDayCtrl.text);
+      if (bill == null || bill < 1 || bill > 31 ||
+          repay == null || repay < 1 || repay > 31) {
+        AppToast.show(context, '独立账单需填账单日与还款日(1-31)',
+            type: ToastType.warning);
+        return;
+      }
     }
     final principal = double.tryParse(_principalCtrl.text) ?? 0;
     if (_principalCtrl.text.isEmpty || principal <= 0) {
@@ -687,9 +723,11 @@ class _DebtFormPageState extends State<DebtFormPage> {
         subtype: _subtypeKey,
         guarantorName: _guarantorNameCtrl.text.trim(),
         guarantorContact: _guarantorContactCtrl.text.trim(),
-        // 卡贷:挂接卡可换(并账目标);排期本身不重排(DS 守卫)。
-        collectionAccountId:
-            _isCardLoan ? _cardLoanCardId : e.collectionAccountId,
+        // 卡贷:挂接卡可换(并账目标);排期本身不重排(DS 守卫)。独立账单
+        // 模式 → 解挂(每期留贷款账户,账单制还款)。
+        collectionAccountId: _isCardLoan
+            ? (_cardLoanIndependent ? null : _cardLoanCardId)
+            : e.collectionAccountId,
         amortizationIndex: _amortization.index,
         dueDate: effectiveDue,
         termPeriods: _byPeriods ? dates.length : 0,
@@ -715,6 +753,14 @@ class _DebtFormPageState extends State<DebtFormPage> {
           initialBalanceCents: 0,
           ownership: Ownership.personal,
           notes: '信用卡贷款(卡贷)自动创建',
+          // 独立账单(如 e招贷):账单日/还款日随建户写入 —— 详情账单制
+          // 面板与一键整单还款据此启用。
+          creditBillingDay: _cardLoanIndependent
+              ? int.tryParse(_clBillDayCtrl.text)
+              : null,
+          creditRepaymentDay: _cardLoanIndependent
+              ? int.tryParse(_clRepayDayCtrl.text)
+              : null,
         ));
         var newId = '';
         created.fold((f) {
@@ -740,8 +786,11 @@ class _DebtFormPageState extends State<DebtFormPage> {
         subtype: _subtypeKey,
         guarantorName: _guarantorNameCtrl.text.trim(),
         guarantorContact: _guarantorContactCtrl.text.trim(),
-        // 卡贷:collectionAccountId 语义 = 并账挂接的信用卡。
-        collectionAccountId: _isCardLoan ? _cardLoanCardId : null,
+        // 卡贷:collectionAccountId 语义 = 并账挂接的信用卡;独立账单
+        // 模式 → null(每期留贷款账户,账单制还款)。
+        collectionAccountId: _isCardLoan
+            ? (_cardLoanIndependent ? null : _cardLoanCardId)
+            : null,
         cycle: effRule.cycleInt,
         interval: effRule.interval,
         weekdayMask: effRule.weekdayMask,
@@ -1226,24 +1275,69 @@ class _DebtFormPageState extends State<DebtFormPage> {
   List<Widget> _cardLoanFields() {
     return [
       const SizedBox(height: AppSpacing.sm),
-      _ODGrid2(children: [
-        _ODField(
-          label: '挂接信用卡',
-          required: true,
-          hint: '每期金额自动并入该卡账单',
-          child: DropdownButtonFormField<String>(
-            key: const ValueKey('cardLoanCardDropdown'),
-            value: _cardLoanCardId,
-            isExpanded: true,
-            decoration: _odDec(context, hint: '选择信用卡账户'),
-            items: [
-              for (final a in _cardAccounts)
-                DropdownMenuItem(value: a.id, child: Text(a.name)),
-            ],
-            onChanged: (v) => setState(() => _cardLoanCardId = v),
-            validator: (v) => v == null || v.isEmpty ? '请选择挂接的信用卡' : null,
-          ),
+      // 出账方式(e招贷定案 2026-10-08):按银行行为问,不按金融概念问。
+      _ODField(
+        label: '出账方式',
+        required: true,
+        hint: '照抄银行 app:每期进信用卡账单,还是单出账单',
+        child: _ResponsiveRadioRow(
+          children: [
+            _RadioCard(
+              key: const ValueKey('cardLoanMode-merge'),
+              icon: LucideIcons.creditCard,
+              label: '并入信用卡账单',
+              desc: '平安/广发现金分期',
+              selected: !_cardLoanIndependent,
+              onTap: () => setState(() => _cardLoanIndependent = false),
+            ),
+            _RadioCard(
+              key: const ValueKey('cardLoanMode-independent'),
+              icon: LucideIcons.receipt,
+              label: '独立账单',
+              desc: '如 e招贷 · 月度合并出账',
+              selected: _cardLoanIndependent,
+              onTap: () => setState(() => _cardLoanIndependent = true),
+            ),
+          ],
         ),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      _ODGrid2(children: [
+        if (!_cardLoanIndependent)
+          _ODField(
+            label: '挂接信用卡',
+            required: true,
+            hint: '每期金额自动并入该卡账单',
+            child: DropdownButtonFormField<String>(
+              key: const ValueKey('cardLoanCardDropdown'),
+              value: _cardLoanCardId,
+              isExpanded: true,
+              decoration: _odDec(context, hint: '选择信用卡账户'),
+              items: [
+                for (final a in _cardAccounts)
+                  DropdownMenuItem(value: a.id, child: Text(a.name)),
+              ],
+              onChanged: (v) => setState(() => _cardLoanCardId = v),
+              validator: (v) => v == null || v.isEmpty ? '请选择挂接的信用卡' : null,
+            ),
+          )
+        else
+          _ODField(
+            label: '账单日',
+            required: true,
+            hint: '每月该日合并出账(如 e招贷 5 日)',
+            child: TextFormField(
+              key: const ValueKey('cardLoanBillDayField'),
+              controller: _clBillDayCtrl,
+              enabled: !_isEdit,
+              decoration: _odDec(context, hint: '1-31'),
+              keyboardType: TextInputType.number,
+              validator: (v) {
+                final d = int.tryParse(v ?? '');
+                return d == null || d < 1 || d > 31 ? '账单日 1-31' : null;
+              },
+            ),
+          ),
         _ODField(
           label: '每期手续费',
           required: true,
@@ -1263,11 +1357,40 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ),
         ),
       ]),
+      if (_cardLoanIndependent) ...[
+        const SizedBox(height: AppSpacing.sm),
+        _ODField(
+          label: '还款日',
+          required: true,
+          hint: '出账后该日前一次还清(如 e招贷 23 日)',
+          child: TextFormField(
+            key: const ValueKey('cardLoanRepayDayField'),
+            controller: _clRepayDayCtrl,
+            enabled: !_isEdit,
+            decoration: _odDec(context, hint: '1-31'),
+            keyboardType: TextInputType.number,
+            validator: (v) {
+              final d = int.tryParse(v ?? '');
+              return d == null || d < 1 || d > 31 ? '还款日 1-31' : null;
+            },
+          ),
+        ),
+        if (_isEdit)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              '存量贷款的账单日/还款日在「账户 → 编辑」中修改',
+              style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
+            ),
+          ),
+      ],
       Padding(
         key: const ValueKey('cardLoanAnchorHint'),
         padding: const EdgeInsets.only(top: 6),
         child: Text(
-          '每期于放款对应日(起始日每月同日)入卡占用额度,随该卡还款日一起还',
+          _cardLoanIndependent
+              ? '每期于放款对应日(起始日每月同日)计入账单;每月账单日合并出账,还款日前一次还清,不占信用卡额度'
+              : '每期于放款对应日(起始日每月同日)入卡占用额度,随该卡还款日一起还',
           style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
         ),
       ),

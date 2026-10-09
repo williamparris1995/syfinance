@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
-import 'package:yucai_client/core/widgets/yucai_menu.dart';
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/core/widgets/debt_delete_confirm.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
@@ -2011,13 +2011,13 @@ class DebtListCard extends StatelessWidget {
   /// Navigator/Overlay 边界像素级贴合(MenuAnchor 经 OverlayPortal 在分支
   /// 壳层下坐标系脱节 → -262px 水平漂移)。
   Widget moreMenuAnchor(BuildContext context) {
-    return YucaiAnchoredMenu(
+    return AnchoredMenu(
       items: [
-        YucaiMenuItemData(
+        MenuItemData(
             label: sem.editMenuItem,
             icon: LucideIcons.pencil,
             onTap: () => context.push('${sem.listRoutePrefix}/${debt.id}')),
-        YucaiMenuItemData(
+        MenuItemData(
             label: sem.deleteMenuItem,
             icon: LucideIcons.trash2,
             destructive: true,

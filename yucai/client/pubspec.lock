@@ -305,6 +305,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.15"
+  design_kit:
+    dependency: "direct main"
+    description:
+      path: "../packages/design_kit"
+      relative: true
+    source: path
+    version: "0.1.0"
   diff_match_patch:
     dependency: transitive
     description:

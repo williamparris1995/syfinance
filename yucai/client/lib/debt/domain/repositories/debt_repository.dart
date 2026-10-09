@@ -74,6 +74,16 @@ abstract class DebtRepository {
     required String fromAccountId,
   });
 
+  /// 账单制整单还款(独立账单卡贷,如 e招贷):周期内全部到期未还期次
+  /// 合并为一笔还款交易并批量标记已还 —— 镜像银行「X日出账、Y日前
+  /// 一次还清」。远端无批量 RPC,退化为逐期还款(合计口径一致)。
+  Future<Either<Failure, void>> repayBill({
+    required String loanAccountId,
+    required List<({String debtId, String entryId})> items,
+    required String fromAccountId,
+    String? description,
+  });
+
   /// 单期改日(未还期次;已还期次冻结,目标日期撞已有期次会被拒绝)。
   Future<Either<Failure, PaymentEntry>> setPaymentDate({
     required String debtId,
