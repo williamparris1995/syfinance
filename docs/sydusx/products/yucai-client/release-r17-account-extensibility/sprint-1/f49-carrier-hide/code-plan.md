@@ -21,7 +21,7 @@
   文件:`account/presentation/pages/accounts_page.dart`(列表)+ 实查枚举的账户选择器(交易表单/债务表单关联账户/报表·预算筛选等,执行时 grep `watchAccounts|accounts` 全消费点清单化)
   测试:accounts_page widget 测(载体行不见)+ 净资产 hero/负债总额逐位断言不变
 
-- [x] **T5 卡面分期徽标**(S4 前半,FR-4a) ✅(A2 e2e 返工中)
+- [x] **T5 卡面分期徽标**(S4 前半,FR-4a) ✅(A2 返工闭环:cardExtent 锚定+fchip 行内)
   文件:`debt/domain/debt_query.dart`(cardInstallmentSummary 纯函数,与 F50 同源)、`accounts_page` 信用卡卡脚注 fchip(照 prototype v12)
   测试:纯函数单测(挂接归集/未结清口径/无分期空态)+ fchip widget 测
 
@@ -37,7 +37,7 @@
   文件:`core/localdb/envelope_codec.dart`/`envelope_row_codec.dart`(核验现状,缺则补列)
   测试:备份→恢复往返载体仍隐藏
 
-- [ ] **T9 收口:露出回归 + grep 门 + 全门**(S6)
+- [x] **T9 收口:露出回归 + grep 门 + 全门**(S6) ✅(2549 全绿/analyze 基线/e2e 除环境性金图外全绿;级链④顺治)
   文件:grep 门脚本(tool/ 或 test/ 下静态检查)+ FR-6 两露出回归测(卡详情还款计划面板/债务页信用卡账单分组)
   门:全量 `flutter test` 全绿 + analyze 基线 + `make client-e2e`(根 make)
 
@@ -48,3 +48,6 @@ T1 → 其余;T2/T3/T4/T5/T7/T8 两两独立(T5 与 T4 同页但不同区域,串
 ## 复杂度裁定
 
 跨模块(account/debt/core/presentation 多模块 + 新 port)→ **full SDD**(fresh implementer per task + per-task review)。
+
+- [x] **T10 编辑切换同步 + debt_form 下拉过滤 + 评审补硬测**(评审 follow-up) ✅
+- [x] **T11 fix-loop:A2 e2e 返工 + 级链④顺治** ✅
