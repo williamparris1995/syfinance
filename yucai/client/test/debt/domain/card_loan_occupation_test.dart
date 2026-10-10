@@ -71,6 +71,19 @@ void main() {
       expect(cardLoanOccupationCents(debts, 'cmb-card'), 0);
     });
 
+    test('广发挂接对照组:广发卡两笔计入,平安挂接债不计入广发', () {
+      const gdbCard = 'gdb-card';
+      final debts = [
+        // 广发卡挂接两笔卡贷(开关开,真库形态数字)。
+        _debt('gf-cash-inst', 2653182, cardId: gdbCard),
+        _debt('gf-card-loan', 1000000, cardId: gdbCard),
+        // 平安挂接债:计入平安侧,不计入广发(精确 cardId 对照)。
+        _debt('pa-hold', 215368, cardId: 'pingan-card'),
+      ];
+      // 2,653,182 + 1,000,000 == 3,653,182(平安债不入和)。
+      expect(cardLoanOccupationCents(debts, gdbCard), 3653182);
+    });
+
     test('开关排除:同卡两债一开一关,只计开的', () {
       final debts = [
         _debt('on', 100000, cardId: 'x-card', countsTowardCardLimit: true),
