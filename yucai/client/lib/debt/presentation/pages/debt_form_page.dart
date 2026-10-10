@@ -743,7 +743,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
       // 通道:AccountRepository.update 三态路由 —— guest/离线本地落库即
       // 生效;bound 在线远端 proto 无 is_system 字段 → 等价 no-op(NFR-1
       // 镜像边界,与建户置位同口径)。紧随(先于)债务更新 dispatch、
-      // best-effort:失败不阻断债务保存,标记偏差由启动 repair 幂等收敛。
+      // best-effort:失败不阻断债务保存。注意:启动 repair
+      // (runF49CarrierHideRepair)为一次性 marker 门控的存量修复,不收敛
+      // 切换同步失败的标记残留 —— 残留仅能再次切换(重走本路径)或手工
+      // 账户编辑恢复。
       if (e.subtype == DebtSubtypes.cardLoan && _isCardLoan) {
         final wasIndependent = (e.collectionAccountId ?? '').isEmpty;
         final account =

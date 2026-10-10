@@ -125,7 +125,8 @@ Widget _harness(List<Account> accounts) {
 }
 
 void main() {
-  // 宽视口:desktop 完整卡(fchip 渲染于余额行下,对齐 v12)。
+  // 宽视口:desktop 完整卡(fchip 渲染于脚注行内行尾,T11 e2e cardExtent
+  // 锚定裁定)。
   const size = Size(1400, 900);
 
   setUp(() {
