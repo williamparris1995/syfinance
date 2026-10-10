@@ -21,3 +21,16 @@
 - `mirror_mappers.dart:3` 头注更新 → 未来卡贷 bound 支持票。
 - 卡详情「现金分期」区块与 F48「还款计划」面板双露出的合并形态 → 候选优化票。
 
+
+## T5/T10 — ✅ done(04470632,71 测独立复核)
+- T5:cardInstallmentSummary 纯函数(F36 溯源口径+F50 同源注释)+fchip 双断点;偏离核可(两位小数随全站/borrowedIn 显式守卫)。
+- T10:UpdateAccountParams 增 isSystem 三态+clearCreditScheduleDays 旗标(仅本地通道,NFR-1);切换同步 best-effort+repair 收敛注释;validator 编辑态放行(切换可达性前置);下拉过滤保当前值;T2/T7 评审补硬测全落。
+
+## T9 收口 — ✅ done(f4d88825)
+- grep 门=tool/f49_visibility_gate.dart+自证测(白名单 25 条三类理由,防腐化自检);FR-6 两正向回归(isSystem=true 载体语境);AccountVisibility 3 生产调用点核证(T1 遗留闭环)。
+- 门:全量 2549 绿/analyze 20 全 pbserver/e2e 15 套件中 13 绿+2 失败定责(A2→T5;级链④→main 既有)。
+
+## T11 fix-loop — ✅ done(9aad46cd)
+- A2 返工(round 1 复原子代理):cardExtent 锚定 236(注释钉死)+fchip 脚注行内零增高;A2 审计判据全 PASS(x=679.84 逐位),徽标两测仍绿;金图 2.25% 系环境性既有(基线同现,未重生成防烘焙漂移)。
+- 级链④顺治(F44 先例):e2e 改写为删除三重门全覆盖(生产守卫为准),7/7 绿。
+- 终门复跑:全量 2549 绿 + 级链 7/7(控制者独立复核)。
