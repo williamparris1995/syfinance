@@ -13,7 +13,7 @@
 ## 评审记录(TA 两轴评审,2026-10-10)
 
 - **Standards**:零 HARD;S-1 Minor(mirror_mappers 可选参数缺省回退有脆弱面,现调用方显式传值,注释已钉 proto 化移除点)parked;S-2 Minor(pending 行 mirror 跳过路径无测试钉,风险低)parked。
-- **Spec**:P-1 **Important parked——OPEN DECISION(merge 前用户拍板)**:备份恢复(archive_importer 复用 debtRowFromEnvelope,envelope 无该键)会把开关重置 true;选项 A=文档化「恢复即重置」+TS4 runbook 提示(恢复后检查 35k 开关),选项 B=恢复路径保开关(archive 独立 codec,工作量+面)。倾向 A(display-only 影响,恢复是低频灾难路径)。P-2 由 TB 落地消解。无 WRONG/无 scope-creep。
+- **Spec**:P-1 **Important——已拍板(用户 2026-10-10 选 A 文档化)**:备份恢复(archive_importer 复用 debtRowFromEnvelope,envelope 无该键)会把开关重置 true = **已知行为**(display-only 影响,低频灾难路径);TS4 清单含「恢复后检查 35k 开关」;根治随 proto 化 backlog。P-2 由 TB 落地消解。无 WRONG/无 scope-creep。
 - **附发现(不 charged)**:mirrorDebtToRow 同样抹掉 F48 本地私有列 billing_day/flat_fee_cents——同类危害实存,建议 F48 后续票。
 
 ## 环境注记
