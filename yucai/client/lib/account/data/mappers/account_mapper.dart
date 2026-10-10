@@ -23,6 +23,8 @@ class AccountMapper {
       icon: dto.icon,
       color: dto.color,
       parentId: dto.parentId,
+      // proto field 45;server 现恒 false（bound 路径不置位，F49 NFR-1）。
+      isSystem: dto.isSystem,
       institution: dto.institution,
       creditLimitCents: dto.creditLimitCents.toInt(),
       cardNumberTail: dto.hasCardNumberTail() ? dto.cardNumberTail : '',

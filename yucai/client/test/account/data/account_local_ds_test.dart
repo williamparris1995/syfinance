@@ -28,6 +28,7 @@ void main() {
     int initialBalanceCents = 1000,
     String parentId = '',
     int creditLimitCents = 0,
+    bool isSystem = false,
   }) =>
       CreateAccountParams(
         name: name,
@@ -39,6 +40,7 @@ void main() {
         parentId: parentId,
         creditLimitCents: creditLimitCents,
         interestRate: 2.5,
+        isSystem: isSystem,
       );
 
   test('create defaults + full mapping round-trip', () async {
@@ -73,6 +75,21 @@ void main() {
 
     final b = await ds.create(params(creditLimitCents: 0));
     expect(b.creditLimitCents, 0); // stored NULL, read back 0
+  });
+
+  // F49:并入模式载体户建户置位 —— create 透传 isSystem 落库,drift 行
+  // → 实体 → 重读往返保 true;缺省路径(真实账户/独立账单模式)不置位。
+  test('create passes isSystem through and it survives the drift round-trip',
+      () async {
+    final carrier = await ds.create(params(name: '平安 · 卡贷', isSystem: true));
+    expect(carrier.isSystem, isTrue); // 实体携带
+    final row = await db.accountDao.getAccountById(carrier.id); // drift 行落库
+    expect(row!.isSystem, isTrue);
+    expect((await ds.getById(carrier.id)).isSystem, isTrue); // 重读回 true
+
+    final normal = await ds.create(params());
+    expect(normal.isSystem, isFalse);
+    expect((await db.accountDao.getAccountById(normal.id))!.isSystem, isFalse);
   });
 
   test('update is a patch: absent fields untouched, version bumps', () async {

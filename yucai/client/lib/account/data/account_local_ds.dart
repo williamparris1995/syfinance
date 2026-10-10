@@ -60,7 +60,8 @@ class AccountLocalDataSource {
       color: p.color,
       chartCode: '',
       parentId: Value(p.parentId.isEmpty ? null : p.parentId),
-      isSystem: false,
+      // F49 并入模式载体户置位;缺省 false。update 为 patch 语义不触此列。
+      isSystem: p.isSystem,
       sortOrder: 0,
       institution: p.institution,
       creditLimitCents: Value(p.creditLimitCents == 0 ? null : p.creditLimitCents),
@@ -218,6 +219,7 @@ class AccountLocalDataSource {
         icon: row.icon,
         color: row.color,
         parentId: row.parentId ?? '',
+        isSystem: row.isSystem,
         institution: row.institution,
         creditLimitCents: row.creditLimitCents ?? 0,
         cardNumberTail: row.cardNumberTail,

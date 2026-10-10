@@ -40,6 +40,7 @@ class CreateAccountParams {
     this.icon = '',
     this.color = '',
     this.parentId = '',
+    this.isSystem = false,
     this.institution = '',
     this.creditLimitCents = 0,
     this.cardNumberTail = '',
@@ -79,6 +80,10 @@ class CreateAccountParams {
   final String icon;
   final String color;
   final String parentId;
+
+  /// F49：并入模式卡贷建户传 true（账务载体）；缺省 false（真实账户/
+  /// 独立账单模式）。bound 路径不置位（NFR-1）。
+  final bool isSystem;
 
   // Shared / credit-card fields.
   final String institution;

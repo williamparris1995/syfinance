@@ -18,6 +18,7 @@ class Account extends Equatable {
     this.icon = '',
     this.color = '',
     this.parentId = '',
+    this.isSystem = false,
     this.institution = '',
     this.creditLimitCents = 0,
     this.cardNumberTail = '',
@@ -63,6 +64,9 @@ class Account extends Equatable {
   final String color;
   /// 二级分类的父分类 id（account-as-category；空 = 一级）。
   final String parentId;
+  /// F49 系统载体户标记（卡贷并入模式自动建户）：true = 仅展示层过滤，
+  /// 金额计算（净资产/报表）照常计入。
+  final bool isSystem;
   final String institution;
   final int creditLimitCents;
 
@@ -101,6 +105,7 @@ class Account extends Equatable {
   List<Object?> get props => [
         id, name, accountType, category, currencyCode, initialBalanceCents,
         currentBalanceCents, ownership, status, icon, color, parentId,
+        isSystem,
         institution, creditLimitCents,
         cardNumberTail, notes, openingDate, interestRate,
         creditBillingDay, creditRepaymentDay, creditAnnualFeeCents,
@@ -132,6 +137,7 @@ class Account extends Equatable {
     String? icon,
     String? color,
     String? parentId,
+    bool? isSystem,
     String? institution,
     int? creditLimitCents,
     String? cardNumberTail,
@@ -176,6 +182,7 @@ class Account extends Equatable {
       icon: icon ?? this.icon,
       color: color ?? this.color,
       parentId: parentId ?? this.parentId,
+      isSystem: isSystem ?? this.isSystem,
       institution: institution ?? this.institution,
       creditLimitCents: creditLimitCents ?? this.creditLimitCents,
       cardNumberTail: cardNumberTail ?? this.cardNumberTail,
