@@ -12,6 +12,7 @@ import 'package:drift/native.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
@@ -1016,6 +1017,151 @@ void main() {
           debts.repayBill(
               loanAccountId: 'acc-loan', items: items, fromAccountId: cash),
           throwsA(isA<ValidationFailure>()));
+    });
+  });
+
+  // ───────── F49-T7 债删自动关户(FR-5,TDD) ─────────
+  //
+  // 语义:card_loan 债删除清账后,其载体户若 isSystem=true(并入模式载体)、
+  // currentBalanceCents==0、名下无其他 debt_type=1 借入债 → 经 AccountCloser
+  // port 自动置 status=关闭(AccountStatus.archived,与既有「关闭账户」同源,
+  // 存库值 2);任一不满足 no-op。独立账单模式账户(isSystem=false)天然挡。
+  // fee=0 使清偿数学透明:全额还清 → remaining=0 → 无清账分录,载体余额恰 0。
+  group('F49-T7 债删自动关户(FR-5)', () {
+    late DebtLocalDataSource ds;
+    const carrier = 'acc-f49-carrier';
+    const card = 'acc-f49-card';
+    // AccountStatus.archived.index + 1(关闭与既有 close 路径同源)。
+    const statusClosed = 2;
+
+    setUp(() async {
+      ds = DebtLocalDataSource(
+        database,
+        TransactionLocalDataSource(database, BalanceLocalUpdater(database)),
+        closer: AccountCloserImpl(database),
+      );
+
+      Future<void> seedAccount(
+        String id,
+        String name, {
+        required bool isSystem,
+        required int initialBalanceCents,
+        int? billingDay,
+      }) =>
+          accounts.insertAccount(db.AccountsCompanion.insert(
+            id: id,
+            name: name,
+            accountType: 2, // liability
+            category: isSystem ? 7 : 2, // loan 载体 / creditCard 独立账户
+            currencyCode: 'CNY',
+            initialBalanceCents: initialBalanceCents,
+            currentBalanceCents: initialBalanceCents,
+            ownership: 1,
+            icon: '',
+            color: '',
+            chartCode: '',
+            isSystem: isSystem,
+            sortOrder: 0,
+            institution: '',
+            cardNumberTail: '',
+            notes: '',
+            goldProductType: '',
+            status: 1,
+            version: 1,
+            createdAt: DateTime.now().toUtc(),
+            updatedAt: DateTime.now().toUtc(),
+            creditBillingDay: billingDay == null
+                ? const Value.absent()
+                : Value(billingDay),
+          ));
+
+      // 挂接信用卡(并入模式的 collection 目标,真实账户永隐藏免疫)。
+      await seedAccount(card, 'F49挂接卡',
+          isSystem: false, initialBalanceCents: 0, billingDay: 5);
+      // 并入模式载体户:isSystem=true。
+      await seedAccount(carrier, '平安 · 卡贷',
+          isSystem: true, initialBalanceCents: 0);
+    });
+
+    /// 建并入型卡贷(fee=0,全额还清后载体恰归零)并全额还清。
+    Future<String> createAndRepayCardLoan({String? collectionId}) async {
+      final d = await ds.create(
+        accountId: carrier,
+        counterparty: '平安银行',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDate: DateTime.utc(2026, 1, 10),
+        dueDate: DateTime.utc(2026, 1, 10), // 按期数模式由 DS 推导覆写
+        totalPrincipalCents: 100000, // ¥1,000 = 100,000 分
+        type: DebtType.borrowedIn,
+        subtype: DebtSubtypes.cardLoan,
+        sourceAccountId: cash,
+        collectionAccountId: collectionId,
+        cycle: 2,
+        termPeriods: 2,
+        billingDay: 5,
+        flatFeeCents: 0,
+      );
+      final detail = await ds.get(d.id);
+      for (final e in detail.schedule) {
+        await ds.recordPayment(
+            debtId: d.id,
+            scheduleEntryId: e.id,
+            fromAccountId: collectionId ?? cash);
+      }
+      return d.id;
+    }
+
+    test('并入型债全额清偿(载体 0)删除 → 载体户自动关闭', () async {
+      final debtId = await createAndRepayCardLoan(collectionId: card);
+      final before = await accounts.getAccountById(carrier);
+      expect(before!.currentBalanceCents, 0,
+          reason: '全额清偿后载体余额应恰为 0(前置)');
+
+      await ds.delete(debtId);
+
+      expect(await database.debtDao.getDebtById(debtId), isNull);
+      final after = await accounts.getAccountById(carrier);
+      expect(after!.status, statusClosed,
+          reason: 'FR-5:并入型载体户清偿归零后应自动关闭');
+      expect(after.currentBalanceCents, 0, reason: '关闭不动余额(账务零改动)');
+    });
+
+    test('载体非零(历史残留余额)→ 删除后不关', () async {
+      // 载体带与债无关的历史残留余额 5,000 分:清偿后余额 = 残留 ≠ 0。
+      await (database.update(database.accounts)
+            ..where((a) => a.id.equals(carrier)))
+          .write(const db.AccountsCompanion(
+              currentBalanceCents: Value(5000)));
+      final debtId = await createAndRepayCardLoan(collectionId: card);
+      final before = await accounts.getAccountById(carrier);
+      expect(before!.currentBalanceCents, 5000,
+          reason: '残留余额不受清偿影响(前置)');
+
+      await ds.delete(debtId);
+
+      final after = await accounts.getAccountById(carrier);
+      expect(after!.status, 1, reason: '余额非零 → 不得自动关闭');
+      expect(after.currentBalanceCents, 5000, reason: '余额不受删除影响');
+    });
+
+    test('独立账单模式账户(即使清零)→ 不关(isSystem=false 天然挡)', () async {
+      // 独立账单真实账户:isSystem=false(建户置位规则 FR-1 天然不置),
+      // 债务无 collectionAccountId;带账单日(e招贷型标志)。
+      await (database.update(database.accounts)
+            ..where((a) => a.id.equals(carrier)))
+          .write(const db.AccountsCompanion(
+              isSystem: Value(false), creditBillingDay: Value(28)));
+      final debtId = await createAndRepayCardLoan();
+      final before = await accounts.getAccountById(carrier);
+      expect(before!.isSystem, isFalse);
+      expect(before.currentBalanceCents, 0, reason: '已清零(前置)');
+
+      await ds.delete(debtId);
+
+      final after = await accounts.getAccountById(carrier);
+      expect(after!.status, 1,
+          reason: 'FR-5:独立账单真实账户留用户处置,永不自动关闭');
     });
   });
 }

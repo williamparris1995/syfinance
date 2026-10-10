@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -2360,5 +2361,169 @@ void main() {
     // AppToast 3 秒自动消失的 Timer 须在测试内走完,否则 pending timer 断言失败。
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
+  });
+
+  // ───── F49 FR-4b: 信用卡详情「现金分期」区块(v12 原型)─────
+  //
+  // 并入型分期(卡贷经 collectionAccountId 挂接本卡)在卡详情页按 v12 原型
+  // 呈现:区块标题「现金分期」+ 每笔摘要行(债权方 / muted「N 期 · 第 k 期 ·
+  // 放款对应日出账」/ 右侧「剩余 ¥X」+「下一期 ¥Y · M/D 并入账单」/ 行尾
+  // 「查看债务 →」跳 /debts/:id)。数据源 = 既有 _loadRepaymentPlans 管道
+  // (_debtPlans + _allSchedules),期次进度/下一期取 payment schedule。
+  // 无挂接 → 整块隐藏(维持 F35/F48 空态语义)。既有「还款计划」面板不动
+  //(FR-6 回归由 T9 钉死)。
+
+  /// 平安信用卡(v12 原型第三段载体):无账单日,隔离账单周期面板的
+  /// AppDatabase 依赖(breakdown 恒 null → 降级/不渲染)。
+  Account pingAnCard() => _account(
+    name: '平安信用卡',
+    category: AccountCategory.creditCard,
+    accountType: AccountType.liability,
+    currentBalanceCents: -125000,
+  ).copyWith(creditLimitCents: 500000);
+
+  /// 并入型卡贷(v12 数值:12 期、已还 4 期、剩余 ¥8,400.00、下一期
+  /// ¥723.33 于 10/15 并入账单)。
+  Debt cardLoanDebt() => Debt(
+        id: 'd1',
+        accountId: 'carrier-1', // 载体户(非本卡)
+        counterparty: '平安银行',
+        interestRate: 0.75,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2026, 5, 15),
+        dueDate: DateTime(2027, 5, 15),
+        totalPrincipalCents: 1044000,
+        remainingPrincipalCents: 840000,
+        version: 1,
+        createdAt: DateTime(2026, 5, 15),
+        updatedAt: DateTime(2026, 10, 1),
+        subtype: DebtSubtypes.cardLoan,
+        collectionAccountId: 'a1', // 挂接平安信用卡
+      );
+
+  /// 12 期月度期次(每月 15 日):前 4 期已还 → N=12、k=5、下一期 10/15。
+  List<PaymentEntry> cardLoanSchedule() => List.generate(
+        12,
+        (i) => entryFixture(
+          'e${i + 1}',
+          DateTime(2026, 6 + i, 15),
+          paid: i < 4,
+          totalCents: 72333,
+        ),
+      );
+
+  testWidgets(
+    'F49/FR-4b: 挂接 1 笔 → 行字段齐全(债权方/剩余/下一期)+ 查看债务跳 /debts/:id',
+    (tester) async {
+      final card = pingAnCard();
+      final debt = cardLoanDebt();
+      // 覆盖 setUp 的空债务默认 stub(两条 list 签名 + get 的 schedule)。
+      when(() => debtRepo.list())
+          .thenAnswer((_) async => dartz.Right([debt]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => dartz.Right([debt]));
+      when(() => debtRepo.get('d1')).thenAnswer(
+          (_) async => dartz.Right(DebtDetail(debt: debt, schedule: cardLoanSchedule())));
+
+      // GoRouter harness:验证行尾「查看债务 →」真实发出 /debts/d1 导航
+      //(裸 MaterialApp 无 router,context.push 会抛)。照 debt_detail_page_test
+      // 的 routerHarness 模式。
+      final getUc = _MockGet();
+      when(() => getUc.call(any()))
+          .thenAnswer((_) async => dartz.Right(card));
+      final listUc = _MockList();
+      when(() => listUc.call())
+          .thenAnswer((_) async => dartz.Right([card]));
+      final createUc = _MockCreate();
+      final deleteUc = _MockDelete();
+      final updateUc = _MockUpdate();
+      final router = GoRouter(
+        initialLocation: '/accounts/a1',
+        routes: [
+          GoRoute(
+            path: '/accounts/:id',
+            builder: (_, __) => MultiBlocProvider(
+              providers: [
+                BlocProvider<AccountBloc>(
+                  create: (_) {
+                    final b = AccountBloc(listUc, createUc, deleteUc, getUc, updateUc);
+                    b.add(const GetAccountRequested('a1'));
+                    return b;
+                  },
+                ),
+                BlocProvider<TransactionBloc>(
+                  create: (_) {
+                    final b = TransactionBloc(txnRepo);
+                    b.add(const LoadTransactionsRequested(
+                        filter: TxnFilterState(accountId: 'a1')));
+                    b.add(LoadSummaryRequested(
+                        year: DateTime.now().year,
+                        month: DateTime.now().month,
+                        accountId: 'a1'));
+                    return b;
+                  },
+                ),
+              ],
+              child: const AccountDetailPage(id: 'a1'),
+            ),
+          ),
+          GoRoute(
+            path: '/debts/:id',
+            builder: (_, __) => const Scaffold(
+                body: Center(child: Text('DEBT_DETAIL_STUB'))),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+
+      // 区块在账单周期面板之下,滚入视口。
+      await tester.scrollUntilVisible(
+        find.text('现金分期'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final panel = find.byKey(const ValueKey('cashInstallmentPanel'));
+      Finder inPanel(Finder f) => find.descendant(of: panel, matching: f);
+
+      // 区块标题 + 行字段(v12 原型逐字)。
+      expect(find.text('现金分期'), findsOneWidget);
+      expect(inPanel(find.text('平安银行')), findsOneWidget,
+          reason: '债权方(counterparty)');
+      expect(inPanel(find.text('12 期 · 第 5 期 · 放款对应日出账')), findsOneWidget,
+          reason: '期次进度 = 全量 12 期,已还 4 期 → 第 5 期');
+      expect(inPanel(find.text('剩余 ¥8,400.00')), findsOneWidget,
+          reason: '剩余 = 债务实时剩余本金');
+      expect(inPanel(find.text('下一期 ¥723.33 · 10/15 并入账单')), findsOneWidget,
+          reason: '下一期 = 最早未还期次(金额·日期·并入账单)');
+      // 行尾「查看债务 →」入口存在。
+      expect(inPanel(find.text('查看债务 →')), findsOneWidget);
+
+      // 行尾入口在区块标题之下(scrollUntilVisible 只滚到标题即停,行尾
+      // 仍在视口外),ensureVisible 最小滚动带入视口后点击 → push /debts/d1。
+      await tester.ensureVisible(inPanel(find.text('查看债务 →')).first);
+      await tester.pumpAndSettle();
+      await tester.tap(inPanel(find.text('查看债务 →')));
+      await tester.pumpAndSettle();
+      expect(find.text('DEBT_DETAIL_STUB'), findsOneWidget,
+          reason: '行尾入口应跳 /debts/:id');
+    },
+  );
+
+  testWidgets('F49/FR-4b: 信用卡无挂接分期 → 「现金分期」区块不渲染', (tester) async {
+    // 默认空债务列表(setUp stub)→ 无并入型挂接。
+    await pumpPage(tester, account: pingAnCard());
+
+    // 滚到底部让 ListView 全量构建后再断言缺席。
+    await tester.scrollUntilVisible(
+      find.textContaining('账户信息'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.drag(find.byType(ListView).first, const Offset(0, -1200));
+    await tester.pumpAndSettle();
+
+    expect(find.text('现金分期'), findsNothing,
+        reason: 'FR-4b 空态:无挂接区块隐藏(维持现状语义)');
   });
 }

@@ -740,8 +740,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
       )));
     } else {
       // 卡贷(F48):债务落在自动创建的贷款类负债户(用户不手选);失败则
-      // 回滚提交态留在表单。
-      var accountForParams = _accountId!;
+      // 回滚提交态留在表单。非卡贷 = 用户所选关联账户(上方校验已保证
+      // 非空)。注意:_accountId 只在非卡贷分支解引用 —— 卡贷无关联账户
+      // 选择器,_accountId 恒为 null。
+      var accountForParams = '';
       if (_isCardLoan) {
         final cp = _counterpartyCtrl.text.trim();
         final created = await getIt<AccountRepository>().create(
@@ -753,6 +755,11 @@ class _DebtFormPageState extends State<DebtFormPage> {
           initialBalanceCents: 0,
           ownership: Ownership.personal,
           notes: '信用卡贷款(卡贷)自动创建',
+          // F49 FR-1 语义边界:并入模式 = 纯账务载体(银行 app 无此账户)
+          // → isSystem=true,展示层隐藏、金额计算照常;独立账单模式 =
+          // 真实账户(e招贷,账单制面板/repayBill 挂其详情页)→ false,
+          // 永不隐藏。
+          isSystem: !_cardLoanIndependent,
           // 独立账单(如 e招贷):账单日/还款日随建户写入 —— 详情账单制
           // 面板与一键整单还款据此启用。
           creditBillingDay: _cardLoanIndependent
@@ -772,6 +779,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
           return;
         }
         accountForParams = newId;
+      } else {
+        accountForParams = _accountId!;
       }
       final effRule = _effectiveRule;
       bloc.add(CreateDebtRequested(CreateDebtParams(

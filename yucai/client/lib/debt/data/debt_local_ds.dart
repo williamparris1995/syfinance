@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart'
-    show CreateAccountParams;
+    show AccountCloser, CreateAccountParams;
 import 'package:yucai_client/account/domain/value_objects.dart' as acct_vo;
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/recurrence/next_after.dart';
@@ -47,14 +47,22 @@ void applyInterestWaiver(
 @LazySingleton()
 class DebtLocalDataSource {
   DebtLocalDataSource(this._database, this._txns,
-      {Uuid? uuid, AccountLocalDataSource? accounts})
+      {Uuid? uuid,
+      AccountLocalDataSource? accounts,
+      AccountCloser? closer})
       : _uuid = uuid ?? const Uuid(),
-        _accounts = accounts ?? AccountLocalDataSource(_database);
+        _accounts = accounts ?? AccountLocalDataSource(_database),
+        _closer = closer; // ignore: prefer_initializing_formals
 
   final db.AppDatabase _database;
   final TransactionLocalDataSource _txns;
   final Uuid _uuid;
   final AccountLocalDataSource _accounts;
+
+  /// F49 FR-5 债删自动关户 port(account data 层实现,getIt 注入)。null =
+  /// no-op(旧调用方/测试零变化);debt 层只 import account domain 的 port,
+  /// 不 import 实现(跨模块 port 模式)。
+  final AccountCloser? _closer;
 
   DebtDao get _dao => _database.debtDao;
 
@@ -617,6 +625,15 @@ class DebtLocalDataSource {
                 module: SyncModule.debt,
                 entityId: id,
                 deletedAt: DateTime.now().toUtc()));
+      }
+      // F49 FR-5(债删自动关户):card_loan 删除清账后,载体户若 isSystem
+      // 且余额 0 且名下无其他借入债 → port 关户。**同一事务**内调用(port
+      // 实现持有同一 AppDatabase 实例,一次性查询自然加入本事务,关户与
+      // 债删/清账分录同生共死);被删债已出表,port 的「无其他 debt_type=1
+      // 债」检查天然排除本债。非 card_loan 或任一条件不满足 = port no-op,
+      // 与既有删除路径逐位一致。
+      if (row.subtype == DebtSubtypes.cardLoan && _closer != null) {
+        await _closer.closeIfEmptyCarrier(row.accountId);
       }
     });
   }

@@ -189,6 +189,24 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// 只有计划面板追加。
   bool _cardHasInstallmentPanel(Account a) =>
       a.category == AccountCategory.creditCard && _debtPlans.isNotEmpty;
+
+  /// F49 FR-4b:并入型分期(卡贷经 collectionAccountId 挂接本卡)摘要行
+  /// 数据源 —— 复用 F48 已落的 _loadRepaymentPlans 管道产物 _debtPlans
+  ///(不新造查询),判别照 spec 语义边界:债的 collectionAccountId 指向
+  /// 本卡 = 并入型。期次进度经 [_scheduleOf] 读 _allSchedules 全量期次。
+  List<({Debt debt, List<PaymentEntry> upcoming})> get _cardInstallments => [
+        for (final p in _debtPlans)
+          if (p.debt.collectionAccountId == widget.id) p,
+      ];
+
+  /// F49 FR-4b:按债务 id 取全量期次(含已还;_loadRepaymentPlans 已加载
+  /// 的 _allSchedules)。缺项回退空表 = 无期次进度/下一期可示。
+  List<PaymentEntry> _scheduleOf(String debtId) {
+    for (final s in _allSchedules) {
+      if (s.debtId == debtId) return s.all;
+    }
+    return const <PaymentEntry>[];
+  }
   Future<void> _loadLinkedDebt() async {
     try {
       final r = await GetIt.instance<DebtRepository>()
@@ -485,6 +503,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
           if (_statementBreakdown != null && a.creditRepaymentDay != null) ...[
             const SizedBox(height: 12),
             _ccRepayReminder(a),
+          ],
+          // F49 FR-4b(v12 原型):「现金分期」区块 —— 挂接本卡的并入型分期
+          // 每笔一行摘要 + 「查看债务」入口;账单周期/还款日提醒之下、近期
+          // 交易之上(照 v12 详情页顺位「本期应还 → 现金分期」)。无挂接
+          // 整块隐藏(与下方还款计划面板同语义,空态优于占位);既有
+          // 「还款计划」面板不动(FR-6 回归)。
+          if (_cardInstallments.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _cashInstallmentPanel(a),
           ],
         ],
         const SizedBox(height: 18),
@@ -964,6 +991,118 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// F49 FR-4b(v12 原型):信用卡「现金分期」区块 —— 挂接本卡的并入型分期
+  /// 每笔一摘要行(债权方 / muted「N 期 · 第 k 期 · 放款对应日出账」/
+  /// 右侧「剩余 ¥X」+「下一期 ¥Y · M/D 并入账单」/ 行尾「查看债务 →」)
+  /// + 尾注。数据源 [_cardInstallments](既有 debts 流);跳转照 _body
+  /// 还款计划面板 onOpenDebt 先例(context.push('/debts/:id'))。
+  Widget _cashInstallmentPanel(Account a) {
+    final plans = _cardInstallments;
+    return DataCard(
+      key: const ValueKey('cashInstallmentPanel'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('现金分期', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: AppSpacing.sm),
+          for (var i = 0; i < plans.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: context.yucai.border),
+            _cashInstallmentRow(a, plans[i]),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            '分期期次自动并入本卡账单;债务记录与完整还款计划在债务页',
+            style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 单笔并入型分期摘要行(照 v12 .inst-row 结构:左主信息 / 右侧数字 /
+  /// 行尾入口;行间细分隔线)。期次进度 N/k 取 [_scheduleOf] 全量期次,
+  /// 下一期取 upcoming 首条(_loadRepaymentPlans 已按 paymentDate 升序)。
+  Widget _cashInstallmentRow(
+      Account a, ({Debt debt, List<PaymentEntry> upcoming}) plan) {
+    final debt = plan.debt;
+    final schedule = _scheduleOf(debt.id);
+    final total = schedule.length;
+    final paid = schedule.where((e) => e.paid).length;
+    final parts = [
+      // 期次进度:N = 全量期数,k = 已还期数 + 1(全还清时收敛到 N,
+      // 空计划只剩出账口径尾注)。
+      if (total > 0) ...['$total 期', '第 ${(paid + 1).clamp(1, total)} 期'],
+      '放款对应日出账',
+    ];
+    final next = plan.upcoming.isEmpty ? null : plan.upcoming.first;
+    final subStyle = TextStyle(
+        fontSize: 11.5,
+        color: context.yucai.muted,
+        fontFeatures: AppTypography.tabularFigures);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          // 左:债权方 + muted 期次进度。
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(debt.counterparty,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: context.yucai.fg)),
+                const SizedBox(height: 3),
+                Text(parts.join(' · '), style: subStyle),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          // 右:剩余(强调)+ 下一期(金额·日期·并入账单)。
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '剩余 ${_fmtSigned(debt.remainingPrincipalCents, a.currencyCode)}',
+                style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: context.yucai.fg,
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
+              if (next != null) ...[
+                const SizedBox(height: 3),
+                Text(
+                  '下一期 ${_fmtSigned(next.totalCents, a.currencyCode)}'
+                  ' · ${next.paymentDate.month}/${next.paymentDate.day} 并入账单',
+                  style: subStyle,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(width: 12),
+          // 行尾「查看债务 →」:区块唯一出口(完整计划/记账交互归债务页)。
+          InkWell(
+            key: ValueKey('cashInstOpenDebt-${debt.id}'),
+            onTap: () => context.push('/debts/${debt.id}'),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Text('查看债务 →',
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: context.yucai.accent)),
             ),
           ),
         ],

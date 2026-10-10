@@ -23,6 +23,17 @@ abstract class AccountRepository {
   Future<Either<Failure, Account>> update(UpdateAccountParams params);
 }
 
+/// F49 FR-5 债删自动关户 port(跨模块:debt data 层消费,account data 层
+/// 实现 —— 消费方只 import 本 port,不 import 实现)。
+///
+/// 语义:账户满足「isSystem=true(并入模式载体)且 currentBalanceCents==0
+/// 且名下无其他 debt_type=1 借入债」→ 置 status=关闭(archived,与既有
+/// 「关闭账户」路径同源);任一不满足 = no-op(永不删除账户)。
+/// 独立账单模式账户 isSystem=false,天然被第一条件挡住。
+abstract class AccountCloser {
+  Future<void> closeIfEmptyCarrier(String accountId);
+}
+
 /// Parameters for creating an account (kept here next to the repo that consumes
 /// it so the domain layer is self-contained).
 ///

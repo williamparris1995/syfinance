@@ -132,6 +132,11 @@ extension GetItInjectableX on _i174.GetIt {
         uuid: gh<_i706.Uuid>(),
       ),
     );
+    // F49 FR-5 手工补齐(照 accounts 参数先例,免 build_runner 重生成;
+    // 下次再生时由 @LazySingleton(as: AccountCloser) 注解产出等价绑定)。
+    gh.lazySingleton<_i270.AccountCloser>(
+      () => _i697.AccountCloserImpl(gh<_i581.AppDatabase>()),
+    );
     gh.lazySingleton<_i99.ContractAttachmentStore>(
       () => _i99.ContractAttachmentStore(
         gh<_i581.AppDatabase>(),
@@ -321,6 +326,8 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i991.TransactionLocalDataSource>(),
         uuid: gh<_i706.Uuid>(),
         accounts: gh<_i697.AccountLocalDataSource>(),
+        // F49 FR-5 债删自动关户 port(手工补齐,同上 AccountCloser 注册)。
+        closer: gh<_i270.AccountCloser>(),
       ),
     );
     gh.factory<_i990.OidcLoginUseCase>(

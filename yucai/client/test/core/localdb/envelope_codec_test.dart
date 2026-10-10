@@ -6,12 +6,20 @@
 // - 子表嵌套(Entries/Schedule/Items/goal 链接数组);
 // - 无 TenantID 键(鉴权 tenant 恒赢)且无 syncState 键(本地私有列不落 wire);
 // - 产出可 jsonEncode(无 DateTime 泄漏)。
+//
+// F49 T8(spec NFR-2):accounts 行 isSystem 备份往返。T1 评审核证 codec 双向
+// 均已含该列(envelope_codec.dart 'IsSystem' 编码 / envelope_row_codec.dart
+// 'IsSystem' 缺键默认 false 解码),故本票只补测试钉死:
+// - 载体户(isSystem=true)备份 JSON 落盘往返后置位保留(仍隐藏);
+// - 旧备份行(无 IsSystem 键)→ 解码缺省 false(旧库载体户未隐藏属预期,
+//   T3 repair 已跑过 marker 不再补——边界见 T8 任务书,不改 repair)。
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/envelope_codec.dart';
+import 'package:yucai_client/core/localdb/envelope_row_codec.dart';
 import 'package:yucai_client/core/localdb/sync_state.dart';
 
 void main() {
@@ -93,6 +101,77 @@ void main() {
       expect(out['CreatedAt'], '2026-09-03T08:30:00.000Z');
       expect(carriesNoLocalKeys(out), isTrue);
       expect(jsonEncode(out), isA<String>()); // 无 DateTime 泄漏
+    });
+  });
+
+  group('account isSystem 备份往返(F49 / NFR-2)', () {
+    db.Account carrierAccount() => db.Account(
+          id: 'acc-carrier',
+          name: '平安 · 卡贷',
+          accountType: 1,
+          category: 2,
+          currencyCode: 'CNY',
+          initialBalanceCents: 840000,
+          currentBalanceCents: 840000,
+          ownership: 1,
+          icon: 'loan',
+          color: '#102030',
+          chartCode: '2001',
+          isSystem: true, // 并入型载体户已置位
+          sortOrder: 0,
+          institution: '',
+          cardNumberTail: '',
+          notes: '信用卡贷款(卡贷)自动创建',
+          goldProductType: '',
+          status: 1,
+          version: 1,
+          createdAt: DateTime.utc(2026, 10, 9),
+          updatedAt: DateTime.utc(2026, 10, 9),
+          syncState: SyncState.pending,
+        );
+
+    test('isSystem=true → encode → jsonEncode/Decode 落盘往返 → decode → true',
+        () {
+      final envelope = accountRowToEnvelope(carrierAccount());
+      expect(envelope['IsSystem'], isTrue); // 编码上行携带(键名照 ParentID 范式)
+
+      // 备份 JSON 落盘往返(jsonEncode → Decode,防仅内存对象直通的假绿)。
+      final restored =
+          jsonDecode(jsonEncode(envelope)) as Map<String, dynamic>;
+      final back = accountRowFromEnvelope(restored);
+
+      expect(back.isSystem.value, isTrue); // 恢复后仍隐藏
+      expect(back.id.value, 'acc-carrier');
+    });
+
+    test('旧格式行(无 IsSystem 键)→ decode → false(缺省安全)', () {
+      // F49 之前导出的旧备份行形态:手工构造,不含 IsSystem 键。
+      const legacyRow = <String, dynamic>{
+        'ID': 'acc-legacy',
+        'Name': '旧备份账户',
+        'AccountType': 1,
+        'Category': 2,
+        'CurrencyCode': 'CNY',
+        'InitialBalanceCents': 0,
+        'CurrentBalanceCents': 0,
+        'Ownership': 1,
+        'Icon': '',
+        'Color': '',
+        'ChartCode': '1001',
+        'SortOrder': 0,
+        'Institution': '',
+        'CardNumberTail': '',
+        'Notes': '',
+        'Status': 1,
+        'Version': 1,
+        'CreatedAt': '2026-08-01T00:00:00.000Z',
+        'UpdatedAt': '2026-08-01T00:00:00.000Z',
+      };
+
+      final back = accountRowFromEnvelope(legacyRow);
+
+      expect(back.isSystem.value, isFalse); // 缺键 → 缺省 false(旧库可见属预期)
+      expect(back.id.value, 'acc-legacy');
     });
   });
 
