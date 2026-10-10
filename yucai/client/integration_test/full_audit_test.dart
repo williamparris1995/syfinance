@@ -166,7 +166,16 @@ Future<void> main() async {
       // —— 首卡操作栏本就有「编辑」按钮且树序先于弹层,弹层没开也会误报
       // PASS(2026-09-29 假回归复盘补正;此前 MEASURE 量的实为操作栏
       // 「编辑」「更多」两标签的固定行内间距 ~-262px,与菜单落位无关)。
-      final menuFinder = find.text('删除账户');
+      var menuFinder = find.text('删除账户');
+      if (menuFinder.evaluate().isEmpty) {
+        // 锚定菜单 tap 偶发 hit-test 落空(flutter-widget-test-pitfalls 坑1族,
+        // 静默不抛错):首击未开则 tapAt 按钮中心重试一次再判开——治本文件
+        // A2/Z 交替非确定红中的「菜单未开→record 硬失败→Z 兜底爆」模式
+        // (2026-10-10 定位:9 次运行两模式各半,main 与 worktree 同形)。
+        await t.tapAt(btnRect.center);
+        await t.pumpAndSettle(const Duration(milliseconds: 600));
+        menuFinder = find.text('删除账户');
+      }
       final opened = menuFinder.evaluate().isNotEmpty;
       record(opened, '账户卡:更多菜单打开(125% 嵌入层)');
       if (opened) {
@@ -181,6 +190,9 @@ Future<void> main() async {
         // 菜单锚定语义照旧:A2 实测打开 + 不进侧栏区断言全部保持)。
         // F15 变更说明:chip 激活底/新建按钮亮色语义化(反色派生),0.75%
         // 像素位移 → 金图再次重生成(断言逻辑不变)。
+        // 金图前补一拍:菜单层/字体栅格化在 Windows 嵌入层偶发未完全静止
+        // 即截屏(A2 间歇金图差模式,2026-10-10 定位)。
+        await t.pump(const Duration(milliseconds: 300));
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile('goldens/audit_menu_open.png'),
