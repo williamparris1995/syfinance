@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/account/domain/account_visibility.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -591,7 +592,12 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     // 总负债算成负数、净资产虚低约 2×债务剩余(dev 反馈:总计不正确)。
     final liabCents = otherLiabCents + debtRemainingCents;
     final netCents = assetCents - liabCents;
-    final scoped = _showArchived ? balanceSheet.toList() : active;
+    // F49 FR-3:isSystem=true 载体户(卡贷并入模式)退出用户视野 —— 在列表
+    // 作用域入口一次过滤,下游搜索/chips 计数/分组/分组小计全部基于可见行
+    // (贷款组小计=可见行之和)。上方汇总头(净资产/总资产/总负债)走全量
+    // active,金额计算刻意不滤(spec FR-3「可见处过滤、计算处保留」)。
+    final scoped = AccountVisibility.userVisible(
+        _showArchived ? balanceSheet.toList() : active);
     // F9 FR-5 搜索（页面层，见 _search 字段注释）：作用域 = 归档开关后的
     // scoped 集合;分类 chips 与分组列表都基于搜索后的集合（搜索空 = 全量，
     // 与现状一致）。汇总头（净资产/资产/负债）仍按全量 active 计算 —— 搜索
