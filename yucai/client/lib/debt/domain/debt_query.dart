@@ -12,6 +12,7 @@
 // 无 UI 依赖的 domain 规则,搬到这里后 debt_list_widgets 通过 export 转发,
 // 既有 import 不变。
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 
 /// 列表排序键(F9 FR-4):总金额(totalPrincipalCents,LLD 口径)或到期日。
 enum DebtSortKey { amount, dueDate }
@@ -107,4 +108,33 @@ DebtDueUrgency debtDueUrgency(Debt d, DateTime now) {
   if (days <= 7) return DebtDueUrgency.within7;
   if (days <= 15) return DebtDueUrgency.within15;
   return DebtDueUrgency.none;
+}
+
+/// F49 FR-4a:挂接信用卡 [cardId] 的并入型分期摘要(卡面徽标数据源)。
+///
+/// 归集口径:`subtype==cardLoan && collectionAccountId==cardId && 未结清`
+/// (已结清 [Debt.remainingPrincipalCents]<=0 不计,与 [debtMatchesListFilter]
+/// 同式);card_loan 是借入侧子类型,显式收 `type==borrowedIn` 使函数自含
+/// (不依赖调用方预过滤);[Debt.remainingPrincipalCents] 为实体剩余本金
+/// 字段 —— 本金口径(不含未付息费,区别于 accounts_page 债务聚合的本息
+/// 口径),存储溯源 = F36 北极星式 totalPrincipal − Σpaid(repairs.dart
+/// 不变式注释钉死的 remainingPrincipalCents 同源)。
+///
+/// **与 F50 额度占用同源单实现**:F50「已用/利用率计入 Σ挂接卡贷未出账
+/// 剩余」直接复用本函数,勿另造平行聚合(双实现口径漂移风险,design 单元5)。
+/// 调用方(accounts_page 徽标)传入**全量** borrowedIn debts 流 —— 徽标数据
+/// 不受 T4 列表过滤影响(载体户被滤后,其分期仍在挂接卡上可见)。
+({int count, int remainingCents}) cardInstallmentSummary(
+    List<Debt> debts, String cardId) {
+  var count = 0;
+  var remainingCents = 0;
+  for (final d in debts) {
+    if (d.type != DebtType.borrowedIn) continue;
+    if (d.subtype != DebtSubtypes.cardLoan) continue;
+    if (d.collectionAccountId != cardId) continue;
+    if (d.remainingPrincipalCents <= 0) continue;
+    count++;
+    remainingCents += d.remainingPrincipalCents;
+  }
+  return (count: count, remainingCents: remainingCents);
 }

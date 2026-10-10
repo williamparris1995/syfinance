@@ -158,6 +158,10 @@ class UpdateAccountParams {
     this.goldProductType = '',
     this.creditLimitCents = 0,
     this.status,
+    // F49 编辑切换同步(FR-1 评审补):三态 isSystem + 账单日/还款日清空
+    // 旗标,均按本类 patch 语义 —— 缺省 = absent 不动。
+    this.isSystem,
+    this.clearCreditScheduleDays = false,
     this.openingDate,
     this.interestRate,
     this.creditBillingDay,
@@ -200,6 +204,19 @@ class UpdateAccountParams {
 
   /// null = do not change status; [AccountStatus.archived] closes the account.
   final AccountStatus? status;
+
+  /// F49 编辑切换同步(FR-1 评审补):isSystem 三态 —— null(缺省)= 不动;
+  /// true/false = 显式置位/复位(并入↔独立切换时债务表单同步载体标记)。
+  /// 仅本地数据源消费:proto UpdateAccountRequest 无 is_system 字段,
+  /// bound 在线路径等价 no-op(NFR-1 镜像边界,与 [CreateAccountParams.isSystem]
+  /// 同口径)。
+  final bool? isSystem;
+
+  /// F49 编辑切换同步(独立→并入):true = 把 [creditBillingDay]/
+  /// [creditRepaymentDay] 清 NULL(账户转载体,账单语义随挂接卡走);
+  /// 缺省 false 不动。与显式非 null 的账单日/还款日不同发(显式值优先)。
+  /// 同样仅本地通道(远端无清空语义)。
+  final bool clearCreditScheduleDays;
 
   final DateTime? openingDate;
   final double? interestRate;

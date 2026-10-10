@@ -23,6 +23,7 @@ import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/notifications/due_candidate_provider.dart';
 import 'package:yucai_client/core/notifications/due_target.dart';
+import 'package:yucai_client/debt/domain/debt_query.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
@@ -230,6 +231,13 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// 未关联 → null(回退账户余额口径)。**不限贷款类别** —— 个人待还款等
   /// 其他负债账户同样适用。
   AccountDebtInfo? _debtInfoFor(Account a) => _debtInfoByAccount[a.id];
+
+  /// F49 FR-4a:信用卡卡面分期徽标数据 —— [cardInstallmentSummary] 归集
+  /// 挂接本卡的并入型分期(笔数+剩余本金)。数据通道 = **全量** [_debts]
+  /// 流(T4 列表过滤只作用于账户行,不滤 debts)—— 载体户被滤后,其分期
+  /// 摘要仍在挂接卡上可见(spec FR-4 卡面摘要语义)。
+  ({int count, int remainingCents}) _installmentSummaryFor(Account a) =>
+      cardInstallmentSummary(_debts, a.id);
 
   @override
   void initState() {
@@ -691,6 +699,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                       accounts: entry.value,
                       formatCents: _formatCents,
                       debtInfoFor: _debtInfoFor,
+                      installmentSummaryFor: _installmentSummaryFor,
                       onEdit: _openEditForm,
                       onDuplicate: _openCopyForm,
                       onClose: _confirmClose,
@@ -1157,6 +1166,7 @@ class _GroupBlock extends StatelessWidget {
     required this.accounts,
     required this.formatCents,
     required this.debtInfoFor,
+    required this.installmentSummaryFor,
     required this.onEdit,
     required this.onDuplicate,
     required this.onClose,
@@ -1168,6 +1178,9 @@ class _GroupBlock extends StatelessWidget {
   final List<Account> accounts;
   final String Function(int, String) formatCents;
   final AccountDebtInfo? Function(Account) debtInfoFor;
+  /// F49 FR-4a:卡面分期徽标数据(信用卡卡渲染,见 _AccountCard)。
+  final ({int count, int remainingCents}) Function(Account)
+      installmentSummaryFor;
   final void Function(Account) onEdit;
   final void Function(Account) onDuplicate;
   final void Function(Account) onClose;
@@ -1292,10 +1305,13 @@ class _GroupBlock extends StatelessWidget {
             //   bar  13(margin)+6 = 19
             //   meta 7(margin)+~15(text) = 22
             //   action bar 13(margin)+11(padding-top)+16(icon)+3+14(text)+2*2(vpad) = 61
-            //   合计 ≈ 226px，+10 余量 → mainAxisExtent = 236
+            //   合计 ≈ 226px,+10 余量 → mainAxisExtent = 236;
+            //   F49 fchip(信用卡挂分期时余额下追加,margin 14 + pill ≈ 35)
+            //   → 236 + 35 ≈ 271,取 272。
             const gap = 14.0;
-            // 固定卡片高度（与列数/视口宽无关），覆盖最高卡（信用卡）。
-            const cardExtent = 236.0;
+            // 固定卡片高度（与列数/视口宽无关），覆盖最高卡（信用卡,
+            // 含 F49 分期徽标 fchip 行)。
+            const cardExtent = 272.0;
             if (constraints.maxWidth < 600) {
               // mobile：Column + SizedBox gap 还原 mainAxisSpacing:14。
               return Column(
@@ -1306,6 +1322,7 @@ class _GroupBlock extends StatelessWidget {
                       account: accounts[i],
                       formatCents: formatCents,
                       debtInfoFor: debtInfoFor,
+                      installmentSummaryFor: installmentSummaryFor,
                       onEdit: () => onEdit(accounts[i]),
                       onDuplicate: () => onDuplicate(accounts[i]),
                       onClose: () => onClose(accounts[i]),
@@ -1341,6 +1358,7 @@ class _GroupBlock extends StatelessWidget {
                 account: accounts[i],
                 formatCents: formatCents,
                 debtInfoFor: debtInfoFor,
+                installmentSummaryFor: installmentSummaryFor,
                 onEdit: () => onEdit(accounts[i]),
                 onDuplicate: () => onDuplicate(accounts[i]),
                 onClose: () => onClose(accounts[i]),
@@ -1365,6 +1383,7 @@ class _AccountCard extends StatefulWidget {
     required this.account,
     required this.formatCents,
     required this.debtInfoFor,
+    required this.installmentSummaryFor,
     required this.onEdit,
     required this.onDuplicate,
     required this.onClose,
@@ -1375,6 +1394,10 @@ class _AccountCard extends StatefulWidget {
   final Account account;
   final String Function(int, String) formatCents;
   final AccountDebtInfo? Function(Account) debtInfoFor;
+  /// F49 FR-4a:卡面分期徽标数据([cardInstallmentSummary] 归集,全量
+  /// debts 流 —— 见 _AccountsPageState._installmentSummaryFor)。
+  final ({int count, int remainingCents}) Function(Account)
+      installmentSummaryFor;
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onClose;
@@ -1590,6 +1613,7 @@ class _AccountCardState extends State<_AccountCard> {
     final spec = _usageSpec(a);
     final (label, val) = _compactVal(a);
     final archived = a.status == AccountStatus.archived;
+    final chip = _cardInstallmentChip(context);
 
     return _cardShell(
       isMobile: false,
@@ -1682,6 +1706,9 @@ class _AccountCardState extends State<_AccountCard> {
               ),
             ],
           ),
+          // F49 FR-4a fchip:余额(r1 右列)下、csub 之上 —— 照 v12 .acct
+          // 顺序 top → bal → fchip → foot。
+          if (chip != null) chip,
           // .csub margin-top:14 padding-top:13 border-top 1px #e6e3dc 12.5 muted
           if (_hasSub(a)) ...[
             const SizedBox(height: 14),
@@ -1891,6 +1918,7 @@ class _AccountCardState extends State<_AccountCard> {
     final archived = a.status == AccountStatus.archived;
     final spec = _usageSpec(a);
     final (label, val) = _compactVal(a);
+    final chip = _cardInstallmentChip(context);
 
     // .acc margin-bottom:8（由外层 GridView mainAxisSpacing 提供，故不加内 margin）。
     return _cardShell(
@@ -1974,6 +2002,9 @@ class _AccountCardState extends State<_AccountCard> {
               ),
             ],
           ),
+          // F49 FR-4a fchip:余额(r1 右列)下、额度条之上(同 _fullCard
+          // 的 v12 顺序)。
+          if (chip != null) chip,
           // .bar 5 radius:5 margin-top:10（在 .asub 之前 —— proto 顺序）
           if (spec != null) ...[
             const SizedBox(height: 10),
@@ -2008,6 +2039,37 @@ class _AccountCardState extends State<_AccountCard> {
   }
 
   // ─── 以下为业务副信息 helper（保持原逻辑不变） ───
+
+  /// F49 FR-4a(v12 .fchip):信用卡卡面分期徽标 —— 余额下方 accent 软底
+  /// pill「分期 N 笔 · 剩余 ¥X」(N≥1 才渲染;tabular 数字,照 v12
+  /// `font-size:11/w700/radius:999px/color:var(--acc)/bg:acc 12%`)。
+  /// 非信用卡 / 无未结清挂接分期 → null(不占位)。数据源
+  /// [widget.installmentSummaryFor] = 全量 debts 流的
+  /// [cardInstallmentSummary] 归集(本金口径,与卡详情 FR-4b 区块、F50
+  /// 额度占用同源)。
+  Widget? _cardInstallmentChip(BuildContext context) {
+    if (a.category != AccountCategory.creditCard) return null;
+    final s = widget.installmentSummaryFor(a);
+    if (s.count < 1) return null;
+    return Container(
+      margin: const EdgeInsets.only(top: 14), // .acct gap:14 节奏
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        // color-mix(in srgb, var(--acc) 12%, transparent) → accent 12% 派生。
+        color: context.yucai.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(9999), // radius:9999px (pill)
+      ),
+      child: Text(
+        '分期 ${s.count} 笔 · 剩余 ${formatCents(s.remainingCents, a.currencyCode)}',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: context.yucai.accent,
+          fontFeatures: AppTypography.tabularFigures,
+        ),
+      ),
+    );
+  }
 
   (String, String) _compactVal(Account a) {
     final label = switch (a.category) {

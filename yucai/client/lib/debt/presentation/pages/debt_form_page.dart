@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/account/domain/account_visibility.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -263,11 +264,31 @@ class _DebtFormPageState extends State<DebtFormPage> {
   int _cardLoanFeeCents() =>
       ((double.tryParse(_ccFeeCtrl.text.trim()) ?? 0) * 100).round();
 
-  List<Account> get _visibleAccounts => _isCreditCard
-      ? _accounts
+  /// F49 FR-3 消费点(T4 缺口 B):非信用卡分支经 [AccountVisibility.userVisible]
+  /// 滤掉 isSystem 载体户(账务载体不可见不可选);**编辑态当前债已挂的账户
+  /// 始终保留** —— 否则编辑既有债时下拉丢当前值(DropdownButtonFormField
+  /// value ⊄ items 断言/存量无法回显)。实现:全量经 userVisible,当前债挂的
+  /// 载体户(若被滤)按 [_accounts] 原序插回,下拉项次序稳定。
+  /// 信用卡分支本就按类别收窄(信用卡永非载体),不叠加过滤。金额计算侧
+  /// (净资产/负债总额)不消费本 getter,照常取全量(FR-3「可见处过滤、
+  /// 计算处保留」)。
+  List<Account> get _visibleAccounts {
+    if (_isCreditCard) {
+      return _accounts
           .where((a) => a.category == AccountCategory.creditCard)
-          .toList()
-      : _accounts;
+          .toList();
+    }
+    final linkedId = _existing?.accountId;
+    final visible = AccountVisibility.userVisible(_accounts);
+    final linked = _accounts.where((a) => a.id == linkedId).firstOrNull;
+    // 未挂接/已挂账户本就可见(userVisible 已含)→ 直接返回。
+    if (linked == null || !linked.isSystem) return visible;
+    // 当前债挂的载体户:保序插回(落在原位置前最后一个可见账户之后)。
+    final at = _accounts.indexOf(linked);
+    final insertAt =
+        visible.where((a) => _accounts.indexOf(a) < at).length;
+    return [...visible]..insert(insertAt.clamp(0, visible.length), linked);
+  }
 
   Account? get _selectedAccount =>
       _accounts.where((a) => a.id == _accountId).cast<Account?>().firstWhere(
@@ -712,6 +733,42 @@ class _DebtFormPageState extends State<DebtFormPage> {
     await _persistCreditCardFieldsIfNeeded();
     final e = _existing;
     if (e != null) {
+      // F49 FR-1 编辑切换同步(评审补,闭合中间态):编辑卡贷切换出账方式时
+      // 同步其账户标记 —— 并入→独立:载体户 isSystem→false(转真实账户,
+      // 账单日经「账户→编辑」补);独立→并入:isSystem→true 且清空账单日/
+      // 还款日(转载体,账单语义随挂接卡走);无切换/非卡贷(含 subtype
+      // 切走/切入卡贷)= 零动作(切入场景账户可能是用户手建真实账户,
+      // 置位即误隐藏真账户)。
+      //
+      // 通道:AccountRepository.update 三态路由 —— guest/离线本地落库即
+      // 生效;bound 在线远端 proto 无 is_system 字段 → 等价 no-op(NFR-1
+      // 镜像边界,与建户置位同口径)。紧随(先于)债务更新 dispatch、
+      // best-effort:失败不阻断债务保存,标记偏差由启动 repair 幂等收敛。
+      if (e.subtype == DebtSubtypes.cardLoan && _isCardLoan) {
+        final wasIndependent = (e.collectionAccountId ?? '').isEmpty;
+        final account =
+            _accounts.where((a) => a.id == e.accountId).firstOrNull;
+        if (account != null) {
+          if (!wasIndependent && _cardLoanIndependent) {
+            try {
+              await getIt<AccountRepository>().update(UpdateAccountParams(
+                id: account.id,
+                version: account.version,
+                isSystem: false,
+              ));
+            } catch (_) {}
+          } else if (wasIndependent && !_cardLoanIndependent) {
+            try {
+              await getIt<AccountRepository>().update(UpdateAccountParams(
+                id: account.id,
+                version: account.version,
+                isSystem: true,
+                clearCreditScheduleDays: true,
+              ));
+            } catch (_) {}
+          }
+        }
+      }
       // 编辑允许改规则/摊销/期限(Google-Calendar 式:已发生期次冻结,
       // 未来按剩余本金重排 —— 服务端 UpdateDebt 处理)。
       bloc.add(UpdateDebtRequested(UpdateDebtParams(
@@ -1341,10 +1398,15 @@ class _DebtFormPageState extends State<DebtFormPage> {
               enabled: !_isEdit,
               decoration: _odDec(context, hint: '1-31'),
               keyboardType: TextInputType.number,
-              validator: (v) {
-                final d = int.tryParse(v ?? '');
-                return d == null || d < 1 || d > 31 ? '账单日 1-31' : null;
-              },
+              // 编辑态字段禁用(存量经「账户→编辑」改),并入→独立切换后
+              // 为空:validator 必须放行,否则 Form.validate 卡死提交
+              // (F49 T10 编辑切换同步前置)。
+              validator: _isEdit
+                  ? null
+                  : (v) {
+                      final d = int.tryParse(v ?? '');
+                      return d == null || d < 1 || d > 31 ? '账单日 1-31' : null;
+                    },
             ),
           ),
         _ODField(
@@ -1378,10 +1440,13 @@ class _DebtFormPageState extends State<DebtFormPage> {
             enabled: !_isEdit,
             decoration: _odDec(context, hint: '1-31'),
             keyboardType: TextInputType.number,
-            validator: (v) {
-              final d = int.tryParse(v ?? '');
-              return d == null || d < 1 || d > 31 ? '还款日 1-31' : null;
-            },
+            // 同上(账单日):编辑态禁用字段不参与校验,切换后为空不阻断提交。
+            validator: _isEdit
+                ? null
+                : (v) {
+                    final d = int.tryParse(v ?? '');
+                    return d == null || d < 1 || d > 31 ? '还款日 1-31' : null;
+                  },
           ),
         ),
         if (_isEdit)

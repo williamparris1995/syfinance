@@ -137,10 +137,19 @@ class AccountLocalDataSource {
       status: p.status == null
           ? const Value.absent()
           : Value(p.status!.index + 1),
+      // F49 编辑切换同步:isSystem 三态(null = absent 不动,true/false 写)。
+      isSystem: p.isSystem == null ? const Value.absent() : Value(p.isSystem!),
       openingDate: orAbsent(p.openingDate),
       interestRate: orAbsent(p.interestRate),
-      creditBillingDay: orAbsent(p.creditBillingDay),
-      creditRepaymentDay: orAbsent(p.creditRepaymentDay),
+      // 账单日/还款日:显式值优先;清空旗标(独立→并入)且未带显式值 →
+      // 写 NULL(转载体);否则 absent 不动。
+      creditBillingDay: p.clearCreditScheduleDays && p.creditBillingDay == null
+          ? const Value(null)
+          : orAbsent(p.creditBillingDay),
+      creditRepaymentDay:
+          p.clearCreditScheduleDays && p.creditRepaymentDay == null
+              ? const Value(null)
+              : orAbsent(p.creditRepaymentDay),
       creditAnnualFeeCents: orAbsent(p.creditAnnualFeeCents),
       investCostCents: orAbsent(p.investCostCents),
       investMarketValueCents: orAbsent(p.investMarketValueCents),

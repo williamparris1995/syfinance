@@ -157,6 +157,92 @@ void main() {
     expect((await ds.list()).map((a) => a.id), contains(nonZero.id));
   });
 
+  // F49 T10(评审补)—— update 通道扩展:isSystem 三态 + 账单日/还款日
+  // 清空旗标,均按既有 patch 语义(缺省 = absent 不动)。消费方 = debt_form
+  // 编辑切换同步(FR-1 评审补);bound 远端无对应 proto 字段 → no-op(NFR-1)。
+  group('F49 update 扩展通道(isSystem 三态 + 账单日清空)', () {
+    test('isSystem:缺省 null 不动,true/false 显式写入,version 推进', () async {
+      final a = await ds.create(params(name: '真实账户'));
+      // 缺省(不带 isSystem)= absent 不动。
+      final untouched = await ds.update(UpdateAccountParams(
+          id: a.id, version: a.version, name: '改名'));
+      expect(untouched.isSystem, isFalse, reason: '缺省 null = 不动(置位路径只有切换同步)');
+
+      // 并入→独立切换:显式复位为真实账户。
+      final on = await ds.update(UpdateAccountParams(
+          id: untouched.id, version: untouched.version, isSystem: true));
+      expect(on.isSystem, isTrue);
+      expect(on.version, untouched.version + 1);
+
+      // 独立→并入切换:显式置位为载体。
+      final off = await ds.update(UpdateAccountParams(
+          id: on.id, version: on.version, isSystem: false));
+      expect(off.isSystem, isFalse);
+    });
+
+    test('clearCreditScheduleDays:清 NULL 生效;不带旗标不动(patch 语义)', () async {
+      final a = await ds.create(
+          params(name: 'e招贷账户', category: AccountCategory.loan));
+      final withDays = await ds.update(UpdateAccountParams(
+          id: a.id,
+          version: a.version,
+          creditBillingDay: 5,
+          creditRepaymentDay: 23));
+      expect(withDays.creditBillingDay, 5);
+      expect(withDays.creditRepaymentDay, 23);
+
+      // 不带旗标的普通编辑 → 两列不动(既有 orAbsent 语义)。
+      final touched = await ds.update(UpdateAccountParams(
+          id: withDays.id, version: withDays.version, name: '改名'));
+      expect(touched.creditBillingDay, 5);
+      expect(touched.creditRepaymentDay, 23);
+
+      // 独立→并入切换:清空旗标 → 两列写 NULL(转载体,账单语义随挂接卡走)。
+      final cleared = await ds.update(UpdateAccountParams(
+          id: touched.id, version: touched.version, clearCreditScheduleDays: true));
+      expect(cleared.creditBillingDay, isNull);
+      expect(cleared.creditRepaymentDay, isNull);
+    });
+  });
+
+  // F49 T7 评审补 —— [AccountCloser] 守卫分支:同户两债,删其一 → 名下仍有
+  // debt_type=1 借入债 → 不关(FR-5 三重门第③门,防误关在用载体)。直插
+  // debts 行 + 直删一行,模拟 debt DS delete 出表后再调 closer 的时序。
+  test('AccountCloser 守卫:同户两债,删其一 → 不关', () async {
+    final carrier = await ds.create(
+        params(name: '平安 · 卡贷', isSystem: true, initialBalanceCents: 0));
+
+    Future<void> seedDebt(String id) => db.into(db.debts).insert(
+          DebtsCompanion.insert(
+            id: id,
+            accountId: carrier.id,
+            counterparty: '平安银行',
+            interestRate: 0,
+            amortizationMethod: 0,
+            startDate: DateTime.utc(2026, 1, 10),
+            dueDate: DateTime.utc(2026, 6, 10),
+            totalPrincipalCents: 100000,
+            debtType: 1, // DebtType.borrowedIn(closer 只认借入方向)
+            subtype: 'card_loan',
+            contact: '',
+            contractRef: '',
+            version: 1,
+            createdAt: DateTime.utc(2026, 1, 10),
+            updatedAt: DateTime.utc(2026, 1, 10),
+          ),
+        );
+    await seedDebt('d1');
+    await seedDebt('d2');
+
+    // 删其一:同户仍剩一笔借入债。
+    await (db.delete(db.debts)..where((d) => d.id.equals('d1'))).go();
+    await AccountCloserImpl(db).closeIfEmptyCarrier(carrier.id);
+
+    final row = await db.accountDao.getAccountById(carrier.id);
+    expect(row!.status, 1, reason: '同户还有一笔借入债 → 不得自动关闭(守卫分支)');
+    expect(row.isSystem, isTrue, reason: '标记不受关户判断影响');
+  });
+
   // dev 反馈⑧b 数据源:watchList = DAO watchAllAccounts 的实体映射流,
   // 表单/页面订阅后本地库任何账户变更(分类页新建分类等)实时再发射。
   test('watchList:首发射当前行,insert 后自动再发射(实体映射)', () async {

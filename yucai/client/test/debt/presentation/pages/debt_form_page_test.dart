@@ -1353,6 +1353,8 @@ void main() {
       when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
           [_creditCardAccount(id: 'cc-1', name: '平安信用卡'), _cashAccount()]));
       var created = false;
+      // T2 评审补:接线断言 —— 债务必须落在刚建的载体户上(accountId 通道)。
+      String? capturedDebtAccountId;
       when(() => debtRepo.create(
               accountId: any(named: 'accountId'),
               counterparty: any(named: 'counterparty'),
@@ -1379,7 +1381,8 @@ void main() {
               // 字面默认 0,与真实 flatFeeCents≠0 失配 → stub 漏匹配)。
               interestWaivedCents: any(named: 'interestWaivedCents'),
               billingDay: any(named: 'billingDay'),
-              flatFeeCents: any(named: 'flatFeeCents'))).thenAnswer((_) {
+              flatFeeCents: any(named: 'flatFeeCents'))).thenAnswer((inv) {
+        capturedDebtAccountId = inv.namedArguments[#accountId] as String?;
         created = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });
@@ -1432,6 +1435,9 @@ void main() {
       expect(capturedAccount!.notes, contains('自动创建'));
       // 并入模式不写账单日(账单挂在挂接卡上,非本户)。
       expect(capturedAccount!.creditBillingDay, isNull);
+      // T2 评审补:建户 → CreateDebt 接线 —— accountId == 载体户 id。
+      expect(capturedDebtAccountId, 'carrier-1',
+          reason: '债务必须落在自动创建的载体户上(建户→CreateDebt 接线)');
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });
@@ -1466,6 +1472,8 @@ void main() {
         capturedAccount = inv.positionalArguments[0] as CreateAccountParams;
         return Future.value(dartz.Right(_cardLoanCarrierAccount(isSystem: false)));
       });
+      // T2 评审补:接线断言 —— 债务必须落在刚建的贷款账户上。
+      String? capturedDebtAccountId;
       when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
           [_creditCardAccount(id: 'cc-1', name: '平安信用卡'), _cashAccount()]));
       var created = false;
@@ -1495,7 +1503,8 @@ void main() {
               // 字面默认 0,与真实 flatFeeCents≠0 失配 → stub 漏匹配)。
               interestWaivedCents: any(named: 'interestWaivedCents'),
               billingDay: any(named: 'billingDay'),
-              flatFeeCents: any(named: 'flatFeeCents'))).thenAnswer((_) {
+              flatFeeCents: any(named: 'flatFeeCents'))).thenAnswer((inv) {
+        capturedDebtAccountId = inv.namedArguments[#accountId] as String?;
         created = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });
@@ -1548,14 +1557,252 @@ void main() {
           reason: '独立账单模式是真实账户,isSystem 必须 false(F49 FR-1)');
       expect(capturedAccount!.creditBillingDay, 5);
       expect(capturedAccount!.creditRepaymentDay, 23);
+      // T2 评审补:建户 → CreateDebt 接线 —— accountId == 新建贷款账户 id。
+      expect(capturedDebtAccountId, 'carrier-1',
+          reason: '债务必须落在自动创建的贷款账户上(建户→CreateDebt 接线)');
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
+    });
+  });
+
+  // F49 T10 —— 编辑切换同步(FR-1 评审补,闭合中间态):编辑卡贷切换出账
+  // 方式时同步账户标记 —— 并入→独立:载体户 isSystem→false(转真实账户,
+  // 账单日经账户编辑补);独立→并入:isSystem→true 且清空账单日/还款日
+  // (转载体);无切换 = 零动作。accountRepo.update 拦截捕获 UpdateAccountParams。
+  group('F49 编辑切换同步 (FR-1 评审补)', () {
+    testWidgets('并入→独立:载体户 isSystem→false,不清账单日', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const UpdateAccountParams(id: '', version: 0));
+      // 存量并入型:载体户 isSystem=true(建户置位产物),挂接卡供回填。
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _cardLoanCarrierAccount(isSystem: true),
+            _creditCardAccount(id: 'cc-1', name: '平安信用卡'),
+          ]));
+      UpdateAccountParams? capturedUpdate;
+      when(() => accountRepo.update(any())).thenAnswer((inv) {
+        capturedUpdate = inv.positionalArguments[0] as UpdateAccountParams;
+        return Future.value(
+            dartz.Right(_cardLoanCarrierAccount(isSystem: false, version: 2)));
+      });
+      final isUpdated = _stubDebtUpdate(debtRepo);
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: existingDebt(
+            subtype: DebtSubtypes.cardLoan,
+            accountId: 'carrier-1',
+            collectionAccountId: 'cc-1'),
+      ));
+      await t.pumpAndSettle();
+
+      // 切「独立账单」(编辑态账单日字段禁用,空值不得阻断提交 —— 语义:
+      // 存量账单日经「账户 → 编辑」补)。
+      await t.ensureVisible(find.byKey(const ValueKey('cardLoanMode-independent')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('cardLoanMode-independent')));
+      await t.pumpAndSettle();
+      // 每期手续费:卡贷必填校验(编辑态不回填,存量行为)。
+      await t.enterText(find.byKey(const ValueKey('cardLoanFeeField')), '120');
+
+      final submitFinder = find.byKey(const ValueKey('submitButton'));
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 10 && !isUpdated(); i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(isUpdated(), isTrue, reason: '债务更新照常 dispatch(切换不阻断保存)');
+      expect(capturedUpdate, isNotNull, reason: '切换出账方式必须同步载体户标记');
+      expect(capturedUpdate!.id, 'carrier-1');
+      expect(capturedUpdate!.version, 1, reason: '用存量账户 version(乐观锁)');
+      expect(capturedUpdate!.isSystem, isFalse,
+          reason: '并入→独立:载体转真实账户(可经账户编辑补账单日)');
+      expect(capturedUpdate!.clearCreditScheduleDays, isFalse,
+          reason: '并入→独立不清账单日(账户编辑补)');
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('独立→并入:isSystem→true + 清空账单日/还款日(转载体)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const UpdateAccountParams(id: '', version: 0));
+      // 存量独立型(e招贷):真实账户 isSystem=false + 自有账单日/还款日。
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _cardLoanCarrierAccount(
+                isSystem: false, creditBillingDay: 5, creditRepaymentDay: 23),
+            _creditCardAccount(id: 'cc-1', name: '平安信用卡'),
+          ]));
+      UpdateAccountParams? capturedUpdate;
+      when(() => accountRepo.update(any())).thenAnswer((inv) {
+        capturedUpdate = inv.positionalArguments[0] as UpdateAccountParams;
+        return Future.value(
+            dartz.Right(_cardLoanCarrierAccount(isSystem: true, version: 2)));
+      });
+      final isUpdated = _stubDebtUpdate(debtRepo);
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        // collectionAccountId 缺省 null = 独立账单模式。
+        existing: existingDebt(
+            subtype: DebtSubtypes.cardLoan, accountId: 'carrier-1'),
+      ));
+      await t.pumpAndSettle();
+
+      // 切「并入信用卡账单」+ 选挂接卡。
+      await t.ensureVisible(find.byKey(const ValueKey('cardLoanMode-merge')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('cardLoanMode-merge')));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.byKey(const ValueKey('cardLoanCardDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('cardLoanCardDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('平安信用卡').last);
+      await t.pumpAndSettle();
+      // 每期手续费:卡贷必填校验(编辑态不回填,存量行为)。
+      await t.enterText(find.byKey(const ValueKey('cardLoanFeeField')), '120');
+
+      final submitFinder = find.byKey(const ValueKey('submitButton'));
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 10 && !isUpdated(); i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(isUpdated(), isTrue);
+      expect(capturedUpdate, isNotNull);
+      expect(capturedUpdate!.id, 'carrier-1');
+      expect(capturedUpdate!.isSystem, isTrue,
+          reason: '独立→并入:真实账户转载体(展示层隐藏)');
+      expect(capturedUpdate!.clearCreditScheduleDays, isTrue,
+          reason: '独立→并入:清空账单日/还款日(账单语义随挂接卡走)');
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('无切换(并入→并入):零动作(update 不被调)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const UpdateAccountParams(id: '', version: 0));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _cardLoanCarrierAccount(isSystem: true),
+            _creditCardAccount(id: 'cc-1', name: '平安信用卡'),
+          ]));
+      when(() => accountRepo.update(any())).thenAnswer((_) async =>
+          dartz.Right(_cardLoanCarrierAccount(isSystem: true, version: 2)));
+      final isUpdated = _stubDebtUpdate(debtRepo);
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: existingDebt(
+            subtype: DebtSubtypes.cardLoan,
+            accountId: 'carrier-1',
+            collectionAccountId: 'cc-1'),
+      ));
+      await t.pumpAndSettle();
+
+      // 不碰出账方式,只改债权方 → 提交(手续费为卡贷必填,补填放行)。
+      await t.enterText(
+          find.byKey(const ValueKey('counterpartyField')), '广发银行');
+      await t.enterText(find.byKey(const ValueKey('cardLoanFeeField')), '120');
+      final submitFinder = find.byKey(const ValueKey('submitButton'));
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 10 && !isUpdated(); i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(isUpdated(), isTrue, reason: '无切换照常保存债务');
+      // 无切换 = 零动作,不得触发账户标记同步。
+      verifyNever(() => accountRepo.update(any()));
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+  });
+
+  // F49 T10 —— 关联账户下拉过滤(FR-3 消费点,T4 缺口 B):非信用卡分支经
+  // AccountVisibility.userVisible 滤掉 isSystem 载体户;编辑态当前债已挂的
+  // 账户始终保留(否则编辑既有债时下拉丢当前值 → DropdownButtonFormField
+  // value ⊄ items 断言)。
+  group('F49 关联账户下拉过滤 (FR-3)', () {
+    testWidgets('create:载体户(isSystem=true)不出现在关联账户下拉', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _loanAccount(id: 'l1', name: '招行房贷'),
+            _cardLoanCarrierAccount(), // isSystem=true 载体
+          ]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
+      await t.pumpAndSettle();
+      expect(find.textContaining('招行房贷'), findsWidgets);
+      expect(find.textContaining('平安银行 · 卡贷'), findsNothing,
+          reason: '载体户是账务载体,FR-3:选择器不可见不可选');
+    });
+
+    testWidgets('edit:当前债已挂的载体户保留下拉(不丢当前值),无关载体仍滤',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      // 当前债挂的载体(保留)+ 另一笔债的载体(滤;实体不可变,copyWith
+      // 生成新实例)。
+      final linkedCarrier = _cardLoanCarrierAccount();
+      final unrelatedCarrier = _cardLoanCarrierAccount()
+          .copyWith(id: 'carrier-2', name: '广发银行 · 卡贷');
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([linkedCarrier, unrelatedCarrier]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: existingDebt(
+            subtype: DebtSubtypes.creditLoan, accountId: 'carrier-1'),
+      ));
+      await t.pumpAndSettle();
+
+      // 选中值即当前挂的载体户 —— retention 缺失时 DropdownButtonFormField
+      // 会因 value ⊄ items 抛断言(测试直接红)。
+      expect(find.text('平安银行 · 卡贷'), findsWidgets,
+          reason: '编辑态当前账户必须保留在下拉(value 命中 items)');
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
+      await t.pumpAndSettle();
+      expect(find.text('平安银行 · 卡贷'), findsWidgets);
+      expect(find.text('广发银行 · 卡贷'), findsNothing,
+          reason: '与当前债无关的载体户仍被滤(FR-3)');
     });
   });
 }
 
 /// 复用 _emptyDetail 的 Debt 结构,counterparty/version/subtype 可指定。
-/// (F33-T5 从「编辑模式」group 提升到文件级,供 T5 归位 group 复用。)
+/// (F33-T5 从「编辑模式」group 提升到文件级,供 T5 归位 group 复用;
+/// F49 T10 增 accountId/collectionAccountId 供卡贷编辑切换同步组复用。)
 Debt existingDebt({
   String id = 'd-1',
   String counterparty = '招商银行',
@@ -1564,10 +1811,13 @@ Debt existingDebt({
   int totalPrincipalCents = 15000000,
   int version = 3,
   String subtype = '',
+  String accountId = 'loan-1',
+  // 非空 = 并入模式(挂接卡);null(缺省)= 独立账单(e招贷)。
+  String? collectionAccountId,
 }) =>
     Debt(
       id: id,
-      accountId: 'loan-1',
+      accountId: accountId,
       counterparty: counterparty,
       interestRate: interestRate,
       amortization: AmortizationMethod.equalPrincipalInterest,
@@ -1577,12 +1827,20 @@ Debt existingDebt({
       remainingPrincipalCents: totalPrincipalCents,
       version: version,
       subtype: subtype,
+      collectionAccountId: collectionAccountId,
       createdAt: DateTime(2025, 1, 1),
       updatedAt: DateTime(2025, 6, 1),
     );
 
-/// F49:卡贷自动建户返回的载体/贷款账户(accountRepo.create 拦截用)。
-Account _cardLoanCarrierAccount({bool isSystem = true}) => Account(
+/// F49:卡贷自动建户返回的载体/贷款账户(accountRepo.create 拦截用);
+/// T10 编辑切换同步组兼作 list() 里的存量账户(带账单日/版本)。
+Account _cardLoanCarrierAccount({
+  bool isSystem = true,
+  int? creditBillingDay,
+  int? creditRepaymentDay,
+  int version = 1,
+}) =>
+    Account(
       id: 'carrier-1',
       name: '平安银行 · 卡贷',
       accountType: AccountType.liability,
@@ -1593,7 +1851,42 @@ Account _cardLoanCarrierAccount({bool isSystem = true}) => Account(
       ownership: Ownership.personal,
       status: AccountStatus.active,
       isSystem: isSystem,
+      creditBillingDay: creditBillingDay,
+      creditRepaymentDay: creditRepaymentDay,
+      version: version,
     );
+
+/// F49 T10 编辑切换同步组共通:debtRepo.update 全命名参数通配 stub
+/// (照既有编辑测 —— F33-T5 后 subtype 等显式携带,漏 any() 即失配)。
+/// 返回「已提交」轮询闭包。
+bool Function() _stubDebtUpdate(_MockDebtRepo debtRepo) {
+  var updated = false;
+  when(() => debtRepo.update(
+          id: any(named: 'id'),
+          counterparty: any(named: 'counterparty'),
+          interestRate: any(named: 'interestRate'),
+          version: any(named: 'version'),
+          subtype: any(named: 'subtype'),
+          contact: any(named: 'contact'),
+          contractRef: any(named: 'contractRef'),
+          guarantorName: any(named: 'guarantorName'),
+          guarantorContact: any(named: 'guarantorContact'),
+          collectionAccountId: any(named: 'collectionAccountId'),
+          amortizationIndex: any(named: 'amortizationIndex'),
+          dueDate: any(named: 'dueDate'),
+          cycle: any(named: 'cycle'),
+          interval: any(named: 'interval'),
+          weekdayMask: any(named: 'weekdayMask'),
+          monthlyMode: any(named: 'monthlyMode'),
+          nth: any(named: 'nth'),
+          interestWaivedCents: any(named: 'interestWaivedCents'),
+          termPeriods: any(named: 'termPeriods')))
+      .thenAnswer((_) {
+    updated = true;
+    return Future.value(dartz.Right(existingDebt(counterparty: '已改')));
+  });
+  return () => updated;
+}
 
 DebtDetail _emptyDetail() => DebtDetail(
       debt: Debt(

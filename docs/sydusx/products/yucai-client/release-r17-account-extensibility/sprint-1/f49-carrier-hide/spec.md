@@ -10,9 +10,9 @@
 
 ## Requirements
 
-### Requirement: FR-1 并入型载体户建户置位
+### Requirement: FR-1 并入型载体户建户置位(含编辑切换同步,2026-10-10 评审补)
 - [ ] FR-1
-系统 SHALL 在 guest 本地路径创建**并入模式**卡贷的自动载体户时置 `isSystem=true`(notes 维持既有自动创建标记);**独立账单模式**的账户 SHALL 保持 `isSystem=false`(真实账户);bound 路径不置位(见 NFR-1)。
+系统 SHALL 在 guest 本地路径创建**并入模式**卡贷的自动载体户时置 `isSystem=true`(notes 维持既有自动创建标记);**独立账单模式**的账户 SHALL 保持 `isSystem=false`(真实账户);bound 路径不置位(见 NFR-1)。**编辑切换同步(评审补,闭合中间态)**:编辑既有卡贷时切换出账方式,系统 SHALL 同步其账户标记——并入→独立:载体户 `isSystem→false`(转为真实账户,账单日经账户编辑补);独立→并入:账户 `isSystem→true` 且清空账单日/还款日(转为载体)。
 #### Scenario: 并入模式建户
 GIVEN guest 模式
 WHEN 创建信用卡分期(并入信用卡账单,选挂接卡)
@@ -22,6 +22,11 @@ THEN 自动创建的载体户 `isSystem=true`
 GIVEN guest 模式
 WHEN 创建信用卡分期(独立账单,填账单日/还款日)
 THEN 自动创建的贷款账户 `isSystem=false` 且带 creditBillingDay/creditRepaymentDay
+
+#### Scenario: 编辑切换并转独(评审补)
+GIVEN 并入型卡贷(载体户 isSystem=true)
+WHEN 编辑切为独立账单
+THEN 该账户 isSystem=false(可经账户编辑补账单日)
 
 ### Requirement: FR-2 存量一次性 repair(标记 + 孤儿清理)
 - [ ] FR-2
