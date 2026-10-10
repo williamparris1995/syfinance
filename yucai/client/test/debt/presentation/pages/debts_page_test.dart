@@ -12,6 +12,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -25,6 +28,7 @@ import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 
 class _MockRepo extends Mock implements DebtRepository {}
+class _MockAccountRepo extends Mock implements AccountRepository {}
 
 /// Fake CurrencyBloc (与 accounts_page_test 同模式)。
 class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
@@ -514,5 +518,100 @@ void main() {
       await t.pumpAndSettle();
       expect(isAbove(t, '建设银行', '招商银行'), isTrue);
     });
+  });
+
+  // ───── F49 FR-6 露出回归②:债务页「信用卡账单分期」分组不因载体隐藏消失 ─────
+  //
+  // 语境钉死:并入型卡贷的载体户已置 isSystem=true(FR-1/FR-2 产物,已被
+  // userVisible 滤出账户页/选择器),债务页「信用卡账单分期」分组仍正常
+  // 渲染 —— 分组数据源是 debts 流(_debtsOf 切片),分组头经全量账户名
+  // 解析(collectionAccountId → 挂接卡名),与账户可见性正交。载体以
+  // isSystem=true 进账户流(证明「隐藏后」语境真实成立)。
+  testWidgets(
+      'F49/FR-6: 载体隐藏(isSystem=true 在账户流)后,「信用卡账单分期」分组仍渲染',
+      (t) async {
+    final repo = _MockRepo();
+    registerFallbackValue(const CreateDebtParams(
+      accountId: '',
+      counterparty: '',
+      interestRate: 0,
+      amortizationIndex: 0,
+      startDateOption: null,
+      dueDateOption: null,
+      totalPrincipalCents: 0,
+    ));
+    // 并入型卡贷(v12 数值:剩余 ¥8,400),载体户承载账务、挂接平安卡。
+    final cardLoan = Debt(
+      id: 'cl1',
+      accountId: 'carrier-1',
+      counterparty: '平安银行',
+      interestRate: 0.75,
+      amortization: AmortizationMethod.equalPrincipalInterest,
+      startDate: DateTime(2026, 5, 15),
+      dueDate: DateTime(2027, 5, 15),
+      totalPrincipalCents: 1044000,
+      remainingPrincipalCents: 840000,
+      version: 1,
+      createdAt: DateTime(2026, 5, 15),
+      updatedAt: DateTime(2026, 10, 1),
+      subtype: DebtSubtypes.cardLoan,
+      collectionAccountId: 'card-1',
+    );
+    when(() => repo.list(typeFilter: any(named: 'typeFilter')))
+        .thenAnswer((_) async => dartz.Right([cardLoan]));
+
+    // _loadAccountNames 经 GetIt 取全量账户:挂接卡 + 已隐藏载体
+    //(isSystem=true 正向进入解析流,分组头解出挂接卡名)。
+    Account cardAccount(String id, String name) => Account(
+          id: id,
+          name: name,
+          accountType: AccountType.liability,
+          category: AccountCategory.creditCard,
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          currentBalanceCents: -125000,
+          ownership: Ownership.personal,
+          status: AccountStatus.active,
+        );
+    final accountRepo = _MockAccountRepo();
+    when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+          cardAccount('card-1', '平安信用卡'),
+          cardAccount('carrier-1', '平安银行 · 卡贷')
+              .copyWith(isSystem: true),
+        ]));
+    GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+    addTearDown(
+        () => GetIt.instance.unregister<AccountRepository>());
+
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(MaterialApp(
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider<DebtBloc>(create: (_) => DebtBloc(repo)),
+          BlocProvider<CurrencyBloc>.value(
+              value: _FakeCurrencyBloc(const CurrencyState())),
+        ],
+        child: const DebtsPage(),
+      ),
+    ));
+    await t.pumpAndSettle();
+
+    // FR-6 主断言:分组标题 + 副说明渲染。
+    expect(find.text('信用卡账单分期'), findsOneWidget,
+        reason: 'FR-6: 载体隐藏不吞债务页分期分组');
+    expect(find.text('每期放款对应日自动入卡,随卡还款'), findsOneWidget);
+    // 分组头 = 挂接卡名(经全量账户名解析;载体名只作债务行背后的账务
+    // 载体,不作为分组头)。
+    expect(find.text('平安信用卡'), findsOneWidget,
+        reason: '分组头按 collectionAccountId 解出挂接卡名');
+    expect(find.textContaining('1 笔 · 待还'), findsOneWidget);
+    // 分组内债务行(正向断言):债权方 counterparty 渲染。
+    expect(find.text('平安银行'), findsOneWidget,
+        reason: '分期债务行(DebtListCard)仍在分组内渲染');
+    // 载体户名不以独立账户行/分组头露出(它是债背后的账务载体)。
+    expect(find.text('平安银行 · 卡贷'), findsNothing,
+        reason: '载体以 isSystem=true 隐藏,不以账户形态露出');
   });
 }

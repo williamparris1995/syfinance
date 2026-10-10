@@ -2526,4 +2526,66 @@ void main() {
     expect(find.text('现金分期'), findsNothing,
         reason: 'FR-4b 空态:无挂接区块隐藏(维持现状语义)');
   });
+
+  // ───── F49 FR-6 露出回归①:卡详情「还款计划」面板不因载体隐藏消失 ─────
+  //
+  // 语境钉死:并入型分期的载体户已置 isSystem=true(库中已被 userVisible
+  // 滤出账户页/选择器),挂接卡详情的 F48「还款计划」面板(AccountRepayment
+  // PlanPanel)仍正常渲染 —— 面板数据源是债务查询(_loadRepaymentPlans 经
+  // collectionAccountId 挂卡),与账户可见性正交。载体以 isSystem=true 进
+  // accounts 流(证明「隐藏后」语境真实成立,而非缺席载体)。
+  testWidgets(
+    'F49/FR-6: 载体隐藏(isSystem=true 在账户流)后,卡详情还款计划面板仍渲染',
+    (tester) async {
+      final card = pingAnCard();
+      final debt = cardLoanDebt();
+      // 载体户:cardLoanDebt().accountId 指向的真实账务载体,已置
+      // isSystem=true(FR-1 建户置位 / FR-2 存量 repair 的产物形态)。
+      final carrier = _account(
+        name: '平安银行 · 卡贷',
+        category: AccountCategory.loan,
+        accountType: AccountType.liability,
+        currentBalanceCents: -840000,
+      ).copyWith(id: 'carrier-1', isSystem: true);
+
+      await pumpPage(
+        tester,
+        account: card,
+        accounts: [card, carrier], // 载体在库且 isSystem=true(已隐藏语境)
+        debts: [debt],
+        debtSchedules: {
+          'd1': cardLoanSchedule(),
+        },
+      );
+
+      // 面板在 ListView 尾部,滚入视口。
+      await tester.scrollUntilVisible(
+        find.text('还款计划'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      // 面板本体渲染(FR-6 主断言)。
+      final panel = find.byKey(const ValueKey('repaymentPlanPanel'));
+      expect(panel, findsOneWidget,
+          reason: 'FR-6: 载体隐藏不吞卡详情还款计划面板');
+      // 面板内容以债呈现:债权方 + 未来未还期次 + 完整计划入口。
+      expect(
+        find.descendant(of: panel, matching: find.text('平安银行')),
+        findsOneWidget,
+        reason: '债权方(counterparty)',
+      );
+      expect(
+        find.descendant(of: panel, matching: find.text('2026-10-15')),
+        findsOneWidget,
+        reason: '最早未还期次(cardLoanSchedule 第 5 期)',
+      );
+      expect(
+        find.descendant(
+            of: panel, matching: find.text('查看完整还款计划 →')),
+        findsOneWidget,
+        reason: '完整计划入口跳债务详情',
+      );
+    },
+  );
 }
