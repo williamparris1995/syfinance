@@ -26,7 +26,7 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart'
-    show cardLoanOccupationCents, derivedLoanFields;
+    show cardLoanOccupationCents, derivedLoanFields, DebtNextPeriod;
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/holding_query.dart'
     show derivedInvestFields;
@@ -35,7 +35,6 @@ import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
-import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 
 /// 账户管理列表页。对齐 OD 原型 CSS 1:1：
@@ -113,7 +112,8 @@ int _displayValueCents(Account a, {int? Function(Account)? derivedValueFor}) {
 }
 
 /// 账户关联债务的聚合视图(贷款卡「原始/月供/下次/剩余」的数据源;
-/// 一户关联多笔时:剩余/原始 = 合计,月供/下次 = 最早到期那笔)。
+/// 一户关联多笔时:剩余/原始 = 合计,月供 = Σ 各债下一期,下次 = 最早
+/// 到期日 —— 经 [derivedLoanFields] 统一口径,F51 评审 S1/S2)。
 class AccountDebtInfo {
   const AccountDebtInfo({
     required this.remainingCents,
@@ -123,10 +123,10 @@ class AccountDebtInfo {
     required this.count,
   });
 
-  final int remainingCents; // Σ 剩余应还
+  final int remainingCents; // Σ 剩余应还(本息口径:本金 + 未还利息)
   final int totalCents; // Σ 总本金
-  final int perPeriodCents; // 最早到期债务的每期应还
-  final DateTime? nextPaymentDate; // 最早到期债务的下次还款日
+  final int? perPeriodCents; // Σ 各债下一期应还;全无期表 → null(显空态)
+  final DateTime? nextPaymentDate; // 最早到期债务的下次还款日(全无 → null)
   final int count; // 关联债务笔数
 }
 
@@ -208,25 +208,32 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
             byAccount.putIfAbsent(d.accountId, () => []).add(d);
           }
           AccountDebtInfo infoOf(List<Debt> ds) {
-            // 本息口径:剩余 = 未还本金 + 未还利息(与债务页卡片同口径)。
+            // F51 评审 S1/S2:Σ 收敛到 derivedLoanFields 唯一口径(与表单/
+            // 详情同源)。投影 map 从债实体的下一期字段构造 —— 该字段由
+            // DebtLocalDataSource._toEntity 经 debtNextPeriod 派生,值同源,
+            // 免去逐债 get 期表。无期表债(nextPaymentDate == null)不入 map
+            // → 月供计 0、日期不参与(纯函数语义)。
+            final nextByDebtId = <String, DebtNextPeriod>{
+              for (final d in ds)
+                if (d.nextPaymentDate != null)
+                  d.id: DebtNextPeriod(
+                      totalCents: d.nextPaymentAmountCents,
+                      date: d.nextPaymentDate!),
+            };
+            final f = derivedLoanFields(ds, nextByDebtId);
+            // 剩余保持「本息」手算:Σ(本金 + 未还利息)与
+            // derivedLoanFields.remainingPrincipalCents(Σ纯本金)是两套
+            // 口径 —— 本息口径由分组小计/总负债(债源)共用并被读侧测试
+            // 钉死,不与派生函数合并(避免口径漂移)。
             final remaining = ds.fold<int>(0,
                 (s, d) => s + d.remainingPrincipalCents + d.unpaidInterestCents);
-            final total =
-                ds.fold<int>(0, (s, d) => s + d.totalPrincipalCents);
-            // 最早到期那笔提供「月供/下次」口径。
-            final first = [...ds]..sort((a, b) {
-              final ad = a.nextPaymentDate;
-              final bd = b.nextPaymentDate;
-              if (ad == null && bd == null) return 0;
-              if (ad == null) return 1;
-              if (bd == null) return -1;
-              return ad.compareTo(bd);
-            });
             return AccountDebtInfo(
               remainingCents: remaining,
-              totalCents: total,
-              perPeriodCents: first.first.nextPaymentAmountCents,
-              nextPaymentDate: first.first.nextPaymentDate,
+              totalCents: f.totalPrincipalCents,
+              // 月供 = Σ 各债下一期(全无期表 → null,卡面显空态 '-',
+              // 不再取「最早到期那笔」单债值)。
+              perPeriodCents: f.nextPaymentCents,
+              nextPaymentDate: f.nextPaymentDate,
               count: ds.length,
             );
           }
@@ -331,23 +338,6 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     context.read<AccountBloc>().add(LoadAccountsRequested());
     _loadDebts();
     _loadHoldings();
-  }
-
-  /// 关联债务(loan 账户 ↔ 债务 1:1):卡面「剩余本金/月供/下次还款」以
-  /// 债务模块实时数据为准(账户静态字段从不回填,恒空导致显示错误)。
-  Debt? _debtFor(Account a) {
-    if (a.category != AccountCategory.loan) return null;
-    for (final d in _debts) {
-      if (d.accountId == a.id) return d;
-    }
-    return null;
-  }
-
-  /// 卡面价值:loan 账户优先用债务剩余本金(无关联债务回退旧口径)。
-  int _valueCents(Account a) {
-    final d = _debtFor(a);
-    if (d != null) return d.remainingPrincipalCents;
-    return _displayValueCents(a);
   }
 
   String _formatCents(int cents, String currencyCode) {
@@ -2155,9 +2145,14 @@ class _AccountCardState extends State<_AccountCard> {
     final info = widget.debtInfoFor(a);
     if (info != null) {
       final sub = info.count > 1 ? '（${info.count} 笔债务）' : '';
+      // 月供 Σ 口径:全无期表 → null 显空态 '-'(区别于 ¥0.00,见
+      // derivedLoanFields.nextPaymentCents 注释);下次同式(_fmtDate 空安全)。
+      final monthly = info.perPeriodCents == null
+          ? '-'
+          : formatCents(info.perPeriodCents!, a.currencyCode);
       return Text(
         '原始 ${formatCents(info.totalCents, a.currencyCode)} · '
-        '月供 ${formatCents(info.perPeriodCents, a.currencyCode)} · '
+        '月供 $monthly · '
         '下次 ${_fmtDate(info.nextPaymentDate)}$sub',
         style: style,
         maxLines: 1,

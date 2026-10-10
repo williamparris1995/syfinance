@@ -72,12 +72,16 @@ class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
 // ───────────────────────── fixtures(spec FR-1/FR-3 校准数) ─────────────────────────
 
 /// 挂接借入债 fixture(单位 cents;subtype 缺省 = 普通挂账户债)。
+/// [nextCents]/[nextDate]:下一未还期实体字段(生产由 _toEntity 经
+/// debtNextPeriod 派生;缺省 null = 无期表/全付清)。
 Debt _specDebt(
   String id,
   String accountId, {
   required int total,
   required int remaining,
   int unpaidInterest = 0,
+  int? nextCents,
+  DateTime? nextDate,
 }) =>
     Debt(
       id: id,
@@ -93,6 +97,8 @@ Debt _specDebt(
       version: 1,
       createdAt: DateTime(2024, 1, 1),
       updatedAt: DateTime(2024, 1, 1),
+      nextPaymentDate: nextDate,
+      nextPaymentAmountCents: nextCents ?? 0,
     );
 
 /// spec FR-1 Scenario 两笔挂接债:Σ剩余本金 = 2,968,344 + 454,032
@@ -102,6 +108,38 @@ List<Debt> _specDebts(String accountId, {int unpaidInterest = 0}) => [
           total: 3500000, remaining: 2968344, unpaidInterest: unpaidInterest),
       _specDebt('d2', accountId,
           total: 910000, remaining: 454032, unpaidInterest: unpaidInterest),
+    ];
+
+/// spec FR-1 下一未还期两笔挂接债(d1: 163,046@2026-10-12;d2: 44,744@
+/// 2026-10-25)→ 聚合月供 Σ = 207,790 cents(¥2,077.90),下次 = min
+/// 2026-10-12。评审 S1:卡副行「月供」钉 Σ 口径(fixture 与
+/// derived_loan_fields_test 同数)。
+List<Debt> _specDebtsWithNext(String accountId) => [
+      _specDebt('d1', accountId,
+          total: 3500000,
+          remaining: 2968344,
+          nextCents: 163046,
+          nextDate: DateTime(2026, 10, 12)),
+      _specDebt('d2', accountId,
+          total: 910000,
+          remaining: 454032,
+          nextCents: 44744,
+          nextDate: DateTime(2026, 10, 25)),
+    ];
+
+/// 期表 fixture(与债下一期字段同源的单行未还期;评审 S1 双口径测试供
+/// F35 还款计划面板渲染 per-debt 行)。
+List<PaymentEntry> _nextSchedule(int totalCents, DateTime date) => [
+      PaymentEntry(
+        id: 'e-$totalCents',
+        paymentDate: date,
+        principalCents: 0,
+        interestCents: 0,
+        totalCents: totalCents,
+        paid: false,
+        paidCents: 0,
+        transactionId: '',
+      ),
     ];
 
 /// 挂债贷款账户:loan 组列全部陈旧(剩余列 = 0)—— spec FR-3 Scenario 前提。
@@ -219,12 +257,15 @@ Future<void> pumpAccountsPage(
 }
 
 /// 挂 AccountDetailPage(account + 挂接债/持仓;无 AppDatabase → 信用卡
-/// breakdown 恒 null,断言不受周期面板干扰)。
+/// breakdown 恒 null,断言不受周期面板干扰)。[schedules]:按 debt id 注入
+/// 期表(缺省空 —— 既有测试面板行为不变;评审 S1 双口径测试注入单行
+/// 未还期,供 F35 还款计划面板渲染 per-debt 行)。
 Future<void> pumpDetailPage(
   WidgetTester t, {
   required Account account,
   List<Debt> debts = const [],
   List<Holding> holdings = const [],
+  Map<String, List<PaymentEntry>> schedules = const {},
 }) async {
   when(() => _accountRepo.getById(any()))
       .thenAnswer((_) async => dartz.Right(account));
@@ -248,7 +289,8 @@ Future<void> pumpDetailPage(
       .thenAnswer((_) async => dartz.Right(debts));
   for (final d in debts) {
     when(() => _debtRepo.get(d.id)).thenAnswer(
-        (_) async => dartz.Right(DebtDetail(debt: d, schedule: const [])));
+        (_) async => dartz.Right(DebtDetail(
+            debt: d, schedule: schedules[d.id] ?? const [])));
   }
   // 持仓管道:listHoldings(accountId:) 按 accountId 过滤(忠实 repo 语义)。
   when(() => _holdingRepo.listHoldings())
@@ -597,6 +639,72 @@ void main() {
           account: _staleInvest(), holdings: _investHoldings());
       expect(find.text('持仓列表'), findsOneWidget);
       expect(find.text('待 Holding 模块接入'), findsOneWidget);
+    });
+  });
+
+  // ───────── ⑥ 评审 S1/S2:月供双口径(聚合面 = Σ;per-debt 面板行 = 单债) ─────────
+
+  group('⑥ 月供双口径:accounts 卡副行 = Σ;F35 面板 per-debt 行 = 单债', () {
+    testWidgets('挂接 loan 卡副行月供 = Σ两债下一期 ¥2,077.90(非最早到期'
+        '单债 ¥1,630.46);下次 = min 日 2026-10-12', (t) async {
+      await _pin(t);
+      await pumpAccountsPage(t,
+          accounts: [_staleLoan()], debts: _specDebtsWithNext('l1'));
+      // 聚合面(卡副行)月供 = Σ 口径:163,046 + 44,744 = 207,790c。
+      expect(find.textContaining('月供 ¥2,077.90'), findsOneWidget,
+          reason: '卡副行月供 = derivedLoanFields().nextPaymentCents(Σ)');
+      // 钉死不是「最早到期那笔」单债口径(旧实现漂移,评审 S1 修复项)。
+      expect(find.textContaining('月供 ¥1,630.46'), findsNothing,
+          reason: '不得显示最早到期单债月供');
+      // 下次还款日 = min(2026-10-12, 2026-10-25);多笔挂接带笔数后缀。
+      expect(find.textContaining('下次 2026-10-12'), findsOneWidget);
+      expect(find.textContaining('（2 笔债务）'), findsOneWidget);
+      // Σtotal 同源:原始 = 3,500,000 + 910,000 = 4,410,000c(委托
+      // derivedLoanFields.totalPrincipalCents,来源唯一)。
+      expect(find.textContaining('原始 ¥44,100.00'), findsOneWidget);
+    });
+
+    testWidgets('全无期表 → 月供/下次显空态「-」(null ≠ ¥0.00)', (t) async {
+      await _pin(t);
+      // 两笔债均无下一期字段(全付清/无期表)→ nextPaymentCents == null,
+      // 卡副行显「-」而非 ¥0.00(derivedLoanFields null 语义钉死)。
+      await pumpAccountsPage(t,
+          accounts: [_staleLoan()], debts: _specDebts('l1'));
+      expect(find.textContaining('月供 - · 下次 -'), findsOneWidget,
+          reason: '全无期表 → null 显空态');
+      expect(find.textContaining('月供 ¥0.00'), findsNothing,
+          reason: 'null 是「无月供」,不得降级为 ¥0.00');
+      // 债头两值照常聚合(原始/估值不受期表有无影响)。
+      expect(find.textContaining('原始 ¥44,100.00'), findsOneWidget);
+      expect(find.text('¥34,223.76'), findsNWidgets(2));
+    });
+
+    testWidgets('spec 双口径各有其位:详情 F35 还款计划面板 per-debt 行显各债'
+        '自己的下一期(¥1,630.46 / ¥447.44),不是 Σ', (t) async {
+      await _pin(t, tall: true);
+      // 聚合面(accounts 卡副行)= Σ ¥2,077.90。
+      await pumpAccountsPage(t,
+          accounts: [_staleLoan()], debts: _specDebtsWithNext('l1'));
+      expect(find.textContaining('月供 ¥2,077.90'), findsOneWidget);
+
+      // per-debt 面板行(F35 还款计划,面板设计本义):每笔债各显自己的
+      // 下一期 —— d2 行 ¥447.44 全页唯一(Σ 口径不会出现该数);
+      // d1 行 ¥1,630.46(与 hero/stats 的最早到期单债月供同数,存在即可)。
+      await pumpDetailPage(
+        t,
+        account: _staleLoan(),
+        debts: _specDebtsWithNext('l1'),
+        schedules: {
+          'd1': _nextSchedule(163046, DateTime(2026, 10, 12)),
+          'd2': _nextSchedule(44744, DateTime(2026, 10, 25)),
+        },
+      );
+      expect(find.text('还款计划'), findsOneWidget);
+      expect(find.text('¥447.44'), findsOneWidget,
+          reason: 'd2 per-debt 行显单债下一期,非 Σ');
+      expect(find.text('¥1,630.46'), findsWidgets,
+          reason: 'd1 per-debt 行(与 hero/stats 单债月供同数)');
+      expect(find.textContaining('查看完整还款计划'), findsNWidgets(2));
     });
   });
 }

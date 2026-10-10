@@ -57,6 +57,20 @@ class _AccountFormPageState extends State<AccountFormPage> {
   Map<String, DebtNextPeriod> _nextByDebtId = const {};
   List<Holding> _attachedHoldings = const [];
 
+  // F51 评审 S4:检测完成位(编辑态 loan/investment 检测未决 → 禁保存)。
+  // 防竞态:降级提交传 null(orAbsent 保留原列)依赖降级判定已定,若检测
+  // 未决就放行保存,可能以「未降级」路径覆盖 loan 组列。编辑态类别不可切
+  // (TypeTabs 编辑态 no-op),一次性检测无悬置;失败/未注册也算完成
+  // (FR-4 静默不降级,仍可保存)。
+  bool _attachmentCheckDone = false;
+
+  /// 保存按钮禁用条件:编辑态 loan/investment 且挂接检测未决(其余态恒可存)。
+  bool get _saveBlockedByAttachmentCheck =>
+      !_attachmentCheckDone &&
+      _isEdit &&
+      (_category == AccountCategory.loan ||
+          _category == AccountCategory.investment);
+
   Account? get _existing => widget.existing;
   bool get _isEdit => _existing != null && _existing!.id.isNotEmpty;
 
@@ -153,17 +167,23 @@ class _AccountFormPageState extends State<AccountFormPage> {
           setState(() {
             _attachedDebts = linked;
             _nextByDebtId = next;
+            _attachmentCheckDone = true; // S4:检测落定,解锁保存。
           });
         }
       } else if (_category == AccountCategory.investment) {
         final r = await GetIt.instance<HoldingRepository>()
             .listHoldings(accountId: e.id);
-        r.fold((_) {}, (list) {
-          if (mounted) setState(() => _attachedHoldings = list);
-        });
+        // S4:成功/失败都算检测完成(失败按 FR-4 静默不降级,保存照常)。
+        if (mounted) {
+          setState(() {
+            r.fold((_) {}, (list) => _attachedHoldings = list);
+            _attachmentCheckDone = true;
+          });
+        }
       }
     } catch (_) {
       // getIt 未注册(测试 harness)/仓库异常:静默保持可编辑(FR-4)。
+      if (mounted) setState(() => _attachmentCheckDone = true);
     }
   }
 
@@ -674,6 +694,9 @@ class _AccountFormPageState extends State<AccountFormPage> {
                         FormActions(
                           submitLabel: _isEdit ? '保存修改' : '确认创建',
                           submitting: submitting,
+                          // S4:挂接检测未决禁保存(仅编辑态 loan/investment,
+                          // 见 _saveBlockedByAttachmentCheck)。
+                          disabled: _saveBlockedByAttachmentCheck,
                           onSubmit: _submit,
                           onCancel: () => Navigator.of(context).pop(),
                         ),

@@ -123,6 +123,7 @@ class FormActions extends StatelessWidget {
     required this.onSubmit,
     this.onCancel,
     this.submitting = false,
+    this.disabled = false,
   });
 
   final String submitLabel;
@@ -130,8 +131,13 @@ class FormActions extends StatelessWidget {
   final VoidCallback? onCancel;
   final bool submitting;
 
+  /// F51 评审 S4:提交按钮独立禁用位(不显 spinner、不锁取消)—— 供调用方
+  /// 表达「未就绪」(如挂接检测未决),与 submitting(提交中)分离。
+  final bool disabled;
+
   @override
   Widget build(BuildContext context) {
+    final submitBlocked = submitting || disabled;
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -142,7 +148,7 @@ class FormActions extends StatelessWidget {
           ),
         const SizedBox(width: AppSpacing.sm),
         FilledButton(
-          onPressed: submitting ? null : onSubmit,
+          onPressed: submitBlocked ? null : onSubmit,
           child: submitting
               ? SizedBox(
                   height: 18,

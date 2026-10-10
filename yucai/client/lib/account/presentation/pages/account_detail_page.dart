@@ -624,10 +624,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       .isBefore(y.nextPaymentDate ?? DateTime(9999))
                   ? x
                   : y);
-          final totalPrincipal = _linkedDebts
-              .fold<int>(0, (s, d) => s + d.totalPrincipalCents);
-          final remainPrincipal = _linkedDebts
-              .fold<int>(0, (s, d) => s + d.remainingPrincipalCents);
+          // F51 评审 S2:Σ原始/Σ剩余收敛到 derivedLoanFields 唯一口径
+          // (与表单/accounts 页同源,数值不变;月供/下次保持本面板语义)。
+          final loanFields = derivedLoanFields(_linkedDebts, const {});
+          final totalPrincipal = loanFields.totalPrincipalCents;
+          final remainPrincipal = loanFields.remainingPrincipalCents;
           addNum('原始本金', totalPrincipal);
           addNum('剩余本金', remainPrincipal);
           addNum('剩余利息',
@@ -1164,10 +1165,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       .isBefore(y.nextPaymentDate ?? DateTime(9999))
                   ? x
                   : y);
-          addNum('原始本金',
-              _linkedDebts.fold<int>(0, (s, d) => s + d.totalPrincipalCents));
-          addNum('剩余本金',
-              _linkedDebts.fold<int>(0, (s, d) => s + d.remainingPrincipalCents));
+          // F51 评审 S2:Σ原始/Σ剩余收敛到 derivedLoanFields(数值不变,
+          // 来源唯一);剩余利息无派生函数同义值,保持本处 fold。
+          final loanFields = derivedLoanFields(_linkedDebts, const {});
+          addNum('原始本金', loanFields.totalPrincipalCents);
+          addNum('剩余本金', loanFields.remainingPrincipalCents);
           addNum('剩余利息',
               _linkedDebts.fold<int>(0, (s, d) => s + d.unpaidInterestCents));
           addNum('月供', first2.nextPaymentAmountCents);
@@ -1440,10 +1442,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                       .isBefore(y.nextPaymentDate ?? DateTime(9999))
                   ? x
                   : y);
-          final orig = _linkedDebts
-              .fold<int>(0, (s, d) => s + d.totalPrincipalCents);
-          final remain = _linkedDebts
-              .fold<int>(0, (s, d) => s + d.remainingPrincipalCents);
+          // F51 评审 S2:Σ原始/Σ剩余收敛到 derivedLoanFields(数值不变,
+          // 来源唯一)。
+          final loanFields = derivedLoanFields(_linkedDebts, const {});
+          final orig = loanFields.totalPrincipalCents;
+          final remain = loanFields.remainingPrincipalCents;
           final repaidPct = orig > 0 ? ((orig - remain) / orig * 100) : 0.0;
           return [
             ('原始本金', _fmtSigned(orig, a.currencyCode)),
