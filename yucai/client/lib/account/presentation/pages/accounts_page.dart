@@ -1305,13 +1305,14 @@ class _GroupBlock extends StatelessWidget {
             //   bar  13(margin)+6 = 19
             //   meta 7(margin)+~15(text) = 22
             //   action bar 13(margin)+11(padding-top)+16(icon)+3+14(text)+2*2(vpad) = 61
-            //   合计 ≈ 226px,+10 余量 → mainAxisExtent = 236;
-            //   F49 fchip(信用卡挂分期时余额下追加,margin 14 + pill ≈ 35)
-            //   → 236 + 35 ≈ 271,取 272。
+            //   合计 ≈ 226px，+10 余量 → mainAxisExtent = 236
+            //   F49 fchip 约束:分期徽标**行内**呈现于脚注行(见
+            //   _sublineWidget 信用卡分支),不增卡高 —— 本值被 e2e
+            //   full_audit_test A2 实测锚定(更多菜单 tap 命中区,125%
+            //   嵌入层),改动即断 A2,钉死勿增。
             const gap = 14.0;
-            // 固定卡片高度（与列数/视口宽无关），覆盖最高卡（信用卡,
-            // 含 F49 分期徽标 fchip 行)。
-            const cardExtent = 272.0;
+            // 固定卡片高度（与列数/视口宽无关），覆盖最高卡（信用卡）。
+            const cardExtent = 236.0;
             if (constraints.maxWidth < 600) {
               // mobile：Column + SizedBox gap 还原 mainAxisSpacing:14。
               return Column(
@@ -1613,7 +1614,6 @@ class _AccountCardState extends State<_AccountCard> {
     final spec = _usageSpec(a);
     final (label, val) = _compactVal(a);
     final archived = a.status == AccountStatus.archived;
-    final chip = _cardInstallmentChip(context);
 
     return _cardShell(
       isMobile: false,
@@ -1706,10 +1706,8 @@ class _AccountCardState extends State<_AccountCard> {
               ),
             ],
           ),
-          // F49 FR-4a fchip:余额(r1 右列)下、csub 之上 —— 照 v12 .acct
-          // 顺序 top → bal → fchip → foot。
-          if (chip != null) chip,
           // .csub margin-top:14 padding-top:13 border-top 1px #e6e3dc 12.5 muted
+          // (F49 fchip 并入本行行内 —— 见 _sublineWidget 信用卡分支。)
           if (_hasSub(a)) ...[
             const SizedBox(height: 14),
             Container(
@@ -1918,7 +1916,6 @@ class _AccountCardState extends State<_AccountCard> {
     final archived = a.status == AccountStatus.archived;
     final spec = _usageSpec(a);
     final (label, val) = _compactVal(a);
-    final chip = _cardInstallmentChip(context);
 
     // .acc margin-bottom:8（由外层 GridView mainAxisSpacing 提供，故不加内 margin）。
     return _cardShell(
@@ -2002,9 +1999,6 @@ class _AccountCardState extends State<_AccountCard> {
               ),
             ],
           ),
-          // F49 FR-4a fchip:余额(r1 右列)下、额度条之上(同 _fullCard
-          // 的 v12 顺序)。
-          if (chip != null) chip,
           // .bar 5 radius:5 margin-top:10（在 .asub 之前 —— proto 顺序）
           if (spec != null) ...[
             const SizedBox(height: 10),
@@ -2040,20 +2034,20 @@ class _AccountCardState extends State<_AccountCard> {
 
   // ─── 以下为业务副信息 helper（保持原逻辑不变） ───
 
-  /// F49 FR-4a(v12 .fchip):信用卡卡面分期徽标 —— 余额下方 accent 软底
-  /// pill「分期 N 笔 · 剩余 ¥X」(N≥1 才渲染;tabular 数字,照 v12
-  /// `font-size:11/w700/radius:999px/color:var(--acc)/bg:acc 12%`)。
-  /// 非信用卡 / 无未结清挂接分期 → null(不占位)。数据源
+  /// F49 FR-4a(v12 .fchip):信用卡卡面分期徽标 —— accent 软底 pill
+  /// 「分期 N 笔 · 剩余 ¥X」(N≥1 才渲染;tabular 数字,令牌照 v12
+  /// `w700/radius:999px/color:var(--acc)/bg:acc 12%`)。**行内**呈现于
+  /// 脚注行(_sublineWidget 信用卡分支)行尾 —— 卡高被 e2e full_audit
+  /// A2 钉死(cardExtent 236,fix-loop r1),fchip 不增高(紧凑号 10.5/
+  /// v-pad 1,行高≈脚注文本行,零净增高)。数据源
   /// [widget.installmentSummaryFor] = 全量 debts 流的
   /// [cardInstallmentSummary] 归集(本金口径,与卡详情 FR-4b 区块、F50
   /// 额度占用同源)。
   Widget? _cardInstallmentChip(BuildContext context) {
-    if (a.category != AccountCategory.creditCard) return null;
     final s = widget.installmentSummaryFor(a);
     if (s.count < 1) return null;
     return Container(
-      margin: const EdgeInsets.only(top: 14), // .acct gap:14 节奏
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
         // color-mix(in srgb, var(--acc) 12%, transparent) → accent 12% 派生。
         color: context.yucai.accent.withValues(alpha: 0.12),
@@ -2062,7 +2056,7 @@ class _AccountCardState extends State<_AccountCard> {
       child: Text(
         '分期 ${s.count} 笔 · 剩余 ${formatCents(s.remainingCents, a.currencyCode)}',
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 10.5,
           fontWeight: FontWeight.w700,
           color: context.yucai.accent,
           fontFeatures: AppTypography.tabularFigures,
@@ -2125,13 +2119,27 @@ class _AccountCardState extends State<_AccountCard> {
     }
     switch (a.category) {
       case AccountCategory.creditCard:
-        return Text(
-          '额度 ${formatCents(a.creditLimitCents, a.currencyCode)} · '
-          '账单${a.creditBillingDay ?? '-'}日 / '
-          '还款${a.creditRepaymentDay ?? '-'}日',
-          style: style,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        // F49 FR-4a:fchip 并入脚注行行尾(零增高 —— 行高被 cardExtent
+        // 236/e2e A2 钉死,见 _cardInstallmentChip 注释)。文本侧
+        // Expanded+ellipsis 保证窄卡不溢出。
+        final chip = _cardInstallmentChip(context);
+        return Row(
+          children: [
+            Expanded(
+              child: Text(
+                '额度 ${formatCents(a.creditLimitCents, a.currencyCode)} · '
+                '账单${a.creditBillingDay ?? '-'}日 / '
+                '还款${a.creditRepaymentDay ?? '-'}日',
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (chip != null) ...[
+              const SizedBox(width: 8),
+              chip,
+            ],
+          ],
         );
       case AccountCategory.investment:
         final r = a.investReturnYtd ?? 0.0;

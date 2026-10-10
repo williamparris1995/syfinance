@@ -3,7 +3,8 @@
 ///
 /// 链路 A(变更级联):记一笔已知金额交易 → update 改金额(同账户)→ 余额差值
 /// = 新旧差;update 换账户 → 旧账户回滚 + 新账户入账(双腿);delete → 余额
-/// 回滚至基线;账户非零余额删除守卫;净零(有历史)可删;archived 置位。
+/// 回滚至基线;账户删除守卫三重门(非零拒删/净零有史拒删且保留/净零
+/// 无史可删);archived 置位。
 /// 链路 B(列表):accountId 过滤 / 月份窗 / typeFilter(粗分类:2 笔平衡分录
 /// 即 transfer,income/expense 不可分,照实断言)/ 默认排序 transactionDate
 /// DESC,id DESC / pageSize=2 分页拼接 = 全量;⑦ 补(F7 FR-5)category 维度 /
@@ -256,9 +257,9 @@ void main() {
             (f) => f.message, 'message', '交易不存在')));
   });
 
-  testWidgets('级链④账户删除守卫:非零拒删;清零后净零可删(历史 entries 成孤儿为现状语义)',
+  testWidgets('级链④账户删除守卫:非零拒删;净零有史拒删且保留;净零无史可删',
       (t) async {
-    // 非零余额(5,000.00)→ 拒删,文案照生产代码逐字。
+    // 门1:非零余额(5,000.00)→ 拒删,文案照生产代码逐字。
     await expectLater(
       accounts.delete(guardId),
       throwsA(isA<ServerFailure>().having((f) => f.message, 'message',
@@ -266,6 +267,7 @@ void main() {
     );
 
     // 清零:转出 5,000.00 到钱包(debit 钱包 / credit 守卫)。
+    // (清零交易同时是 ⑥/⑦ 列表断言的夹具,必须保留在库,不可删交易再删户。)
     await txns.recordTransaction(RecordTransactionParams(
       transactionDate: DateTime.utc(2026, 6, 15),
       description: '级链清零',
@@ -278,22 +280,33 @@ void main() {
     ));
     expect(await balanceOf(db, guardId), 0, reason: 'sanity:守卫账户已净零');
 
-    // 净零 + 有交易历史 → delete 成功(守卫只看 currentBalanceCents)。
-    await accounts.delete(guardId);
+    // 门2(ee57fefa 引用守卫,镜像 server DeleteAccount R5-E decision 5):
+    // 净零 + 有交易历史 → 拒删。守卫看 transaction_entries 的存在性而非
+    // 净额 —— 带史账户的正确归宿是「关闭账户」归档;旧「净零放行 + 分录
+    // 成孤儿」语义已被守卫封死,此处改断言拒删且账户保留。
     await expectLater(
-      accounts.getById(guardId),
+      accounts.delete(guardId),
+      throwsA(isA<ServerFailure>().having((f) => f.message, 'message',
+          '该账户有交易记录，无法删除；可改用「关闭账户」归档')),
+    );
+    final kept = await accounts.getById(guardId);
+    expect(kept.id, guardId, reason: '拒删后账户保留(getById 仍可读)');
+    expect(kept.currentBalanceCents, 0, reason: '保留账户余额仍净零');
+
+    // 门3:净零 + 无交易历史 → 删除传播成立。行消失且无孤儿分录 ——
+    // 引用守卫保证经由 delete 不可能新增悬挂引用。
+    final pristineId = await fundsAccount('级链净零无史', 0);
+    await accounts.delete(pristineId);
+    await expectLater(
+      accounts.getById(pristineId),
       throwsA(isA<ServerFailure>()
           .having((f) => f.message, 'message', '账户不存在')),
     );
-
-    // 照实断言(现状语义,非缺陷定性):transaction_entries.account_id 是
-    // 跨模块普通列(无 FK,app 层完整性),账户删除不级联清理 entries
-    // —— 历史分录成为悬挂引用仍在库中。
-    final orphanEntries = await (db.select(db.transactionEntries)
-          ..where((e) => e.accountId.equals(guardId)))
+    final pristineEntries = await (db.select(db.transactionEntries)
+          ..where((e) => e.accountId.equals(pristineId)))
         .get();
-    expect(orphanEntries, isNotEmpty,
-        reason: '净零删除后历史 entries 保留(孤儿现状语义,注释钉死)');
+    expect(pristineEntries, isEmpty,
+        reason: '无史净零删除后无孤儿分录(引用守卫杜绝新增悬挂引用)');
   });
 
   testWidgets('级链⑤账户归档:archived 置位,状态字段持久化', (t) async {
