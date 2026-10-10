@@ -79,6 +79,9 @@ class DebtRepositoryImpl implements DebtRepository {
     int interestWaivedCents = 0,
     int billingDay = 0,
     int flatFeeCents = 0,
+    // F50 债级开关(本地私有列,不在 proto 契约):仅透传本地 DS;remote
+    // 不透传 —— bound 在线编辑后镜像重建走 keep-existing 保留本地值。
+    bool countsTowardCardLimit = true,
     bool restructureOnly = false,
   }) =>
       _routedWrite(MirrorModule.debt,
@@ -136,6 +139,7 @@ class DebtRepositoryImpl implements DebtRepository {
             interestWaivedCents: interestWaivedCents,
             billingDay: billingDay,
             flatFeeCents: flatFeeCents,
+            countsTowardCardLimit: countsTowardCardLimit,
             restructureOnly: restructureOnly,
           ));
 
@@ -165,6 +169,9 @@ class DebtRepositoryImpl implements DebtRepository {
     // proto 加字段后在此接入。当前编辑表单(UpdateDebtParams/debt_form_page)
     // 未携带金额 → 暂无调用方,参数 dormant(T1 的 DS 侧已就绪)。
     int? totalPrincipalCents,
+    // F50 债级开关(本地私有列):仅透传本地 DS;remote 不透传 —— bound
+    // 在线编辑经 RPC 改不到该列,镜像重建 keep-existing 保留本地值。
+    bool countsTowardCardLimit = true,
   }) =>
       _routedWrite(MirrorModule.debt,
           () => _remote.update(
@@ -210,6 +217,7 @@ class DebtRepositoryImpl implements DebtRepository {
             nth: nth,
             interestWaivedCents: interestWaivedCents,
             totalPrincipalCents: totalPrincipalCents,
+            countsTowardCardLimit: countsTowardCardLimit,
           ));
 
   @override

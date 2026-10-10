@@ -28,6 +28,8 @@ import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
+import 'package:yucai_client/debt/domain/debt_query.dart'
+    show cardLoanOccupationCents;
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/hero_shell.dart';
@@ -1338,14 +1340,24 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     switch (a.category) {
       case AccountCategory.creditCard:
         final limit = a.creditLimitCents;
-        final used = a.currentBalanceCents.abs(); // 欠款为负，取绝对值
+        // F50:已用 = 欠款 + 卡贷额度占用(银行口径:仅剩余本金 + 债级开关
+        // 过滤 —— 复用 domain 纯函数,口径单一事实源)。数据源取 _debtPlans:
+        // 该管道已并入「subtype==card_loan 且 collectionAccountId==本卡」的
+        // 挂卡卡贷(F48);纯函数内部再做 subtype/挂接/开关三重过滤,普通
+        // 挂账户债(accountId 路径)不会误计。**display-only**:仅四卡显示
+        // 口径,余额/hero/账单周期推导均不含占用。
+        final occupation = cardLoanOccupationCents(
+            _debtPlans.map((p) => p.debt).toList(), a.id);
+        final used =
+            a.currentBalanceCents.abs() + occupation; // 欠款为负，取绝对值
         // v5 原型页面级对齐:breakdown 已算出 → 四卡换账单周期语义卡
         //(上期剩余(应还) = 还款日应还,accent 强调 —— 原型 sum-strip 第二卡;
         // 本期新增 = 未出账,第三卡)。未算出/未设账单日 → 回退额度四卡。
         final b = _statementBreakdown;
         if (b != null) {
           // 可用额度(而非静态信用额度):分期/消费入账即扣减,还款日还清恢复
-          // —— 静态额度在信息卡字段里已有展示。
+          // —— 静态额度在信息卡字段里已有展示。可用 = limit − 已用(已用含
+          // 卡贷占用,F50:再减占用,银行可用口径)。
           final avail = (limit - used).clamp(0, limit);
           return [
             ('可用额度', _fmtSigned(avail, a.currencyCode)),
@@ -1354,6 +1366,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
             ('本期新增(未出账)', _fmtSigned(b.cycleNewCents, a.currencyCode)),
           ];
         }
+        // 回退额度四卡:可用同式 = limit − 已用(已用含卡贷占用)。
         final avail = (limit - used).clamp(0, limit);
         return [
           ('信用额度', _fmtSigned(limit, a.currencyCode)),

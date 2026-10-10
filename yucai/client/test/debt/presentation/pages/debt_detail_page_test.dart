@@ -691,6 +691,108 @@ void main() {
   });
 
   // ───────────────────────── 更多菜单(删除) ─────────────────────────
+  // ───────── F50 计入挂接卡额度占用(详情只读行) ─────────
+  group('F50 卡贷额度占用只读行', () {
+    Account ccAccount() => Account(
+          id: 'cc-1',
+          name: '招行信用卡',
+          accountType: AccountType.liability,
+          category: AccountCategory.creditCard,
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          currentBalanceCents: 0,
+          ownership: Ownership.personal,
+          status: AccountStatus.active,
+          creditLimitCents: 5000000,
+        );
+
+    Debt cardLoanDebt({bool counts = true, String? collectionId = 'cc-1'}) =>
+        Debt(
+          id: 'd-cl',
+          accountId: 'a1',
+          counterparty: '招行e招贷',
+          interestRate: 0.1,
+          amortization: AmortizationMethod.equalPrincipalInterest,
+          startDate: DateTime(2026, 7, 1),
+          dueDate: DateTime(2027, 7, 1),
+          totalPrincipalCents: 6000000,
+          remainingPrincipalCents: 6000000,
+          version: 1,
+          subtype: DebtSubtypes.cardLoan,
+          collectionAccountId: collectionId,
+          countsTowardCardLimit: counts,
+          createdAt: DateTime(2026, 7, 1),
+          updatedAt: DateTime(2026, 8, 1),
+        );
+
+    testWidgets('挂接卡贷展示开关当前值:计入(true)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(
+        detail: _detail(debt: cardLoanDebt(counts: true)),
+        accounts: [ccAccount()],
+      ));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('cardLimitFlagRow')), findsOneWidget);
+      expect(find.textContaining('计入挂接卡额度占用'), findsOneWidget);
+      expect(find.text('计入'), findsOneWidget);
+      expect(find.text('不计入'), findsNothing);
+    });
+
+    testWidgets('挂接卡贷展示开关当前值:不计入(false)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(
+        detail: _detail(debt: cardLoanDebt(counts: false)),
+        accounts: [ccAccount()],
+      ));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('cardLimitFlagRow')), findsOneWidget);
+      expect(find.text('不计入'), findsOneWidget);
+      expect(find.text('计入'), findsNothing);
+    });
+
+    testWidgets('非挂接(独立账单)卡贷不显示只读行', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(
+        detail: _detail(debt: cardLoanDebt(collectionId: null)),
+        accounts: [ccAccount()],
+      ));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('cardLimitFlagRow')), findsNothing,
+          reason: '独立账单卡贷无挂接卡,开关语义不适用');
+    });
+
+    testWidgets('普通债务(非卡贷)不显示只读行', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final mortgage = Debt(
+        id: 'd-m',
+        accountId: 'a1',
+        counterparty: '招行房贷',
+        interestRate: 0.04,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2021, 6, 15),
+        dueDate: DateTime(2051, 6, 15),
+        totalPrincipalCents: 280000000,
+        remainingPrincipalCents: 210000000,
+        version: 1,
+        subtype: DebtSubtypes.mortgage,
+        createdAt: DateTime(2021, 6, 15),
+        updatedAt: DateTime(2026, 6, 1),
+      );
+      await t.pumpWidget(_harness(detail: _detail(debt: mortgage)));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('cardLimitFlagRow')), findsNothing,
+          reason: '非卡贷债务不显示额度占用只读行');
+    });
+  });
+
   // 修复「更多菜单待接入」占位:更多 → 删除债务 → 二次确认 → 成功回列表。
   // (镜像 receivable_detail_page_test;删除成功信号 DebtsLoaded → go /debts)
   group('更多菜单删除', () {

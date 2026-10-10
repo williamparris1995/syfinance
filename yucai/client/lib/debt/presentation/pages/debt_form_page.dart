@@ -106,6 +106,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // 还(招行 e招贷)。账单日/还款日落在挂靠贷款账户(creditBillingDay/
   // creditRepaymentDay 列),创建时随自动建户写入,编辑经账户表单修改。
   bool _cardLoanIndependent = false;
+  // F50 债级开关:剩余本金是否计入挂接卡额度占用(默认开;仅挂接卡贷
+  // 显示开关行,但状态对全部 subtype 持有 —— 编辑回填既有值,非卡贷恒
+  // 默认 true,保存时原样透传)。
+  bool _countsTowardCardLimit = true;
   final _clBillDayCtrl = TextEditingController();
   final _clRepayDayCtrl = TextEditingController();
   final _ccFeeCtrl = TextEditingController();
@@ -161,6 +165,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
           (e.collectionAccountId ?? '').isNotEmpty) {
         _cardLoanCardId = e.collectionAccountId;
       }
+      // F50 编辑回填:既有开关值保持(独立账单卡贷虽不显示开关行,值也
+      // 原样保留 —— 保存时透传不丢)。
+      _countsTowardCardLimit = e.countsTowardCardLimit;
       _guarantorNameCtrl.text = e.guarantorName;
       _guarantorContactCtrl.text = e.guarantorContact;
     } else {
@@ -237,6 +244,44 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // ===================== 卡贷(F48)helpers =====================
 
   bool get _isCardLoan => _subtypeKey == DebtSubtypes.cardLoan;
+
+  /// F50:额度占用开关行仅当「卡贷 + 并账模式 + 已挂接卡」显示 —— 独立
+  /// 账单/未挂接卡的分期不存在「占卡额度」语义。
+  bool get _showCardLimitSwitch =>
+      _isCardLoan &&
+      !_cardLoanIndependent &&
+      (_cardLoanCardId ?? '').isNotEmpty;
+
+  /// F50 债级开关行「计入挂接卡额度占用」:默认开;银行备用金类独立
+  /// 额度、不占卡额度的分期可置关。值随表单保存写入(全链路透传)。
+  /// 外壳用 Material + shape(SwitchListTile 须以 Material 为最近祖先,
+  /// 否则 DecoratedBox 会盖掉水波纹并触发断言)。
+  Widget _cardLimitSwitchField() {
+    return Material(
+      key: const ValueKey('countsTowardCardLimitRow'),
+      color: context.yucai.surface,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: context.yucai.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: SwitchListTile(
+        key: const ValueKey('countsTowardCardLimitSwitch'),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 13),
+        title: Text('计入挂接卡额度占用',
+            style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: context.yucai.fg)),
+        subtitle: Text('银行备用金类独立额度、不占卡额度的分期可关闭',
+            style: TextStyle(
+                fontSize: 11.5, height: 1.4, color: context.yucai.muted)),
+        value: _countsTowardCardLimit,
+        onChanged: (v) => setState(() => _countsTowardCardLimit = v),
+        // 照 template_form 自动记账开关先例(activeThumbColor,token 化 accent)。
+        activeThumbColor: context.yucai.accent,
+      ),
+    );
+  }
 
   /// 信用卡候选(挂接并账卡)。
   List<Account> get _cardAccounts => _accounts
@@ -737,6 +782,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
         monthlyMode: _effectiveRule.monthlyModeInt,
         nth: _effectiveRule.nth,
         interestWaivedCents: _waiverCents(),
+        // F50 债级开关随保存写入(编辑回填值或切换后的新值)。
+        countsTowardCardLimit: _countsTowardCardLimit,
       )));
     } else {
       // 卡贷(F48):债务落在自动创建的贷款类负债户(用户不手选);失败则
@@ -800,6 +847,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
         interestWaivedCents: _waiverCents(),
         billingDay: 0,
         flatFeeCents: _isCardLoan ? _cardLoanFeeCents() : 0,
+        // F50 债级开关随创建写入(默认 true;备用金类可切关)。
+        countsTowardCardLimit: _countsTowardCardLimit,
       )));
     }
   }
@@ -1357,6 +1406,11 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ),
         ),
       ]),
+      // F50 债级开关行:仅挂接卡贷(并账 + 已选卡)显示,默认开。
+      if (_showCardLimitSwitch) ...[
+        const SizedBox(height: AppSpacing.sm),
+        _cardLimitSwitchField(),
+      ],
       if (_cardLoanIndependent) ...[
         const SizedBox(height: AppSpacing.sm),
         _ODField(

@@ -52,6 +52,8 @@ class CreateDebtParams extends Equatable {
     this.interestWaivedCents = 0,
     this.billingDay = 0,
     this.flatFeeCents = 0,
+    // F50 债级开关:剩余本金是否计入挂接卡额度占用(默认 true)。
+    this.countsTowardCardLimit = true,
   });
   final String accountId;
   final String counterparty;
@@ -93,6 +95,9 @@ class CreateDebtParams extends Equatable {
   /// 卡贷(F48):每期固定手续费(分,银行现金分期口径 = 按全额本金计;
   /// 0 = 常规摊销)。普通债务恒 0。
   final int flatFeeCents;
+  /// F50 债级开关:剩余本金是否计入挂接卡额度占用(卡贷并账语义;默认
+  /// true = 计入,备用金类独立额度置 false)。表单开关随保存携带。
+  final bool countsTowardCardLimit;
 
   @override
   List<Object?> get props => [
@@ -120,6 +125,7 @@ class CreateDebtParams extends Equatable {
         interestWaivedCents,
         billingDay,
         flatFeeCents,
+        countsTowardCardLimit,
       ];
 }
 
@@ -151,6 +157,9 @@ class UpdateDebtParams extends Equatable {
     this.monthlyMode,
     this.nth,
     this.interestWaivedCents,
+    // F50 债级开关:编辑保存写入(表单加载已回填既有值;非卡贷路径恒
+    // 默认 true,既有调用点编译/行为不变)。
+    this.countsTowardCardLimit = true,
   });
   final String id;
   final String counterparty;
@@ -182,10 +191,13 @@ class UpdateDebtParams extends Equatable {
   final int? nth;
   /// 一次性利息减免(分):null = 保持现状;set = 替换(0 清零)。
   final int? interestWaivedCents;
+  /// F50 债级开关:剩余本金是否计入挂接卡额度占用。表单编辑随保存携带
+  /// (回填值或切换后的新值);本地私有列,remote 不透传。
+  final bool countsTowardCardLimit;
 
   @override
   List<Object?> get props =>
-      [id, counterparty, interestRate, version, subtype, contact, contractRef, guarantorName, guarantorContact, collectionAccountId, amortizationIndex, dueDate, termPeriods, cycle, interval, weekdayMask, monthlyMode, nth, interestWaivedCents];
+      [id, counterparty, interestRate, version, subtype, contact, contractRef, guarantorName, guarantorContact, collectionAccountId, amortizationIndex, dueDate, termPeriods, cycle, interval, weekdayMask, monthlyMode, nth, interestWaivedCents, countsTowardCardLimit];
 }
 
 class UpdateDebtRequested extends DebtEvent {

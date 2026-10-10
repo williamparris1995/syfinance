@@ -58,6 +58,9 @@ class DebtMapper {
       nextPaymentAmountCents: dto.nextPaymentAmountCents.toInt(),
       nextPaymentPeriodNo: dto.nextPaymentPeriodNo,
       remainingTrendCents: dto.remainingTrendCents.toInt(),
+      // countsTowardCardLimit(F50 债级开关)不在 proto 契约 —— 此处走实体
+      // 构造缺省 true;镜像重建时由 BoundMirror keep-existing 回填本地现值
+      // (见 mirror_mappers.mirrorDebtToRow 注释),proto 化前不得在此透传。
     );
   }
 

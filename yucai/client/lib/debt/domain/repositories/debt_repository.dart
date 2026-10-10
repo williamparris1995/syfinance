@@ -35,6 +35,9 @@ abstract class DebtRepository {
     // bound 路由不透传(见 DebtRepositoryImpl 注)。
     int billingDay = 0,
     int flatFeeCents = 0,
+    // F50 债级开关:剩余本金是否计入挂接卡额度占用(默认 true;本地私有
+    // 列,remote 不透传,见 DebtRepositoryImpl 注)。
+    bool countsTowardCardLimit = true,
     // 信用卡分期重构:负债余额已含本金,跳过开账双写(否则欠款翻倍)。
     // 仅 borrowedIn;与 sourceAccountId 互斥。
     bool restructureOnly = false,
@@ -60,6 +63,9 @@ abstract class DebtRepository {
     int? monthlyMode,
     int? nth,
     int? interestWaivedCents,
+    // F50 债级开关:编辑保存写入(默认 true;表单加载已回填既有值,非
+    // 卡贷路径恒原值)。本地私有列,remote 不透传。
+    bool countsTowardCardLimit = true,
   });
   Future<Either<Failure, void>> delete(String id);
 

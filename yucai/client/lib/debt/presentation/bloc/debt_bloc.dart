@@ -102,6 +102,8 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
         interestWaivedCents: p.interestWaivedCents,
         billingDay: p.billingDay,
         flatFeeCents: p.flatFeeCents,
+        // F50 债级开关随创建透传(默认 true,非卡贷路径行为不变)。
+        countsTowardCardLimit: p.countsTowardCardLimit,
       );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
@@ -138,6 +140,8 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       monthlyMode: p.monthlyMode,
       nth: p.nth,
       interestWaivedCents: p.interestWaivedCents,
+      // F50 债级开关随编辑透传(表单回填原值或切换后的新值)。
+      countsTowardCardLimit: p.countsTowardCardLimit,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),

@@ -1018,4 +1018,73 @@ void main() {
           throwsA(isA<ValidationFailure>()));
     });
   });
+
+  // ───────── F50 卡贷额度占用债级开关(写侧) ─────────
+  // create/update 透传 countsTowardCardLimit 落本地私有列,读侧经 _toEntity
+  // 透出(Task A 已落);默认 true(既有调用点/旧行为不变)。
+  group('F50 countsTowardCardLimit 写侧', () {
+    test('create 传 false 落库,读侧透出 false;缺省 true', () async {
+      final off = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '备用金分期',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2027, 1, 1),
+        totalPrincipalCents: 600000,
+        type: DebtType.borrowedIn,
+        subtype: 'card_loan',
+        collectionAccountId: 'acc-cash',
+        countsTowardCardLimit: false,
+      );
+      expect((await debts.get(off.id)).debt.countsTowardCardLimit, isFalse);
+      // 行内私有列同步落 false(非仅 entity 层兜底)。
+      final row = await database.debtDao.getDebtById(off.id);
+      expect(row!.countsTowardCardLimit, isFalse);
+
+      // 缺省(既有调用点不传)= true。
+      final on = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '占额分期',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2027, 1, 1),
+        totalPrincipalCents: 600000,
+        type: DebtType.borrowedIn,
+        subtype: 'card_loan',
+        collectionAccountId: 'acc-cash',
+      );
+      expect((await debts.get(on.id)).debt.countsTowardCardLimit, isTrue);
+    });
+
+    test('update 传 false 落库(编辑切换开关后保存)', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: 'e招贷',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2027, 1, 1),
+        totalPrincipalCents: 600000,
+        type: DebtType.borrowedIn,
+        subtype: 'card_loan',
+        collectionAccountId: 'acc-cash',
+      );
+      expect((await debts.get(d.id)).debt.countsTowardCardLimit, isTrue);
+      final updated = await debts.update(
+        id: d.id,
+        counterparty: 'e招贷',
+        interestRate: 0,
+        version: d.version,
+        subtype: 'card_loan',
+        collectionAccountId: 'acc-cash',
+        countsTowardCardLimit: false,
+      );
+      expect(updated.countsTowardCardLimit, isFalse);
+      expect((await database.debtDao.getDebtById(d.id))!.countsTowardCardLimit,
+          isFalse,
+          reason: '编辑保存后本地私有列须落新值');
+    });
+  });
 }

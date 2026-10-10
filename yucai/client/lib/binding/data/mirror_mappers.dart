@@ -89,7 +89,15 @@ db.TransactionEntriesCompanion mirrorEntryToRow(
       note: e.note,
     );
 
-db.DebtsCompanion mirrorDebtToRow(Debt d) => db.DebtsCompanion.insert(
+/// 债务实体 → drift 行(mirror 重建用)。
+///
+/// [countsTowardCardLimit](F50 债级开关)是**本地私有列**,不在 proto 契约 ——
+/// proto 重建的实体只带构造缺省 true,直接落库会覆写本地用户已置的 false。
+/// 调用方(BoundMirror._refreshDebts)须把重建前快照的本地现值显式透传进来
+/// (keep-existing);本地不存在的服务端新行透传 true(= 列 DEFAULT)。
+/// 该字段 proto 化后本参数与快照逻辑一并移除。
+db.DebtsCompanion mirrorDebtToRow(Debt d, {bool? countsTowardCardLimit}) =>
+    db.DebtsCompanion.insert(
       id: d.id,
       accountId: d.accountId,
       counterparty: d.counterparty,
@@ -114,6 +122,8 @@ db.DebtsCompanion mirrorDebtToRow(Debt d) => db.DebtsCompanion.insert(
       version: d.version,
       createdAt: _utc(d.createdAt),
       updatedAt: _utc(d.updatedAt),
+      countsTowardCardLimit:
+          Value(countsTowardCardLimit ?? d.countsTowardCardLimit),
     );
 
 db.PaymentScheduleEntriesCompanion mirrorScheduleToRow(

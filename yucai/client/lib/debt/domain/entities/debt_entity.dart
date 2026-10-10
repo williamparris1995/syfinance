@@ -34,6 +34,7 @@ class Debt extends Equatable {
     this.nextPaymentAmountCents = 0,
     this.nextPaymentPeriodNo = 0,
     this.remainingTrendCents = 0,
+    this.countsTowardCardLimit = true,
   });
 
   final String id;
@@ -93,6 +94,11 @@ class Debt extends Equatable {
   final int nextPaymentAmountCents; // 下一期还款金额(本+利)
   final int nextPaymentPeriodNo; // 下一期期数
   final int remainingTrendCents; // 剩余趋势(用于图表/预警,服务端算)
+  /// 是否计入挂接卡额度占用(F50 债级开关):卡贷挂接信用卡时,剩余本金
+  /// 是否占用该卡可用额度(银行口径)。默认 true(既有债全计入,行为不变);
+  /// 备用金类「独立额度、不占卡」置 false。本地私有列(不在 proto/envelope
+  /// 契约),sync 重建 keep-existing,详见 mapper/mirror 注释。
+  final bool countsTowardCardLimit;
 
   /// 已还比例 (total-remaining)/total,0~1。total=0 时 0。
   double get progressRatio => totalPrincipalCents <= 0
@@ -132,6 +138,7 @@ class Debt extends Equatable {
         nextPaymentAmountCents,
         nextPaymentPeriodNo,
         remainingTrendCents,
+        countsTowardCardLimit,
       ];
 }
 

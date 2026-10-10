@@ -180,6 +180,65 @@ void main() {
     verifyNoMoreInteractions(remote);
   });
 
+  test('F50:create/update 透传 countsTowardCardLimit 到本地 DS(remote 不透传)',
+      () async {
+    tracker.isGuest = true; // guest → 本地路由,零远端调用。
+    await db.accountDao.insertAccount(AccountsCompanion.insert(
+      id: 'a1',
+      name: 'loan',
+      accountType: 2, // liability
+      category: 9,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: 1,
+      icon: '',
+      color: '',
+      chartCode: '',
+      isSystem: false,
+      sortOrder: 0,
+      institution: '',
+      cardNumberTail: '',
+      notes: '',
+      goldProductType: '',
+      status: 1,
+      version: 1,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+    ));
+    final created = await repo.create(
+      accountId: 'a1',
+      counterparty: '备用金分期',
+      interestRate: 5.0,
+      amortizationIndex: 0,
+      startDate: DateTime(2026, 1, 1),
+      dueDate: DateTime(2026, 12, 31),
+      totalPrincipalCents: 100000,
+      type: DebtType.borrowedIn,
+      subtype: 'card_loan',
+      countsTowardCardLimit: false,
+    );
+    final debtId = created.fold((_) => '', (d) => d.id);
+    expect(created.isRight(), isTrue);
+    expect((await db.debtDao.getDebtById(debtId))!.countsTowardCardLimit,
+        isFalse,
+        reason: 'create 透传 false 须落本地私有列');
+
+    final result = await repo.update(
+      id: debtId,
+      counterparty: '备用金分期',
+      interestRate: 5.0,
+      version: 1,
+      countsTowardCardLimit: true,
+    );
+    expect(result.isRight(), isTrue);
+    expect((await db.debtDao.getDebtById(debtId))!.countsTowardCardLimit,
+        isTrue,
+        reason: 'update 透传新值须落本地私有列');
+    // countsTowardCardLimit 是本地私有列(不在 proto 契约)→ 远端零交互。
+    verifyNoMoreInteractions(remote);
+  });
+
   test('delete success returns Right(null)', () async {
     when(() => remote.delete('d1')).thenAnswer((_) async {});
     final result = await repo.delete('d1');

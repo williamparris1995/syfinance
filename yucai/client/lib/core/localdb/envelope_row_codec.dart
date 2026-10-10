@@ -104,6 +104,12 @@ db.TransactionEntriesCompanion entryRowFromEnvelope(
     );
 
 /// 债务头行 → DebtsCompanion。
+///
+/// F50 keep-existing 契约:counts_toward_card_limit(本地私有列,不在
+/// envelope/proto 契约)**刻意不映射** —— companion 缺该列(Value.absent)时
+/// PullApplier 的 insertOnConflictUpdate 不会把它写进 DO UPDATE SET(同 id
+/// 覆盖 = 本地现值保留),新行走列 DEFAULT 1 = true。proto 化前不得在此
+/// 补键(补了即覆写本地开关)。
 db.DebtsCompanion debtRowFromEnvelope(Map<dynamic, dynamic> d) =>
     db.DebtsCompanion.insert(
       id: d['ID'] as String,

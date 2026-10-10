@@ -25,6 +25,8 @@ import 'package:yucai_client/core/notifications/due_target.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
+import 'package:yucai_client/debt/domain/debt_query.dart'
+    show cardLoanOccupationCents;
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:design_kit/design_kit.dart';
@@ -685,6 +687,11 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                       accounts: entry.value,
                       formatCents: _formatCents,
                       debtInfoFor: _debtInfoFor,
+                      // F50:卡贷额度占用(仅剩余本金 + 开关过滤,domain 纯函数)
+                      // 注入信用卡卡片「已用/利用率」;display-only —— 不进任何
+                      // 余额/负债聚合/净资产口径。
+                      occupationFor: (a) =>
+                          cardLoanOccupationCents(_debts, a.id),
                       onEdit: _openEditForm,
                       onDuplicate: _openCopyForm,
                       onClose: _confirmClose,
@@ -1145,12 +1152,17 @@ class _ChipState extends State<_Chip> {
 
 // ───────────────────────── 分组 ─────────────────────────
 
+/// 卡贷额度占用查询的缺省(恒 0):不注入闭包的调用方(测试 harness 等)
+/// 行为与 F50 前完全一致。
+int _zeroOccupation(Account _) => 0;
+
 class _GroupBlock extends StatelessWidget {
   const _GroupBlock({
     required this.type,
     required this.accounts,
     required this.formatCents,
     required this.debtInfoFor,
+    this.occupationFor = _zeroOccupation,
     required this.onEdit,
     required this.onDuplicate,
     required this.onClose,
@@ -1162,6 +1174,11 @@ class _GroupBlock extends StatelessWidget {
   final List<Account> accounts;
   final String Function(int, String) formatCents;
   final AccountDebtInfo? Function(Account) debtInfoFor;
+
+  /// 卡贷额度占用(分;F50 银行口径:仅剩余本金 + 债级开关过滤)查询,
+  /// 供信用卡卡片「已用/利用率」计入。缺省恒 0(不影响既有调用方)。
+  /// **display-only**:只进显示口径,不改任何聚合/净资产计算。
+  final int Function(Account) occupationFor;
   final void Function(Account) onEdit;
   final void Function(Account) onDuplicate;
   final void Function(Account) onClose;
@@ -1298,6 +1315,7 @@ class _GroupBlock extends StatelessWidget {
                   for (var i = 0; i < accounts.length; i++) ...[
                     _AccountCard(
                       account: accounts[i],
+                      cardLoanOccupationCents: occupationFor(accounts[i]),
                       formatCents: formatCents,
                       debtInfoFor: debtInfoFor,
                       onEdit: () => onEdit(accounts[i]),
@@ -1333,6 +1351,7 @@ class _GroupBlock extends StatelessWidget {
               itemCount: accounts.length,
               itemBuilder: (_, i) => _AccountCard(
                 account: accounts[i],
+                cardLoanOccupationCents: occupationFor(accounts[i]),
                 formatCents: formatCents,
                 debtInfoFor: debtInfoFor,
                 onEdit: () => onEdit(accounts[i]),
@@ -1357,6 +1376,7 @@ class _GroupBlock extends StatelessWidget {
 class _AccountCard extends StatefulWidget {
   const _AccountCard({
     required this.account,
+    this.cardLoanOccupationCents = 0,
     required this.formatCents,
     required this.debtInfoFor,
     required this.onEdit,
@@ -1367,6 +1387,11 @@ class _AccountCard extends StatefulWidget {
   });
 
   final Account account;
+
+  /// 卡贷额度占用(分;F50 银行口径:仅剩余本金 + 开关过滤)。信用卡卡片
+  /// 「已用 X / 额度」与利用率条计入 —— **display-only**,不参与任何余额/
+  /// 聚合口径。缺省 0(未注入时行为与 F50 前一致)。
+  final int cardLoanOccupationCents;
   final String Function(int, String) formatCents;
   final AccountDebtInfo? Function(Account) debtInfoFor;
   final VoidCallback onEdit;
@@ -1707,8 +1732,10 @@ class _AccountCardState extends State<_AccountCard> {
               children: [
                 Flexible(
                   child: Text(
+                    // F50:已用 = 欠款 + 卡贷额度占用(银行口径;仅显示口径,
+                    // 卡面主数字/小计/总负债仍按欠款计)。
                     a.category == AccountCategory.creditCard
-                        ? '已用 ${formatCents(a.currentBalanceCents.abs(), a.currencyCode)} / ${formatCents(a.creditLimitCents, a.currencyCode)}'
+                        ? '已用 ${formatCents(a.currentBalanceCents.abs() + widget.cardLoanOccupationCents, a.currencyCode)} / ${formatCents(a.creditLimitCents, a.currencyCode)}'
                         : '已还 ${formatCents((a.loanOriginalCents ?? 0) - (a.loanRemainingCents ?? 0), a.currencyCode)} / ${formatCents(a.loanOriginalCents ?? 0, a.currencyCode)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -2126,7 +2153,10 @@ class _AccountCardState extends State<_AccountCard> {
     switch (a.category) {
       case AccountCategory.creditCard:
         if (a.creditLimitCents <= 0) return null;
-        final v = (a.currentBalanceCents.abs() / a.creditLimitCents)
+        // F50:利用率分子 = 欠款 + 卡贷占用(与 bar-meta「已用」同式),
+        // clamp(0,1) 保留(超限封顶 100%)。
+        final v = ((a.currentBalanceCents.abs() + widget.cardLoanOccupationCents) /
+                a.creditLimitCents)
             .clamp(0.0, 1.0);
         return (v, context.yucai.negative);
       case AccountCategory.loan:

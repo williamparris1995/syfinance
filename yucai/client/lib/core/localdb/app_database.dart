@@ -142,7 +142,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   /// 幂等加列:先查 PRAGMA table_info,列已存在则跳过。
   /// 背景:库文件可能被不同版本的 App 触碰(安装版/调试版/手工恢复备份),
@@ -255,6 +255,12 @@ class AppDatabase extends _$AppDatabase {
           if (from < 12) {
             await _addColumnIfAbsent(debts, debts.billingDay);
             await _addColumnIfAbsent(debts, debts.flatFeeCents);
+          }
+          // v12→v13(F50 卡贷额度占用):Debts 加 counts_toward_card_limit
+          // (INTEGER NOT NULL DEFAULT 1,存量行回填 = 计入,行为零变化;
+          // 备用金类「独立额度不占卡」由用户置 false)。仅加列,无损。
+          if (from < 13) {
+            await _addColumnIfAbsent(debts, debts.countsTowardCardLimit);
           }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)

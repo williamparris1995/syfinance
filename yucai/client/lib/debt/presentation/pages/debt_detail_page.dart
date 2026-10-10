@@ -377,6 +377,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
           if (isCardLoan) ...[
             const SizedBox(height: 12),
             _cardLoanBanner(context),
+            // F50:挂接卡贷追加债级开关只读行(值在编辑表单切换)。
+            if ((debt.collectionAccountId ?? '').isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _cardLimitFlagRow(debt),
+            ],
           ],
           const SizedBox(height: 12),
           Row(
@@ -398,6 +403,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
           if (isCardLoan) ...[
             const SizedBox(height: 12),
             _cardLoanBanner(context),
+            // F50:挂接卡贷追加债级开关只读行(值在编辑表单切换)。
+            if ((debt.collectionAccountId ?? '').isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _cardLimitFlagRow(debt),
+            ],
           ],
           const SizedBox(height: 12),
           schedule,
@@ -436,6 +446,38 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
                   fontSize: 12, color: context.yucai.accentDeep, height: 1.5),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// F50 只读信息行:展示债级「计入挂接卡额度占用」当前值(是否把剩余
+  /// 本金计入挂接卡可用额度;编辑表单的开关处修改)。形态照 [_cardLoanBanner]
+  /// 信息条(surface + border + 图标 + 标签 + 右侧值)。
+  Widget _cardLimitFlagRow(Debt debt) {
+    final counts = debt.countsTowardCardLimit;
+    return Container(
+      key: const ValueKey('cardLimitFlagRow'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.gauge, size: 15, color: context.yucai.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('计入挂接卡额度占用',
+                style:
+                    TextStyle(fontSize: 12, color: context.yucai.muted)),
+          ),
+          Text(counts ? '计入' : '不计入',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: counts ? context.yucai.fg : context.yucai.muted)),
         ],
       ),
     );

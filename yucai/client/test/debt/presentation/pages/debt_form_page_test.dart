@@ -1314,6 +1314,350 @@ void main() {
       }
     });
   });
+
+  // F50 —— 债级开关「计入挂接卡额度占用」:仅 subtype==card_loan 且挂接了卡
+  // (并账模式 + 已选卡 / 编辑态 collectionAccountId 非空)显示;默认开;
+  // 随保存写入(countsTowardCardLimit 全链路透传)。
+  group('F50 计入挂接卡额度占用开关', () {
+    /// 编辑态夹具:挂接卡贷(collectionAccountId 非空)。
+    Debt cardLoanDebt({bool countsTowardCardLimit = true}) => Debt(
+          id: 'd-cl',
+          accountId: 'loan-1',
+          counterparty: '招行e招贷',
+          interestRate: 0.1,
+          amortization: AmortizationMethod.equalPrincipalInterest,
+          startDate: DateTime(2026, 7, 1),
+          dueDate: DateTime(2027, 7, 1),
+          totalPrincipalCents: 6000000,
+          remainingPrincipalCents: 6000000,
+          version: 3,
+          subtype: DebtSubtypes.cardLoan,
+          collectionAccountId: 'cc-1',
+          countsTowardCardLimit: countsTowardCardLimit,
+          createdAt: DateTime(2026, 7, 1),
+          updatedAt: DateTime(2026, 8, 1),
+        );
+
+    Finder switchTile() =>
+        find.byKey(const ValueKey('countsTowardCardLimitSwitch'));
+
+    testWidgets('① 非卡贷(mortgage)不显示开关行', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+          [_loanAccount(id: 'loan-1'), _creditCardAccount(id: 'cc-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+      // 默认 mortgage → 卡贷区都不渲染,开关行更不该出现。
+      expect(switchTile(), findsNothing);
+      expect(find.byKey(const ValueKey('countsTowardCardLimitRow')),
+          findsNothing);
+    });
+
+    testWidgets('① 卡贷并账但未选挂接卡(非挂接)不显示开关行;选卡后显示且默认开',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+          [_loanAccount(id: 'loan-1'), _creditCardAccount(id: 'cc-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 切到卡贷(并账默认)→ 未选挂接卡 → 开关行隐藏。
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.cardLoan}')));
+      await t.pumpAndSettle();
+      expect(switchTile(), findsNothing,
+          reason: '卡贷未挂接卡(collectionAccountId 空)不显示开关');
+
+      // 选挂接卡 → 开关行出现且默认开。
+      await t.tap(find.byKey(const ValueKey('cardLoanCardDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('招商银行信用卡').last);
+      await t.pumpAndSettle();
+      expect(switchTile(), findsOneWidget);
+      expect(t.widget<SwitchListTile>(switchTile()).value, isTrue,
+          reason: '新建默认开(计入占用)');
+    });
+
+    testWidgets('② 编辑挂接卡贷:开关默认开;既有 false 回填关', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+          [_loanAccount(id: 'loan-1'), _creditCardAccount(id: 'cc-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+
+      // 既有 true → 开。
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: cardLoanDebt(countsTowardCardLimit: true),
+      ));
+      await t.pumpAndSettle();
+      expect(switchTile(), findsOneWidget);
+      expect(t.widget<SwitchListTile>(switchTile()).value, isTrue);
+    });
+
+    testWidgets('② 编辑挂接卡贷(既有 false)回填关;独立账单卡贷不显示开关',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+          [_loanAccount(id: 'loan-1'), _creditCardAccount(id: 'cc-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+
+      // 既有 false → 关(编辑保持,不重置为默认)。
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: cardLoanDebt(countsTowardCardLimit: false),
+      ));
+      await t.pumpAndSettle();
+      expect(switchTile(), findsOneWidget);
+      expect(t.widget<SwitchListTile>(switchTile()).value, isFalse);
+    });
+
+    testWidgets('① 编辑独立账单卡贷(collectionAccountId 空)不显示开关行',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+          [_loanAccount(id: 'loan-1'), _creditCardAccount(id: 'cc-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      final indep = Debt(
+        id: 'd-indep',
+        accountId: 'loan-1',
+        counterparty: 'e招贷独立',
+        interestRate: 0.1,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2026, 7, 1),
+        dueDate: DateTime(2027, 7, 1),
+        totalPrincipalCents: 6000000,
+        remainingPrincipalCents: 6000000,
+        version: 3,
+        subtype: DebtSubtypes.cardLoan,
+        createdAt: DateTime(2026, 7, 1),
+        updatedAt: DateTime(2026, 8, 1),
+      );
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: indep,
+      ));
+      await t.pumpAndSettle();
+      expect(switchTile(), findsNothing,
+          reason: '独立账单卡贷无挂接卡,不占卡额度语义不存在');
+    });
+
+    testWidgets('③ 创建卡贷切换开关后保存 → repo.create 收到 countsTowardCardLimit=false',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const CreateDebtParams(
+        accountId: '',
+        counterparty: '',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDateOption: null,
+        dueDateOption: null,
+        totalPrincipalCents: 0,
+      ));
+      registerFallbackValue(const CreateAccountParams(
+        name: '',
+        accountType: AccountType.liability,
+        category: AccountCategory.loan,
+        currencyCode: '',
+        initialBalanceCents: 0,
+        ownership: Ownership.personal,
+      ));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _loanAccount(id: 'loan-1'),
+            _creditCardAccount(id: 'cc-1'),
+            _cashAccount(id: 'cash-1')
+          ]));
+      // 卡贷创建自动建贷款负债户 → stub accountRepo.create。
+      when(() => accountRepo.create(any()))
+          .thenAnswer((_) async => dartz.Right(_loanAccount(id: 'auto-loan-1')));
+      bool? capturedFlag;
+      var created = false;
+      when(() => debtRepo.create(
+              accountId: any(named: 'accountId'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              startDate: any(named: 'startDate'),
+              dueDate: any(named: 'dueDate'),
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods'),
+              // 卡贷创建 flatFeeCents 非默认(每期手续费)→ any() 通配。
+              billingDay: any(named: 'billingDay'),
+              flatFeeCents: any(named: 'flatFeeCents'),
+              countsTowardCardLimit:
+                  any(named: 'countsTowardCardLimit'))).thenAnswer((inv) {
+        capturedFlag =
+            inv.namedArguments[#countsTowardCardLimit] as bool?;
+        created = true;
+        return Future.value(dartz.Right(_emptyDetail().debt));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 7, 1),
+        dueDate: DateTime(2028, 7, 1),
+        // _submit 创建路径先读 _accountId!(卡贷随后被自动建户替换)→ seed。
+        accountId: 'loan-1',
+        disbursementAccountId: 'cash-1',
+      ));
+      await t.pumpAndSettle();
+
+      // 卡贷(并账默认)→ 选挂接卡。
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.cardLoan}')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('cardLoanCardDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('招商银行信用卡').last);
+      await t.pumpAndSettle();
+      // 填必填:债权方 / 本金 / 每期手续费(卡贷年利率由费率推导不填)。
+      await t.enterText(
+          find.byKey(const ValueKey('counterpartyField')), '招行备用金');
+      await t.enterText(find.byKey(const ValueKey('principalField')), '60000');
+      await t.enterText(find.byKey(const ValueKey('cardLoanFeeField')), '50');
+      // 切换开关 → 关(备用金独立额度不占卡额度)。
+      await t.ensureVisible(switchTile());
+      await t.pumpAndSettle();
+      await t.tap(switchTile());
+      await t.pumpAndSettle();
+      expect(t.widget<SwitchListTile>(switchTile()).value, isFalse);
+
+      final submitFinder = find.byKey(const ValueKey('submitButton'));
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 20 && !created; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(created, isTrue);
+      expect(capturedFlag, isFalse,
+          reason: '切换后保存 → create 链路须携带 countsTowardCardLimit=false');
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('③ 编辑卡贷切换开关后保存 → repo.update 收到 countsTowardCardLimit=false',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const UpdateDebtParams(
+        id: '',
+        counterparty: '',
+        interestRate: 0,
+        version: 0,
+      ));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+          [_loanAccount(id: 'loan-1'), _creditCardAccount(id: 'cc-1')]));
+      bool? capturedFlag;
+      var updated = false;
+      when(() => debtRepo.update(
+              id: any(named: 'id'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              version: any(named: 'version'),
+              subtype: any(named: 'subtype'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              dueDate: any(named: 'dueDate'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              interestWaivedCents: any(named: 'interestWaivedCents'),
+              termPeriods: any(named: 'termPeriods'),
+              countsTowardCardLimit:
+                  any(named: 'countsTowardCardLimit'))).thenAnswer((inv) {
+        capturedFlag =
+            inv.namedArguments[#countsTowardCardLimit] as bool?;
+        updated = true;
+        return Future.value(dartz.Right(cardLoanDebt()));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: cardLoanDebt(countsTowardCardLimit: true),
+      ));
+      await t.pumpAndSettle();
+
+      // 每期手续费编辑态必填(validator _required)。
+      await t.enterText(find.byKey(const ValueKey('cardLoanFeeField')), '50');
+      // 切换开关 → 关。
+      await t.ensureVisible(switchTile());
+      await t.pumpAndSettle();
+      await t.tap(switchTile());
+      await t.pumpAndSettle();
+      expect(t.widget<SwitchListTile>(switchTile()).value, isFalse);
+
+      final submitFinder = find.byKey(const ValueKey('submitButton'));
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 20 && !updated; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(updated, isTrue);
+      expect(capturedFlag, isFalse,
+          reason: '切换后保存 → update 链路须携带 countsTowardCardLimit=false');
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+  });
 }
 
 /// 复用 _emptyDetail 的 Debt 结构,counterparty/version/subtype 可指定。

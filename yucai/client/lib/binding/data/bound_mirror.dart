@@ -155,6 +155,15 @@ class BoundMirror {
         detail.fold((_) {}, details.add);
       }
       await _db.transaction(() async {
+        // F50 keep-existing:counts_toward_card_limit 是本地私有列(不在
+        // proto 契约),delete-all + rebuild 会把它抹回 proto 重建实体的缺省
+        // true —— 重建前先快照本地现值(one-shot select,事务内勿用 watch
+        // 流式查询),重建行经 mirrorDebtToRow 显式回填;服务端新行(本地
+        // 无)取列 DEFAULT 1 = true。proto 化后本快照与透传一并移除。
+        final localFlags = {
+          for (final r in await _db.select(_db.debts).get())
+            r.id: r.countsTowardCardLimit
+        };
         // F10 ADR-3:pending 债务及其期次(含离线还款事实)保留。
         await _db.debtDao.deleteScheduleOfSyncedDebts();
         await _db.debtDao.deleteAllSyncedDebts();
@@ -163,7 +172,8 @@ class BoundMirror {
             .toSet();
         for (final detail in details) {
           if (pendingIds.contains(detail.debt.id)) continue;
-          await _db.debtDao.insertDebt(mirrorDebtToRow(detail.debt));
+          await _db.debtDao.insertDebt(mirrorDebtToRow(detail.debt,
+              countsTowardCardLimit: localFlags[detail.debt.id] ?? true));
           for (final s in detail.schedule) {
             await _db.debtDao
                 .insertScheduleEntry(mirrorScheduleToRow(detail.debt.id, s));

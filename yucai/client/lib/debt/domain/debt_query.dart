@@ -12,6 +12,7 @@
 // 无 UI 依赖的 domain 规则,搬到这里后 debt_list_widgets 通过 export 转发,
 // 既有 import 不变。
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 
 /// 列表排序键(F9 FR-4):总金额(totalPrincipalCents,LLD 口径)或到期日。
 enum DebtSortKey { amount, dueDate }
@@ -107,4 +108,25 @@ DebtDueUrgency debtDueUrgency(Debt d, DateTime now) {
   if (days <= 7) return DebtDueUrgency.within7;
   if (days <= 15) return DebtDueUrgency.within15;
   return DebtDueUrgency.none;
+}
+
+/// 卡贷未出账占用(F50,银行口径:仅剩余本金,期表口径;开关关的不计)。
+///
+/// = Σ [Debt.remainingPrincipalCents] over 满足三条件的债:
+/// ① subtype == [DebtSubtypes.cardLoan](卡贷);
+/// ② [Debt.collectionAccountId] == [cardId](挂接该信用卡);
+/// ③ [Debt.countsTowardCardLimit](债级开关开,备用金类独立额度置关)。
+///
+/// **不得**使用载体户余额(期表才是事实源)或 unpaidInterestCents
+/// (spec FR-1 定口径:仅剩余本金;未出账利息不占额度)。
+int cardLoanOccupationCents(List<Debt> debts, String cardId) {
+  var sum = 0;
+  for (final d in debts) {
+    if (d.subtype == DebtSubtypes.cardLoan &&
+        d.collectionAccountId == cardId &&
+        d.countsTowardCardLimit) {
+      sum += d.remainingPrincipalCents;
+    }
+  }
+  return sum;
 }

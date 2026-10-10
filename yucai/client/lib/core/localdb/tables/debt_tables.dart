@@ -20,6 +20,12 @@ class Debts extends Table {
   // (分,0 = 常规摊销口径)。普通债务恒 0,行为不变。
   IntColumn get billingDay => integer().withDefault(const Constant(0))();
   IntColumn get flatFeeCents => integer().withDefault(const Constant(0))();
+  // F50 卡贷额度占用债级开关:剩余本金是否计入挂接卡可用额度(true = 计入,
+  // 备用金类独立额度置 false)。本地私有列 —— 不在 proto/envelope 契约,
+  // sync 重建 keep-existing(见 mirror_mappers / envelope_row_codec 注释)。
+  // SQLite 落 INTEGER NOT NULL DEFAULT 1(bool → 1/0,存量行回填 = 计入)。
+  BoolColumn get countsTowardCardLimit =>
+      boolean().withDefault(const Constant(true))();
   // 一次性利息减免(分,银行优惠):生成计划时从最早几期利息依次扣减。
   IntColumn get interestWaivedCents => integer().withDefault(const Constant(0))();
   DateTimeColumn get startDate => dateTime()();

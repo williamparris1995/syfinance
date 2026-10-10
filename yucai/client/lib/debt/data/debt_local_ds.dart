@@ -124,6 +124,10 @@ class DebtLocalDataSource {
     // >0 时走银行现金分期口径(每期 = 本金/N + 固定手续费,忽略摊销方法)。
     int billingDay = 0,
     int flatFeeCents = 0,
+    // F50 债级开关:剩余本金是否计入挂接卡额度占用(默认 true = 计入,
+    // 既有调用点行为不变;备用金类独立额度置 false)。本地私有列,读侧
+    // _toEntity 直传(Task A 已落)。
+    bool countsTowardCardLimit = true,
     bool markPending = false,
     bool restructureOnly = false,
   }) async {
@@ -161,6 +165,8 @@ class DebtLocalDataSource {
         nth: Value(nth),
         billingDay: Value(billingDay),
         flatFeeCents: Value(flatFeeCents),
+        // F50 债级开关随创建落本地私有列(列带 DEFAULT 1,显式写保持透传一致)。
+        countsTowardCardLimit: Value(countsTowardCardLimit),
         interestWaivedCents: Value(interestWaivedCents),
         startDate: start,
         dueDate: due,
@@ -298,6 +304,9 @@ class DebtLocalDataSource {
     // F36 FR-2/ADR-5:改总额(null = 不修改,既有调用方零变化)。变化
     // Δ≠0 → 同事务调整分录(仅 borrowedIn;borrowedOut 维持现状)。
     int? totalPrincipalCents,
+    // F50 债级开关:编辑表单随保存写入(默认 true;表单加载时已从既有债
+    // 回填,非卡贷/未改即原值,不破坏既有调用点)。本地私有列,remote 无。
+    bool countsTowardCardLimit = true,
     bool markPending = false,
   }) async {
     final row = await _require(id);
@@ -413,6 +422,8 @@ class DebtLocalDataSource {
         contractRef: Value(contractRef),
         guarantorName: Value(guarantorName),
         guarantorContact: Value(guarantorContact),
+        // F50 债级开关随编辑落列(表单回填原值或切换后的新值)。
+        countsTowardCardLimit: Value(countsTowardCardLimit),
         collectionAccountId: Value(collectionAccountId),
         version: Value(row.version + 1),
         updatedAt: Value(DateTime.now().toUtc()),
@@ -1080,6 +1091,9 @@ class DebtLocalDataSource {
       guarantorName: r.guarantorName,
       guarantorContact: r.guarantorContact,
       collectionAccountId: r.collectionAccountId,
+      // F50 债级开关:本地私有列直传(列 NOT NULL DEFAULT 1,旧库迁移行
+      // 已回填 true,无空值面)。
+      countsTowardCardLimit: r.countsTowardCardLimit,
       nextPaymentDate: next?.paymentDate,
       nextPaymentAmountCents: next?.totalCents ?? 0,
       nextPaymentPeriodNo: next == null ? 0 : schedule.indexOf(next) + 1,

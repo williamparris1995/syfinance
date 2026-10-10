@@ -4344,6 +4344,21 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _countsTowardCardLimitMeta =
+      const VerificationMeta('countsTowardCardLimit');
+  @override
+  late final GeneratedColumn<bool> countsTowardCardLimit =
+      GeneratedColumn<bool>(
+        'counts_toward_card_limit',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("counts_toward_card_limit" IN (0, 1))',
+        ),
+        defaultValue: const Constant(true),
+      );
   static const VerificationMeta _interestWaivedCentsMeta =
       const VerificationMeta('interestWaivedCents');
   @override
@@ -4525,6 +4540,7 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     nth,
     billingDay,
     flatFeeCents,
+    countsTowardCardLimit,
     interestWaivedCents,
     startDate,
     dueDate,
@@ -4647,6 +4663,15 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         flatFeeCents.isAcceptableOrUnknown(
           data['flat_fee_cents']!,
           _flatFeeCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('counts_toward_card_limit')) {
+      context.handle(
+        _countsTowardCardLimitMeta,
+        countsTowardCardLimit.isAcceptableOrUnknown(
+          data['counts_toward_card_limit']!,
+          _countsTowardCardLimitMeta,
         ),
       );
     }
@@ -4835,6 +4860,10 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         DriftSqlType.int,
         data['${effectivePrefix}flat_fee_cents'],
       )!,
+      countsTowardCardLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}counts_toward_card_limit'],
+      )!,
       interestWaivedCents: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}interest_waived_cents'],
@@ -4917,6 +4946,7 @@ class Debt extends DataClass implements Insertable<Debt> {
   final int nth;
   final int billingDay;
   final int flatFeeCents;
+  final bool countsTowardCardLimit;
   final int interestWaivedCents;
   final DateTime startDate;
   final DateTime dueDate;
@@ -4947,6 +4977,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     required this.nth,
     required this.billingDay,
     required this.flatFeeCents,
+    required this.countsTowardCardLimit,
     required this.interestWaivedCents,
     required this.startDate,
     required this.dueDate,
@@ -4978,6 +5009,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['nth'] = Variable<int>(nth);
     map['billing_day'] = Variable<int>(billingDay);
     map['flat_fee_cents'] = Variable<int>(flatFeeCents);
+    map['counts_toward_card_limit'] = Variable<bool>(countsTowardCardLimit);
     map['interest_waived_cents'] = Variable<int>(interestWaivedCents);
     map['start_date'] = Variable<DateTime>(startDate);
     map['due_date'] = Variable<DateTime>(dueDate);
@@ -5012,6 +5044,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       nth: Value(nth),
       billingDay: Value(billingDay),
       flatFeeCents: Value(flatFeeCents),
+      countsTowardCardLimit: Value(countsTowardCardLimit),
       interestWaivedCents: Value(interestWaivedCents),
       startDate: Value(startDate),
       dueDate: Value(dueDate),
@@ -5050,6 +5083,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       nth: serializer.fromJson<int>(json['nth']),
       billingDay: serializer.fromJson<int>(json['billingDay']),
       flatFeeCents: serializer.fromJson<int>(json['flatFeeCents']),
+      countsTowardCardLimit: serializer.fromJson<bool>(
+        json['countsTowardCardLimit'],
+      ),
       interestWaivedCents: serializer.fromJson<int>(
         json['interestWaivedCents'],
       ),
@@ -5089,6 +5125,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       'nth': serializer.toJson<int>(nth),
       'billingDay': serializer.toJson<int>(billingDay),
       'flatFeeCents': serializer.toJson<int>(flatFeeCents),
+      'countsTowardCardLimit': serializer.toJson<bool>(countsTowardCardLimit),
       'interestWaivedCents': serializer.toJson<int>(interestWaivedCents),
       'startDate': serializer.toJson<DateTime>(startDate),
       'dueDate': serializer.toJson<DateTime>(dueDate),
@@ -5120,6 +5157,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     int? nth,
     int? billingDay,
     int? flatFeeCents,
+    bool? countsTowardCardLimit,
     int? interestWaivedCents,
     DateTime? startDate,
     DateTime? dueDate,
@@ -5148,6 +5186,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     nth: nth ?? this.nth,
     billingDay: billingDay ?? this.billingDay,
     flatFeeCents: flatFeeCents ?? this.flatFeeCents,
+    countsTowardCardLimit: countsTowardCardLimit ?? this.countsTowardCardLimit,
     interestWaivedCents: interestWaivedCents ?? this.interestWaivedCents,
     startDate: startDate ?? this.startDate,
     dueDate: dueDate ?? this.dueDate,
@@ -5194,6 +5233,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       flatFeeCents: data.flatFeeCents.present
           ? data.flatFeeCents.value
           : this.flatFeeCents,
+      countsTowardCardLimit: data.countsTowardCardLimit.present
+          ? data.countsTowardCardLimit.value
+          : this.countsTowardCardLimit,
       interestWaivedCents: data.interestWaivedCents.present
           ? data.interestWaivedCents.value
           : this.interestWaivedCents,
@@ -5239,6 +5281,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('nth: $nth, ')
           ..write('billingDay: $billingDay, ')
           ..write('flatFeeCents: $flatFeeCents, ')
+          ..write('countsTowardCardLimit: $countsTowardCardLimit, ')
           ..write('interestWaivedCents: $interestWaivedCents, ')
           ..write('startDate: $startDate, ')
           ..write('dueDate: $dueDate, ')
@@ -5272,6 +5315,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     nth,
     billingDay,
     flatFeeCents,
+    countsTowardCardLimit,
     interestWaivedCents,
     startDate,
     dueDate,
@@ -5304,6 +5348,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.nth == this.nth &&
           other.billingDay == this.billingDay &&
           other.flatFeeCents == this.flatFeeCents &&
+          other.countsTowardCardLimit == this.countsTowardCardLimit &&
           other.interestWaivedCents == this.interestWaivedCents &&
           other.startDate == this.startDate &&
           other.dueDate == this.dueDate &&
@@ -5334,6 +5379,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<int> nth;
   final Value<int> billingDay;
   final Value<int> flatFeeCents;
+  final Value<bool> countsTowardCardLimit;
   final Value<int> interestWaivedCents;
   final Value<DateTime> startDate;
   final Value<DateTime> dueDate;
@@ -5363,6 +5409,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.nth = const Value.absent(),
     this.billingDay = const Value.absent(),
     this.flatFeeCents = const Value.absent(),
+    this.countsTowardCardLimit = const Value.absent(),
     this.interestWaivedCents = const Value.absent(),
     this.startDate = const Value.absent(),
     this.dueDate = const Value.absent(),
@@ -5393,6 +5440,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.nth = const Value.absent(),
     this.billingDay = const Value.absent(),
     this.flatFeeCents = const Value.absent(),
+    this.countsTowardCardLimit = const Value.absent(),
     this.interestWaivedCents = const Value.absent(),
     required DateTime startDate,
     required DateTime dueDate,
@@ -5437,6 +5485,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<int>? nth,
     Expression<int>? billingDay,
     Expression<int>? flatFeeCents,
+    Expression<bool>? countsTowardCardLimit,
     Expression<int>? interestWaivedCents,
     Expression<DateTime>? startDate,
     Expression<DateTime>? dueDate,
@@ -5467,6 +5516,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (nth != null) 'nth': nth,
       if (billingDay != null) 'billing_day': billingDay,
       if (flatFeeCents != null) 'flat_fee_cents': flatFeeCents,
+      if (countsTowardCardLimit != null)
+        'counts_toward_card_limit': countsTowardCardLimit,
       if (interestWaivedCents != null)
         'interest_waived_cents': interestWaivedCents,
       if (startDate != null) 'start_date': startDate,
@@ -5502,6 +5553,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<int>? nth,
     Value<int>? billingDay,
     Value<int>? flatFeeCents,
+    Value<bool>? countsTowardCardLimit,
     Value<int>? interestWaivedCents,
     Value<DateTime>? startDate,
     Value<DateTime>? dueDate,
@@ -5532,6 +5584,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       nth: nth ?? this.nth,
       billingDay: billingDay ?? this.billingDay,
       flatFeeCents: flatFeeCents ?? this.flatFeeCents,
+      countsTowardCardLimit:
+          countsTowardCardLimit ?? this.countsTowardCardLimit,
       interestWaivedCents: interestWaivedCents ?? this.interestWaivedCents,
       startDate: startDate ?? this.startDate,
       dueDate: dueDate ?? this.dueDate,
@@ -5589,6 +5643,11 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     }
     if (flatFeeCents.present) {
       map['flat_fee_cents'] = Variable<int>(flatFeeCents.value);
+    }
+    if (countsTowardCardLimit.present) {
+      map['counts_toward_card_limit'] = Variable<bool>(
+        countsTowardCardLimit.value,
+      );
     }
     if (interestWaivedCents.present) {
       map['interest_waived_cents'] = Variable<int>(interestWaivedCents.value);
@@ -5658,6 +5717,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('nth: $nth, ')
           ..write('billingDay: $billingDay, ')
           ..write('flatFeeCents: $flatFeeCents, ')
+          ..write('countsTowardCardLimit: $countsTowardCardLimit, ')
           ..write('interestWaivedCents: $interestWaivedCents, ')
           ..write('startDate: $startDate, ')
           ..write('dueDate: $dueDate, ')
@@ -20341,6 +20401,7 @@ typedef $$DebtsTableCreateCompanionBuilder =
       Value<int> nth,
       Value<int> billingDay,
       Value<int> flatFeeCents,
+      Value<bool> countsTowardCardLimit,
       Value<int> interestWaivedCents,
       required DateTime startDate,
       required DateTime dueDate,
@@ -20372,6 +20433,7 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<int> nth,
       Value<int> billingDay,
       Value<int> flatFeeCents,
+      Value<bool> countsTowardCardLimit,
       Value<int> interestWaivedCents,
       Value<DateTime> startDate,
       Value<DateTime> dueDate,
@@ -20488,6 +20550,11 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
 
   ColumnFilters<int> get flatFeeCents => $composableBuilder(
     column: $table.flatFeeCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get countsTowardCardLimit => $composableBuilder(
+    column: $table.countsTowardCardLimit,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20662,6 +20729,11 @@ class $$DebtsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get countsTowardCardLimit => $composableBuilder(
+    column: $table.countsTowardCardLimit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get interestWaivedCents => $composableBuilder(
     column: $table.interestWaivedCents,
     builder: (column) => ColumnOrderings(column),
@@ -20797,6 +20869,11 @@ class $$DebtsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get countsTowardCardLimit => $composableBuilder(
+    column: $table.countsTowardCardLimit,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get interestWaivedCents => $composableBuilder(
     column: $table.interestWaivedCents,
     builder: (column) => column,
@@ -20921,6 +20998,7 @@ class $$DebtsTableTableManager
                 Value<int> nth = const Value.absent(),
                 Value<int> billingDay = const Value.absent(),
                 Value<int> flatFeeCents = const Value.absent(),
+                Value<bool> countsTowardCardLimit = const Value.absent(),
                 Value<int> interestWaivedCents = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime> dueDate = const Value.absent(),
@@ -20950,6 +21028,7 @@ class $$DebtsTableTableManager
                 nth: nth,
                 billingDay: billingDay,
                 flatFeeCents: flatFeeCents,
+                countsTowardCardLimit: countsTowardCardLimit,
                 interestWaivedCents: interestWaivedCents,
                 startDate: startDate,
                 dueDate: dueDate,
@@ -20981,6 +21060,7 @@ class $$DebtsTableTableManager
                 Value<int> nth = const Value.absent(),
                 Value<int> billingDay = const Value.absent(),
                 Value<int> flatFeeCents = const Value.absent(),
+                Value<bool> countsTowardCardLimit = const Value.absent(),
                 Value<int> interestWaivedCents = const Value.absent(),
                 required DateTime startDate,
                 required DateTime dueDate,
@@ -21010,6 +21090,7 @@ class $$DebtsTableTableManager
                 nth: nth,
                 billingDay: billingDay,
                 flatFeeCents: flatFeeCents,
+                countsTowardCardLimit: countsTowardCardLimit,
                 interestWaivedCents: interestWaivedCents,
                 startDate: startDate,
                 dueDate: dueDate,
