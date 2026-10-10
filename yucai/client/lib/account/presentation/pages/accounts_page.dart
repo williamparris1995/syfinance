@@ -26,7 +26,11 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart'
-    show cardLoanOccupationCents;
+    show cardLoanOccupationCents, derivedLoanFields;
+import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/holding_query.dart'
+    show derivedInvestFields;
+import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:design_kit/design_kit.dart';
@@ -70,7 +74,14 @@ String _fmtSymbol(int cents, String currencyCode) {
 /// `numValue()`：各 category 取对应字段——investment→市值、gold→现价×数量、
 /// realEstate→现估值、loan→剩余本金，其余→currentBalance。Card 显示与 fold
 /// 统一用此值，避免「Card 显示现估值但小计用 balance(=0)不计入」的口径不一致。
-int _displayValueCents(Account a) {
+///
+/// F51 FR-3(design ADR-2):前置于各 category 分支的**派生估值闭包**——
+/// 挂接 loan/invest 账户以债/持仓实时聚合为估值(账户列退为回退位,列值陈旧
+/// 不得污染估值);闭包缺省或返回 null → 原列读逻辑逐分不变(FR-4 回归钉死)。
+int _displayValueCents(Account a, {int? Function(Account)? derivedValueFor}) {
+  // 派生优先:挂接账户估值 MUST 以派生值为准(FR-3);未挂接 null 短路。
+  final derived = derivedValueFor?.call(a);
+  if (derived != null) return derived;
   // 估值字段缺失（null/0）时回退 currentBalanceCents：例如武汉房产 currentBalance
   // =230万但 estateValue 未填，不能因估值缺失就把整笔资产踢出小计/总计。
   switch (a.category) {
@@ -142,6 +153,12 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// 合成,而非负债账户余额 —— 账户余额不可靠(借入创建 server 不入账、
   /// guest 不选到账账户也不入账),与 networth 的 DebtSource 口径对齐。
   List<Debt> _debts = const [];
+
+  /// 全量持仓(F51 FR-3,invest 估值派生源):拉取/生命周期照 [_debts] 既有
+  /// 模式 —— initState/didPopNext/DataRefresh 三入口;经 getIt 直取
+  /// HoldingRepository(binding/bound_mirror 同款跨模块消费先例)。失败/
+  /// 未注册(测试 harness)静默保持空 → 派生闭包返 null,回退账户列口径。
+  List<Holding> _holdings = const [];
 
   /// accountId → 账户关联债务聚合信息(剩余/原始/月供/下次)。
   Map<String, AccountDebtInfo> _debtInfoByAccount = {};
@@ -232,12 +249,51 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// 其他负债账户同样适用。
   AccountDebtInfo? _debtInfoFor(Account a) => _debtInfoByAccount[a.id];
 
+  /// 全量持仓拉取(F51 FR-3,照 _loadDebts 模式):一次性 list,失败静默
+  /// 降级 —— 取不到持仓时 invest 派生闭包返 null,回退账户列口径。
+  Future<void> _loadHoldings() async {
+    try {
+      final r = await getIt<HoldingRepository>().listHoldings();
+      r.fold((_) {}, (list) {
+        if (mounted) setState(() => _holdings = list);
+      });
+    } catch (_) {
+      // 静默降级(与 _loadDebts 一致)。
+    }
+  }
+
+  /// F51 FR-3:挂接账户的派生估值(ADR-2,occupationFor 同构的注入闭包)。
+  /// - loan ∧ 挂接借入债 → Σ债剩余本金([derivedLoanFields] 唯一口径,
+  ///   与表单/详情 hero 逐分一致);
+  /// - investment ∧ 挂接持仓 → Σ持仓市值([derivedInvestFields],市值取
+  ///   DS 投影 marketValueCents,live 价优先);
+  /// - 其余类别/未挂接 → null(调用方回退既有列读逻辑,FR-4)。
+  /// **display-only**:只进估值/聚合读侧,不写任何账户列/聚合落库路径。
+  int? _derivedValueFor(Account a) {
+    if (a.category == AccountCategory.loan) {
+      final attached = _debts
+          .where((d) => d.accountId == a.id)
+          .toList(growable: false);
+      if (attached.isEmpty) return null;
+      return derivedLoanFields(attached, const {}).remainingPrincipalCents;
+    }
+    if (a.category == AccountCategory.investment) {
+      final attached = _holdings
+          .where((h) => h.accountId == a.id)
+          .toList(growable: false);
+      if (attached.isEmpty) return null;
+      return derivedInvestFields(attached).totalMarketValueCents;
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(LoadAccountsRequested());
     _dataRefresh.addListener(_onDataRefresh);
     _loadDebts();
+    _loadHoldings();
     _subscribeDueCandidates();
   }
 
@@ -266,6 +322,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     if (mounted) {
       context.read<AccountBloc>().add(LoadAccountsRequested());
       _loadDebts();
+      _loadHoldings();
     }
   }
 
@@ -273,6 +330,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     if (!mounted) return;
     context.read<AccountBloc>().add(LoadAccountsRequested());
     _loadDebts();
+    _loadHoldings();
   }
 
   /// 关联债务(loan 账户 ↔ 债务 1:1):卡面「剩余本金/月供/下次还款」以
@@ -557,7 +615,8 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     final assetCents = active.where((a) => a.accountType == AccountType.asset).fold<int>(
         0,
         (s, a) => s +
-            toPreferredCents(_displayValueCents(a), a.currencyCode, cstate.rates, cstate.preferred));
+            // F51 FR-3:总资产走 numValue + 派生闭包(invest 挂持仓 → Σ持仓市值)。
+            toPreferredCents(_displayValueCents(a, derivedValueFor: _derivedValueFor), a.currencyCode, cstate.rates, cstate.preferred));
     // 负债类用 currentBalanceCents（欠款，credit-正不变式），不用 _displayValueCents：
     // loan 的 loanRemainingCents 已由下方债务实时聚合取代。
     // 负债 = 非债务负债账户欠款 + Σ 借入债务剩余未还本金(按各自账户币种
@@ -692,6 +751,10 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                       // 余额/负债聚合/净资产口径。
                       occupationFor: (a) =>
                           cardLoanOccupationCents(_debts, a.id),
+                      // F51 FR-3:挂接 loan/invest 账户的派生估值闭包,小计与
+                      // 卡面主数字共用(卡面 == 小计同口径);未挂接 null →
+                      // 既有列读路径不变(FR-4)。
+                      derivedValueFor: _derivedValueFor,
                       onEdit: _openEditForm,
                       onDuplicate: _openCopyForm,
                       onClose: _confirmClose,
@@ -1163,6 +1226,7 @@ class _GroupBlock extends StatelessWidget {
     required this.formatCents,
     required this.debtInfoFor,
     this.occupationFor = _zeroOccupation,
+    this.derivedValueFor,
     required this.onEdit,
     required this.onDuplicate,
     required this.onClose,
@@ -1179,6 +1243,11 @@ class _GroupBlock extends StatelessWidget {
   /// 供信用卡卡片「已用/利用率」计入。缺省恒 0(不影响既有调用方)。
   /// **display-only**:只进显示口径,不改任何聚合/净资产计算。
   final int Function(Account) occupationFor;
+
+  /// F51 FR-3:挂接 loan/invest 账户的派生估值查询(loan→Σ债剩余本金,
+  /// investment→Σ持仓市值;null = 未挂接)。小计与卡面主数字共用,保证
+  /// 「卡面 == 小计」同口径;缺省 null → 行为与 F51 前逐分一致(FR-4)。
+  final int? Function(Account)? derivedValueFor;
   final void Function(Account) onEdit;
   final void Function(Account) onDuplicate;
   final void Function(Account) onClose;
@@ -1192,14 +1261,14 @@ class _GroupBlock extends StatelessWidget {
         0,
         (s, a) {
           final info = debtInfoFor(a);
-          // 负债小计 = 正数欠款口径(不变式:欠款=正)。债务账户取剩余应还,
-          // 其余取余额 —— 与卡面主数字同源同号(此前债务取负、卡取正,组内
-          // 混号,小计互相抵扣失真)。
+          // 负债小计 = 正数欠款口径(不变式:欠款=正)。挂接 loan 账户取
+          // F51 派生 Σ债剩余本金(与卡面主数字同源,FR-3);其余债务关联户
+          // 取剩余应还(本息),无关联取余额 —— 与卡面主数字同源同号(此前
+          // 债务取负、卡取正,组内混号,小计互相抵扣失真)。
           final cents = (a.accountType == AccountType.liability)
-              ? (info != null
-                  ? info.remainingCents
-                  : a.currentBalanceCents)
-              : _displayValueCents(a);
+              ? (derivedValueFor?.call(a) ??
+                  (info != null ? info.remainingCents : a.currentBalanceCents))
+              : _displayValueCents(a, derivedValueFor: derivedValueFor);
           return s + toPreferredCents(cents, a.currencyCode, cstate.rates, cstate.preferred);
         });
     final isLiability = accounts.first.accountType == AccountType.liability;
@@ -1316,6 +1385,7 @@ class _GroupBlock extends StatelessWidget {
                     _AccountCard(
                       account: accounts[i],
                       cardLoanOccupationCents: occupationFor(accounts[i]),
+                      derivedValueFor: derivedValueFor,
                       formatCents: formatCents,
                       debtInfoFor: debtInfoFor,
                       onEdit: () => onEdit(accounts[i]),
@@ -1352,6 +1422,7 @@ class _GroupBlock extends StatelessWidget {
               itemBuilder: (_, i) => _AccountCard(
                 account: accounts[i],
                 cardLoanOccupationCents: occupationFor(accounts[i]),
+                derivedValueFor: derivedValueFor,
                 formatCents: formatCents,
                 debtInfoFor: debtInfoFor,
                 onEdit: () => onEdit(accounts[i]),
@@ -1377,6 +1448,7 @@ class _AccountCard extends StatefulWidget {
   const _AccountCard({
     required this.account,
     this.cardLoanOccupationCents = 0,
+    this.derivedValueFor,
     required this.formatCents,
     required this.debtInfoFor,
     required this.onEdit,
@@ -1388,10 +1460,16 @@ class _AccountCard extends StatefulWidget {
 
   final Account account;
 
-  /// 卡贷额度占用(分;F50 银行口径:仅剩余本金 + 开关过滤)。信用卡卡片
+  /// 卡贷额度占用(分;F50 银行口径:仅剩余本金 + 债级开关过滤)。信用卡卡片
   /// 「已用 X / 额度」与利用率条计入 —— **display-only**,不参与任何余额/
   /// 聚合口径。缺省 0(未注入时行为与 F50 前一致)。
   final int cardLoanOccupationCents;
+
+  /// F51 FR-3:挂接账户派生估值(闭包注入,occupationFor 同构):loan 挂债 →
+  /// Σ债剩余本金;invest 挂持仓 → Σ持仓市值。卡面主数字前置 —— 非 null 用
+  /// 派生值(与表单/详情 hero 逐分一致),null → 既有 info/列读路径逐分不变
+  /// (FR-4)。**display-only**,不进任何落库路径。
+  final int? Function(Account)? derivedValueFor;
   final String Function(int, String) formatCents;
   final AccountDebtInfo? Function(Account) debtInfoFor;
   final VoidCallback onEdit;
@@ -2043,10 +2121,14 @@ class _AccountCardState extends State<_AccountCard> {
       AccountCategory.savings => '可用余额',
       AccountCategory.storedValue => '卡内余额',
     };
-    // 金额统一取 _displayValueCents（与总计/小计同口径），原货币符号。
+    // 金额统一取 _displayValueCents(与总计/小计同口径),原货币符号。
+    // F51 FR-3:派生闭包前置 —— 挂接 loan/invest 账户主数字 = Σ债剩余本金 /
+    // Σ持仓市值(派生优先于 F50 期本息聚合与列读,与表单/详情逐分一致);
+    // 未挂接 → 既有路径(关联债务本息聚合 → numValue 列读)逐分不变(FR-4)。
+    final derived = widget.derivedValueFor?.call(a);
     final info = widget.debtInfoFor(a);
     return (label,
-        formatCents(info?.remainingCents ?? _displayValueCents(a), a.currencyCode));
+        formatCents(derived ?? info?.remainingCents ?? _displayValueCents(a), a.currencyCode));
   }
 
   bool _hasSub(Account a) {

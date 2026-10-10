@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -15,6 +16,13 @@ import 'package:yucai_client/account/presentation/widgets/category_fields.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
 import 'package:yucai_client/core/widgets/type_tabs.dart';
+import 'package:yucai_client/debt/domain/debt_query.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
+import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/holding_query.dart';
+import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 
 /// 账户表单页（创建 + 编辑 + 复制 seed）。
 /// - [existing] == null：创建模式。
@@ -42,8 +50,27 @@ class _AccountFormPageState extends State<AccountFormPage> {
   Ownership _ownership = Ownership.personal;
   bool _submitted = false;
 
+  // —— F51 FR-1/FR-2(ADR-3)挂接降级态:编辑态一次性检测既有挂接 ——
+  // loan:挂接借入债列表 + 各债下一未还期投影(→ derivedLoanFields);
+  // invest:挂接持仓列表(→ derivedInvestFields)。空列表 = 未挂接 = 不降级。
+  List<Debt> _attachedDebts = const [];
+  Map<String, DebtNextPeriod> _nextByDebtId = const {};
+  List<Holding> _attachedHoldings = const [];
+
   Account? get _existing => widget.existing;
   bool get _isEdit => _existing != null && _existing!.id.isNotEmpty;
+
+  /// loan 组降级:编辑态 loan 账户存在挂接借入债(债侧是事实源)。
+  bool get _loanDegraded =>
+      _isEdit &&
+      _category == AccountCategory.loan &&
+      _attachedDebts.isNotEmpty;
+
+  /// invest 组降级:编辑态 investment 账户存在挂接持仓(持仓侧是事实源)。
+  bool get _investDegraded =>
+      _isEdit &&
+      _category == AccountCategory.investment &&
+      _attachedHoldings.isNotEmpty;
 
   @override
   void initState() {
@@ -94,6 +121,50 @@ class _AccountFormPageState extends State<AccountFormPage> {
     _bundle.estatePurchaseDate = e.estatePurchaseDate;
     _bundle.loanNextPaymentDate = e.loanNextPaymentDate;
     _notesCtrl.text = e.notes;
+    // F51:编辑态一次性检测既有挂接(新建态无既有挂接,不检测)。
+    _detectAttachments();
+  }
+
+  /// F51 FR-1/FR-2:编辑态挂接检测(一次性取,经 getIt 仓库 —— 表单测试
+  /// harness 须注册 mock,库内坑记忆;照 account_detail_page 的 F35 先例
+  /// list(typeFilter: borrowedIn) → accountId 过滤 → 逐债 get 取期表)。
+  /// 失败/未注册静默不降级(FR-4:无挂接行为不变,不因取数失败卡表单)。
+  Future<void> _detectAttachments() async {
+    final e = _existing;
+    if (!_isEdit || e == null) return;
+    try {
+      if (_category == AccountCategory.loan) {
+        final repo = GetIt.instance<DebtRepository>();
+        final r = await repo.list(typeFilter: DebtType.borrowedIn);
+        final linked = r.fold(
+          (_) => <Debt>[],
+          (l) => l.where((d) => d.accountId == e.id).toList(),
+        );
+        final next = <String, DebtNextPeriod>{};
+        for (final d in linked) {
+          final det = await repo.get(d.id);
+          det.fold((_) {}, (detail) {
+            // 期表 → 下一未还期投影(debtNextPeriod 唯一实现,复用第一)。
+            final np = debtNextPeriod(detail.schedule);
+            if (np != null) next[d.id] = np;
+          });
+        }
+        if (mounted) {
+          setState(() {
+            _attachedDebts = linked;
+            _nextByDebtId = next;
+          });
+        }
+      } else if (_category == AccountCategory.investment) {
+        final r = await GetIt.instance<HoldingRepository>()
+            .listHoldings(accountId: e.id);
+        r.fold((_) {}, (list) {
+          if (mounted) setState(() => _attachedHoldings = list);
+        });
+      }
+    } catch (_) {
+      // getIt 未注册(测试 harness)/仓库异常:静默保持可编辑(FR-4)。
+    }
   }
 
   @override
@@ -163,8 +234,10 @@ class _AccountFormPageState extends State<AccountFormPage> {
             _category == AccountCategory.realEstate)
         ? null
         : rate;
-    final investReturnYtd =
-        _category == AccountCategory.investment ? rate : null;
+    // F51 FR-2:invest 降级态 ytd 不写列(持仓侧无同义字段,读侧以持仓为准)。
+    final investReturnYtd = _investDegraded
+        ? null
+        : (_category == AccountCategory.investment ? rate : null);
     final estateDepreciationRate =
         _category == AccountCategory.realEstate ? rate : null;
 
@@ -220,15 +293,19 @@ class _AccountFormPageState extends State<AccountFormPage> {
       interestRate: rate,
       investReturnYtd: retYtd,
       estateDepreciationRate: dep,
-      investCostCents:
-          _category == AccountCategory.investment ? primary : null,
+      // F51 FR-1/FR-2:降级态组列传 null → DS orAbsent 保留原列值
+      // (account_local_ds :144/:158-161 实证),债/持仓侧是唯一事实源。
+      investCostCents: _investDegraded
+          ? null
+          : (_category == AccountCategory.investment ? primary : null),
       fixedPrincipalCents:
           _category == AccountCategory.fixedDeposit ? primary : null,
       goldBuyPriceCents: _category == AccountCategory.goldFx ? primary : null,
       estatePurchasePriceCents:
           _category == AccountCategory.realEstate ? primary : null,
-      loanRemainingCents:
-          _category == AccountCategory.loan ? primary : null,
+      loanRemainingCents: _loanDegraded
+          ? null
+          : (_category == AccountCategory.loan ? primary : null),
       // 信用卡「当前欠款」编辑：走 currentBalanceCents 手工覆盖通道
       // （负债 credit-正，欠款=正数）。此前该金额无映射被静默丢弃 → 编辑无效。
       currentBalanceCents:
@@ -236,19 +313,26 @@ class _AccountFormPageState extends State<AccountFormPage> {
       creditBillingDay: _optInt(_bundle.creditBillingDayCtrl),
       creditRepaymentDay: _optInt(_bundle.creditRepaymentDayCtrl),
       creditAnnualFeeCents: _yuanToCents(_bundle.creditAnnualFeeCtrl),
-      investMarketValueCents: _yuanToCents(_bundle.investMarketValueCtrl),
+      investMarketValueCents: _investDegraded
+          ? null
+          : _yuanToCents(_bundle.investMarketValueCtrl),
       fixedTermMonths: _optInt(_bundle.fixedTermMonthsCtrl),
       goldProductType: _bundle.goldProductTypeCtrl.text.trim(),
       goldQuantity: _optDouble(_bundle.goldQuantityCtrl),
       goldCurrentPriceCents: _yuanToCents(_bundle.goldCurrentPriceCtrl),
       estateCurrentValueCents: _yuanToCents(_bundle.estateCurrentValueCtrl),
-      loanOriginalCents: _yuanToCents(_bundle.loanOriginalCtrl),
-      loanMonthlyCents: _yuanToCents(_bundle.loanMonthlyCtrl),
+      loanOriginalCents: _loanDegraded
+          ? null
+          : _yuanToCents(_bundle.loanOriginalCtrl),
+      loanMonthlyCents: _loanDegraded
+          ? null
+          : _yuanToCents(_bundle.loanMonthlyCtrl),
       openingDate: _bundle.openingDate,
       fixedStartDate: _bundle.fixedStartDate,
       fixedMaturityDate: _bundle.fixedMaturityDate,
       estatePurchaseDate: _bundle.estatePurchaseDate,
-      loanNextPaymentDate: _bundle.loanNextPaymentDate,
+      loanNextPaymentDate:
+          _loanDegraded ? null : _bundle.loanNextPaymentDate,
     );
   }
 
@@ -559,10 +643,19 @@ class _AccountFormPageState extends State<AccountFormPage> {
                         FormSection(
                           title: '${_category.label}信息',
                           trailing: _kindBadge(_category),
+                          // F51:挂接降级态传派生值 → 字段组只读渲染
+                          // (loan:derivedLoanFields;invest:derivedInvestFields)。
                           children: categoryFieldsWidget(_category, _bundle,
                               currencySymbol: currencySymbolOf(_currency),
                               primaryReadOnly:
-                                  _isEdit && _category == AccountCategory.savings),
+                                  _isEdit && _category == AccountCategory.savings,
+                              loanDerived: _loanDegraded
+                                  ? derivedLoanFields(
+                                      _attachedDebts, _nextByDebtId)
+                                  : null,
+                              investDerived: _investDegraded
+                                  ? derivedInvestFields(_attachedHoldings)
+                                  : null),
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         FormSection(

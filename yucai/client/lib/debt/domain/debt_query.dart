@@ -11,6 +11,8 @@
 // (DebtListFilter / debtMatchesListFilter / debtCompareList)—— 它们本就是
 // 无 UI 依赖的 domain 规则,搬到这里后 debt_list_widgets 通过 export 转发,
 // 既有 import 不变。
+import 'package:equatable/equatable.dart';
+
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 
@@ -129,4 +131,101 @@ int cardLoanOccupationCents(List<Debt> debts, String cardId) {
     }
   }
   return sum;
+}
+
+/// 下一未还期最小投影(F51 FR-1):{期总额, 期还款日} 二元组。
+///
+/// 调用方(TB/TC 组装)从期表构造 —— [debtNextPeriod] 是该构造的**唯一
+/// 实现**,直接复用勿自写(复用第一)。字段刻意最小(不含 principal/
+/// interest 拆分、期数),保持 domain 纯函数与 drift/仓储解耦。
+class DebtNextPeriod extends Equatable {
+  const DebtNextPeriod({required this.totalCents, required this.date});
+
+  /// 该期应还总额(本 + 利,即期表 totalCents)。
+  final int totalCents;
+
+  /// 该期还款日(**可为过去日期** —— 逾期未付仍是下一期,含逾期口径)。
+  final DateTime date;
+
+  @override
+  List<Object?> get props => [totalCents, date];
+}
+
+/// 下一未还期(F51 FR-1,含逾期):期表 paid=false 中 payment_date 最早者。
+///
+/// 与 [DebtLocalDataSource._toEntity] 的既有 next 口径同源(`!paid` 按
+/// paymentDate 升序取 first,含逾期未付 —— 过去日期仍算下期,不按 now
+/// 过滤)。全付清 / 空期表 → null。
+DebtNextPeriod? debtNextPeriod(List<PaymentEntry> schedule) {
+  PaymentEntry? earliest;
+  for (final e in schedule) {
+    if (e.paid) continue;
+    if (earliest == null || e.paymentDate.isBefore(earliest.paymentDate)) {
+      earliest = e;
+    }
+  }
+  if (earliest == null) return null;
+  return DebtNextPeriod(totalCents: earliest.totalCents, date: earliest.paymentDate);
+}
+
+/// loan 派生四值(F51 FR-1,账户侧 loan 双重表示与债务域共用口径)。
+class DerivedLoanFields extends Equatable {
+  const DerivedLoanFields({
+    required this.totalPrincipalCents,
+    required this.remainingPrincipalCents,
+    this.nextPaymentCents,
+    this.nextPaymentDate,
+  });
+
+  /// Σ [Debt.totalPrincipalCents](总本金,LLD 口径)。
+  final int totalPrincipalCents;
+
+  /// Σ [Debt.remainingPrincipalCents](剩余本金,期表口径)。
+  final int remainingPrincipalCents;
+
+  /// Σ 各债下一未还期 total;**无期表债计 0;全无 → null**(区别于 0:
+  /// null = 所有债都没有未还期,UI 可显「无月供」而非 ¥0)。
+  final int? nextPaymentCents;
+
+  /// min 各债下一未还期日(含逾期未付的过去日期);全无 → null。
+  final DateTime? nextPaymentDate;
+
+  @override
+  List<Object?> get props => [
+        totalPrincipalCents,
+        remainingPrincipalCents,
+        nextPaymentCents,
+        nextPaymentDate,
+      ];
+}
+
+/// loan 四值聚合(F51 FR-1):Σ 债头两值 + Σ/min 下一未还期投影。
+///
+/// [nextByDebtId] 以 [Debt.id] 为 key 的下一未还期投影(用 [debtNextPeriod]
+/// 构造);**以 [debts] 驱动遍历** —— map 中不在 debts 列表的 key 不计入
+/// (孤儿投影防御)。空债列表 → 全 0/null 空视图(不抛)。
+DerivedLoanFields derivedLoanFields(
+    List<Debt> debts, Map<String, DebtNextPeriod> nextByDebtId) {
+  var total = 0;
+  var remaining = 0;
+  var nextSum = 0;
+  DateTime? nextDate;
+  var hasAnyNext = false;
+  for (final d in debts) {
+    total += d.totalPrincipalCents;
+    remaining += d.remainingPrincipalCents;
+    final next = nextByDebtId[d.id];
+    if (next == null) continue; // 无期表债:月供计 0、日期不参与
+    hasAnyNext = true;
+    nextSum += next.totalCents;
+    if (nextDate == null || next.date.isBefore(nextDate)) {
+      nextDate = next.date;
+    }
+  }
+  return DerivedLoanFields(
+    totalPrincipalCents: total,
+    remainingPrincipalCents: remaining,
+    nextPaymentCents: hasAnyNext ? nextSum : null,
+    nextPaymentDate: nextDate,
+  );
 }

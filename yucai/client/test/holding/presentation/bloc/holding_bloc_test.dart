@@ -27,6 +27,21 @@ final sampleHolding = Holding(
   version: 1,
 );
 
+// F51 委托收敛:Σ汇总断言用第二持仓(小数 quantity 触发「每持仓先
+// (quantity*avgCostCents).round() 取整再求和」口径:2.5*333=832.5 → 833)。
+const fractionalHolding = Holding(
+  id: 'h2',
+  accountId: 'a1',
+  securityId: 's2',
+  securityName: 'BOND',
+  securitySymbol: 'BOND',
+  quantity: 2.5,
+  avgCostCents: 333,
+  marketValueCents: 3000,
+  unrealizedPnlCents: -500,
+  version: 1,
+);
+
 final sampleTrade = HoldingTransaction(
   id: 't1',
   accountId: 'a1',
@@ -72,6 +87,28 @@ void main() {
       HoldingLoading(),
       isA<HoldingLoaded>()
           .having((s) => s.holdings, 'holdings', [sampleHolding]),
+    ],
+  );
+
+  // F51 委托收敛补强:Σcost/Σmv 改走 domain 纯函数 derivedInvestFields 后
+  // 口径不变 —— 强断言三汇总值:Σcost = 10000 + (2.5*333).round() = 10833;
+  // Σmv = 12000 + 3000 = 15000;Σpnl = 2000 + (-500) = 1500。
+  blocTest<HoldingBloc, HoldingState>(
+    'LoadHoldingsRequested summarizes cost/mv/pnl across holdings',
+    build: () {
+      when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => Right([sampleHolding, fractionalHolding]));
+      return HoldingBloc(repo);
+    },
+    act: (b) => b.add(const LoadHoldingsRequested()),
+    wait: const Duration(milliseconds: 100),
+    expect: () => [
+      HoldingLoading(),
+      isA<HoldingLoaded>()
+          .having((s) => s.summary.totalCostCents, 'totalCostCents', 10833)
+          .having((s) => s.summary.totalMarketValueCents,
+              'totalMarketValueCents', 15000)
+          .having((s) => s.summary.totalPnlCents, 'totalPnlCents', 1500),
     ],
   );
 

@@ -29,7 +29,11 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart'
-    show cardLoanOccupationCents;
+    show cardLoanOccupationCents, derivedLoanFields;
+import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/holding_query.dart'
+    show derivedInvestFields;
+import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/hero_shell.dart';
@@ -76,6 +80,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   void _onDataRefresh() {
     if (!mounted) return;
     _refreshTxn();
+    _loadLinkedHoldings();
     context.read<AccountBloc>().add(GetAccountRequested(widget.id));
   }
 
@@ -108,6 +113,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// 关联债务(该账户名下全部借入债务,一户可多笔):贷款字段的实时数据源。
   List<Debt> _linkedDebts = const [];
 
+  /// 挂接本账户的持仓(F51 FR-3,invest 估值派生源):拉取照 _loadLinkedDebt
+  /// 模式(repo 一次性取 + 失败/未注册静默保持空 → 派生闭包返 null,回退
+  /// 账户列口径)。生命周期 = initState + didPopNext + DataRefresh(持仓在
+  /// 其他 branch 买卖后跨分支刷新)。
+  List<Holding> _linkedHoldings = const [];
+
   /// F35:贷款账户「还款计划」面板数据(每笔债一节:债务 + 未来未还期次
   /// 前 3 条)。空 = 名下无借入债务,面板不渲染(FR-2 隐藏优于空占位)。
   List<({Debt debt, List<PaymentEntry> upcoming})> _debtPlans = const [];
@@ -135,6 +146,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     super.initState();
     context.read<AccountBloc>().add(GetAccountRequested(widget.id));
     _loadLinkedDebt();
+    _loadLinkedHoldings();
     _loadRepaymentPlans();
     _dataRefresh.addListener(_onDataRefresh);
     // 加载全量账户列表，供近期交易行解析 entries（分类/资产账户名）。
@@ -162,9 +174,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
 
   @override
   void didPopNext() {
-    // 从编辑/其他表单返回:详情 + 还款计划一并重拉(FR-3)。
+    // 从编辑/其他表单返回:详情 + 还款计划 + 挂接持仓一并重拉(FR-3)。
     if (!mounted) return;
     context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+    _loadLinkedHoldings();
     _loadRepaymentPlans();
   }
 
@@ -201,6 +214,36 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         if (mounted) setState(() => _linkedDebts = linked);
       });
     } catch (_) {}
+  }
+
+  /// 挂接持仓拉取(F51 FR-3):accountId 作用域一次性取(市值已由 DS 投影算
+  /// 好,live 价优先、缺价退 avgCost)。
+  Future<void> _loadLinkedHoldings() async {
+    try {
+      final r = await getIt<HoldingRepository>()
+          .listHoldings(accountId: widget.id);
+      r.fold((_) {}, (list) {
+        if (mounted) setState(() => _linkedHoldings = list);
+      });
+    } catch (_) {
+      // 静默降级(与 _loadLinkedDebt 一致):取不到 → invest 估值回退列读。
+    }
+  }
+
+  /// F51 FR-3:挂接账户派生估值 —— 与 accounts_page._derivedValueFor 同一
+  /// 闭包口径(跨页逐分一致):loan 挂债 → Σ债剩余本金;investment 挂持仓
+  /// → Σ持仓市值;未挂接/其他类别 → null(回退既有列读,FR-4)。
+  /// **display-only**:只进估值显示,不写任何账户列/聚合落库路径。
+  int? _derivedValueFor(Account a) {
+    if (a.category == AccountCategory.loan && _linkedDebts.isNotEmpty) {
+      return derivedLoanFields(_linkedDebts, const {})
+          .remainingPrincipalCents;
+    }
+    if (a.category == AccountCategory.investment &&
+        _linkedHoldings.isNotEmpty) {
+      return derivedInvestFields(_linkedHoldings).totalMarketValueCents;
+    }
+    return null;
   }
 
   /// F35:「还款计划」面板数据管道 —— 借入债务 list(typeFilter: borrowedIn)
@@ -605,7 +648,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               a.loanNextPaymentDate == null ? null : _fmtDate(a.loanNextPaymentDate!));
         }
       case AccountCategory.investment:
-        addNum('市值', a.investMarketValueCents);
+        // F51 FR-3:挂持仓 → 市值派生(与 hero/账户页卡面同源);未挂接读列。
+        addNum('市值', _derivedValueFor(a) ?? a.investMarketValueCents);
         addNum('成本', a.investCostCents);
         add('今年收益率',
             a.investReturnYtd == null ? null : '${a.investReturnYtd!.toStringAsFixed(2)}%');
@@ -808,12 +852,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               // F35 扩展:otherLiability(个人待付款)与 loan 同待遇。
               // 信用卡:负债 credit-正,currentBalance 即欠款,标签须说真话
               // (原先标「可用余额」但值是欠款,误导)。
+              // F51 FR-3:挂持仓投资账户 hero 标签改「当前市值」= Σ持仓市值
+              // (与 accounts_page 卡面/表单同源;列 stale 不污染估值)。
               Text(
                 _isDebtDerivedLiability(a)
                     ? '剩余应还'
                     : (a.category == AccountCategory.creditCard
                         ? '当前欠款'
-                        : '可用余额'),
+                        : (a.category == AccountCategory.investment &&
+                                _linkedHoldings.isNotEmpty
+                            ? '当前市值'
+                            : '可用余额')),
                 style: TextStyle(
                   fontSize: 12,
                   color: context.yucai.muted,
@@ -826,11 +875,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               HeroGradientText(
                 child: Text(
                   key: const ValueKey('heroBalance'),
+                  // F51 FR-3:挂接 loan/invest 账户 hero 大数字 = 派生估值,
+                  // 与 accounts_page 卡面/表单同源逐分一致 —— loan/otherLiability
+                  // 挂债沿用 F35 债务实时口径(现经 derivedLoanFields 与两页
+                  // 同源);invest 挂持仓 → Σ持仓市值;未挂接回退余额(FR-4)。
                   _fmt(
                       _isDebtDerivedLiability(a)
-                          ? _linkedDebts.fold<int>(0,
-                              (s, d) => s + d.remainingPrincipalCents)
-                          : a.currentBalanceCents,
+                          ? derivedLoanFields(_linkedDebts, const {})
+                              .remainingPrincipalCents
+                          : (_derivedValueFor(a) ?? a.currentBalanceCents),
                       a.currencyCode),
                   style: TextStyle(
                     fontSize: isMobile ? 32 : 40,
@@ -1128,7 +1181,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
           addDate('下次还款', a.loanNextPaymentDate);
         }
       case AccountCategory.investment:
-        addNum('市值', a.investMarketValueCents);
+        // F51 FR-3:挂持仓 → 市值 = Σ持仓市值(派生,与 hero/账户页同源);
+        // 未挂接读列(FR-4)。成本/收益率持仓侧无同义字段,保持列读
+        // (spec:不造新数字)。
+        addNum('市值', _derivedValueFor(a) ?? a.investMarketValueCents);
         addNum('成本', a.investCostCents);
         addRate('今年收益率', a.investReturnYtd);
       case AccountCategory.goldFx:
@@ -1407,7 +1463,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
         ];
       case AccountCategory.investment:
         return [
-          ('当前市值', _fmtSigned(a.investMarketValueCents ?? 0, a.currencyCode)),
+          // F51 FR-3:挂持仓 → 当前市值 = Σ持仓市值(派生);未挂接读列(FR-4)。
+          ('当前市值',
+              _fmtSigned(_derivedValueFor(a) ?? a.investMarketValueCents ?? 0,
+                  a.currencyCode)),
           ('投入成本', _fmtSigned(a.investCostCents ?? 0, a.currencyCode)),
           ('今年收益率', '${(a.investReturnYtd ?? 0).toStringAsFixed(2)}%'),
           ('持仓交易数', '${txns.length}'),

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/amount_input.dart';
 import 'package:yucai_client/core/widgets/date_picker_input.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
+import 'package:yucai_client/debt/domain/debt_query.dart';
+import 'package:yucai_client/holding/domain/holding_query.dart';
 
 /// 按 category 渲染的专属字段 controllers 集合。
 /// 主金额统一进 primaryCentsCtrl（label 随 category），_submit 按 category 映射到
@@ -193,17 +196,115 @@ String? optionalNumberValidator(String? v) {
   return double.tryParse(t) == null ? '请输入有效数字' : null;
 }
 
+// —— F51 FR-1/FR-2(ADR-3)降级只读态渲染助手 ——
+
+/// 金额格式:千分位 + 两位小数(与详情页 _fmtSigned/SummaryCard 口径一致,
+/// 如 ¥44,100.00)。负数保留负号(派生聚合为非负,防御性支持)。
+String _fmtDerivedYuan(String symbol, int cents) {
+  final sign = cents < 0 ? '-' : '';
+  final abs = cents.abs();
+  final yuan = abs ~/ 100;
+  final frac = (abs % 100).toString().padLeft(2, '0');
+  final s = yuan.toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    buf.write(s[i]);
+    final remain = s.length - 1 - i;
+    if (remain > 0 && remain % 3 == 0) buf.write(',');
+  }
+  return '$sign$symbol$buf.$frac';
+}
+
+/// 日期格式 yyyy-MM-dd(与 DatePickerInput 展示同式)。
+String _fmtDerivedDate(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// 降级组头提示条(F51):形态照 account_form_page 的 cat-hint banner
+/// (accentSoft 软底 + info 图标 + muted 正文),纯提示不参与校验。
+class _DegradedCallout extends StatelessWidget {
+  const _DegradedCallout(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey('degradedCallout:$text'),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.yucai.accentSoft,
+        border: Border.all(color: context.yucai.accentSoft),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 15, color: context.yucai.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                  color: context.yucai.muted, fontSize: 12.5, height: 1.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 派生只读行:label + 值(两端对齐,值用 tabular 数字粗体)。
+/// [value] null 时显「—」(月供无未还期 / invest ytd 持仓侧无同义字段)。
+class _DerivedRow extends StatelessWidget {
+  const _DerivedRow(this.label, this.value);
+
+  final String label;
+  final String? value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13.5,
+                  color: context.yucai.muted,
+                  fontWeight: FontWeight.w500)),
+          Text(value ?? '—',
+              style: TextStyle(
+                  fontSize: 14.5,
+                  color: context.yucai.fg,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+}
+
 /// 按 category 渲染专属字段 widget 列表。
 /// [currencySymbol] 透传给所有 AmountInput（随币种变化，由 FormPage 传
 /// currencySymbolOf(_currency)）。切币种 → setState → 重渲染 → 符号更新。
 /// [primaryReadOnly] 编辑态储蓄卡的「初始余额」置只读 —— 余额只随交易流水
 /// 变化，update 链路无 initialBalance 字段（编辑本就无效），只读+提示消除
 /// 「改了存不上」的困惑；创建/复制模式仍可输入。
+///
+/// F51 FR-1/FR-2(ADR-3):[loanDerived]/[investDerived] 非 null = 挂接降级态
+/// (loan 账户挂借入债 / invest 账户挂持仓)—— 对应字段组渲染为派生只读行 +
+/// 组头提示条「以债务/持仓数据为准」;FormPage 提交时组列传 null(orAbsent
+/// 保留原列值)。共享字段(机构/尾号/利率/期限等)保留可编辑,不在管控范围。
 List<Widget> categoryFieldsWidget(
   AccountCategory c,
   CategoryFieldBundle b, {
   String currencySymbol = '¥',
   bool primaryReadOnly = false,
+  DerivedLoanFields? loanDerived,
+  DerivedInvestFields? investDerived,
 }) {
   switch (c) {
     case AccountCategory.savings:
@@ -266,6 +367,27 @@ List<Widget> categoryFieldsWidget(
         ),
       ];
     case AccountCategory.investment:
+      // F51 FR-2:挂持仓降级 —— 成本/市值显 Σ持仓派生值,ytd 显「—」
+      // (持仓侧无同义字段,不造新数字);机构/尾号保留可编辑。
+      if (investDerived != null) {
+        return [
+          const _DegradedCallout('以持仓数据为准，请在持仓页维护'),
+          TextFormField(
+            controller: b.institutionCtrl,
+            decoration: const InputDecoration(
+                labelText: '机构（券商）', hintText: '例如：华泰证券'),
+          ),
+          TextFormField(
+            controller: b.cardNumberTailCtrl,
+            decoration: const InputDecoration(labelText: '账号尾号'),
+          ),
+          _DerivedRow('投入成本',
+              _fmtDerivedYuan(currencySymbol, investDerived.totalCostCents)),
+          _DerivedRow('当前市值',
+              _fmtDerivedYuan(currencySymbol, investDerived.totalMarketValueCents)),
+          const _DerivedRow('今年收益率 (%)', null),
+        ];
+      }
       return [
         TextFormField(
           controller: b.institutionCtrl,
@@ -352,6 +474,43 @@ List<Widget> categoryFieldsWidget(
         ),
       ];
     case AccountCategory.loan:
+      // F51 FR-1:挂借入债降级 —— 四字段(总额/剩余/月供/下期)只读显
+      // derivedLoanFields 派生值;机构/利率/期限/账单日保留可编辑(非 loan
+      // 组列)。月供/下期无未还期 → null → 「—」。
+      if (loanDerived != null) {
+        return [
+          const _DegradedCallout('以债务数据为准，请在债务页维护'),
+          TextFormField(
+            controller: b.institutionCtrl,
+            decoration: const InputDecoration(labelText: '贷款机构'),
+          ),
+          _DerivedRow('贷款总额',
+              _fmtDerivedYuan(currencySymbol, loanDerived.totalPrincipalCents)),
+          _DerivedRow('剩余本金', _fmtDerivedYuan(
+              currencySymbol, loanDerived.remainingPrincipalCents)),
+          _DerivedRow('月供', loanDerived.nextPaymentCents == null
+              ? null
+              : _fmtDerivedYuan(
+                  currencySymbol, loanDerived.nextPaymentCents!)),
+          _DerivedRow('下次还款日', loanDerived.nextPaymentDate == null
+              ? null
+              : _fmtDerivedDate(loanDerived.nextPaymentDate!)),
+          TextFormField(
+            controller: b.interestRateCtrl,
+            decoration: InputDecoration(labelText: rateLabel(c)),
+            keyboardType: TextInputType.number,
+            validator: optionalNumberValidator,
+          ),
+          TextFormField(
+            controller: b.fixedTermMonthsCtrl,
+            decoration: const InputDecoration(labelText: '期限（月）'),
+            keyboardType: TextInputType.number,
+            validator: optionalNumberValidator,
+          ),
+          _dayPicker(b.creditBillingDayCtrl, '账单日(选填)'),
+          _dayPicker(b.creditRepaymentDayCtrl, '还款日(选填)'),
+        ];
+      }
       return [
         TextFormField(
           controller: b.institutionCtrl,

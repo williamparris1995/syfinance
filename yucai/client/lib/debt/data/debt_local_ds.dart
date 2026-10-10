@@ -1052,9 +1052,13 @@ class DebtLocalDataSource {
 
   Future<Debt> _toEntity(db.Debt r) async {
     final schedule = await _dao.watchScheduleByDebt(r.id).first;
-    final unpaid = schedule.where((s) => !s.paid).toList()
-      ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
-    final next = unpaid.firstOrNull;
+    // 委托收敛(F51):下一期选择删原「过滤 + 稳定排序 + firstOrNull」重复
+    // 循环,改经 _paymentView 投影后委托 domain 纯函数 debtNextPeriod(唯一
+    // 实现;口径同源:paid=false 中 paymentDate 最早者、含逾期未付,并列
+    // 日期取期表序在前 —— 与原稳定排序 + firstOrNull 选同一行)。
+    final next = debtNextPeriod(schedule.map(_paymentView).toList());
+    // unpaid 仅剩本息/本金合计用(求和与顺序无关,原排序只为选下一期,删)。
+    final unpaid = schedule.where((s) => !s.paid).toList();
     final paidCents = schedule.fold(0, (a, s) => a + s.paidCents);
     // 本息口径:未还期次利息合计(镜像 server RemainingInterest)。
     final unpaidInterest =
@@ -1064,6 +1068,13 @@ class DebtLocalDataSource {
     // 本金,比银行口径少「已还期次的利息合计」(dev 2026-10-08 反馈:7-5 贷
     // 款 app 11,333.96 vs 银行 11,913.22,差 579.24 = 已还 4 期利息)。
     final unpaidPrincipal = unpaid.fold(0, (a, s) => a + s.principalCents);
+    // 期数定位:DebtNextPeriod 投影刻意不含期数(字段最小),nextPaymentPeriodNo
+    // 回期表按下标定位被选中期 —— 首个 !paid 且 paymentDate == next.date 的行
+    // (debtNextPeriod 并列日期取期表序在前,故与原 schedule.indexOf(next)
+    // 命中同一行,期数不变)。
+    final nextPeriodNo = next == null
+        ? 0
+        : schedule.indexWhere((s) => !s.paid && s.paymentDate == next.date) + 1;
     return Debt(
       id: r.id,
       accountId: r.accountId,
@@ -1094,9 +1105,9 @@ class DebtLocalDataSource {
       // F50 债级开关:本地私有列直传(列 NOT NULL DEFAULT 1,旧库迁移行
       // 已回填 true,无空值面)。
       countsTowardCardLimit: r.countsTowardCardLimit,
-      nextPaymentDate: next?.paymentDate,
+      nextPaymentDate: next?.date,
       nextPaymentAmountCents: next?.totalCents ?? 0,
-      nextPaymentPeriodNo: next == null ? 0 : schedule.indexOf(next) + 1,
+      nextPaymentPeriodNo: nextPeriodNo,
       remainingTrendCents: r.totalPrincipalCents - paidCents,
     );
   }

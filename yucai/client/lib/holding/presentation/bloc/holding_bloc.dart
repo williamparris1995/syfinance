@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/holding_query.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
@@ -39,17 +40,18 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
   /// 从 holdings 聚合 summary。totalCostCents 按 quantity*avgCostCents 重建
   /// (proto HoldingDTO 未暴露总成本);totalPnlCents 来自 unrealizedPnlCents。
   HoldingSummary _summarize(List<Holding> holdings) {
-    var cost = 0;
-    var mv = 0;
+    // 委托收敛(F51):Σ成本/Σ市值 两个循环已规则化到 domain 纯函数
+    // derivedInvestFields(账户侧 invest 双重表示与持仓域共用同一口径,
+    // 每持仓先取整再求和),此处删重复循环改委托;盈亏 Σpnl 循环保留
+    // (域函数刻意只收两值)。
+    final invest = derivedInvestFields(holdings);
     var pnl = 0;
     for (final h in holdings) {
-      cost += (h.quantity * h.avgCostCents).round();
-      mv += h.marketValueCents;
       pnl += h.unrealizedPnlCents;
     }
     return HoldingSummary(
-      totalCostCents: cost,
-      totalMarketValueCents: mv,
+      totalCostCents: invest.totalCostCents,
+      totalMarketValueCents: invest.totalMarketValueCents,
       totalPnlCents: pnl,
     );
   }
