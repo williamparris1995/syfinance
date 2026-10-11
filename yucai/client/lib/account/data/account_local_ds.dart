@@ -60,7 +60,8 @@ class AccountLocalDataSource {
       color: p.color,
       chartCode: '',
       parentId: Value(p.parentId.isEmpty ? null : p.parentId),
-      isSystem: false,
+      // F49 并入模式载体户置位;缺省 false。update 为 patch 语义不触此列。
+      isSystem: p.isSystem,
       sortOrder: 0,
       institution: p.institution,
       creditLimitCents: Value(p.creditLimitCents == 0 ? null : p.creditLimitCents),
@@ -136,10 +137,19 @@ class AccountLocalDataSource {
       status: p.status == null
           ? const Value.absent()
           : Value(p.status!.index + 1),
+      // F49 编辑切换同步:isSystem 三态(null = absent 不动,true/false 写)。
+      isSystem: p.isSystem == null ? const Value.absent() : Value(p.isSystem!),
       openingDate: orAbsent(p.openingDate),
       interestRate: orAbsent(p.interestRate),
-      creditBillingDay: orAbsent(p.creditBillingDay),
-      creditRepaymentDay: orAbsent(p.creditRepaymentDay),
+      // 账单日/还款日:显式值优先;清空旗标(独立→并入)且未带显式值 →
+      // 写 NULL(转载体);否则 absent 不动。
+      creditBillingDay: p.clearCreditScheduleDays && p.creditBillingDay == null
+          ? const Value(null)
+          : orAbsent(p.creditBillingDay),
+      creditRepaymentDay:
+          p.clearCreditScheduleDays && p.creditRepaymentDay == null
+              ? const Value(null)
+              : orAbsent(p.creditRepaymentDay),
       creditAnnualFeeCents: orAbsent(p.creditAnnualFeeCents),
       investCostCents: orAbsent(p.investCostCents),
       investMarketValueCents: orAbsent(p.investMarketValueCents),
@@ -218,6 +228,7 @@ class AccountLocalDataSource {
         icon: row.icon,
         color: row.color,
         parentId: row.parentId ?? '',
+        isSystem: row.isSystem,
         institution: row.institution,
         creditLimitCents: row.creditLimitCents ?? 0,
         cardNumberTail: row.cardNumberTail,
@@ -249,4 +260,42 @@ class AccountLocalDataSource {
         version: row.version,
         createdAt: row.createdAt,
       );
+}
+
+/// F49 FR-5 [AccountCloser] port 实现(债删自动关户;guest 本地 drift 写)。
+///
+/// 三重门(任一不满足 = no-op):①isSystem=true(并入模式载体;独立账单
+/// 真实账户 isSystem=false 天然挡);②currentBalanceCents==0;③名下无其他
+/// debt_type=1 借入债。通过 → status=archived(存库 2,与既有「关闭账户」
+/// 路径[UpdateAccountParams.status]同源)+ version 推进 + updatedAt,
+/// 余额/分录零改动(永不删除账户)。
+///
+/// 事务:调用方(debt DS delete)在 `_database.transaction` 内调用 —— 本
+/// 实现持有同一 AppDatabase 实例,一次性 select(禁 watch 流:事务占用的
+/// 单连接上流式查询死锁)自然加入同事务,关户与债删同生共死;若未来改为
+/// 独立连接的远端实现,须退化为事务后调用并容忍失败静默(由调用方钉死)。
+@LazySingleton(as: AccountCloser)
+class AccountCloserImpl implements AccountCloser {
+  AccountCloserImpl(this._db);
+
+  final db.AppDatabase _db;
+
+  @override
+  Future<void> closeIfEmptyCarrier(String accountId) async {
+    final account = await _db.accountDao.getAccountById(accountId);
+    if (account == null) return; // 账户不存在(已删/镜像清库)= no-op
+    if (!account.isSystem) return;
+    if (account.currentBalanceCents != 0) return;
+    // 名下无其他 debt_type=1 借入债(一次性读;调用时被删债已出表)。
+    final otherBorrowedIn = await (_db.select(_db.debts)
+          ..where((d) => d.accountId.equals(accountId) & d.debtType.equals(1)))
+        .get();
+    if (otherBorrowedIn.isNotEmpty) return;
+    await (_db.update(_db.accounts)..where((a) => a.id.equals(accountId)))
+        .write(db.AccountsCompanion(
+      status: Value(AccountStatus.archived.index + 1),
+      version: Value(account.version + 1),
+      updatedAt: Value(DateTime.now().toUtc()),
+    ));
+  }
 }

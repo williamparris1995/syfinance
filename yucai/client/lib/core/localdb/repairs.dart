@@ -25,6 +25,7 @@ Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
   await undoEDaiPrepayAdjustment(db);
   await eDaiBankRecordAlignment(db);
   await cleanupDanglingRefTxns(db);
+  await runF49CarrierHideRepair(db);
 }
 
 /// F36 存量迁移(2026-09-18,design ADR-3/6):负债账户余额漂移修复。
@@ -962,6 +963,60 @@ Future<void> cleanupDanglingRefTxns(AppDatabase db) async {
       await db.customStatement('DELETE FROM transactions WHERE id = ?', [tid]);
     }
   }
+
+  await db.into(db.appMeta).insert(
+        AppMetaCompanion.insert(key: markerKey, value: 'done'),
+        mode: InsertMode.insertOrIgnore,
+      );
+}
+
+/// F49 载体户隐藏存量修复(2026-10-10,spec FR-2):并入模式卡贷
+/// (collectionAccountId 非空)自动创建的贷款负债户是复式账管道而非用户
+/// 真实账户 —— 本修复对存量库做两件事:
+///   ① 语义标记:名下存在挂接卡(collectionAccountId 非空)的 card_loan
+///      借入债的账户 → is_system=1(展示层过滤退出用户视野;余额/净资产/
+///      报表计算零改动);
+///   ② 孤儿关闭:notes 精确匹配「信用卡贷款(卡贷)自动创建」(debt_form
+///      自动建户口径)且名下无任何 card_loan 借入债(含已解挂的 e招贷,
+///      债仍存即非孤儿)、余额为 0、creditBillingDay 为空(排除独立账单
+///      真实账户)的载体户 → status=2(archived,复用账户页关闭语义,
+///      保账史不删行);
+///   ③ 非零余额孤儿与带账单日账户零动作(WHERE 天然保证)。
+/// 独立账单模式(e招贷)永不置位:解挂修复(unhookEDaiCardMerges)已把
+/// 其 collectionAccountId 置 NULL,①不命中;其账户带账单日,②亦不命中。
+/// 恰好执行一次:AppMeta 标记 'f49_carrier_hide_v1';两条 UPDATE 原子
+/// 可重试(标记幂等;孤儿已达终态,重跑无新命中)。
+Future<void> runF49CarrierHideRepair(AppDatabase db) async {
+  const markerKey = 'f49_carrier_hide_v1';
+  final done = await (db.select(db.appMeta)
+        ..where((t) => t.key.equals(markerKey)))
+      .getSingleOrNull();
+  if (done != null) return;
+
+  final nowIso = DateTime.now().toUtc().toIso8601String();
+
+  // ① 并入型载体标记。
+  await db.customStatement(
+      "UPDATE accounts SET is_system = 1, updated_at = ? "
+      "WHERE EXISTS (SELECT 1 FROM debts d "
+      "              WHERE d.account_id = accounts.id "
+      "                AND d.subtype = 'card_loan' "
+      "                AND d.debt_type = 1 "
+      "                AND d.collection_account_id IS NOT NULL)",
+      [nowIso]);
+
+  // ② 孤儿关闭:status 2 = archived(AccountStatus{active=0, archived=1}
+  //    1-based 落库,同 account_local_ds update 的 index+1 口径)。
+  await db.customStatement(
+      "UPDATE accounts SET status = 2, updated_at = ? "
+      "WHERE notes = '信用卡贷款(卡贷)自动创建' "
+      "AND current_balance_cents = 0 "
+      "AND credit_billing_day IS NULL "
+      "AND NOT EXISTS (SELECT 1 FROM debts d "
+      "                WHERE d.account_id = accounts.id "
+      "                  AND d.subtype = 'card_loan' "
+      "                  AND d.debt_type = 1)",
+      [nowIso]);
 
   await db.into(db.appMeta).insert(
         AppMetaCompanion.insert(key: markerKey, value: 'done'),

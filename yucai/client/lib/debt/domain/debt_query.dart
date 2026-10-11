@@ -229,3 +229,33 @@ DerivedLoanFields derivedLoanFields(
     nextPaymentDate: nextDate,
   );
 }
+
+/// F49 FR-4a:挂接信用卡 [cardId] 的并入型分期摘要(卡面徽标数据源)。
+///
+/// 归集口径:`subtype==cardLoan && collectionAccountId==cardId && 未结清`
+/// (已结清 [Debt.remainingPrincipalCents]<=0 不计,与 [debtMatchesListFilter]
+/// 同式);card_loan 是借入侧子类型,显式收 `type==borrowedIn` 使函数自含
+/// (不依赖调用方预过滤);[Debt.remainingPrincipalCents] 为实体剩余本金
+/// 字段 —— 本金口径(不含未付息费,区别于 accounts_page 债务聚合的本息
+/// 口径),存储溯源 = F36 北极星式 totalPrincipal − Σpaid(repairs.dart
+/// 不变式注释钉死的 remainingPrincipalCents 同源)。
+///
+/// **与 F50 cardLoanOccupationCents 并行落地**(F49/F50 两会话各自实现),
+/// 口径差异 = 徽标展示全额剩余本金,占用按 countsTowardCardLimit 开关过滤
+/// —— 后续收敛候选(收敛前勿再新增第三种平行聚合)。
+/// 调用方(accounts_page 徽标)传入**全量** borrowedIn debts 流 —— 徽标数据
+/// 不受 T4 列表过滤影响(载体户被滤后,其分期仍在挂接卡上可见)。
+({int count, int remainingCents}) cardInstallmentSummary(
+    List<Debt> debts, String cardId) {
+  var count = 0;
+  var remainingCents = 0;
+  for (final d in debts) {
+    if (d.type != DebtType.borrowedIn) continue;
+    if (d.subtype != DebtSubtypes.cardLoan) continue;
+    if (d.collectionAccountId != cardId) continue;
+    if (d.remainingPrincipalCents <= 0) continue;
+    count++;
+    remainingCents += d.remainingPrincipalCents;
+  }
+  return (count: count, remainingCents: remainingCents);
+}

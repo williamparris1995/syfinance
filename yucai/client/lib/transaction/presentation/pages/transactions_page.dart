@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/account/domain/account_visibility.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -487,10 +488,15 @@ class _ContentState extends State<_Content> {
     required List<Account> accounts,
     required bool isMobile,
   }) {
+    // F49 FR-3:账户/分类筛选下拉只列用户可见账户(isSystem 载体户退出
+    // 选择器;分类选项由可见账户派生)。行渲染的 accountNameOf/accountOf
+    // 名称解析仍走全量 accounts(载体上的卡贷交易要解析户名),故只滤
+    // options 构造、不动 accounts 传递。
+    final visibleAccounts = AccountVisibility.userVisible(accounts);
     final accountOptions = [
-      for (final a in accounts) FilterOption(a.id, a.name),
+      for (final a in visibleAccounts) FilterOption(a.id, a.name),
     ];
-    final categoryOptions = _categoryOptions(accounts);
+    final categoryOptions = _categoryOptions(visibleAccounts);
     final monthOptions = _monthOptions();
     if (isMobile) {
       return Column(

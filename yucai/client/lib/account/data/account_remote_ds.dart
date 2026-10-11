@@ -52,6 +52,8 @@ class AccountRemoteDataSource {
 
   Future<Account> create(CreateAccountParams params) async {
     return _retry.call(() async {
+      // F49：CreateAccountRequest 无 is_system 字段 —— bound 路径不置位，
+      // params.isSystem 仅本地路径消费（NFR-1 镜像边界，维持现状）。
       final req = pb.CreateAccountRequest(
         name: params.name,
         accountType: params.accountType.toProto(),

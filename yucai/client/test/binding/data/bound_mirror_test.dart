@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/data/account_local_ds.dart';
+import 'package:yucai_client/account/domain/account_visibility.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -84,6 +86,60 @@ void main() {
       expect(rows.single.id, 'a1');
       expect(rows.single.currentBalanceCents, 250);
       expect(rows.single.version, 7);
+    });
+
+    test('account: F49/NFR-1 决策 1 B — 镜像抹除载体户 isSystem 为预期行为', () async {
+      // NFR-1 镜像边界钉死(评审阻断项补测):本地种 is_system=1 载体户
+      // (卡贷并入模式自动建户态),mock 远端 list 回同 id 账户(entity
+      // isSystem=false —— 远端 proto 无 is_system 字段)。refreshModule
+      // 重建后:
+      //   - drift 行 is_system==0(mirrorAccountToRow 恒写 false);
+      //   - AccountVisibility.userVisible 结果**含**该账户 —— 绑定镜像后
+      //     载体户回可见。
+      // 语义钉死:镜像抹除 isSystem = 决策 1 B 的预期行为,不是缺陷;本
+      // 测试防未来有人「顺手修复」让镜像保留 isSystem(那会破坏 NFR-1
+      // 边界:本地展示过滤标记不进同步契约)。
+      await database.accountDao.insertAccount(db.AccountsCompanion.insert(
+        id: 'a1', // 与远端 fixture 同 id → delete-all + rebuild 命中
+        name: 'carrier',
+        accountType: 1,
+        category: 2,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: true, // 载体户置位:重建前经 userVisible 对用户不可见
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+      final repo = _MockAccountRepo();
+      when(() => repo.list()).thenAnswer((_) async => Right([_account]));
+      getIt.registerSingleton<AccountRepository>(repo);
+      addTearDown(() => getIt.reset());
+      final mirror = _makeMirror(database, repo);
+      await mirror.refreshModule(MirrorModule.account);
+
+      final rows = await database.accountDao.getAllAccounts();
+      expect(rows, hasLength(1));
+      expect(rows.single.id, 'a1');
+      // 重建行 is_system==0:镜像重建抹除置位(mapper 恒写 false)。
+      expect(rows.single.isSystem, isFalse);
+      // 展示层口径:行→entity 与 AccountLocalDataSource.list 同一映射,
+      // 载体户回 userVisible 集合(抹除即回可见)。
+      final entities = await AccountLocalDataSource(database).list();
+      expect(
+          AccountVisibility.userVisible(entities).map((a) => a.id),
+          contains('a1'));
     });
 
     test('repo failure → silent (table untouched)', () async {

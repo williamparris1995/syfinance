@@ -23,6 +23,17 @@ abstract class AccountRepository {
   Future<Either<Failure, Account>> update(UpdateAccountParams params);
 }
 
+/// F49 FR-5 债删自动关户 port(跨模块:debt data 层消费,account data 层
+/// 实现 —— 消费方只 import 本 port,不 import 实现)。
+///
+/// 语义:账户满足「isSystem=true(并入模式载体)且 currentBalanceCents==0
+/// 且名下无其他 debt_type=1 借入债」→ 置 status=关闭(archived,与既有
+/// 「关闭账户」路径同源);任一不满足 = no-op(永不删除账户)。
+/// 独立账单模式账户 isSystem=false,天然被第一条件挡住。
+abstract class AccountCloser {
+  Future<void> closeIfEmptyCarrier(String accountId);
+}
+
 /// Parameters for creating an account (kept here next to the repo that consumes
 /// it so the domain layer is self-contained).
 ///
@@ -40,6 +51,7 @@ class CreateAccountParams {
     this.icon = '',
     this.color = '',
     this.parentId = '',
+    this.isSystem = false,
     this.institution = '',
     this.creditLimitCents = 0,
     this.cardNumberTail = '',
@@ -79,6 +91,10 @@ class CreateAccountParams {
   final String icon;
   final String color;
   final String parentId;
+
+  /// F49：并入模式卡贷建户传 true（账务载体）；缺省 false（真实账户/
+  /// 独立账单模式）。bound 路径不置位（NFR-1）。
+  final bool isSystem;
 
   // Shared / credit-card fields.
   final String institution;
@@ -142,6 +158,10 @@ class UpdateAccountParams {
     this.goldProductType = '',
     this.creditLimitCents = 0,
     this.status,
+    // F49 编辑切换同步(FR-1 评审补):三态 isSystem + 账单日/还款日清空
+    // 旗标,均按本类 patch 语义 —— 缺省 = absent 不动。
+    this.isSystem,
+    this.clearCreditScheduleDays = false,
     this.openingDate,
     this.interestRate,
     this.creditBillingDay,
@@ -184,6 +204,19 @@ class UpdateAccountParams {
 
   /// null = do not change status; [AccountStatus.archived] closes the account.
   final AccountStatus? status;
+
+  /// F49 编辑切换同步(FR-1 评审补):isSystem 三态 —— null(缺省)= 不动;
+  /// true/false = 显式置位/复位(并入↔独立切换时债务表单同步载体标记)。
+  /// 仅本地数据源消费:proto UpdateAccountRequest 无 is_system 字段,
+  /// bound 在线路径等价 no-op(NFR-1 镜像边界,与 [CreateAccountParams.isSystem]
+  /// 同口径)。
+  final bool? isSystem;
+
+  /// F49 编辑切换同步(独立→并入):true = 把 [creditBillingDay]/
+  /// [creditRepaymentDay] 清 NULL(账户转载体,账单语义随挂接卡走);
+  /// 缺省 false 不动。与显式非 null 的账单日/还款日不同发(显式值优先)。
+  /// 同样仅本地通道(远端无清空语义)。
+  final bool clearCreditScheduleDays;
 
   final DateTime? openingDate;
   final double? interestRate;

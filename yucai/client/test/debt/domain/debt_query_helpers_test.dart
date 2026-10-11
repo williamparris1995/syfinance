@@ -7,6 +7,9 @@
 //
 // 默认序不变式(NFR-2):(dueDate, asc) == 既有 debtCompareList(未结清在前 +
 // 到期升序)逐位一致 —— 列表页初始态即现状序。
+//
+// F49-T5(FR-4a)追加:cardInstallmentSummary 纯函数组 —— 挂接信用卡的
+// 并入型分期摘要(卡面徽标/F50 额度占用同源单实现)。
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/debt/domain/debt_query.dart';
@@ -156,6 +159,80 @@ void main() {
       expect(list.first.id, 'soon');
       expect(list[1].id, 'far');
       expect(list.last.id, 'settled');
+    });
+  });
+
+  group('F49 cardInstallmentSummary(卡面分期徽标数据源)', () {
+    /// card_loan 借入债夹具:默认挂接卡 card-1、未结清(剩余=总额)。
+    Debt cardDebt(
+      String id,
+      int total, {
+      String? cardId = 'card-1',
+      int? remaining,
+      String subtype = DebtSubtypes.cardLoan,
+      String? accountId,
+      DebtType type = DebtType.borrowedIn,
+    }) =>
+        Debt(
+          id: id,
+          accountId: accountId ?? 'a-$id',
+          counterparty: '债权方$id',
+          interestRate: 0.6,
+          amortization: AmortizationMethod.equalPrincipalInterest,
+          startDate: DateTime(2026, 8, 10),
+          dueDate: DateTime(2027, 8, 10),
+          totalPrincipalCents: total,
+          remainingPrincipalCents: remaining ?? total,
+          version: 1,
+          createdAt: DateTime(2026, 8, 10),
+          updatedAt: DateTime(2026, 8, 10),
+          type: type,
+          subtype: subtype,
+          collectionAccountId: cardId,
+        );
+
+    test('挂接归集:仅 card_loan 且 collectionAccountId==cardId 计入', () {
+      final debts = [
+        cardDebt('hit', 840000), // 命中:挂接本卡
+        cardDebt('other-card', 100000, cardId: 'card-2'), // 挂接他卡 → 不计
+        cardDebt('indep', 100000, cardId: null), // 独立账单(无挂接)→ 不计
+        cardDebt('mortgage', 100000,
+            cardId: 'card-1',
+            subtype: 'mortgage'), // 非 card_loan → 不计
+        cardDebt('lendout', 100000,
+            cardId: 'card-1',
+            type: DebtType.borrowedOut), // 借出方向 → 不计
+      ];
+      final s = cardInstallmentSummary(debts, 'card-1');
+      expect(s.count, 1);
+      expect(s.remainingCents, 840000);
+    });
+
+    test('多笔求和:同卡多笔剩余本金累加', () {
+      final debts = [
+        cardDebt('a', 840000, remaining: 300000),
+        cardDebt('b', 1200000, remaining: 500000),
+      ];
+      final s = cardInstallmentSummary(debts, 'card-1');
+      expect(s.count, 2);
+      expect(s.remainingCents, 800000);
+    });
+
+    test('未结清口径:已清偿(剩余 0)不计入笔数与金额', () {
+      final debts = [
+        cardDebt('active', 840000, remaining: 400000),
+        cardDebt('settled', 600000, remaining: 0),
+      ];
+      final s = cardInstallmentSummary(debts, 'card-1');
+      expect(s.count, 1, reason: '已清偿不计笔数');
+      expect(s.remainingCents, 400000, reason: '剩余仅未结清部分');
+    });
+
+    test('无挂接空态:空表/无命中均返回 (0, 0)', () {
+      expect(cardInstallmentSummary(const [], 'card-1'),
+          (count: 0, remainingCents: 0));
+      expect(cardInstallmentSummary([cardDebt('x', 1, cardId: 'card-9')], 'card-1'),
+          (count: 0, remainingCents: 0));
     });
   });
 }

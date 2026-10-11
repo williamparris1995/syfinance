@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · F49 载体户隐藏 · 现状 vs 方案</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:负债分组 Before/After 对比(复用 accounts.html 的 acct 卡体系) */
+  .acct-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  .acct{display:flex;flex-direction:column;gap:14px;transition:.15s;position:relative}
+  .acct:hover{transform:translateY(-2px)}
+  [data-theme="dark"] .acct:hover{border-color:color-mix(in srgb,var(--acc) 50%,transparent)}
+  [data-theme="light"] .acct:hover{box-shadow:0 2px 6px color-mix(in srgb,var(--fg) 7%,transparent),0 10px 28px color-mix(in srgb,var(--fg) 8%,transparent)}
+  .acct-top{display:flex;align-items:center;gap:12px}
+  .acct-name{font-weight:700;font-size:14px}
+  .acct-no{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .acct-bal{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+  .acct-bal.neg{color:var(--neg)}
+  .acct-foot{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11.5px}
+  .acct-foot b{color:var(--fg);font-weight:600}
+
+  /* 说明卡 */
+  .callout.intro{background:color-mix(in srgb,var(--acc) 8%,var(--surface))}
+  .callout.intro .c-ic{color:var(--acc);display:flex;align-items:center}
+
+  /* 段头 */
+  .phase{margin-top:22px}
+  .phase.after,.phase.drill{border-top:1px solid var(--line);padding-top:22px;margin-top:28px}
+  .phase-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .phase-tag{font-size:11px;font-weight:700;letter-spacing:2px;border-radius:999px;padding:5px 12px}
+  .phase-tag.before{color:var(--muted);background:var(--chip-bg);border:1px solid var(--chip-border)}
+  .phase-tag.after{color:var(--nav-active-fg);background:var(--nav-active-bg)}
+  .phase-tag.detail{color:var(--q1-fg);background:var(--q1-bg)}
+  .phase-title{font-size:16px;font-weight:700}
+  .phase-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+
+  /* 右上角标 */
+  .corner{position:absolute;top:14px;right:14px;font-size:10.5px;font-weight:700;letter-spacing:.3px;border-radius:999px;padding:3px 9px}
+  .corner.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);border:1px dashed color-mix(in srgb,var(--warn) 55%,transparent)}
+  .corner.pos{color:var(--pos);background:var(--pos-soft)}
+
+  /* 载体户卡:虚线描边区分 */
+  .acct.carrier{border-style:dashed;border-color:color-mix(in srgb,var(--warn) 40%,var(--border))}
+  [data-theme="light"] .acct.carrier{border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+
+  /* 小计行 */
+  .sub-row{display:flex;justify-content:flex-end;margin-top:14px}
+
+  /* 卡面分期摘要徽标(After 平安信用卡,accent 令牌) */
+  .fchip{display:inline-flex;align-items:center;align-self:flex-start;font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);font-variant-numeric:tabular-nums}
+
+  /* 第三段:详情面板 */
+  .panel .acct-top{padding-bottom:12px;border-bottom:1px solid var(--line)}
+  .bill-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line)}
+  .bill-label{font-size:13px;color:var(--muted);font-weight:600}
+  .bill-amt{font-size:15px;font-weight:700;color:var(--neg)}
+  .inst-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .inst-row:last-of-type{border-bottom:0}
+  .inst-main{flex:1;min-width:0}
+  .inst-name{font-size:13.5px;font-weight:600}
+  .inst-sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .inst-side{text-align:right;flex:none}
+  .inst-rem{font-size:13.5px;font-weight:700}
+  .inst-next{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .inst-link{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--link);flex:none}
+  .inst-foot{font-size:11.5px;color:var(--muted);margin-top:10px}
+
+  /* 段尾净资产校验 */
+  .verify{margin-top:28px}
+  .verify-cols{display:grid;grid-template-columns:max-content 1fr 1fr;gap:10px 18px;align-items:baseline}
+  .vg-head{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+  .vg-label{font-size:13px;color:var(--muted)}
+  .vg-val{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+  .vg-val.neg{color:var(--neg)}
+  .vg-val.pos{color:var(--pos)}
+  .verify-note{font-size:12.5px;color:var(--muted);margin-top:12px}
+
+  @media (max-width:900px){
+    .acct-grid{grid-template-columns:1fr}
+    .inst-row{flex-wrap:wrap}
+    .inst-side{flex:1;text-align:left}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item active" href="accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">资产 <span class="sep">›</span> 账户管理 <span class="sep">›</span> <b>F49 载体户隐藏</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索账户…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>F49 载体户隐藏 · 现状 vs 方案</h1>
+        <p class="date">账户页负债分组 · Before / After 对比</p>
+      </div>
+      <div class="page-head-actions">
+        <a class="btn-ghost" href="accounts.html">返回账户管理</a>
+      </div>
+    </div>
+
+    <section class="callout intro">
+      <svg class="ic c-ic"><use href="#i-layers"/></svg>
+      <div>
+        <div class="c-title">F49 载体户隐藏</div>
+        <div class="c-body">并入型卡贷的账务载体户退出用户视野；负债金额与净资产逐位不变</div>
+      </div>
+    </section>
+
+    <!-- ================= Before ================= -->
+    <section class="phase before">
+      <div class="phase-head">
+        <span class="phase-tag before">BEFORE</span>
+        <div>
+          <div class="phase-title">现状</div>
+          <div class="phase-sub">卡贷两种形态并列展示:载体户(将隐藏)与真实账户(保留)</div>
+        </div>
+      </div>
+
+      <div class="day-label">负债 · 5 个账户</div>
+      <section class="acct-grid">
+        <a class="card acct" href="#">
+          <div class="acct-top">
+            <div class="acct-logo lg-red">信</div>
+            <div><div class="acct-name">招行信用卡</div><div class="acct-no">•• •• 4417 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥3,200.00</div>
+          <div class="acct-foot num"><span>账单日 <b>8/25</b></span><span><b style="color:var(--neg)">9/1 到期</b></span></div>
+        </a>
+        <a class="card acct" href="#">
+          <div class="acct-top">
+            <div class="acct-logo lg-gold">平</div>
+            <div><div class="acct-name">平安信用卡</div><div class="acct-no">•• •• 6688 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥1,250.00</div>
+          <div class="acct-foot num"><span>账单日 <b>12</b></span><span>还款日 <b>30</b></span></div>
+        </a>
+        <a class="card acct" href="#">
+          <div class="acct-top">
+            <div class="acct-logo lg-slate">贷</div>
+            <div><div class="acct-name">装修贷款</div><div class="acct-no">建设银行 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥96,800.00</div>
+          <div class="acct-foot num"><span>月供 <b>¥2,300</b></span><span>2028-10 结清</span></div>
+        </a>
+        <a class="card acct carrier" href="#">
+          <span class="corner warn">载体户 · 将隐藏</span>
+          <div class="acct-top">
+            <div class="acct-logo lg-gold">平</div>
+            <div><div class="acct-name">平安银行 · 卡贷</div><div class="acct-no">自动创建 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥8,400.00</div>
+          <div class="acct-foot num"><span>并入 <b>平安信用卡</b> 账单</span><span>放款对应日出账</span></div>
+        </a>
+        <a class="card acct" href="#">
+          <span class="corner pos">真实账户 · 保留</span>
+          <div class="acct-top">
+            <div class="acct-logo lg-violet">e</div>
+            <div><div class="acct-name">e招贷 · 卡贷</div><div class="acct-no">独立授信账户 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥31,200.00</div>
+          <div class="acct-foot num"><span>独立账单</span><span><b>5日</b>出账 · <b>23日</b>前还</span></div>
+        </a>
+      </section>
+      <div class="sub-row"><span class="card-sub num">负债类合计 ¥140,850 · 含卡贷载体 ¥8,400</span></div>
+    </section>
+
+    <!-- ================= After ================= -->
+    <section class="phase after">
+      <div class="phase-head">
+        <span class="phase-tag after">AFTER</span>
+        <div>
+          <div class="phase-title">F49 方案后</div>
+          <div class="phase-sub">载体户卡片消失 · 分期摘要挂到平安信用卡卡面</div>
+        </div>
+      </div>
+
+      <div class="day-label">负债 · 4 个账户</div>
+      <section class="acct-grid">
+        <a class="card acct" href="#">
+          <div class="acct-top">
+            <div class="acct-logo lg-red">信</div>
+            <div><div class="acct-name">招行信用卡</div><div class="acct-no">•• •• 4417 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥3,200.00</div>
+          <div class="acct-foot num"><span>账单日 <b>8/25</b></span><span><b style="color:var(--neg)">9/1 到期</b></span></div>
+        </a>
+        <a class="card acct" href="#">
+          <div class="acct-top">
+            <div class="acct-logo lg-gold">平</div>
+            <div><div class="acct-name">平安信用卡</div><div class="acct-no">•• •• 6688 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥1,250.00</div>
+          <span class="fchip">分期 1 笔 · 剩余 ¥8,400</span>
+          <div class="acct-foot num"><span>账单日 <b>12</b></span><span>还款日 <b>30</b></span></div>
+        </a>
+        <a class="card acct" href="#">
+          <div class="acct-top">
+            <div class="acct-logo lg-slate">贷</div>
+            <div><div class="acct-name">装修贷款</div><div class="acct-no">建设银行 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥96,800.00</div>
+          <div class="acct-foot num"><span>月供 <b>¥2,300</b></span><span>2028-10 结清</span></div>
+        </a>
+        <a class="card acct" href="#">
+          <span class="corner pos">真实账户 · 保留</span>
+          <div class="acct-top">
+            <div class="acct-logo lg-violet">e</div>
+            <div><div class="acct-name">e招贷 · 卡贷</div><div class="acct-no">独立授信账户 · 负债</div></div>
+          </div>
+          <div class="acct-bal neg num">−¥31,200.00</div>
+          <div class="acct-foot num"><span>独立账单</span><span><b>5日</b>出账 · <b>23日</b>前还</span></div>
+        </a>
+      </section>
+      <div class="sub-row"><span class="card-sub num">负债类合计 ¥132,450 · 可见行之和</span></div>
+
+      <section class="card verify">
+        <div class="card-head">
+          <h2>净资产校验</h2>
+          <span class="chip pos">Before = After · 逐位相同</span>
+        </div>
+        <div class="verify-cols">
+          <span class="vg-head"></span>
+          <span class="vg-head">现状 · Before</span>
+          <span class="vg-head">F49 方案后 · After</span>
+
+          <span class="vg-label">总负债</span>
+          <span class="vg-val neg num">¥100,000</span>
+          <span class="vg-val neg num">¥100,000</span>
+
+          <span class="vg-label">净资产</span>
+          <span class="vg-val pos num">¥1,284,650</span>
+          <span class="vg-val pos num">¥1,284,650</span>
+        </div>
+        <p class="verify-note">隐藏只影响可见性,不改变任何金额</p>
+      </section>
+    </section>
+
+    <!-- ================= Detail ================= -->
+    <section class="phase drill">
+      <div class="phase-head">
+        <span class="phase-tag detail">DETAIL</span>
+        <div>
+          <div class="phase-title">平安信用卡 · 详情页视角</div>
+          <div class="phase-sub">卡面摘要的下钻 —— 分期明细与债务关联都在卡详情</div>
+        </div>
+      </div>
+
+      <section class="card panel">
+        <div class="acct-top">
+          <div class="acct-logo lg-gold">平</div>
+          <div><div class="acct-name">平安信用卡</div><div class="acct-no num">•• •• 6688 · 账单日 12 · 还款日 30</div></div>
+        </div>
+        <div class="bill-row num">
+          <span class="bill-label">本期应还</span>
+          <span class="bill-amt num">¥1,250.00</span>
+        </div>
+        <div class="day-label">现金分期</div>
+        <div class="inst-row">
+          <div class="inst-main">
+            <div class="inst-name">平安银行 · 现金分期</div>
+            <div class="inst-sub num">12 期 · 第 5 期 · 放款对应日出账</div>
+          </div>
+          <div class="inst-side num">
+            <div class="inst-rem">剩余 ¥8,400.00</div>
+            <div class="inst-next">下一期 ¥723.33 · 10/15 并入账单</div>
+          </div>
+          <a class="inst-link" href="#">查看债务 <svg class="ic"><use href="#i-chev-r"/></svg></a>
+        </div>
+        <div class="inst-foot">分期期次自动并入本卡账单;债务记录与完整还款计划在债务页</div>
+      </section>
+    </section>
+
+    <footer class="foot">御财 v2 设计原型 · A+B 亮暗双主题 · F49 载体户隐藏对比 · 演示数据</footer>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a href="transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a class="active" href="accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+</body>
+</html>
