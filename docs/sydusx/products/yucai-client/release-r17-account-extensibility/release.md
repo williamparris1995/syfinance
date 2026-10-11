@@ -17,7 +17,7 @@
 
 ## Sprint roster
 
-- [ ] [sprint-1](sprint-1/sprint.md) — F49 isSystem 激活·载体户隐藏 / F50 卡贷额度占用重落 / F51 loan·invest 双重表示规则化
+- [x] [sprint-1](sprint-1/sprint.md) — F49 isSystem 激活·载体户隐藏 / F50 卡贷额度占用重落 / F51 loan·invest 双重表示规则化 ✅(2026-10-10 三票收官;sprint-2 F52+F57 待立项)
 - [ ] sprint-2 — F52 花呗/白条等建户预设模板层 + F57 期表首期锚点选项(sprint-1 收官后立项)
 
 ## Done criteria
