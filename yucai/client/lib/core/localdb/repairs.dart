@@ -28,6 +28,7 @@ Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
   await runF49CarrierHideRepair(db);
   await runF57Ts4PingAnRedate(db);
   await runF58UnmergeOvermergedCardLoans(db);
+  await runF59SpecialQuotaUnmerge(db);
 }
 
 /// F36 存量迁移(2026-09-18,design ADR-3/6):负债账户余额漂移修复。
@@ -1192,4 +1193,83 @@ DateTime _plusOneMonthClamped(DateTime d) {
   final m = DateTime.utc(d.year, d.month + 1, 1);
   final lastDay = DateTime.utc(m.year, m.month + 1, 0).day;
   return DateTime.utc(m.year, m.month, d.day > lastDay ? lastDay : d.day);
+}
+
+/// F59 专项池(开关关)当日并入回退(2026-10-12 用户银行口径定案,挂链
+/// F58 后):专项额度现金分期(countsTowardCardLimit=false)是独立结算产品
+/// —— 分期**不走卡账单**,到期由用户从储蓄卡手动记还款(银行语义照 e招贷
+/// 同构:独立额度、不并卡)。F57 期表前移后,首个启动日 catchup 已把新到期
+/// 期次并入了卡(如 35k 当期 1,630.46)—— 本修复对该类债 paid 且挂**并入
+/// 交易**(描述「信用卡分期 X」)、且并入交易 created_at 落在**本修复运行
+/// 当日**(= 当日新并入、尚未被任何用户还款覆盖)的期次,按 F58 的 T2 机制
+/// 回退:
+///   1. 经交易管道 delete(applyEntries(old,−1) 镜像逆余额 + FK cascade
+///      删分录/头行):并入分录 = 借载体/贷卡,credit-正口径下回退恰为镜像
+///      —— 载体 currentBalance += total(欠款回升)、卡 currentBalance −=
+///      total(当日并入撤出卡应还);
+///   2. 期次置 unpaid / paidCents=0 / transactionId=null(F36 不变式两侧
+///      同额回位),此后到期由用户手动记还款。
+/// 存量更早并入且已被 9/19 等真实还款覆盖的不动(created_at 非当日;余额
+/// 取证:当前卡上 35k 未清并入恰一笔 1,630.46 = 当日误并的那笔);开关开
+/// 的债与当日手工还款交易(非并入描述)亦不动。幂等:marker
+/// 'f59_special_quota_unmerge_v1';逐行原子 + 重入收敛(paid=0 跳过、交易
+/// 已删仅解除引用无余额效应),中断下次打开重试。
+Future<void> runF59SpecialQuotaUnmerge(AppDatabase db) async {
+  const markerKey = 'f59_special_quota_unmerge_v1';
+  final done = await (db.select(db.appMeta)
+        ..where((t) => t.key.equals(markerKey)))
+      .getSingleOrNull();
+  if (done != null) return;
+
+  final now = DateTime.now().toUtc();
+  final today = DateTime.utc(now.year, now.month, now.day);
+  final txns = TransactionLocalDataSource(db, BalanceLocalUpdater(db));
+
+  // 开关关的挂卡卡贷借入债(通用开关口径,非 ID 清单 —— 开关是产品语义)。
+  final debtRows = await (db.select(db.debts)
+        ..where((d) =>
+            d.subtype.equals('card_loan') &
+            d.debtType.equals(1) &
+            d.countsTowardCardLimit.equals(false)))
+      .get();
+  for (final debt in debtRows) {
+    final entries = await (db.select(db.paymentScheduleEntries)
+          ..where((e) => e.debtId.equals(debt.id)))
+        .get();
+    for (final e in entries) {
+      final txnId = e.transactionId;
+      if (!e.paid || txnId == null || txnId.isEmpty) continue;
+      final txn = await (db.select(db.transactions)
+            ..where((t) => t.id.equals(txnId)))
+          .getSingleOrNull();
+      if (txn == null) {
+        // 交易已删(先前行删/中断重入)→ 仅解除引用,无余额效应(F58 同款
+        // 收敛)。
+        await (db.update(db.paymentScheduleEntries)
+              ..where((x) => x.id.equals(e.id)))
+            .write(const PaymentScheduleEntriesCompanion(
+                transactionId: Value(null)));
+        continue;
+      }
+      // 仅回退「并入交易」(catchup 写入口径描述 = 信用卡分期 X);当日手工
+      // 还款(还款 X)即令 created_at 同日也不动。
+      if (!txn.description.startsWith('信用卡分期')) continue;
+      final c = txn.createdAt.toUtc();
+      if (DateTime.utc(c.year, c.month, c.day) != today) {
+        continue; // 存量更早并入(已被真实还款覆盖的历史)
+      }
+      await txns.delete(txnId); // 镜像逆余额 + cascade 删分录/头行
+      await (db.update(db.paymentScheduleEntries)
+            ..where((x) => x.id.equals(e.id)))
+          .write(const PaymentScheduleEntriesCompanion(
+                paid: Value(false),
+                paidCents: Value(0),
+                transactionId: Value(null)));
+    }
+  }
+
+  await db.into(db.appMeta).insert(
+        AppMetaCompanion.insert(key: markerKey, value: 'done'),
+        mode: InsertMode.insertOrIgnore,
+      );
 }

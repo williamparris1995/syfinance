@@ -1099,6 +1099,134 @@ void main() {
     });
   });
 
+  // ───────────────── F59 专项池分期不并卡账单(银行口径) ─────────────────
+  // 2026-10-12 用户定案:专项额度现金分期(countsTowardCardLimit=false)是
+  // 独立结算产品 —— 分期不走卡账单,到期从储蓄卡手动记还款(语义照 e招贷
+  // 同构:独立额度、不并卡)。catchup 并账跳过开关关的债;存量当日误并入由
+  // repairs.runF59SpecialQuotaUnmerge 回退(见 f59_special_quota_unmerge_test)。
+  group('F59 专项池(countsTowardCardLimit=false)catchup 跳过', () {
+    late String cardId;
+    late String cardLoanAccount;
+
+    setUp(() async {
+      cardId = 'acc-cc59';
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: cardId,
+        name: '平安信用卡59',
+        accountType: 2, // liability
+        category: 2, // creditCard
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '8888',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+      cardLoanAccount = 'acc-cardloan59';
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: cardLoanAccount,
+        name: '平安现金分期59 · 卡贷',
+        accountType: 2,
+        category: 7, // loan
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+    });
+
+    /// billingDay 5、3 期:期表 = [2026-10-05, 2026-11-05, 2026-12-05]
+    /// (与 F58 组同构,now 注入 11-05 时期 0 恰到期)。
+    Future<Debt> createCardLoan59(bool countsTowardCardLimit) => debts.create(
+          accountId: cardLoanAccount,
+          counterparty: '平安银行',
+          interestRate: 0.072,
+          amortizationIndex: 0,
+          startDate: DateTime.utc(2026, 9, 10),
+          dueDate: DateTime.utc(2026, 9, 10),
+          totalPrincipalCents: 5000000,
+          type: DebtType.borrowedIn,
+          subtype: DebtSubtypes.cardLoan,
+          sourceAccountId: cash,
+          collectionAccountId: cardId,
+          cycle: 2,
+          termPeriods: 3,
+          billingDay: 5,
+          flatFeeCents: 30000,
+          countsTowardCardLimit: countsTowardCardLimit,
+        );
+
+    test('开关关到期也不并(零动作零分录);开关开同形态并入对照', () async {
+      final off = await createCardLoan59(false);
+      final on = await createCardLoan59(true);
+      // 11-05 = 期 0(10-05 出账)的到期日:开关开者并入、开关关者跳过。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 11, 5));
+
+      final offDetail = await debts.get(off.id);
+      expect(offDetail.schedule.every((e) => !e.paid), isTrue,
+          reason: '专项池开关关:到期期次也不并入(独立结算,不走卡账单)');
+      final onDetail = await debts.get(on.id);
+      expect(onDetail.schedule[0].paid, isTrue,
+          reason: '对照:开关开同形态恰并入到期期0');
+      expect(onDetail.schedule[0].transactionId.isNotEmpty, isTrue);
+      expect(onDetail.schedule[1].paid, isFalse);
+
+      // 卡余额只含开关开债的并入(credit-正);两载体均放款入账 5,000,000,
+      // 开关开载体 −total0(F36 不变式)、开关关载体不动。
+      final onTotal = onDetail.schedule[0].totalCents;
+      expect((await accounts.getAccountById(cardId))!.currentBalanceCents,
+          onTotal,
+          reason: '卡应还只含开关开债的并入,专项池期次不上卡');
+      expect((await accounts.getAccountById(cardLoanAccount))!
+              .currentBalanceCents,
+          10000000 - onTotal,
+          reason: '两载体共用户;仅开关开载体欠款随并入递减');
+      // 无并入分录引用开关关债期次(逐期次无「信用卡分期」交易)。
+      final mergeTxns = (await database.select(database.transactions).get())
+          .where((t) => t.description.startsWith('信用卡分期'));
+      expect(mergeTxns.length, 1,
+          reason: '恰一笔并入交易(开关开债期0),专项池零并入');
+      final paidEntryTxn = offDetail.schedule
+          .map((e) => e.transactionId)
+          .where((id) => id.isNotEmpty);
+      expect(paidEntryTxn, isEmpty);
+    });
+
+    test('开关关缺省(开关开)行为不变:既有路径仍并入(回归对照)', () async {
+      final d = await createCardLoan59(true);
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 11, 5));
+      final detail = await debts.get(d.id);
+      expect(detail.schedule[0].paid, isTrue,
+          reason: '缺省开关开 = F58 既有口径,逐位不变');
+      expect((await accounts.getAccountById(cardId))!.currentBalanceCents,
+          detail.schedule[0].totalCents);
+    });
+  });
+
   // ───────────────────────── F57 首期锚点 ─────────────────────────
   // 并入模式卡贷首期锚点:放款次月(现状,默认)/ 放款当期(平安口径,首期 =
   // 放款日当天)。firstPeriodFromDisbursement 是**生成期参数**(经 create 透传,

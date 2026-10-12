@@ -659,7 +659,8 @@ class DebtLocalDataSource {
   /// card_loan 且经 collectionAccountId 挂接信用卡的借入债,已**到期**未并入
   /// 的期次自动 recordPayment(from: 挂接卡)—— 分录 = 借卡贷负债 / 贷信用卡,
   /// 使该期并入账单应还、债务余额同额递减。幂等 = 期次 paid;单期失败不阻断
-  /// 其余(缺卡/账户异常静默跳过,下轮重试)。
+  /// 其余(缺卡/账户异常静默跳过,下轮重试)。F59:**跳过
+  /// countsTowardCardLimit == false 的债**(专项池分期不走卡账单,见下)。
   ///
   /// F58 到期触发(平安口径,2026-10-12 用户定案):银行现金分期每期独立
   /// 出账(paymentDate = 出账日),到期日 = **下一期的出账日**(末期 = 自身
@@ -667,6 +668,12 @@ class DebtLocalDataSource {
   /// 「已到期」—— 期次按日期升序,entry k 的到期日 = dates[k+1],到期日
   /// ≤ todayStart 才并入;已出账未到期 = 自由窗口(不并,银行分期剩余也
   /// 不含它,见 debt_query F58 未出账口径)。
+  ///
+  /// F59 专项池口径(2026-10-12 用户银行口径定案):专项额度现金分期
+  /// (countsTowardCardLimit == false)是独立结算产品 —— 分期**不走卡账单**,
+  /// 到期由用户从储蓄卡手动记还款(银行语义照 e招贷 同构:独立额度、不并
+  /// 卡;与 e招贷 的解挂处置不同,挂接卡保留,仅自动并账跳过)。存量当日
+  /// 误并入由 repairs.runF59SpecialQuotaUnmerge 回退。
   ///
   /// [now] 测试注入「当前时刻」(缺省 DateTime.now();UTC 日界对齐,与
   /// 期表存储口径一致)。
@@ -679,6 +686,9 @@ class DebtLocalDataSource {
       if (row.debtType != DebtType.borrowedIn.index + 1) continue;
       final card = row.collectionAccountId;
       if (card == null || card.isEmpty) continue;
+      // F59 专项池(开关关)独立结算:到期不并卡、手动记还款(照 e招贷
+      // 同构银行口径;占用侧 cardLoanOccupationCents 的 Σ 早已排除)。
+      if (!row.countsTowardCardLimit) continue;
       final entries = await _dao.getScheduleByDebt(row.id);
       // 期次按日期升序(entry k 的到期日 = dates[k+1])。
       final sorted = [...entries]
