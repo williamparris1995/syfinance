@@ -951,6 +951,156 @@ void main() {
     });
   });
 
+  // ───────────────────────── F57 首期锚点 ─────────────────────────
+  // 并入模式卡贷首期锚点:放款次月(现状,默认)/ 放款当期(平安口径,首期 =
+  // 放款日当天)。firstPeriodFromDisbursement 是**生成期参数**(经 create 透传,
+  // 物化进期表日期,不持久化为债字段);不传新参的存量路径逐位不变。
+  group('F57 首期锚点(当期/次月,存量零变化)', () {
+    late String cardLoanAccount;
+
+    setUp(() async {
+      cardLoanAccount = 'acc-f57';
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: cardLoanAccount,
+        name: '平安卡贷 · F57',
+        accountType: 2, // liability
+        category: 7, // loan
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+    });
+
+    Future<Debt> createLoan({
+      required DateTime start,
+      int periods = 18,
+      bool firstPeriodFromDisbursement = false,
+      int billingDay = 0,
+    }) =>
+        debts.create(
+          accountId: cardLoanAccount,
+          counterparty: '平安现金分期',
+          interestRate: 0.072,
+          amortizationIndex: 0,
+          startDate: start,
+          dueDate: start, // 按期数模式由 DS 推导覆写
+          totalPrincipalCents: 500000, // ¥5,000
+          type: DebtType.borrowedIn,
+          subtype: DebtSubtypes.cardLoan,
+          sourceAccountId: cash,
+          cycle: 2,
+          termPeriods: periods,
+          billingDay: billingDay,
+          flatFeeCents: 900, // 每期 ¥9
+          firstPeriodFromDisbursement: firstPeriodFromDisbursement,
+        );
+
+    test('当期锚点:首期 = 放款日当天,第 18 期 = 2028-01-02(FR-2)', () async {
+      final d = await createLoan(
+          start: DateTime.utc(2026, 8, 2), firstPeriodFromDisbursement: true);
+      final detail = await debts.get(d.id);
+      final dates = detail.schedule.map((e) => e.paymentDate).toList();
+      expect(dates, hasLength(18));
+      expect(dates.first, DateTime.utc(2026, 8, 2),
+          reason: '当期口径:首期 = 放款日当天(平安)');
+      // 8/2 + 17 个月(逐月同日)= 2028-01-02。spec 场景行「第 18 期 =
+      // 2027-01-02」系笔误(2027-01-02 为第 6 期);首期=start + 逐月同日
+      // 的 pinned 契约不变,偏离见票内报告。
+      expect(dates.last, DateTime.utc(2028, 1, 2),
+          reason: '8/2 + 17 个月 = 2028-01-02');
+      expect(detail.debt.dueDate, DateTime.utc(2028, 1, 2),
+          reason: 'due = 末个发生日(当期参随 due 推导同一生成器)');
+      // 金额口径不变:每期 = 本金/N + 固定手续费,末期吸收余数。
+      expect(
+          detail.schedule.fold<int>(0, (s, e) => s + e.principalCents), 500000);
+      for (final e in detail.schedule) {
+        expect(e.interestCents, 900);
+      }
+    });
+
+    test('次月锚点(缺省不传新参):首期 = 放款日 + 1 月,与现状逐位一致', () async {
+      final d = await createLoan(start: DateTime.utc(2026, 8, 2));
+      final detail = await debts.get(d.id);
+      final dates = detail.schedule.map((e) => e.paymentDate).toList();
+      expect(dates, hasLength(18));
+      expect(dates.first, DateTime.utc(2026, 9, 2),
+          reason: '缺省 = 次月(现状 nextAfter 语义)');
+      expect(dates.last, DateTime.utc(2028, 2, 2),
+          reason: '9/2 + 17 个月(与当期口径恰差 1 期月)');
+      expect(detail.debt.dueDate, DateTime.utc(2028, 2, 2));
+    });
+
+    test('月末钳制:1/31 起始当期 → 首期 1/31、次期 2/28,此后引擎 pinned 链式', () async {
+      final d = await createLoan(
+          start: DateTime.utc(2026, 1, 31),
+          periods: 3,
+          firstPeriodFromDisbursement: true);
+      final detail = await debts.get(d.id);
+      expect(detail.schedule.map((e) => e.paymentDate).toList(), [
+        DateTime.utc(2026, 1, 31),
+        DateTime.utc(2026, 2, 28),
+        DateTime.utc(2026, 3, 28),
+      ], reason: '后续照既有逐月推进(nextAfter 链式 byDate 月末钳制,不改引擎)');
+      // 对照:同起始次月路径 = 现状原样(首期即已钳至 2/28,此后同链式)。
+      final legacy =
+          await createLoan(start: DateTime.utc(2026, 1, 31), periods: 3);
+      expect(
+          (await debts.get(legacy.id))
+              .schedule
+              .map((e) => e.paymentDate)
+              .toList(),
+          [DateTime.utc(2026, 2, 28), DateTime.utc(2026, 3, 28),
+           DateTime.utc(2026, 4, 28)]);
+    });
+
+    test('存量零变化:不传新参,既有账单日锚定路径(billingDay=5)逐位不变', () async {
+      final d = await createLoan(
+          start: DateTime.utc(2026, 9, 10), periods: 3, billingDay: 5);
+      final detail = await debts.get(d.id);
+      expect(detail.schedule.map((e) => e.paymentDate).toList(), [
+        DateTime.utc(2026, 10, 5),
+        DateTime.utc(2026, 11, 5),
+        DateTime.utc(2026, 12, 5),
+      ], reason: 'F48 既有断言照抄 —— 回归钉死:分叉不动现状路径');
+      expect(detail.debt.dueDate, DateTime.utc(2026, 12, 5));
+    });
+
+    test('混合形态钉死:billingDay>0 × 当期 → 首期抢先取 start,后续仍按账单日锚定链',
+        () async {
+      // start=8/2、billingDay=12、n=3 → [8/2, 9/12, 10/12]:首期抢在账单日
+      // 系列之前取放款日当天,此后回到 rule 锚定链(逐月 12 日)。该混合形状
+      // 恰为平安卡(billingDay=1)银行真值形态:首期账单 = 放款日当天,
+      // 后续随账单日系列 —— 表单并入路径恒 billingDay=0,本例钉死生成器对
+      // 任意 rule 的抢先语义(currentPeriod 只决定 first,不动后续链)。
+      final d = await createLoan(
+          start: DateTime.utc(2026, 8, 2),
+          periods: 3,
+          billingDay: 12,
+          firstPeriodFromDisbursement: true);
+      final detail = await debts.get(d.id);
+      expect(detail.schedule.map((e) => e.paymentDate).toList(), [
+        DateTime.utc(2026, 8, 2),
+        DateTime.utc(2026, 9, 12),
+        DateTime.utc(2026, 10, 12),
+      ]);
+      expect(detail.debt.dueDate, DateTime.utc(2026, 10, 12));
+    });
+  });
+
   group('repayBill(账单制整单还款,e招贷口径)', () {
     test('多债多期合并为单笔交易,期次批量已还,余额联动', () async {
       final list = await debts.list();

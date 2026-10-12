@@ -111,6 +111,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // 显示开关行,但状态对全部 subtype 持有 —— 编辑回填既有值,非卡贷恒
   // 默认 true,保存时原样透传)。
   bool _countsTowardCardLimit = true;
+  // F57 首期锚点(并入模式卡贷,常驻单选):false = 放款次月(默认,现状,
+  // 典型银行)/ true = 放款当期(平安口径,首期 = 放款日当天)。分歧是银行
+  // 起扣惯例的真实差异,每笔创建都要回答(v15 形态 B,数据反转定案)。
+  // 生成期参数:随创建透传、物化进期表日期,不持久化;独立账单模式不
+  // 渲染本选项,消费点(getter)双重门控。
+  bool _firstPeriodCurrent = false;
   final _clBillDayCtrl = TextEditingController();
   final _clRepayDayCtrl = TextEditingController();
   final _ccFeeCtrl = TextEditingController();
@@ -296,6 +302,27 @@ class _DebtFormPageState extends State<DebtFormPage> {
           interval: 1,
           monthlyMode: RecurrenceMonthlyMode.byDate)
       : _rule;
+
+  /// F57 首期锚点生效值:仅「创建态 + 卡贷 + 并入模式」消费 —— 编辑态排除
+  /// (选项是生成期参数,编辑不重排守卫既有;同时堵 dueDate 脱钩通道:
+  /// 编辑提交的 effectiveDue 取自 _effectiveDates,不得因锚点分叉),独立
+  /// 账单无此分歧(切独立后残留的 true 不生效,生成行为与现状逐位一致)。
+  bool get _firstPeriodFromDisbursement => !_isEdit &&
+      _isCardLoan &&
+      !_cardLoanIndependent &&
+      _firstPeriodCurrent;
+
+  /// F57 副行实例化日期(yyyy-MM-dd):当期 = 起始日本身;次月 =
+  /// nextAfter(起始日, 卡贷生效规则)—— 与 DS 生成器同一 pinned 契约
+  /// (byDate 次月推进 + 月末钳制)。起始日未选 → null(副行退化为口径描述)。
+  String? _anchorDateLabel(bool current) {
+    final s = _startDate;
+    if (s == null) return null;
+    final d = current
+        ? DateTime.utc(s.year, s.month, s.day)
+        : nextAfter(DateTime.utc(s.year, s.month, s.day), _effectiveRule);
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
 
   /// 卡贷名义年化 %(仅展示/落库):月费率 × 12(银行现金分期口径)。
   double get _cardLoanAnnualRatePct {
@@ -918,6 +945,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
         flatFeeCents: _isCardLoan ? _cardLoanFeeCents() : 0,
         // F50 债级开关随创建写入(默认 true;备用金类可切关)。
         countsTowardCardLimit: _countsTowardCardLimit,
+        // F57 首期锚点随创建透传(默认 false = 放款次月;独立模式恒 false)。
+        firstPeriodFromDisbursement: _firstPeriodFromDisbursement,
       )));
     }
   }
@@ -1480,6 +1509,48 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ),
         ),
       ]),
+      // F57 首期锚点(创建态 + 并入模式常驻,v15 形态 B):银行起扣惯例分歧
+      // —— 典型银行放款次月起扣(默认,现状);平安当期起扣(首期 = 放款日
+      // 当天)。副行以所选起始日实例化日期(8/2 起始 → 9/2 / 8/2),随起始日
+      // 联动;独立账单模式(e招贷)无此分歧,不渲染;**编辑态整行隐藏** ——
+      // 生成期参数不持久化、无法真实回填(显示默认态 = 伪造创建时选择),
+      // 且编辑不重排守卫既有(区别于 F49 账单日/还款日 enabled:!_isEdit:
+      // 那两列有账户列存量真值可显示)。
+      if (!_cardLoanIndependent && !_isEdit) ...[
+        const SizedBox(height: AppSpacing.sm),
+        KeyedSubtree(
+          key: const ValueKey('firstPeriodAnchorRow'),
+          child: _ODField(
+            label: '首期锚点',
+            required: true,
+            hint: '两种起扣惯例都存在:典型银行次月起扣,平安当期起扣',
+            child: _ResponsiveRadioRow(
+              children: [
+                _RadioCard(
+                  key: const ValueKey('firstPeriodAnchor-nextMonth'),
+                  icon: LucideIcons.calendarClock,
+                  label: '放款次月',
+                  desc: _anchorDateLabel(false) == null
+                      ? '默认 · 首期 = 放款日次月同日'
+                      : '默认 · 首期 ${_anchorDateLabel(false)} 出账',
+                  selected: !_firstPeriodCurrent,
+                  onTap: () => setState(() => _firstPeriodCurrent = false),
+                ),
+                _RadioCard(
+                  key: const ValueKey('firstPeriodAnchor-current'),
+                  icon: LucideIcons.zap,
+                  label: '放款当期',
+                  desc: _anchorDateLabel(true) == null
+                      ? '平安口径 · 首期 = 放款日当天'
+                      : '平安口径 · 首期 ${_anchorDateLabel(true)} 出账',
+                  selected: _firstPeriodCurrent,
+                  onTap: () => setState(() => _firstPeriodCurrent = true),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
       // F50 债级开关行:仅挂接卡贷(并账 + 已选卡)显示,默认开。
       if (_showCardLimitSwitch) ...[
         const SizedBox(height: AppSpacing.sm),
@@ -1606,6 +1677,15 @@ class _DebtFormPageState extends State<DebtFormPage> {
     final term = _termPeriods();
     if (_byPeriods) {
       if (term <= 0) return const [];
+      // F57 首期锚点(当期):首期 = 起始日本身,此后照既有逐月推进
+      // (nextAfter 链式,月末钳制 pinned 契约)—— 预览与提交同源;次月 =
+      // 现状 scheduleDatesFrom 原样。镜像 DS _cardLoanScheduleDates 分叉。
+      if (_firstPeriodFromDisbursement) {
+        return [
+          DateTime.utc(_startDate!.year, _startDate!.month, _startDate!.day),
+          ...occurrences(_startDate!, _effectiveRule, term - 1),
+        ];
+      }
       return scheduleDatesFrom(_effectiveRule, _startDate!, _startDate!, term);
     }
     if (_dueDate == null) return const [];
@@ -1669,7 +1749,13 @@ class _DebtFormPageState extends State<DebtFormPage> {
           key: const ValueKey('cardLoanScheduleHint'),
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: Text(
-              '出账节奏:首期 = 放款日的下个每月对应日,此后每月一期;到期日按末期推导',
+              // F57:并入模式首期随锚点选项联动;独立模式/编辑态无锚点选项,
+              // 保持既有中性表述(现状语义)。
+              _cardLoanIndependent || _isEdit
+                  ? '出账节奏:首期 = 放款日的下个每月对应日,此后每月一期;到期日按末期推导'
+                  : _firstPeriodCurrent
+                      ? '出账节奏:首期 = 放款日当天(锚点「放款当期」),此后每月一期;到期日按末期推导'
+                      : '出账节奏:首期 = 放款日的下个每月对应日(锚点「放款次月」),此后每月一期;到期日按末期推导',
               style:
                   TextStyle(fontSize: 11.5, color: context.yucai.muted)),
         ),

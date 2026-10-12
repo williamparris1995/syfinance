@@ -83,6 +83,10 @@ class DebtRepositoryImpl implements DebtRepository {
     // 不透传 —— bound 在线编辑后镜像重建走 keep-existing 保留本地值。
     bool countsTowardCardLimit = true,
     bool restructureOnly = false,
+    // F57 首期锚点(本地私有生成期参数):仅透传本地 DS;remote 不透传 ——
+    // proto CreateDebtRequest 无对应字段(照 billingDay/flatFeeCents 先例),
+    // bound 在线创建卡贷沿用 guest-local v1 已知限制(退化为次月锚定)。
+    bool firstPeriodFromDisbursement = false,
   }) =>
       _routedWrite(MirrorModule.debt,
           // 卡贷 billingDay/flatFeeCents 不透传 remote:proto CreateDebtRequest
@@ -141,6 +145,7 @@ class DebtRepositoryImpl implements DebtRepository {
             flatFeeCents: flatFeeCents,
             countsTowardCardLimit: countsTowardCardLimit,
             restructureOnly: restructureOnly,
+            firstPeriodFromDisbursement: firstPeriodFromDisbursement,
           ));
 
   @override

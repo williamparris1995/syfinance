@@ -54,6 +54,10 @@ class CreateDebtParams extends Equatable {
     this.flatFeeCents = 0,
     // F50 债级开关:剩余本金是否计入挂接卡额度占用(默认 true)。
     this.countsTowardCardLimit = true,
+    // F57 首期锚点(卡贷并入模式):true = 放款当期起扣(平安口径,首期 =
+    // 放款日当天);false(默认)= 放款次月(现状)。生成期参数,物化进
+    // 期表日期,不持久化为债字段(仅 local DS 消费,remote 不透传)。
+    this.firstPeriodFromDisbursement = false,
   });
   final String accountId;
   final String counterparty;
@@ -98,6 +102,10 @@ class CreateDebtParams extends Equatable {
   /// F50 债级开关:剩余本金是否计入挂接卡额度占用(卡贷并账语义;默认
   /// true = 计入,备用金类独立额度置 false)。表单开关随保存携带。
   final bool countsTowardCardLimit;
+  /// F57 首期锚点(卡贷并入模式):false = 放款次月(现状默认)/ true =
+  /// 放款当期(平安口径,首期 = 放款日当天)。生成期参数,随创建携带;
+  /// 独立账单模式不渲染选项,恒 false。
+  final bool firstPeriodFromDisbursement;
 
   @override
   List<Object?> get props => [
@@ -126,6 +134,7 @@ class CreateDebtParams extends Equatable {
         billingDay,
         flatFeeCents,
         countsTowardCardLimit,
+        firstPeriodFromDisbursement,
       ];
 }
 

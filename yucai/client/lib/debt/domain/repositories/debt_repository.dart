@@ -41,6 +41,11 @@ abstract class DebtRepository {
     // 信用卡分期重构:负债余额已含本金,跳过开账双写(否则欠款翻倍)。
     // 仅 borrowedIn;与 sourceAccountId 互斥。
     bool restructureOnly = false,
+    // F57 首期锚点(卡贷并入模式):true = 放款当期起扣(平安口径,首期 =
+    // 放款日当天);false(默认)= 放款次月(现状)。**生成期参数** —— 仅
+    // local DS 消费(物化进期表日期,不持久化,零 drift 列/零 proto;remote
+    // 不透传,见 DebtRepositoryImpl 注)。
+    bool firstPeriodFromDisbursement = false,
   });
   Future<Either<Failure, Debt>> update({
     required String id,

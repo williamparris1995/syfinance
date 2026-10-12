@@ -104,6 +104,8 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
         flatFeeCents: p.flatFeeCents,
         // F50 债级开关随创建透传(默认 true,非卡贷路径行为不变)。
         countsTowardCardLimit: p.countsTowardCardLimit,
+        // F57 首期锚点随创建透传(默认 false = 放款次月,现状不变)。
+        firstPeriodFromDisbursement: p.firstPeriodFromDisbursement,
       );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
