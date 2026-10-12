@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/account/domain/account_presets.dart';
 import 'package:yucai_client/account/domain/account_visibility.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -396,18 +397,41 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     }
   }
 
-  Future<void> _openCreateForm() async {
+  /// 建户表单打开(创建路径)。
+  ///
+  /// F52 FR-2/FR-3:六项菜单的落点 —— 参数形态走**构造参数直传**(design LLD
+  /// 两案之对象直传,照本页 `_openEditForm(existing: a)` 既有先例;表单页
+  /// 本就不经 router 路由,无 `/accounts/new` 路由可挂参):
+  ///  - [preset] 非 null:预设项(花呗等),表单预填类别/名称/机构(日期);
+  ///  - [preselectCreditCard]:普通信用卡项,仅预选类别;
+  ///  - 两参缺省(「全部自定义…」)= 现状无参路径,**逐位一致**(FR-2 回归)。
+  Future<void> _openCreateForm(
+      {AccountPreset? preset, bool preselectCreditCard = false}) async {
     final created = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
             builder: (_) => BlocProvider.value(
               value: context.read<AccountBloc>(),
-              child: const AccountFormPage(),
+              child: AccountFormPage(
+                preset: preset,
+                preselectCreditCard: preselectCreditCard,
+              ),
             ),
           ),
         ) ??
         false;
     if (created && mounted) {
       AppToast.show(context, '账户创建成功');
+    }
+  }
+
+  /// F52 FR-2:六项菜单选中分发(菜单项语义 → 表单参数)。
+  void _onCreateSelected(_CreateSelection sel) {
+    if (sel.preset != null) {
+      _openCreateForm(preset: sel.preset);
+    } else if (sel.creditCard) {
+      _openCreateForm(preselectCreditCard: true);
+    } else {
+      _openCreateForm(); // 「全部自定义…」= 现状无参路径
     }
   }
 
@@ -589,7 +613,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                 Text('点击右上角「新建账户」开始记录',
                     style: TextStyle(color: context.yucai.muted, fontSize: 14)),
                 const SizedBox(height: AppSpacing.lg),
-                _NewAccountButton(onPressed: _openCreateForm),
+                _NewAccountButton(onSelected: _onCreateSelected),
               ],
             ),
           ),
@@ -704,7 +728,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                   assetCents: assetCents,
                   liabCents: liabCents,
                   preferred: cstate.preferred,
-                  onAdd: _openCreateForm,
+                  onCreateSelected: _onCreateSelected,
                 ),
                 // F9 FR-5 头部搜索框（提交制，core 通用 SearchField；无排序
                 // 无分页 —— 矩阵定案，低增长页保持简洁）。
@@ -802,7 +826,7 @@ class _AccountsHeader extends StatelessWidget {
     required this.assetCents,
     required this.liabCents,
     required this.preferred,
-    required this.onAdd,
+    required this.onCreateSelected,
   });
 
   final int netCents;
@@ -810,7 +834,8 @@ class _AccountsHeader extends StatelessWidget {
   final int liabCents;
   /// 总计金额的展示货币代码（已换算到此货币），用于符号前缀。
   final String preferred;
-  final VoidCallback onAdd;
+  /// F52 FR-2:新建入口六项菜单选中分发(页头两触发位共用)。
+  final void Function(_CreateSelection) onCreateSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -865,7 +890,7 @@ class _AccountsHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 32),
-              _NewAccountButton(onPressed: onAdd),
+              _NewAccountButton(onSelected: onCreateSelected),
             ],
           ),
         ),
@@ -898,12 +923,13 @@ class _AccountsHeader extends StatelessWidget {
               ),
             ),
           ),
-          // 右上角圆形 + 新建按钮（mobile：只 Icon 无文字，对齐原型 mobile topbar + 意图）
+          // 右上角圆形 + 新建菜单（mobile：只 Icon 无文字，对齐原型 mobile topbar + 意图；
+          // F52 FR-2:同 desktop 药丸钮,点击展开六项平权菜单）。
           Positioned(
             top: 14,
             right: 14,
-            child: GestureDetector(
-              onTap: onAdd,
+            child: _CreateMenuAnchor(
+              onSelected: onCreateSelected,
               child: Container(
                 width: 34,
                 height: 34,
@@ -1015,9 +1041,11 @@ class _AccountsHeader extends StatelessWidget {
 /// .newbtn：margin-left:auto height:40 padding:0 20 radius:9999px accent bg
 /// #fff 14 w600 gap7 box-shadow:0 4px 12px rgba(176,141,87,.32)；:hover accent-press。
 /// + 字号 18 w400。
+/// F52 FR-2:点击不再是直开表单 —— 展开六项平权新建菜单([_CreateMenuAnchor]
+/// 锚定本按钮,药丸视觉零变化)。
 class _NewAccountButton extends StatefulWidget {
-  const _NewAccountButton({required this.onPressed});
-  final VoidCallback onPressed;
+  const _NewAccountButton({required this.onSelected});
+  final void Function(_CreateSelection) onSelected;
 
   @override
   State<_NewAccountButton> createState() => _NewAccountButtonState();
@@ -1028,12 +1056,12 @@ class _NewAccountButtonState extends State<_NewAccountButton> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: GestureDetector(
-        onTap: widget.onPressed,
+    return _CreateMenuAnchor(
+      onSelected: widget.onSelected,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           height: 40, // .newbtn height:40px
@@ -1068,6 +1096,210 @@ class _NewAccountButtonState extends State<_NewAccountButton> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ───────────────── F52:新建入口六项平权菜单(FR-2/ADR-2) ─────────────────
+
+/// 六项菜单的选中语义(值 = 表单参数面):预设项直传目录对象;普通信用卡项
+/// 仅置 [creditCard];两字段空 = 「全部自定义…」(现状无参路径)。
+typedef _CreateSelection = ({AccountPreset? preset, bool creditCard});
+
+/// 预设项展示元数据(与 [accountPresets] 同序):字牌首字 + 身份色。
+/// 字符/色值照 v14 原型形态 ii(theme.css .lg-*:花呗金 #C9964A/京东红
+/// #F87171/美团青 #22D3EE/微信绿 #34D399;花呗取机构首字「蚂」、微信分付
+/// 取产品首字「微」照原型,非机械推导)。身份色口径同
+/// account_category_style 的 F4-P2 裁决(中饱和中间调,双板共用硬编码豁免)。
+const List<(String, Color)> _presetTiles = [
+  ('蚂', Color(0xFFC9964A)),
+  ('京', Color(0xFFF87171)),
+  ('美', Color(0xFF22D3EE)),
+  ('微', Color(0xFF34D399)),
+];
+
+/// 预设项副行:日期齐 → 「账单 X 日 · 还款 Y 日」(花呗);否则目录 hint
+/// (白条类「账单日按激活日,建后可改」)—— 单一来源跟随目录,目录改即随动。
+String _presetSubLine(AccountPreset p) =>
+    (p.billingDay != null && p.repaymentDay != null)
+        ? '账单 ${p.billingDay} 日 · 还款 ${p.repaymentDay} 日'
+        : p.hint;
+
+/// 新建入口锚定菜单:任意触发子体(desktop 药丸钮 / mobile 圆钮)包一层
+/// PopupMenuButton,点击展开六项平权菜单。
+///
+/// 原语选型(ADR-4 → ADR-007 次序):design_kit [AnchoredMenu] 优先,但其
+/// [MenuItemData] 无副行/分隔语义,无法表达 FR-2 六项结构(恰六项含分隔 +
+/// 预设副行文案);扩 design_kit 又越本票文件面 → 按任务书次序退
+/// PopupMenuButton(库内先例:DebtSortControl / TxnSortControl 同款
+/// position.under + constraints;分隔用 PopupMenuDivider,副行用自定义
+/// child)。容器样式以 design_kit [popupMenuStyle] 为底(surface/黑阴影
+/// 豁免/elevation6 同值同口径)+ v14 .dd 的 radius14/1px border/minWidth300。
+class _CreateMenuAnchor extends StatelessWidget {
+  const _CreateMenuAnchor({required this.onSelected, required this.child});
+
+  final void Function(_CreateSelection) onSelected;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    assert(_presetTiles.length == accountPresets.length,
+        'menu preset tiles must stay in sync with accountPresets catalog');
+    return PopupMenuButton<_CreateSelection>(
+      position: PopupMenuPosition.under,
+      // 容器样式与 design_kit popupMenuStyle(卡操作菜单统一样式)同值同口径
+      // (surface/黑阴影豁免/elevation6),叠加 v14 .dd 的 width300/radius14/
+      // 1px border(PopupMenuButton.style 是按钮面 ButtonStyle,菜单容器走
+      // 下列独立参数)。
+      color: context.yucai.surface,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: const Color(0x1F000000),
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: context.yucai.border),
+      ),
+      constraints: const BoxConstraints(minWidth: 300), // v14 .dd width:300
+      // 触发体自带视觉/热区(药丸/圆钮),不再叠加默认 8px 按钮内边距。
+      padding: EdgeInsets.zero,
+      onSelected: onSelected,
+      itemBuilder: (ctx) => <PopupMenuEntry<_CreateSelection>>[
+        // ① 信用卡(普通):与预设同层平权,仅预选类别(FR-2 平权修正的落点)。
+        const PopupMenuItem<_CreateSelection>(
+          value: (preset: null, creditCard: true),
+          padding: EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+          child: _CreateMenuTile(
+            title: '信用卡',
+            chip: '普通',
+            sub: '银行信用卡,参数自填 · 填额度/账单日/还款日',
+            icon: LucideIcons.creditCard,
+          ),
+        ),
+        // ② - ⑤ 预设四件套(FR-1 目录展开,两击直达)。
+        for (final (i, p) in accountPresets.indexed)
+          PopupMenuItem<_CreateSelection>(
+            value: (preset: p, creditCard: false),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+            child: _CreateMenuTile(
+              title: p.name,
+              sub: _presetSubLine(p),
+              tileChar: _presetTiles[i].$1,
+              tileColor: _presetTiles[i].$2,
+            ),
+          ),
+        // 分隔(v14 .dd-sep)。
+        const PopupMenuDivider(height: 9),
+        // ⑥ 全部自定义…:现有表单原路径,零类别预选。
+        PopupMenuItem<_CreateSelection>(
+          value: (preset: null, creditCard: false),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+          child: _CreateMenuTile(
+            title: '全部自定义…',
+            sub: '储蓄/投资/贷款等其余类型',
+            tileChar: '自',
+            tileColor: ctx.yucai.muted, // .lg-slate = muted 令牌口径
+          ),
+        ),
+      ],
+      child: child,
+    );
+  }
+}
+
+/// 菜单项两行瓦片(v14 .dd-item):32×32 radius9 字牌/图标 + 标题行(可带
+/// dn-chip)+ 11px muted 副行。
+class _CreateMenuTile extends StatelessWidget {
+  const _CreateMenuTile({
+    required this.title,
+    required this.sub,
+    this.icon,
+    this.tileChar,
+    this.tileColor,
+    this.chip,
+  });
+
+  final String title;
+  final String sub;
+  /// 与 [tileChar] 二选一:图标牌(信用卡项)。
+  final IconData? icon;
+  /// 字牌首字(预设/自定义项,原型 .di)。
+  final String? tileChar;
+  /// 牌前景色;null → 信用卡类别身份色([categoryColor])。
+  final Color? tileColor;
+  /// 标题旁 dn-chip 文案(仅普通信用卡项「普通」)。
+  final String? chip;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = tileColor ?? categoryColor(context, AccountCategory.creditCard);
+    return Row(
+      children: [
+        // .di 32×32 radius9,软底 14%(同本页 cicon 口径),w800 13 号字牌。
+        Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: icon != null
+              ? Icon(icon, size: 15, color: color)
+              : Text(tileChar!,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: color)),
+        ),
+        const SizedBox(width: 12), // .dd-item gap:12
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // .dn 13 w600
+                  Flexible(
+                    child: Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: context.yucai.fg)),
+                  ),
+                  if (chip != null) ...[
+                    const SizedBox(width: 6),
+                    // .dn-chip 10 w700 muted pill(照已归档徽标 muted 软底口径)。
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: context.yucai.muted.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(chip!,
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: context.yucai.muted)),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 1), // .ds margin-top:1
+              // .ds 11 muted
+              Text(sub,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      TextStyle(fontSize: 11, color: context.yucai.muted)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
