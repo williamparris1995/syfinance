@@ -18,7 +18,7 @@
 ## Sprint roster
 
 - [x] [sprint-1](sprint-1/sprint.md) — F49 isSystem 激活·载体户隐藏 / F50 卡贷额度占用重落 / F51 loan·invest 双重表示规则化 ✅(2026-10-10 三票收官;sprint-2 F52+F57 待立项)
-- [ ] [sprint-2](sprint-2/sprint.md) — F52 花呗/白条等建户预设模板层 + F57 期表首期锚点选项(2026-10-10 立项)
+- [x] [sprint-2](sprint-2/sprint.md) — F52 花呗/白条等建户预设模板层 + F57 期表首期锚点选项 ✅(2026-10-12 两票收官=R17 功能面 done;发版待用户)
 
 ## Done criteria
 
@@ -28,4 +28,4 @@
 4. F52:花呗/白条(及常见银行)预设模板,creditCard 类别,预填额度/账单日/还款日;零 proto 改动(F49-F51 预计同,若镜像链确需 server 透传 isSystem 则在对应 spec 显式拍板)。
 5. 全门:flutter test 全绿 + analyze 基线 + `make client-e2e`(零 proto 改动免 go 门)。
 
-## status: pending
+## status: done(2026-10-12 两 sprint 五票全落=R17 功能面收官;发版待用户 tag 推送)
