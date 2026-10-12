@@ -14,7 +14,7 @@
 | 单元 | 内容 |
 |---|---|
 | 1 生成器 | `_cardLoanScheduleDates(rule, start, n, {bool currentPeriod = false})`:currentPeriod 且 start 可作首期 → `[start, ...逐月]`;否则现状。`_flatFeeSchedule`/创建链路透传 CreateDebtParams 新参 |
-| 2 表单 | debt_form_page 卡贷区(并入模式,`!_cardLoanIndependent`)常驻 `_ODField`「首期锚点」`_ResponsiveRadioRow` 两项(照 v15 B 段文案+实例化日期副行);提交透传;独立模式不渲染;排期预览联动(既有预览面) |
+| 2 表单 | debt_form_page 卡贷区(并入模式,`!_cardLoanIndependent`)常驻 `_ODField`「首期锚点」`_ResponsiveRadioRow` 两项(照 spec FR-1 文案 + v15 B 形态,实例化日期副行);提交透传;独立模式不渲染;排期预览联动(既有预览面) |
 | 3 测试 | 生成器:当期/次月/月末钳制(1/31 起始)/存量回归零变化;表单:默认次月/选当期透传/独立模式不显示 |
 
 ## Risks

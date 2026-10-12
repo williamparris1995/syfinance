@@ -303,10 +303,14 @@ class _DebtFormPageState extends State<DebtFormPage> {
           monthlyMode: RecurrenceMonthlyMode.byDate)
       : _rule;
 
-  /// F57 首期锚点生效值:仅「卡贷 + 并入模式」消费(独立账单无此分歧,
-  /// 切独立后残留的 true 不生效,生成行为与现状逐位一致)。
-  bool get _firstPeriodFromDisbursement =>
-      _isCardLoan && !_cardLoanIndependent && _firstPeriodCurrent;
+  /// F57 首期锚点生效值:仅「创建态 + 卡贷 + 并入模式」消费 —— 编辑态排除
+  /// (选项是生成期参数,编辑不重排守卫既有;同时堵 dueDate 脱钩通道:
+  /// 编辑提交的 effectiveDue 取自 _effectiveDates,不得因锚点分叉),独立
+  /// 账单无此分歧(切独立后残留的 true 不生效,生成行为与现状逐位一致)。
+  bool get _firstPeriodFromDisbursement => !_isEdit &&
+      _isCardLoan &&
+      !_cardLoanIndependent &&
+      _firstPeriodCurrent;
 
   /// F57 副行实例化日期(yyyy-MM-dd):当期 = 起始日本身;次月 =
   /// nextAfter(起始日, 卡贷生效规则)—— 与 DS 生成器同一 pinned 契约
@@ -1505,11 +1509,14 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ),
         ),
       ]),
-      // F57 首期锚点(并入模式常驻,v15 形态 B):银行起扣惯例分歧 —— 典型
-      // 银行放款次月起扣(默认,现状);平安当期起扣(首期 = 放款日当天)。
-      // 副行以所选起始日实例化日期(8/2 起始 → 9/2 / 8/2),随起始日联动;
-      // 独立账单模式(e招贷)无此分歧,不渲染。
-      if (!_cardLoanIndependent) ...[
+      // F57 首期锚点(创建态 + 并入模式常驻,v15 形态 B):银行起扣惯例分歧
+      // —— 典型银行放款次月起扣(默认,现状);平安当期起扣(首期 = 放款日
+      // 当天)。副行以所选起始日实例化日期(8/2 起始 → 9/2 / 8/2),随起始日
+      // 联动;独立账单模式(e招贷)无此分歧,不渲染;**编辑态整行隐藏** ——
+      // 生成期参数不持久化、无法真实回填(显示默认态 = 伪造创建时选择),
+      // 且编辑不重排守卫既有(区别于 F49 账单日/还款日 enabled:!_isEdit:
+      // 那两列有账户列存量真值可显示)。
+      if (!_cardLoanIndependent && !_isEdit) ...[
         const SizedBox(height: AppSpacing.sm),
         KeyedSubtree(
           key: const ValueKey('firstPeriodAnchorRow'),
@@ -1742,7 +1749,13 @@ class _DebtFormPageState extends State<DebtFormPage> {
           key: const ValueKey('cardLoanScheduleHint'),
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: Text(
-              '出账节奏:首期 = 放款日的下个每月对应日,此后每月一期;到期日按末期推导',
+              // F57:并入模式首期随锚点选项联动;独立模式/编辑态无锚点选项,
+              // 保持既有中性表述(现状语义)。
+              _cardLoanIndependent || _isEdit
+                  ? '出账节奏:首期 = 放款日的下个每月对应日,此后每月一期;到期日按末期推导'
+                  : _firstPeriodCurrent
+                      ? '出账节奏:首期 = 放款日当天(锚点「放款当期」),此后每月一期;到期日按末期推导'
+                      : '出账节奏:首期 = 放款日的下个每月对应日(锚点「放款次月」),此后每月一期;到期日按末期推导',
               style:
                   TextStyle(fontSize: 11.5, color: context.yucai.muted)),
         ),

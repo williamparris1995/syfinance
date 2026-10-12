@@ -1960,6 +1960,57 @@ void main() {
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });
+
+    testWidgets('④ 编辑态:锚点行不渲染(生成期参数不回填),预览走现状路径',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(
+          [_loanAccount(id: 'loan-1'), _creditCardAccount(id: 'cc-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      final existing = Debt(
+        id: 'd-f57-edit',
+        accountId: 'loan-1',
+        counterparty: '平安现金分期',
+        interestRate: 0.072,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2026, 8, 2),
+        dueDate: DateTime(2027, 8, 1),
+        totalPrincipalCents: 6000000,
+        remainingPrincipalCents: 6000000,
+        version: 3,
+        subtype: DebtSubtypes.cardLoan,
+        collectionAccountId: 'cc-1',
+        createdAt: DateTime(2026, 8, 2),
+        updatedAt: DateTime(2026, 8, 3),
+      );
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: existing,
+      ));
+      await t.pumpAndSettle();
+
+      // 生成期参数不持久化 → 编辑态无法真实回填(显示默认态等于伪造创建时
+      // 选择)→ 整行隐藏。区别于 F49 账单日/还款日 enabled:!_isEdit —— 那两
+      // 列有存量真值(账户列)可显示,锚点没有。
+      expect(anchorRow(), findsNothing,
+          reason: '编辑态不渲染首期锚点(选项仅创建时回答,编辑不重排守卫既有)');
+      expect(anchorCurrent(), findsNothing);
+      expect(anchorNextMonth(), findsNothing);
+      // 锚点排除出 _effectiveDates(堵 dueDate 脱钩通道):预览首期仍走
+      // 现状次月路径(8/2 起始 → 2026-09-02)。
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('previewRow-01')),
+              matching: find.text('2026-09-02')),
+          findsOneWidget,
+          reason: '编辑态预览/dueDate 推导不受锚点影响');
+    });
   });
 
   // F49 T2 —— 建户置位(FR-1):并入模式自动载体户 isSystem=true(纯账务

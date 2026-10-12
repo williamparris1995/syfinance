@@ -1078,6 +1078,27 @@ void main() {
       ], reason: 'F48 既有断言照抄 —— 回归钉死:分叉不动现状路径');
       expect(detail.debt.dueDate, DateTime.utc(2026, 12, 5));
     });
+
+    test('混合形态钉死:billingDay>0 × 当期 → 首期抢先取 start,后续仍按账单日锚定链',
+        () async {
+      // start=8/2、billingDay=12、n=3 → [8/2, 9/12, 10/12]:首期抢在账单日
+      // 系列之前取放款日当天,此后回到 rule 锚定链(逐月 12 日)。该混合形状
+      // 恰为平安卡(billingDay=1)银行真值形态:首期账单 = 放款日当天,
+      // 后续随账单日系列 —— 表单并入路径恒 billingDay=0,本例钉死生成器对
+      // 任意 rule 的抢先语义(currentPeriod 只决定 first,不动后续链)。
+      final d = await createLoan(
+          start: DateTime.utc(2026, 8, 2),
+          periods: 3,
+          billingDay: 12,
+          firstPeriodFromDisbursement: true);
+      final detail = await debts.get(d.id);
+      expect(detail.schedule.map((e) => e.paymentDate).toList(), [
+        DateTime.utc(2026, 8, 2),
+        DateTime.utc(2026, 9, 12),
+        DateTime.utc(2026, 10, 12),
+      ]);
+      expect(detail.debt.dueDate, DateTime.utc(2026, 10, 12));
+    });
   });
 
   group('repayBill(账单制整单还款,e招贷口径)', () {

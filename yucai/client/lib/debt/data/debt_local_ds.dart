@@ -853,6 +853,11 @@ class DebtLocalDataSource {
   /// start 本身(放款日当天起扣);此后照既有逐月推进(nextAfter 链式 byDate
   /// 月末钳制 = 引擎 pinned 契约,不改引擎)。false(默认)= 上述现状路径
   /// 原样(nextAfter 语义 = 放款次月)。
+  ///
+  /// 抢先语义:currentPeriod 只决定 first,不动后续链 —— billingDay>0 ×
+  /// currentPeriod 的混合形态 = 首期抢先取 start,后续仍按 rule 账单日锚定
+  /// 链(平安卡 billingDay=1 真值形状:首期账单 = 放款日当天,此后随账单日
+  /// 系列;表单并入路径恒 billingDay=0,混合形态由钉死测试锁住)。
   List<DateTime> _cardLoanScheduleDates(
       RecurrenceRule rule, DateTime start, int n,
       {bool currentPeriod = false}) {
