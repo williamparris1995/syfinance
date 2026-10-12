@@ -20,8 +20,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/domain/account_presets.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
@@ -31,6 +33,7 @@ import 'package:yucai_client/account/domain/usecases/list_accounts_usecase.dart'
 import 'package:yucai_client/account/domain/usecases/update_account_usecase.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
+import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/localdb/app_database.dart'
@@ -551,7 +554,7 @@ void main() {
   // cicon + cv(右) + csub + bar + bar-meta，无 PopupMenuButton（操作移至详情页）。
   // 此测试用 _fullCard 专属的 bar-meta「已用 ...」作判别 witness（_compactCard 无 bar-meta）。
   testWidgets(
-      'desktop card: _fullCard branch (bar-meta present, no PopupMenuButton)',
+      'desktop card: _fullCard branch (bar-meta present, card has no action popup)',
       (t) async {
     t.view.physicalSize = size;
     t.view.devicePixelRatio = 1.0;
@@ -574,8 +577,17 @@ void main() {
     expect(find.text('招行信用卡'), findsOneWidget);
     // _fullCard 专属：bar-meta「已用 ... / ...」（_compactCard 只有 bar 无 meta）。
     expect(find.textContaining('已用'), findsOneWidget);
-    // 操作菜单已移除（迁至详情页 AppBar）。
-    expect(find.byType(PopupMenuButton), findsNothing);
+    // 卡片操作菜单已移除（迁至详情页 AppBar）。F52(FR-2)后页头「新建账户」
+    // 合法持有一个 PopupMenuButton(六项平权菜单)→ 判据收窄为「全页唯一
+    // popup = 新建入口(按钮文案『新建账户』)」,卡片仍零操作 popup。
+    // byWidgetPredicate 而非 byType:泛型实例化(记录型选中值)下
+    // byType(PopupMenuButton) 匹配不到(byType 是 runtimeType 全等)。
+    final popup = find.byWidgetPredicate((w) => w is PopupMenuButton);
+    expect(popup, findsOneWidget);
+    expect(
+      find.descendant(of: popup, matching: find.text('新建账户')),
+      findsOneWidget,
+    );
   });
 
   // Task 3 — _GroupBlock 三断点列数（mobile 1-col Column / tablet 2 / desktop auto-fill）。
@@ -885,6 +897,140 @@ void main() {
       await t.pumpAndSettle();
       expect(find.byKey(const ValueKey('dueBanner')), findsNothing);
       expect(find.text('净资产合计'), findsOneWidget);
+    });
+  });
+
+  // ─────────────── F52-T3:新建入口六项平权菜单(FR-2) ───────────────
+  // 「新建账户」按钮改锚定菜单:信用卡(普通)/花呗/京东白条/美团月付/微信
+  // 分付/分隔/全部自定义…。前五项经构造参数直传进表单(design LLD「对象直传」
+  // 照 _openEditForm 的 existing 先例);「全部自定义」= 现状无参路径逐位
+  // 一致(FR-2 回归钉死)。菜单文案/结构基准 = v14 原型形态 ii。
+  group('F52-T3 新建入口六项菜单(FR-2)', () {
+    // 泛型菜单件(byType 是 runtimeType 全等,匹配不到带类型实参的实例,
+    // 库内先例 credit_card_repay_dialog_test 的 SegmentedButton 判据)。
+    final popupBtn = find.byWidgetPredicate((w) => w is PopupMenuButton);
+    final popupItem = find.byWidgetPredicate((w) => w is PopupMenuItem);
+
+    /// 菜单内文本 finder(限定 PopupMenuItem 子树 —— 页面背后还有
+    /// 分类 chips「信用卡」等同名文本,避免误命中)。
+    Finder inMenu(String text) =>
+        find.descendant(of: popupItem, matching: find.text(text));
+
+    testWidgets('点击新建账户 → 菜单恰六项 + 分隔(六项平权,副行文案齐)',
+        (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness([_savings()]));
+      await t.pumpAndSettle();
+      // 唯一 popup = 页头新建入口(卡片/其他位置零 popup)。
+      expect(popupBtn, findsOneWidget);
+
+      await t.tap(find.text('新建账户'));
+      await t.pumpAndSettle();
+
+      // FR-2「菜单恰六项(含分隔)」:六项 + 一条分隔,无「自定义账户」吞掉
+      // 普通信用卡的形态(普通信用卡与预设同层平权)。
+      expect(popupItem, findsNWidgets(6));
+      expect(find.byWidgetPredicate((w) => w is PopupMenuDivider),
+          findsOneWidget);
+
+      expect(inMenu('信用卡'), findsOneWidget);
+      expect(inMenu('普通'), findsOneWidget); // dn-chip「普通」
+      expect(inMenu('花呗'), findsOneWidget);
+      expect(inMenu('京东白条'), findsOneWidget);
+      expect(inMenu('美团月付'), findsOneWidget);
+      expect(inMenu('微信分付'), findsOneWidget);
+      expect(inMenu('全部自定义…'), findsOneWidget);
+
+      // 副行文案(v14 形态 ii):花呗固定日期;白条类激活日 hint(目录同源)。
+      expect(inMenu('账单 1 日 · 还款 9 日'), findsOneWidget);
+      expect(inMenu('账单日按激活日,建后可改'), findsNWidgets(3));
+      expect(inMenu('银行信用卡,参数自填 · 填额度/账单日/还款日'), findsOneWidget);
+      expect(inMenu('储蓄/投资/贷款等其余类型'), findsOneWidget);
+    });
+
+    testWidgets('花呗 → 表单 preset 对象直传(目录第 1 条,预填指令经参数面)',
+        (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness([_savings()]));
+      await t.pumpAndSettle();
+      await t.tap(find.text('新建账户'));
+      await t.pumpAndSettle();
+      await t.tap(inMenu('花呗'));
+      await t.pumpAndSettle();
+
+      final form = t.widget<AccountFormPage>(find.byType(AccountFormPage));
+      expect(form.preset, same(accountPresets.first));
+      expect(form.preselectCreditCard, isFalse);
+      expect(form.existing, isNull);
+    });
+
+    testWidgets('信用卡(普通) → 仅 preselectCreditCard(零预设,零 existing)',
+        (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness([_savings()]));
+      await t.pumpAndSettle();
+      await t.tap(find.text('新建账户'));
+      await t.pumpAndSettle();
+      await t.tap(inMenu('信用卡'));
+      await t.pumpAndSettle();
+
+      final form = t.widget<AccountFormPage>(find.byType(AccountFormPage));
+      expect(form.preselectCreditCard, isTrue);
+      expect(form.preset, isNull);
+      expect(form.existing, isNull);
+    });
+
+    testWidgets('全部自定义… → 现状无参路径回归(preset/preselect 均空)',
+        (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness([_savings()]));
+      await t.pumpAndSettle();
+      await t.tap(find.text('新建账户'));
+      await t.pumpAndSettle();
+      await t.tap(inMenu('全部自定义…'));
+      await t.pumpAndSettle();
+
+      // 与旧行为 const AccountFormPage() 逐位等价(FR-2 回归:零类别预选)。
+      final form = t.widget<AccountFormPage>(find.byType(AccountFormPage));
+      expect(form.preset, isNull);
+      expect(form.preselectCreditCard, isFalse);
+      expect(form.existing, isNull);
+    });
+
+    testWidgets('空态「新建账户」按钮展开同一六项菜单(第三触发位)', (t) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness([]));
+      await t.pumpAndSettle();
+      expect(find.text('还没有账户'), findsOneWidget);
+      await t.tap(find.text('新建账户'));
+      await t.pumpAndSettle();
+      expect(popupItem, findsNWidgets(6));
+      expect(find.byWidgetPredicate((w) => w is PopupMenuDivider),
+          findsOneWidget);
+    });
+
+    testWidgets('mobile:汇总卡右上「+」圆钮展开同一六项菜单', (t) async {
+      t.view.physicalSize = const Size(390, 844);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness([_savings()]));
+      await t.pumpAndSettle();
+      // mobile 汇总卡唯一的 plus 图标 = 右上圆钮(desktop 药丸钮不渲染)。
+      await t.tap(find.byIcon(LucideIcons.plus));
+      await t.pumpAndSettle();
+      expect(popupItem, findsNWidgets(6));
+      expect(find.byWidgetPredicate((w) => w is PopupMenuDivider),
+          findsOneWidget);
     });
   });
 }

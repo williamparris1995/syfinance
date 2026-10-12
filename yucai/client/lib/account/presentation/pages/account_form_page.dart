@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/account/domain/account_presets.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -29,12 +30,26 @@ import 'package:yucai_client/holding/domain/repositories/holding_repository.dart
 /// - [existing] != null 且 id 非空：编辑模式（预填字段，调 UpdateAccount）。
 /// - [existing] != null 但 id == ''（复制 seed）：走创建，字段已 seed。
 ///
+/// F52 FR-3（ADR-3）预填通道：[preset] 非 null = 经预设目录进入（花呗等），
+/// initState 回填 creditCard 类别 + name/institution（preset 日期非 null 时
+/// 连带账单日/还款日）；[preselectCreditCard] 仅预选信用卡类别，其余空。
+/// 预填仅 initial 注入，全字段可编辑（角标「预设 · 可修改」只标识来源，
+/// 提交不持久任何预设痕迹，零存储面）；额度留空由用户补（必填语义由
+/// 既有校验/提交流程覆盖）。仅创建态生效，编辑/复制路径零 diff。
+///
 /// 布局对应原型 desktop-form-account.html：TypeTabs 顶部类型选择 +
 /// 分区表单 + 按 category 动态字段（[categoryFieldsWidget]）+ 底部操作栏。
 class AccountFormPage extends StatefulWidget {
   final Account? existing;
 
-  const AccountFormPage({super.key, this.existing});
+  /// F52：建户预设（account domain 目录常量）；null = 非预设进入。
+  final AccountPreset? preset;
+
+  /// F52：普通信用卡快捷入口 —— 仅预选 creditCard 类别，不预填任何字段。
+  final bool preselectCreditCard;
+
+  const AccountFormPage(
+      {super.key, this.existing, this.preset, this.preselectCreditCard = false});
 
   @override
   State<AccountFormPage> createState() => _AccountFormPageState();
@@ -64,6 +79,22 @@ class _AccountFormPageState extends State<AccountFormPage> {
   // (FR-4 静默不降级,仍可保存)。
   bool _attachmentCheckDone = false;
 
+  // F52 FR-3:预设预填态位 —— initState 经 preset 回填时置 true,驱动头部
+  // 角标「预设 · 可修改」与日期 hint;创建态切类别(clearAll)即弃预设态。
+  bool _fromPreset = false;
+
+  /// F52:日期空 + 预设来源时的提示行文案(白条类「账单日按激活日,建后可改」;
+  /// 花呗日期已预填 → null 不显)。渲染在账单日/还款日行下方(muted 小字,
+  /// 语义同 helperText;day picker 在 category_fields.dart,T2 不改该文件,
+  /// 由本页在字段组尾部追加)。
+  String? get _presetHint {
+    final p = widget.preset;
+    if (!_fromPreset || _category != AccountCategory.creditCard) return null;
+    return (p != null && p.billingDay == null && p.hint.isNotEmpty)
+        ? p.hint
+        : null;
+  }
+
   /// 保存按钮禁用条件:编辑态 loan/investment 且挂接检测未决(其余态恒可存)。
   bool get _saveBlockedByAttachmentCheck =>
       !_attachmentCheckDone &&
@@ -90,7 +121,29 @@ class _AccountFormPageState extends State<AccountFormPage> {
   void initState() {
     super.initState();
     final e = _existing;
-    if (e == null) return;
+    if (e == null) {
+      // F52 FR-3(ADR-3):预设预填仅创建态注入 —— preset 回填 creditCard
+      // 类别 + name/institution(日期非 null 连带账单日/还款日);额度留空
+      // 待用户补。preselectCreditCard(普通信用卡入口)仅预选类别。
+      // 纯 initial 注入:提交链路(_buildCreate)读控制器零改动,不持久
+      // 任何预设痕迹(零存储面);编辑/复制 seed 路径不进此分支,零 diff。
+      final p = widget.preset;
+      if (p != null) {
+        _category = AccountCategory.creditCard;
+        _nameCtrl.text = p.name;
+        _bundle.institutionCtrl.text = p.institution;
+        if (p.billingDay != null) {
+          _bundle.creditBillingDayCtrl.text = p.billingDay.toString();
+        }
+        if (p.repaymentDay != null) {
+          _bundle.creditRepaymentDayCtrl.text = p.repaymentDay.toString();
+        }
+        _fromPreset = true;
+      } else if (widget.preselectCreditCard) {
+        _category = AccountCategory.creditCard;
+      }
+      return;
+    }
     // 编辑或复制 seed：预填所有共享字段 + 该 category 专属字段。
     _nameCtrl.text = e.name;
     _currency = e.currencyCode;
@@ -438,6 +491,26 @@ class _AccountFormPageState extends State<AccountFormPage> {
     );
   }
 
+  /// F52 FR-3:预设来源角标 —— muted chip「预设 · 可修改」。仅标识预填
+  /// 来源(非锁定态,ADR-3 全字段可编辑),不参与提交、零持久。
+  Widget _presetBadge() {
+    return Container(
+      key: const ValueKey('accountPresetBadge'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: context.yucai.surfaceAlt,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        '预设 · 可修改',
+        style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: context.yucai.muted),
+      ),
+    );
+  }
+
   static const _categoryOptions = <TypeOption<AccountCategory>>[
     TypeOption(AccountCategory.savings, '储蓄', LucideIcons.landmark),
     TypeOption(AccountCategory.creditCard, '信用卡', LucideIcons.creditCard),
@@ -556,12 +629,20 @@ class _AccountFormPageState extends State<AccountFormPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('账户类型',
-                            style: TextStyle(
-                                color: context.yucai.muted,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8)),
+                        // F52:表单头部「账户类型」行 —— 预设预填态右挂
+                        // muted 角标「预设 · 可修改」(仅标识来源,可编辑)。
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('账户类型',
+                                style: TextStyle(
+                                    color: context.yucai.muted,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8)),
+                            if (_fromPreset) _presetBadge(),
+                          ],
+                        ),
                         const SizedBox(height: AppSpacing.sm),
                         TypeTabs<AccountCategory>(
                           options: _categoryOptions,
@@ -573,6 +654,9 @@ class _AccountFormPageState extends State<AccountFormPage> {
                             setState(() {
                               _category = v;
                               _bundle.clearAll();
+                              // F52:切类别即弃预设态(预填已随 clearAll 清空),
+                              // 角标/hint 不再悬挂。
+                              _fromPreset = false;
                             });
                           },
                         ),
@@ -665,17 +749,32 @@ class _AccountFormPageState extends State<AccountFormPage> {
                           trailing: _kindBadge(_category),
                           // F51:挂接降级态传派生值 → 字段组只读渲染
                           // (loan:derivedLoanFields;invest:derivedInvestFields)。
-                          children: categoryFieldsWidget(_category, _bundle,
-                              currencySymbol: currencySymbolOf(_currency),
-                              primaryReadOnly:
-                                  _isEdit && _category == AccountCategory.savings,
-                              loanDerived: _loanDegraded
-                                  ? derivedLoanFields(
-                                      _attachedDebts, _nextByDebtId)
-                                  : null,
-                              investDerived: _investDegraded
-                                  ? derivedInvestFields(_attachedHoldings)
-                                  : null),
+                          // F52:字段组尾部追加预设 hint 行(日期空+预设来源,
+                          // 见 _presetHint;白条类「账单日按激活日,建后可改」)。
+                          children: [
+                            ...categoryFieldsWidget(_category, _bundle,
+                                currencySymbol: currencySymbolOf(_currency),
+                                primaryReadOnly: _isEdit &&
+                                    _category == AccountCategory.savings,
+                                loanDerived: _loanDegraded
+                                    ? derivedLoanFields(
+                                        _attachedDebts, _nextByDebtId)
+                                    : null,
+                                investDerived: _investDegraded
+                                    ? derivedInvestFields(_attachedHoldings)
+                                    : null),
+                            if (_presetHint != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  _presetHint!,
+                                  key: const ValueKey('accountPresetHint'),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: context.yucai.muted),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         FormSection(

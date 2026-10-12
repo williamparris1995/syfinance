@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/domain/account_presets.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
@@ -37,6 +38,18 @@ AccountBloc _bloc() {
     _MockUpdate(),
   );
 }
+
+/// F52 T2:预填通道测试 harness —— 以可选 preset/preselectCreditCard 包裹表单。
+Widget wrapFormPage({AccountPreset? preset, bool preselectCreditCard = false}) =>
+    MaterialApp(
+      home: BlocProvider<AccountBloc>(
+        create: (_) => _bloc(),
+        child: AccountFormPage(
+          preset: preset,
+          preselectCreditCard: preselectCreditCard,
+        ),
+      ),
+    );
 
 void main() {
   testWidgets('cat-hint banner + notes + badge render(创建模式 savings)', (tester) async {
@@ -98,5 +111,115 @@ void main() {
     await tester.pump();
 
     expect(find.text('我的备注内容'), findsOneWidget);
+  });
+
+  // —— F52 T2(FR-3/ADR-3):预设预填通道 ——
+  // 构造参数 AccountFormPage({preset, preselectCreditCard}) → initState 回填
+  // (类别=creditCard;name/institution;biling/repayment 当非 null);预填态
+  // 头部 muted chip「预设 · 可修改」;日期空 + hint;全字段可编辑;无参零 diff。
+  group('F52 预设预填通道', () {
+    testWidgets('花呗预填:creditCard/名称/机构/账单日1/还款日9 全量,额度空,全可改', (tester) async {
+      await tester.pumpWidget(wrapFormPage(preset: accountPresets.first));
+      await tester.pump();
+
+      // 角标:头部 muted chip「预设 · 可修改」
+      expect(find.text('预设 · 可修改'), findsOneWidget);
+      // 类别=creditCard(分组标题 + cat-hint 切信用卡口径)
+      expect(find.text('信用卡信息'), findsOneWidget);
+      expect(find.textContaining(AccountCategory.creditCard.example),
+          findsOneWidget);
+      // 名称/机构预填
+      expect(find.text('花呗'), findsOneWidget);
+      expect(find.text('蚂蚁消费金融'), findsOneWidget);
+      // 账单日 1 / 还款日 9 预填(下拉回显)
+      expect(find.text('1日'), findsOneWidget);
+      expect(find.text('9日'), findsOneWidget);
+      // 额度留空(信用额度控制器为空,待用户补)
+      final limitField = tester.widget<TextFormField>(
+        find
+            .ancestor(
+                of: find.text('信用额度'), matching: find.byType(TextFormField))
+            .first,
+      );
+      expect(limitField.controller!.text, '');
+      // 花呗日期固定(hint 空)→ 无提示行
+      expect(find.text('账单日按激活日,建后可改'), findsNothing);
+
+      // 全字段可编辑:名称改值
+      await tester.enterText(
+          find
+              .ancestor(
+                  of: find.text('花呗'), matching: find.byType(TextFormField))
+              .first,
+          '花呗备用');
+      expect(find.text('花呗备用'), findsOneWidget);
+
+      // 全字段可编辑:账单日 1日 → 5日
+      await tester.ensureVisible(find.text('1日'));
+      await tester.tap(find.text('1日'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('5日').last);
+      await tester.pumpAndSettle();
+      expect(find.text('5日'), findsOneWidget);
+      expect(find.text('1日'), findsNothing);
+
+      // 切类别 = 弃预设态(角标随 clearAll 消失)
+      await tester.ensureVisible(find.text('储蓄'));
+      await tester.tap(find.text('储蓄'));
+      await tester.pump();
+      expect(find.text('预设 · 可修改'), findsNothing);
+    });
+
+    testWidgets('白条类预填:名称/机构预填,日期空 + hint', (tester) async {
+      await tester.pumpWidget(wrapFormPage(preset: accountPresets[1]));
+      await tester.pump();
+
+      expect(find.text('预设 · 可修改'), findsOneWidget);
+      expect(find.text('京东白条'), findsOneWidget);
+      expect(find.text('京东'), findsOneWidget);
+      // 日期未预填(无回显)
+      expect(find.text('1日'), findsNothing);
+      expect(find.text('9日'), findsNothing);
+      // 日期空 + preset → hint 提示行
+      expect(find.text('账单日按激活日,建后可改'), findsOneWidget);
+    });
+
+    testWidgets('普通信用卡:仅类别预选,其余空,无角标无 hint', (tester) async {
+      await tester.pumpWidget(wrapFormPage(preselectCreditCard: true));
+      await tester.pump();
+
+      expect(find.text('信用卡信息'), findsOneWidget);
+      expect(find.textContaining(AccountCategory.creditCard.example),
+          findsOneWidget);
+      // 名称空
+      final nameField = tester.widget<TextFormField>(
+        find
+            .ancestor(
+                of: find.text('账户名称'), matching: find.byType(TextFormField))
+            .first,
+      );
+      expect(nameField.controller!.text, '');
+      // 机构空
+      final instField = tester.widget<TextFormField>(
+        find
+            .ancestor(
+                of: find.text('发卡机构'), matching: find.byType(TextFormField))
+            .first,
+      );
+      expect(instField.controller!.text, '');
+      // 非预设来源 → 无角标/无 hint
+      expect(find.text('预设 · 可修改'), findsNothing);
+      expect(find.text('账单日按激活日,建后可改'), findsNothing);
+    });
+
+    testWidgets('无参现状零 diff:默认储蓄,无角标无 hint', (tester) async {
+      await tester.pumpWidget(wrapFormPage());
+      await tester.pump();
+
+      expect(find.text('储蓄信息'), findsOneWidget);
+      expect(find.text('信用卡信息'), findsNothing);
+      expect(find.text('预设 · 可修改'), findsNothing);
+      expect(find.text('账单日按激活日,建后可改'), findsNothing);
+    });
   });
 }
