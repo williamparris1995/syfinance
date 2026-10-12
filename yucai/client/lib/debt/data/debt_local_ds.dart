@@ -138,6 +138,10 @@ class DebtLocalDataSource {
     bool countsTowardCardLimit = true,
     bool markPending = false,
     bool restructureOnly = false,
+    // F57 首期锚点(仅卡贷 flat 路径消费):true = 放款当期起扣(平安口径,
+    // 首期 = 放款日当天);false(默认)= 放款次月(现状)。生成期参数,
+    // 物化进期表日期,不持久化为债字段(编辑不重排守卫既有)。
+    bool firstPeriodFromDisbursement = false,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -153,10 +157,11 @@ class DebtLocalDataSource {
     var due = DateTime.utc(dueDate.year, dueDate.month, dueDate.day);
     if (termPeriods > 0) {
       // 卡贷(flat):日期经 _cardLoanScheduleDates(同月账单日命中,银行
-      // 「下个账单日前放款 → 首期落当期账单」语义);普通路径沿用引擎
-      // scheduleDatesFrom(byDate 契约 = 从次月起跳,pinned)。
+      // 「下个账单日前放款 → 首期落当期账单」语义;F57 当期锚点随同参);
+      // 普通路径沿用引擎 scheduleDatesFrom(byDate 契约 = 从次月起跳,pinned)。
       due = flatFeeCents > 0
-          ? _cardLoanScheduleDates(rule, start, termPeriods).last
+          ? _cardLoanScheduleDates(rule, start, termPeriods,
+              currentPeriod: firstPeriodFromDisbursement).last
           : scheduleDatesFrom(rule, start, due, termPeriods).last;
     }
     await _database.transaction(() async {
@@ -203,7 +208,8 @@ class DebtLocalDataSource {
               startDate: start,
               termPeriods: termPeriods,
               totalPrincipalCents: totalPrincipalCents,
-              flatFeeCents: flatFeeCents)
+              flatFeeCents: flatFeeCents,
+              currentPeriod: firstPeriodFromDisbursement)
           : _generateSchedule(
         debtId: id,
         method: amortizationIndex,
@@ -842,12 +848,20 @@ class DebtLocalDataSource {
   /// 则当月账单日,否则 nextAfter(下一账单日);此后逐月推进。引擎 nextAfter
   /// 的 byDate 分支按「from 的次月」推进(pinned 契约,月末钳制),同月命中
   /// 由本层补齐;起始日恰为账单日 → 本期账单已出,首期顺延下期(银行语义)。
+  ///
+  /// F57 首期锚点:[currentPeriod] = true(放款当期,平安口径)→ 首期取
+  /// start 本身(放款日当天起扣);此后照既有逐月推进(nextAfter 链式 byDate
+  /// 月末钳制 = 引擎 pinned 契约,不改引擎)。false(默认)= 上述现状路径
+  /// 原样(nextAfter 语义 = 放款次月)。
   List<DateTime> _cardLoanScheduleDates(
-      RecurrenceRule rule, DateTime start, int n) {
+      RecurrenceRule rule, DateTime start, int n,
+      {bool currentPeriod = false}) {
     if (n <= 0) return const [];
     DateTime first;
     final day = rule.billingDay;
-    if (day > 0) {
+    if (currentPeriod) {
+      first = start;
+    } else if (day > 0) {
       final lastDay = DateTime.utc(start.year, start.month + 1, 0).day;
       final clamped = day > lastDay ? lastDay : day;
       final sameMonth = DateTime.utc(start.year, start.month, clamped);
@@ -864,7 +878,8 @@ class DebtLocalDataSource {
 
   /// 卡贷排期(银行现金分期口径):每期 = 本金/N + 固定手续费,末期本金
   /// 吸收取整余数(Σ本金 = 总额);手续费按全额本金计、逐期等额(银行
-  /// 账单口径)。日期由 rule(账单日锚点)驱动。
+  /// 账单口径)。日期由 rule(账单日锚点)驱动;F57 [currentPeriod] 透传
+  /// _cardLoanScheduleDates(首期锚点:当期 = 起始日本身/次月 = 现状)。
   List<db.PaymentScheduleEntriesCompanion> _flatFeeSchedule({
     required String debtId,
     required RecurrenceRule rule,
@@ -872,8 +887,10 @@ class DebtLocalDataSource {
     required int termPeriods,
     required int totalPrincipalCents,
     required int flatFeeCents,
+    bool currentPeriod = false,
   }) {
-    final dates = _cardLoanScheduleDates(rule, startDate, termPeriods);
+    final dates = _cardLoanScheduleDates(rule, startDate, termPeriods,
+        currentPeriod: currentPeriod);
     final n = dates.length;
     if (n == 0) return const [];
     final base = totalPrincipalCents ~/ n;

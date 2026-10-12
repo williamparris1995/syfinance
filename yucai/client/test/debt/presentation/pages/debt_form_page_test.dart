@@ -1659,6 +1659,309 @@ void main() {
     });
   });
 
+  // F57 —— 首期锚点(并入模式卡贷常驻单选):放款次月(默认,现状)/
+  // 放款当期(平安口径,首期 = 放款日当天)。副行实例化日期随起始日联动;
+  // 独立账单模式不渲染本选项;提交经 CreateDebtParams.firstPeriodFromDisbursement
+  // 透传(仅创建路径;编辑不重排,守卫既有)。
+  group('F57 首期锚点(并入模式常驻,独立不渲染)', () {
+    Finder anchorRow() =>
+        find.byKey(const ValueKey('firstPeriodAnchorRow'));
+    Finder anchorNextMonth() =>
+        find.byKey(const ValueKey('firstPeriodAnchor-nextMonth'));
+    Finder anchorCurrent() =>
+        find.byKey(const ValueKey('firstPeriodAnchor-current'));
+
+    testWidgets('① 并入模式常驻:默认「放款次月」,副行/预览按起始日 8/2 实例化(次月 9/2)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _loanAccount(id: 'loan-1'),
+            _creditCardAccount(id: 'cc-1'),
+            _cashAccount(id: 'cash-1')
+          ]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 8, 2),
+        dueDate: DateTime(2027, 8, 2),
+        accountId: 'loan-1',
+        disbursementAccountId: 'cash-1',
+      ));
+      await t.pumpAndSettle();
+
+      // 切卡贷(并入模式默认)→ 锚点行常驻(无需先选挂接卡,区别于 F50 开关)。
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.cardLoan}')));
+      await t.pumpAndSettle();
+      expect(anchorRow(), findsOneWidget,
+          reason: '并入模式常驻渲染「首期锚点」(v15 形态 B)');
+      // 副行实例化日期:8/2 起始 → 次月 2026-09-02 / 当期 2026-08-02。
+      expect(
+          find.descendant(
+              of: anchorNextMonth(),
+              matching: find.textContaining('2026-09-02')),
+          findsOneWidget);
+      expect(
+          find.descendant(
+              of: anchorCurrent(),
+              matching: find.textContaining('2026-08-02')),
+          findsOneWidget);
+      // 预览联动(默认次月):第 1 期 = 2026-09-02。
+      await t.enterText(find.byKey(const ValueKey('principalField')), '5000');
+      await t.pumpAndSettle();
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('previewRow-01')),
+              matching: find.text('2026-09-02')),
+          findsOneWidget,
+          reason: '默认次月 → 预览首期 = 放款日 + 1 月(FR-1)');
+    });
+
+    testWidgets('② 选当期:预览首期翻 2026-08-02,提交透传 firstPeriodFromDisbursement=true',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const CreateDebtParams(
+        accountId: '',
+        counterparty: '',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDateOption: null,
+        dueDateOption: null,
+        totalPrincipalCents: 0,
+      ));
+      registerFallbackValue(const CreateAccountParams(
+        name: '',
+        accountType: AccountType.liability,
+        category: AccountCategory.loan,
+        currencyCode: '',
+        initialBalanceCents: 0,
+        ownership: Ownership.personal,
+      ));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _loanAccount(id: 'loan-1'),
+            _creditCardAccount(id: 'cc-1'),
+            _cashAccount(id: 'cash-1')
+          ]));
+      when(() => accountRepo.create(any()))
+          .thenAnswer((_) async => dartz.Right(_loanAccount(id: 'auto-loan-1')));
+      bool? capturedAnchor;
+      var created = false;
+      when(() => debtRepo.create(
+              accountId: any(named: 'accountId'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              startDate: any(named: 'startDate'),
+              dueDate: any(named: 'dueDate'),
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods'),
+              billingDay: any(named: 'billingDay'),
+              flatFeeCents: any(named: 'flatFeeCents'),
+              countsTowardCardLimit: any(named: 'countsTowardCardLimit'),
+              firstPeriodFromDisbursement:
+                  any(named: 'firstPeriodFromDisbursement'))).thenAnswer((inv) {
+        capturedAnchor =
+            inv.namedArguments[#firstPeriodFromDisbursement] as bool?;
+        created = true;
+        return Future.value(dartz.Right(_emptyDetail().debt));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 8, 2),
+        dueDate: DateTime(2028, 8, 2),
+        accountId: 'loan-1',
+        disbursementAccountId: 'cash-1',
+      ));
+      await t.pumpAndSettle();
+
+      // 卡贷(并账默认)→ 选挂接卡 → 填必填(债权方/本金/每期手续费)。
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.cardLoan}')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('cardLoanCardDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('招商银行信用卡').last);
+      await t.pumpAndSettle();
+      await t.enterText(
+          find.byKey(const ValueKey('counterpartyField')), '平安现金分期');
+      await t.enterText(find.byKey(const ValueKey('principalField')), '5000');
+      await t.enterText(find.byKey(const ValueKey('cardLoanFeeField')), '9');
+
+      // 预览联动:选「放款当期」→ 第 1 期翻为放款日当天 2026-08-02。
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('previewRow-01')),
+              matching: find.text('2026-09-02')),
+          findsOneWidget,
+          reason: '选择前默认次月 9/2');
+      await t.ensureVisible(anchorCurrent());
+      await t.pumpAndSettle();
+      await t.tap(anchorCurrent());
+      await t.pumpAndSettle();
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('previewRow-01')),
+              matching: find.text('2026-08-02')),
+          findsOneWidget,
+          reason: '选当期 → 预览首期 = 放款日当天(FR-1 预览随选项刷新)');
+
+      final submitFinder = find.byKey(const ValueKey('submitButton'));
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 20 && !created; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(created, isTrue);
+      expect(capturedAnchor, isTrue,
+          reason: '选当期保存 → create 链路须携带 firstPeriodFromDisbursement=true');
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('③ 独立账单模式不渲染锚点;选过当期再切独立,提交仍 false(现状逐位)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const CreateDebtParams(
+        accountId: '',
+        counterparty: '',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDateOption: null,
+        dueDateOption: null,
+        totalPrincipalCents: 0,
+      ));
+      registerFallbackValue(const CreateAccountParams(
+        name: '',
+        accountType: AccountType.liability,
+        category: AccountCategory.loan,
+        currencyCode: '',
+        initialBalanceCents: 0,
+        ownership: Ownership.personal,
+      ));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _loanAccount(id: 'loan-1'),
+            _creditCardAccount(id: 'cc-1'),
+            _cashAccount(id: 'cash-1')
+          ]));
+      when(() => accountRepo.create(any()))
+          .thenAnswer((_) async => dartz.Right(_loanAccount(id: 'auto-loan-1')));
+      bool? capturedAnchor;
+      var created = false;
+      when(() => debtRepo.create(
+              accountId: any(named: 'accountId'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              startDate: any(named: 'startDate'),
+              dueDate: any(named: 'dueDate'),
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
+              collectionAccountId: any(named: 'collectionAccountId'),
+              cycle: any(named: 'cycle'),
+              interval: any(named: 'interval'),
+              weekdayMask: any(named: 'weekdayMask'),
+              monthlyMode: any(named: 'monthlyMode'),
+              nth: any(named: 'nth'),
+              termPeriods: any(named: 'termPeriods'),
+              billingDay: any(named: 'billingDay'),
+              flatFeeCents: any(named: 'flatFeeCents'),
+              countsTowardCardLimit: any(named: 'countsTowardCardLimit'),
+              firstPeriodFromDisbursement:
+                  any(named: 'firstPeriodFromDisbursement'))).thenAnswer((inv) {
+        capturedAnchor =
+            inv.namedArguments[#firstPeriodFromDisbursement] as bool?;
+        created = true;
+        return Future.value(dartz.Right(_emptyDetail().debt));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 8, 2),
+        dueDate: DateTime(2028, 8, 2),
+        accountId: 'loan-1',
+        disbursementAccountId: 'cash-1',
+      ));
+      await t.pumpAndSettle();
+
+      // 卡贷并账 → 锚点行在;先选「当期」再切「独立账单」→ 选项消失,
+      // 且提交不得残留 true(独立模式生成行为与现状逐位一致)。
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.cardLoan}')));
+      await t.pumpAndSettle();
+      expect(anchorRow(), findsOneWidget);
+      await t.ensureVisible(anchorCurrent());
+      await t.pumpAndSettle();
+      await t.tap(anchorCurrent());
+      await t.pumpAndSettle();
+      final modeIndependent =
+          find.byKey(const ValueKey('cardLoanMode-independent'));
+      await t.ensureVisible(modeIndependent);
+      await t.pumpAndSettle();
+      await t.tap(modeIndependent);
+      await t.pumpAndSettle();
+      expect(anchorRow(), findsNothing,
+          reason: '独立账单模式(e招贷)无首期锚点分歧,不渲染(FR-1)');
+      // 独立模式必填:账单日/还款日 + 债权方/本金/手续费。
+      await t.enterText(find.byKey(const ValueKey('cardLoanBillDayField')), '5');
+      await t.ensureVisible(
+          find.byKey(const ValueKey('cardLoanRepayDayField')));
+      await t.pumpAndSettle();
+      await t.enterText(
+          find.byKey(const ValueKey('cardLoanRepayDayField')), '23');
+      await t.enterText(
+          find.byKey(const ValueKey('counterpartyField')), 'e招贷');
+      await t.enterText(find.byKey(const ValueKey('principalField')), '5000');
+      await t.enterText(find.byKey(const ValueKey('cardLoanFeeField')), '9');
+
+      final submitFinder = find.byKey(const ValueKey('submitButton'));
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 20 && !created; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(created, isTrue);
+      expect(capturedAnchor, isFalse,
+          reason: '独立模式提交恒 false(生成行为与现状逐位一致)');
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+  });
+
   // F49 T2 —— 建户置位(FR-1):并入模式自动载体户 isSystem=true(纯账务
   // 载体,展示层过滤);独立账单模式(e招贷)真实账户 isSystem=false 且
   // creditBillingDay/creditRepaymentDay 随建户写入。accountRepo.create 拦截
