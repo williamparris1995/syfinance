@@ -1,24 +1,25 @@
-# Prototype v10 — 导航增强 A+B(侧栏增强 + 命令面板,两页)
+# Prototype v16 — 面包屑统一 + 右下悬浮操作簇(F58 壳层导航地基)
 
-> tier: high-fi(design)· path: OD 管线(项目 `yucai-fin-report-r16-9239`,run `6cdbb8e2`,2026-09-29)。
-> 导航方案 A(侧栏分组折叠/当前项强化/常用置顶)+ 方案 B(全局命令面板 Ctrl+K),用户已过目拍板 A+B 组合(⑨ 导航增强)。零新令牌;交互形态两页内真实可操作(组头折叠/箭头旋转/高度动画;Ctrl+K 唤起/↑↓/↵/Esc/实时过滤/空态)。
+> tier: high-fi(design)· path: OD 管线(项目 `crumb-nav-variants`,run `3f25a96c`,2026-10-12;用户在应用内浏览器过目拍板,形态 B 竖排 FAB 堆叠)。
+> 底版:design-output-v2/ab 套件(debts.html + account-detail.html fork,零硬编码令牌,双主题)。
 
-## 内容(⑨ 导航增强的 UI 事实源)
+## 内容(F58 的 UI 事实源)
 
-- **nav-sidebar.html(方案 A · 侧栏增强)**:
-  - 分组折叠:概览/资产/收支/工具四组组头可点击折叠展开;组头 = 小标签 + 组内项数徽标(pill)+ 折叠箭头(展开朝下 90°/收起朝右 0°,旋转 220ms);组体高度动画 250ms(grid-rows 1fr→0fr);「工具」组演示默认收起。
-  - 当前项高亮强化:当前项左侧 accent 竖条 + 高亮底;所在分组组头与项数徽标同步以主题强调色点亮(`.has-active`)。
-  - 「常用」置顶区:侧栏顶部收纳 仪表盘/交易记录/报表分析 三钉(虚线分隔),不参与折叠、恒常可见;钉位不显选中态(选中态在分组项)。
-- **nav-palette.html(方案 B · 命令面板)**:
-  - Ctrl+K(或点顶栏搜索框)唤起;Esc 关闭;面板居中 560px + 遮罩(bg 55%),入场动画 150ms(淡入 + 上移)。
-  - 搜索框 autofocus,placeholder「搜索页面、账户、债、订阅,或输入操作…」;输入实时过滤(name/group contains),空结果显示「未找到匹配项」。
-  - 结果分组「页面」(8 项:仪表盘/报表分析/财务报告/交易记录/预算管理/投资组合/账户管理/设置)与「操作」(记一笔/生成财务报告/导出报告/AI 解读/新建订阅);组头「页面 · N」。
-  - ↑↓ 循环高亮(自动滚动入视)+ ↵ 打开 + 底部键位说明条;行 = 图标 + 名称 + 右侧灰色快捷键提示。
+- **crumb-nav-variants.html(对比页,四区块)**:
+  - 区块一 现状还原:两层面包屑叠加(顶栏纯文本 + 详情页 64px AppBar)三问题标注。
+  - 区块二 统一方案(实现基准):顶栏单层全路径 `section › <a>page</a> › <b>current</b>`——page 级 link 色 + hover 下划线可点回退,section 纯标签,current 加粗;第二层整条退役,hero 上移;右下悬浮簇。
+  - 区块三 形态 B(**已拍板**):竖排 FAB 堆叠——主 FAB 52px 金渐变圆(--fab-bg/--fab-shadow 语言)+ 其上次级钮 44px 方圆(surface+border);常驻不折叠;底部留白 ≥242px 防遮挡;形态 A 横排胶囊留参考。
+  - 页尾对比表:六维 × 现状/方案A/方案B,B 列挂已拍板徽标(用户 2026-10-12 裁定)。
+- **两组件契约见 components.md**(FloatingActionDock / CrumbNav,Flutter 实现归属与令牌缝在 F58 design.md ADR-2/4)。
+- LLD 对原型有意偏差(F58 评审留档,F59 沿用须知):次级钮半径 14→12;次级图标 --fg→muted;次级钮阴影省略;FAB 内 9.5px 文字→纯 icon+tooltip;dock 视觉上下序与原型互倒(LLD「列表首项最贴 primary」)。
 
-## 实现映射(2026-09-29 实施票 backlog-nav-ab-implementation.md)
+## Constraints(people / data / finance / process)
 
-侧栏分组沿用客户端现行六组(概览/资产/交易/规划/借贷/工具),分组折叠/指示条/置顶区照本页交互形态;页面/操作清单按客户端实际路由表(页面组含全部侧栏目的地+财务报告;操作组 = 记一笔/生成财务报告/导出报告/AI 解读)。
+- **people**:单用户桌面键鼠操作者;tooltip + Tab/Enter 键盘可达为硬性(NFR-4);不可逆操作(删除/关闭账户)必须确认。
+- **data**:零 schema/proto 改动;标题通道仅内存显示层数据;样例禁止真实 PII(掩码卡号/虚构 counterparty)。
+- **finance**:悬浮簇操作全部复用既有资金流处理器,禁止新增金额计算路径;卡贷禁用态遵 F48(防双重支付)。
+- **process**:脏表单离开必须先确认(用户拍板 2026-10-12);回归门 = flutter test 全绿 + analyze 基线 + make client-e2e。
 
 ## CURRENT
 
-v10(用户 2026-09-29 拍板 A+B;⑨ 导航增强实现以 v10 为准,v9 保留为 F46 存档)。
+v16(F58 壳层导航地基;用户 2026-10-12 拍板形态 B;v15 为 F57 存档)。

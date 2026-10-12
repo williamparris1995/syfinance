@@ -13,6 +13,13 @@ F58 范式(顶栏全路径可点面包屑 + 第二层导航退役 + 右下竖排
 4. 「‹ 返回 XX 列表」类页面内返回链接退役(面包屑已承担回退)。
 5. 全量回归:e2e 套件 + 金图重录 + 窄屏(compact)走查。
 
+## F58 移交(spec 拍板项 + 留档)
+
+- **J-2 择一为范式**:F58 三页 dock 的 loading/error 态口径不一(债务/债权=恒渲染动作全禁用;账户=仅 loaded 渲染)——F59 spec 须钉死其一作扫页范式。
+- **A12 存量 FINDING(T6 门上报,非 F58 引入)**:列表页「记一笔/新建债务/新建借出」文本入口缺失(按钮文案仅存在于表单页标题);F59 或后续票处理。
+- **走查项(用户验收)**:归档账户页右下金圆禁用态(Opacity 0.45 半透明降权)视觉是否接受——不接受则单点改隐藏。
+- 复用件直接可用:FloatingActionDock / DetailTitleSync(TickerMode 守卫)/ FormLeaveGuard;go_router 两契约已入测(push 不改 currentConfiguration;分支回退重建信号=TickerMode)。
+
 ## Stories
 
 - [ ] S1 其余 detail 页迁移(逐页照 F58 范式)
