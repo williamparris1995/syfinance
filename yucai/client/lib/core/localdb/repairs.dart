@@ -26,6 +26,7 @@ Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
   await eDaiBankRecordAlignment(db);
   await cleanupDanglingRefTxns(db);
   await runF49CarrierHideRepair(db);
+  await runF57Ts4PingAnRedate(db);
 }
 
 /// F36 存量迁移(2026-09-18,design ADR-3/6):负债账户余额漂移修复。
@@ -1040,4 +1041,72 @@ Future<String> _settlementAccountId(AppDatabase db) async {
         DateTime.now().toUtc().toIso8601String()
       ]);
   return id;
+}
+
+
+/// F50-TS4/F57 取证定案的平安四笔期表前移修复(2026-10-12 用户「开始执行」):
+/// 根因修正版结论——平安现金分期**首期=放款日当天起扣**(用户核验 5k 首期
+/// 账单=2026-08-02),而存量四笔期表按「放款次月」锚生成,整体晚一期
+/// (F50 取证:银行真值剩余各恰少一期月供)。修复=每笔全部期次日期前移
+/// 一个月(首期即落放款日;四笔放款日 24/25/12/2 号无月末钳制边界)+
+/// due_date 同步前移;新变为已到期的那一期由启动 catchupCardLoanMerges
+/// 自动并入平安卡账单(真实当期分期,分录语义不变)。35k 走现金分期专项
+/// 额度(用户银行口径),置 counts_toward_card_limit=false 不占卡信用额度。
+/// 债 ID 硬编码=银行真值锚定(照 e_dai 系列先例);marker
+/// 'f57_ts4_pingan_redate_v1' 幂等,中断重入安全(逐行 UPDATE 原子)。
+Future<void> runF57Ts4PingAnRedate(AppDatabase db) async {
+  const markerKey = 'f57_ts4_pingan_redate_v1';
+  final done = await (db.select(db.appMeta)
+        ..where((t) => t.key.equals(markerKey)))
+      .getSingleOrNull();
+  if (done != null) return;
+
+  const debtIds = [
+    '88f3f34b-a6cb-48af-b1ec-b30c79c519ec', // 25k · 24 期 · 2024-12-24
+    '244bbcea-09eb-4ca3-aa9c-9ea8953e4922', // 9.1k · 24 期 · 2025-09-25
+    '1bc53282-cf9d-4091-bf0d-2f9ee2058d79', // 35k · 24 期 · 2026-06-12(专项额度)
+    'f47c78a1-4b14-4629-9cde-49b262fda44b', // 5k · 18 期 · 2026-08-02
+  ];
+  const specialQuotaDebtId = '1bc53282-cf9d-4091-bf0d-2f9ee2058d79';
+
+  await db.transaction(() async {
+    for (final id in debtIds) {
+      final entries = await (db.select(db.paymentScheduleEntries)
+            ..where((e) => e.debtId.equals(id)))
+          .get();
+      if (entries.isEmpty) continue;
+      // 前移一个月:同日号(四笔日号 24/25/12/2,2 月仅 2 号无钳制问题;
+      // 仍按月钳防御性处理)。
+      for (final e in entries) {
+        final d = e.paymentDate;
+        var m = DateTime.utc(d.year, d.month - 1, 1);
+        final lastDay = DateTime.utc(m.year, m.month + 1, 0).day;
+        final shifted = DateTime.utc(m.year, m.month, d.day > lastDay ? lastDay : d.day);
+        if (shifted == d) continue;
+        await (db.update(db.paymentScheduleEntries)
+              ..where((x) => x.id.equals(e.id)))
+            .write(PaymentScheduleEntriesCompanion(
+                paymentDate: Value(shifted)));
+      }
+      // due_date = 新的末个发生日。
+      final dates = (await (db.select(db.paymentScheduleEntries)
+                ..where((e) => e.debtId.equals(id)))
+              .get())
+          .map((e) => e.paymentDate)
+          .toList()
+        ..sort();
+      if (dates.isNotEmpty) {
+        await (db.update(db.debts)..where((d) => d.id.equals(id)))
+            .write(DebtsCompanion(dueDate: Value(dates.last)));
+      }
+    }
+    // 35k:现金分期专项额度,不计入卡信用额度占用(F50 FR-2 用户口径)。
+    await (db.update(db.debts)..where((d) => d.id.equals(specialQuotaDebtId)))
+        .write(const DebtsCompanion(countsTowardCardLimit: Value(false)));
+  });
+
+  await db.into(db.appMeta).insert(
+        AppMetaCompanion.insert(key: markerKey, value: 'done'),
+        mode: InsertMode.insertOrIgnore,
+      );
 }
