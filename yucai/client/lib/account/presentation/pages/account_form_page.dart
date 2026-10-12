@@ -83,10 +83,12 @@ class _AccountFormPageState extends State<AccountFormPage> {
   // 角标「预设 · 可修改」与日期 hint;创建态切类别(clearAll)即弃预设态。
   bool _fromPreset = false;
 
-  /// F52:日期空 + 预设来源时的提示行文案(白条类「账单日按激活日,建后可改」;
-  /// 花呗日期已预填 → null 不显)。渲染在账单日/还款日行下方(muted 小字,
-  /// 语义同 helperText;day picker 在 category_fields.dart,T2 不改该文件,
-  /// 由本页在字段组尾部追加)。
+  /// F52:预设日期位空(目录 billingDay==null,即白条类)时的提示行文案
+  /// (「账单日按激活日,建后可改」;花呗日期已预填 → null 不显)。条件取
+  /// 目录位而非控制器实时态:白条类用户自填日期后 hint 保留(「建后可改」
+  /// 文案仍成立;spec FR-3 场景钉的是初始态)。渲染在账单日/还款日行下方
+  /// (muted 小字,语义同 helperText;day picker 在 category_fields.dart,
+  /// T2 不改该文件,由本页在字段组尾部追加)。
   String? get _presetHint {
     final p = widget.preset;
     if (!_fromPreset || _category != AccountCategory.creditCard) return null;
@@ -654,8 +656,9 @@ class _AccountFormPageState extends State<AccountFormPage> {
                             setState(() {
                               _category = v;
                               _bundle.clearAll();
-                              // F52:切类别即弃预设态(预填已随 clearAll 清空),
-                              // 角标/hint 不再悬挂。
+                              // F52:切类别即弃预设态(bundle 专属字段随
+                              // clearAll 清空;名称/备注为共享字段保留可改,
+                              // 同切类前既有行为),角标/hint 不再悬挂。
                               _fromPreset = false;
                             });
                           },
