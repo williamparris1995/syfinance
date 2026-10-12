@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · F57 首期锚点选项</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:F57 首期锚点选项 · 呈现形态对比 */
+  .vars-wrap{max-width:1080px;margin:0 auto}
+  .bg-body{color:var(--muted);font-size:13px;line-height:1.85;margin-bottom:10px}
+  .bg-body b{color:var(--fg);font-weight:700}
+  .div-strip{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch;margin:14px 0 4px}
+  .div-cell{border:1px solid var(--border);background:var(--chip-bg);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:3px}
+  .div-cell span{font-size:11.5px;color:var(--muted)}
+  .div-cell b{font-size:15px;font-weight:800;color:var(--fg)}
+  .div-cell.hi b{color:var(--acc)}
+  .div-vs{display:grid;place-items:center;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:1px}
+
+  /* 表单范式(照底版 transaction-form) */
+  .field-label{font-size:12.5px;color:var(--muted);font-weight:600;letter-spacing:.5px;margin:18px 0 10px}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+  .f-field{
+    background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:12px;
+    padding:12px 14px;display:flex;flex-direction:column;gap:2px;
+  }
+  .f-field .fl{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.5px}
+  .f-field .fv{font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+  /* 段落标题行 */
+  .v-head{display:flex;align-items:center;gap:10px;margin:30px 0 14px;flex-wrap:wrap}
+  .v-tag{
+    font-size:12px;font-weight:800;letter-spacing:1px;flex:none;
+    background:var(--nav-active-bg);color:var(--nav-active-fg);border-radius:8px;padding:5px 10px;
+  }
+  .v-head h2{font-size:16.5px;font-weight:700;letter-spacing:.3px}
+  .v-head .chip{margin-left:auto}
+  .v-grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+
+  /* 形态 A:callout 内 radio 选项行 */
+  .opt-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .opt-row{
+    position:relative;display:flex;align-items:flex-start;gap:10px;padding:11px 12px;
+    border-radius:12px;border:1px solid var(--border);background:var(--surface);cursor:pointer;
+    transition:border-color .15s ease,background-color .15s ease;
+  }
+  .opt-row:hover{border-color:var(--muted)}
+  .opt-row input{position:absolute;opacity:0;pointer-events:none}
+  .opt-dot{
+    width:18px;height:18px;border-radius:50%;flex:none;margin-top:2px;
+    border:1.5px solid var(--border);background:var(--chip-bg);transition:.15s;
+  }
+  .opt-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .opt-txt b{font-size:13.5px;font-weight:700;color:var(--fg)}
+  .opt-txt small{font-size:12px;color:var(--muted)}
+  .opt-def{
+    display:inline-block;font-size:10.5px;font-weight:700;color:var(--warn);vertical-align:1px;
+    background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:999px;padding:1px 7px;margin-left:6px;
+  }
+  .opt-row:has(input:checked){border-color:var(--acc)}
+  .opt-row:has(input:checked) .opt-dot{border-color:var(--acc);box-shadow:inset 0 0 0 4.5px var(--acc)}
+  .opt-row:has(input:checked) .opt-txt b{color:var(--nav-active-fg)}
+
+  /* 副面板:callout 消失占位 */
+  .ghost-slot{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    border:1.5px dashed var(--border);border-radius:16px;padding:14px 16px;color:var(--muted);font-size:12.5px;
+  }
+  .ghost-slot b{color:var(--fg);font-weight:800;flex:none}
+
+  /* 形态 B:常驻分段控件(radio 两项) */
+  .seg2{
+    display:grid;grid-template-columns:1fr 1fr;gap:6px;
+    background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:14px;padding:6px;
+  }
+  .seg2 label{
+    position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;
+    padding:11px 8px;border-radius:10px;cursor:pointer;text-align:center;
+  }
+  .seg2 input{position:absolute;opacity:0;pointer-events:none}
+  .seg2 .s-main{font-size:13.5px;font-weight:700;color:var(--muted);transition:.15s}
+  .seg2 .s-sub{font-size:11.5px;color:var(--muted)}
+  .seg2 label:hover .s-main{color:var(--fg)}
+  .seg2 label:has(input:checked){background:var(--btn-bg);box-shadow:var(--btn-shadow)}
+  .seg2 label:has(input:checked) .s-main{color:var(--btn-fg)}
+  .seg2 label:has(input:checked) .s-sub{color:var(--btn-fg);opacity:.82}
+  .seg2 label:has(input:checked) .opt-def{color:var(--btn-fg);background:transparent;border-color:transparent}
+  .note-line{display:flex;align-items:center;gap:8px;margin-top:12px;color:var(--muted);font-size:12.5px;line-height:1.7}
+  .note-line::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc);flex:none}
+
+  /* 页尾对比表 */
+  .cmp{display:grid;grid-template-columns:92px 1fr 1fr;gap:14px;padding:13px 14px;border-bottom:1px solid var(--line);align-items:start}
+  .cmp:last-child{border-bottom:0}
+  .cmp.cmp-head{border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:700}
+  .cmp-k{font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.5px;padding-top:1px}
+  .cmp .cellA{font-size:13px;line-height:1.65;color:var(--fg)}
+  .cmp .cellB{font-size:13px;line-height:1.65;color:var(--muted)}
+  .cmp-head .cellA,.cmp-head .cellB{font-size:12px}
+  .rec{
+    display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:1px;vertical-align:1px;
+    background:var(--btn-bg);color:var(--btn-fg);border-radius:999px;padding:2px 9px;margin-left:8px;
+    box-shadow:var(--btn-shadow);
+  }
+
+  @media (max-width:900px){
+    .vars-wrap{max-width:none}
+    .frow{grid-template-columns:1fr}
+    .v-grid2{grid-template-columns:1fr}
+    .div-strip{grid-template-columns:1fr;gap:8px}
+    .v-head .chip{margin-left:0}
+    .cmp{grid-template-columns:64px 1fr 1fr;gap:8px;padding:12px 8px}
+    .cmp .cellA,.cmp .cellB{font-size:12px}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item active" href="#"><svg class="ic"><use href="#i-upright"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">资产 <span class="sep">›</span> 债务管理 <span class="sep">›</span> <b>F57 首期锚点</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="vars-wrap">
+      <div class="page-head">
+        <div>
+          <h1 data-od-id="page-title">F57 · 首期锚点选项</h1>
+          <p class="date"><a href="#" style="color:var(--link)">‹ 返回债务管理</a> · 呈现形态对比页 · 底版 transaction-form 表单范式 · 演示数据</p>
+        </div>
+      </div>
+
+      <section class="card" data-od-id="bg-card" style="padding:22px 24px">
+        <div class="card-head" data-od-id="bg-card-head">
+          <h2>背景 · 分歧只出现在「放款日 = 挂接卡账单日」那天</h2>
+          <span class="chip num">F57</span>
+        </div>
+        <p class="bg-body">卡贷(信用卡分期)排期中,首期并入哪期账单由<b>放款日</b>与<b>挂接卡账单日</b>的关系决定:两者不同日时各口径结果一致,不存在选择;仅当放款日与账单日同日——本例起始 <b class="num">10/12</b> 挂接平安信用卡(账单日 <b class="num">12</b>)——两种口径才产生分歧:现状假设<b>顺延下期</b>,平安银行口径是<b>当期即扣</b>。</p>
+        <div class="div-strip" data-od-id="div-strip">
+          <div class="div-cell"><span>现状假设 · 顺延下期</span><b class="num">11/12 出账</b></div>
+          <div class="div-vs num">VS</div>
+          <div class="div-cell hi"><span>平安银行口径 · 当期即扣</span><b class="num">10/12 出账</b></div>
+        </div>
+        <p class="bg-body" style="margin:12px 0 0">F57 给债务表单加一个「首期锚点」选项,由用户在分歧日自选口径。本页对比同一选项的两种呈现形态:<b>形态 A 智能条件呈现</b>(仅分歧日出现)与<b>形态 B 常驻选项</b>(恒为一条分段控件),页尾附四维对比表。</p>
+      </section>
+
+      <div class="v-head" data-od-id="variant-a-head">
+        <span class="v-tag num">形态 A</span>
+        <h2>智能条件呈现 · 仅分歧日出现</h2>
+        <span class="chip">callout(warn 令牌)+ 两个 radio 选项行</span>
+      </div>
+      <div class="v-grid2" data-od-id="variant-a">
+        <section class="card" data-od-id="panel-a-main" style="padding:18px 20px">
+          <div class="panel-head">
+            <span class="mini-title">主面板 · 起始 <span class="num">10/12</span>(分歧日)</span>
+            <span class="chip warn">callout 浮现</span>
+          </div>
+          <div class="field-label" style="margin-top:0">信用卡分期 · 专属区</div>
+          <div class="frow">
+            <div class="f-field">
+              <span class="fl">挂接信用卡</span>
+              <span class="fv">平安信用卡 · 账单日 <span class="num">12</span><svg class="ic" style="width:14px;height:14px;color:var(--muted)"><use href="#i-chev"/></svg></span>
+            </div>
+            <div class="f-field">
+              <span class="fl">分期起始日</span>
+              <span class="fv num">2026-10-12</span>
+            </div>
+            <div class="f-field">
+              <span class="fl">分期金额</span>
+              <span class="fv num">¥8,400</span>
+            </div>
+            <div class="f-field">
+              <span class="fl">期数</span>
+              <span class="fv num">12 期 · 每期 ¥700</span>
+            </div>
+          </div>
+          <div class="callout warn" data-od-id="anchor-callout">
+            <div class="c-ic">⚠️</div>
+            <div style="min-width:0">
+              <div class="c-title">放款日与账单日同日:首期并入哪期账单?</div>
+              <div class="c-body">起始日恰逢挂接卡账单日,两种口径在今天分岔,请选择首期锚点。</div>
+              <div class="opt-list">
+                <label class="opt-row">
+                  <input type="radio" name="anchor-a" checked>
+                  <span class="opt-dot" aria-hidden="true"></span>
+                  <span class="opt-txt">
+                    <b>顺延下期<span class="opt-def">默认</span></b>
+                    <small class="num">—— 11/12 出账</small>
+                  </span>
+                </label>
+                <label class="opt-row">
+                  <input type="radio" name="anchor-a">
+                  <span class="opt-dot" aria-hidden="true"></span>
+                  <span class="opt-txt">
+                    <b>当期即扣</b>
+                    <small class="num">—— 10/12 出账(平安口径)</small>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" data-od-id="panel-a-side" style="padding:18px 20px">
+          <div class="panel-head">
+            <span class="mini-title">副面板 · 起始 <span class="num">10/08</span>(非分歧日)</span>
+            <span class="chip">callout 整条消失</span>
+          </div>
+          <div class="field-label" style="margin-top:0">信用卡分期 · 专属区</div>
+          <div class="frow">
+            <div class="f-field">
+              <span class="fl">挂接信用卡</span>
+              <span class="fv">平安信用卡 · 账单日 <span class="num">12</span><svg class="ic" style="width:14px;height:14px;color:var(--muted)"><use href="#i-chev"/></svg></span>
+            </div>
+            <div class="f-field">
+              <span class="fl">分期起始日</span>
+              <span class="fv num">2026-10-08</span>
+            </div>
+            <div class="f-field">
+              <span class="fl">分期金额</span>
+              <span class="fv num">¥8,400</span>
+            </div>
+            <div class="f-field">
+              <span class="fl">期数</span>
+              <span class="fv num">12 期 · 每期 ¥700</span>
+            </div>
+          </div>
+          <div class="ghost-slot" data-od-id="ghost-slot">
+            <span>锚点选项不出现 —— 起始 <span class="num">10/08</span> 非账单日,首期确定并入 <span class="num">10/12</span> 出账,无需选择</span>
+            <b class="num">29/30 天无关扰</b>
+          </div>
+        </section>
+      </div>
+
+      <div class="v-head" data-od-id="variant-b-head">
+        <span class="v-tag num">形态 B</span>
+        <h2>常驻选项 · 恒为一条分段控件</h2>
+        <span class="chip">radio 两项 · 无论起始日</span>
+      </div>
+      <section class="card" data-od-id="panel-b" style="padding:18px 20px">
+        <div class="panel-head">
+          <span class="mini-title">同一表单区 · 起始 <span class="num">10/12</span>(分歧日示例)</span>
+          <span class="chip warn">选项永远可见</span>
+        </div>
+        <div class="field-label" style="margin-top:0">信用卡分期 · 专属区</div>
+        <div class="frow">
+          <div class="f-field">
+            <span class="fl">挂接信用卡</span>
+            <span class="fv">平安信用卡 · 账单日 <span class="num">12</span><svg class="ic" style="width:14px;height:14px;color:var(--muted)"><use href="#i-chev"/></svg></span>
+          </div>
+          <div class="f-field">
+            <span class="fl">分期起始日</span>
+            <span class="fv num">2026-10-12</span>
+          </div>
+          <div class="f-field">
+            <span class="fl">分期金额</span>
+            <span class="fv num">¥8,400</span>
+          </div>
+          <div class="f-field">
+            <span class="fl">期数</span>
+            <span class="fv num">12 期 · 每期 ¥700</span>
+          </div>
+        </div>
+        <div class="field-label">首期锚点 · 常驻分段控件</div>
+        <div class="seg2" data-od-id="seg-anchor-b">
+          <label>
+            <input type="radio" name="anchor-b" checked>
+            <span class="s-main">顺延下期<span class="opt-def">默认</span></span>
+            <span class="s-sub num">—— 11/12 出账</span>
+          </label>
+          <label>
+            <input type="radio" name="anchor-b">
+            <span class="s-main">当期即扣</span>
+            <span class="s-sub num">—— 10/12 出账(平安口径)</span>
+          </label>
+        </div>
+        <div class="note-line" data-od-id="note-b">永远可见,但仅在分歧日有实际差异 —— 非分歧日(如起始 <span class="num">10/08</span>)两选项均为 <span class="num">10/12</span> 出账,选择不改变结果</div>
+      </section>
+
+      <div class="v-head" data-od-id="compare-head">
+        <span class="v-tag num">对比</span>
+        <h2>页尾对比表</h2>
+        <span class="chip">A 列挂推荐徽标</span>
+      </div>
+      <section class="card" data-od-id="compare-table" style="padding:6px">
+        <div class="cmp cmp-head">
+          <div>维度</div>
+          <div class="cellA">形态 A · 智能条件呈现<span class="rec">推荐</span></div>
+          <div class="cellB">形态 B · 常驻选项</div>
+        </div>
+        <div class="cmp">
+          <div class="cmp-k">出现时机</div>
+          <div class="cellA">仅分歧日(放款日 = 账单日)浮现,其余 <span class="num">29/30</span> 天整条不出现</div>
+          <div class="cellB">恒在,无论起始日始终可见</div>
+        </div>
+        <div class="cmp">
+          <div class="cmp-k">认知负担</div>
+          <div class="cellA">平日零负担;分歧日多一问,而此刻恰是最需要被问的时候</div>
+          <div class="cellB">每次录债都要路过一条选项,分歧日与平日无区分,易被扫过</div>
+        </div>
+        <div class="cmp">
+          <div class="cmp-k">误配风险</div>
+          <div class="cellA">callout 出现即高危语境,注意力聚焦,误配率低;默认「顺延」仍兜底</div>
+          <div class="cellB">常驻选项易被无视,分歧日可能机械沿用默认,与平安实际扣款(<span class="num">10/12</span>)不符</div>
+        </div>
+        <div class="cmp">
+          <div class="cmp-k">实现面</div>
+          <div class="cellA">表单监听「起始日 × 挂接卡账单日」相等条件,条件渲染 callout;规则集中在呈现层</div>
+          <div class="cellB">无条件渲染,实现最简;但需常驻文案解释选项含义</div>
+        </div>
+      </section>
+
+      <footer class="foot">御财 v2 设计原型 · A+B 亮暗双主题 · F57 首期锚点选项 · 演示数据</footer>
+    </div>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a href="transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a href="accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+</body>
+</html>
