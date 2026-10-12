@@ -655,14 +655,24 @@ class DebtLocalDataSource {
     });
   }
 
-  /// 卡贷并账 catchup(F48,guest-local v1):subtype==card_loan 且经
-  /// collectionAccountId 挂接信用卡的借入债,已到账单日(paymentDate ≤ 今日)
-  /// 未并入的期次自动 recordPayment(from: 挂接卡)—— 分录 = 借卡贷负债 /
-  /// 贷信用卡,使该期并入账单应还、债务余额同额递减。幂等 = 期次 paid;
-  /// 单期失败不阻断其余(缺卡/账户异常静默跳过,下轮重试)。
-  Future<void> catchupCardLoanMerges() async {
+  /// 卡贷并账 catchup(F48,guest-local v1;F58 时机改到期日):subtype==
+  /// card_loan 且经 collectionAccountId 挂接信用卡的借入债,已**到期**未并入
+  /// 的期次自动 recordPayment(from: 挂接卡)—— 分录 = 借卡贷负债 / 贷信用卡,
+  /// 使该期并入账单应还、债务余额同额递减。幂等 = 期次 paid;单期失败不阻断
+  /// 其余(缺卡/账户异常静默跳过,下轮重试)。
+  ///
+  /// F58 到期触发(平安口径,2026-10-12 用户定案):银行现金分期每期独立
+  /// 出账(paymentDate = 出账日),到期日 = **下一期的出账日**(末期 = 自身
+  /// +1 月,月钳);卡待还只含已到期未还。故并入条件不是「已出账」而是
+  /// 「已到期」—— 期次按日期升序,entry k 的到期日 = dates[k+1],到期日
+  /// ≤ todayStart 才并入;已出账未到期 = 自由窗口(不并,银行分期剩余也
+  /// 不含它,见 debt_query F58 未出账口径)。
+  ///
+  /// [now] 测试注入「当前时刻」(缺省 DateTime.now();UTC 日界对齐,与
+  /// 期表存储口径一致)。
+  Future<void> catchupCardLoanMerges({DateTime? now}) async {
     final rows = await _dao.watchAllDebts().first;
-    final today = DateTime.now().toUtc();
+    final today = (now ?? DateTime.now()).toUtc();
     final todayStart = DateTime.utc(today.year, today.month, today.day);
     for (final row in rows) {
       if (row.subtype != DebtSubtypes.cardLoan) continue;
@@ -670,10 +680,18 @@ class DebtLocalDataSource {
       final card = row.collectionAccountId;
       if (card == null || card.isEmpty) continue;
       final entries = await _dao.getScheduleByDebt(row.id);
-      final due = entries
-          .where((e) => !e.paid && !e.paymentDate.isAfter(todayStart))
-          .toList()
+      // 期次按日期升序(entry k 的到期日 = dates[k+1])。
+      final sorted = [...entries]
         ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+      final due = <db.PaymentScheduleEntry>[];
+      for (var k = 0; k < sorted.length; k++) {
+        final e = sorted[k];
+        if (e.paid) continue;
+        final dueDate = k + 1 < sorted.length
+            ? sorted[k + 1].paymentDate // 到期 = 下一期出账日
+            : plusOneMonthClamped(e.paymentDate); // 末期 = 自身 +1 月(月钳)
+        if (!dueDate.isAfter(todayStart)) due.add(e); // 到期日 ≤ 今日
+      }
       for (final e in due) {
         try {
           await recordPayment(
@@ -687,6 +705,14 @@ class DebtLocalDataSource {
         }
       }
     }
+  }
+
+  /// 同日号 +1 个月,月末钳制(31 → 2 月取 28/29;照 runF57Ts4PingAnRedate
+  /// 的月钳式)。F58:卡贷末期到期日推导用。
+  static DateTime plusOneMonthClamped(DateTime d) {
+    final m = DateTime.utc(d.year, d.month + 1, 1);
+    final lastDay = DateTime.utc(m.year, m.month + 1, 0).day;
+    return DateTime.utc(m.year, m.month, d.day > lastDay ? lastDay : d.day);
   }
 
   /// [markPending]:复合写(FR-3)—— 还款双分录交易头行与债务头行在同一

@@ -112,25 +112,51 @@ DebtDueUrgency debtDueUrgency(Debt d, DateTime now) {
   return DebtDueUrgency.none;
 }
 
-/// 卡贷未出账占用(F50,银行口径:仅剩余本金,期表口径;开关关的不计)。
+/// 卡贷未出账占用(F50 落地;F58 改未出账口径,银行口径:分期剩余不含
+/// 已出账期次)。
 ///
-/// = Σ [Debt.remainingPrincipalCents] over 满足三条件的债:
+/// = Σ(挂接该卡且开关开的卡贷债的 **unpaid 且 paymentDate > now 期次**
+/// 的 principalCents),其中 [schedules] 以 [Debt.id] 为 key 供各债期表
+/// (map 缺项 = 无未出账期次,计 0 —— 调用方须为挂卡卡贷供期表):
 /// ① subtype == [DebtSubtypes.cardLoan](卡贷);
 /// ② [Debt.collectionAccountId] == [cardId](挂接该信用卡);
 /// ③ [Debt.countsTowardCardLimit](债级开关开,备用金类独立额度置关)。
 ///
-/// **不得**使用载体户余额(期表才是事实源)或 unpaidInterestCents
+/// F58 银行口径(2026-10-12 定案):银行「分期剩余」不含已出账期次 ——
+/// 已出账未到期 = 自由窗口(不并卡、不占剩余),已到期者经卡待还计入
+/// (catchup 到期并入分录已贷记卡余额)。故只计未出账期次本金;
+/// [Debt.remainingPrincipalCents](整债剩余,含已出账未还期次)在此**不得**
+/// 使用 —— 该字段 F36 锁定、服务余额不变式,口径由本函数期表级收窄。
+/// 仍不得使用载体户余额(期表才是事实源)或 unpaidInterestCents
 /// (spec FR-1 定口径:仅剩余本金;未出账利息不占额度)。
-int cardLoanOccupationCents(List<Debt> debts, String cardId) {
+/// [now] 测试注入(缺省当前时刻;UTC 日界对齐,与期表存储口径一致)。
+int cardLoanOccupationCents(
+    List<Debt> debts, String cardId, Map<String, List<PaymentEntry>> schedules,
+    {DateTime? now}) {
+  final todayStart = _utcDayStart(now ?? DateTime.now());
   var sum = 0;
   for (final d in debts) {
     if (d.subtype == DebtSubtypes.cardLoan &&
         d.collectionAccountId == cardId &&
         d.countsTowardCardLimit) {
-      sum += d.remainingPrincipalCents;
+      for (final e in schedules[d.id] ?? const <PaymentEntry>[]) {
+        if (_unbilledFuture(e, todayStart)) sum += e.principalCents;
+      }
     }
   }
   return sum;
+}
+
+/// F58:期次是否计入占用/徽标(未出账口径)—— unpaid 且出账日
+/// ([PaymentEntry.paymentDate])在 [todayStart](UTC 日界)之后。
+bool _unbilledFuture(PaymentEntry e, DateTime todayStart) =>
+    !e.paid && e.paymentDate.isAfter(todayStart);
+
+/// [dt] 的 UTC 当日 0 点(期表 paymentDate 为 UTC 0 点存储,统一在 UTC
+/// 日界空间比较,镜像 catchupCardLoanMerges 的 todayStart 口径)。
+DateTime _utcDayStart(DateTime dt) {
+  final u = dt.toUtc();
+  return DateTime.utc(u.year, u.month, u.day);
 }
 
 /// 下一未还期最小投影(F51 FR-1):{期总额, 期还款日} 二元组。
@@ -230,32 +256,39 @@ DerivedLoanFields derivedLoanFields(
   );
 }
 
-/// F49 FR-4a:挂接信用卡 [cardId] 的并入型分期摘要(卡面徽标数据源)。
+/// F49 FR-4a:挂接信用卡 [cardId] 的并入型分期摘要(卡面徽标数据源);
+/// F58 改未出账口径。
 ///
-/// 归集口径:`subtype==cardLoan && collectionAccountId==cardId && 未结清`
-/// (已结清 [Debt.remainingPrincipalCents]<=0 不计,与 [debtMatchesListFilter]
-/// 同式);card_loan 是借入侧子类型,显式收 `type==borrowedIn` 使函数自含
-/// (不依赖调用方预过滤);[Debt.remainingPrincipalCents] 为实体剩余本金
-/// 字段 —— 本金口径(不含未付息费,区别于 accounts_page 债务聚合的本息
-/// 口径),存储溯源 = F36 北极星式 totalPrincipal − Σpaid(repairs.dart
-/// 不变式注释钉死的 remainingPrincipalCents 同源)。
-///
-/// **与 F50 cardLoanOccupationCents 并行落地**(F49/F50 两会话各自实现),
-/// 口径差异 = 徽标展示全额剩余本金,占用按 countsTowardCardLimit 开关过滤
-/// —— 后续收敛候选(收敛前勿再新增第三种平行聚合)。
-/// 调用方(accounts_page 徽标)传入**全量** borrowedIn debts 流 —— 徽标数据
-/// 不受 T4 列表过滤影响(载体户被滤后,其分期仍在挂接卡上可见)。
+/// 归集口径:`subtype==cardLoan && collectionAccountId==cardId && type==
+/// borrowedIn`(card_loan 是借入侧子类型,显式收 type 使函数自含);
+/// [schedules] 以 [Debt.id] 为 key 供期表。F58 银行口径(与
+/// [cardLoanOccupationCents] 同源):剩余 = **unpaid 且 paymentDate > now**
+/// 期次的 principalCents 合计 —— 银行「分期剩余」不含已出账期次(已出账
+/// 未到期 = 自由窗口;已到期者经卡待还计入),出账日当天即视为已出账
+/// (paymentDate == 今日不计,次日起仍不计;**未来出账日才计**)。
+/// 笔数 = 有至少一条未出账期次的债数(全部期次已出账/已还的债不再计数,
+/// 银行侧该分期已完结进卡待还)。金额为本金口径(不含未付息费);
+/// [Debt.remainingPrincipalCents] 为 F36 锁定的整债剩余(含已出账未还
+/// 期次),本函数**不得**使用 —— 期表级收窄是 F58 的目的。
+/// 调用方(accounts_page 徽标)传入**全量** borrowedIn debts 流 + 期表
+/// map —— 徽标数据不受 T4 列表过滤影响(载体户被滤后,其分期仍在挂接卡
+/// 上可见)。[now] 测试注入(缺省当前时刻,UTC 日界)。
 ({int count, int remainingCents}) cardInstallmentSummary(
-    List<Debt> debts, String cardId) {
+    List<Debt> debts, String cardId, Map<String, List<PaymentEntry>> schedules,
+    {DateTime? now}) {
+  final todayStart = _utcDayStart(now ?? DateTime.now());
   var count = 0;
   var remainingCents = 0;
   for (final d in debts) {
     if (d.type != DebtType.borrowedIn) continue;
     if (d.subtype != DebtSubtypes.cardLoan) continue;
     if (d.collectionAccountId != cardId) continue;
-    if (d.remainingPrincipalCents <= 0) continue;
-    count++;
-    remainingCents += d.remainingPrincipalCents;
+    var debtRemaining = 0;
+    for (final e in schedules[d.id] ?? const <PaymentEntry>[]) {
+      if (_unbilledFuture(e, todayStart)) debtRemaining += e.principalCents;
+    }
+    if (debtRemaining > 0) count++;
+    remainingCents += debtRemaining;
   }
   return (count: count, remainingCents: remainingCents);
 }

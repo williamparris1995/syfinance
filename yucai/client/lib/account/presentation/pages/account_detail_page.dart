@@ -222,6 +222,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     }
     return const <PaymentEntry>[];
   }
+
+  /// F58:_allSchedules → debtId 期表 map(cardLoanOccupationCents 未出账
+  /// 口径入参;缺项 = 该债计 0)。
+  Map<String, List<PaymentEntry>> get _schedulesByDebtId => {
+        for (final s in _allSchedules) s.debtId: s.all,
+      };
   Future<void> _loadLinkedDebt() async {
     try {
       final r = await GetIt.instance<DebtRepository>()
@@ -1538,13 +1544,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
       case AccountCategory.creditCard:
         final limit = a.creditLimitCents;
         // F50:已用 = 欠款 + 卡贷额度占用(银行口径:仅剩余本金 + 债级开关
-        // 过滤 —— 复用 domain 纯函数,口径单一事实源)。数据源取 _debtPlans:
+        // 过滤 —— 复用 domain 纯函数,口径单一事实源;F58 改未出账口径:
+        // 期表级过滤已出账期次)。数据源取 _debtPlans/_allSchedules:
         // 该管道已并入「subtype==card_loan 且 collectionAccountId==本卡」的
         // 挂卡卡贷(F48);纯函数内部再做 subtype/挂接/开关三重过滤,普通
         // 挂账户债(accountId 路径)不会误计。**display-only**:仅四卡显示
         // 口径,余额/hero/账单周期推导均不含占用。
         final occupation = cardLoanOccupationCents(
-            _debtPlans.map((p) => p.debt).toList(), a.id);
+            _debtPlans.map((p) => p.debt).toList(), a.id, _schedulesByDebtId);
         final used =
             a.currentBalanceCents.abs() + occupation; // 欠款为负，取绝对值
         // v5 原型页面级对齐:breakdown 已算出 → 四卡换账单周期语义卡

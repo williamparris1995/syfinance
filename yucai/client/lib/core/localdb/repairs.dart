@@ -27,6 +27,7 @@ Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
   await cleanupDanglingRefTxns(db);
   await runF49CarrierHideRepair(db);
   await runF57Ts4PingAnRedate(db);
+  await runF58UnmergeOvermergedCardLoans(db);
 }
 
 /// F36 存量迁移(2026-09-18,design ADR-3/6):负债账户余额漂移修复。
@@ -1109,4 +1110,86 @@ Future<void> runF57Ts4PingAnRedate(AppDatabase db) async {
         AppMetaCompanion.insert(key: markerKey, value: 'done'),
         mode: InsertMode.insertOrIgnore,
       );
+}
+
+/// F58 过度并账回退(2026-10-12 用户同意,并账时机改到期日配套修复):
+/// 旧 catchup 按「出账日 ≤ 今日」并入,把尚在自由窗口(已出账、未到期)
+/// 的期次提前并进了卡账单。银行口径:到期 = 下一期出账日,卡待还只含已
+/// 到期未还 —— 故对平安四笔(沿 F57 的 ID 清单,期表已前移)当前 paid 且
+/// transactionId 非空的期次,凡**到期日 > now** 者回退:
+///   1. 余额安全删除其并入交易(经交易管道 delete = applyEntries(old,−1)
+///      镜像逆 + FK cascade 删 transaction_entries/transactions 行;guest
+///      无墓碑,catchup 写入时也未落墓碑):并入分录 = 借载体/贷卡,credit-
+///      正口径下并入时载体欠款减、卡欠款加,回退恰为其镜像 —— 载体
+///      currentBalance += total(欠款回升)、卡 currentBalance −= total;
+///   2. 期次置 unpaid / paidCents=0 / transactionId=null。
+/// F36 不变式自然回位:负债余额 == totalPrincipal − Σpaid 两侧同额 +total
+/// (Σpaid 随 paidCents 清零下降,余额随镜像逆回升)。回退后的期次由改后
+/// catchup(到期触发)在到期日重新并入。幂等:marker
+/// 'f58_unmerge_overmerged_v1';逐行原子 + 重入收敛(已回退期次 paid=0
+/// 跳过;交易已删则仅解除引用),中断下次打开重试。
+Future<void> runF58UnmergeOvermergedCardLoans(AppDatabase db) async {
+  const markerKey = 'f58_unmerge_overmerged_v1';
+  final done = await (db.select(db.appMeta)
+        ..where((t) => t.key.equals(markerKey)))
+      .getSingleOrNull();
+  if (done != null) return;
+
+  // 沿 F57 清单:平安四笔(25k/9.1k/35k/5k)。债 ID 硬编码 = 银行真值锚定。
+  const debtIds = [
+    '88f3f34b-a6cb-48af-b1ec-b30c79c519ec',
+    '244bbcea-09eb-4ca3-aa9c-9ea8953e4922',
+    '1bc53282-cf9d-4091-bf0d-2f9ee2058d79',
+    'f47c78a1-4b14-4629-9cde-49b262fda44b',
+  ];
+
+  final n = DateTime.now().toUtc();
+  final todayStart = DateTime.utc(n.year, n.month, n.day);
+  final txns = TransactionLocalDataSource(db, BalanceLocalUpdater(db));
+
+  for (final id in debtIds) {
+    final entries = await (db.select(db.paymentScheduleEntries)
+          ..where((e) => e.debtId.equals(id)))
+        .get();
+    if (entries.isEmpty) continue;
+    final sorted = [...entries]
+      ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+    for (var k = 0; k < sorted.length; k++) {
+      final e = sorted[k];
+      final txnId = e.transactionId;
+      if (!e.paid || txnId == null || txnId.isEmpty) continue;
+      // 到期日 = 下一期出账日(末期 = 自身 +1 月,月钳;与 catchup 同式)。
+      final due = k + 1 < sorted.length
+          ? sorted[k + 1].paymentDate
+          : _plusOneMonthClamped(e.paymentDate);
+      if (!due.isAfter(todayStart)) continue; // 已到期 = 真并入,保留
+      // 过度并入(到期日仍在未来)→ 回退。交易已不存在(先前行删)则仅
+      // 解除引用 —— 无分录即无余额效应,直接置未还即收敛。
+      final exists = await (db.select(db.transactions)
+            ..where((t) => t.id.equals(txnId)))
+          .getSingleOrNull();
+      if (exists != null) {
+        await txns.delete(txnId); // 镜像逆余额 + cascade 删分录/头行
+      }
+      await (db.update(db.paymentScheduleEntries)
+            ..where((x) => x.id.equals(e.id)))
+          .write(const PaymentScheduleEntriesCompanion(
+                paid: Value(false),
+                paidCents: Value(0),
+                transactionId: Value(null)));
+    }
+  }
+
+  await db.into(db.appMeta).insert(
+        AppMetaCompanion.insert(key: markerKey, value: 'done'),
+        mode: InsertMode.insertOrIgnore,
+      );
+}
+
+/// 同日号 +1 个月,月末钳制(F58 末期到期日推导;镜像 debt_local_ds
+/// plusOneMonthClamped,repairs 不 import debt 层)。
+DateTime _plusOneMonthClamped(DateTime d) {
+  final m = DateTime.utc(d.year, d.month + 1, 1);
+  final lastDay = DateTime.utc(m.year, m.month + 1, 0).day;
+  return DateTime.utc(m.year, m.month, d.day > lastDay ? lastDay : d.day);
 }

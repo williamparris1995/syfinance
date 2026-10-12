@@ -157,6 +157,12 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// guest 不选到账账户也不入账),与 networth 的 DebtSource 口径对齐。
   List<Debt> _debts = const [];
 
+  /// F58:挂卡卡贷的期表(debtId → 全量期次)—— 占用/分期徽标的「未出账
+  /// 口径」数据源(cardLoanOccupationCents/cardInstallmentSummary 只计
+  /// unpaid 且 paymentDate > now 的期次,银行分期剩余不含已出账期次)。
+  /// _loadDebts 随 debts 一并拉取;单债失败静默跳过(缺项 = 计 0)。
+  Map<String, List<PaymentEntry>> _cardLoanSchedules = const {};
+
   /// 全量持仓(F51 FR-3,invest 估值派生源):拉取/生命周期照 [_debts] 既有
   /// 模式 —— initState/didPopNext/DataRefresh 三入口;经 getIt 直取
   /// HoldingRepository(binding/bound_mirror 同款跨模块消费先例)。失败/
@@ -202,53 +208,61 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   Future<void> _loadDebts() async {
     try {
       final r = await getIt<DebtRepository>().list();
-      r.fold((_) {}, (list) {
-        if (mounted) {
-          final borrowedIn =
-              list.where((d) => d.type == DebtType.borrowedIn).toList();
-          final byAccount = <String, List<Debt>>{};
-          for (final d in borrowedIn) {
-            byAccount.putIfAbsent(d.accountId, () => []).add(d);
-          }
-          AccountDebtInfo infoOf(List<Debt> ds) {
-            // F51 评审 S1/S2:Σ 收敛到 derivedLoanFields 唯一口径(与表单/
-            // 详情同源)。投影 map 从债实体的下一期字段构造 —— 该字段由
-            // DebtLocalDataSource._toEntity 经 debtNextPeriod 派生,值同源,
-            // 免去逐债 get 期表。无期表债(nextPaymentDate == null)不入 map
-            // → 月供计 0、日期不参与(纯函数语义)。
-            final nextByDebtId = <String, DebtNextPeriod>{
-              for (final d in ds)
-                if (d.nextPaymentDate != null)
-                  d.id: DebtNextPeriod(
-                      totalCents: d.nextPaymentAmountCents,
-                      date: d.nextPaymentDate!),
-            };
-            final f = derivedLoanFields(ds, nextByDebtId);
-            // 剩余保持「本息」手算:Σ(本金 + 未还利息)与
-            // derivedLoanFields.remainingPrincipalCents(Σ纯本金)是两套
-            // 口径 —— 本息口径由分组小计/总负债(债源)共用并被读侧测试
-            // 钉死,不与派生函数合并(避免口径漂移)。
-            final remaining = ds.fold<int>(0,
-                (s, d) => s + d.remainingPrincipalCents + d.unpaidInterestCents);
-            return AccountDebtInfo(
-              remainingCents: remaining,
-              totalCents: f.totalPrincipalCents,
-              // 月供 = Σ 各债下一期(全无期表 → null,卡面显空态 '-',
-              // 不再取「最早到期那笔」单债值)。
-              perPeriodCents: f.nextPaymentCents,
-              nextPaymentDate: f.nextPaymentDate,
-              count: ds.length,
-            );
-          }
-
-          setState(() {
-            _debts = borrowedIn;
-            _debtInfoByAccount = {
-              for (final e in byAccount.entries) e.key: infoOf(e.value)
-            };
-          });
+      // fold 闭包不能 async(F58 期表拉取要 await),先经 fold 提取 nullable
+      // 列表(失败 → null,保持旧 state,与原语义一致)。
+      List<Debt>? loaded;
+      r.fold((_) {}, (list) => loaded = list);
+      final list = loaded;
+      if (list == null || !mounted) return;
+      {
+        final borrowedIn =
+            list.where((d) => d.type == DebtType.borrowedIn).toList();
+        final byAccount = <String, List<Debt>>{};
+        for (final d in borrowedIn) {
+          byAccount.putIfAbsent(d.accountId, () => []).add(d);
         }
-      });
+        AccountDebtInfo infoOf(List<Debt> ds) {
+          // F51 评审 S1/S2:Σ 收敛到 derivedLoanFields 唯一口径(与表单/
+          // 详情同源)。投影 map 从债实体的下一期字段构造 —— 该字段由
+          // DebtLocalDataSource._toEntity 经 debtNextPeriod 派生,值同源,
+          // 免去逐债 get 期表。无期表债(nextPaymentDate == null)不入 map
+          // → 月供计 0、日期不参与(纯函数语义)。
+          final nextByDebtId = <String, DebtNextPeriod>{
+            for (final d in ds)
+              if (d.nextPaymentDate != null)
+                d.id: DebtNextPeriod(
+                    totalCents: d.nextPaymentAmountCents,
+                    date: d.nextPaymentDate!),
+          };
+          final f = derivedLoanFields(ds, nextByDebtId);
+          // 剩余保持「本息」手算:Σ(本金 + 未还利息)与
+          // derivedLoanFields.remainingPrincipalCents(Σ纯本金)是两套
+          // 口径 —— 本息口径由分组小计/总负债(债源)共用并被读侧测试
+          // 钉死,不与派生函数合并(避免口径漂移)。
+          final remaining = ds.fold<int>(
+              0, (s, d) => s + d.remainingPrincipalCents + d.unpaidInterestCents);
+          return AccountDebtInfo(
+            remainingCents: remaining,
+            totalCents: f.totalPrincipalCents,
+            // 月供 = Σ 各债下一期(全无期表 → null,卡面显空态 '-',
+            // 不再取「最早到期那笔」单债值)。
+            perPeriodCents: f.nextPaymentCents,
+            nextPaymentDate: f.nextPaymentDate,
+            count: ds.length,
+          );
+        }
+
+        // F58:占用/徽标改未出账口径,先取挂卡卡贷期表再落 state。
+        final cardSchedules = await _cardLoanSchedulesOf(borrowedIn);
+        if (!mounted) return;
+        setState(() {
+          _debts = borrowedIn;
+          _cardLoanSchedules = cardSchedules;
+          _debtInfoByAccount = {
+            for (final e in byAccount.entries) e.key: infoOf(e.value)
+          };
+        });
+      }
     } catch (_) {
       // 静默降级:取不到债务时退回账户余额口径(与旧行为一致)。
     }
@@ -258,6 +272,27 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// 未关联 → null(回退账户余额口径)。**不限贷款类别** —— 个人待还款等
   /// 其他负债账户同样适用。
   AccountDebtInfo? _debtInfoFor(Account a) => _debtInfoByAccount[a.id];
+
+  /// F58:取挂卡卡贷(collectionAccountId 非空的 card_loan 借入债)的
+  /// 全量期表,供 cardLoanOccupationCents / cardInstallmentSummary 的
+  /// 未出账口径(只计 unpaid 且 paymentDate > now 的期次)。单债失败
+  /// 静默跳过(缺项 = 该债计 0,与 _loadDebts 静默降级同款)。
+  Future<Map<String, List<PaymentEntry>>> _cardLoanSchedulesOf(
+      List<Debt> borrowedIn) async {
+    final out = <String, List<PaymentEntry>>{};
+    for (final d in borrowedIn) {
+      if (d.subtype != DebtSubtypes.cardLoan) continue;
+      final card = d.collectionAccountId;
+      if (card == null || card.isEmpty) continue;
+      try {
+        final det = await getIt<DebtRepository>().get(d.id);
+        det.fold((_) {}, (detail) => out[d.id] = detail.schedule);
+      } catch (_) {
+        // 静默降级:取不到期表的债不计占用(下轮刷新重试)。
+      }
+    }
+    return out;
+  }
 
   /// 全量持仓拉取(F51 FR-3,照 _loadDebts 模式):一次性 list,失败静默
   /// 降级 —— 取不到持仓时 invest 派生闭包返 null,回退账户列口径。
@@ -298,11 +333,12 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
   }
 
   /// F49 FR-4a:信用卡卡面分期徽标数据 —— [cardInstallmentSummary] 归集
-  /// 挂接本卡的并入型分期(笔数+剩余本金)。数据通道 = **全量** [_debts]
-  /// 流(T4 列表过滤只作用于账户行,不滤 debts)—— 载体户被滤后,其分期
-  /// 摘要仍在挂接卡上可见(spec FR-4 卡面摘要语义)。
+  /// 挂接本卡的并入型分期(笔数+未出账剩余本金,F58 口径)。数据通道 =
+  /// **全量** [_debts] 流 + [_cardLoanSchedules] 期表(T4 列表过滤只作用
+  /// 于账户行,不滤 debts)—— 载体户被滤后,其分期摘要仍在挂接卡上可见
+  /// (spec FR-4 卡面摘要语义)。
   ({int count, int remainingCents}) _installmentSummaryFor(Account a) =>
-      cardInstallmentSummary(_debts, a.id);
+      cardInstallmentSummary(_debts, a.id, _cardLoanSchedules);
 
   @override
   void initState() {
@@ -774,11 +810,12 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                       accounts: entry.value,
                       formatCents: _formatCents,
                       debtInfoFor: _debtInfoFor,
-                      // F50:卡贷额度占用(仅剩余本金 + 开关过滤,domain 纯函数)
-                      // 注入信用卡卡片「已用/利用率」;display-only —— 不进任何
+                      // F50:卡贷额度占用(仅剩余本金 + 开关过滤,domain 纯函数;
+                      // F58 未出账口径:期表级过滤已出账期次)注入信用卡卡片
+                      // 「已用/利用率」;display-only —— 不进任何
                       // 余额/负债聚合/净资产口径。
                       occupationFor: (a) =>
-                          cardLoanOccupationCents(_debts, a.id),
+                          cardLoanOccupationCents(_debts, a.id, _cardLoanSchedules),
                       // F51 FR-3:挂接 loan/invest 账户的派生估值闭包,小计与
                       // 卡面主数字共用(卡面 == 小计同口径);未挂接 null →
                       // 既有列读路径不变(FR-4)。

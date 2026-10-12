@@ -162,7 +162,10 @@ void main() {
     });
   });
 
-  group('F49 cardInstallmentSummary(卡面分期徽标数据源)', () {
+  group('F49 cardInstallmentSummary(卡面分期徽标数据源;F58 未出账口径)', () {
+    /// 测试注入「当前时刻」锚(期表日期 UTC 绝对日期,口径钉死)。
+    final nowAnchor = DateTime.utc(2026, 6, 1);
+
     /// card_loan 借入债夹具:默认挂接卡 card-1、未结清(剩余=总额)。
     Debt cardDebt(
       String id,
@@ -191,6 +194,20 @@ void main() {
           collectionAccountId: cardId,
         );
 
+    /// 未出账期次(单条未来 unpaid,principal = [principal])。
+    List<PaymentEntry> unbilled(int principal) => [
+          PaymentEntry(
+            id: 'e-$principal',
+            paymentDate: DateTime.utc(2026, 12, 1),
+            principalCents: principal,
+            interestCents: 0,
+            totalCents: principal,
+            paid: false,
+            paidCents: 0,
+            transactionId: '',
+          ),
+        ];
+
     test('挂接归集:仅 card_loan 且 collectionAccountId==cardId 计入', () {
       final debts = [
         cardDebt('hit', 840000), // 命中:挂接本卡
@@ -203,36 +220,97 @@ void main() {
             cardId: 'card-1',
             type: DebtType.borrowedOut), // 借出方向 → 不计
       ];
-      final s = cardInstallmentSummary(debts, 'card-1');
+      final schedules = {'hit': unbilled(840000)};
+      final s = cardInstallmentSummary(debts, 'card-1', schedules,
+          now: nowAnchor);
       expect(s.count, 1);
       expect(s.remainingCents, 840000);
     });
 
-    test('多笔求和:同卡多笔剩余本金累加', () {
+    test('多笔求和:同卡多笔未出账本金累加', () {
       final debts = [
         cardDebt('a', 840000, remaining: 300000),
         cardDebt('b', 1200000, remaining: 500000),
       ];
-      final s = cardInstallmentSummary(debts, 'card-1');
+      final schedules = {'a': unbilled(300000), 'b': unbilled(500000)};
+      final s = cardInstallmentSummary(debts, 'card-1', schedules,
+          now: nowAnchor);
       expect(s.count, 2);
       expect(s.remainingCents, 800000);
     });
 
-    test('未结清口径:已清偿(剩余 0)不计入笔数与金额', () {
+    test('期表全已出账的债不计入笔数与金额(银行分期剩余不含已出账)', () {
       final debts = [
         cardDebt('active', 840000, remaining: 400000),
-        cardDebt('settled', 600000, remaining: 0),
+        cardDebt('billed', 600000, remaining: 600000), // 全部期次已出账
       ];
-      final s = cardInstallmentSummary(debts, 'card-1');
-      expect(s.count, 1, reason: '已清偿不计笔数');
-      expect(s.remainingCents, 400000, reason: '剩余仅未结清部分');
+      final schedules = {
+        'active': unbilled(400000),
+        // billed:仅一条已出账(过去)未还期次 = 自由窗口 → 不计。
+        'billed': [
+          PaymentEntry(
+            id: 'billed-e0',
+            paymentDate: DateTime.utc(2026, 5, 1),
+            principalCents: 600000,
+            interestCents: 0,
+            totalCents: 600000,
+            paid: false,
+            paidCents: 0,
+            transactionId: '',
+          ),
+        ],
+      };
+      final s = cardInstallmentSummary(debts, 'card-1', schedules,
+          now: nowAnchor);
+      expect(s.count, 1, reason: '无未出账期次的债不计笔数');
+      expect(s.remainingCents, 400000, reason: '剩余仅未出账部分');
     });
 
-    test('无挂接空态:空表/无命中均返回 (0, 0)', () {
-      expect(cardInstallmentSummary(const [], 'card-1'),
+    test('F58 边界:出账日当天不计,次日及以后出账才计', () {
+      final debts = [cardDebt('d', 999999, remaining: 999999)];
+      final schedules = {
+        'd': [
+          PaymentEntry(
+              id: 'e0',
+              paymentDate: DateTime.utc(2026, 6, 1), // 今日出账 → 不计
+              principalCents: 400000,
+              interestCents: 0,
+              totalCents: 400000,
+              paid: false,
+              paidCents: 0,
+              transactionId: ''),
+          PaymentEntry(
+              id: 'e1',
+              paymentDate: DateTime.utc(2026, 6, 2), // 次日出账 → 计
+              principalCents: 300000,
+              interestCents: 0,
+              totalCents: 300000,
+              paid: false,
+              paidCents: 0,
+              transactionId: ''),
+        ],
+      };
+      final s = cardInstallmentSummary(debts, 'card-1', schedules,
+          now: nowAnchor);
+      expect(s.count, 1, reason: '尚有未出账期次 → 计 1 笔');
+      expect(s.remainingCents, 300000, reason: '仅次日及以后出账的本金');
+    });
+
+    test('无挂接空态:空表/无命中/期表缺项均返回 (0, 0)', () {
+      expect(
+          cardInstallmentSummary(const [], 'card-1', const {}, now: nowAnchor),
           (count: 0, remainingCents: 0));
-      expect(cardInstallmentSummary([cardDebt('x', 1, cardId: 'card-9')], 'card-1'),
+      expect(
+          cardInstallmentSummary([cardDebt('x', 1, cardId: 'card-9')],
+              'card-1', const {},
+              now: nowAnchor),
           (count: 0, remainingCents: 0));
+      expect(
+          cardInstallmentSummary([cardDebt('y', 123, cardId: 'card-1')],
+              'card-1', const {},
+              now: nowAnchor),
+          (count: 0, remainingCents: 0),
+          reason: '缺期表 = 无未出账期次,计 0 不回退整债剩余');
     });
   });
 }

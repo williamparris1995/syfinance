@@ -136,6 +136,27 @@ List<Debt> _pinganDebts({bool caiZhiTongOn = true}) => [
           cardId: 'pingan-card', countsTowardCardLimit: false),
     ];
 
+/// F58 未出账口径期表 stub:每债单条 unpaid **未来出账**期次(principal =
+/// 整债剩余,远未来 2099 出账日 → 恒「未出账」),使新口径下占用/徽标
+/// 数值与 F50 校准数保持一致(cardLoanOccupationCents/cardInstallmentSummary
+/// 只计 unpaid 且 paymentDate > now 的期次)。
+Map<String, List<PaymentEntry>> _unbilledSchedulesFor(List<Debt> debts) => {
+      for (final d in debts
+          .where((d) => d.remainingPrincipalCents > 0))
+        d.id: [
+          PaymentEntry(
+            id: '${d.id}-e0',
+            paymentDate: DateTime.utc(2099, 1, 1),
+            principalCents: d.remainingPrincipalCents,
+            interestCents: 0,
+            totalCents: d.remainingPrincipalCents,
+            paid: false,
+            paidCents: 0,
+            transactionId: '',
+          ),
+        ],
+    };
+
 // ───────────────────────── harness:共享 GetIt 注册 ─────────────────────────
 //
 // 注册纪律(库内先例:accounts_page_test/account_detail_page_test):仓库
@@ -159,6 +180,15 @@ Future<void> pumpAccountsPage(
   List<Account> accounts = const [],
 }) async {
   when(() => _debtRepo.list()).thenAnswer((_) async => dartz.Right(debts));
+  // F58:占用/徽标未出账口径需期表(accounts_page._loadDebts 对挂卡卡贷
+  // 逐债 repo.get 取 schedule)。stub = 远未来出账的单条期次,数值与 F50
+  // 校准数一致(见 _unbilledSchedulesFor)。
+  final schedules = _unbilledSchedulesFor(debts);
+  for (final d in debts) {
+    when(() => _debtRepo.get(d.id)).thenAnswer(
+        (_) async => dartz.Right(
+            DebtDetail(debt: d, schedule: schedules[d.id] ?? const [])));
+  }
 
   final listUc = _MockList();
   final createUc = _MockCreate();
@@ -227,9 +257,12 @@ Future<void> pumpDetailPage(
   when(() => _debtRepo.list()).thenAnswer((_) async => dartz.Right(debts));
   when(() => _debtRepo.list(typeFilter: any(named: 'typeFilter')))
       .thenAnswer((_) async => dartz.Right(debts));
+  // F58:期表 stub 同 pumpAccountsPage(_allSchedules → 未出账口径占用)。
+  final schedules = _unbilledSchedulesFor(debts);
   for (final d in debts) {
     when(() => _debtRepo.get(d.id)).thenAnswer(
-        (_) async => dartz.Right(DebtDetail(debt: d, schedule: const [])));
+        (_) async => dartz.Right(
+            DebtDetail(debt: d, schedule: schedules[d.id] ?? const [])));
   }
 
   final listUc = _MockList();

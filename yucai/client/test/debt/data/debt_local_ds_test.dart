@@ -895,38 +895,37 @@ void main() {
           reason: '放款不直接计入卡余额;卡额度随每期并入逐步占用');
     });
 
-    test('catchup:到账单日的期次自动并入挂接卡,幂等且债务余额递减', () async {
+    test('catchup(F58 到期触发):到期(下一期出账日)已到的期次自动并入,幂等且两侧余额联动', () async {
       final now = DateTime.now().toUtc();
       final today = DateTime.utc(now.year, now.month, now.day);
-      // 起始 = 今日-5 天,账单日 = 今日的日号 → 首期恰为今日(已到),第 2/3 期未到。
+      // start = 今日-35 天,账单日 = 今日日号 → 期表 ≈ [今日-1月, 今日, 今日+1月]:
+      // 首期出账 = 今日-1月,到期 = 今日(下一期出账日)→ 并入;当期今日出账,
+      // 到期 = 今日+1月 → 自由窗口不并(旧「出账日即并」口径已被 F58 替换)。
       final d = await createCardLoan(
-          start: today.subtract(const Duration(days: 5)),
-          billingDay: today.day);
+          start: today.subtract(const Duration(days: 35)), billingDay: today.day);
       await debts.catchupCardLoanMerges();
       var detail = await debts.get(d.id);
-      final merged = detail.schedule
-          .where((e) => !e.paymentDate.isAfter(today))
-          .toList();
-      expect(merged, isNotEmpty);
-      for (final e in merged) {
-        expect(e.paid, isTrue, reason: '账单日已到的期次应自动并入');
-        expect(e.transactionId.isNotEmpty, isTrue);
-      }
-      // 并入分录:借 卡贷负债户 / 贷 信用卡(账单 +当期本息)。
+      expect(detail.schedule[0].paid, isTrue,
+          reason: '首期出账 = 今日-1月,到期 = 今日 → 并入');
+      expect(detail.schedule[0].transactionId.isNotEmpty, isTrue);
+      expect(detail.schedule[1].paid, isFalse,
+          reason: '当期今日出账,到期 = 今日+1月 → 自由窗口不并');
+      expect(detail.schedule[2].paid, isFalse);
+      // 并入分录:借 卡贷负债户 / 贷 信用卡(账单 + 当期本息);F36 不变式:
+      // 载体余额 == 总额 − ΣpaidCents(paidCents = 期次全额)。
       final card = await accounts.getAccountById(cardId);
-      final expectedCard =
-          merged.fold<int>(0, (s, e) => s + e.totalCents);
-      expect(card!.currentBalanceCents, expectedCard,
-          reason: '信用卡余额(credit-正)应含并入期次本息 → 计入账单应还');
-      // 幂等:再跑一轮无新分录、余额不变。
+      expect(card!.currentBalanceCents, detail.schedule[0].totalCents,
+          reason: '信用卡余额(credit-正)应含到期并入期次本息');
+      final carrier = await accounts.getAccountById(cardLoanAccount);
+      expect(carrier!.currentBalanceCents,
+          5000000 - detail.schedule[0].totalCents,
+          reason: '借记载体 → 欠款同额递减,F36 不变式保持');
+      // 幂等:再跑一轮无新并入、余额不变。
       await debts.catchupCardLoanMerges();
       final card2 = await accounts.getAccountById(cardId);
-      expect(card2!.currentBalanceCents, expectedCard);
-      // 债务剩余本金 = 未还期次本金部分合计(银行口径;2026-10-08 修正:
-      // 此前 总额−Σ已还全额 把利息混冲本金,与银行拆分对不上)。
-      final expectedRemaining =
-          5000000 - merged.fold<int>(0, (s, e) => s + e.principalCents);
-      expect(detail.debt.remainingPrincipalCents, expectedRemaining);
+      expect(card2!.currentBalanceCents, detail.schedule[0].totalCents);
+      final detail2 = await debts.get(d.id);
+      expect(detail2.schedule[1].paid, isFalse);
     });
 
     test('未到账单日的期次不并入( catchup 零动作)', () async {
@@ -948,6 +947,155 @@ void main() {
           .where((e) => e.paid)
           .fold<int>(0, (s, e) => s + e.totalCents);
       expect(card!.currentBalanceCents, mergedTotal);
+    });
+  });
+
+  // ─────────────────── F58 并账时机 = 到期日(平安口径) ───────────────────
+  // 银行事实:每期独立出账(paymentDate = 出账日),到期 = 下一期出账日
+  // (末期 = 自身+1 月,月钳);卡待还只含已到期未还,已出账未到期 = 自由
+  // 窗口。并入条件 = 到期日 ≤ 今日(now 注入,绝对日期钉死三例)。
+  group('F58 并账时机=到期日(出账日不并,到期日并)', () {
+    late String cardId;
+    late String cardLoanAccount;
+
+    setUp(() async {
+      cardId = 'acc-cc58';
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: cardId,
+        name: '平安信用卡',
+        accountType: 2, // liability
+        category: 2, // creditCard
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '8888',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+      cardLoanAccount = 'acc-cardloan58';
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: cardLoanAccount,
+        name: '平安现金分期 · F58',
+        accountType: 2,
+        category: 7, // loan
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+    });
+
+    /// billingDay 5、3 期:期表 = [2026-10-05, 2026-11-05, 2026-12-05]。
+    Future<Debt> createCardLoan({DateTime? start, int billingDay = 5}) =>
+        debts.create(
+          accountId: cardLoanAccount,
+          counterparty: '平安银行',
+          interestRate: 0.072,
+          amortizationIndex: 0,
+          startDate: start ?? DateTime.utc(2026, 9, 10),
+          dueDate: DateTime.utc(2026, 9, 10), // 按期数模式由 DS 推导覆写
+          totalPrincipalCents: 5000000,
+          type: DebtType.borrowedIn,
+          subtype: DebtSubtypes.cardLoan,
+          sourceAccountId: cash,
+          collectionAccountId: cardId,
+          cycle: 2,
+          termPeriods: 3,
+          billingDay: billingDay,
+          flatFeeCents: 30000,
+        );
+
+    test('到期前不并:出账日当天/次日均为自由窗口,零并入零分录', () async {
+      final d = await createCardLoan(); // 期表 [10-05, 11-05, 12-05]
+      final detail0 = await debts.get(d.id);
+      expect(
+          detail0.schedule.map((e) => e.paymentDate).toList(),
+          [DateTime.utc(2026, 10, 5), DateTime.utc(2026, 11, 5),
+           DateTime.utc(2026, 12, 5)]);
+      // 出账日当天(10-05):到期 = 11-05 未到 → 不并。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 10, 5));
+      var detail = await debts.get(d.id);
+      expect(detail.schedule.every((e) => !e.paid), isTrue,
+          reason: '出账日当天不并(旧口径此处会并入,F58 修复点)');
+      expect((await accounts.getAccountById(cardId))!.currentBalanceCents, 0);
+      // 次日(10-06)仍自由窗口。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 10, 6));
+      detail = await debts.get(d.id);
+      expect(detail.schedule.every((e) => !e.paid), isTrue);
+      expect((await accounts.getAccountById(cardId))!.currentBalanceCents, 0);
+      // 无并入分录(只有放款双写)。
+      final mergeTxns = (await database.select(database.transactions).get())
+          .where((t) => t.description.startsWith('信用卡分期'));
+      expect(mergeTxns, isEmpty);
+    });
+
+    test('到期日并:到期(下一期出账日)当天并入恰一期,当期新出账期次不并', () async {
+      final d = await createCardLoan(); // 期表 [10-05, 11-05, 12-05]
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 11, 5));
+      final detail = await debts.get(d.id);
+      expect(detail.schedule[0].paid, isTrue,
+          reason: '10-05 期次到期日 = 11-05(下一期出账日)→ 当天并入');
+      expect(detail.schedule[0].transactionId.isNotEmpty, isTrue);
+      expect(detail.schedule[1].paid, isFalse,
+          reason: '11-05 期次当日出账,到期 = 12-05 → 自由窗口不并');
+      expect(detail.schedule[2].paid, isFalse);
+      // 分录:贷卡(账单 + 当期本息)/ 借载体(欠款 −全额;F36 不变式)。
+      final card = await accounts.getAccountById(cardId);
+      expect(card!.currentBalanceCents, detail.schedule[0].totalCents);
+      final carrier = await accounts.getAccountById(cardLoanAccount);
+      expect(carrier!.currentBalanceCents,
+          5000000 - detail.schedule[0].totalCents);
+    });
+
+    test('末期到期 = 自身+1 月(月钳 31→28):到期日当天并入', () async {
+      // billingDay 31:start 11-05 → 首期 11-30(钳),此后 12-31、次年 01-31。
+      final d = await createCardLoan(
+          start: DateTime.utc(2026, 11, 5), billingDay: 31);
+      final detail0 = await debts.get(d.id);
+      expect(
+          detail0.schedule.map((e) => e.paymentDate).toList(),
+          [DateTime.utc(2026, 11, 30), DateTime.utc(2026, 12, 31),
+           DateTime.utc(2027, 1, 31)]);
+      // 12-31:期0 到期(= 12-31)并入;期1 当日出账不并;末期(01-31)
+      // 到期 = +1 月钳制 = 2027-02-28,未到。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 12, 31));
+      var detail = await debts.get(d.id);
+      expect(detail.schedule[0].paid, isTrue);
+      expect(detail.schedule[1].paid, isFalse);
+      expect(detail.schedule[2].paid, isFalse,
+          reason: '末期到期 = 2027-02-28(31→28 月钳)未到 → 不并');
+      // 2027-02-28 = 末期+1 月钳制日:剩余两期全部到期并入。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2027, 2, 28));
+      detail = await debts.get(d.id);
+      expect(detail.schedule.every((e) => e.paid), isTrue,
+          reason: '末期到期日当天(= 自身+1 月钳)并入');
+      final card = await accounts.getAccountById(cardId);
+      expect(card!.currentBalanceCents,
+          detail.schedule.fold<int>(0, (s, e) => s + e.totalCents));
     });
   });
 

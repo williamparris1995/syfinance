@@ -142,6 +142,28 @@ void main() {
     final debtRepo = _MockDebtRepo();
     when(() => debtRepo.list())
         .thenAnswer((_) async => dartz.Right(debts));
+    // F58:徽标改未出账口径,accounts_page._loadDebts 对挂卡卡贷逐债
+    // repo.get 取期表。stub = 远未来出账的单条 unpaid 期次(principal =
+    // 整债剩余)→ 新口径下徽标数值与旧口径一致;已清偿(剩余 0)→ 空
+    // 期表,不计笔数。
+    for (final d in debts) {
+      final schedule = d.remainingPrincipalCents > 0
+          ? [
+              PaymentEntry(
+                id: '${d.id}-e0',
+                paymentDate: DateTime.utc(2099, 1, 1),
+                principalCents: d.remainingPrincipalCents,
+                interestCents: 0,
+                totalCents: d.remainingPrincipalCents,
+                paid: false,
+                paidCents: 0,
+                transactionId: '',
+              ),
+            ]
+          : const <PaymentEntry>[];
+      when(() => debtRepo.get(d.id)).thenAnswer(
+          (_) async => dartz.Right(DebtDetail(debt: d, schedule: schedule)));
+    }
     GetIt.instance.registerSingleton<DebtRepository>(debtRepo);
   }
 
