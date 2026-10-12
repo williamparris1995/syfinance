@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · 面包屑统一与悬浮簇对比</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:面包屑统一 + 右下悬浮操作簇 · 视觉伴侣对比页 */
+  /* —— 说明卡 / 箭头 —— */
+  .sec-note{display:flex;gap:14px;align-items:flex-start;margin-top:34px}
+  .sec-tag{flex:none;font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--q1-fg);background:var(--q1-bg);border-radius:999px;padding:4px 12px;margin-top:2px}
+  .sec-note .sn-t b{font-size:14.5px;display:block}
+  .sec-note .sn-t p{color:var(--muted);font-size:12.5px;margin-top:3px;line-height:1.7}
+  .sec-arrow{display:flex;justify-content:center;color:var(--muted);font-size:15px;line-height:1;padding:7px 0 3px}
+  /* —— 背景卡 —— */
+  .intro-grid{display:grid;grid-template-columns:1fr 34px 1fr;gap:14px;align-items:stretch}
+  .intro-col h3{font-size:11.5px;letter-spacing:1.5px;color:var(--muted);font-weight:700}
+  .intro-col ul{list-style:none;margin-top:9px;display:grid;gap:7px;font-size:12.5px;color:var(--muted);line-height:1.65}
+  .intro-col li{padding-left:14px;position:relative}
+  .intro-col li::before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:50%;background:var(--acc)}
+  .intro-col li b{color:var(--fg)}
+  .intro-arrow{display:grid;place-items:center;color:var(--muted);font-size:20px}
+  /* —— 演示屏框架 —— */
+  .mock{position:relative;border:1px solid var(--border);border-radius:18px;overflow:hidden;background:var(--bg);box-shadow:var(--shadow)}
+  .mtop{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:10px 18px;background:var(--topbar-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--sidebar-border)}
+  .crumb a{color:var(--link);font-weight:600}
+  .crumb a:hover{text-decoration:underline}
+  .appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .appbar .ab-crumb{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .appbar .ab-crumb .cur{color:var(--fg);font-weight:700}
+  .appbar .ab-actions{display:flex;align-items:center;gap:9px;flex:none}
+  .sq-btn{width:38px;height:38px;border-radius:11px;background:var(--surface);border:1px solid var(--line);color:var(--muted);display:grid;place-items:center;cursor:pointer;transition:.15s}
+  .sq-btn:hover{color:var(--fg);background:var(--surface-2)}
+  .mock-page{padding:18px}
+  /* —— 标注 —— */
+  .anno{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;font-size:11px;font-weight:800;color:var(--warn);background:color-mix(in srgb,var(--warn) 16%,transparent);flex:none}
+  .anno.ok{color:var(--pos);background:var(--pos-soft)}
+  .pin-tag{font-size:10.5px;font-weight:700;color:var(--link);background:color-mix(in srgb,var(--link) 12%,transparent);border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .anno-list{display:grid;gap:9px;margin-top:14px}
+  .anno-list .a-row{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--muted);line-height:1.65}
+  .anno-list .a-row b{color:var(--fg)}
+  /* —— 账户详情 hero / kv(照 account-detail 页内样式) —— */
+  .acct-hero{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .acct-hero .info{flex:1;min-width:180px}
+  .acct-hero .name{font-size:17px;font-weight:800}
+  .acct-hero .no{color:var(--muted);font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+  .kv .row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .kv .row:last-child{border-bottom:0}
+  .kv .k{color:var(--muted)}
+  .kv .v{font-weight:600;text-align:right}
+  /* —— 区块二侧卡 —— */
+  .b2-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;align-items:start}
+  .mini-crumb{padding:11px 13px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+  .retire-row{display:flex;align-items:center;gap:10px;margin-top:14px;padding:11px 13px;border:1px dashed var(--border);border-radius:12px;flex-wrap:wrap}
+  .retire-row s{color:var(--muted);font-size:13px}
+  .side-note{color:var(--muted);font-size:12px;line-height:1.7;margin-top:10px}
+  .side-note b{color:var(--fg)}
+  /* —— 底部留白对策 —— */
+  .pad-zone{border:1px dashed var(--border);border-radius:12px;margin-top:16px;min-height:96px;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:11.5px;line-height:1.7;padding:10px}
+  .pad-zone.tall-a{min-height:120px}
+  .pad-zone.tall-b{min-height:248px}
+  /* —— 悬浮簇 形态A:横排胶囊 —— */
+  .dock-a{position:absolute;right:28px;bottom:28px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;background:var(--topbar-bg);backdrop-filter:blur(12px);border:1px solid var(--line);box-shadow:var(--shadow);transition:transform .18s ease;z-index:5}
+  .dock-a:hover{transform:translateY(-2px)}
+  .d-pri{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:999px;border:0;cursor:pointer;background:var(--fab-bg);color:var(--fab-fg);font-weight:700;font-size:13px;box-shadow:var(--fab-shadow)}
+  .d-ic{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer;transition:.15s}
+  .d-ic:hover{background:var(--surface-2)}
+  /* —— 悬浮簇 形态B:竖排 FAB 堆叠 —— */
+  .dock-b{position:absolute;right:28px;bottom:28px;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:5}
+  .fab-main{width:52px;height:52px;border-radius:50%;border:0;cursor:pointer;background:var(--fab-bg);color:var(--fab-fg);box-shadow:var(--fab-shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+  .fab-main small{font-size:9.5px;font-weight:800;letter-spacing:1px;line-height:1}
+  .d-ic44{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer;transition:.15s;box-shadow:var(--shadow)}
+  .d-ic44:hover{background:var(--surface-2)}
+  /* —— 区块三 演示视口 —— */
+  .stage-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch}
+  .stage-sub{color:var(--muted);font-size:12px;margin:-4px 0 12px;line-height:1.6}
+  .stage-body{position:relative;height:460px;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg)}
+  .stage-scroll{height:100%;overflow-y:auto}
+  .stage-scroll .mtop{position:sticky;top:0;z-index:3;min-height:48px;padding:8px 16px}
+  .stage-page{padding:14px 16px 16px}
+  .stage-page .hero{padding:18px 18px 14px;border-radius:16px;margin-bottom:14px}
+  .stage-page .hero-amount.sm{font-size:30px}
+  .stage-page .sum-strip{grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  .stage-page .card{padding:13px 14px;border-radius:14px}
+  .stage-page .mini-head{margin-bottom:8px}
+  .stage-page .mini-big{font-size:16px;margin-bottom:0}
+  /* —— 页尾对比表 —— */
+  .cmp-wrap{overflow-x:auto;margin-top:2px}
+  table.cmp{width:100%;min-width:820px;border-collapse:collapse;font-size:12.5px}
+  .cmp th,.cmp td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;line-height:1.7;color:var(--muted)}
+  .cmp thead th{font-size:11.5px;letter-spacing:.5px;color:var(--muted);font-weight:700;white-space:nowrap}
+  .cmp tbody tr:last-child th,.cmp tbody tr:last-child td{border-bottom:0}
+  .cmp td b{color:var(--fg)}
+  .cmp .colA,.cmp .colB{background:var(--q1-bg)}
+  .badge-rec{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;color:var(--acc-text);background:var(--acc);border-radius:999px;padding:2px 9px;margin-left:7px;letter-spacing:1px;vertical-align:1px}
+  .cmp-foot{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.7}
+  .cmp-foot b{color:var(--acc)}
+  @media (max-width:1000px){
+    .stage-grid{grid-template-columns:1fr}
+  }
+  @media (max-width:900px){
+    /* 本页为桌面壳层对比演示:窄窗格(应用内浏览器侧栏)也保持桌面布局——
+       面包屑是本页主角,压过套件 theme.css 的移动端隐藏规则 */
+    body{display:grid;grid-template-columns:236px 1fr}
+    .sidebar{display:flex}
+    .crumb{display:block}
+    .topbar{padding:14px 32px}
+    .search{width:280px;flex:none}
+    .page{padding:28px 32px 48px}
+    .page-head{flex-direction:row;align-items:flex-end;gap:16px}
+    .bottom-nav{display:none}
+    .b2-grid{grid-template-columns:1fr}
+    .intro-grid{grid-template-columns:1fr}
+    .intro-arrow{transform:rotate(90deg)}
+    .appbar{flex-wrap:wrap}
+    .dock-a,.dock-b{right:16px;bottom:16px}
+    .stage-body{height:420px}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-squarepen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item active" href="../../../../../../../design-output-v2/ab/debts.html"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/receivables.html"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/goals.html"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/settings.html"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">工具 <span class="sep">›</span> <b>面包屑与悬浮簇 · 方案对比</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索债务…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>面包屑统一 + 右下悬浮操作簇</h1>
+        <p class="date">视觉伴侣对比页 · 债务详情 / 账户详情双场景 · 演示数据</p>
+      </div>
+      <div class="page-head-actions">
+        <a class="btn-ghost" href="../../../../../../../design-output-v2/ab/debts.html">底版 · 债务管理</a>
+        <a class="btn-ghost" href="../../../../../../../design-output-v2/ab/account-detail.html">底版 · 账户详情</a>
+      </div>
+    </div>
+
+    <!-- 背景卡 -->
+    <section class="card">
+      <div class="card-head"><h2>背景 · 从「两层面包屑叠加」到「顶栏全路径 + 右下悬浮簇」</h2><span class="chip">导航改造</span></div>
+      <div class="intro-grid">
+        <div class="intro-col">
+          <h3>现状 · 两层叠加</h3>
+          <ul>
+            <li>全局顶栏 crumb「财务 › 债务管理」为<b>纯文本,不可点</b></li>
+            <li>其下详情页自带一条 AppBar「债务管理 › 平安现金分期」,<b>仅根标签可点</b>回列表,右侧挂 编辑 / 更多 两枚方钮</li>
+            <li>账户详情则是 BackButton + 标题 + 右侧 编辑 / 记一笔 / 转账 / 更多 <b>四枚顶部钮</b></li>
+          </ul>
+        </div>
+        <div class="intro-arrow" aria-hidden="true">→</div>
+        <div class="intro-col">
+          <h3>目标 · 统一</h3>
+          <ul>
+            <li>面包屑<b>统一到顶栏全路径,祖先级可点回退</b>(套件先例:account-detail 顶栏链接态)</li>
+            <li>详情页<b>第二层 AppBar 整条退役</b>,hero 直接上移</li>
+            <li>右侧操作按钮<b>移到右下角悬浮常驻</b>(形态 A / B 见区块三)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 区块一:现状还原 -->
+    <div class="sec-note">
+      <span class="sec-tag">区块一</span>
+      <div class="sn-t">
+        <b>现状还原 · 债务详情场景</b>
+        <p>按 Flutter 实况在内容区顶部叠两条:顶栏纯文本 crumb + 详情页自带 AppBar(64px),三处问题以 ①②③ 标注。</p>
+      </div>
+    </div>
+    <div class="sec-arrow" aria-hidden="true">↓</div>
+
+    <section class="mock">
+      <div class="mtop">
+        <span class="crumb">财务 <span class="sep">›</span> 债务管理</span>
+        <span class="anno" title="顶层不可点">2</span>
+      </div>
+      <div class="appbar">
+        <div class="ab-crumb">
+          <a href="../../../../../../../design-output-v2/ab/debts.html">债务管理</a><span class="sep">›</span><span class="cur">平安现金分期</span>
+          <span class="pin-tag">仅此一处可点</span>
+        </div>
+        <div class="ab-actions">
+          <span class="anno" title="与顶层同义重复">1</span>
+          <button class="sq-btn" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-squarepen"/></svg></button>
+          <button class="sq-btn" title="更多" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+        </div>
+      </div>
+      <div class="mock-page">
+        <section class="hero">
+          <div class="acct-hero">
+            <div class="acct-logo lg-gold">平</div>
+            <div class="info">
+              <div class="name">平安现金分期 <span class="chip">现金分期</span> <span class="chip">剩余 <span class="num">8/12</span> 期</span></div>
+              <div class="no num">平安银行 · 放款日 2026-06-05 · 转入账户 招行信用卡</div>
+            </div>
+            <div style="text-align:right">
+              <div class="hero-label">剩余本金</div>
+              <div class="hero-amount sm num">¥8,400<span class="cents">.00</span></div>
+            </div>
+          </div>
+          <div class="bar" style="margin-top:14px"><i style="width:33%"></i></div>
+          <div class="mini-foot num" style="margin-top:8px">已还 4/12 期 · 月供 ¥1,113.00(本金 ¥1,050.00 + 手续费 ¥63.00)· 下期 9/5 自动扣款</div>
+        </section>
+
+        <div class="card">
+          <div class="card-head"><h2>还款计划 · 近 3 期</h2><span class="chip">自动扣款</span></div>
+          <div class="kv">
+            <div class="row"><span class="k num">期次 5/12 · 9/5</span><span class="v num">−¥1,113.00</span></div>
+            <div class="row"><span class="k num">期次 6/12 · 10/5</span><span class="v num">−¥1,113.00</span></div>
+            <div class="row"><span class="k num">期次 7/12 · 11/5</span><span class="v num">−¥1,113.00</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="anno-list">
+      <div class="a-row"><span class="anno">1</span><span><b>双层冗余、同义重复</b> — 顶栏「财务 › 债务管理」与 AppBar「债务管理 › 平安现金分期」在同一位置把路径说了两遍。</span></div>
+      <div class="a-row"><span class="anno">2</span><span><b>顶层不可点、回退只有一条路</b> — 顶栏 crumb 是纯文本;回列表只能靠第二层根标签「债务管理」这一处链接。</span></div>
+      <div class="a-row"><span class="anno">3</span><span><b>纵向空间双倍占用</b> — 顶栏约 <span class="num">56px</span> + AppBar <span class="num">64px</span> 合计约 <span class="num">120px</span>,详情内容被压在两段导航之下。</span></div>
+    </div>
+
+    <!-- 区块二:统一方案 -->
+    <div class="sec-note">
+      <span class="sec-tag">区块二</span>
+      <div class="sn-t">
+        <b>统一方案 · 同一场景改造后</b>
+        <p>顶栏单层全路径、祖先级链接态(--link 色 + hover 下划线,当前级照旧加粗);第二层整条退役,hero 直接上移;操作钮移右下悬浮常驻。旁附账户详情同规则对照。</p>
+      </div>
+    </div>
+    <div class="sec-arrow" aria-hidden="true">↓</div>
+
+    <div class="b2-grid">
+      <section class="mock">
+        <div class="mtop">
+          <span class="crumb">财务 <span class="sep">›</span> <a href="../../../../../../../design-output-v2/ab/debts.html">债务管理</a> <span class="sep">›</span> <b>平安现金分期</b></span>
+          <span class="pin-tag">全路径祖先级可点</span>
+        </div>
+        <div class="mock-page">
+          <section class="hero">
+            <div class="acct-hero">
+              <div class="acct-logo lg-gold">平</div>
+              <div class="info">
+                <div class="name">平安现金分期 <span class="chip">现金分期</span> <span class="chip">剩余 <span class="num">8/12</span> 期</div>
+                <div class="no num">平安银行 · 放款日 2026-06-05 · 转入账户 招行信用卡</div>
+              </div>
+              <div style="text-align:right">
+                <div class="hero-label">剩余本金</div>
+                <div class="hero-amount sm num">¥8,400<span class="cents">.00</span></div>
+              </div>
+            </div>
+            <div class="bar" style="margin-top:14px"><i style="width:33%"></i></div>
+            <div class="mini-foot num" style="margin-top:8px">已还 4/12 期 · 月供 ¥1,113.00(本金 ¥1,050.00 + 手续费 ¥63.00)· 下期 9/5 自动扣款</div>
+          </section>
+
+          <div class="card">
+            <div class="card-head"><h2>还款计划 · 近 3 期</h2><span class="chip">自动扣款</span></div>
+            <div class="kv">
+              <div class="row"><span class="k num">期次 5/12 · 9/5</span><span class="v num">−¥1,113.00</span></div>
+              <div class="row"><span class="k num">期次 6/12 · 10/5</span><span class="v num">−¥1,113.00</span></div>
+              <div class="row"><span class="k num">期次 7/12 · 11/5</span><span class="v num">−¥1,113.00</span></div>
+            </div>
+          </div>
+
+          <div class="pad-zone"><span>底部留白 padding — 悬浮簇对策:内容尾部预留空白,<br>悬浮簇不遮最后一屏的关键信息(本演示簇高约 <span class="num">54px</span>)。</span></div>
+        </div>
+
+        <div class="dock-a" role="group" aria-label="悬浮操作簇">
+          <button class="d-pri"><svg class="ic" style="width:15px;height:15px"><use href="#i-pen"/></svg>记一笔</button>
+          <button class="d-ic" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-squarepen"/></svg></button>
+          <button class="d-ic" title="更多" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+        </div>
+      </section>
+
+      <div class="card">
+        <div class="card-head"><h2>账户详情 · 同规则对照</h2><span class="chip">对照小卡</span></div>
+        <div class="mini-crumb">
+          <span class="crumb">财务 <span class="sep">›</span> <a href="../../../../../../../design-output-v2/ab/accounts.html">账户管理</a> <span class="sep">›</span> <b>招商银行储蓄卡</b></span>
+        </div>
+        <div class="retire-row">
+          <s>‹ 返回账户列表</s>
+          <span class="chip neg">退役</span>
+        </div>
+        <p class="side-note">面包屑已承担回退,page-head 的<b>返回链接整行删除</b>;祖先级「账户管理」链接态同上(--link 色 + hover 下划线)。</p>
+        <p class="side-note">顶部右侧 编辑 / 记一笔 / 转账 / 更多 <b>四钮 → 右下悬浮簇</b>,形态见区块三。</p>
+      </div>
+    </div>
+
+    <div class="anno-list">
+      <div class="a-row"><span class="anno ok">1</span><span><b>第二层 AppBar 整条退役</b> — hero(剩余本金卡)直接上移,内容净得 <span class="num">64px</span> 纵向空间。</span></div>
+      <div class="a-row"><span class="anno ok">2</span><span><b>回退全路径化</b> — 「财务 / 债务管理」任意祖先一击可达,不再依赖唯一根标签。</span></div>
+      <div class="a-row"><span class="anno ok">3</span><span><b>操作迁移右下</b> — 编辑 / 更多(账户详情为四钮)移入悬浮常驻簇,长列表滚到任意位置都离手近。</span></div>
+    </div>
+
+    <!-- 区块三:悬浮操作簇两形态 -->
+    <div class="sec-note">
+      <span class="sec-tag">区块三</span>
+      <div class="sn-t">
+        <b>悬浮操作簇两形态 · 账户详情场景(操作最丰富)</b>
+        <p>形态 A 横排胶囊 / 形态 B 竖排 FAB 堆叠,均常驻显示(不折叠、不呼出)。两侧为演示视口 — 滚动内容,簇不动。</p>
+      </div>
+    </div>
+    <div class="sec-arrow" aria-hidden="true">↓</div>
+
+    <div class="stage-grid">
+      <div class="card">
+        <div class="card-head" style="margin-bottom:8px"><h2>形态 A · 横排胶囊</h2><span class="chip">参考</span></div>
+        <p class="stage-sub num">fixed right:28px / bottom:28px · 毛玻璃胶囊(照 topbar 先例)· hover 整卡轻抬</p>
+        <div class="stage-body">
+          <div class="stage-scroll">
+            <div class="mtop">
+              <span class="crumb">财务 <span class="sep">›</span> <a href="../../../../../../../design-output-v2/ab/accounts.html">账户管理</a> <span class="sep">›</span> <b>招商银行储蓄卡</b></span>
+            </div>
+            <div class="stage-page">
+              <section class="hero">
+                <div class="acct-hero">
+                  <div class="acct-logo lg-red">招</div>
+                  <div class="info">
+                    <div class="name">招商银行储蓄卡 <span class="chip">现金</span></div>
+                    <div class="no num">6214 •• •• 8823 · CNY · 招商银行</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div class="hero-label">当前余额</div>
+                    <div class="hero-amount sm num">¥268,540<span class="cents">.00</span></div>
+                  </div>
+                </div>
+              </section>
+              <section class="sum-strip">
+                <div class="card">
+                  <div class="mini-head"><span class="mini-title">本月收入</span></div>
+                  <div class="mini-big num" style="color:var(--pos)">+¥25,860</div>
+                </div>
+                <div class="card">
+                  <div class="mini-head"><span class="mini-title">本月支出</span></div>
+                  <div class="mini-big num">−¥8,420</div>
+                </div>
+                <div class="card">
+                  <div class="mini-head"><span class="mini-title">交易笔数</span></div>
+                  <div class="mini-big num">23<small> 笔</small></div>
+                </div>
+              </section>
+              <div class="card">
+                <div class="card-head"><h2>本账户近期交易</h2><span class="chip">滚动试试 ↓ 簇不动</span></div>
+                <div class="txn">
+                  <div class="txn-ic">💼</div>
+                  <div class="txn-main"><div class="txn-name">8月工资</div><div class="txn-cat num">昨天 · 收入 · 薪资</div></div>
+                  <div class="txn-amt in num">+¥23,500.00</div>
+                </div>
+                <div class="txn">
+                  <div class="txn-ic">🧺</div>
+                  <div class="txn-main"><div class="txn-name">盒马周采购</div><div class="txn-cat num">昨天 · 日用</div></div>
+                  <div class="txn-amt out num">−¥186.50</div>
+                </div>
+                <div class="txn">
+                  <div class="txn-ic">🛒</div>
+                  <div class="txn-main"><div class="txn-name">京东购物</div><div class="txn-cat num">8/23 · 购物</div></div>
+                  <div class="txn-amt out num">−¥299.00</div>
+                </div>
+                <div class="txn">
+                  <div class="txn-ic">🔁</div>
+                  <div class="txn-main"><div class="txn-name">转至微信零钱通</div><div class="txn-cat num">8/20 · 转账</div></div>
+                  <div class="txn-amt tr num">−¥10,000.00</div>
+                </div>
+                <div class="txn">
+                  <div class="txn-ic">💳</div>
+                  <div class="txn-main"><div class="txn-name">招行信用卡还款</div><div class="txn-cat num">8/11 · 转账 · 信用卡</div></div>
+                  <div class="txn-amt tr num">−¥3,200.00</div>
+                </div>
+              </div>
+              <div class="pad-zone tall-a"><span>页面底部留白 padding ≥ <span class="num">110px</span>(簇高约 <span class="num">54px</span> + bottom <span class="num">28px</span> + 冗余)<br>滚动的最后一屏不藏关键信息</span></div>
+            </div>
+          </div>
+          <div class="dock-a" role="group" aria-label="悬浮操作簇 形态A">
+            <button class="d-pri"><svg class="ic" style="width:15px;height:15px"><use href="#i-pen"/></svg>记一笔</button>
+            <button class="d-ic" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-squarepen"/></svg></button>
+            <button class="d-ic" title="转账" aria-label="转账"><svg class="ic"><use href="#i-repeat"/></svg></button>
+            <button class="d-ic" title="更多" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="margin-bottom:8px"><h2>形态 B · 竖排 FAB 堆叠</h2><span class="badge-rec"><svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>已拍板</span></div>
+        <p class="stage-sub num">主 FAB 52px 金圆 + 其上 44px 次级圆角钮(surface + border,套件 .fab 语言)</p>
+        <div class="stage-body">
+          <div class="stage-scroll">
+            <div class="mtop">
+              <span class="crumb">财务 <span class="sep">›</span> <a href="../../../../../../../design-output-v2/ab/accounts.html">账户管理</a> <span class="sep">›</span> <b>招商银行储蓄卡</b></span>
+            </div>
+            <div class="stage-page">
+              <section class="hero">
+                <div class="acct-hero">
+                  <div class="acct-logo lg-red">招</div>
+                  <div class="info">
+                    <div class="name">招商银行储蓄卡 <span class="chip">现金</span></div>
+                    <div class="no num">6214 •• •• 8823 · CNY · 招商银行</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div class="hero-label">当前余额</div>
+                    <div class="hero-amount sm num">¥268,540<span class="cents">.00</span></div>
+                  </div>
+                </div>
+              </section>
+              <section class="sum-strip">
+                <div class="card">
+                  <div class="mini-head"><span class="mini-title">本月收入</span></div>
+                  <div class="mini-big num" style="color:var(--pos)">+¥25,860</div>
+                </div>
+                <div class="card">
+                  <div class="mini-head"><span class="mini-title">本月支出</span></div>
+                  <div class="mini-big num">−¥8,420</div>
+                </div>
+                <div class="card">
+                  <div class="mini-head"><span class="mini-title">交易笔数</span></div>
+                  <div class="mini-big num">23<small> 笔</small></div>
+                </div>
+              </section>
+              <div class="card">
+                <div class="card-head"><h2>本账户近期交易</h2><span class="chip">滚动试试 ↓ 簇不动</span></div>
+                <div class="txn">
+                  <div class="txn-ic">💼</div>
+                  <div class="txn-main"><div class="txn-name">8月工资</div><div class="txn-cat num">昨天 · 收入 · 薪资</div></div>
+                  <div class="txn-amt in num">+¥23,500.00</div>
+                </div>
+                <div class="txn">
+                  <div class="txn-ic">🧺</div>
+                  <div class="txn-main"><div class="txn-name">盒马周采购</div><div class="txn-cat num">昨天 · 日用</div></div>
+                  <div class="txn-amt out num">−¥186.50</div>
+                </div>
+                <div class="txn">
+                  <div class="txn-ic">🛒</div>
+                  <div class="txn-main"><div class="txn-name">京东购物</div><div class="txn-cat num">8/23 · 购物</div></div>
+                  <div class="txn-amt out num">−¥299.00</div>
+                </div>
+                <div class="txn">
+                  <div class="txn-ic">🔁</div>
+                  <div class="txn-main"><div class="txn-name">转至微信零钱通</div><div class="txn-cat num">8/20 · 转账</div></div>
+                  <div class="txn-amt tr num">−¥10,000.00</div>
+                </div>
+                <div class="txn">
+                  <div class="txn-ic">💳</div>
+                  <div class="txn-main"><div class="txn-name">招行信用卡还款</div><div class="txn-cat num">8/11 · 转账 · 信用卡</div></div>
+                  <div class="txn-amt tr num">−¥3,200.00</div>
+                </div>
+              </div>
+              <div class="pad-zone tall-b"><span>页面底部留白 padding ≥ <span class="num">242px</span>(堆叠高约 <span class="num">214px</span> + bottom <span class="num">28px</span>)<br>竖排遮挡窗口更大,留白相应加深</span></div>
+            </div>
+          </div>
+          <div class="dock-b" role="group" aria-label="悬浮操作簇 形态B">
+            <button class="d-ic44" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-squarepen"/></svg></button>
+            <button class="d-ic44" title="转账" aria-label="转账"><svg class="ic"><use href="#i-repeat"/></svg></button>
+            <button class="d-ic44" title="更多" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            <button class="fab-main" title="记一笔" aria-label="记一笔"><svg class="ic" style="width:18px;height:18px"><use href="#i-pen"/></svg><small>记一笔</small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout pos" style="margin-top:18px">
+      <span class="c-ic">💡</span>
+      <div>
+        <div class="c-title">两形态均常驻显示 · 固定于视口右下</div>
+        <div class="c-body num">不折叠、不呼出;悬浮簇 fixed 于视口右下(right:28px / bottom:28px),不随页面滚动移动 — 在上方两个演示视口内滚动内容即可验证:内容滚走,簇留在原地。页面级落地时,AppShell 挂一层全局悬浮组件即可,各详情页不再各自持有操作栏。</div>
+      </div>
+    </div>
+
+    <!-- 页尾对比表 -->
+    <div class="sec-note">
+      <span class="sec-tag">页尾</span>
+      <div class="sn-t">
+        <b>形态对比表</b>
+        <p>现状 / 方案 A / 方案 B 三列六维对比;拍板徽标挂方案 B(用户裁定)。</p>
+      </div>
+    </div>
+    <div class="sec-arrow" aria-hidden="true">↓</div>
+
+    <section class="card cmp-wrap">
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th>现状 · 两层叠加</th>
+            <th>方案 A · 横排胶囊</th>
+            <th class="colB">方案 B · 竖排 FAB<span class="badge-rec"><svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>已拍板</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>回退路径</td>
+            <td>仅详情 AppBar 根标签一条路;顶栏 crumb 纯文本不可点</td>
+            <td><b>顶栏全路径祖先级可点</b> —「财务 / 债务管理」任意一击即回退</td>
+            <td class="colB">同 A(两形态共享统一面包屑)</td>
+          </tr>
+          <tr>
+            <td>面包屑层级</td>
+            <td>两层叠加,顶栏 + 详情 AppBar 同义重复</td>
+            <td><b>单层</b> · 顶栏全路径,当前级加粗</td>
+            <td class="colB">同 A</td>
+          </tr>
+          <tr>
+            <td>详情页纵向空间</td>
+            <td>顶栏约 <span class="num">56px</span> + AppBar <span class="num">64px</span>,导航双倍占用</td>
+            <td><b>AppBar 退役,hero 上移</b>,内容净得 <span class="num">64px</span></td>
+            <td class="colB">同 A</td>
+          </tr>
+          <tr>
+            <td>操作可达性</td>
+            <td>顶部右挂编辑 / 更多;长列表滚动后离手远</td>
+            <td>右下悬浮常驻,<b>横排四钮同排等距</b>,延续 topbar 操作语言</td>
+            <td class="colB">右下悬浮常驻,<b>主 FAB + 三次级分层</b>,更贴移动端肌肉记忆</td>
+          </tr>
+          <tr>
+            <td>遮挡风险</td>
+            <td>无(操作固定在顶部)</td>
+            <td><b>低</b> — 簇高约 <span class="num">54px</span>,页面底部留白 padding ≥ <span class="num">110px</span> 即零遮挡</td>
+            <td class="colB"><b>中</b> — 堆叠高约 <span class="num">214px</span>,遮挡窗口更大;同以底部留白 padding ≥ <span class="num">242px</span> 对策</td>
+          </tr>
+          <tr>
+            <td>实现面</td>
+            <td>—(维持双轨)</td>
+            <td>AppShell 顶栏一处改造 + 各详情页 AppBar 退役 + <b>全局悬浮层(横排胶囊)</b></td>
+            <td class="colB">同一改造面;悬浮层换<b>竖排 FAB 堆叠</b></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="cmp-foot num"><b>已拍板 B(用户裁定 2026-10-12)</b> — 竖排 FAB 堆叠:主 FAB「记一笔」金圆 + 其上次级 编辑/转账/更多,常驻不折叠;遮挡对策按本列执行(底部留白 padding ≥ <span class="num">242px</span>)。横排胶囊留作参考形态。</p>
+    </section>
+
+    <footer class="foot">御财 v2 设计原型 · A+B 亮暗双主题 · 面包屑统一与悬浮簇对比 · 演示数据</footer>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="../../../../../../../design-output-v2/ab/transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a class="active" href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+</body>
+</html>

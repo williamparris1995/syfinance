@@ -14,6 +14,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' show AppDatabase;
 import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -21,6 +22,7 @@ import 'package:yucai_client/core/widgets/debt_delete_confirm.dart';
 import 'package:yucai_client/core/widgets/debt_detail_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
 import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/data/contract_attachment_store.dart';
@@ -121,6 +123,12 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
 
   @override
   void dispose() {
+    // F58 FR-2:离开详情页清理注入标题(双保险之一;另一道 = AppShell
+    // location-diff scrubber)。guarded getIt:stripped 测试 harness 未注册
+    // port 时静默跳过(照 app_shell 先例)。
+    if (getIt.isRegistered<ShellDetailTitle>()) {
+      getIt<ShellDetailTitle>().clear();
+    }
     debtsRouteObserver.unsubscribe(this);
     super.dispose();
   }
@@ -148,108 +156,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
   }
 
   Widget _scaffold() {
+    // F58 FR-5:详情页自带 AppBar(面包屑标题条 + 编辑/更多 actions)整条
+    // 退役 —— 导航语义移交全局 _TopBar 三段面包屑(page 级可点回退);
+    // 原 AppBar actions 全量迁入右下悬浮簇(见 [_dock],零功能丢失)。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        backgroundColor: context.yucai.bg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        foregroundColor: context.yucai.muted,
-        toolbarHeight: 64,
-        automaticallyImplyLeading: false,
-        titleSpacing: 28,
-        title: BlocBuilder<DebtBloc, DebtState>(
-          builder: (context, state) {
-            final debt = state is DebtDetailLoaded ? state.detail.debt : null;
-            return Row(mainAxisSize: MainAxisSize.min, children: [
-              InkWell(
-                onTap: () => context.go(_sem.listRoutePrefix),
-                child: Text(_sem.detailTopCrumb,
-                    style:
-                        TextStyle(fontSize: 13, color: context.yucai.muted)),
-              ),
-              const SizedBox(width: 8),
-              Icon(LucideIcons.chevronRight,
-                  size: 14, color: context.yucai.muted),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(debt?.counterparty ?? '…',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: context.yucai.fg)),
-              ),
-            ]);
-          },
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                BlocBuilder<DebtBloc, DebtState>(
-                  builder: (context, state) {
-                    final debt = state is DebtDetailLoaded
-                        ? state.detail.debt
-                        : null;
-                    return IconButton(
-                      tooltip: '编辑',
-                      icon: Icon(LucideIcons.pencil,
-                          size: 17, color: context.yucai.muted),
-                      style: IconButton.styleFrom(
-                        backgroundColor: context.yucai.surface,
-                        side: BorderSide(color: context.yucai.border),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        minimumSize: const Size(38, 38),
-                      ),
-                      onPressed: debt != null
-                          ? () => context.push(
-                              '${_sem.listRoutePrefix}/${debt.id}/edit')
-                          : null,
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
-                BlocBuilder<DebtBloc, DebtState>(
-                  builder: (context, state) {
-                    final debt = state is DebtDetailLoaded
-                        ? state.detail.debt
-                        : null;
-                    return AnchoredMenu(
-                      items: [
-                        MenuItemData(
-                          label: _sem.deleteMenuItem,
-                          icon: LucideIcons.trash2,
-                          destructive: true,
-                          enabled: debt != null,
-                          onTap: () => _confirmDelete(debt),
-                        ),
-                      ],
-                      builder: (menuContext, open) => IconButton(
-                        tooltip: '更多',
-                        icon: Icon(LucideIcons.moreHorizontal,
-                            size: 17, color: context.yucai.muted),
-                        style: IconButton.styleFrom(
-                          backgroundColor: context.yucai.surface,
-                          side: BorderSide(color: context.yucai.border),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                          minimumSize: const Size(38, 38),
-                        ),
-                        onPressed: debt != null ? open : null,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
       body: BlocListener<DebtBloc, DebtState>(
         listenWhen: (p, c) =>
             (_recordPending && (c is DebtDetailLoaded || c is DebtError)) ||
@@ -281,21 +192,97 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
             AppToast.show(context, state.message, type: ToastType.error);
           }
         },
-        child: BlocBuilder<DebtBloc, DebtState>(
-          builder: (context, state) {
-            if (state is DebtLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state is DebtError) {
-              return Center(child: Text(state.message));
-            }
-            if (state is DebtDetailLoaded) {
-              return _body(state.detail);
-            }
-            return const SizedBox.shrink();
-          },
+        // F58 FR-2 标题注入见 loaded 分支的 [DetailTitleSync](I-1 评审修复:
+        // 组件化注入而非 BlocListener —— listener 只吃新 emission,跨分支
+        // 回退(bloc 冻结无发射、scrubber 已清零)永不重放 → 标题永停
+        // 「…」;组件随 builder 重跑重建,任何路径重加载即重注入)。
+        child: Stack(
+          children: [
+            BlocBuilder<DebtBloc, DebtState>(
+              builder: (context, state) {
+                if (state is DebtLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (state is DebtError) {
+                  return Center(child: Text(state.message));
+                }
+                if (state is DebtDetailLoaded) {
+                  return Stack(
+                    children: [
+                      _body(state.detail),
+                      // counterparty 经帧回调幂等注入顶栏当前级;放滚动
+                      // 容器外(深滚动时 ListView 子项可能离树,不可依赖)。
+                      DetailTitleSync(
+                          title: state.detail.debt.counterparty),
+                    ],
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+            // F58 FR-3:右下角常驻竖排悬浮簇(28 边距,不随页面滚动移动;
+            // 定位是页面职责 —— 组件自身不含 Positioned,照 design LLD)。
+            Positioned(right: 28, bottom: 28, child: _dock()),
+          ],
         ),
       ),
+    );
+  }
+
+  /// F58 FR-4 悬浮簇操作映射(debt 语义,经 [_sem] 双态复用):
+  ///  - primary 立即记账:打开下期(首个未还期次)RecordPayment dialog ——
+  ///    复用 [_openRecordPayment],与还款计划行内入口同款 dialog、行为一致;
+  ///    无未还期次或卡贷(F48 期次自动并入挂接卡,手工记账停用防双重支付)
+  ///    → 禁用(操作不缺席,仅降权);
+  ///  - secondary 编辑:push `/{listRoutePrefix}/:id/edit`;
+  ///  - secondary 更多:AnchoredMenu(删除 = 既有 [_confirmDelete],
+  ///    destructive 红)。
+  /// 更多菜单锚定整簇(AnchoredMenu 包 FloatingActionDock):簇贴视口右下,
+  /// 菜单自适应翻转后恰于簇顶上方右对齐展开(AnchoredMenu 既有先例照用)。
+  Widget _dock() {
+    return BlocBuilder<DebtBloc, DebtState>(
+      builder: (context, state) {
+        final detail = state is DebtDetailLoaded ? state.detail : null;
+        final debt = detail?.debt;
+        final schedule = detail?.schedule ?? const <PaymentEntry>[];
+        final nextUnpaid = schedule.where((e) => !e.paid).toList();
+        final isCardLoan = debt?.subtype == DebtSubtypes.cardLoan;
+        return AnchoredMenu(
+          items: [
+            MenuItemData(
+              label: _sem.deleteMenuItem,
+              icon: LucideIcons.trash2,
+              destructive: true,
+              enabled: debt != null,
+              onTap: () => _confirmDelete(debt),
+            ),
+          ],
+          builder: (menuContext, open) => FloatingActionDock(
+            primary: DockAction(
+              icon: _sem.footCtaIcon,
+              tooltip: _sem.footCtaLabel,
+              onTap: (debt != null && nextUnpaid.isNotEmpty && !isCardLoan)
+                  ? () => _openRecordPayment(nextUnpaid.first)
+                  : null,
+            ),
+            secondary: [
+              DockAction(
+                icon: LucideIcons.pencil,
+                tooltip: '编辑',
+                onTap: debt != null
+                    ? () => context
+                        .push('${_sem.listRoutePrefix}/${debt.id}/edit')
+                    : null,
+              ),
+              DockAction(
+                icon: LucideIcons.moreHorizontal,
+                tooltip: '更多',
+                onTap: debt != null ? open : null,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -362,9 +349,12 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
             : const SizedBox.shrink();
 
     return ListView(
+      // F58 FR-3:底部留白 242(spec 下限 = 簇高 160 + 底边距 28 + 净空 54,
+      // 末屏关键信息(合计/末期)不被遮挡);顶部 12/14 = AppBar 64px 让位
+      // 后的呼吸位(≤24)。
       padding: isMobile
-          ? const EdgeInsets.fromLTRB(16, 14, 16, 60)
-          : const EdgeInsets.fromLTRB(28, 0, 28, 70),
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 242)
+          : const EdgeInsets.fromLTRB(28, 12, 28, 242),
       children: [
         if (showSide) ...[
           hero,

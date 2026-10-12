@@ -2,18 +2,20 @@
 //
 // Asserts the placeholder surfaces are replaced by real transaction-module
 // wiring:
-//   - 「记一笔」/「转账」 AppBar buttons are ENABLED (tappable) and push the
+//   - 「记一笔」/「转账」 dock buttons are ENABLED (tappable) and push the
 //     TransactionFormPage (no more 🔒 disabled).
 //   - 「近期交易」 panel renders the account-scoped transaction list from
 //     TransactionBloc.loadByAccount (no more "待 Transaction 模块接入").
 //   - 「收支统计」 4 cards render the MonthlySummary(accountId) values
 //     (本月收入 / 本月支出 / 净值变动 / 交易数) — no more "—/待交易模块".
-//   - AppBar 记一笔 / 转账 activated (Task 8: content 内 _quickActions card
-//     已移除，操作集中在 AppBar)。
+//   - F58 T5: AppBar 整条退役 → 操作迁右下悬浮簇(FloatingActionDock),
+//     两态映射(活跃 primary+3 secondary / 归档仅更多)+ 标题注入
+//     (ShellDetailTitle set/clear)。
 //
 // Both blocs are wired via BlocProvider with a fake repo; no DI / no gRPC.
 // Mirrors transactions_page_test.dart harness shape.
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:design_kit/design_kit.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -34,6 +36,8 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
+import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/theme/app_theme.dart';
@@ -159,6 +163,10 @@ void main() {
     // 本页 initState 订阅 DataRefreshNotifier(交易跨 branch 变更后重拉)。
     GetIt.instance.registerLazySingleton<DataRefreshNotifier>(
         DataRefreshNotifier.new);
+    // F58 ADR-1:壳层标题 port(生产 injection 1k 同款注册;详情页加载完成
+    // set(账户名),dispose clear —— T5 标题注入/清理测试经此断言)。
+    GetIt.instance.registerLazySingleton<ShellDetailTitle>(
+        ShellDetailTitle.new);
 
     // Account detail page emits GetAccountRequested on initState.
     when(() => accountRepo.getById(any()))
@@ -296,47 +304,33 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('「记一笔」按钮 enabled (placeholder 🔒 removed)',
+  testWidgets('「记一笔」钮 enabled (placeholder 🔒 removed, 悬浮簇 primary)',
       (tester) async {
-    // Task 6 响应式：默认 800×600 → tablet(≤900) → AppBar 记一笔/转账 改为
-    // IconButton（无文字），本测试断言 TextButton 文字「记一笔」需 pin desktop
-    // 视口（1200，>900 走 TextButton icon+文字 分支）。
-    tester.view.physicalSize = const Size(1200, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    // F58 T5:AppBar actions 迁悬浮簇 —— 记一笔 = primary(金圆),无断点
+    // 文字/icon 分支(dock 响应式同构),任何视口下均可触发。
     await pumpPage(tester);
 
     // Active account → button label has no 🔒.
     expect(find.text('记一笔🔒'), findsNothing);
-    // AppBar 「记一笔」 TextButton is enabled (its onPressed != null).
-    final btn = tester.widget<TextButton>(
-      find.ancestor(
-        of: find.text('记一笔').first,
-        matching: find.byType(TextButton),
-      ),
-    );
-    expect(btn.onPressed, isNotNull);
+    // 悬浮簇 primary「记一笔」enabled(onTap != null)。
+    final dock =
+        tester.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+    expect(dock.primary.tooltip, '记一笔');
+    expect(dock.primary.onTap, isNotNull);
   });
 
-  testWidgets('「转账」按钮 enabled (placeholder 🔒 removed)',
+  testWidgets('「转账」钮 enabled (placeholder 🔒 removed, 悬浮簇 secondary)',
       (tester) async {
-    // Task 6 响应式：同 记一笔 enabled 测试，pin desktop 视口让 AppBar 走
-    // TextButton 分支（默认 800×600 tablet 改为 IconButton 无文字）。
-    tester.view.physicalSize = const Size(1200, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    // F58 T5:转账为 secondary 方圆钮(储蓄账户标签=「转账」)。
     await pumpPage(tester);
 
     expect(find.text('转账🔒'), findsNothing);
-    final btn = tester.widget<TextButton>(
-      find.ancestor(
-        of: find.text('转账').first,
-        matching: find.byType(TextButton),
-      ),
-    );
-    expect(btn.onPressed, isNotNull);
+    final dock =
+        tester.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+    final transfer = dock.secondary.firstWhere(
+        (a) => a.tooltip == '转账',
+        orElse: () => throw StateError('dock 应含「转账」次级钮'));
+    expect(transfer.onTap, isNotNull);
   });
 
   testWidgets('「近期交易」 panel renders the account-scoped transactions',
@@ -371,59 +365,28 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('AppBar 记一笔 / 转账 activated (no 待交易模块 placeholder)',
+  testWidgets('记一笔 / 转账 activated (no 待交易模块 placeholder, 悬浮簇)',
       (tester) async {
-    // Task 8: 原 content 内 _quickActions card 已移除（操作集中在 AppBar）。
-    // 此测试改为断言 AppBar 上的记一笔/转账已激活（无 🔒/待交易模块 占位）。
-    // Task 6 响应式：默认 800×600 → tablet → AppBar 改 IconButton 无文字；本测试
-    // 断言 find.text('记一笔'/'转账') 需 pin desktop 视口（1200，TextButton 分支）。
-    tester.view.physicalSize = const Size(1200, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    // F58 T5:原「AppBar 记一笔/转账已激活」断言迁悬浮簇 —— 无占位残留,
+    // 两钮以 tooltip 语义标签存在于 dock(可达性:每钮必有 tooltip)。
     await pumpPage(tester);
 
-    // AppBar buttons no longer carry the 「（待交易模块）」 placeholder.
+    // Dock buttons no longer carry the 「（待交易模块）」 placeholder.
     expect(find.textContaining('记一笔（待交易模块）'), findsNothing);
     expect(find.textContaining('转账（待交易模块）'), findsNothing);
-    // Activated labels render in AppBar.
-    expect(
-      find.descendant(
-        of: find.byType(AppBar),
-        matching: find.text('记一笔'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byType(AppBar),
-        matching: find.text('转账'),
-      ),
-      findsOneWidget,
-    );
+    // Activated actions render in the dock (tooltip 语义标签)。
+    expect(find.byTooltip('记一笔'), findsOneWidget);
+    expect(find.byTooltip('转账'), findsOneWidget);
     // Content 内 _quickActions card 标题不应出现。
     expect(find.text('快捷操作'), findsNothing);
   });
 
-  testWidgets('tapping 记一笔 (AppBar) pushes TransactionFormPage',
+  testWidgets('tapping 记一笔 (dock primary) pushes TransactionFormPage',
       (tester) async {
-    // Task 6 响应式：默认 800×600 → tablet → AppBar 记一笔改 IconButton（无文字
-    // 也非 TextButton），本测试通过 find.text('记一笔') 找 TextButton 触发 tap，
-    // 需 pin desktop 视口（1200，TextButton icon+文字 分支）。
-    tester.view.physicalSize = const Size(1200, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    // F58 T5:tap 路径从 AppBar TextButton 改为 dock primary。
     await pumpPage(tester);
 
-    // Task 8: content 内 _quickActions card 已移除，记一笔只在 AppBar。
-    final btn = find.descendant(
-      of: find.byType(AppBar),
-      matching: find.ancestor(
-        of: find.text('记一笔'),
-        matching: find.byType(TextButton),
-      ),
-    );
+    final btn = find.byTooltip('记一笔');
     expect(btn, findsOneWidget);
     await tester.ensureVisible(btn);
     await tester.tap(btn, warnIfMissed: false);
@@ -433,55 +396,242 @@ void main() {
     expect(find.byType(TransactionFormPage), findsOneWidget);
   });
 
-  testWidgets('archived account keeps 记一笔 / 转账 disabled (no write ops)',
+  testWidgets(
+      'archived account: dock 降级仅「更多」可用 (primary 禁用/编辑转账隐藏)',
       (tester) async {
-    when(() => txnRepo.list(any())).thenAnswer(
-        (_) async => const dartz.Right(ListTransactionsResult(transactions: [])));
-    when(() => accountRepo.getById(any())).thenAnswer(
-        (_) async => dartz.Right(_account(status: AccountStatus.archived)));
+    // F58 T5/FR-4 归档降级:primary 记一笔 禁用(半透明降权,「无主操作
+    // 可用」);编辑/转账照旧 !archived 隐藏;仅 更多 可用,菜单 =
+    // 复制账户/重新激活账户/删除(旧「关闭账户」换「重新激活账户」)。
+    await pumpPage(tester,
+        account: _account(status: AccountStatus.archived),
+        transactions: []);
 
+    final dock =
+        tester.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+    // primary 恒在(FR-4 每页必有主 FAB),归档 = 禁用态(onTap null)。
+    expect(dock.primary.tooltip, '记一笔');
+    expect(dock.primary.onTap, isNull, reason: '归档:主操作禁用');
+    // secondary 仅剩「更多操作」。
+    expect(dock.secondary.map((a) => a.tooltip), ['更多操作'],
+        reason: '归档:编辑/转账隐藏,仅更多');
+    expect(find.byTooltip('编辑'), findsNothing);
+    expect(find.byTooltip('转账'), findsNothing);
+
+    // 更多菜单(归档态):复制/重新激活/删除,无 关闭。
+    await tester.tap(find.byTooltip('更多操作'));
+    await tester.pumpAndSettle();
+    expect(find.text('复制账户'), findsOneWidget);
+    expect(find.text('重新激活账户'), findsOneWidget);
+    expect(find.text('删除账户'), findsOneWidget);
+    expect(find.text('关闭账户'), findsNothing);
+  });
+
+  // ───── F58 T5: 壳层导航迁移(AppBar 退役 + 悬浮簇 + 标题注入)─────
+  //
+  // FR-5 页面无第二层导航条;FR-3 右下常驻悬浮簇 + 底部留白 ≥242;
+  // FR-4 活跃操作集全量迁移(记一笔/编辑/转账/更多,零功能丢失);
+  // FR-2 标题注入与清理(ShellDetailTitle port)。
+
+  testWidgets('F58/FR-5: 页面无 AppBar(BackButton/标题/actions 整条退役)',
+      (tester) async {
+    await pumpPage(tester);
+    expect(find.byType(AppBar), findsNothing,
+        reason: 'FR-5: 顶栏与 hero 之间无页面级导航条');
+    // 旧 AppBar 标题「账户详情」不再由页面渲染(面包屑归 shell 顶栏承载)。
+    expect(find.text('账户详情'), findsNothing);
+    expect(find.byType(BackButton), findsNothing);
+  });
+
+  testWidgets(
+      'F58/FR-3: dock 定位视口右下(right/bottom 28)+ 滚动容器底部留白 ≥242',
+      (tester) async {
+    await pumpPage(tester);
+    final dock = find.byType(FloatingActionDock);
+    expect(dock, findsOneWidget, reason: 'FR-3: 详情页常驻悬浮簇');
+    final rect = tester.getRect(dock);
+    final view = tester.view;
+    final winW = view.physicalSize.width / view.devicePixelRatio;
+    final winH = view.physicalSize.height / view.devicePixelRatio;
+    expect(winW - rect.right, 28, reason: 'dock 距视口右缘 28');
+    expect(winH - rect.bottom, 28, reason: 'dock 距视口底缘 28');
+    // 滚动容器 bottom padding ≥ 242(dock 高 214 + 底距 28)防末屏遮挡。
+    final list = tester.widget<ListView>(find.byType(ListView).first);
+    expect((list.padding as EdgeInsets).bottom, greaterThanOrEqualTo(242),
+        reason: 'FR-3: 页面底部留白 ≥ 242px');
+  });
+
+  testWidgets('F58/FR-4: 活跃 dock = primary 记一笔 + 3 secondary;tap 编辑/更多',
+      (tester) async {
+    await pumpPage(tester);
+
+    final dock =
+        tester.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+    expect(dock.primary.tooltip, '记一笔');
+    expect(dock.primary.onTap, isNotNull);
+    expect(dock.secondary.map((a) => a.tooltip), ['编辑', '转账', '更多操作'],
+        reason: 'FR-4: 编辑 · 转账 · 更多 次级有序列表');
+
+    // tap 编辑 → push AccountFormPage(既有 _edit 行为迁移)。
+    await tester.tap(find.byTooltip('编辑'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AccountFormPage), findsOneWidget);
+    // pop 编辑表单回详情,再开更多菜单。
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('更多操作'));
+    await tester.pumpAndSettle();
+    // 活跃态菜单:复制账户/关闭账户/删除(零功能丢失)。
+    expect(find.text('复制账户'), findsOneWidget);
+    expect(find.text('关闭账户'), findsOneWidget);
+    expect(find.text('删除账户'), findsOneWidget);
+    expect(find.text('重新激活账户'), findsNothing);
+  });
+
+  testWidgets('F58/FR-4: 信用卡 → 转账钮=「还款」,tap 开信用卡还款对话框',
+      (tester) async {
+    // 还款对话框组合根解析 AppDatabase(账单推导)—— 内存 drift db 注册
+    // (照 T8 账单周期面板测试同款)。
+    final database = db.AppDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+    GetIt.instance.registerSingleton<db.AppDatabase>(database);
+
+    await pumpPage(tester, account: _creditCardAccount());
+    expect(find.byTooltip('还款'), findsOneWidget,
+        reason: '信用卡 dock 转账钮标签 = 还款');
+    expect(find.byTooltip('转账'), findsNothing);
+
+    await tester.tap(find.byTooltip('还款'));
+    await tester.pumpAndSettle();
+    expect(find.text('信用卡还款'), findsOneWidget);
+  });
+
+  testWidgets('F58/FR-4: 储值卡 → 转账钮=「充值」,tap 开充值对话框',
+      (tester) async {
+    final card = _account(
+      name: '星巴克储值卡',
+      category: AccountCategory.storedValue,
+    );
+    await pumpPage(tester, account: card);
+    expect(find.byTooltip('充值'), findsOneWidget,
+        reason: '储值卡 dock 转账钮标签 = 充值');
+    expect(find.byTooltip('转账'), findsNothing);
+
+    await tester.tap(find.byTooltip('充值'));
+    await tester.pumpAndSettle();
+    // 储值卡充值对话框(AlertDialog 标题「充值」,限定对话框内防同名 tooltip
+    // 悬停文本干扰)。
+    expect(
+      find.descendant(
+          of: find.byType(AlertDialog), matching: find.text('充值')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('F58/FR-4: 储蓄账户 tap 转账 → TransactionFormPage 直入转账 tab',
+      (tester) async {
+    // 储蓄路径:_transfer → _transferForm(initialType: transfer)—— push
+    // 记一笔表单且「转账」type tab 选中(主标签 w600,未选中 w500;断言
+    // 先例:transaction_form_page_test 的 type tab 断言 + 本文件 hero-name
+    // 的 style 断言)。
+    await pumpPage(tester);
+
+    await tester.tap(find.byTooltip('转账'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TransactionFormPage), findsOneWidget,
+        reason: '储蓄账户转账钮 push 记一笔表单(转账入口语义)');
+    final transferTab = tester.widget<Text>(find.descendant(
+        of: find.byType(TransactionFormPage), matching: find.text('转账')));
+    expect(transferTab.style?.fontWeight, FontWeight.w600,
+        reason: '直入转账 tab:主标签选中态加粗(未选中 w500)');
+  });
+
+  testWidgets('F58/FR-2: 加载完成注入账户名;离开页面 dispose clear', (tester) async {
+    final port = GetIt.instance<ShellDetailTitle>();
+    // 加载中 → null(顶栏占位「…」由 shell 渲染,本 harness 不挂顶栏)。
+    expect(port.value, isNull);
+    await pumpPage(tester, account: _account(name: '招商银行储蓄卡'));
+    expect(port.value, '招商银行储蓄卡',
+        reason: 'FR-2: 详情加载完成注入账户名到壳层标题 port');
+
+    // 离开页面(树中移除)→ dispose → clear(防残留到后续页面)。
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pump();
+    expect(port.value, isNull, reason: 'FR-2: dispose 清理标题');
+  });
+
+  testWidgets(
+      'F58/I-1: 标题跨分支回退重注入(冻结分支不回写;回退重建即重注入账户名)',
+      (tester) async {
+    // 取舍:本 harness(裸 MaterialApp)不支持双分支 StatefulShellRoute ——
+    // 机制单测在 test/core/widgets/detail_title_sync_test,shell 级跨分支
+    // 路由回归(debt → receivable → go 回 debt)在 app_shell_breadcrumb_
+    // test。页面侧此处以 TickerMode 活跃位翻转等价模拟「切去别分支(冻结)
+    // → shell scrubber 清零 → 切回本分支」,断言账户页与 debt 页同款
+    // DetailTitleSync 接线具备「分支回退重建即重注入」语义。
+    final port = GetIt.instance<ShellDetailTitle>();
+    final a = _account(name: '招商银行储蓄卡');
+    when(() => accountRepo.getById(any()))
+        .thenAnswer((_) async => dartz.Right(a));
     final getUc = _MockGet();
-    when(() => getUc.call(any()))
-        .thenAnswer((_) async => dartz.Right(_account(status: AccountStatus.archived)));
+    when(() => getUc.call(any())).thenAnswer((_) async => dartz.Right(a));
     final listUc = _MockList();
-    when(() => listUc.call()).thenAnswer(
-        (_) async => dartz.Right([_account(status: AccountStatus.archived)]));
+    when(() => listUc.call()).thenAnswer((_) async => dartz.Right([a]));
     final createUc = _MockCreate();
     final deleteUc = _MockDelete();
     final updateUc = _MockUpdate();
 
-    await tester.pumpWidget(_harness(
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider<AccountBloc>(
-            create: (_) {
-              final b =
-                  AccountBloc(listUc, createUc, deleteUc, getUc, updateUc);
-              b.add(const GetAccountRequested('a1'));
-              return b;
-            },
+    // TickerMode = StatefulShellRoute 分支容器同款(Offstage+TickerMode):
+    // enabled=false 模拟切去债务分支(账户分支冻结),true 模拟分支回退。
+    Widget tree({required bool branchActive}) => _harness(
+          child: TickerMode(
+            enabled: branchActive,
+            child: MultiBlocProvider(
+              providers: [
+                BlocProvider<AccountBloc>(
+                  create: (_) {
+                    final b = AccountBloc(
+                        listUc, createUc, deleteUc, getUc, updateUc);
+                    b.add(const GetAccountRequested('a1'));
+                    return b;
+                  },
+                ),
+                BlocProvider<TransactionBloc>(
+                  create: (_) {
+                    final b = TransactionBloc(txnRepo);
+                    b.add(const LoadTransactionsRequested(
+                        filter: TxnFilterState(accountId: 'a1')));
+                    b.add(LoadSummaryRequested(
+                        year: DateTime.now().year,
+                        month: DateTime.now().month,
+                        accountId: 'a1'));
+                    return b;
+                  },
+                ),
+              ],
+              child: const AccountDetailPage(id: 'a1'),
+            ),
           ),
-          BlocProvider<TransactionBloc>(
-            create: (_) {
-              final b = TransactionBloc(txnRepo);
-              b.add(const LoadTransactionsRequested(
-                  filter: TxnFilterState(accountId: 'a1')));
-              b.add(LoadSummaryRequested(
-                  year: DateTime.now().year,
-                  month: DateTime.now().month,
-                  accountId: 'a1'));
-              return b;
-            },
-          ),
-        ],
-        child: const AccountDetailPage(id: 'a1'),
-      ),
-    ));
-    await tester.pumpAndSettle();
+        );
 
-    // Archived → AppBar record/transfer buttons are removed entirely.
-    expect(find.text('记一笔'), findsNothing);
-    expect(find.text('转账'), findsNothing);
+    // ① 分支活跃(首进):帧回调注入账户名。
+    await tester.pumpWidget(tree(branchActive: true));
+    await tester.pumpAndSettle();
+    expect(port.value, '招商银行储蓄卡');
+
+    // ② 切去债务分支:shell location-diff scrubber 清零(app_shell
+    //    _DetailTitleScrubber 同语义)+ 账户分支冻结 —— TickerMode 翻转
+    //    触发冻结页重建,但非活跃守卫不回写旧标题。
+    port.clear();
+    await tester.pumpWidget(tree(branchActive: false));
+    await tester.pumpAndSettle();
+    expect(port.value, isNull, reason: '冻结分支重建不回写旧标题(非活跃不注入)');
+
+    // ③ 切回账户分支(分支回退):活跃位翻转 → DetailTitleSync 帧回调
+    //    重注入账户名(listener-only 注入在此路径永不重放,即 I-1 修复点)。
+    await tester.pumpWidget(tree(branchActive: true));
+    await tester.pumpAndSettle();
+    expect(port.value, '招商银行储蓄卡', reason: '分支回退重建即重注入账户名');
   });
 
   // ───── Task 2: 账户详情 Hero 升级（深色金色渐变 + badge + 本月净额 + 字段网格）─────
@@ -558,14 +708,17 @@ void main() {
 
   // ───── Task 4: hero 加 hero-name + hero-org + hero-bal-label（对齐 OD）─────
 
-  testWidgets('hero: hero-name 显示账户名（28px serif，从 AppBar 移入）',
+  testWidgets('hero: hero-name 显示账户名（28px serif，标题注入壳层 port）',
       (tester) async {
-    // 账户名现在渲染在 hero-name，不再在 AppBar title。
+    // 账户名现在渲染在 hero-name;F58 T5 后 AppBar 退役,页面标题 =
+    // ShellDetailTitle.set(账户名) 注入壳层顶栏面包屑当前级(port 值)。
     await pumpPage(tester, account: _account(name: '招商银行储蓄卡'));
 
     expect(find.text('招商银行储蓄卡'), findsOneWidget);
-    // AppBar title 保持「账户详情」（决策：不改面包屑）。
-    expect(find.text('账户详情'), findsOneWidget);
+    // 旧 AppBar 标题「账户详情」随 AppBar 退役;账户名经 port 注入
+    //(本 harness 不挂顶栏,断言 port 值本身)。
+    expect(find.text('账户详情'), findsNothing);
+    expect(GetIt.instance<ShellDetailTitle>().value, '招商银行储蓄卡');
   });
 
   testWidgets('hero: hero-org 机构 · 币种 · 尾号', (tester) async {
@@ -1521,9 +1674,17 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
 
-    expect(find.byIcon(LucideIcons.arrowLeftRight), findsOneWidget,
+    // F58:悬浮簇「转账」次级钮(储蓄账户)也用 arrowLeftRight —— 断言收紧到
+    // 交易行内,行 icon 语义不变。
+    final row = find.byKey(const ValueKey('recentTxn-tt'));
+    expect(
+        find.descendant(
+            of: row, matching: find.byIcon(LucideIcons.arrowLeftRight)),
+        findsOneWidget,
         reason: 'transfer 应显示 arrowLeftRight icon（对齐 OD）');
-    expect(find.byIcon(LucideIcons.creditCard), findsNothing);
+    expect(
+        find.descendant(of: row, matching: find.byIcon(LucideIcons.creditCard)),
+        findsNothing);
   });
 
   // ───── Final-review #4: hero-pick「已绑定实名 · 银行直连」gate ─────
@@ -1745,28 +1906,39 @@ void main() {
     expect(bal.style?.fontSize, 40, reason: 'desktop hero 余额 40px');
   });
 
-  // ───── Task 6: topbar ≤900 仅 icon(tablet/mobile，去文字防挤) ─────
+  // ───── Task 6 → F58 T5: 旧 topbar icon-only/TextButton 断点分支退役 ─────
+  //
+  // 旧 AppBar 在 ≤900 走 icon-only、>900 走 icon+文字 TextButton;F58 后
+  // dock 本身就是响应式同构(icon + tooltip 语义标签,无断点分支),两宽度
+  // 渲染同一操作集。
 
-  testWidgets('tablet 800: topbar 编辑/记一笔/转账 仅 icon(无文字)', (t) async {
+  testWidgets('tablet 800: dock 同构(记一笔/编辑/转账/更多 全量)', (t) async {
     t.view.physicalSize = const Size(800, 1400);
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     addTearDown(t.view.resetDevicePixelRatio);
     await pumpPage(t);
     await t.pumpAndSettle();
-    expect(find.text('编辑'), findsNothing, reason: 'tablet topbar 仅 icon');
-    expect(find.text('记一笔'), findsNothing);
-    expect(find.text('转账'), findsNothing);
+    expect(find.byType(FloatingActionDock), findsOneWidget,
+        reason: 'tablet 仍有悬浮簇(响应式同构,无断点特判)');
+    expect(find.byTooltip('记一笔'), findsOneWidget);
+    expect(find.byTooltip('编辑'), findsOneWidget);
+    expect(find.byTooltip('转账'), findsOneWidget);
+    expect(find.byTooltip('更多操作'), findsOneWidget);
   });
 
-  testWidgets('desktop 1200: topbar 编辑 有文字', (t) async {
+  testWidgets('desktop 1200: dock 同构(与 tablet 同一操作集)', (t) async {
     t.view.physicalSize = const Size(1200, 1400);
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     addTearDown(t.view.resetDevicePixelRatio);
     await pumpPage(t);
     await t.pumpAndSettle();
-    expect(find.text('编辑'), findsOneWidget, reason: 'desktop topbar icon+文字');
+    expect(find.byType(FloatingActionDock), findsOneWidget);
+    expect(find.byTooltip('记一笔'), findsOneWidget);
+    expect(find.byTooltip('编辑'), findsOneWidget);
+    expect(find.byTooltip('转账'), findsOneWidget);
+    expect(find.byTooltip('更多操作'), findsOneWidget);
   });
 
   // ───── F35: 贷款账户详情「还款计划」只读面板 ─────
@@ -2337,13 +2509,11 @@ void main() {
     expect(more, findsOneWidget);
     await tester.tap(more);
     await tester.pumpAndSettle();
-    // 锚定菜单自按钮左下向右展开 180px,而触发器是 AppBar 最右项 →
-    // 菜单项 Text 的中心在视口边缘外(tap 中心必落空);改 tapAt 点
-    // 菜单项的可见左缘。
+    // F58:更多迁悬浮簇(视口右下角),AnchoredMenu 自适应锚定 —— 水平右缘
+    // 放不下则锚点翻转、向左展开;垂直下方放不下则向上弹(dock 近底缘)→
+    // 菜单项完整落在视口内,可直接按文本点击。
     final itemText = find.text('删除账户');
     expect(itemText, findsOneWidget);
-    // 菜单水平自适应(2026-10-08):右缘触发器锚点翻转、向左展开 → 菜单
-    // 项完整落在视口内,可直接按文本点击。
     final itemRect = tester.getRect(itemText);
     final view = tester.view;
     final winW =

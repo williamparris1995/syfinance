@@ -23,6 +23,8 @@ import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
+import 'package:yucai_client/core/form_leave_gate.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
@@ -199,6 +201,17 @@ Future<void> configureDependencies() async {
   //     (guarded getIt);load 挂 2e。
   getIt.registerLazySingleton<NavSettings>(
       () => NavSettings(getIt<FlutterSecureStorage>()));
+
+  // 1k. F58 壳层导航地基(ADR-1/ADR-3):两 port —— 手工注册 lazySingleton
+  //     (照 1i/1j 先例,免 build_runner 重生成;均无构造依赖)。
+  //     - ShellDetailTitle:详情页 → 顶栏面包屑当前级标题通道(detail 页
+  //       set/clear,shell 顶栏 ValueListenableBuilder 消费 + location-diff
+  //       清零双保险,见 core/shell_detail_title.dart);
+  //     - FormLeaveGate:脏表单离开问询闸门(面包屑 page 级 onTap 先
+  //       mayLeave 再 go;表单页 FormLeaveGuard 注册 veto + PopScope 兜底,
+  //       见 core/form_leave_gate.dart / core/widgets/form_leave_guard.dart)。
+  getIt.registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+  getIt.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
 
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.

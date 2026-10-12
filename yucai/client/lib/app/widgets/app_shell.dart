@@ -17,7 +17,9 @@ import 'package:yucai_client/binding/presentation/widgets/sync_status_badge.dart
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/feedback/feedback_launcher.dart';
+import 'package:yucai_client/core/form_leave_gate.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
 /// Branch 元数据:面包屑(section › page)+ list 页创建按钮(label + route)。
@@ -94,19 +96,39 @@ import 'package:yucai_client/core/theme/app_design.dart';
   }
 }
 
-/// receivable detail(/receivables/:id,非 new/edit)用专属 topbar,全局 _TopBar 隐藏。
-bool _isReceivableDetail(String location) {
-  if (!location.startsWith('/receivables/')) return false;
-  final segs = location.split('/');
-  if (segs.length != 3) return false; // /receivables/:id(2 段后)
-  final last = segs[2];
-  return last != 'new' && last != 'edit';
+/// F58 FR-2:detail 形态路由判定 —— `/debts/:id`、`/receivables/:id`、
+/// `/accounts/:id`(面包屑第三段「当前级」的显隐依据)。排除 new/edit 与
+/// 数字外的段(templates/subscriptions 等静态子路由段不含数字,天然排除;
+/// 实体 id 为 uuid/含数字形态,测试桩 d-42 同族)。深层路由(:id/edit)
+/// 段数不符即非 detail 形态。
+bool _isDetailShapedLocation(String location) {
+  final segments = location.split('?').first.split('/');
+  if (segments.length != 3) return false; // ['', 分支, id]
+  switch (segments[1]) {
+    case 'debts':
+    case 'receivables':
+    case 'accounts':
+      break;
+    default:
+      return false;
+  }
+  final last = segments[2];
+  if (last == 'new' || last == 'edit') return false;
+  return RegExp(r'[0-9]').hasMatch(last);
 }
 
+/// detail 形态 location 的实体 key(path 口径,忽略 query);非 detail
+/// 形态返回 null(与 [_isDetailShapedLocation] 同一套解析,scrubber 清零
+/// 条件用)。
+String? _detailKeyOf(String location) =>
+    _isDetailShapedLocation(location) ? location.split('?').first : null;
+
 /// 分类管理页(/categories)用专属 OD 风格 topbar(crumb + h1 + sub + 导入模板 +
-/// 新建分类),全局 _TopBar 隐藏 —— 与 receivable detail 同模式。分类管理位于
-/// transactions branch 内,但 branch 元数据为「交易管理」,面包屑会失真;且 OD
-/// topbar 富含操作按钮(导入模板/新建),非 shell topbar 可表达。
+/// 新建分类),全局 _TopBar 隐藏。分类管理位于 transactions branch 内,但
+/// branch 元数据为「交易管理」,面包屑会失真;且 OD topbar 富含操作按钮
+/// (导入模板/新建),非 shell topbar 可表达。
+/// F58 FR-6:receivable detail 特例已移除(债权详情回归全局 _TopBar 承载
+/// 全路径面包屑),本判定为唯一遗留的顶栏隐藏特例。
 bool _isCategoryManagement(String location) => location == '/categories';
 
 /// 订阅管理页(/accounts/templates):accounts branch 子路由,与 /categories
@@ -133,8 +155,9 @@ class AppShell extends StatelessWidget {
     final auth = context.watch<AuthBloc>().state;
     final userName = auth is Authenticated ? auth.user.displayName : '御财用户';
     final location = GoRouterState.of(context).uri.toString();
-    // receivable detail / 分类管理 用专属 topbar,隐藏全局 _TopBar。
-    final hideTopBar = _isReceivableDetail(location) || _isCategoryManagement(location);
+    // 分类管理 用专属 topbar,隐藏全局 _TopBar(F58 FR-6:receivable detail
+    // 特例已移除,债权详情回归全局 _TopBar 承载全路径面包屑)。
+    final hideTopBar = _isCategoryManagement(location);
     // v2 主题语义令牌(R8 F1):亮=晨白 / 暗=墨鎏金。
     final t = context.yucai;
 
@@ -245,9 +268,14 @@ class AppShell extends StatelessWidget {
             child: shell,
           )
         : shell;
+    // F58 ADR-1 安全网(M2 精确清零):detail 形态 key 变更才清
+    // ShellDetailTitle(页面 dispose clear 之外的第二道保险);非 detail
+    // 停留不清值 —— 跨分支 push 再 pop 回原 detail 时标题自动恢复。包在
+    // 最外层,宽/窄两形态与 hideTopBar 页恒参与追踪。
+    final scrubbed = _DetailTitleScrubber(location: location, child: wrapped);
     // ⑨ 导航增强 B:Ctrl+K 全局命令面板挂载(Shortcuts/Actions + 遮罩
     // Stack),包裹整个 shell(宽/窄两形态均可唤起)。
-    return _ShellCommandSurface(child: wrapped);
+    return _ShellCommandSurface(child: scrubbed);
   }
 
   // branch 元数据(面包屑 section › page + list 页创建按钮)见顶层 _branchMetaOf。
@@ -308,6 +336,58 @@ class _ShellCommandSurfaceState extends State<_ShellCommandSurface> {
       ),
     );
   }
+}
+
+/// F58 ADR-1 安全网(精确清零,M2):仅当**新 location 为 detail 形态且
+/// 实体 key 与上一个 detail 形态 location 不同**时才清 [ShellDetailTitle]。
+/// - detail→detail(key 变):清零 —— 新实体标题未注入前显占位「…」,
+///   旧实体标题不串台;
+/// - 新 location 非 detail 形态(列表/表单/其他分支):**不清值** —— 非
+///   detail 形态不消费第三段(_isDetailShapedLocation=false 不渲染),
+///   值残留无视觉泄漏;跨分支 push(如账户详情 → /transactions)再 pop
+///   回原 detail 页时页面无加载事件重发,标题靠 port 保留值自动恢复
+///   (否则永停「…」);回同一 detail(key 同)亦不清 → 恢复。
+/// 挂在 AppShell 最外层(宽/窄两形态恒在树;hideTopBar 页无 _TopBar
+/// 也能参与 key 追踪)。didUpdateWidget 经 location 字段 diff:AppShell
+/// .build 依赖 GoRouterState(location 变化必重建)→ 本 widget 随之换新
+/// → 先于子树(_TopBar 的 ValueListenableBuilder)重建前完成清零,
+/// 同帧不闪旧值。
+class _DetailTitleScrubber extends StatefulWidget {
+  const _DetailTitleScrubber({required this.location, required this.child});
+
+  final String location;
+  final Widget child;
+
+  @override
+  State<_DetailTitleScrubber> createState() => _DetailTitleScrubberState();
+}
+
+class _DetailTitleScrubberState extends State<_DetailTitleScrubber> {
+  /// 上一个 detail 形态 location 的实体 key(path 口径);null = 尚未
+  /// 经过 detail。非 detail 停留不改写本值(返回原 detail 的 key 比较
+  /// 仍成立)。
+  String? _lastDetailKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastDetailKey = _detailKeyOf(widget.location);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DetailTitleScrubber oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.location == oldWidget.location) return;
+    final key = _detailKeyOf(widget.location);
+    if (key == null) return; // 非 detail 形态:不清值(视觉零泄漏 + 返回恢复)
+    if (key != _lastDetailKey && getIt.isRegistered<ShellDetailTitle>()) {
+      getIt<ShellDetailTitle>().clear();
+    }
+    _lastDetailKey = key;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 // ───────────────────────── 侧边栏 ─────────────────────────
@@ -1019,6 +1099,34 @@ class _TopBar extends StatelessWidget {
     final t = context.yucai;
     // 创建按钮仅 list 页显(location == rootPath;detail/form/new/edit 不显)。
     final showCreate = meta.createLabel != null && location == meta.rootPath;
+
+    // F58 FR-2:detail 形态显第三段「当前级」—— 标题经 ShellDetailTitle
+    // port 消费(detail 页加载完成 set;加载中/失败 = null → 占位「…」,
+    // 不阻塞 page 级回退);非 detail 形态不显第三段(port 保留值亦不
+    // 渲染 —— 离开 detail 后标题无视觉泄漏,往返恢复靠 scrubber 语义)。
+    // guarded getIt(照 IntegrityBanner 先例):stripped 测试 harness 未
+    // 注册 port 时退化为静态 null(占位仍按形态呈现,只是不随注入更新)。
+    final titlePort = getIt.isRegistered<ShellDetailTitle>()
+        ? getIt<ShellDetailTitle>()
+        : null;
+    final isDetail = _isDetailShapedLocation(location);
+    final crumbs = titlePort == null
+        ? _BreadCrumb(
+            section: meta.section,
+            page: meta.page,
+            rootPath: meta.rootPath,
+            current: isDetail ? '…' : null,
+          )
+        : ValueListenableBuilder<String?>(
+            valueListenable: titlePort,
+            builder: (context, title, _) => _BreadCrumb(
+              section: meta.section,
+              page: meta.page,
+              rootPath: meta.rootPath,
+              current: isDetail ? (title ?? '…') : null,
+            ),
+          );
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -1028,8 +1136,9 @@ class _TopBar extends StatelessWidget {
           // v2 顶栏毛玻璃屏障(暗 rgba(11,14,19,.72) / 亮 rgba(255,255,255,.82))。
           color: t.topbarBarrier,
           child: Row(children: [
-            // 面包屑:section › page(对齐 OD .crumbs)。
-            _BreadCrumb(section: meta.section, page: meta.page),
+            // 面包屑:section › page › 当前级(F58 三段化,对齐套件
+            // account-detail crumb 先例)。
+            crumbs,
             // 离线指示(R6 F):connectivity 网关驱动,在线零感知。
             const OfflineBadge(),
             // 同步状态指示(F12,spec FR-1):仅绑定态渲染(guest 静默);
@@ -1096,32 +1205,121 @@ class _TopBarIcon extends StatelessWidget {
   }
 }
 
-/// 面包屑:section › page(section 空 → 仅 page,如仪表盘)。对齐 OD .crumbs。
+/// 面包屑(F58 ADR-4 三段化):section › page › current。
+/// - section:纯文本 muted,不可点(无 link 色/下划线/手型,FR-1 场景二);
+/// - page:[_CrumbLink] 可点回退(link 色 + hover 下划线,onTap 经
+///   FormLeaveGate 问询后 go rootPath,FR-1/FR-7);
+/// - current:加粗不可点(detail 页实体标题,加载中为占位「…」;null =
+///   非 detail 形态,不显第三段)。section 空 → 单级(仪表盘先例)。
+/// compact 顶栏同构(面包屑本就显示,无断点特判)。
 class _BreadCrumb extends StatelessWidget {
-  const _BreadCrumb({required this.section, required this.page});
+  const _BreadCrumb({
+    required this.section,
+    required this.page,
+    required this.rootPath,
+    this.current,
+  });
+
   final String section;
   final String page;
+
+  /// page 段导航目标(branch 元数据 rootPath,FR-1 回列表)。
+  final String rootPath;
+
+  /// 当前级标题(detail 形态;null = 不显第三段)。
+  final String? current;
 
   @override
   Widget build(BuildContext context) {
     final t = context.yucai;
-    final pageStyle = TextStyle(
+    final chevron = Icon(LucideIcons.chevronRight, size: 14, color: t.muted);
+    const gap = SizedBox(width: 6);
+    final currentStyle = TextStyle(
       fontSize: 16,
-      fontWeight: FontWeight.w600,
+      fontWeight: FontWeight.w700,
       color: t.fg,
       fontFamily: AppTypography.displayFamily,
       fontFamilyFallback: AppTypography.displayFallback,
     );
+    final currentSegment = current == null
+        ? null
+        : Row(mainAxisSize: MainAxisSize.min, children: [
+            gap,
+            chevron,
+            gap,
+            Text(current!, style: currentStyle),
+          ]);
+    final pageSegment = _CrumbLink(label: page, rootPath: rootPath);
     if (section.isEmpty) {
-      return Text(page, style: pageStyle);
+      return Row(mainAxisSize: MainAxisSize.min, children: [
+        pageSegment,
+        if (currentSegment != null) currentSegment,
+      ]);
     }
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Text(section, style: TextStyle(fontSize: 14, color: t.muted)),
-      const SizedBox(width: 6),
-      Icon(LucideIcons.chevronRight, size: 14, color: t.muted),
-      const SizedBox(width: 6),
-      Text(page, style: pageStyle),
+      gap,
+      chevron,
+      gap,
+      pageSegment,
+      if (currentSegment != null) currentSegment,
     ]);
+  }
+}
+
+/// 面包屑 page 段可点链接(F58 FR-1):link 色(主题无 link 令牌 → accent,
+/// NFR-1 零硬编码)+ hover 下划线 + 手型;onTap 先 `await gate.mayLeave()`
+/// (ADR-3:go 非 pop,PopScope 拦不到,脏表单 veto 统一经此闸门)再
+/// go(rootPath) 回列表。guarded getIt:stripped harness 未注册 gate 时
+/// 视为干净态直放。
+class _CrumbLink extends StatefulWidget {
+  const _CrumbLink({required this.label, required this.rootPath});
+
+  final String label;
+  final String rootPath;
+
+  @override
+  State<_CrumbLink> createState() => _CrumbLinkState();
+}
+
+class _CrumbLinkState extends State<_CrumbLink> {
+  bool _hover = false;
+
+  Future<void> _go() async {
+    // await 前先捕获 router(异步间隙后不得再用 BuildContext —— 照
+    // form_leave_guard 的 Navigator 先捕获同款纪律)。
+    final router = GoRouter.of(context);
+    final gate = getIt.isRegistered<FormLeaveGate>()
+        ? getIt<FormLeaveGate>()
+        : null;
+    if (gate != null && !await gate.mayLeave()) return;
+    router.go(widget.rootPath);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.yucai;
+    return InkWell(
+      onTap: _go,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: Text(
+          widget.label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: t.accent,
+            decoration:
+                _hover ? TextDecoration.underline : TextDecoration.none,
+            decorationColor: t.accent,
+            fontFamily: AppTypography.displayFamily,
+            fontFamilyFallback: AppTypography.displayFallback,
+          ),
+        ),
+      ),
+    );
   }
 }
 
