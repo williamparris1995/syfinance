@@ -625,7 +625,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               key: const ValueKey('repaymentPlanPanel'),
               plans: _debtPlans,
               preferred: a.currencyCode,
-              onOpenDebt: (id) => context.push('/debts/$id'),
+              onOpenDebt: (id) => context.go('/debts/$id'),
             )
           else
             const SizedBox.shrink()
@@ -1083,7 +1083,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// 每笔一摘要行(债权方 / muted「N 期 · 第 k 期 · 放款对应日出账」/
   /// 右侧「剩余 ¥X」+「下一期 ¥Y · M/D 并入账单」/ 行尾「查看债务 →」)
   /// + 尾注。数据源 [_cardInstallments](既有 debts 流);跳转照 _body
-  /// 还款计划面板 onOpenDebt 先例(context.push('/debts/:id'))。
+  /// 还款计划面板 onOpenDebt 先例(context.go('/debts/:id')——跨分支链接走 go,面包屑/shell 元数据随切;push 只叠页不切分支,e2e 走查实锤)。
   Widget _cashInstallmentPanel(Account a) {
     final plans = _cardInstallments;
     return DataCard(
@@ -1175,7 +1175,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
           // 行尾「查看债务 →」:区块唯一出口(完整计划/记账交互归债务页)。
           InkWell(
             key: ValueKey('cashInstOpenDebt-${debt.id}'),
-            onTap: () => context.push('/debts/${debt.id}'),
+            onTap: () => context.go('/debts/${debt.id}'),
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -1795,7 +1795,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                   // IndexedStack 已建分支会忽略 extra,照标签页卡先例)。
                   InkWell(
                     onTap: () =>
-                        context.push('/transactions', extra: {
+                        context.go('/transactions', extra: {
                       'accountId': widget.id,
                     }),
                     child: Text('查看全部 →',
@@ -1925,7 +1925,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
 
     return InkWell(
       key: ValueKey('recentTxn-${t.id}'),
-      onTap: () => context.push('/transactions/${t.id}'),
+      onTap: () => context.go('/transactions/${t.id}'),
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),

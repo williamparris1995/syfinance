@@ -754,7 +754,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                     candidates: _dueCandidates,
                     onOpenCard: _openRepayFromBanner,
                     onOpenDebt: (target) =>
-                        context.push('/debts/${target.debtId}'),
+                        context.go('/debts/${target.debtId}'),
                     onViewAll: () => context.go('/inbox'),
                   ),
                   const SizedBox(height: AppSpacing.sm),

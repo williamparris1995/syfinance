@@ -684,6 +684,22 @@ void main() {
   });
 
   // ── F59 FR-5(ADR-3,T4):表单形态路由第三级 —— new/edit 注入串 + 守卫 ──
+
+  testWidgets('跨分支链接(走查修复):账户页 go /transactions 面包屑切交易管理', (t) async {
+    // 从账户列表起(免 getById 桩依赖——共享 mock 的跨测试桩不可靠)。
+    final router = await pumpAt(t, '/accounts');
+    router.go('/transactions');
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 100));
+    expect(find.text('交易管理'), findsWidgets,
+        reason: '跨分支链接 go 后面包屑指向交易管理(层级归属)');
+    // 侧栏「账户管理」保留(高亮切换),但面包屑不得再显账户管理。
+    final crumbs = find.descendant(
+        of: find.byType(BackdropFilter), matching: find.text('账户管理'));
+    expect(crumbs, findsNothing, reason: '面包屑不得残留源分支页名');
+  });
+
+
   group('F59 FR-5 表单形态面包屑', () {
     testWidgets('/debts/new 三级:财务 › 债务管理 › 新建债务(表单页注入)',
         (tester) async {

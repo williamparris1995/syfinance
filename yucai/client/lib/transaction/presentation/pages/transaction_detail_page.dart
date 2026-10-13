@@ -785,7 +785,7 @@ class _DetailContent extends StatelessWidget {
       AppToast.show(context, '未关联资产账户', type: ToastType.warning);
       return;
     }
-    context.push('/accounts/$accId');
+    context.go('/accounts/$accId');
   }
 
   void _viewAll(BuildContext context) {
