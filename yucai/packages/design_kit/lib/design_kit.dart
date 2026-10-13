@@ -5,3 +5,4 @@ library;
 export 'src/anchored_menu.dart';
 export 'src/context_menu_region.dart';
 export 'src/design_tokens.dart';
+export 'src/floating_action_dock.dart';

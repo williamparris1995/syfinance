@@ -17,8 +17,10 @@
 
 ## Stories
 
-- [ ] S1 顶栏面包屑可点化(page 级导航动作 + 当前级注入消费)
-- [ ] S2 detail 标题注入机制(ADR 拍板通道形态)
-- [ ] S3 竖排 FAB 悬浮簇组件(design_kit 归属评估 + 按页配置 API)
-- [ ] S4 三页范式迁移 + hideTopBar 特例收敛
-- [ ] S5 回归门(flutter test + analyze + client-e2e)
+- [ ] S1 顶栏面包屑可点化(page 级导航动作 + 窄屏同构)(FR-1)
+- [ ] S2 detail 标题注入机制(注入/占位/离开清理)(FR-2)
+- [ ] S3 竖排 FAB 悬浮簇组件(常驻/固定/留白 ≥242px)(FR-3,NFR-1/2/4)
+- [ ] S4 操作集按页配置(主 FAB 每页必有 + 全量迁移零丢失)(FR-4)
+- [ ] S5 三页范式迁移 + hideTopBar 特例收敛(FR-5/FR-6)
+- [ ] S6 脏表单离开守卫通用机制(语义钉死+测试)(FR-7)
+- [ ] S7 回归门(flutter test + analyze + client-e2e + 金图)(NFR-3)

@@ -54,6 +54,17 @@ class AppTheme {
           accent: t.accent,
           positive: t.positive,
           negative: t.negative,
+          // F58 ADR-2:悬浮簇(FloatingActionDock)渐变/投影令牌注入 ——
+          // 双主题同源推导(晨白翡翠绿 / 墨鎏金各自 accent 自洽,勿抄套件
+          // 演示的绿),对应套件 --fab-bg 渐变 / --fab-shadow 语义。
+          accentGradient: [t.accent, t.accentDeep],
+          actionShadow: [
+            BoxShadow(
+              color: t.accent.withValues(alpha: 0.35),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
       ],
       dividerTheme: DividerThemeData(

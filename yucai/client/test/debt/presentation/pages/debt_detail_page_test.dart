@@ -13,12 +13,15 @@
 //   - RecordPayment：点待还期「记账」→ 弹 from_account 选择 → RecordPaymentRequested
 //   - 三端：desktop 表 / mobile 卡列表
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:design_kit/design_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -893,6 +896,252 @@ void main() {
       verifyNever(() => debtRepo.delete(any()));
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
+    });
+  });
+
+  // ───────────────── F58 T4:AppBar 退役 + 右下悬浮簇 + 标题注入 ─────────────────
+  // FR-2/3/4/5 验收:页面无第二层导航条;dock 常驻右下(28 边距,不随滚动
+  // 移动);操作映射 primary=立即记账 / secondary=编辑+更多;滚动容器底部
+  // 留白 ≥242;标题经 ShellDetailTitle port 注入/清理。
+  group('F58 悬浮簇 + AppBar 退役', () {
+    testWidgets('FR-5 页面无 AppBar(第二层导航整条退役)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      expect(find.byType(AppBar), findsNothing);
+      // 回退唯一路径 = 顶栏面包屑 page 级(页面自身不承载导航语义)。
+      expect(find.byType(BackButton), findsNothing);
+    });
+
+    testWidgets(
+        'FR-3/FR-4 dock 常驻右下:primary=立即记账,secondary=[编辑,更多],'
+        '滚动 bottom padding ≥242', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      // dock 存在且经 Positioned(right/bottom 28) 摆放(常驻,不随滚动)。
+      expect(find.byType(FloatingActionDock), findsOneWidget);
+      final pos = t.widget<Positioned>(
+        find.ancestor(
+            of: find.byType(FloatingActionDock),
+            matching: find.byType(Positioned)),
+      );
+      expect(pos.right, 28);
+      expect(pos.bottom, 28);
+      // 操作映射(debt 语义):primary=立即记账;secondary=[编辑,更多]。
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.tooltip, '立即记账');
+      expect(dock.primary.onTap, isNotNull, reason: '已加载且有未还期次 → 可触发');
+      expect(dock.secondary.map((a) => a.tooltip).toList(), ['编辑', '更多']);
+      expect(dock.secondary.every((a) => a.onTap != null), isTrue);
+      // FR-3 防遮挡:页面滚动容器底部留白 ≥ 242(簇高 160 + 底边距 28 + 净空 54)。
+      final list = t.widget<ListView>(find
+          .descendant(
+              of: find.byType(DebtDetailPage),
+              matching: find.byType(ListView))
+          .first);
+      expect((list.padding as EdgeInsets?)?.bottom ?? 0,
+          greaterThanOrEqualTo(242));
+    });
+
+    testWidgets('全部结清 → primary 禁用(无下期可记)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final allPaid = _detail(schedule: [
+        _entry(
+            id: 'e1',
+            paymentDate: DateTime(2026, 4, 1),
+            principalCents: 403000,
+            interestCents: 950100,
+            paid: true),
+        _entry(
+            id: 'e2',
+            paymentDate: DateTime(2026, 5, 1),
+            principalCents: 404400,
+            interestCents: 948700,
+            paid: true),
+      ]);
+      await t.pumpWidget(_harness(detail: allPaid));
+      await t.pumpAndSettle();
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.onTap, isNull, reason: '无未还期次 → 主操作禁用');
+      // 次级操作(编辑/删除)不受影响 —— 操作集不缺席,仅禁用。
+      expect(dock.secondary.every((a) => a.onTap != null), isTrue);
+    });
+
+    testWidgets('卡贷(F48)→ primary 禁用(手工记账停用,防双重支付)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final cardLoan = Debt(
+        id: 'd-cl',
+        accountId: 'a1',
+        counterparty: '招行e招贷',
+        interestRate: 0.1,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2026, 7, 1),
+        dueDate: DateTime(2027, 7, 1),
+        totalPrincipalCents: 6000000,
+        remainingPrincipalCents: 6000000,
+        version: 1,
+        subtype: DebtSubtypes.cardLoan,
+        collectionAccountId: 'cc-1',
+        createdAt: DateTime(2026, 7, 1),
+        updatedAt: DateTime(2026, 8, 1),
+      );
+      // schedule 含未还期次,但卡贷期次由账单日自动并入挂接卡。
+      await t.pumpWidget(_harness(detail: _detail(debt: cardLoan)));
+      await t.pumpAndSettle();
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.onTap, isNull, reason: '卡贷手工记账停用(F48)');
+      expect(dock.secondary.every((a) => a.onTap != null), isTrue);
+    });
+
+    testWidgets('tap primary 立即记账 → 打开下期确认记账 dialog(复用既有逻辑)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(
+        detail: _detail(),
+        accounts: [
+          _assetAccount(id: 'acct-1', name: '招商银行储蓄卡'),
+          _assetAccount(id: 'acct-2', name: '支付宝'),
+        ],
+      ));
+      await t.pumpAndSettle();
+      // dock primary(tooltip 区分 schedule 行内同名文字按钮)。
+      await t.tap(find.byTooltip('立即记账'));
+      await t.pumpAndSettle();
+      // 打开既有 DebtRecordDialog(debt sem.dialogTitle=确认记账)。
+      expect(find.text('确认记账'), findsWidgets);
+      expect(find.textContaining('从账户'), findsOneWidget);
+      // 下期 = 首个未还期次(e3,逾期 2026-06-01;e1/e2 已还)。
+      expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.textContaining('2026-06-01')),
+        findsOneWidget,
+      );
+      // 收尾:取消关闭 dialog。
+      await t.tap(find.widgetWithText(TextButton, '取消'));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('tap 编辑 → push /debts/:id/edit 路由', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      final detail = _detail();
+      when(() => debtRepo.get(any()))
+          .thenAnswer((_) async => dartz.Right(detail));
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => const dartz.Right(<Account>[]));
+      GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+      final router = GoRouter(
+        initialLocation: '/debts/d1',
+        routes: [
+          GoRoute(
+            path: '/debts',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('DEBTS_LIST'))),
+          ),
+          GoRoute(
+            path: '/debts/:id/edit',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('EDIT_PAGE'))),
+          ),
+          GoRoute(
+            path: '/debts/:id',
+            builder: (_, __) => const DebtDetailPage(id: 'd1'),
+          ),
+        ],
+      );
+      await t.pumpWidget(MultiBlocProvider(
+        providers: [
+          BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+          BlocProvider<CurrencyBloc>.value(
+              value: _FakeCurrencyBloc(const CurrencyState())),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('编辑'));
+      await t.pumpAndSettle();
+      // push 断言口径:go_router 14 的 imperative push 不改
+      // currentConfiguration(探针实测),以「编辑页可见 + 详情仍在栈下」钉
+      // push 叠栈语义(非 go 替换)。
+      expect(find.text('EDIT_PAGE'), findsOneWidget);
+      expect(find.byType(DebtDetailPage, skipOffstage: false), findsOneWidget,
+          reason: 'push 叠栈:详情页仍在编辑页之下');
+    });
+
+    testWidgets('tap 更多 → AnchoredMenu 开(删除债务 可见)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('更多'));
+      await t.pumpAndSettle();
+      // 菜单项 = 删除(既有 _confirmDelete,destructive)。
+      expect(find.text('删除债务'), findsOneWidget);
+      // 点屏障关闭收尾。
+      await t.tapAt(const Offset(20, 20));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('FR-2 标题注入:加载完成 set(counterparty);离开页面 clear',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      GetIt.instance
+          .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      expect(GetIt.instance<ShellDetailTitle>().value, '招商银行 · 个人住房贷款',
+          reason: '加载完成 → counterparty 注入顶栏当前级');
+      // 离开页面(unmount → dispose)→ 清理,不残留到后续页面。
+      await t.pumpWidget(const MaterialApp());
+      await t.pump();
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull);
+    });
+
+    testWidgets('FR-2 加载失败不注入标题(顶栏占位「…」由 shell 兜底)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      GetIt.instance
+          .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => debtRepo.get(any()))
+          .thenAnswer((_) async => const dartz.Left(ServerFailure('加载失败')));
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => const dartz.Right(<Account>[]));
+      GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+      await t.pumpWidget(MaterialApp(
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+            BlocProvider<CurrencyBloc>.value(
+                value: _FakeCurrencyBloc(const CurrencyState())),
+          ],
+          child: const DebtDetailPage(id: 'd1'),
+        ),
+      ));
+      await t.pumpAndSettle();
+      // 错误态页面可见且标题 port 保持 null。
+      expect(find.text('加载失败'), findsOneWidget);
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull);
     });
   });
 }

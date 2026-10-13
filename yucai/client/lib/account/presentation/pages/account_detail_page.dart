@@ -21,7 +21,9 @@ import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' show AppDatabase;
 import 'package:yucai_client/core/notifications/credit_card_statement.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
 import 'package:yucai_client/core/widgets/repayment_plan_panel.dart';
 import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
@@ -49,10 +51,13 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 /// 账户详情页。承接 Task 11 GetAccountUseCase + AccountDetailLoaded。
 ///
-/// 结构：AppBar（编辑 / 🔒记一笔 / 🔒转账 / 更多菜单）→
-/// Hero（类型图标 + 名称 / 机构·币种·类型 / 余额 / category 专属 chip）→
-/// 统计行占位（待 Transaction）→ 双栏（近期交易 / 收支统计占位）→
-/// 类型专属面板（投资 → 持仓列表占位 / 贷款 → 还款计划只读面板 F35）。
+/// F58 T5 壳层导航迁移:AppBar 整条退役(FR-5,回退唯一路径 = 顶栏面包屑
+/// page 级),操作全量迁右下常驻悬浮簇 FloatingActionDock(FR-3/FR-4 两态:
+/// 活跃 = 记一笔 primary + 编辑/转账(还款·充值)/更多;归档 = 仅更多,
+/// primary 禁用)。结构:Hero(类型图标 + 名称 / 机构·币种·类型 / 余额 /
+/// category 专属 chip)→ 统计行 → 双栏(近期交易 / 收支统计)→ 类型专属
+/// 面板(投资 → 持仓列表占位 / 贷款 → 还款计划只读面板 F35)。标题注入:
+/// loaded 分支 DetailTitleSync(账户名)(I-1 评审修复),dispose clear(FR-2)。
 class AccountDetailPage extends StatefulWidget {
   const AccountDetailPage({super.key, required this.id});
 
@@ -76,6 +81,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// 作为被覆盖的驻留路由不重建,余额/近期交易/统计滞留旧值 —— 订阅全局
   /// 通知器重拉(与 _recordTxn .then(ok) 的同组回拉,照 accounts_page 同款)。
   late final DataRefreshNotifier _dataRefresh = getIt<DataRefreshNotifier>();
+
+  /// F58 ADR-1:壳层标题 port 访问(guarded getIt,照 app_shell._TopBar 先例 ——
+  /// stripped 测试 harness 未注册时退化 null,跳过清理;生产 injection 1k
+  /// 恒注册)。注入侧 = loaded 分支的 [DetailTitleSync](I-1 评审修复);
+  /// 本访问仅供 dispose clear —— 双保险之一,另一道 = shell location-diff
+  /// scrubber,防标题残留到后续页面(FR-2)。
+  ShellDetailTitle? get _detailTitle =>
+      getIt.isRegistered<ShellDetailTitle>() ? getIt<ShellDetailTitle>() : null;
 
   void _onDataRefresh() {
     if (!mounted) return;
@@ -185,6 +198,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   void dispose() {
     accountsRouteObserver.unsubscribe(this);
     _dataRefresh.removeListener(_onDataRefresh);
+    // F58 FR-2:离开详情页清理壳层标题(回 branch 元数据口径,防残留)。
+    _detailTitle?.clear();
     super.dispose();
   }
 
@@ -349,157 +364,162 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   }
 
   Widget _scaffold() {
+    // F58 FR-5:AppBar 整条退役(BackButton/标题「账户详情」/actions 含
+    // tablet icon-only 与 desktop TextButton 两分支全删)—— 回退唯一路径 =
+    // 顶栏面包屑 page 级;页面自身不再承载任何导航语义。
+    // FR-3:body Stack = 滚动内容 + 右下常驻悬浮簇(定位是页面职责,组件
+    // 自身不含 Positioned)。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        backgroundColor: context.yucai.surface,
-        foregroundColor: context.yucai.fg,
-        elevation: 0,
-        leading: BackButton(onPressed: () => context.pop()),
-        title: const Text('账户详情'),
-        actions: [
-          BlocBuilder<AccountBloc, AccountState>(
-            buildWhen: (p, c) =>
-                c is AccountDetailLoaded || c is AccountLoading,
-            builder: (context, state) {
-              final a = state is AccountDetailLoaded ? state.account : null;
-              final archived = a?.status == AccountStatus.archived;
-              // Task 6：≤900 tablet/mobile 仅 icon（防窄卡 3 个 TextButton 挤压）；
-              // >900 desktop 保留 icon+文字 TextButton。lucide edit/penLine/
-              // arrowLeftRight 已在 lucide_icons_flutter 3.1.14+2 验证存在。
-              final isTablet =
-                  MediaQuery.of(context).size.width <= 900;
-              return Row(
-                children: [
-                  // 归档账户：移除编辑/记一笔/转账（不可再产生交易），
-                  // 只留更多菜单（复制/重新激活/删除）。
-                  if (!archived) ...[
-                    if (isTablet) ...[
-                      IconButton(
-                        tooltip: '编辑',
-                        icon: const Icon(LucideIcons.edit, size: 18),
-                        onPressed: a == null ? null : () => _edit(a),
-                      ),
-                      IconButton(
-                        tooltip: '记一笔',
-                        icon: const Icon(LucideIcons.penLine, size: 18),
-                        onPressed: a == null ? null : _recordTxn,
-                      ),
-                      IconButton(
-                        tooltip: a?.category == AccountCategory.creditCard
-                            ? '还款'
-                            : a?.category == AccountCategory.storedValue
-                                ? '充值'
-                                : '转账',
-                        icon: Icon(
-                            a?.category == AccountCategory.creditCard
-                                ? LucideIcons.creditCard
-                                : LucideIcons.arrowLeftRight,
-                            size: 18),
-                        onPressed: a == null ? null : _transfer,
-                      ),
-                    ] else ...[
-                      TextButton(
-                        onPressed: a == null ? null : () => _edit(a),
-                        child: const Text('编辑'),
-                      ),
-                      TextButton(
-                        onPressed: a == null ? null : _recordTxn,
-                        child: const Text('记一笔'),
-                      ),
-                      TextButton(
-                        onPressed: a == null ? null : _transfer,
-                        child: Text(a?.category == AccountCategory.creditCard
-                            ? '还款'
-                            : a?.category == AccountCategory.storedValue
-                                ? '充值'
-                                : '转账'),
-                      ),
-                    ],
-                  ],
-                  // F5e:AnchoredMenu(CompositedTransformFollower)——
-                  // 跨分支 Navigator 边界像素级贴合,替代 MenuAnchor。
-                  AnchoredMenu(
-                    items: [
-                      MenuItemData(
-                          label: '复制账户',
-                          icon: LucideIcons.copy,
-                          onTap: a == null ? null : () => _copy(a)),
-                      MenuItemData(
-                          label: archived ? '重新激活账户' : '关闭账户',
-                          icon: archived
-                              ? LucideIcons.rotateCcw
-                              : LucideIcons.archive,
-                          onTap: a == null
-                              ? null
-                              : () => archived ? _reactivate(a) : _close(a)),
-                      MenuItemData(
-                          label: '删除账户',
-                          icon: LucideIcons.trash2,
-                          destructive: true,
-                          onTap: a == null ? null : () => _delete(a)),
-                    ],
-                    builder: (menuContext, open) => IconButton(
-                      tooltip: '更多操作',
-                      icon: Icon(LucideIcons.moreHorizontal,
-                          size: 18, color: context.yucai.muted),
-                      onPressed: open,
-                    ),
-                  ),
-                ],
-              );
+      body: Stack(
+        children: [
+          BlocListener<AccountBloc, AccountState>(
+            // T8:账单周期面板取数 —— AccountDetailLoaded 每次到达即重算(首进/
+            // didPopNext/跨分支 DataRefresh/记一笔·还款回拉都重发 GetAccountRequested,
+            // 余额与分录变化经此单一入口刷新,无需另监听交易候选)。
+            // F58 FR-2 标题注入不在 listener(见 loaded 分支 [DetailTitleSync],
+            // I-1 评审修复:listener 只吃 bloc 新 emission,跨分支回退下冻结
+            // bloc 无发射、scrubber 已清零 → 标题永停「…」)。
+            listenWhen: (p, c) => c is AccountDetailLoaded,
+            listener: (context, state) {
+              final a = (state as AccountDetailLoaded).account;
+              if (a.category == AccountCategory.creditCard) {
+                _loadStatementBreakdown(a);
+              }
             },
+            child: BlocListener<AccountBloc, AccountState>(
+              // 仅在写操作进行中时（关闭/重新激活/删除），对终态（成功
+              // AccountsLoaded / 失败 AccountError）反应。
+              listenWhen: (p, c) =>
+                  _closePending && (c is AccountsLoaded || c is AccountError),
+              listener: (context, state) {
+                if (state is AccountsLoaded) {
+                  final msg = _pendingSuccessMsg ?? '操作完成';
+                  setState(() {
+                    _closePending = false;
+                    _pendingSuccessMsg = null;
+                  });
+                  AppToast.show(context, msg, type: ToastType.success);
+                  context.pop(); // 回列表
+                } else if (state is AccountError) {
+                  setState(() {
+                    _closePending = false;
+                    _pendingSuccessMsg = null;
+                  });
+                  AppToast.show(context, state.message, type: ToastType.error);
+                }
+              },
+              child: BlocBuilder<AccountBloc, AccountState>(
+                builder: (context, state) {
+                  if (state is AccountLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (state is AccountError) {
+                    return Center(child: Text(state.message));
+                  }
+                  if (state is AccountDetailLoaded) {
+                    return Stack(
+                      children: [
+                        _body(state.account),
+                        // F58 FR-2 标题注入(I-1 评审修复,照 debt_detail_page
+                        // 接法):账户名经 [DetailTitleSync] 帧回调幂等注入
+                        // 顶栏当前级 —— 组件随 TickerMode 活跃位翻转重建,
+                        // 跨分支回退(冻结 bloc 无新发射、scrubber 已清零)
+                        // 亦重注入;放滚动容器外(深滚动时 ListView 子项
+                        // 可能离树,不可依赖)。
+                        DetailTitleSync(title: state.account.name),
+                      ],
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+          // F58 FR-3:右下角常驻悬浮簇(视口边距 28,不随滚动移动)。账户
+          // 加载完成才渲染(加载中转圈/失败态无操作可言;旧 AppBar 的
+          // a==null 禁用态随迁移退役)。
+          Positioned(
+            right: 28,
+            bottom: 28,
+            child: BlocBuilder<AccountBloc, AccountState>(
+              builder: (context, state) {
+                return state is AccountDetailLoaded
+                    ? _dock(state.account)
+                    : const SizedBox.shrink();
+              },
+            ),
           ),
         ],
       ),
-      body: BlocListener<AccountBloc, AccountState>(
-        // T8:账单周期面板取数 —— AccountDetailLoaded 每次到达即重算(首进/
-        // didPopNext/跨分支 DataRefresh/记一笔·还款回拉都重发 GetAccountRequested,
-        // 余额与分录变化经此单一入口刷新,无需另监听交易候选)。
-        listenWhen: (p, c) => c is AccountDetailLoaded,
-        listener: (context, state) {
-          final a = (state as AccountDetailLoaded).account;
-          if (a.category == AccountCategory.creditCard) {
-            _loadStatementBreakdown(a);
-          }
-        },
-        child: BlocListener<AccountBloc, AccountState>(
-          // 仅在写操作进行中时（关闭/重新激活/删除），对终态（成功
-          // AccountsLoaded / 失败 AccountError）反应。
-          listenWhen: (p, c) =>
-              _closePending && (c is AccountsLoaded || c is AccountError),
-          listener: (context, state) {
-            if (state is AccountsLoaded) {
-              final msg = _pendingSuccessMsg ?? '操作完成';
-              setState(() {
-                _closePending = false;
-                _pendingSuccessMsg = null;
-              });
-              AppToast.show(context, msg, type: ToastType.success);
-              context.pop(); // 回列表
-            } else if (state is AccountError) {
-              setState(() {
-                _closePending = false;
-                _pendingSuccessMsg = null;
-              });
-              AppToast.show(context, state.message, type: ToastType.error);
-            }
-          },
-          child: BlocBuilder<AccountBloc, AccountState>(
-            builder: (context, state) {
-              if (state is AccountLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (state is AccountError) {
-                return Center(child: Text(state.message));
-              }
-              if (state is AccountDetailLoaded) {
-                return _body(state.account);
-              }
-              return const SizedBox.shrink();
-            },
-          ),
+    );
+  }
+
+  /// F58 FR-4:悬浮簇操作集(两态,design.md LLD 操作映射表)。
+  ///
+  /// - 活跃:primary「记一笔」(_recordTxn)+ secondary[编辑(_edit)、
+  ///   转账(_transfer;信用卡=还款/储值=充值,标签逻辑沿用旧 AppBar)、
+  ///   更多(AnchoredMenu:复制账户/关闭账户/删除)];
+  /// - 归档:primary 禁用(onTap null 半透明降权 —— FR-4「每页必有且仅有
+  ///   一个主 FAB」故主钮不缺席,「无主操作可用」以禁用表达;组件注释
+  ///   「归档页降级先例」即此语义)+ 仅「更多」(菜单换 关闭→重新激活;
+  ///   编辑/转账照旧 `!archived` 隐藏)。零功能丢失:复制/关闭/重新激活/
+  ///   删除/还款/充值/记一笔 全可达。
+  ///
+  /// 更多菜单经 AnchoredMenu 锚定整个 dock(自适应翻转:右下角场景菜单
+  /// 向上、向左弹出,恰贴合 dock 顶缘的「更多」钮),跨分支 Navigator
+  /// 边界像素级贴合(照 F5e 既有先例)。
+  Widget _dock(Account a) {
+    final archived = a.status == AccountStatus.archived;
+    // 转账标签(信用卡=还款 / 储值=充值 / 其余=转账)与图标,复用旧
+    // AppBar 既有映射。
+    final transferLabel = a.category == AccountCategory.creditCard
+        ? '还款'
+        : a.category == AccountCategory.storedValue
+            ? '充值'
+            : '转账';
+    final transferIcon = a.category == AccountCategory.creditCard
+        ? LucideIcons.creditCard
+        : LucideIcons.arrowLeftRight;
+    return AnchoredMenu(
+      items: [
+        MenuItemData(
+            label: '复制账户',
+            icon: LucideIcons.copy,
+            onTap: () => _copy(a)),
+        MenuItemData(
+            label: archived ? '重新激活账户' : '关闭账户',
+            icon: archived ? LucideIcons.rotateCcw : LucideIcons.archive,
+            onTap: () => archived ? _reactivate(a) : _close(a)),
+        MenuItemData(
+            label: '删除账户',
+            icon: LucideIcons.trash2,
+            destructive: true,
+            onTap: () => _delete(a)),
+      ],
+      builder: (menuContext, open) => FloatingActionDock(
+        primary: DockAction(
+          icon: LucideIcons.penLine,
+          tooltip: '记一笔',
+          // 归档:禁用态(不可触发、不获焦、半透明降权)。
+          onTap: archived ? null : _recordTxn,
         ),
+        secondary: [
+          if (!archived) ...[
+            DockAction(
+                icon: LucideIcons.edit,
+                tooltip: '编辑',
+                onTap: () => _edit(a)),
+            DockAction(
+                icon: transferIcon,
+                tooltip: transferLabel,
+                onTap: _transfer),
+          ],
+          DockAction(
+              icon: LucideIcons.moreHorizontal,
+              tooltip: '更多操作',
+              onTap: open),
+        ],
       ),
     );
   }
@@ -518,11 +538,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     final isTablet = w <= 900; // ≤900 tablet（含 mobile）
     final isMobile = w <= 720; // ≤720 mobile
     return ListView(
-      // OD .content padding 24/36/70（top/bottom 24,左右 36,底部 70）；
-      // ≤720 缩到 16/14/60。
+      // F58 T5:AppBar 退役后 hero 直升页顶 —— 顶部只留 8-16px 呼吸位
+      // (mobile 14 / 其余 16,原 24 收敛);底部留白 ≥242(= dock 高 214
+      // [52 主钮 + 3×44 次钮 + 3×10 间距] + 视口底距 28,FR-3 防末屏
+      // 关键信息被悬浮簇遮挡),原 OD 60/70 padding 随迁移退役。
       padding: isMobile
-          ? const EdgeInsets.fromLTRB(16, 14, 16, 60)
-          : const EdgeInsets.fromLTRB(36, 24, 36, 70),
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 242)
+          : const EdgeInsets.fromLTRB(36, 16, 36, 242),
       children: [
         _hero(a, summary?.netCents ?? 0),
         const SizedBox(height: 18),

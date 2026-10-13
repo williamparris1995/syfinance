@@ -13,12 +13,15 @@
 //   - 三端：desktop 表 / mobile 卡列表
 //   - 负向断言：还款/记账/剩余本金/还款计划 等 debt_detail 语义 label 不出现
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:design_kit/design_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -794,6 +797,213 @@ void main() {
       verifyNever(() => debtRepo.delete(any()));
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
+    });
+  });
+
+  // ───────────────── F58 T4:AppBar 退役 + 右下悬浮簇 + 标题注入 ─────────────────
+  // (镜像 debt_detail_page_test 同名 group;差异 = 收款语义:primary=收款,
+  // dialog=确认收款,菜单项=删除债权。)
+  group('F58 悬浮簇 + AppBar 退役', () {
+    testWidgets('FR-5 页面无 AppBar(第二层导航整条退役)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.byType(BackButton), findsNothing);
+    });
+
+    testWidgets(
+        'FR-3/FR-4 dock 常驻右下:primary=收款,secondary=[编辑,更多],'
+        '滚动 bottom padding ≥242', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      expect(find.byType(FloatingActionDock), findsOneWidget);
+      final pos = t.widget<Positioned>(
+        find.ancestor(
+            of: find.byType(FloatingActionDock),
+            matching: find.byType(Positioned)),
+      );
+      expect(pos.right, 28);
+      expect(pos.bottom, 28);
+      // 操作映射(receivable 语义):primary=收款;secondary=[编辑,更多]。
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.tooltip, '收款');
+      expect(dock.primary.onTap, isNotNull, reason: '已加载且有未收期次 → 可触发');
+      expect(dock.secondary.map((a) => a.tooltip).toList(), ['编辑', '更多']);
+      expect(dock.secondary.every((a) => a.onTap != null), isTrue);
+      // FR-3 防遮挡:页面滚动容器底部留白 ≥ 242(簇高 160 + 底边距 28 + 净空 54)。
+      final list = t.widget<ListView>(find
+          .descendant(
+              of: find.byType(ReceivableDetailPage),
+              matching: find.byType(ListView))
+          .first);
+      expect((list.padding as EdgeInsets?)?.bottom ?? 0,
+          greaterThanOrEqualTo(242));
+    });
+
+    testWidgets('全部收清 → primary 禁用(无下期可收)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final allPaid = _detail(schedule: [
+        _entry(
+            id: 'e1',
+            paymentDate: DateTime(2026, 3, 15),
+            principalCents: 803200,
+            interestCents: 66600,
+            paid: true),
+        _entry(
+            id: 'e2',
+            paymentDate: DateTime(2026, 4, 15),
+            principalCents: 808500,
+            interestCents: 61300,
+            paid: true),
+      ]);
+      await t.pumpWidget(_harness(detail: allPaid));
+      await t.pumpAndSettle();
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.onTap, isNull, reason: '无未收期次 → 主操作禁用');
+      expect(dock.secondary.every((a) => a.onTap != null), isTrue);
+    });
+
+    testWidgets('tap primary 收款 → 打开下期确认收款 dialog(复用既有逻辑)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(
+        detail: _detail(),
+        accounts: [_assetAccount(id: 'acct-1', name: '招商银行储蓄卡')],
+      ));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('收款'));
+      await t.pumpAndSettle();
+      // 打开既有 DebtRecordDialog(receivable sem.dialogTitle=确认收款)。
+      expect(find.text('确认收款'), findsWidgets);
+      expect(find.textContaining('收款至账户'), findsOneWidget);
+      // 下期 = 首个未收期次(e3,逾期 2026-06-15;e1/e2 已收)。
+      expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.textContaining('2026-06-15')),
+        findsOneWidget,
+      );
+      await t.tap(find.widgetWithText(TextButton, '取消'));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('tap 编辑 → push /receivables/:id/edit 路由', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      final detail = _detail();
+      when(() => debtRepo.get(any()))
+          .thenAnswer((_) async => dartz.Right(detail));
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => const dartz.Right(<Account>[]));
+      GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+      final router = GoRouter(
+        initialLocation: '/receivables/r1',
+        routes: [
+          GoRoute(
+            path: '/receivables',
+            builder: (_, __) => const Scaffold(
+                body: Center(child: Text('RECEIVABLES_LIST'))),
+          ),
+          GoRoute(
+            path: '/receivables/:id/edit',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('EDIT_PAGE'))),
+          ),
+          GoRoute(
+            path: '/receivables/:id',
+            builder: (_, __) => const ReceivableDetailPage(id: 'r1'),
+          ),
+        ],
+      );
+      await t.pumpWidget(MultiBlocProvider(
+        providers: [
+          BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+          BlocProvider<CurrencyBloc>.value(
+              value: _FakeCurrencyBloc(const CurrencyState())),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('编辑'));
+      await t.pumpAndSettle();
+      // push 断言口径:go_router 14 的 imperative push 不改
+      // currentConfiguration(探针实测),以「编辑页可见 + 详情仍在栈下」钉
+      // push 叠栈语义(非 go 替换)。
+      expect(find.text('EDIT_PAGE'), findsOneWidget);
+      expect(
+          find.byType(ReceivableDetailPage, skipOffstage: false),
+          findsOneWidget,
+          reason: 'push 叠栈:详情页仍在编辑页之下');
+    });
+
+    testWidgets('tap 更多 → AnchoredMenu 开(删除债权 可见)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('更多'));
+      await t.pumpAndSettle();
+      expect(find.text('删除债权'), findsOneWidget);
+      await t.tapAt(const Offset(20, 20));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('FR-2 标题注入:加载完成 set(counterparty);离开页面 clear',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      GetIt.instance
+          .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      expect(GetIt.instance<ShellDetailTitle>().value, '李四 · 商业借款',
+          reason: '加载完成 → counterparty 注入顶栏当前级');
+      await t.pumpWidget(const MaterialApp());
+      await t.pump();
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull);
+    });
+
+    testWidgets('FR-2 加载失败不注入标题(顶栏占位「…」由 shell 兜底)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      GetIt.instance
+          .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => debtRepo.get(any()))
+          .thenAnswer((_) async => const dartz.Left(ServerFailure('加载失败')));
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => const dartz.Right(<Account>[]));
+      GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+      await t.pumpWidget(MaterialApp(
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+            BlocProvider<CurrencyBloc>.value(
+                value: _FakeCurrencyBloc(const CurrencyState())),
+          ],
+          child: const ReceivableDetailPage(id: 'r1'),
+        ),
+      ));
+      await t.pumpAndSettle();
+      expect(find.text('加载失败'), findsOneWidget);
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull);
     });
   });
 }
