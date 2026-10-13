@@ -9,11 +9,13 @@
 //   - 「收支统计」 4 cards render the MonthlySummary(accountId) values
 //     (本月收入 / 本月支出 / 净值变动 / 交易数) — no more "—/待交易模块".
 //   - F58 T5: AppBar 整条退役 → 操作迁右下悬浮簇(FloatingActionDock),
-//     两态映射(活跃 primary+3 secondary / 归档仅更多)+ 标题注入
-//     (ShellDetailTitle set/clear)。
+//     F59 C' 三段映射(活跃 primary+secondary+[muted] / 归档 primary 禁用+
+//     仅 muted)+ 标题注入(ShellDetailTitle set/clear)。
 //
 // Both blocs are wired via BlocProvider with a fake repo; no DI / no gRPC.
 // Mirrors transactions_page_test.dart harness shape.
+import 'dart:async';
+
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:design_kit/design_kit.dart';
 import 'package:drift/native.dart';
@@ -397,11 +399,11 @@ void main() {
   });
 
   testWidgets(
-      'archived account: dock 降级仅「更多」可用 (primary 禁用/编辑转账隐藏)',
-      (tester) async {
-    // F58 T5/FR-4 归档降级:primary 记一笔 禁用(半透明降权,「无主操作
-    // 可用」);编辑/转账照旧 !archived 隐藏;仅 更多 可用,菜单 =
-    // 复制账户/重新激活账户/删除(旧「关闭账户」换「重新激活账户」)。
+      'archived account: 归档降级 = primary 禁用在场 + secondary 空 + '
+      'muted=[复制/重新激活/删除](零菜单)', (tester) async {
+    // F59 FR-2/ADR-2 归档降级:「更多」菜单模型退役后,归档操作集平铺到
+    // muted 组 = 复制账户/重新激活账户/删除(全淡显);primary 记一笔 禁用
+    // 在场(「无主操作可用」以禁用表达);secondary 空(编辑/转账隐藏)。
     await pumpPage(tester,
         account: _account(status: AccountStatus.archived),
         transactions: []);
@@ -411,25 +413,34 @@ void main() {
     // primary 恒在(FR-4 每页必有主 FAB),归档 = 禁用态(onTap null)。
     expect(dock.primary.tooltip, '记一笔');
     expect(dock.primary.onTap, isNull, reason: '归档:主操作禁用');
-    // secondary 仅剩「更多操作」。
-    expect(dock.secondary.map((a) => a.tooltip), ['更多操作'],
-        reason: '归档:编辑/转账隐藏,仅更多');
+    // secondary 空:编辑/转账照旧 !archived 隐藏。
+    expect(dock.secondary, isEmpty, reason: '归档:编辑/转账隐藏');
     expect(find.byTooltip('编辑'), findsNothing);
     expect(find.byTooltip('转账'), findsNothing);
+    // muted = 复制账户/重新激活账户/删除账户(菜单换平铺,零功能丢失;
+    // 删除为 muted 列表末项 → 渲染置顶,离主钮最远)。
+    expect(dock.muted.map((a) => a.tooltip),
+        ['复制账户', '重新激活账户', '删除账户'],
+        reason: '归档:复制/重新激活/删除 平铺淡显');
+    expect(dock.muted.every((a) => a.onTap != null), isTrue);
+    expect(find.byTooltip('复制账户'), findsOneWidget);
+    expect(find.byTooltip('重新激活账户'), findsOneWidget);
+    expect(find.byTooltip('删除账户'), findsOneWidget);
+    // 菜单模型退役:零 AnchoredMenu、零「更多」钮。
+    expect(find.byType(AnchoredMenu), findsNothing);
+    expect(find.byTooltip('更多操作'), findsNothing);
 
-    // 更多菜单(归档态):复制/重新激活/删除,无 关闭。
-    await tester.tap(find.byTooltip('更多操作'));
+    // 重新激活直达既有确认弹窗(原菜单项 → 一钮一弹窗)。
+    await tester.tap(find.byTooltip('重新激活账户'));
     await tester.pumpAndSettle();
-    expect(find.text('复制账户'), findsOneWidget);
-    expect(find.text('重新激活账户'), findsOneWidget);
-    expect(find.text('删除账户'), findsOneWidget);
-    expect(find.text('关闭账户'), findsNothing);
+    expect(find.text('重新激活「现金」？账户恢复活跃状态。'), findsOneWidget);
   });
 
   // ───── F58 T5: 壳层导航迁移(AppBar 退役 + 悬浮簇 + 标题注入)─────
   //
-  // FR-5 页面无第二层导航条;FR-3 右下常驻悬浮簇 + 底部留白 ≥242;
-  // FR-4 活跃操作集全量迁移(记一笔/编辑/转账/更多,零功能丢失);
+  // FR-5 页面无第二层导航条;FR-3 右下常驻悬浮簇 + 底部留白 ≥370;
+  // FR-4 活跃操作集全量平铺(primary 记一笔 + secondary[编辑,转账] +
+  // muted[复制,关闭,删除],菜单退役,零功能丢失);
   // FR-2 标题注入与清理(ShellDetailTitle port)。
 
   testWidgets('F58/FR-5: 页面无 AppBar(BackButton/标题/actions 整条退役)',
@@ -443,7 +454,7 @@ void main() {
   });
 
   testWidgets(
-      'F58/FR-3: dock 定位视口右下(right/bottom 28)+ 滚动容器底部留白 ≥242',
+      'F58/FR-3: dock 定位视口右下(right/bottom 28)+ 滚动容器底部留白 ≥370',
       (tester) async {
     await pumpPage(tester);
     final dock = find.byType(FloatingActionDock);
@@ -454,37 +465,46 @@ void main() {
     final winH = view.physicalSize.height / view.devicePixelRatio;
     expect(winW - rect.right, 28, reason: 'dock 距视口右缘 28');
     expect(winH - rect.bottom, 28, reason: 'dock 距视口底缘 28');
-    // 滚动容器 bottom padding ≥ 242(dock 高 214 + 底距 28)防末屏遮挡。
+    // 滚动容器 bottom padding ≥ 370(C' 满配 6 钮簇高 333 + 底距 28 + 冗余,
+    // F59 design「~330+28+冗余≈370」逐页钉)防末屏遮挡。
     final list = tester.widget<ListView>(find.byType(ListView).first);
-    expect((list.padding as EdgeInsets).bottom, greaterThanOrEqualTo(242),
-        reason: 'FR-3: 页面底部留白 ≥ 242px');
+    expect((list.padding as EdgeInsets).bottom, greaterThanOrEqualTo(370),
+        reason: 'FR-3: 页面底部留白 ≥ 370px');
   });
 
-  testWidgets('F58/FR-4: 活跃 dock = primary 记一笔 + 3 secondary;tap 编辑/更多',
-      (tester) async {
+  testWidgets(
+      'F58/FR-4(F59 C\'): 活跃 dock = primary 记一笔 + secondary[编辑,转账] + '
+      'muted[复制,关闭,删除];tap 编辑/删除直达', (tester) async {
     await pumpPage(tester);
 
     final dock =
         tester.widget<FloatingActionDock>(find.byType(FloatingActionDock));
     expect(dock.primary.tooltip, '记一笔');
     expect(dock.primary.onTap, isNotNull);
-    expect(dock.secondary.map((a) => a.tooltip), ['编辑', '转账', '更多操作'],
-        reason: 'FR-4: 编辑 · 转账 · 更多 次级有序列表');
+    expect(dock.secondary.map((a) => a.tooltip), ['编辑', '转账'],
+        reason: 'FR-4: 编辑 · 转账 高频次级有序列表');
+    expect(dock.secondary.every((a) => a.onTap != null), isTrue);
+    // muted 低频/危险组:复制/关闭/删除(删除 = 列表末项 → 渲染置顶离主钮最远)。
+    expect(dock.muted.map((a) => a.tooltip), ['复制账户', '关闭账户', '删除账户'],
+        reason: 'FR-4: 复制 · 关闭 · 删除 低频淡显组');
+    expect(dock.muted.every((a) => a.onTap != null), isTrue);
+    // 菜单模型退役:零 AnchoredMenu、零「更多」钮。
+    expect(find.byType(AnchoredMenu), findsNothing);
+    expect(find.byTooltip('更多操作'), findsNothing);
 
-    // tap 编辑 → push AccountFormPage(既有 _edit 行为迁移)。
+    // 淡显删除钮直达既有确认弹窗(零中间菜单;活跃态语义:删除不可恢复)。
+    await tester.tap(find.byTooltip('删除账户'));
+    await tester.pumpAndSettle();
+    expect(find.text('删除「现金」？此操作不可恢复。'), findsOneWidget);
+    // 收尾:取消关闭弹窗。
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await tester.pumpAndSettle();
+
+    // tap 编辑 → push AccountFormPage(既有 _edit 行为迁移;收尾停表单页,
+    // 不回 pop —— F59 FR-5 表单自带导航退役,回退走顶栏面包屑)。
     await tester.tap(find.byTooltip('编辑'));
     await tester.pumpAndSettle();
     expect(find.byType(AccountFormPage), findsOneWidget);
-    // pop 编辑表单回详情,再开更多菜单。
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('更多操作'));
-    await tester.pumpAndSettle();
-    // 活跃态菜单:复制账户/关闭账户/删除(零功能丢失)。
-    expect(find.text('复制账户'), findsOneWidget);
-    expect(find.text('关闭账户'), findsOneWidget);
-    expect(find.text('删除账户'), findsOneWidget);
-    expect(find.text('重新激活账户'), findsNothing);
   });
 
   testWidgets('F58/FR-4: 信用卡 → 转账钮=「还款」,tap 开信用卡还款对话框',
@@ -558,6 +578,89 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: SizedBox()));
     await tester.pump();
     expect(port.value, isNull, reason: 'FR-2: dispose 清理标题');
+  });
+
+  // ───── F59 FR-3/ADR-4: loading/error 态恒渲染悬浮簇全禁用(账户页改齐)─────
+  // dock 渲染移出 AccountDetailLoaded 门(照债务/债权页形态):加载中/失败
+  // 簇仍在(操作锚点恒定 + 禁用语言),全部动作 onTap = null。
+
+  /// 注入指定 get 行为的详情 harness(loading = 永不完成 / error = Left)。
+  Future<void> pumpDetailWithGet(
+    WidgetTester tester,
+    Future<dartz.Either<Failure, Account>> Function() getAnswer,
+  ) async {
+    final getUc = _MockGet();
+    when(() => getUc.call(any())).thenAnswer((_) => getAnswer());
+    final listUc = _MockList();
+    when(() => listUc.call())
+        .thenAnswer((_) async => dartz.Right([_account()]));
+    final createUc = _MockCreate();
+    final deleteUc = _MockDelete();
+    final updateUc = _MockUpdate();
+    await tester.pumpWidget(_harness(
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AccountBloc>(
+            create: (_) {
+              final b =
+                  AccountBloc(listUc, createUc, deleteUc, getUc, updateUc);
+              b.add(const GetAccountRequested('a1'));
+              return b;
+            },
+          ),
+          BlocProvider<TransactionBloc>(
+            create: (_) {
+              final b = TransactionBloc(txnRepo);
+              b.add(const LoadTransactionsRequested(
+                  filter: TxnFilterState(accountId: 'a1')));
+              b.add(LoadSummaryRequested(
+                  year: DateTime.now().year,
+                  month: DateTime.now().month,
+                  accountId: 'a1'));
+              return b;
+            },
+          ),
+        ],
+        child: const AccountDetailPage(id: 'a1'),
+      ),
+    ));
+    // 有界泵(非 pumpAndSettle):loading 态转圈动画永不停,Settle 必超时。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  testWidgets('FR-3(ADR-4) loading 态恒渲染悬浮簇全禁用', (tester) async {
+    final completer = Completer<dartz.Either<Failure, Account>>();
+    await pumpDetailWithGet(tester, () => completer.future);
+
+    // 加载中转圈;悬浮簇恒渲染,全部动作禁用。
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    final dock =
+        tester.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+    expect(dock.primary.tooltip, '记一笔');
+    expect(dock.primary.onTap, isNull, reason: 'loading:主操作禁用');
+    expect(dock.secondary.map((a) => a.tooltip), ['编辑', '转账'],
+        reason: 'loading:操作集语言不变(锚点恒定)');
+    expect(dock.secondary.every((a) => a.onTap == null), isTrue,
+        reason: 'loading:次级全禁用');
+    expect(dock.muted.map((a) => a.tooltip),
+        ['复制账户', '关闭账户', '删除账户']);
+    expect(dock.muted.every((a) => a.onTap == null), isTrue,
+        reason: 'loading:淡显组全禁用');
+  });
+
+  testWidgets('FR-3(ADR-4) error 态恒渲染悬浮簇全禁用', (tester) async {
+    await pumpDetailWithGet(
+        tester, () async => const dartz.Left(ServerFailure('加载失败')));
+
+    expect(find.text('加载失败'), findsOneWidget);
+    final dock =
+        tester.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+    expect(dock.primary.onTap, isNull, reason: 'error:主操作禁用');
+    expect(dock.secondary.every((a) => a.onTap == null), isTrue,
+        reason: 'error:次级全禁用');
+    expect(dock.muted.every((a) => a.onTap == null), isTrue,
+        reason: 'error:淡显组全禁用');
   });
 
   testWidgets(
@@ -1912,7 +2015,7 @@ void main() {
   // dock 本身就是响应式同构(icon + tooltip 语义标签,无断点分支),两宽度
   // 渲染同一操作集。
 
-  testWidgets('tablet 800: dock 同构(记一笔/编辑/转账/更多 全量)', (t) async {
+  testWidgets('tablet 800: dock 同构(记一笔/编辑/转账 + 淡显组 全量)', (t) async {
     t.view.physicalSize = const Size(800, 1400);
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
@@ -1924,7 +2027,9 @@ void main() {
     expect(find.byTooltip('记一笔'), findsOneWidget);
     expect(find.byTooltip('编辑'), findsOneWidget);
     expect(find.byTooltip('转账'), findsOneWidget);
-    expect(find.byTooltip('更多操作'), findsOneWidget);
+    expect(find.byTooltip('复制账户'), findsOneWidget);
+    expect(find.byTooltip('关闭账户'), findsOneWidget);
+    expect(find.byTooltip('删除账户'), findsOneWidget);
   });
 
   testWidgets('desktop 1200: dock 同构(与 tablet 同一操作集)', (t) async {
@@ -1938,7 +2043,9 @@ void main() {
     expect(find.byTooltip('记一笔'), findsOneWidget);
     expect(find.byTooltip('编辑'), findsOneWidget);
     expect(find.byTooltip('转账'), findsOneWidget);
-    expect(find.byTooltip('更多操作'), findsOneWidget);
+    expect(find.byTooltip('复制账户'), findsOneWidget);
+    expect(find.byTooltip('关闭账户'), findsOneWidget);
+    expect(find.byTooltip('删除账户'), findsOneWidget);
   });
 
   // ───── F35: 贷款账户详情「还款计划」只读面板 ─────
@@ -2504,22 +2611,10 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    // 更多操作 → 删除账户 → 确认对话框「删除」。
-    final more = find.byTooltip('更多操作');
-    expect(more, findsOneWidget);
-    await tester.tap(more);
-    await tester.pumpAndSettle();
-    // F58:更多迁悬浮簇(视口右下角),AnchoredMenu 自适应锚定 —— 水平右缘
-    // 放不下则锚点翻转、向左展开;垂直下方放不下则向上弹(dock 近底缘)→
-    // 菜单项完整落在视口内,可直接按文本点击。
-    final itemText = find.text('删除账户');
-    expect(itemText, findsOneWidget);
-    final itemRect = tester.getRect(itemText);
-    final view = tester.view;
-    final winW =
-        view.physicalSize.width / view.devicePixelRatio;
-    expect(itemRect.right <= winW, isTrue, reason: '菜单项不得超出窗口右缘');
-    await tester.tap(itemText);
+    // F59 C':删除为 muted 淡显常驻钮,一步直达确认对话框「删除」。
+    final delete = find.byTooltip('删除账户');
+    expect(delete, findsOneWidget);
+    await tester.tap(delete);
     await tester.pumpAndSettle();
     expect(find.text('删除「现金」？此操作不可恢复。'), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, '删除'));

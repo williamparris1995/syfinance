@@ -14,6 +14,8 @@ import 'package:yucai_client/core/recurrence/recurrence_rule_editor.dart';
 import 'package:yucai_client/core/recurrence/recurrence_rule_text.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/amortization_preview.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
+import 'package:yucai_client/core/widgets/form_leave_guard.dart';
 import 'package:get_it/get_it.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -126,6 +128,28 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
   Debt? get _existing => widget.existing;
   bool get _isEdit => _existing != null;
 
+  // ---- F59 FR-5(ADR-3):脏态追踪(首改即脏粗粒度)+ 三级面包屑注入串 ----
+
+  /// 首改即脏:任一字段首次用户编辑置位;净态离开(系统返回/面包屑)零摩擦,
+  /// 脏态经 FormLeaveGuard 弹「未保存的修改」确认。提交成功的程序化 pop
+  /// 不经 canPop 判定,不受守卫影响。编辑态预填在 initState 内(早于监听
+  /// 注册)天然不置脏。
+  bool _dirty = false;
+
+  /// 置脏(首改即脏):翻转时 setState 重建 FormLeaveGuard(PopScope 的
+  /// canPop 随动)。已脏直接返回。
+  void _markDirty() {
+    if (_dirty) return;
+    setState(() => _dirty = true);
+  }
+
+  /// 三级面包屑注入串:创建 =「新建债权」;编辑 =「编辑 · {债务人}」
+  /// (existing 经构造参数注入,加载即有值)。
+  String get _crumbTitle {
+    final e = _existing;
+    return e == null ? '新建债权' : '编辑 · ${e.counterparty}';
+  }
+
   static const _amortizations = <AmortizationMethod>[
     AmortizationMethod.equalPrincipalInterest,
     AmortizationMethod.equalPrincipal,
@@ -175,13 +199,29 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
     _loadAccounts();
     _loadSourceAccounts();
     if (_isEdit) _loadAttachment();
-    // 输入变化即重算预览（principal/rate/dates/amortization 都是 setState 触发）。
-    _principalCtrl.addListener(() => setState(() {}));
-    _rateCtrl.addListener(() => setState(() {}));
+    // 输入变化即重算预览(principal/rate/dates/amortization 都是 setState 触发)。
+    // F59 FR-5:全字段首改即脏(controller 口径;预填已先行完成不置脏)。
+    for (final c in [
+      _counterpartyCtrl,
+      _principalCtrl,
+      _rateCtrl,
+      _contactCtrl,
+      _contractRefCtrl,
+      _guarantorNameCtrl,
+      _guarantorContactCtrl,
+      _termPeriodsCtrl,
+    ]) {
+      c.addListener(() {
+        _markDirty();
+        setState(() {});
+      });
+    }
   }
 
   @override
   void dispose() {
+    // F59 FR-5:离开表单清注入标题(guarded getIt:harness 未注册时跳过)。
+    scheduleDetailTitleClear();
     _counterpartyCtrl.dispose();
     _principalCtrl.dispose();
     _rateCtrl.dispose();
@@ -262,7 +302,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       initial: _rule,
       anchor: RecurrenceAnchor.startDate, // 债权按日期锚定借出日
     );
-    if (rule != null) setState(() => _rule = rule);
+    if (rule != null) {
+      _markDirty(); // F59 FR-5:周期规则 = 用户编辑
+      setState(() => _rule = rule);
+    }
   }
 
   /// 收款计划预览数据(规则驱动;镜像 DebtFormPage,收款语义 label)。
@@ -530,7 +573,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
     if (f == null || f.path == null) return;
     final staged =
         await GetIt.instance<ContractAttachmentStore>().stage(f.path!, f.name);
-    if (mounted) setState(() => _stagedFile = staged);
+    if (mounted) {
+      _markDirty(); // F59 FR-5:暂存新合同文件 = 用户编辑
+      setState(() => _stagedFile = staged);
+    }
   }
 
   /// 移除仅作用于编辑态已有附件;已暂存新文件时重新选择即替换。
@@ -538,7 +584,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
     final e = _existing;
     if (e == null || _stagedFile != null) return;
     await GetIt.instance<ContractAttachmentStore>().remove(e.id);
-    if (mounted) setState(() => _existingAttachmentName = null);
+    if (mounted) {
+      _markDirty(); // F59 FR-5:移除既有附件 = 用户编辑
+      setState(() => _existingAttachmentName = null);
+    }
   }
 
   /// 提交成功后把暂存文件绑定到债务 id(创建态 id 由 bloc.lastCreated 提供)。
@@ -565,56 +614,57 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      // OD 对齐:desktop/tablet topbar 仅承载 back,标题在 body `.page-head`(serif
-      // 26 + sub)。mobile 无 page-head(节省纵向空间,step wizard 字段多),标题
-      // 保留在 AppBar。find.text('编辑债权') findsOneWidget:desktop 由 page-head
-      // 提供,mobile 由 AppBar title 提供,均唯一。
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: Breakpoints.of(context) == Breakpoint.mobile
-            ? Text(_isEdit ? '编辑债权' : '新建债权')
-            : const SizedBox.shrink(),
-        backgroundColor: context.yucai.bg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
-      body: BlocListener<DebtBloc, DebtState>(
-        listenWhen: (prev, curr) => _submitted &&
-            (curr is DebtsLoaded || curr is DebtError),
-        listener: (context, state) async {
-          if (state is DebtError) {
-            // 写失败不再静默:toast 提示后留在表单,用户可改后重试。
-            _submitted = false;
-            AppToast.show(context, state.message, type: ToastType.error);
-            return;
-          }
-          _submitted = false;
-          // 跨页广播:账户页负债/总览数字随之刷新。
-          try {
-            getIt<DataRefreshNotifier>().bump();
-          } catch (_) {}
-          // 创建态新债务 id 来自 bloc.lastCreated(绑定本地合同附件用)。
-          // 附件绑定是本地 best-effort:任何失败(历史 FK 版本表/磁盘/占用)
-          // 都不得阻断 pop —— 债务本体已保存成功(「上传卡住」缺陷根因)。
-          final bloc = context.read<DebtBloc>();
-          final debtId = _existing?.id ?? bloc.lastCreated?.id;
-          try {
-            if (debtId != null) await _bindAttachment(debtId);
-          } catch (_) {}
-          if (context.mounted) Navigator.of(context).pop(true);
-        },
-        child: BlocBuilder<DebtBloc, DebtState>(
-          builder: (context, state) {
-            final submitting = state is DebtSubmitting;
-            return AbsorbPointer(
-              absorbing: submitting,
-              child: ResponsiveLayout(
-                mobile: _mobileLayout(submitting),
-                tablet: _wideLayout(submitting),
-                desktop: _wideLayout(submitting),
+      // F59 FR-5:自带 AppBar 导航退役(BackButton/mobile 标题)—— 回退统一走
+      // 顶栏面包屑 page 级 + 系统返回(均经守卫);标题语义移交三级面包屑注入
+      // 串([_crumbTitle],mobile 原标题串同源)。body 经 FormLeaveGuard 包裹:
+      // 脏态任何离开路径弹确认,净态直走;提交成功的程序化 pop 不经 canPop
+      // 判定,不受守卫影响。
+      body: FormLeaveGuard(
+        isDirty: () => _dirty,
+        child: Stack(
+          children: [
+            BlocListener<DebtBloc, DebtState>(
+              listenWhen: (prev, curr) => _submitted &&
+                  (curr is DebtsLoaded || curr is DebtError),
+              listener: (context, state) async {
+                if (state is DebtError) {
+                  // 写失败不再静默:toast 提示后留在表单,用户可改后重试。
+                  _submitted = false;
+                  AppToast.show(context, state.message, type: ToastType.error);
+                  return;
+                }
+                _submitted = false;
+                // 跨页广播:账户页负债/总览数字随之刷新。
+                try {
+                  getIt<DataRefreshNotifier>().bump();
+                } catch (_) {}
+                // 创建态新债务 id 来自 bloc.lastCreated(绑定本地合同附件用)。
+                // 附件绑定是本地 best-effort:任何失败(历史 FK 版本表/磁盘/占用)
+                // 都不得阻断 pop —— 债务本体已保存成功(「上传卡住」缺陷根因)。
+                final bloc = context.read<DebtBloc>();
+                final debtId = _existing?.id ?? bloc.lastCreated?.id;
+                try {
+                  if (debtId != null) await _bindAttachment(debtId);
+                } catch (_) {}
+                if (context.mounted) Navigator.of(context).pop(true);
+              },
+              child: BlocBuilder<DebtBloc, DebtState>(
+                builder: (context, state) {
+                  final submitting = state is DebtSubmitting;
+                  return AbsorbPointer(
+                    absorbing: submitting,
+                    child: ResponsiveLayout(
+                      mobile: _mobileLayout(submitting),
+                      tablet: _wideLayout(submitting),
+                      desktop: _wideLayout(submitting),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+            // 三级面包屑注入串(新建/编辑两态);放滚动容器外。
+            DetailTitleSync(title: _crumbTitle),
+          ],
         ),
       ),
     );
@@ -900,7 +950,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
               for (final a in _accounts)
                 DropdownMenuItem(value: a.id, child: Text(a.name)),
             ],
-            onChanged: (v) => setState(() => _accountId = v),
+            onChanged: (v) {
+              _markDirty(); // F59 FR-5
+              setState(() => _accountId = v);
+            },
             validator: (v) => v == null || v.isEmpty ? '请选择关联应收账户' : null,
           ),
         ),
@@ -917,7 +970,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
                 icon: _receivableTypeIcon(key),
                 label: ReceivableSubtypes.labels[key]!,
                 selected: _subtypeKey == key,
-                onTap: () => setState(() => _subtypeKey = key),
+                onTap: () {
+                  _markDirty(); // F59 FR-5
+                  setState(() => _subtypeKey = key);
+                },
               ),
           ],
         ),
@@ -935,7 +991,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
               for (final a in _sourceAccounts)
                 DropdownMenuItem(value: a.id, child: Text(a.name)),
             ],
-            onChanged: (v) => setState(() => _sourceAccountId = v),
+            onChanged: (v) {
+              _markDirty(); // F59 FR-5
+              setState(() => _sourceAccountId = v);
+            },
             validator: (v) => v == null || v.isEmpty ? '请选择借出来源账户' : null,
           ),
         ),
@@ -953,7 +1012,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
             for (final a in _sourceAccounts)
               DropdownMenuItem(value: a.id, child: Text(a.name)),
           ],
-          onChanged: (v) => setState(() => _collectionAccountId = v),
+          onChanged: (v) {
+            _markDirty(); // F59 FR-5
+            setState(() => _collectionAccountId = v);
+          },
         ),
       ),
       // 联系方式 + 合同/借据编号(应收追踪,可选,Task 11)。.grid-2c 并排。
@@ -1029,7 +1091,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
                 label: _amortizationLabel(m),
                 desc: _amortizationDesc(m),
                 selected: _amortization == m,
-                onTap: () => setState(() => _amortization = m),
+                onTap: () {
+                  _markDirty(); // F59 FR-5
+                  setState(() => _amortization = m);
+                },
               ),
           ],
         ),
@@ -1072,7 +1137,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
             ButtonSegment(value: true, label: Text('按期数')),
           ],
           selected: {_byPeriods},
-          onSelectionChanged: (sel) => setState(() => _byPeriods = sel.first),
+          onSelectionChanged: (sel) {
+            _markDirty(); // F59 FR-5
+            setState(() => _byPeriods = sel.first);
+          },
         ),
       ],
       const SizedBox(height: AppSpacing.sm),
@@ -1083,7 +1151,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           child: _ODDateField(
             key: const ValueKey('startDatePicker'),
             value: _startDate,
-            onChanged: (d) => setState(() => _startDate = d),
+            onChanged: (d) {
+              _markDirty(); // F59 FR-5
+              setState(() => _startDate = d);
+            },
           ),
         ),
         if (_byPeriods)
@@ -1107,7 +1178,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
             child: _ODDateField(
               key: const ValueKey('dueDatePicker'),
               value: _dueDate,
-              onChanged: (d) => setState(() => _dueDate = d),
+              onChanged: (d) {
+                _markDirty(); // F59 FR-5
+                setState(() => _dueDate = d);
+              },
             ),
           ),
       ]),

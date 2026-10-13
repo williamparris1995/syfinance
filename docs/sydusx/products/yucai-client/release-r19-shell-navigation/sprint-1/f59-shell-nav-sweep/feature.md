@@ -19,10 +19,13 @@ F58 范式(顶栏全路径可点面包屑 + 第二层导航退役 + 右下竖排
 - **A12 存量 FINDING(T6 门上报,非 F58 引入)**:列表页「记一笔/新建债务/新建借出」文本入口缺失(按钮文案仅存在于表单页标题);F59 或后续票处理。
 - **走查项(用户验收)**:归档账户页右下金圆禁用态(Opacity 0.45 半透明降权)视觉是否接受——不接受则单点改隐藏。
 - 复用件直接可用:FloatingActionDock / DetailTitleSync(TickerMode 守卫)/ FormLeaveGuard;go_router 两契约已入测(push 不改 currentConfiguration;分支回退重建信号=TickerMode)。
+- T3 处置注记:holding 实际操作集=买入/卖出/分红/拆分(代码真身,无清仓/删除 handler,muted 组空);spec FR-4 的『清仓/[删除]』按此订正理解。
 
 ## Stories
 
-- [ ] S1 其余 detail 页迁移(逐页照 F58 范式)
-- [ ] S2 form 页导航收敛(表单态面包屑/取消语义 spec 拍板)
-- [ ] S3 categories/订阅管理特例收敛
-- [ ] S4 返回链接退役 + 全量回归门(flutter test + analyze + client-e2e + 金图)
+- [ ] S1 FloatingActionDock 分级升级(全圆/分隔线/淡显组)+ 单测(FR-1/2,NFR-1/2)
+- [ ] S2 F58 三页回改(C' 重配,菜单退役)(FR-2/3)
+- [ ] S3 其余详情页迁移(budget/goal/transaction/holding+扫页清单)(FR-4/7)
+- [ ] S4 表单页收敛(三级面包屑+FormLeaveGuard 接线+无簇)(FR-5)
+- [ ] S5 categories/订阅管理特例收敛(FR-6)
+- [ ] S6 全量回归门(test+analyze+e2e+金图+窄屏走查)(NFR-3)

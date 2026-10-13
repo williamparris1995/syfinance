@@ -52,6 +52,19 @@ void main() {
     expect(find.text('重试'), findsOneWidget);
   });
 
+  // F59 FR-7/ADR-2:自带 topbar 返回箭头退役(回退统一走全局顶栏面包屑
+  // page 级);标题/新建钮保留为内容头。
+  testWidgets('F59: 返回箭头退役,标题/新建标签保留为内容头', (t) async {
+    final repo = _MockRepo();
+    when(() => repo.list()).thenAnswer((_) async => const Right([_sample]));
+    await t.pumpWidget(_harness(repo));
+    await t.pumpAndSettle();
+    expect(find.byTooltip('返回'), findsNothing,
+        reason: 'F59 ADR-2:工具页返回箭头退役');
+    expect(find.text('标签管理'), findsOneWidget);
+    expect(find.text('新建标签'), findsOneWidget);
+  });
+
   // F8 FR-3/ADR-4:标签卡 onTap → 交易列表带 tagId 初始筛选(extra 携参,
   // GoRouter harness 捕获 push 的 extra 断言)。
   testWidgets('F8 FR-3: 点标签卡 → push /transactions 携 tagId extra', (t) async {

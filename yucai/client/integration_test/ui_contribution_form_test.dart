@@ -65,7 +65,10 @@ void main() {
     await t.tap(card.first);
     await t.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(find.text('目标详情'), findsWidgets, reason: '目标详情页地标');
+    // F59 T3:goal 详情 AppBar 退役(标题注入顶栏)—— 页面地标改用详情页
+    // 独有卡标题(关联实体/目标进度趋势),不再断言 AppBar 标题「目标详情」。
+    expect(find.text('关联实体'), findsWidgets, reason: '目标详情页地标(关联卡)');
+    expect(find.text('目标进度趋势'), findsWidgets, reason: '目标详情页地标(趋势卡)');
     // 基线:进度 0.0%,当前/目标 ¥0.00 / ¥10,000.00。
     expect(textContainingRich('0.0%'), findsWidgets, reason: '注资前进度 0.0%');
 

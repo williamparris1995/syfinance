@@ -55,3 +55,16 @@ class DetailTitleSync extends StatelessWidget {
     return const SizedBox.shrink();
   }
 }
+
+/// 页面 dispose 期的清零入口(F59 e2e 修复):dispose 发生于元素树拆除
+/// 锁定期,同步 notify 会打顶栏 ValueListenableBuilder 的
+/// markNeedsBuild during lock(真壳 e2e 实测硬失败;裸 harness 单测无
+/// VLB 不现形)。延迟到帧末(post-frame,树解锁)执行;用 post-frame 而
+/// 非 frameCallback —— 后者是 transient 回调,测试终局树拆除时若尚未
+/// 轮到会报「animation is still running」(e2e 实测)。shell scrubber
+/// 已按 location key 清零,本道双保险晚一帧无碍。
+void scheduleDetailTitleClear() {
+  if (!getIt.isRegistered<ShellDetailTitle>()) return;
+  final port = getIt<ShellDetailTitle>();
+  SchedulerBinding.instance.addPostFrameCallback((_) => port.clear());
+}

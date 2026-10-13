@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/backup/domain/entities/backup_entity.dart';
@@ -10,7 +9,8 @@ import 'package:yucai_client/backup/presentation/bloc/backup_state.dart';
 import 'package:yucai_client/backup/presentation/widgets/backup_card.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
-/// 本地备份页：topbar(返回 + 标题 + 立即备份)+ 三态 body(loading/空/错误/列表)
+/// 本地备份页：内容头(标题 + 立即备份;F59 FR-7/ADR-2:返回箭头退役,
+/// 回退走全局顶栏面包屑 page 级)+ 三态 body(loading/空/错误/列表)
 /// + 三个 dialog(创建 encrypted / 恢复 confirm+password / 删除 confirm)。
 class BackupPage extends StatefulWidget {
   const BackupPage({super.key});
@@ -235,7 +235,7 @@ class _BackupPageState extends State<BackupPage> {
         child: SafeArea(
           child: Column(
             children: [
-              _topbar(),
+              _pageHead(),
               Divider(height: 1, color: context.yucai.border),
               Expanded(child: _body()),
             ],
@@ -245,17 +245,15 @@ class _BackupPageState extends State<BackupPage> {
     );
   }
 
-  Widget _topbar() {
+  /// 页面内容头(F59 FR-7:返回箭头退役,标题/立即备份保留为内容头)。
+  Widget _pageHead() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
       child: Row(
         children: [
-          IconButton(
-            tooltip: '返回',
-            icon: Icon(LucideIcons.chevronLeft, color: context.yucai.fg),
-            onPressed: () => context.pop(),
-          ),
+          // F59 FR-7:返回箭头退役 —— 回退统一走全局顶栏面包屑 page 级
+          // (app_shell location 覆盖「系统 › 本地备份」)。
           Expanded(
             child: Text(
               '本地备份',

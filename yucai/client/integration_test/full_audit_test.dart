@@ -1,7 +1,7 @@
 /// R8 全应用 E2E 审计(integration_test,Windows 真机嵌入层,125% 缩放)。
 ///
 /// 从整体角度遍历:全部一级页 → 子页/表单 → 关键交互(卡片更多菜单/详情
-/// 更多操作/主题切换/跨页回切),审计三类问题:
+/// 删除弹窗直达/主题切换/跨页回切),审计三类问题:
 ///   A. 崩溃/渲染异常(硬失败)
 ///   B. 页面地标缺失(硬失败)
 ///   C. 未实现/占位/错误提示(记入 FINDINGS,不失败 —— 产品待办清单)
@@ -207,7 +207,7 @@ Future<void> main() async {
     sweepMarkers(t, '账户管理');
   });
 
-  testWidgets('A3 账户详情:更多操作菜单打开', (t) async {
+  testWidgets('A3 账户详情:删除账户弹窗直达(dock)', (t) async {
     await pumpApp(t);
     await goPage(t, '账户管理');
     // 进第一个账户详情:点卡片本体(储蓄卡)。
@@ -218,25 +218,29 @@ Future<void> main() async {
       await t.pumpAndSettle(const Duration(seconds: 2));
       sweepErrors(t, '账户详情');
 
-      final moreFinder = find.byTooltip('更多操作');
-      record(moreFinder.evaluate().isNotEmpty, '账户详情:更多操作按钮存在');
-      if (moreFinder.evaluate().isNotEmpty) {
-        await t.tap(moreFinder.first);
+      // F59 C':「更多操作」菜单退役 → dock muted 淡显钮直达(与 account
+      // 单测同口径:点「删除账户」→ 「删除「账户名」？此操作不可恢复。」
+      // 确认弹窗,零中间菜单层;菜单项偏移捕获随之退役)。
+      final delFinder = find.byTooltip('删除账户');
+      record(delFinder.evaluate().isNotEmpty, '账户详情:dock 删除账户钮存在');
+      if (delFinder.evaluate().isNotEmpty) {
+        await t.tap(delFinder.first);
         await t.pumpAndSettle(const Duration(milliseconds: 600));
-        final opened = find.text('复制账户').evaluate().isNotEmpty;
-        record(opened, '账户详情:更多操作菜单打开');
-        if (opened) {
-          final itemRect = t.getRect(find.text('复制账户').first);
-          menuOffsets.add('账户详情更多操作: item(复制账户) topLeft=${itemRect.topLeft}');
+        final opened =
+            find.text('删除「储蓄卡」？此操作不可恢复。').evaluate().isNotEmpty;
+        record(opened, '账户详情:删除确认弹窗打开');
+        // 关闭弹窗(取消,不真正删除;种子数据供后续 A 段沿用)。
+        final cancel = find.widgetWithText(TextButton, '取消');
+        if (cancel.evaluate().isNotEmpty) {
+          await t.tap(cancel.first);
+          await t.pumpAndSettle(const Duration(milliseconds: 400));
         }
-        await t.tapAt(const Offset(5, 400));
-        await t.pumpAndSettle(const Duration(milliseconds: 400));
       }
     }
     sweepMarkers(t, '账户详情');
   });
 
-  testWidgets('A4 交易记录 + 交易详情:更多菜单打开', (t) async {
+  testWidgets('A4 交易记录 + 交易详情:删除交易弹窗直达(dock)', (t) async {
     await pumpApp(t);
     await goPage(t, '交易记录');
     // 反馈#2-B 无限滚动(b2acee32):列表按月分组+滚动加载,种子「工资」
@@ -277,18 +281,24 @@ Future<void> main() async {
       await t.tap(row.first);
       await t.pumpAndSettle(const Duration(seconds: 2));
       sweepErrors(t, '交易详情');
-      final moreFinder = find.byTooltip('更多');
-      if (moreFinder.evaluate().isNotEmpty) {
-        await t.tap(moreFinder.first);
+      // F59 FR-4:page-head「更多」菜单退役 → dock 平铺(编辑 primary 直达 +
+      // 复制/删除 muted 淡显;A3 同款 dock 语义,零中间菜单层)。
+      final editFinder = find.byTooltip('编辑');
+      record(editFinder.evaluate().isNotEmpty, '交易详情:dock 编辑直达钮存在');
+      final delFinder = find.byTooltip('删除交易');
+      if (delFinder.evaluate().isNotEmpty) {
+        await t.tap(delFinder.first);
         await t.pumpAndSettle(const Duration(milliseconds: 600));
-        final opened = find.text('复制交易').evaluate().isNotEmpty;
-        record(opened, '交易详情:更多菜单打开');
-        if (opened) {
-          final itemRect = t.getRect(find.text('复制交易').first);
-          menuOffsets.add('交易详情更多: item(复制交易) topLeft=${itemRect.topLeft}');
+        // 弹窗文案与 transaction 单测同口径:删除「描述」…冲销分录…不可撤销。
+        final opened =
+            find.textContaining('将生成一条冲销分录').evaluate().isNotEmpty;
+        record(opened, '交易详情:删除确认弹窗打开');
+        // 关闭弹窗(取消,不真正删除)。
+        final cancel = find.widgetWithText(TextButton, '取消');
+        if (cancel.evaluate().isNotEmpty) {
+          await t.tap(cancel.first);
+          await t.pumpAndSettle(const Duration(milliseconds: 400));
         }
-        await t.tapAt(const Offset(5, 400));
-        await t.pumpAndSettle(const Duration(milliseconds: 400));
       }
     }
   });

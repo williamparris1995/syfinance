@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -13,7 +12,8 @@ import 'package:yucai_client/template/presentation/widgets/template_card.dart';
 import 'package:yucai_client/template/presentation/widgets/template_form.dart';
 
 /// 周期模板页(列表 CRUD + record + pause/resume)。对齐 tag TagPage:
-/// topbar(返回 + 标题「周期模板」+ 新建)+ 三态 body(loading/空/错误/列表)
+/// 内容头(标题「周期模板」+ 新建;F59 FR-7/ADR-2:返回箭头退役,回退走
+/// 全局顶栏面包屑 page 级)+ 三态 body(loading/空/错误/列表)
 /// + BlocListener→SnackBar + Stack 提交遮罩。
 class TemplatePage extends StatefulWidget {
   const TemplatePage({super.key});
@@ -140,11 +140,8 @@ class _TemplatePageState extends State<TemplatePage> {
                     AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
                 child: Row(
                   children: [
-                    IconButton(
-                        tooltip: '返回',
-                        icon: Icon(LucideIcons.chevronLeft,
-                            color: context.yucai.fg),
-                        onPressed: () => context.pop()),
+                    // F59 FR-7:返回箭头退役 —— 回退统一走全局顶栏面包屑
+                    // page 级(app_shell location 覆盖「交易 › 周期模板」)。
                     Expanded(
                       child: Text('周期模板',
                           style: TextStyle(

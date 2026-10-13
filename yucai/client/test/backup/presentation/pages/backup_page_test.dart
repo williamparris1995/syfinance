@@ -58,6 +58,19 @@ void main() {
     expect(find.text('重试'), findsOneWidget);
   });
 
+  // F59 FR-7/ADR-2:自带 topbar 返回箭头退役(回退统一走全局顶栏面包屑
+  // page 级);标题/立即备份保留为内容头。
+  testWidgets('F59: 返回箭头退役,标题/立即备份保留为内容头', (t) async {
+    final repo = _MockRepo();
+    when(() => repo.list()).thenAnswer((_) async => const Right([_sample]));
+    await t.pumpWidget(_harness(repo));
+    await t.pumpAndSettle();
+    expect(find.byTooltip('返回'), findsNothing,
+        reason: 'F59 ADR-2:工具页返回箭头退役');
+    expect(find.text('本地备份'), findsOneWidget);
+    expect(find.text('立即备份'), findsOneWidget);
+  });
+
   testWidgets(
       'create dialog 加密路径 dispatches CreateBackupRequested(encrypted, password)',
       (t) async {

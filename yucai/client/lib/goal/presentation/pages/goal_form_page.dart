@@ -34,6 +34,8 @@ import 'package:yucai_client/goal/domain/goal_template.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_event.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_state.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
+import 'package:yucai_client/core/widgets/form_leave_guard.dart';
 
 class GoalFormPage extends StatefulWidget {
   const GoalFormPage({
@@ -79,6 +81,28 @@ class _GoalFormPageState extends State<GoalFormPage> {
 
   bool get _isEdit => widget.goalId != null;
 
+  // ---- F59 FR-5(ADR-3):脏态追踪(首改即脏粗粒度)+ 三级面包屑注入串 ----
+
+  /// 首改即脏:任一字段首次用户编辑置位;净态离开零摩擦,脏态经
+  /// FormLeaveGuard 弹「未保存的修改」确认;提交成功的程序化 pop 不经
+  /// canPop 判定,不受守卫影响。
+  bool _dirty = false;
+
+  /// 程序化回填抑制窗:编辑态预填(bloc 加载完成写入)期间 controller
+  /// listener 触发不置脏 —— 预填非用户编辑。
+  bool _prefilling = false;
+
+  void _markDirty() {
+    if (_prefilling || _dirty) return;
+    setState(() => _dirty = true);
+  }
+
+  /// 三级面包屑注入串:创建 =「新建目标」;编辑加载中 =「编辑目标」,
+  /// 加载完成 =「编辑 · {目标名}」。
+  String get _crumbTitle => !_isEdit
+      ? '新建目标'
+      : (_existing == null ? '编辑目标' : '编辑 · ${_existing!.name}');
+
   @override
   void initState() {
     super.initState();
@@ -88,12 +112,21 @@ class _GoalFormPageState extends State<GoalFormPage> {
     if (_isEdit) {
       _loadExisting();
     }
-    _nameCtrl.addListener(() => setState(() {}));
-    _targetCtrl.addListener(() => setState(() {}));
+    // F59 FR-5:文本字段首改即脏(预填走 _prefilling 抑制窗)。
+    _nameCtrl.addListener(() {
+      _markDirty();
+      setState(() {});
+    });
+    _targetCtrl.addListener(() {
+      _markDirty();
+      setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    // F59 FR-5:离开表单清注入标题(guarded getIt)。
+    scheduleDetailTitleClear();
     _nameCtrl.dispose();
     _targetCtrl.dispose();
     super.dispose();
@@ -129,6 +162,8 @@ class _GoalFormPageState extends State<GoalFormPage> {
     // 编辑模式:加载完成 → 预填。
     if (state is GoalDetailLoaded && _existing == null && !_submitted) {
       final g = state.goal;
+      _prefilling = true; // F59 FR-5:预填不置脏
+      try {
       _existing = g;
       _type = g.type;
       _nameCtrl.text = g.name;
@@ -148,6 +183,9 @@ class _GoalFormPageState extends State<GoalFormPage> {
           final sum = selected.fold<int>(0, (a, d) => a + d.remainingPrincipalCents);
           _targetCtrl.text = (sum / 100).toStringAsFixed(2);
         }
+      }
+      } finally {
+        _prefilling = false;
       }
       setState(() {});
       return;
@@ -169,6 +207,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
   /// 模板 tap → 预填 type/name/target/deadline(关联账户/债务仍手选)。
   /// deadline = 今天 + deadlineMonths(月对齐;clamp 到月末避免溢出,例如 1/31 +1 月 → 2/28)。
   void _applyTemplate(GoalTemplate t) {
+    _markDirty(); // F59 FR-5:模板预填 = 用户编辑(关联仍手选)
     final now = DateTime.now();
     // 月对齐:day 先 clamp,避免月底溢出(DateTime 构造溢出会抛异常)。
     final targetMonth = now.month + t.deadlineMonths;
@@ -189,6 +228,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
   // ───────────────────────── type 切换 ─────────────────────────
 
   void _selectType(GoalType t) {
+    _markDirty(); // F59 FR-5:切类型 = 用户编辑
     setState(() {
       _type = t;
       // 切 type → 清空关联 + 重置 target(DebtPayoff 的 target 由债务选择驱动)。
@@ -238,6 +278,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
       helpText: '选择截止日期',
     );
     if (picked != null) {
+      _markDirty(); // F59 FR-5:改截止日 = 用户编辑
       setState(() => _deadline = picked);
     }
   }
@@ -297,15 +338,19 @@ class _GoalFormPageState extends State<GoalFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: Text(_isEdit ? '编辑目标' : '新建目标'),
-      ),
-      body: BlocConsumer<GoalBloc, GoalState>(
-        listenWhen: (prev, curr) =>
-            curr is GoalDetailLoaded || curr is GoalListLoaded,
-        listener: _onGoalStateChanged,
-        builder: (context, state) {
+      // F59 FR-5:自带 AppBar 导航退役(BackButton/标题)—— 回退统一走顶栏
+      // 面包屑 page 级 + 系统返回(均经守卫);标题语义移交三级面包屑注入串。
+      // body 经 FormLeaveGuard 包裹(脏态弹确认,净态直走;提交成功的程序化
+      // pop 不经 canPop 判定不受影响)。
+      body: FormLeaveGuard(
+        isDirty: () => _dirty,
+        child: Stack(
+          children: [
+            BlocConsumer<GoalBloc, GoalState>(
+              listenWhen: (prev, curr) =>
+                  curr is GoalDetailLoaded || curr is GoalListLoaded,
+              listener: _onGoalStateChanged,
+              builder: (context, state) {
           final submitting = state is GoalLoading;
           // 编辑模式未加载完 → loading。
           if (_isEdit && _existing == null) {
@@ -396,6 +441,11 @@ class _GoalFormPageState extends State<GoalFormPage> {
             ),
           );
         },
+            ),
+            // 三级面包屑注入串(新建/编辑两态);放滚动容器外。
+            DetailTitleSync(title: _crumbTitle),
+          ],
+        ),
       ),
     );
   }

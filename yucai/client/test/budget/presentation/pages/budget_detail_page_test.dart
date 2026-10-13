@@ -16,9 +16,11 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:design_kit/design_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -29,6 +31,7 @@ import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/pages/budget_detail_page.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 
 class _MockRepo extends Mock implements BudgetRepository {}
@@ -345,5 +348,120 @@ void main() {
     await t.pumpAndSettle();
 
     verifyNever(() => repo.deleteBudget(any()));
+  });
+
+  // ───────── F59 T3:AppBar 退役 + 悬浮簇(C')+ 标题注入 ─────────
+
+  group('F59 T3 迁移', () {
+    testWidgets('AppBar 退役;dock=编辑(primary)+[删除](muted) 常驻右下 28', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, budget);
+
+      await t.pumpWidget(_harness(repo: repo, budget: budget));
+      await t.pumpAndSettle();
+
+      // 第二层导航条整条退役(回退走全局顶栏面包屑 page 级)。
+      expect(find.byType(AppBar), findsNothing, reason: 'F59:AppBar 退役');
+      // 悬浮簇常驻右下(Positioned 定位是页面职责;不随滚动移动)。
+      expect(find.byType(FloatingActionDock), findsOneWidget);
+      final pos = t.widget<Positioned>(
+          find.ancestor(
+              of: find.byType(FloatingActionDock),
+              matching: find.byType(Positioned)).first);
+      expect(pos.right, 28);
+      expect(pos.bottom, 28);
+      // 三段映射:编辑进金圆;删除入淡显组(低频/危险,置顶离主钮最远)。
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.tooltip, '编辑');
+      expect(dock.primary.onTap, isNotNull, reason: 'loaded → 可触发');
+      expect(dock.secondary, isEmpty);
+      expect(dock.muted.map((a) => a.tooltip).toList(), ['删除']);
+      expect(dock.muted.every((a) => a.onTap != null), isTrue);
+    });
+
+    testWidgets('loading 恒渲染 dock:全动作禁用(操作锚点恒定)', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      final completer = Completer<dartz.Either<Failure, BudgetView>>();
+      when(() => repo.getBudget(any())).thenAnswer((_) => completer.future);
+
+      await t.pumpWidget(_harness(repo: repo, budget: budget));
+      await t.pump(); // 不 settle(保持 BudgetLoading)。
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(FloatingActionDock), findsOneWidget,
+          reason: 'F59 FR-3:loading 态恒渲染悬浮簇');
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.onTap, isNull, reason: 'loading:主操作禁用');
+      expect(dock.muted.every((a) => a.onTap == null), isTrue,
+          reason: 'loading:淡显组全禁用');
+
+      completer.complete(dartz.Right(budget));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('error 恒渲染 dock:全动作禁用', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      when(() => repo.getBudget(any())).thenAnswer(
+          (_) async => const dartz.Left<Failure, BudgetView>(
+              ServerFailure('读取失败')));
+
+      await t.pumpWidget(_harness(repo: repo, budget: budget));
+      await t.pumpAndSettle();
+
+      expect(find.textContaining('读取失败'), findsOneWidget);
+      expect(find.byType(FloatingActionDock), findsOneWidget,
+          reason: 'F59 FR-3:error 态恒渲染悬浮簇');
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.onTap, isNull, reason: 'error:主操作禁用');
+      expect(dock.muted.every((a) => a.onTap == null), isTrue,
+          reason: 'error:淡显组全禁用');
+    });
+
+    testWidgets('标题注入:加载完成 set(预算名);离开页面 clear', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, budget);
+      final getIt = GetIt.instance;
+      if (!getIt.isRegistered<ShellDetailTitle>()) {
+        getIt.registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+
+      await t.pumpWidget(_harness(repo: repo, budget: budget));
+      await t.pumpAndSettle();
+
+      expect(getIt<ShellDetailTitle>().value, '日常开销',
+          reason: '加载完成 → 预算名注入顶栏面包屑当前级');
+
+      // 离开页面(unmount → dispose)→ 清理,不残留到后续页面。
+      await t.pumpWidget(const MaterialApp());
+      await t.pump();
+      expect(getIt<ShellDetailTitle>().value, isNull);
+    });
+
+    testWidgets('加载失败不注入标题(顶栏占位由 shell 兜底)', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      when(() => repo.getBudget(any())).thenAnswer(
+          (_) async => const dartz.Left<Failure, BudgetView>(
+              ServerFailure('读取失败')));
+      final getIt = GetIt.instance;
+      if (!getIt.isRegistered<ShellDetailTitle>()) {
+        getIt.registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+
+      await t.pumpWidget(_harness(repo: repo, budget: budget));
+      await t.pumpAndSettle();
+
+      expect(find.textContaining('读取失败'), findsOneWidget);
+      expect(getIt<ShellDetailTitle>().value, isNull);
+    });
   });
 }

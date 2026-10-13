@@ -17,6 +17,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/core/form_leave_gate.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
@@ -500,5 +502,100 @@ void main() {
     // fail-closed 断言:失败后未重提,遇 HoldingLoaded 不得误 pop。
     expect(find.byType(TradeSheetPage), findsOneWidget,
         reason: '提交失败后 _submitted 未复位 → HoldingLoaded 误 pop');
+  });
+
+  // ── F59 FR-5(ADR-3):表单页接线 —— AppBar 退役 + 三级注入 + 离开守卫 ──
+  group('F59 FR-5 表单页接线', () {
+    /// 推入式 harness(form 页 push 于宿主页上,系统返回断言锚点)+ 两 port。
+    Future<void> pumpPushed(WidgetTester t,
+        {List<Security> securities = const []}) async {
+      if (!GetIt.instance.isRegistered<ShellDetailTitle>()) {
+        GetIt.instance
+            .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+      if (!GetIt.instance.isRegistered<FormLeaveGate>()) {
+        GetIt.instance.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
+      }
+      final holdingRepo = _MockHoldingRepo();
+      _stubHoldingRepo(holdingRepo, securities: securities);
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(BlocProvider<HoldingBloc>(
+        create: (_) => HoldingBloc(holdingRepo),
+        child: MaterialApp(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const TradeSheetPage())),
+                  child: const Text('__host__'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await t.tap(find.text('__host__'));
+      await t.pumpAndSettle();
+      await t.pump(const Duration(milliseconds: 50)); // DetailTitleSync 帧回调
+    }
+
+    testWidgets('AppBar 零残留 + 注入串「记录交易」', (t) async {
+      await pumpPushed(t);
+      expect(find.byType(AppBar), findsNothing, reason: '自带 AppBar 导航退役');
+      expect(GetIt.instance<ShellDetailTitle>().value, '记录交易');
+    });
+
+    testWidgets('净态:系统返回直放零弹框', (t) async {
+      await pumpPushed(t);
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing, reason: '净态零摩擦');
+      expect(find.text('__host__'), findsOneWidget);
+    });
+
+    testWidgets('脏态:首改(数量)后系统返回弹确认,放弃后净放', (t) async {
+      await pumpPushed(t);
+      await t.enterText(find.byKey(const ValueKey('qtyField')), '100');
+      await t.pumpAndSettle();
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget);
+      await t.tap(find.text('继续编辑'));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('qtyField')), findsOneWidget);
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(find.text('__host__'), findsOneWidget, reason: '「放弃修改」放行离开');
+    });
+
+    testWidgets('脏态:面包屑 page 级 veto(gate.mayLeave)同弹确认;dispose 清注入',
+        (t) async {
+      await pumpPushed(t);
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue,
+          reason: '净态直放');
+      await t.enterText(find.byKey(const ValueKey('qtyField')), '100');
+      await t.pumpAndSettle();
+      final leave = GetIt.instance<FormLeaveGate>().mayLeave();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget, reason: '面包屑路径同守卫');
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(await leave, isTrue);
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull,
+          reason: 'dispose 清注入标题');
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue);
+    });
   });
 }

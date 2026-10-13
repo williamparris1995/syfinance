@@ -13,9 +13,10 @@
 //      (Savings/DebtPayoff 兜底,即使有自动贡献也允许手动记一笔。)
 //   ④ 趋势曲线占位卡:Text「趋势曲线 Phase 2」(本 task 不画曲线,Phase 2 接 snapshot
 //      + fl_chart,对齐 OD 原型 trendCard 占位)。
-//   ⑤ AppBar actions:完成(CompleteGoalRequested)+ 删除(确认 dialog →
-//      DeleteGoalRequested → pop 回列表)+ 复制(CloneGoalRequested)+ 编辑
-//      (push '/goals/:id/edit')。
+//   ⑤ 操作(F59 FR-4 迁移,AppBar 退役):右下悬浮簇 —— 完成(金圆 primary,
+//      checkCircle;已完成态禁用)+ 编辑(secondary)→ push '/goals/:id/edit'
+//      + 复制/删除(muted 淡显)。底部 actionRow(记一笔贡献+标记完成)不属
+//      AppBar 处置范围,原样保留(零功能丢失)。
 //
 // 账户/债务 name lookup 简化(brief:account name lookup defer):显 id 占位,真名
 // lookup 后续接入。
@@ -32,12 +33,14 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
@@ -78,6 +81,14 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
     context.read<GoalBloc>().add(LoadDetailRequested(widget.id));
   }
 
+  @override
+  void dispose() {
+    // F59 FR-2:离开详情页清理注入标题(双保险之一;另一道 = AppShell
+    // location-diff scrubber)。guarded getIt:测试 harness 未注册 port 时静默跳过。
+    scheduleDetailTitleClear();
+    super.dispose();
+  }
+
   /// 并行 fetch account + debt list → 返 (accountMap, debtMap)。
   /// 任一失败 → 对应 map 为空(关联卡回退 #id)。永不 throw。
   Future<_NameMaps> _lookupNames() async {
@@ -111,58 +122,47 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    // F59 FR-4:自带 AppBar(标题条 + 编辑/复制/删除 actions)整条退役 ——
+    // 导航语义移交全局 _TopBar 三段面包屑(page 级可点回退);原 actions
+    // 加完成动作全量迁入右下悬浮簇(见 [_dock],零功能丢失)。底部 actionRow
+    //(记一笔贡献 + 标记完成)不在 AppBar 处置范围,原样保留。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        backgroundColor: context.yucai.surface,
-        foregroundColor: context.yucai.fg,
-        elevation: 0,
-        leading: BackButton(onPressed: () => context.pop()),
-        title: const Text('目标详情'),
-        actions: [
-          // 编辑(lucide pencil)→ push '/goals/:id/edit'。
-          IconButton(
-            key: const ValueKey('goalEditAction'),
-            tooltip: '编辑',
-            icon: const Icon(LucideIcons.pencil, size: 18),
-            onPressed: () => context.push('/goals/${widget.id}/edit'),
+      body: Stack(
+        children: [
+          BlocBuilder<GoalBloc, GoalState>(
+            builder: (context, state) {
+              if (state is GoalLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state is GoalDetailLoaded) {
+                return Stack(
+                  children: [
+                    _body(state.goal),
+                    // 目标名经帧回调幂等注入顶栏当前级;放滚动容器外
+                    //(深滚动时 ListView 子项可能离树,不可依赖)。
+                    DetailTitleSync(title: state.goal.name),
+                  ],
+                );
+              }
+              if (state is GoalError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Text(state.message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: context.yucai.muted)),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
-          // 复制(lucide copy)→ CloneGoalRequested。
-          IconButton(
-            key: const ValueKey('goalCloneAction'),
-            tooltip: '复制目标',
-            icon: const Icon(LucideIcons.copy, size: 18),
-            onPressed: _onClone,
-          ),
-          // 删除(lucide trash2)→ confirm dialog → dispatch + pop。
-          IconButton(
-            key: const ValueKey('goalDeleteAction'),
-            tooltip: '删除',
-            icon: const Icon(LucideIcons.trash2, size: 18),
-            onPressed: _confirmDelete,
-          ),
+          // F59 FR-1:右下角常驻竖排悬浮簇(28 边距;Scaffold body 底界在
+          // bottomNavigationBar 之上,不与底部 actionRow 重叠;loading/error
+          // 恒渲染全禁用 —— 操作锚点恒定)。
+          Positioned(right: 28, bottom: 28, child: _dock()),
         ],
-      ),
-      body: BlocBuilder<GoalBloc, GoalState>(
-        builder: (context, state) {
-          if (state is GoalLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is GoalDetailLoaded) {
-            return _body(state.goal);
-          }
-          if (state is GoalError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Text(state.message,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: context.yucai.muted)),
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        },
       ),
       // 底部操作栏(对齐 OD 原型 actionRow):完成 + 手动记贡献。
       // 完成按钮仅在未完成时显示;完成后禁用。
@@ -222,14 +222,63 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
     );
   }
 
+  /// F59 FR-4 悬浮簇操作映射(goal 语义,用户裁定 A:完成进金圆):
+  ///  - primary 标记完成:CompleteGoalRequested(该页最有价值动作;
+  ///    已完成态禁用 —— 操作不缺席,仅降权);
+  ///  - secondary 编辑:push `/goals/:id/edit`;
+  ///  - muted 复制/删除:CloneGoalRequested / 确认 dialog → 删除(低频/危险
+  ///    淡显,删除渲染置顶离主钮最远)。
+  /// 非 loaded 态(loading/error)全禁用。
+  Widget _dock() {
+    return BlocBuilder<GoalBloc, GoalState>(
+      builder: (context, state) {
+        final goal = state is GoalDetailLoaded ? state.goal : null;
+        final loaded = goal != null;
+        return FloatingActionDock(
+          primary: DockAction(
+            icon: LucideIcons.checkCircle2,
+            tooltip: '标记完成',
+            onTap: (loaded && !goal.isCompleted) ? _onComplete : null,
+          ),
+          secondary: [
+            DockAction(
+              icon: LucideIcons.pencil,
+              tooltip: '编辑',
+              onTap: loaded
+                  ? () => context.push('/goals/${widget.id}/edit')
+                  : null,
+            ),
+          ],
+          muted: [
+            DockAction(
+              icon: LucideIcons.copy,
+              tooltip: '复制目标',
+              onTap: loaded ? _onClone : null,
+            ),
+            DockAction(
+              icon: LucideIcons.trash2,
+              tooltip: '删除',
+              onTap: loaded ? _confirmDelete : null,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // ───────────────────────── body(① 头部 + ② 关联 + ④ 趋势占位) ─────────────────────────
 
   Widget _body(GoalView g) {
     final isMobile = MediaQuery.of(context).size.width <= 720;
     return ListView(
+      // F59 FR-1:底部留白按钮数算 —— 满配簇高 225(完成 52 + 间距 10 +
+      // 编辑 44 + 间距 10 + 分隔线 1 + 间距 10 + 复制 44 + 间距 10 + 删除 44)
+      // + 底边距 28 + 净空 54 = 307(末屏关键信息不被簇遮挡;Scaffold body
+      // 底界在 bottomNavigationBar 之上,与 actionRow 无叠);顶部 14/16 =
+      // AppBar 64px 让位后的呼吸位(8-16)。
       padding: isMobile
-          ? const EdgeInsets.fromLTRB(16, 14, 16, 32)
-          : const EdgeInsets.fromLTRB(36, 24, 36, 32),
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 307)
+          : const EdgeInsets.fromLTRB(36, 16, 36, 307),
       children: [
         Center(
           child: ConstrainedBox(

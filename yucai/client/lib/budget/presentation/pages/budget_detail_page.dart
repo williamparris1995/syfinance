@@ -7,8 +7,9 @@
 //      Name + Month + status pill + TotalActual/TotalAmount + Remaining + UsagePct。
 //   ② per-item 列表(表格风格):category 账户名 + Planned + Actual + mini 进度条 +
 //      占比% + 剩余/超支 + 超支 tag。
-//   ③ AppBar actions:编辑(lucide pencil)→ push '/budgets/:id/edit';
-//      删除(lucide trash2)→ confirm dialog → dispatch + pop。
+//   ③ 操作(F59 FR-4 迁移,AppBar 退役):右下悬浮簇 —— 编辑(金圆 primary)
+//      → push '/budgets/:id/edit';删除(muted 淡显)→ confirm dialog →
+//      dispatch + pop。
 //
 // account name lookup 简化(brief Step 2):BudgetItemView.accountName 由 ds 在
 // mapper 时填(需 batch account repo lookup)—— defer;MVP 显
@@ -25,6 +26,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
@@ -32,6 +34,7 @@ import 'package:yucai_client/budget/presentation/bloc/budget_state.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 
 // F4-P2:超支红原 brief 色 #C0392B 已语义令牌化 → context.yucai.negative
@@ -58,53 +61,83 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
   }
 
   @override
+  void dispose() {
+    // F59 FR-2:离开详情页清理注入标题(双保险之一;另一道 = AppShell
+    // location-diff scrubber)。guarded getIt:测试 harness 未注册 port 时静默跳过。
+    scheduleDetailTitleClear();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // F59 FR-4:自带 AppBar(标题条 + 编辑/删除 actions)整条退役 —— 导航语义
+    // 移交全局 _TopBar 三段面包屑(page 级可点回退);原 actions 全量迁入右下
+    // 悬浮簇(见 [_dock],零功能丢失)。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        backgroundColor: context.yucai.surface,
-        foregroundColor: context.yucai.fg,
-        elevation: 0,
-        leading: BackButton(onPressed: () => context.pop()),
-        title: const Text('预算详情'),
-        actions: [
-          // 编辑(lucide pencil)→ push '/budgets/:id/edit'。
-          IconButton(
-            key: const ValueKey('budgetEditAction'),
-            tooltip: '编辑',
-            icon: const Icon(LucideIcons.pencil, size: 18),
-            onPressed: () => context.push('/budgets/${widget.id}/edit'),
+      body: Stack(
+        children: [
+          BlocBuilder<BudgetBloc, BudgetState>(
+            builder: (context, state) {
+              if (state is BudgetLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state is BudgetDetailLoaded) {
+                return Stack(
+                  children: [
+                    _body(state.budget),
+                    // 预算名经帧回调幂等注入顶栏当前级;放滚动容器外
+                    //(深滚动时 ListView 子项可能离树,不可依赖)。
+                    DetailTitleSync(title: state.budget.name),
+                  ],
+                );
+              }
+              if (state is BudgetError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Text(state.message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: context.yucai.muted)),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
-          // 删除(lucide trash2)→ confirm dialog → dispatch + pop。
-          IconButton(
-            key: const ValueKey('budgetDeleteAction'),
-            tooltip: '删除',
-            icon: const Icon(LucideIcons.trash2, size: 18),
-            onPressed: _confirmDelete,
-          ),
+          // F59 FR-1:右下角常驻竖排悬浮簇(28 边距,不随页面滚动移动;
+          // loading/error 恒渲染全禁用 —— 操作锚点恒定)。
+          Positioned(right: 28, bottom: 28, child: _dock()),
         ],
       ),
-      body: BlocBuilder<BudgetBloc, BudgetState>(
-        builder: (context, state) {
-          if (state is BudgetLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is BudgetDetailLoaded) {
-            return _body(state.budget);
-          }
-          if (state is BudgetError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Text(state.message,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: context.yucai.muted)),
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        },
-      ),
+    );
+  }
+
+  /// F59 FR-4 悬浮簇操作映射(budget 语义):
+  ///  - primary 编辑:push `/budgets/:id/edit`(原 AppBar 编辑钮原样);
+  ///  - muted 删除:原 AppBar 删除钮 → [_confirmDelete](低频/危险,淡显置顶)。
+  /// 非 loaded 态(loading/error)全禁用(操作不缺席,仅降权)。
+  Widget _dock() {
+    return BlocBuilder<BudgetBloc, BudgetState>(
+      builder: (context, state) {
+        final loaded = state is BudgetDetailLoaded;
+        return FloatingActionDock(
+          primary: DockAction(
+            icon: LucideIcons.pencil,
+            tooltip: '编辑',
+            onTap: loaded
+                ? () => context.push('/budgets/${widget.id}/edit')
+                : null,
+          ),
+          muted: [
+            DockAction(
+              icon: LucideIcons.trash2,
+              tooltip: '删除',
+              onTap: loaded ? _confirmDelete : null,
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -113,9 +146,12 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
   Widget _body(BudgetView b) {
     final isMobile = MediaQuery.of(context).size.width <= 720;
     return ListView(
+      // F59 FR-1:底部留白按钮数算 —— 满配簇高 117(编辑 52 + 间距 10 +
+      // 分隔线 1 + 间距 10 + 删除 44)+ 底边距 28 + 净空 54 = 199(末屏
+      // 关键信息不被簇遮挡);顶部 14/16 = AppBar 64px 让位后的呼吸位(8-16)。
       padding: isMobile
-          ? const EdgeInsets.fromLTRB(16, 14, 16, 32)
-          : const EdgeInsets.fromLTRB(36, 24, 36, 32),
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 199)
+          : const EdgeInsets.fromLTRB(36, 16, 36, 199),
       children: [
         Center(
           child: ConstrainedBox(

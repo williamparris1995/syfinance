@@ -36,6 +36,26 @@ import 'package:yucai_client/core/theme/app_design.dart';
     // 模板页的「新建模板」表单(订阅 = 周期支出模板)。
     return (section: '交易', page: '订阅管理', rootPath: '/accounts/subscriptions', createLabel: '新建订阅', createRoute: '/accounts/templates');
   }
+  // F59 FR-6/ADR-2:工具页 location 覆盖 —— 分类管理/标签/周期模板在
+  // 交易语义域(与侧栏「交易」组同源);本地备份属系统域(settings
+  // branch)。覆盖后 hideTopBar 退役(/categories 专属 topbar 隐藏特例
+  // 移除),全局 _TopBar 恒在;页面自带 header 的 crumb 部分退役
+  // (T5 线),h1/操作钮保留为内容头。rootPath 取页面自身路径(page 级
+  // 面包屑 tap = 回本页 root,无列表回退语义)。
+  if (location == '/categories') {
+    return (section: '交易', page: '分类管理', rootPath: '/categories', createLabel: null, createRoute: null);
+  }
+  if (location == '/settings/tags' || location.startsWith('/settings/tags/')) {
+    return (section: '交易', page: '标签', rootPath: '/settings/tags', createLabel: null, createRoute: null);
+  }
+  if (location == '/settings/templates' ||
+      location.startsWith('/settings/templates/')) {
+    return (section: '交易', page: '周期模板', rootPath: '/settings/templates', createLabel: null, createRoute: null);
+  }
+  if (location == '/settings/backup' || location.startsWith('/settings/backup/')) {
+    // 备份族(列表页 + auto 配置子页)同口径「系统 › 本地备份」。
+    return (section: '系统', page: '本地备份', rootPath: '/settings/backup', createLabel: null, createRoute: null);
+  }
   switch (index) {
     case 0:
       return (section: '', page: '仪表盘', rootPath: '/home', createLabel: null, createRoute: null);
@@ -117,24 +137,67 @@ bool _isDetailShapedLocation(String location) {
   return RegExp(r'[0-9]').hasMatch(last);
 }
 
-/// detail 形态 location 的实体 key(path 口径,忽略 query);非 detail
-/// 形态返回 null(与 [_isDetailShapedLocation] 同一套解析,scrubber 清零
-/// 条件用)。
-String? _detailKeyOf(String location) =>
-    _isDetailShapedLocation(location) ? location.split('?').first : null;
+/// F59 FR-5(T4):表单形态路由判定 —— 六表单族(debt/receivable/account/
+/// budget/goal 表单 + trade_sheet)的 new/edit 路由形态,面包屑第三段
+/// 「当前级」的显隐依据(与 detail 形态同消费面):
+/// - 三段 new:`/debts/new`、`/budgets/new`… + `/holdings/new`(trade_sheet);
+/// - 三段 trade:`/holdings/trade`(trade_sheet 的语义化入口);
+/// - 四段 edit:`/debts/:id/edit` 等(account 表单暂无路由,client 创建
+///   入口为页面内 push —— 家族成员仍预置,路由补全即生效)。
+/// 第三级标题由表单页经 DetailTitleSync 注入(新增=「新建X」/编辑=「编辑 ·
+/// 实体名」,加载中 shell 侧占位「…」)。transaction 表单不属 F59 六表单族
+/// (ADR-2 扫页表外),维持两段口径。
+bool _isFormShapedLocation(String location) {
+  final segments = location.split('?').first.split('/');
+  switch (segments.length) {
+    case 3: // ['', 分支, 'new'|'trade']
+      final branch = segments[1];
+      if (segments[2] == 'new') {
+        switch (branch) {
+          case 'debts':
+          case 'receivables':
+          case 'accounts':
+          case 'budgets':
+          case 'goals':
+          case 'holdings':
+            return true;
+        }
+        return false;
+      }
+      return segments[2] == 'trade' && branch == 'holdings';
+    case 4: // ['', 分支, :id, 'edit']
+      if (segments[3] != 'edit') return false;
+      switch (segments[1]) {
+        case 'debts':
+        case 'receivables':
+        case 'accounts':
+        case 'budgets':
+        case 'goals':
+          return true;
+      }
+      return false;
+    default:
+      return false;
+  }
+}
 
-/// 分类管理页(/categories)用专属 OD 风格 topbar(crumb + h1 + sub + 导入模板 +
-/// 新建分类),全局 _TopBar 隐藏。分类管理位于 transactions branch 内,但
-/// branch 元数据为「交易管理」,面包屑会失真;且 OD topbar 富含操作按钮
-/// (导入模板/新建),非 shell topbar 可表达。
-/// F58 FR-6:receivable detail 特例已移除(债权详情回归全局 _TopBar 承载
-/// 全路径面包屑),本判定为唯一遗留的顶栏隐藏特例。
-bool _isCategoryManagement(String location) => location == '/categories';
+/// 第三级「当前级」location 的实体 key(path 口径,忽略 query);非 detail/
+/// 表单形态返回 null(与 [_isDetailShapedLocation]/[_isFormShapedLocation]
+/// 同一套解析,scrubber 清零条件用)。F59 T4 起 key 口径从 detail-only 扩到
+/// detail+form:表单→表单/详情→表单切换同样按 key 清零,旧标题不串台。
+String? _crumbKeyOf(String location) {
+  final path = location.split('?').first;
+  return (_isDetailShapedLocation(path) || _isFormShapedLocation(path))
+      ? path
+      : null;
+}
 
-/// 订阅管理页(/accounts/templates):accounts branch 子路由,与 /categories
-/// 同为 branch 内自定义路由,但页面自带 header 只是「周期模板」+ 返回的轻条,
-/// 全局 _TopBar 保留(离线/同步徽章与顶栏搜索不丢)—— 面包屑按 location
-/// 覆盖 branch 元数据(见 _branchMetaOf),否则顶部残留「财务 › 账户管理」。
+/// 订阅管理页(/accounts/templates):accounts branch 子路由,branch 内自定义
+/// 路由的先例 —— 全局 _TopBar 保留(离线/同步徽章与顶栏搜索不丢),面包屑
+/// 按 location 覆盖 branch 元数据(见 _branchMetaOf),否则顶部残留
+/// 「财务 › 账户管理」。F59 FR-6:_isCategoryManagement(/categories 专属
+/// topbar 隐藏)特例已退役 —— 分类管理与标签/周期模板/本地备份同走
+/// location 覆盖(见 _branchMetaOf 工具页覆盖段),全局 _TopBar 恒在。
 bool _isSubscriptionManagement(String location) =>
     location == '/accounts/templates' ||
     location.startsWith('/accounts/templates/') ||
@@ -155,9 +218,9 @@ class AppShell extends StatelessWidget {
     final auth = context.watch<AuthBloc>().state;
     final userName = auth is Authenticated ? auth.user.displayName : '御财用户';
     final location = GoRouterState.of(context).uri.toString();
-    // 分类管理 用专属 topbar,隐藏全局 _TopBar(F58 FR-6:receivable detail
-    // 特例已移除,债权详情回归全局 _TopBar 承载全路径面包屑)。
-    final hideTopBar = _isCategoryManagement(location);
+    // F59 FR-6:_isCategoryManagement 隐藏特例已退役 —— 全局 _TopBar 恒在,
+    // 分类管理/标签/周期模板/本地备份的面包屑由 location 覆盖承载(见
+    // _branchMetaOf);宽/窄两形态无顶栏特判。
     // v2 主题语义令牌(R8 F1):亮=晨白 / 暗=墨鎏金。
     final t = context.yucai;
 
@@ -195,13 +258,11 @@ class AppShell extends StatelessWidget {
                                   : IntegrityBanner(message: message),
                             )
                           : const SizedBox.shrink(),
-                      if (!hideTopBar)
-                        _TopBar(
-                          branchIndex: navigationShell.currentIndex,
-                          location: location,
-                        ),
-                      if (!hideTopBar)
-                        Divider(height: 1, color: t.border),
+                      _TopBar(
+                        branchIndex: navigationShell.currentIndex,
+                        location: location,
+                      ),
+                      Divider(height: 1, color: t.border),
                       Expanded(child: navigationShell),
                     ],
                   ),
@@ -210,19 +271,17 @@ class AppShell extends StatelessWidget {
             ),
           );
         }
-        // 窄屏：底部导航 + 简化顶栏
+        // 窄屏：底部导航 + 简化顶栏(F59 FR-6:无 hideTopBar 特判,恒挂载)
         return Scaffold(
           backgroundColor: t.bg,
-          appBar: hideTopBar
-              ? null
-              : PreferredSize(
-                  preferredSize: const Size.fromHeight(56),
-                  child: _TopBar(
-                    branchIndex: navigationShell.currentIndex,
-                    location: location,
-                    compact: true,
-                  ),
-                ),
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(56),
+            child: _TopBar(
+              branchIndex: navigationShell.currentIndex,
+              location: location,
+              compact: true,
+            ),
+          ),
           body: navigationShell,
           bottomNavigationBar: _BottomNav(
             currentIndex: navigationShell.currentIndex,
@@ -268,10 +327,10 @@ class AppShell extends StatelessWidget {
             child: shell,
           )
         : shell;
-    // F58 ADR-1 安全网(M2 精确清零):detail 形态 key 变更才清
-    // ShellDetailTitle(页面 dispose clear 之外的第二道保险);非 detail
-    // 停留不清值 —— 跨分支 push 再 pop 回原 detail 时标题自动恢复。包在
-    // 最外层,宽/窄两形态与 hideTopBar 页恒参与追踪。
+    // F58 ADR-1 安全网(M2 精确清零):第三级形态(detail/表单)key 变更才清
+    // ShellDetailTitle(页面 dispose clear 之外的第二道保险);非第三级
+    // 停留不清值 —— 跨分支 push 再 pop 回原页时标题自动恢复。包在
+    // 最外层,宽/窄两形态恒参与追踪。
     final scrubbed = _DetailTitleScrubber(location: location, child: wrapped);
     // ⑨ 导航增强 B:Ctrl+K 全局命令面板挂载(Shortcuts/Actions + 遮罩
     // Stack),包裹整个 shell(宽/窄两形态均可唤起)。
@@ -338,17 +397,18 @@ class _ShellCommandSurfaceState extends State<_ShellCommandSurface> {
   }
 }
 
-/// F58 ADR-1 安全网(精确清零,M2):仅当**新 location 为 detail 形态且
-/// 实体 key 与上一个 detail 形态 location 不同**时才清 [ShellDetailTitle]。
-/// - detail→detail(key 变):清零 —— 新实体标题未注入前显占位「…」,
-///   旧实体标题不串台;
-/// - 新 location 非 detail 形态(列表/表单/其他分支):**不清值** —— 非
-///   detail 形态不消费第三段(_isDetailShapedLocation=false 不渲染),
-///   值残留无视觉泄漏;跨分支 push(如账户详情 → /transactions)再 pop
-///   回原 detail 页时页面无加载事件重发,标题靠 port 保留值自动恢复
-///   (否则永停「…」);回同一 detail(key 同)亦不清 → 恢复。
-/// 挂在 AppShell 最外层(宽/窄两形态恒在树;hideTopBar 页无 _TopBar
-/// 也能参与 key 追踪)。didUpdateWidget 经 location 字段 diff:AppShell
+/// F58 ADR-1 安全网(精确清零,M2;F59 T4 扩 key 口径):仅当**新 location
+/// 为第三级形态(detail/表单)且实体 key 与上一个第三级形态 location 不同**
+/// 时才清 [ShellDetailTitle]。
+/// - key 变(detail→detail / detail→form / form→form):清零 —— 新页面标题
+///   未注入前显占位「…」,旧标题不串台(F59:表单页注入「新建X」/「编辑 ·
+///   实体名」前的清零窗同此);
+/// - 新 location 非第三级形态(列表/其他分支):**不清值** —— 非第三级
+///   形态不消费第三段,值残留无视觉泄漏;跨分支 push(如账户详情 →
+///   /transactions)再 pop 回原 detail 页时页面无加载事件重发,标题靠 port
+///   保留值自动恢复(否则永停「…」);回同一 key 亦不清 → 恢复。
+/// 挂在 AppShell 最外层(宽/窄两形态恒在树,无顶栏特判也能参与 key 追踪)。
+/// didUpdateWidget 经 location 字段 diff:AppShell
 /// .build 依赖 GoRouterState(location 变化必重建)→ 本 widget 随之换新
 /// → 先于子树(_TopBar 的 ValueListenableBuilder)重建前完成清零,
 /// 同帧不闪旧值。
@@ -363,27 +423,27 @@ class _DetailTitleScrubber extends StatefulWidget {
 }
 
 class _DetailTitleScrubberState extends State<_DetailTitleScrubber> {
-  /// 上一个 detail 形态 location 的实体 key(path 口径);null = 尚未
-  /// 经过 detail。非 detail 停留不改写本值(返回原 detail 的 key 比较
+  /// 上一个第三级形态 location 的实体 key(path 口径);null = 尚未
+  /// 经过第三级页。非第三级停留不改写本值(返回原页的 key 比较
   /// 仍成立)。
-  String? _lastDetailKey;
+  String? _lastCrumbKey;
 
   @override
   void initState() {
     super.initState();
-    _lastDetailKey = _detailKeyOf(widget.location);
+    _lastCrumbKey = _crumbKeyOf(widget.location);
   }
 
   @override
   void didUpdateWidget(covariant _DetailTitleScrubber oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.location == oldWidget.location) return;
-    final key = _detailKeyOf(widget.location);
-    if (key == null) return; // 非 detail 形态:不清值(视觉零泄漏 + 返回恢复)
-    if (key != _lastDetailKey && getIt.isRegistered<ShellDetailTitle>()) {
+    final key = _crumbKeyOf(widget.location);
+    if (key == null) return; // 非第三级形态:不清值(视觉零泄漏 + 返回恢复)
+    if (key != _lastCrumbKey && getIt.isRegistered<ShellDetailTitle>()) {
       getIt<ShellDetailTitle>().clear();
     }
-    _lastDetailKey = key;
+    _lastCrumbKey = key;
   }
 
   @override
@@ -1100,22 +1160,24 @@ class _TopBar extends StatelessWidget {
     // 创建按钮仅 list 页显(location == rootPath;detail/form/new/edit 不显)。
     final showCreate = meta.createLabel != null && location == meta.rootPath;
 
-    // F58 FR-2:detail 形态显第三段「当前级」—— 标题经 ShellDetailTitle
-    // port 消费(detail 页加载完成 set;加载中/失败 = null → 占位「…」,
-    // 不阻塞 page 级回退);非 detail 形态不显第三段(port 保留值亦不
-    // 渲染 —— 离开 detail 后标题无视觉泄漏,往返恢复靠 scrubber 语义)。
-    // guarded getIt(照 IntegrityBanner 先例):stripped 测试 harness 未
-    // 注册 port 时退化为静态 null(占位仍按形态呈现,只是不随注入更新)。
+    // F58 FR-2 + F59 FR-5:第三级「当前级」显隐 = detail 形态 ∪ 表单形态
+    // (六表单族 new/edit 路由)。标题经 ShellDetailTitle port 消费(detail
+    // 页加载完成 / 表单页构建即 set;加载中/失败 = null → 占位「…」,不阻塞
+    // page 级回退);非第三级形态不显第三段(port 保留值亦不渲染 —— 离开
+    // 后标题无视觉泄漏,往返恢复靠 scrubber 语义)。guarded getIt(照
+    // IntegrityBanner 先例):stripped 测试 harness 未注册 port 时退化为静态
+    // null(占位仍按形态呈现,只是不随注入更新)。
     final titlePort = getIt.isRegistered<ShellDetailTitle>()
         ? getIt<ShellDetailTitle>()
         : null;
-    final isDetail = _isDetailShapedLocation(location);
+    final hasCurrentLevel =
+        _isDetailShapedLocation(location) || _isFormShapedLocation(location);
     final crumbs = titlePort == null
         ? _BreadCrumb(
             section: meta.section,
             page: meta.page,
             rootPath: meta.rootPath,
-            current: isDetail ? '…' : null,
+            current: hasCurrentLevel ? '…' : null,
           )
         : ValueListenableBuilder<String?>(
             valueListenable: titlePort,
@@ -1123,7 +1185,7 @@ class _TopBar extends StatelessWidget {
               section: meta.section,
               page: meta.page,
               rootPath: meta.rootPath,
-              current: isDetail ? (title ?? '…') : null,
+              current: hasCurrentLevel ? (title ?? '…') : null,
             ),
           );
 

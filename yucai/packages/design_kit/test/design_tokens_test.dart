@@ -3,6 +3,8 @@
 //   copyWith —— 不传保留、显式传空可清;
 //   lerp     —— 逐项插值,长度不齐取短;
 //   ==/hashCode 感知新字段。
+// F59 ADR-1 增补:dimmedOpacity(淡显/禁用共用降权透明度)——
+//   向后兼容缺省 0.45;copyWith 不传保留;lerp 线性;== 感知差异。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,8 +23,10 @@ void main() {
     );
     expect(tokens.accentGradient, isEmpty);
     expect(tokens.actionShadow, isEmpty);
+    expect(tokens.dimmedOpacity, 0.45, reason: 'F59:淡显/禁用降权透明度缺省 0.45');
     expect(DesignTokens.light.accentGradient, isEmpty);
     expect(DesignTokens.light.actionShadow, isEmpty);
+    expect(DesignTokens.light.dimmedOpacity, 0.45);
   });
 
   test('copyWith:不传保留既有字段与新字段,显式传空可清空', () {
@@ -34,10 +38,15 @@ void main() {
     expect(withGradient.copyWith().accentGradient, grad, reason: '不传=保留');
     expect(withGradient.copyWith(accentGradient: []).accentGradient, isEmpty,
         reason: '显式空列表可清空');
+    expect(base.copyWith(dimmedOpacity: 0.3).dimmedOpacity, 0.3,
+        reason: 'F59:dimmedOpacity 可注入覆盖');
+    expect(base.copyWith().dimmedOpacity, base.dimmedOpacity,
+        reason: 'F59:不传 = 保留');
   });
 
   test('lerp:颜色/阴影逐项插值,长度不齐取短', () {
     final a = DesignTokens.light.copyWith(
+      dimmedOpacity: 0.2,
       accentGradient: const [Color(0xFF000000), Color(0xFF000000)],
       actionShadow: const [
         BoxShadow(color: Color(0xFF112233), offset: Offset(0, 2), blurRadius: 4),
@@ -45,6 +54,7 @@ void main() {
       ],
     );
     final b = DesignTokens.light.copyWith(
+      dimmedOpacity: 0.6,
       accentGradient: const [Color(0xFFFFFFFF)],
       actionShadow: const [
         BoxShadow(color: Color(0xFF332211), offset: Offset(0, 6), blurRadius: 8),
@@ -61,6 +71,8 @@ void main() {
       mid.actionShadow[0],
       BoxShadow.lerp(a.actionShadow[0], b.actionShadow[0], 0.5),
     );
+    // F59:透明度线性插值 0.2 → 0.6 的中点 = 0.4
+    expect(mid.dimmedOpacity, closeTo(0.4, 1e-9));
   });
 
   test('lerp:两侧皆空保持空;other 非 DesignTokens 返回 this', () {
@@ -81,5 +93,9 @@ void main() {
     final b = DesignTokens.light.copyWith(
         actionShadow: const [BoxShadow(color: Color(0x33000000))]);
     expect(b == DesignTokens.light, isFalse);
+
+    final c = DesignTokens.light.copyWith(dimmedOpacity: 0.4);
+    expect(c == DesignTokens.light, isFalse, reason: 'F59:dimmedOpacity 感知差异');
+    expect(c.hashCode == DesignTokens.light.hashCode, isFalse);
   });
 }

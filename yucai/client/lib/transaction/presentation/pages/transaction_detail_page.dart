@@ -13,6 +13,7 @@ import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/tag/domain/tag_color.dart';
@@ -27,12 +28,15 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 /// 交易详情页（Task 3.2 + OD detail 对齐）。
 ///
 /// OD `detail-transaction.html` 三栏 + 同分类近期：
-///   - **page-head**:返回链接 + h1(交易名) + 编辑 btn-primary(gold) + 更多 menu。
+///   - **page-head**:h1(交易名)。F59 FR-4:编辑金色主钮 + 更多菜单迁入右下
+///     悬浮簇(编辑 primary + 复制/删除 muted;占位 toast 菜单项随菜单退场);
+///     FR-7:返回链接退役,page 级回退统一走全局顶栏面包屑。
 ///   - **col1 交易概要**:大金额(¥ + 42px mono + chip) + TX-id + meta-list
 ///     (交易日期/支付方式/备注/对账状态)。OD meta-list **无「描述」行**(描述
 ///     即 h1 标题,不重复);「标签」行由 initState 并发 GetTransactionTags 渲染。
 ///   - **col2 复式分录**:[JournalEntry] 借/贷 + 借贷平衡 + 会计等式 explainer。
-///   - **col3 快捷操作**:qa-items(编辑/复制/查看账单/删除[danger])。
+///   - **col3 快捷操作**:qa-items(编辑/复制/查看账单/删除[danger])—— 内容卡
+///     (非导航 chrome),保留。
 ///   - **同分类近期交易**:rel-list(per-category lucide icon + 名称/日期/金额)。
 ///
 /// CRUD:删除走 [DeleteTransactionRequested]（bloc → repo.delete + 余额冲销）；
@@ -75,6 +79,9 @@ class _TransactionDetailPageState extends State<TransactionDetailPage>
 
   @override
   void dispose() {
+    // F59 FR-2:离开详情页清理注入标题(双保险之一;另一道 = AppShell
+    // location-diff scrubber)。guarded getIt:测试 harness 未注册 port 时静默跳过。
+    scheduleDetailTitleClear();
     transactionsRouteObserver.unsubscribe(this);
     super.dispose();
   }
@@ -147,66 +154,157 @@ class _TransactionDetailPageState extends State<TransactionDetailPage>
 
   @override
   Widget build(BuildContext context) {
+    // F59 FR-4:page-head 编辑金钮 + 更多菜单退役 → 右下悬浮簇(见 [_dock]);
+    // 恒渲染:loading/error/deleting 态簇仍在,全动作禁用(操作锚点恒定)。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      body: BlocConsumer<TransactionBloc, TransactionState>(
-        listenWhen: (p, c) =>
-            c is TransactionDeleted || c is TransactionDetailError,
-        listener: (context, state) {
-          if (state is TransactionDeleted) {
-            AppToast.show(context, '已删除', type: ToastType.success);
-            // 跨页刷新:删除已持久化,仪表盘/账户列表等驻留页重拉页面级缓存
-            // (与表单保存成功同一通知器,照设置页导入存档 bump 先例)。
-            GetIt.instance<DataRefreshNotifier>().bump();
-            // pop with true so the originating list refreshes (OD detail 删除后回列表)。
-            // GoRouter.maybeOf 让本页在无 GoRouter 的测试 harness 里也不抛。
-            final router = GoRouter.maybeOf(context);
-            if (router != null) {
-              router.pop(true);
-            } else {
-              Navigator.of(context).maybePop(true);
-            }
-          } else if (state is TransactionDetailError) {
-            AppToast.show(context, state.message, type: ToastType.error);
-          }
-        },
-        buildWhen: (p, c) =>
-            c is TransactionDetailLoading ||
-            c is TransactionDetailLoaded ||
-            c is TransactionDetailError ||
-            c is TransactionDeleting,
-        builder: (context, state) {
-          if (state is TransactionDetailLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is TransactionDetailError) {
-            return _PageShell(child: Center(child: Text(state.message)));
-          }
-          final txn = state is TransactionDetailLoaded
-              ? state.transaction
-              : (state is TransactionDeleting ? state.previous : null);
-          if (txn != null) {
-            return _PageShell(
-              child: _DetailContent(
-                txn: txn,
-                recent: state is TransactionDetailLoaded ? state.recent : const [],
-                isDeleting: state is TransactionDeleting,
-                accountNameOf: _accountNameOf,
-                accountTypeOf: _accountTypeOf,
-                accountOf: _accountOf,
-                tags: _tags,
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        },
+      body: Stack(
+        children: [
+          BlocConsumer<TransactionBloc, TransactionState>(
+            listenWhen: (p, c) =>
+                c is TransactionDeleted || c is TransactionDetailError,
+            listener: (context, state) {
+              if (state is TransactionDeleted) {
+                AppToast.show(context, '已删除', type: ToastType.success);
+                // 跨页刷新:删除已持久化,仪表盘/账户列表等驻留页重拉页面级缓存
+                // (与表单保存成功同一通知器,照设置页导入存档 bump 先例)。
+                GetIt.instance<DataRefreshNotifier>().bump();
+                // pop with true so the originating list refreshes (OD detail 删除后回列表)。
+                // GoRouter.maybeOf 让本页在无 GoRouter 的测试 harness 里也不抛。
+                final router = GoRouter.maybeOf(context);
+                if (router != null) {
+                  router.pop(true);
+                } else {
+                  Navigator.of(context).maybePop(true);
+                }
+              } else if (state is TransactionDetailError) {
+                AppToast.show(context, state.message, type: ToastType.error);
+              }
+            },
+            buildWhen: (p, c) =>
+                c is TransactionDetailLoading ||
+                c is TransactionDetailLoaded ||
+                c is TransactionDetailError ||
+                c is TransactionDeleting,
+            builder: (context, state) {
+              if (state is TransactionDetailLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state is TransactionDetailError) {
+                return _PageShell(child: Center(child: Text(state.message)));
+              }
+              final txn = state is TransactionDetailLoaded
+                  ? state.transaction
+                  : (state is TransactionDeleting ? state.previous : null);
+              if (txn != null) {
+                return Stack(
+                  children: [
+                    _PageShell(
+                      child: _DetailContent(
+                        txn: txn,
+                        recent:
+                            state is TransactionDetailLoaded ? state.recent : const [],
+                        isDeleting: state is TransactionDeleting,
+                        accountNameOf: _accountNameOf,
+                        accountTypeOf: _accountTypeOf,
+                        accountOf: _accountOf,
+                        tags: _tags,
+                      ),
+                    ),
+                    // 交易名经帧回调幂等注入顶栏当前级;放滚动容器外
+                    //(深滚动时 ListView 子项可能离树,不可依赖)。
+                    DetailTitleSync(
+                        title: txn.description.isEmpty ? '(无描述)' : txn.description),
+                  ],
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          // F59 FR-1:右下角常驻竖排悬浮簇(AppSpacing.lg=28 边距,不随页面滚动移动)。
+          Positioned(
+              right: AppSpacing.lg, bottom: AppSpacing.lg, child: _dock()),
+        ],
       ),
     );
+  }
+
+  /// F59 FR-4 悬浮簇操作映射(transaction 语义,原 page-head 操作集平铺):
+  ///  - primary 编辑:push `/transactions/:id/edit`(原金主钮原样);
+  ///  - muted 复制交易:push `/transactions/new` extra 携带源交易
+  ///    (clone-to-new,与 col3 复制同语义);
+  ///  - muted 删除交易:确认 dialog → [DeleteTransactionRequested]
+  ///    (危险项渲染置顶,离主钮最远)。
+  /// 未加载(loading/error)或删除进行中(isDeleting)全禁用。
+  Widget _dock() {
+    return BlocBuilder<TransactionBloc, TransactionState>(
+      buildWhen: (p, c) =>
+          c is TransactionDetailLoading ||
+          c is TransactionDetailLoaded ||
+          c is TransactionDetailError ||
+          c is TransactionDeleting,
+      builder: (context, state) {
+        final txn = state is TransactionDetailLoaded
+            ? state.transaction
+            : (state is TransactionDeleting ? state.previous : null);
+        final enabled = txn != null && state is! TransactionDeleting;
+        return FloatingActionDock(
+          primary: DockAction(
+            icon: LucideIcons.pencil,
+            tooltip: '编辑',
+            onTap: enabled ? () => context.push('/transactions/${txn.id}/edit') : null,
+          ),
+          muted: [
+            DockAction(
+              icon: LucideIcons.copy,
+              tooltip: '复制交易',
+              onTap: enabled ? () => context.push('/transactions/new', extra: txn) : null,
+            ),
+            DockAction(
+              icon: LucideIcons.trash2,
+              tooltip: '删除交易',
+              onTap: enabled ? () => _confirmDelete(txn) : null,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// dock 删除确认(文案与 col3 qa-item / 原菜单删除一致):确认 →
+  /// dispatch DeleteTransactionRequested(删除后回列表走既有 listener)。
+  void _confirmDelete(Transaction txn) {
+    showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('删除交易'),
+        content: Text('删除「${txn.description.isEmpty ? '此交易' : txn.description}」'
+            '将生成一条冲销分录，撤销该笔借贷记录。此操作不可撤销。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text('删除',
+                style: TextStyle(color: context.yucai.negative)),
+          ),
+        ],
+      ),
+    ).then((ok) {
+      if (ok == true && mounted) {
+        final state = context.read<TransactionBloc>().state;
+        if (state is TransactionDeleting) return;
+        context
+            .read<TransactionBloc>()
+            .add(DeleteTransactionRequested(txn.id));
+      }
+    });
   }
 }
 
 /// 页面外壳：内容居中 + 最大宽 1320（对齐 OD .content max-width）。不含 AppBar
-///（shell 已提供 topbar；返回走 page-head 的返回链接）。
+///（shell 已提供 topbar;F59 FR-7:返回链接退役,page 级回退走顶栏面包屑）。
 class _PageShell extends StatelessWidget {
   const _PageShell({required this.child});
   final Widget child;
@@ -303,50 +401,17 @@ class _DetailContent extends StatelessWidget {
     final title = txn.description.isEmpty ? '(无描述)' : txn.description;
     return Padding(
       padding: EdgeInsets.only(bottom: AppSpacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          InkWell(
-            onTap: () => _back(context),
-            borderRadius: BorderRadius.circular(6),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(LucideIcons.chevronLeft, size: 16, color: context.yucai.muted),
-                  SizedBox(width: 2),
-                  Text('返回', style: TextStyle(color: context.yucai.muted, fontSize: 13)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                fontFamily: AppTypography.displayFamily,
-                fontFamilyFallback: AppTypography.displayFallback,
-                color: context.yucai.fg,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          // 编辑 btn-primary（gold 实心）
-          _GoldButton(
-            label: '编辑',
-            icon: LucideIcons.pencil,
-            onTap: isDeleting ? null : () => _edit(context),
-          ),
-          const SizedBox(width: 8),
-          // 更多 menu（复制/标记已对账/导出凭证/删除）
-          _MoreMenu(isDeleting: isDeleting, txn: txn),
-        ],
+      child: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          fontFamily: AppTypography.displayFamily,
+          fontFamilyFallback: AppTypography.displayFallback,
+          color: context.yucai.fg,
+        ),
       ),
     );
   }
@@ -615,8 +680,10 @@ class _DetailContent extends StatelessWidget {
   /// Desktop:page-head + 3 栏(概要/复式/快捷) + 同分类全宽。
   Widget _threeColumn(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
+      // F59 FR-1:底部留白按钮数算 —— 满配簇高 171(编辑 52 + 间距 10 +
+      // 分隔线 1 + 间距 10 + 复制 44 + 间距 10 + 删除 44)+ 底边距 28 +
+      // 净空 54 = 253;顶部 16 = AppBar 让位后的呼吸位(8-16)。
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 16, AppSpacing.lg, 253),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -641,8 +708,8 @@ class _DetailContent extends StatelessWidget {
   /// Tablet:2 栏。左:概要 + 复式；右:快捷 + 同分类。
   Widget _twoColumn(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
+      // 底部留白同 desktop(满配簇高 171 + 28 + 净空 54;见 _threeColumn)。
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 16, AppSpacing.lg, 253),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -681,8 +748,8 @@ class _DetailContent extends StatelessWidget {
   /// Mobile:卡片堆叠。
   Widget _stack(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xl),
+      // 底部留白同 desktop(满配簇高 171 + 28 + 净空 54;见 _threeColumn)。
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 14, AppSpacing.md, 253),
       children: [
         _pageHead(context),
         _summary(context),
@@ -698,9 +765,7 @@ class _DetailContent extends StatelessWidget {
 
   // ───────────────────────── CRUD ─────────────────────────
 
-  void _back(BuildContext context) {
-    if (context.canPop()) context.pop();
-  }
+  // F59 FR-7:返回链接(原 _back)退役 —— page 级回退统一走全局顶栏面包屑。
 
   void _edit(BuildContext context) {
     // 编辑 → /transactions/:id/edit。TransactionFormPage edit mode
@@ -934,137 +999,9 @@ class _DetailTagChips extends StatelessWidget {
   }
 }
 
-/// gold 实心按钮（page-head 编辑）。
-class _GoldButton extends StatelessWidget {
-  const _GoldButton({required this.label, required this.icon, this.onTap});
-  final String label;
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: enabled ? context.yucai.accent : context.yucai.accent.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // F27 FR-1①:gold 实心按钮为 accent 面 —— icon/文字全部 onAccent
-            // (暗=金底深墨;disabled 档底色 0.5 派生不变)。
-            Icon(icon, size: 15, color: context.yucai.onAccent),
-            const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    color: context.yucai.onAccent,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 更多菜单（⋯ → 复制/标记已对账/导出凭证/删除）。用 PopupMenu。
-/// 触发器对齐 OD `.btn.icon-only`:38×38 white bg + border + radius（detail
-/// 4fix gap 3)——原先透明无框,与 OD btn 样式不一致。
-class _MoreMenu extends StatelessWidget {
-  const _MoreMenu({required this.isDeleting, required this.txn});
-  final bool isDeleting;
-  final Transaction txn;
-
-  @override
-  Widget build(BuildContext context) {
-    // F5e:AnchoredMenu(CompositedTransformFollower)—— 跨分支
-    // Navigator 边界像素级贴合,替代 MenuAnchor。
-    return AnchoredMenu(
-      items: [
-        MenuItemData(
-            label: '复制交易',
-            icon: LucideIcons.copy,
-            onTap: () => context.push('/transactions/new')),
-        MenuItemData(
-            label: '标记已对账',
-            icon: LucideIcons.check,
-            onTap: () =>
-                AppToast.show(context, '对账功能待接入', type: ToastType.warning)),
-        MenuItemData(
-            label: '导出凭证',
-            icon: LucideIcons.download,
-            onTap: () =>
-                AppToast.show(context, '导出凭证待接入', type: ToastType.warning)),
-        MenuItemData(
-            label: '删除交易',
-            icon: LucideIcons.trash2,
-            destructive: true,
-            onTap: () => _confirmDelete(context)),
-      ],
-      builder: (menuContext, open) => GestureDetector(
-        onTap: open,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: context.yucai.surface,
-            border: Border.all(color: context.yucai.border),
-            borderRadius: AppRadius.smBorder,
-          ),
-          alignment: Alignment.center,
-          child: Icon(LucideIcons.moreHorizontal,
-              size: 18, color: context.yucai.fg),
-        ),
-      ),
-    );
-  }
-
-  PopupMenuEntry<String> _item(
-      String value, String label, IconData icon, Color color) {
-    return PopupMenuItem<String>(
-      value: value,
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 10),
-          Text(label, style: TextStyle(color: color, fontSize: 13.5)),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context) {
-    showDialog<bool>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('删除交易'),
-        content: Text('删除「${txn.description.isEmpty ? '此交易' : txn.description}」'
-            '将生成一条冲销分录，撤销该笔借贷记录。此操作不可撤销。'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, false),
-              child: const Text('取消')),
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, true),
-            child: Text('删除',
-                style: TextStyle(color: context.yucai.negative)),
-          ),
-        ],
-      ),
-    ).then((ok) {
-      if (ok == true && context.mounted && !isDeleting) {
-        context
-            .read<TransactionBloc>()
-            .add(DeleteTransactionRequested(txn.id));
-      }
-    });
-  }
-}
+// F59 FR-4:原 page-head 编辑金主钮(_GoldButton)与更多菜单(_MoreMenu)退役 ——
+// 编辑/复制/删除迁入右下悬浮簇;「标记已对账/导出凭证」为占位 toast 项(无实
+// 功能),随菜单退场,零功能丢失。
 
 /// OD qa-item:icon-tile(rounded square, accentSoft bg, gold icon) + title + sub
 /// + chevron。danger 变体用红。

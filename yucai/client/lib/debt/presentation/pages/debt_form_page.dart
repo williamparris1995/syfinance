@@ -17,6 +17,8 @@ import 'package:yucai_client/core/recurrence/recurrence_rule_editor.dart';
 import 'package:yucai_client/core/recurrence/recurrence_rule_text.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/amortization_preview.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
+import 'package:yucai_client/core/widgets/form_leave_guard.dart';
 import 'package:get_it/get_it.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -132,6 +134,32 @@ class _DebtFormPageState extends State<DebtFormPage> {
   int _step = 0;
   bool _submitted = false;
 
+  // ---- F59 FR-5(ADR-3):脏态追踪(首改即脏粗粒度)+ 三级面包屑注入串 ----
+
+  /// 首改即脏:任一字段首次用户编辑置位;净态离开(系统返回/面包屑)零摩擦,
+  /// 脏态经 FormLeaveGuard 弹「未保存的修改」确认。提交成功走程序化 pop
+  /// (不经 canPop 判定)不受守卫影响。
+  bool _dirty = false;
+
+  /// 程序化回填抑制窗:编辑态预填(initState)/信用卡字段联动回填
+  /// ([_refillCreditCardFields])期间 controller listener 触发不置脏
+  /// —— 预填非用户编辑。
+  bool _prefilling = false;
+
+  /// 置脏(首改即脏):翻转时 setState 重建 FormLeaveGuard(PopScope 的
+  /// canPop 随动)。已脏/抑制窗内直接返回。
+  void _markDirty() {
+    if (_prefilling || _dirty) return;
+    setState(() => _dirty = true);
+  }
+
+  /// 三级面包屑注入串:创建 =「新建债务」(照 mobile AppBar 既有标题串);
+  /// 编辑 =「编辑 · {债权方}」(existing 经路由加载完成构造,加载即有值)。
+  String get _crumbTitle {
+    final e = _existing;
+    return e == null ? '新建债务' : '编辑 · ${e.counterparty}';
+  }
+
   Debt? get _existing => widget.existing;
   bool get _isEdit => _existing != null;
 
@@ -192,10 +220,34 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _ccRepaymentDayCtrl.addListener(markCcDirty);
     _ccLimitCtrl.addListener(markCcDirty);
     _ccAnnualFeeCtrl.addListener(markCcDirty);
+    // F59 FR-5:全字段首改即脏(controller 口径 —— 文本字段统一覆盖)。
+    // 注册在编辑态预填之后 → initState 预填不置脏;运行期程序化回填走
+    // [_prefilling] 抑制窗(见 _refillCreditCardFields)。
+    for (final c in [
+      _counterpartyCtrl,
+      _principalCtrl,
+      _rateCtrl,
+      _ccBillingDayCtrl,
+      _ccRepaymentDayCtrl,
+      _ccLimitCtrl,
+      _ccAnnualFeeCtrl,
+      _guarantorNameCtrl,
+      _guarantorContactCtrl,
+      _termPeriodsCtrl,
+      _clBillDayCtrl,
+      _clRepayDayCtrl,
+      _ccFeeCtrl,
+      _waiverCtrl,
+    ]) {
+      c.addListener(_markDirty);
+    }
   }
 
   @override
   void dispose() {
+    // F59 FR-5:离开表单清注入标题(双保险之一;另一道 = shell scrubber
+    // key-diff)。guarded getIt:stripped 测试 harness 未注册 port 时跳过。
+    scheduleDetailTitleClear();
     _counterpartyCtrl.dispose();
     _principalCtrl.dispose();
     _rateCtrl.dispose();
@@ -283,7 +335,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
             style: TextStyle(
                 fontSize: 11.5, height: 1.4, color: context.yucai.muted)),
         value: _countsTowardCardLimit,
-        onChanged: (v) => setState(() => _countsTowardCardLimit = v),
+        onChanged: (v) {
+          _markDirty(); // F59 FR-5
+          setState(() => _countsTowardCardLimit = v);
+        },
         // 照 template_form 自动记账开关先例(activeThumbColor,token 化 accent)。
         activeThumbColor: context.yucai.accent,
       ),
@@ -369,6 +424,17 @@ class _DebtFormPageState extends State<DebtFormPage> {
           );
 
   void _refillCreditCardFields() {
+    // F59 FR-5:账户联动回填是程序化写入(非用户编辑信用卡字段),经
+    // 抑制窗不置脏(触发方 _onAccountChanged/subtype onTap 自身已置脏)。
+    _prefilling = true;
+    try {
+      _refillCreditCardFieldsUnchecked();
+    } finally {
+      _prefilling = false;
+    }
+  }
+
+  void _refillCreditCardFieldsUnchecked() {
     final a = _selectedAccount;
     if (a == null) return;
     _ccBillingDayCtrl.text = a.creditBillingDay?.toString() ?? '';
@@ -454,6 +520,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
   }
 
   void _onAccountChanged(String? v) {
+    _markDirty(); // F59 FR-5:字段首改即脏
     setState(() {
       _accountId = v;
       _refillCreditCardFields();
@@ -522,7 +589,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
     if (f == null || f.path == null) return;
     final staged =
         await GetIt.instance<ContractAttachmentStore>().stage(f.path!, f.name);
-    if (mounted) setState(() => _stagedFile = staged);
+    if (mounted) {
+      _markDirty(); // F59 FR-5:暂存新合同文件 = 用户编辑
+      setState(() => _stagedFile = staged);
+    }
   }
 
   /// 移除仅作用于编辑态已有附件;已暂存新文件时重新选择即替换。
@@ -530,7 +600,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
     final e = _existing;
     if (e == null || _stagedFile != null) return;
     await GetIt.instance<ContractAttachmentStore>().remove(e.id);
-    if (mounted) setState(() => _existingAttachmentName = null);
+    if (mounted) {
+      _markDirty(); // F59 FR-5:移除既有附件 = 用户编辑
+      setState(() => _existingAttachmentName = null);
+    }
   }
 
   /// 提交成功后把暂存文件绑定到债务 id(创建态 id 由 bloc.lastCreated 提供)。
@@ -958,18 +1031,18 @@ class _DebtFormPageState extends State<DebtFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    // F59 FR-5:自带 AppBar 导航退役(BackButton/mobile 标题)—— 回退统一走
+    // 顶栏面包屑 page 级 + 系统返回(经守卫);标题语义移交三级面包屑注入串
+    // ([_crumbTitle],mobile 原标题串同源)。body 经 FormLeaveGuard 包裹:
+    // 脏态任何离开路径弹确认,净态直走;提交成功的程序化 pop 不经 canPop
+    // 判定,不受守卫影响。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: Breakpoints.of(context) == Breakpoint.mobile
-            ? Text(_isEdit ? '编辑债务' : '新建债务')
-            : const SizedBox.shrink(),
-        backgroundColor: context.yucai.bg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
-      body: BlocListener<DebtBloc, DebtState>(
+      body: FormLeaveGuard(
+        isDirty: () => _dirty,
+        child: Stack(
+          children: [
+            BlocListener<DebtBloc, DebtState>(
         listenWhen: (prev, curr) => _submitted &&
             (curr is DebtsLoaded || curr is DebtError),
         listener: (context, state) async {
@@ -994,18 +1067,24 @@ class _DebtFormPageState extends State<DebtFormPage> {
           } catch (_) {}
           if (context.mounted) Navigator.of(context).pop(true);
         },
-        child: BlocBuilder<DebtBloc, DebtState>(
-          builder: (context, state) {
-            final submitting = state is DebtSubmitting;
-            return AbsorbPointer(
-              absorbing: submitting,
-              child: ResponsiveLayout(
-                mobile: _mobileLayout(submitting),
-                tablet: _wideLayout(submitting),
-                desktop: _wideLayout(submitting),
+              child: BlocBuilder<DebtBloc, DebtState>(
+                builder: (context, state) {
+                  final submitting = state is DebtSubmitting;
+                  return AbsorbPointer(
+                    absorbing: submitting,
+                    child: ResponsiveLayout(
+                      mobile: _mobileLayout(submitting),
+                      tablet: _wideLayout(submitting),
+                      desktop: _wideLayout(submitting),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+            // 三级面包屑注入串(新建/编辑两态);放滚动容器外(照 detail 页
+            // 先例,深滚动不可依赖)。
+            DetailTitleSync(title: _crumbTitle),
+          ],
         ),
       ),
     );
@@ -1289,7 +1368,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
               for (final a in _assetAccounts)
                 DropdownMenuItem(value: a.id, child: Text(a.name)),
             ],
-            onChanged: (v) => setState(() => _disbursementAccountId = v),
+            onChanged: (v) {
+              _markDirty(); // F59 FR-5
+              setState(() => _disbursementAccountId = v);
+            },
           ),
         ),
       ]),
@@ -1325,21 +1407,23 @@ class _DebtFormPageState extends State<DebtFormPage> {
                 label: DebtSubtypes.labels[key]!,
                 selected: _subtypeKey == key,
                 // F33-T5:创建+编辑都可选;触碰后创建模式不再自动归位。
-                onTap: () => setState(() {
-                      _subtypeKey = key;
-                      _subtypeTouched = true;
-                      // 卡贷固定按期数模式(银行现金分期口径,无按到期日)。
-                      if (key == DebtSubtypes.cardLoan) _byPeriods = true;
-                      // 切到 credit_card 时 _visibleAccounts 收窄为信用卡
-                      // 账户,已选非信用卡账户失效 → 清空保持下拉
-                      // value ⊆ items(design.md「归位 × 信用卡过滤交互」)。
-                      if (_accountId != null &&
-                          !_visibleAccounts
-                              .any((a) => a.id == _accountId)) {
-                        _accountId = null;
-                      }
-                      _refillCreditCardFields();
-                    }),
+                onTap: () {
+                  _markDirty(); // F59 FR-5
+                  setState(() {
+                    _subtypeKey = key;
+                    _subtypeTouched = true;
+                    // 卡贷固定按期数模式(银行现金分期口径,无按到期日)。
+                    if (key == DebtSubtypes.cardLoan) _byPeriods = true;
+                    // 切到 credit_card 时 _visibleAccounts 收窄为信用卡
+                    // 账户,已选非信用卡账户失效 → 清空保持下拉
+                    // value ⊆ items(design.md「归位 × 信用卡过滤交互」)。
+                    if (_accountId != null &&
+                        !_visibleAccounts.any((a) => a.id == _accountId)) {
+                      _accountId = null;
+                    }
+                    _refillCreditCardFields();
+                  });
+                },
               ),
           ],
         ),
@@ -1435,7 +1519,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
               label: '并入信用卡账单',
               desc: '平安/广发现金分期',
               selected: !_cardLoanIndependent,
-              onTap: () => setState(() => _cardLoanIndependent = false),
+              onTap: () {
+                _markDirty(); // F59 FR-5
+                setState(() => _cardLoanIndependent = false);
+              },
             ),
             _RadioCard(
               key: const ValueKey('cardLoanMode-independent'),
@@ -1443,7 +1530,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
               label: '独立账单',
               desc: '如 e招贷 · 月度合并出账',
               selected: _cardLoanIndependent,
-              onTap: () => setState(() => _cardLoanIndependent = true),
+              onTap: () {
+                _markDirty(); // F59 FR-5
+                setState(() => _cardLoanIndependent = true);
+              },
             ),
           ],
         ),
@@ -1464,7 +1554,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
                 for (final a in _cardAccounts)
                   DropdownMenuItem(value: a.id, child: Text(a.name)),
               ],
-              onChanged: (v) => setState(() => _cardLoanCardId = v),
+              onChanged: (v) {
+                _markDirty(); // F59 FR-5
+                setState(() => _cardLoanCardId = v);
+              },
               validator: (v) => v == null || v.isEmpty ? '请选择挂接的信用卡' : null,
             ),
           )
@@ -1534,7 +1627,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
                       ? '默认 · 首期 = 放款日次月同日'
                       : '默认 · 首期 ${_anchorDateLabel(false)} 出账',
                   selected: !_firstPeriodCurrent,
-                  onTap: () => setState(() => _firstPeriodCurrent = false),
+                  onTap: () {
+                    _markDirty(); // F59 FR-5
+                    setState(() => _firstPeriodCurrent = false);
+                  },
                 ),
                 _RadioCard(
                   key: const ValueKey('firstPeriodAnchor-current'),
@@ -1544,7 +1640,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
                       ? '平安口径 · 首期 = 放款日当天'
                       : '平安口径 · 首期 ${_anchorDateLabel(true)} 出账',
                   selected: _firstPeriodCurrent,
-                  onTap: () => setState(() => _firstPeriodCurrent = true),
+                  onTap: () {
+                    _markDirty(); // F59 FR-5
+                    setState(() => _firstPeriodCurrent = true);
+                  },
                 ),
               ],
             ),
@@ -1652,7 +1751,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
                   label: _amortizationLabel(m),
                   desc: _amortizationDesc(m),
                   selected: _amortization == m,
-                  onTap: () => setState(() => _amortization = m),
+                  onTap: () {
+                    _markDirty(); // F59 FR-5
+                    setState(() => _amortization = m);
+                  },
                 ),
             ],
           ),
@@ -1704,7 +1806,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
       initial: _rule,
       anchor: RecurrenceAnchor.startDate, // 借贷按日期锚定起始日
     );
-    if (rule != null) setState(() => _rule = rule);
+    if (rule != null) {
+      _markDirty(); // F59 FR-5:改周期规则 = 用户编辑
+      setState(() => _rule = rule);
+    }
   }
 
   List<Widget> _dateFields() {
@@ -1741,7 +1846,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
             ButtonSegment(value: true, label: Text('按期数')),
           ],
           selected: {_byPeriods},
-          onSelectionChanged: (sel) => setState(() => _byPeriods = sel.first),
+          onSelectionChanged: (sel) {
+            _markDirty(); // F59 FR-5
+            setState(() => _byPeriods = sel.first);
+          },
         ),
       ],
       if (_isCardLoan)
@@ -1767,7 +1875,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
           child: _ODDateField(
             key: const ValueKey('startDatePicker'),
             value: _startDate,
-            onChanged: (d) => setState(() => _startDate = d),
+            onChanged: (d) {
+              _markDirty(); // F59 FR-5
+              setState(() => _startDate = d);
+            },
           ),
         ),
         if (_byPeriods)
@@ -1791,7 +1902,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
             child: _ODDateField(
               key: const ValueKey('dueDatePicker'),
               value: _dueDate,
-              onChanged: (d) => setState(() => _dueDate = d),
+              onChanged: (d) {
+                _markDirty(); // F59 FR-5
+                setState(() => _dueDate = d);
+              },
             ),
           ),
       ]),

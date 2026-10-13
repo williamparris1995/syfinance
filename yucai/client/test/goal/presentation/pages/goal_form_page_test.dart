@@ -26,6 +26,8 @@ import 'package:yucai_client/account/domain/repositories/account_repository.dart
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/core/form_leave_gate.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
@@ -149,6 +151,9 @@ Widget _harness({
 }) {
   GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
   GetIt.instance.registerSingleton<DebtRepository>(debtRepo);
+  // F59 FR-5:两 port 注册(标题断言迁 port 口径;guard veto 通道)。
+  GetIt.instance.registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+  GetIt.instance.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
   return MaterialApp(
     home: bloc == null
         ? BlocProvider<GoalBloc>(
@@ -204,7 +209,8 @@ void main() {
       ));
       await t.pumpAndSettle();
 
-      expect(find.text('新建目标'), findsOneWidget);
+      // F59 FR-5:AppBar 标题退役 → 注入串断言(port 口径)。
+      expect(GetIt.instance<ShellDetailTitle>().value, '新建目标');
       expect(find.text('请先选择目标类型'), findsOneWidget);
       // accountPicker 不存在(未选 type)。
       expect(find.byKey(const ValueKey('accountPicker')), findsNothing);
@@ -705,8 +711,8 @@ void main() {
       ));
       await t.pumpAndSettle();
 
-      // AppBar 标题 = 编辑目标。
-      expect(find.text('编辑目标'), findsOneWidget);
+      // F59 FR-5:AppBar 标题退役 → 注入串(编辑完成态)。
+      expect(GetIt.instance<ShellDetailTitle>().value, '编辑 · 旧目标');
       // name 回填。
       expect(
         find.ancestor(
@@ -812,6 +818,9 @@ void main() {
       final debtRepo = _MockDebtRepo();
       stubPickers(accountRepo, debtRepo);
 
+      // F59 FR-5:断言迁 port 口径,自建 harness 亦注册两 port。
+      GetIt.instance.registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      GetIt.instance.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
       final bloc = _ControllableGoalBloc(goalRepo);
       final observer = _PopCounter();
       GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
@@ -844,12 +853,12 @@ void main() {
       )));
       for (var i = 0; i < 20; i++) {
         await t.pump(const Duration(milliseconds: 20));
-        if (find.text('编辑目标').evaluate().isNotEmpty &&
+        if (GetIt.instance<ShellDetailTitle>().value == '编辑 · 旧目标' &&
             find.text('60000.00').evaluate().isNotEmpty) {
           break;
         }
       }
-      expect(find.text('编辑目标'), findsOneWidget);
+      expect(GetIt.instance<ShellDetailTitle>().value, '编辑 · 旧目标');
       expect(find.text('60000.00'), findsOneWidget, reason: '预填应完成');
 
       // 编辑 + 提交 → dispatch UpdateGoalRequested。
@@ -1381,6 +1390,133 @@ void main() {
       expect(debt1Tile.value, true);
       // sav-1 CheckboxListTile 不在 tree(accountPicker 已消失)。
       expect(find.byKey(const ValueKey('accountOption_sav-1')), findsNothing);
+    });
+  });
+
+  // ── F59 FR-5(ADR-3):表单页接线 —— AppBar 退役 + 三级注入 + 离开守卫 ──
+  group('F59 FR-5 表单页接线', () {
+    /// 推入式 harness(form 页 push 于宿主页上,系统返回断言锚点)。
+    /// 开头先卸树:同测试多推时 BlocProvider.create 不随 pumpWidget 重跑,
+    /// 不重挂则编辑态复用上一推的 bloc/mock(getGoal 未桩 → null 崩)。
+    Future<void> pumpPushed(WidgetTester t, {String? goalId}) async {
+      await t.pumpWidget(const SizedBox.shrink());
+      await t.pump();
+      if (!GetIt.instance.isRegistered<ShellDetailTitle>()) {
+        GetIt.instance
+            .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+      if (!GetIt.instance.isRegistered<FormLeaveGate>()) {
+        GetIt.instance.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
+      }
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      if (goalId != null) {
+        when(() => goalRepo.getGoal(goalId)).thenAnswer((_) async =>
+            const dartz.Right(GoalView(
+              id: 'g1',
+              name: '旧目标',
+              type: GoalType.savings,
+              targetAmountCents: 6000000,
+              deadline: null,
+              linkedAccountIds: ['sav-1'],
+            )));
+      }
+      await t.pumpWidget(BlocProvider<GoalBloc>(
+        create: (_) => GoalBloc(goalRepo),
+        child: MaterialApp(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => GoalFormPage(goalId: goalId))),
+                  child: const Text('__host__'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await t.tap(find.text('__host__'));
+      await t.pumpAndSettle();
+      await t.pump(const Duration(milliseconds: 50)); // DetailTitleSync 帧回调
+    }
+
+    testWidgets('AppBar 零残留(创建/编辑两态)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(find.byType(AppBar), findsNothing, reason: '自带 AppBar 导航退役');
+      await t.binding.handlePopRoute(); // 净态退栈后再推编辑态
+      await t.pumpAndSettle();
+      await pumpPushed(t, goalId: 'g1');
+      expect(find.byType(AppBar), findsNothing);
+    });
+
+    testWidgets('净态:系统返回直放零弹框', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing, reason: '净态零摩擦');
+      expect(find.text('__host__'), findsOneWidget);
+    });
+
+    testWidgets('脏态:首改(目标名)后系统返回弹确认,放弃后净放', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      // 先选类型(name 字段在 type 选后出现)。
+      await t.tap(find.byKey(const ValueKey('typeOption_savings')));
+      await t.pumpAndSettle();
+      await t.enterText(find.byKey(const ValueKey('nameField')), '新目标');
+      await t.pumpAndSettle();
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget);
+      await t.tap(find.text('继续编辑'));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('nameField')), findsOneWidget);
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(find.text('__host__'), findsOneWidget, reason: '「放弃修改」放行离开');
+    });
+
+    testWidgets('脏态:面包屑 page 级 veto(gate.mayLeave)同弹确认;dispose 清注入',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue,
+          reason: '净态直放');
+      await t.tap(find.byKey(const ValueKey('typeOption_savings')));
+      await t.pumpAndSettle();
+      final leave = GetIt.instance<FormLeaveGate>().mayLeave();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget, reason: '切类型 = 首改即脏');
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(await leave, isTrue);
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull,
+          reason: 'dispose 清注入标题');
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue);
     });
   });
 }

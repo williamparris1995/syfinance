@@ -15,6 +15,8 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/widgets/category_fields.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
+import 'package:yucai_client/core/widgets/form_leave_guard.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
 import 'package:yucai_client/core/widgets/type_tabs.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart';
@@ -107,6 +109,24 @@ class _AccountFormPageState extends State<AccountFormPage> {
   Account? get _existing => widget.existing;
   bool get _isEdit => _existing != null && _existing!.id.isNotEmpty;
 
+  // ---- F59 FR-5(ADR-3):脏态追踪(首改即脏粗粒度)+ 三级面包屑注入串 ----
+
+  /// 首改即脏:任一字段首次用户编辑置位;净态离开零摩擦,脏态经
+  /// FormLeaveGuard 弹「未保存的修改」确认;提交成功的程序化 pop 不经
+  /// canPop 判定,不受守卫影响。预设/编辑预填在 initState 内先行完成
+  /// (早于监听注册),天然不置脏。
+  bool _dirty = false;
+
+  void _markDirty() {
+    if (_dirty) return;
+    setState(() => _dirty = true);
+  }
+
+  /// 三级面包屑注入串:创建(含预设/复制)=「新建账户」;编辑 =
+  /// 「编辑 · {账户名}」(existing 经构造参数,加载即有值)。
+  String get _crumbTitle =>
+      _isEdit ? '编辑 · ${_existing!.name}' : '新建账户';
+
   /// loan 组降级:编辑态 loan 账户存在挂接借入债(债侧是事实源)。
   bool get _loanDegraded =>
       _isEdit &&
@@ -144,6 +164,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
       } else if (widget.preselectCreditCard) {
         _category = AccountCategory.creditCard;
       }
+      _wireDirtyListeners(); // F59 FR-5:创建/预设路径(预设预填已先行,不置脏)
       return;
     }
     // 编辑或复制 seed：预填所有共享字段 + 该 category 专属字段。
@@ -192,6 +213,34 @@ class _AccountFormPageState extends State<AccountFormPage> {
     _notesCtrl.text = e.notes;
     // F51:编辑态一次性检测既有挂接(新建态无既有挂接,不检测)。
     _detectAttachments();
+    _wireDirtyListeners();
+  }
+
+  /// F59 FR-5:全控制器首改即脏(预设/编辑预填已先行完成,不置脏;
+  /// bundle 各控制器显式枚举 —— [CategoryFieldBundle] 无聚合 API)。
+  void _wireDirtyListeners() {
+    for (final c in [
+      _nameCtrl,
+      _notesCtrl,
+      _bundle.primaryCentsCtrl,
+      _bundle.institutionCtrl,
+      _bundle.cardNumberTailCtrl,
+      _bundle.interestRateCtrl,
+      _bundle.creditBillingDayCtrl,
+      _bundle.creditRepaymentDayCtrl,
+      _bundle.creditLimitCtrl,
+      _bundle.creditAnnualFeeCtrl,
+      _bundle.investMarketValueCtrl,
+      _bundle.fixedTermMonthsCtrl,
+      _bundle.goldProductTypeCtrl,
+      _bundle.goldQuantityCtrl,
+      _bundle.goldCurrentPriceCtrl,
+      _bundle.estateCurrentValueCtrl,
+      _bundle.loanOriginalCtrl,
+      _bundle.loanMonthlyCtrl,
+    ]) {
+      c.addListener(_markDirty);
+    }
   }
 
   /// F51 FR-1/FR-2:编辑态挂接检测(一次性取,经 getIt 仓库 —— 表单测试
@@ -244,6 +293,8 @@ class _AccountFormPageState extends State<AccountFormPage> {
 
   @override
   void dispose() {
+    // F59 FR-5:离开表单清注入标题(guarded getIt)。
+    scheduleDetailTitleClear();
     _nameCtrl.dispose();
     _notesCtrl.dispose();
     _bundle.dispose();
@@ -603,11 +654,15 @@ class _AccountFormPageState extends State<AccountFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: Text(_isEdit ? '编辑账户' : '新建账户'),
-      ),
-      body: BlocListener<AccountBloc, AccountState>(
+      // F59 FR-5:自带 AppBar 导航退役(BackButton/标题)—— 回退统一走顶栏
+      // 面包屑 page 级 + 系统返回(均经守卫);标题语义移交三级面包屑注入串。
+      // body 经 FormLeaveGuard 包裹(脏态弹确认,净态直走;提交成功的程序化
+      // pop 不经 canPop 判定不受影响)。
+      body: FormLeaveGuard(
+        isDirty: () => _dirty,
+        child: Stack(
+          children: [
+            BlocListener<AccountBloc, AccountState>(
         // 创建/更新成功 → bloc 经内部 reload 转为 AccountsLoaded；返回列表。
         // 用 _submitted 标志排除首次进入时的 AccountsLoaded；状态流含中间态
         // AccountLoading，不能直接用 prev is AccountFormSubmitting 判断。
@@ -809,6 +864,11 @@ class _AccountFormPageState extends State<AccountFormPage> {
               ),
             );
           },
+            ),
+            ),
+            // 三级面包屑注入串(新建/编辑两态);放滚动容器外。
+            DetailTitleSync(title: _crumbTitle),
+          ],
         ),
       ),
     );

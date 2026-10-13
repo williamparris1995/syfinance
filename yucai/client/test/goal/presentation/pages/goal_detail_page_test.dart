@@ -21,6 +21,7 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:design_kit/design_kit.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -33,6 +34,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
@@ -528,7 +530,7 @@ void main() {
   });
 
   group('clone action', () {
-    testWidgets('AppBar clone tap → dispatch CloneGoalRequested', (t) async {
+    testWidgets('dock 复制目标 tap → dispatch CloneGoalRequested', (t) async {
       setDesktop(t);
       final repo = _MockRepo();
       registerFallbackValue(const LoadListRequested());
@@ -556,7 +558,7 @@ void main() {
   });
 
   group('edit action', () {
-    testWidgets('AppBar edit tap pushes /goals/:id/edit', (t) async {
+    testWidgets('dock 编辑 tap pushes /goals/:id/edit', (t) async {
       setDesktop(t);
       final repo = _MockRepo();
       registerFallbackValue(const LoadListRequested());
@@ -678,6 +680,161 @@ void main() {
       await t.pumpAndSettle();
 
       verifyNever(() => repo.deleteGoal(any()));
+    });
+  });
+
+  // ───────── F59 T3:AppBar 退役 + 悬浮簇(C')+ 标题注入 ─────────
+
+  group('F59 T3 迁移', () {
+    testWidgets('AppBar 退役;dock=标记完成(primary)+[编辑](secondary)'
+        '+[复制目标,删除](muted) 常驻右下 28', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+
+      await t.pumpWidget(_harness(repo: repo, goal: goal));
+      await t.pumpAndSettle();
+
+      expect(find.byType(AppBar), findsNothing, reason: 'F59:AppBar 退役');
+      expect(find.byType(FloatingActionDock), findsOneWidget);
+      final pos = t.widget<Positioned>(
+          find.ancestor(
+              of: find.byType(FloatingActionDock),
+              matching: find.byType(Positioned)).first);
+      expect(pos.right, 28);
+      expect(pos.bottom, 28);
+      // 三段映射:完成进金圆(用户裁定 A);编辑次级;复制/删除淡显(危险置顶)。
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.tooltip, '标记完成');
+      expect(dock.primary.onTap, isNotNull, reason: '未完成 → 可触发');
+      expect(dock.secondary.map((a) => a.tooltip).toList(), ['编辑']);
+      expect(dock.secondary.every((a) => a.onTap != null), isTrue);
+      expect(
+          dock.muted.map((a) => a.tooltip).toList(), ['复制目标', '删除']);
+      expect(dock.muted.every((a) => a.onTap != null), isTrue);
+    });
+
+    testWidgets('已完成态:primary 禁用(操作不缺席,仅降权);其余段可用', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      final done = _goal(
+        id: 'g2',
+        name: '已完成目标',
+        target: 100000,
+        current: 100000,
+        isCompleted: true,
+      );
+      _stubDetail(repo, done);
+
+      await t.pumpWidget(_harness(repo: repo, goal: done));
+      await t.pumpAndSettle();
+
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.tooltip, '标记完成');
+      expect(dock.primary.onTap, isNull, reason: 'F59:已完成态主钮禁用');
+      expect(dock.secondary.every((a) => a.onTap != null), isTrue,
+          reason: '已完成仍可编辑');
+      expect(dock.muted.every((a) => a.onTap != null), isTrue,
+          reason: '已完成仍可复制/删除');
+    });
+
+    testWidgets('dock 标记完成 tap → dispatch CompleteGoalRequested', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+      when(() => repo.completeGoal(any()))
+          .thenAnswer((_) async => const dartz.Right(null));
+
+      await t.pumpWidget(_harness(repo: repo, goal: goal));
+      await t.pumpAndSettle();
+
+      // dock 金圆(tooltip 区分底部操作条同名 label 按钮,后者无 tooltip)。
+      await t.tap(find.byTooltip('标记完成'));
+      await t.pumpAndSettle();
+
+      verify(() => repo.completeGoal(goal.id)).called(1);
+    });
+
+    testWidgets('loading 恒渲染 dock:全动作禁用', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      final completer = Completer<dartz.Either<Failure, GoalView>>();
+      when(() => repo.getGoal(any())).thenAnswer((_) => completer.future);
+
+      await t.pumpWidget(_harness(repo: repo, goal: goal));
+      await t.pump(); // 不 settle(保持 GoalLoading)。
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(FloatingActionDock), findsOneWidget,
+          reason: 'F59 FR-3:loading 态恒渲染悬浮簇');
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.onTap, isNull, reason: 'loading:主操作禁用');
+      expect(dock.secondary.every((a) => a.onTap == null), isTrue);
+      expect(dock.muted.every((a) => a.onTap == null), isTrue);
+
+      completer.complete(dartz.Right(goal));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('error 恒渲染 dock:全动作禁用', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      when(() => repo.getGoal(any())).thenAnswer(
+          (_) async => const dartz.Left<Failure, GoalView>(ServerFailure('读取失败')));
+
+      await t.pumpWidget(_harness(repo: repo, goal: goal));
+      await t.pumpAndSettle();
+
+      expect(find.textContaining('读取失败'), findsOneWidget);
+      expect(find.byType(FloatingActionDock), findsOneWidget,
+          reason: 'F59 FR-3:error 态恒渲染悬浮簇');
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.onTap, isNull, reason: 'error:主操作禁用');
+      expect(dock.secondary.every((a) => a.onTap == null), isTrue,
+          reason: 'error:次级组全禁用');
+      expect(dock.muted.every((a) => a.onTap == null), isTrue,
+          reason: 'error:淡显组全禁用');
+    });
+
+    testWidgets('标题注入:加载完成 set(目标名);离开页面 clear', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+      final getIt = GetIt.instance;
+      if (!getIt.isRegistered<ShellDetailTitle>()) {
+        getIt.registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+
+      await t.pumpWidget(_harness(repo: repo, goal: goal));
+      await t.pumpAndSettle();
+
+      expect(getIt<ShellDetailTitle>().value, '紧急备用金',
+          reason: '加载完成 → 目标名注入顶栏面包屑当前级');
+
+      await t.pumpWidget(const MaterialApp());
+      await t.pump();
+      expect(getIt<ShellDetailTitle>().value, isNull);
+    });
+
+    testWidgets('底部操作条保留:记一笔贡献仍直达(零功能丢失)', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+
+      await t.pumpWidget(_harness(repo: repo, goal: goal));
+      await t.pumpAndSettle();
+
+      // F59 仅退役 goal 页 AppBar;底部 actionRow(记贡献+完成)不在处置表,
+      // 原样保留 —— 记一笔贡献入口不因 dock 迁移丢失。
+      expect(find.byKey(const ValueKey('goalContributeBtn')), findsOneWidget);
+      expect(find.byKey(const ValueKey('goalCompleteBtn')), findsOneWidget);
     });
   });
 }

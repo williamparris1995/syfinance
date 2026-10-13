@@ -14,7 +14,8 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart'
     show tagFilterAvailable;
 
 /// 标签管理页(settings 子页 /settings/tags)。对齐 backup BackupPage:
-/// topbar(返回 + 标题 + 新建)+ 三态 body(loading/空/错误/列表)+ BlocListener→SnackBar。
+/// 内容头(标题 + 新建;F59 FR-7/ADR-2:返回箭头退役,回退走全局顶栏
+/// 面包屑 page 级)+ 三态 body(loading/空/错误/列表)+ BlocListener→SnackBar。
 class TagPage extends StatefulWidget {
   const TagPage({super.key});
   @override
@@ -121,7 +122,8 @@ class _TagPageState extends State<TagPage> {
                 padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
                 child: Row(
                   children: [
-                    IconButton(tooltip: '返回', icon: Icon(LucideIcons.chevronLeft, color: context.yucai.fg), onPressed: () => context.pop()),
+                    // F59 FR-7:返回箭头退役 —— 回退统一走全局顶栏面包屑
+                    // page 级(app_shell location 覆盖「交易 › 标签」)。
                     Expanded(child: Text('标签管理', style: TextStyle(color: context.yucai.fg, fontSize: 18, fontWeight: FontWeight.w700, fontFamily: AppTypography.displayFamily, fontFamilyFallback: AppTypography.displayFallback))),
                     FilledButton.icon(onPressed: _showCreateDialog, icon: const Icon(LucideIcons.plus, size: 18), label: const Text('新建标签')),
                   ],

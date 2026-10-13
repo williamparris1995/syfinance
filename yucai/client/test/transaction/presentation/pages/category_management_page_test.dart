@@ -125,6 +125,26 @@ void main() {
     expect(find.byKey(CategoryManagementPage.editPanelKey), findsOneWidget);
   });
 
+  // F59 FR-6:专属 topbar 的 crumb 部分退役 —— 全局顶栏已显「交易 › 分类管理」;
+  // 页面头(h1/导入模板/新建分类)保留为内容头;mobile 紧凑态同步退役。
+  testWidgets('F59 FR-6: 页头 crumb 退役,内容头保留(desktop + mobile 紧凑态)',
+      (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+    // 页面内不再渲染专属 crumb('交易' 仅存在于被退役的 crumb 行)。
+    expect(find.text('交易'), findsNothing,
+        reason: 'crumb 退役,面包屑由全局顶栏承载');
+    // 内容头保留:h1 + 导入模板 + 新建分类。
+    expect(find.text('分类管理'), findsOneWidget);
+    expect(find.text('导入模板'), findsOneWidget);
+    expect(find.byKey(CategoryManagementPage.newCategoryKey), findsOneWidget);
+
+    // mobile 紧凑态:crumb 同步退役,紧凑按钮文案「新建」仍在。
+    await pumpPage(tester, const Size(390, 844));
+    expect(find.text('交易'), findsNothing, reason: 'mobile 紧凑态同步退役 crumb');
+    expect(find.byKey(CategoryManagementPage.newCategoryKey), findsOneWidget);
+    expect(find.text('新建'), findsOneWidget);
+  });
+
   testWidgets('tablet: edit panel opens in end-drawer on 新建分类',
       (tester) async {
     await pumpPage(tester, const Size(1024, 768));

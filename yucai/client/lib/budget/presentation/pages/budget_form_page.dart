@@ -37,6 +37,8 @@ import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_state.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
+import 'package:yucai_client/core/widgets/form_leave_guard.dart';
 
 /// 预算表单页(创建 + 编辑)。
 class BudgetFormPage extends StatefulWidget {
@@ -88,6 +90,38 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
 
   bool get _isEdit => widget.budgetId != null;
 
+  // ---- F59 FR-5(ADR-3):脏态追踪(首改即脏粗粒度)+ 三级面包屑注入串 ----
+
+  /// 首改即脏:任一字段首次用户编辑置位;净态离开(系统返回/面包屑)零摩擦,
+  /// 脏态经 FormLeaveGuard 弹「未保存的修改」确认。提交成功的程序化 pop
+  /// 不经 canPop 判定,不受守卫影响。
+  bool _dirty = false;
+
+  /// 程序化回填抑制窗:编辑态预填(bloc 加载完成写入 name/month/rows)期间
+  /// controller listener 触发不置脏 —— 预填非用户编辑。
+  bool _prefilling = false;
+
+  /// 置脏(首改即脏):翻转时 setState 重建 FormLeaveGuard(PopScope 的
+  /// canPop 随动)。抑制窗内/已脏直接返回。
+  void _markDirty() {
+    if (_prefilling || _dirty) return;
+    setState(() => _dirty = true);
+  }
+
+  /// 三级面包屑注入串:创建 =「新建预算」;编辑加载中 =「编辑预算」占位,
+  /// 加载完成 =「编辑 · {预算名}」。
+  String get _crumbTitle => !_isEdit
+      ? '新建预算'
+      : (_existingBudget == null
+          ? '编辑预算'
+          : '编辑 · ${_existingBudget!.name}');
+
+  /// 行编辑控制器接脏监听(行动态增删,创建时接线)。
+  _ItemRow _wireRow(_ItemRow r) {
+    r.plannedAmountCtrl.addListener(_markDirty);
+    return r;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -100,13 +134,19 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
       _loadExisting();
     } else {
       // 创建模式:预置一行空 item(至少 1 行)。
-      _rows.add(_ItemRow());
+      _rows.add(_wireRow(_ItemRow()));
     }
-    _nameCtrl.addListener(() => setState(() {}));
+    // F59 FR-5:文本字段首改即脏;既有 setState 监听(canSubmit 重算)保留。
+    _nameCtrl.addListener(() {
+      _markDirty();
+      setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    // F59 FR-5:离开表单清注入标题(guarded getIt:测试 harness 未注册时跳过)。
+    scheduleDetailTitleClear();
     _nameCtrl.dispose();
     for (final r in _rows) {
       r.dispose();
@@ -144,18 +184,23 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     // 编辑模式:加载完成 → 预填 name/month/currency/items。
     if (state is BudgetDetailLoaded && _existingBudget == null) {
       final b = state.budget;
-      _existingBudget = b;
-      _nameCtrl.text = b.name;
-      _month = b.month;
-      _currencyCode = b.currencyCode;
-      _rows.clear();
-      for (final it in b.items) {
-        _rows.add(_ItemRow(
-          accountId: it.accountId,
-          plannedAmount: (it.plannedAmountCents / 100).toStringAsFixed(2),
-        ));
+      _prefilling = true; // F59 FR-5:预填不置脏
+      try {
+        _existingBudget = b;
+        _nameCtrl.text = b.name;
+        _month = b.month;
+        _currencyCode = b.currencyCode;
+        _rows.clear();
+        for (final it in b.items) {
+          _rows.add(_wireRow(_ItemRow(
+            accountId: it.accountId,
+            plannedAmount: (it.plannedAmountCents / 100).toStringAsFixed(2),
+          )));
+        }
+        if (_rows.isEmpty) _rows.add(_wireRow(_ItemRow()));
+      } finally {
+        _prefilling = false;
       }
-      if (_rows.isEmpty) _rows.add(_ItemRow());
       setState(() {});
       return;
     }
@@ -172,11 +217,15 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     }
   }
 
-  void _addItemRow() => setState(() => _rows.add(_ItemRow()));
+  void _addItemRow() => setState(() {
+        _markDirty(); // F59 FR-5:加项 = 用户编辑
+        _rows.add(_wireRow(_ItemRow()));
+      });
 
   void _removeItemRow(int i) {
     // UI 允许全删以禁用提交(由 _canSubmit 兜底)。
     setState(() {
+      _markDirty(); // F59 FR-5:删项 = 用户编辑
       _rows[i].dispose();
       _rows.removeAt(i);
     });
@@ -199,6 +248,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     );
     if (picked != null) {
       setState(() {
+        _markDirty(); // F59 FR-5:改月份 = 用户编辑
         _month = '${picked.year}-${picked.month.toString().padLeft(2, '0')}';
       });
     }
@@ -278,11 +328,19 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      body: BlocConsumer<BudgetBloc, BudgetState>(
-        listenWhen: (prev, curr) =>
-            curr is BudgetDetailLoaded || curr is BudgetListLoaded,
-        listener: _onBudgetStateChanged,
-        builder: (context, state) {
+      // F59 FR-5:自带返回条退役(回退统一走顶栏面包屑 page 级 + 系统返回,
+      // 均经守卫);body 包 FormLeaveGuard(脏态弹确认,净态直走;提交成功的
+      // 程序化 pop 不经 canPop 判定不受影响)+ DetailTitleSync 注入三级
+      // 面包屑串(放滚动容器外)。
+      body: FormLeaveGuard(
+        isDirty: () => _dirty,
+        child: Stack(
+          children: [
+            BlocConsumer<BudgetBloc, BudgetState>(
+              listenWhen: (prev, curr) =>
+                  curr is BudgetDetailLoaded || curr is BudgetListLoaded,
+              listener: _onBudgetStateChanged,
+              builder: (context, state) {
           final submitting = state is BudgetLoading;
           // 编辑模式未加载完(_existingBudget == null)→ loading。
           if (_isEdit && _existingBudget == null) {
@@ -323,6 +381,11 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
             ],
           );
         },
+            ),
+            // 三级面包屑注入串(新建/编辑两态);非定位子级,放滚动容器外。
+            DetailTitleSync(title: _crumbTitle),
+          ],
+        ),
       ),
     );
   }
@@ -341,18 +404,8 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 返回 icon-btn(替 AppBar BackButton)。
-                IconButton(
-                  key: const ValueKey('budgetFormBack'),
-                  tooltip: '返回',
-                  icon: const Icon(LucideIcons.arrowLeft, size: 18),
-                  color: context.yucai.muted,
-                  onPressed: submitting
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                // left:title + sub。
+                // left:title + sub。F59 FR-5:返回 icon-btn 退役(回退走顶栏
+                // 面包屑/系统返回,经守卫);标题降为内容头。
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -620,6 +673,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
       onSelected: submitting
           ? null
           : (_) => setState(() {
+                _markDirty(); // F59 FR-5:选分类 = 用户编辑
                 row.accountId = selected ? null : a.id;
               }),
     );

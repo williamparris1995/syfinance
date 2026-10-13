@@ -37,6 +37,8 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
+import 'package:yucai_client/core/widgets/form_leave_guard.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
@@ -132,6 +134,21 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
   bool _accountsLoading = true;
   bool _submitted = false;
 
+    // ---- F59 FR-5(ADR-3):脏态追踪(首改即脏粗粒度)+ 三级面包屑注入串 ----
+
+  /// 首改即脏:任一字段首次用户编辑置位;净态离开零摩擦,脏态经
+  /// FormLeaveGuard 弹「未保存的修改」确认;提交成功的程序化 pop 不经
+  /// canPop 判定,不受守卫影响(seed 参数为构造注入,非用户编辑)。
+  bool _dirty = false;
+
+  void _markDirty() {
+    if (_dirty) return;
+    setState(() => _dirty = true);
+  }
+
+  /// 三级面包屑注入串:交易记录表单恒「记录交易」(mobile AppBar 原串)。
+  String get _crumbTitle => '记录交易';
+
   @override
   void initState() {
     super.initState();
@@ -143,15 +160,20 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
     // 拉取证券主数据(表单选择器用);持仓账户/资金源账户从 AccountRepository 加载。
     context.read<HoldingBloc>().add(const LoadSecuritiesRequested());
     _loadSourceAccounts();
-    _qtyCtrl.addListener(() => setState(() {}));
-    _priceCtrl.addListener(() => setState(() {}));
-    _feeCtrl.addListener(() => setState(() {}));
-    _perShareCtrl.addListener(() => setState(() {}));
-    _ratioCtrl.addListener(() => setState(() {}));
+    // F59 FR-5:全字段首改即脏(seed 已先行,不置脏)。
+    for (final c in [_qtyCtrl, _priceCtrl, _feeCtrl, _perShareCtrl, _ratioCtrl]) {
+      c.addListener(() {
+        _markDirty();
+        setState(() {});
+      });
+    }
+    _notesCtrl.addListener(_markDirty);
   }
 
   @override
   void dispose() {
+    // F59 FR-5:离开表单清注入标题(guarded getIt)。
+    scheduleDetailTitleClear();
     _qtyCtrl.dispose();
     _priceCtrl.dispose();
     _feeCtrl.dispose();
@@ -375,11 +397,15 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: const Text('记录交易'),
-      ),
-      body: BlocListener<HoldingBloc, HoldingState>(
+      // F59 FR-5:自带 AppBar 导航退役 —— 回退统一走顶栏面包屑 page 级 +
+      // 系统返回(均经守卫);标题语义移交三级面包屑注入串([_crumbTitle])。
+      // body 经 FormLeaveGuard 包裹(脏态弹确认,净态直走;提交成功的程序化
+      // pop 不经 canPop 判定不受影响)。
+      body: FormLeaveGuard(
+        isDirty: () => _dirty,
+        child: Stack(
+          children: [
+            BlocListener<HoldingBloc, HoldingState>(
         // 业务事件成功后 bloc 自刷新 → HoldingLoaded。F14 #4 修正:成功链实际
         // 是 Submitting → Loading(自刷新 _onLoadHoldings 先发 Loading)→
         // Loaded,旧的 `prev is HoldingSubmitting` 条件永远不成立 → 提交成功
@@ -419,6 +445,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
                           _TypeSegmented(
                             current: _type,
                             onSelect: (t) => setState(() {
+                            _markDirty(); // F59 FR-5
                               _type = t;
                               // 切类型清掉跨类型无关字段,避免脏值提交。
                               _fromAccountId = null;
@@ -452,6 +479,11 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
               ),
             );
           },
+            ),
+            ),
+            // 三级面包屑注入串;放滚动容器外。
+            DetailTitleSync(title: _crumbTitle),
+          ],
         ),
       ),
     );
@@ -472,7 +504,10 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
           ),
       ],
       hint: Text(securities.isEmpty ? '加载中…' : '选择证券'),
-      onChanged: (v) => setState(() => _securityId = v),
+      onChanged: (v) {
+        _markDirty(); // F59 FR-5
+        setState(() => _securityId = v);
+      },
       validator: (v) => v == null || v.isEmpty ? '请选择证券' : null,
     );
   }
@@ -488,7 +523,10 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
           DropdownMenuItem(value: a.id, child: Text(a.name)),
       ],
       hint: Text(_accountsLoading ? '加载中…' : '选择持仓账户'),
-      onChanged: (v) => setState(() => _accountId = v),
+      onChanged: (v) {
+        _markDirty(); // F59 FR-5
+        setState(() => _accountId = v);
+      },
       validator: (v) => v == null || v.isEmpty ? '请选择持仓账户' : null,
     );
   }
@@ -533,7 +571,10 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
           ),
       ],
       hint: Text(_accountsLoading ? '加载中…' : '选择资金账户'),
-      onChanged: (v) => setState(() => _fromAccountId = v),
+      onChanged: (v) {
+        _markDirty(); // F59 FR-5
+        setState(() => _fromAccountId = v);
+      },
       validator: (v) => v == null || v.isEmpty ? '请选择资金账户' : null,
     );
   }
@@ -636,7 +677,10 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
             firstDate: DateTime(2000),
             lastDate: DateTime(2100),
           );
-          if (picked != null) setState(() => _date = picked);
+          if (picked != null) {
+            _markDirty(); // F59 FR-5
+            setState(() => _date = picked);
+          }
         },
         child: Text(
           _isoDate(_date),

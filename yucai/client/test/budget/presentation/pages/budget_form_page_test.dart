@@ -15,6 +15,8 @@
 //   - 空 items / 空 name / 未选分类 / planned ≤0 禁用 btn-gold 提交
 //   - 编辑模式:预填 + 提交 = UpdateBudgetRequested(非 delete+recreate)+
 //     update 后 BudgetDetailLoaded → pop + month picker disabled(AbsorbPointer)
+import 'dart:async';
+
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -28,6 +30,9 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
+import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/form_leave_gate.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_state.dart';
 import 'package:yucai_client/budget/presentation/pages/budget_form_page.dart';
@@ -537,6 +542,143 @@ void main() {
               of: find.byKey(const ValueKey('monthPicker')),
               matching: find.byType(Opacity)));
       expect(opacity.opacity, 0.5);
+    });
+  });
+
+  // ── F59 FR-5(ADR-3):表单页接线 —— 返回钮退役 + 三级注入 + 离开守卫 ──
+  group('F59 FR-5 表单页接线', () {
+    /// 推入式 harness(form 页 push 于宿主页上,系统返回断言锚点)+ 两 port。
+    Future<void> pumpPushed(WidgetTester t,
+        {String? budgetId,
+        Future<dartz.Either<Failure, BudgetView>>? getBudgetAnswer,
+        bool settle = true}) async {
+      if (!GetIt.instance.isRegistered<ShellDetailTitle>()) {
+        GetIt.instance
+            .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+      if (!GetIt.instance.isRegistered<FormLeaveGate>()) {
+        GetIt.instance.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
+      }
+      final budgetRepo = _MockBudgetRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right(_seedAccounts()));
+      when(() => budgetRepo.getBudget('b1')).thenAnswer(
+          (_) => getBudgetAnswer ??
+              Future.value(dartz.Right(_existingBudget())));
+      await t.pumpWidget(BlocProvider<BudgetBloc>(
+        create: (_) => BudgetBloc(budgetRepo),
+        child: MaterialApp(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => BudgetFormPage(budgetId: budgetId))),
+                  child: const Text('__host__'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await t.tap(find.text('__host__'));
+      if (settle) {
+        await t.pumpAndSettle();
+        await t.pump(const Duration(milliseconds: 50)); // DetailTitleSync 帧回调
+      } else {
+        // 悬置桩:loading 态 spinner 永不 settle,按帧推进足够路由+注入。
+        for (var i = 0; i < 5; i++) {
+          await t.pump(const Duration(milliseconds: 50));
+        }
+      }
+    }
+
+    testWidgets('返回钮退役(budgetFormBack 零残留)+ 注入串:新建预算', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(find.byKey(const ValueKey('budgetFormBack')), findsNothing,
+          reason: '自带返回条退役(标题/取消/提交保留)');
+      expect(GetIt.instance<ShellDetailTitle>().value, '新建预算');
+    });
+
+    testWidgets('注入串编辑两态:加载中「编辑预算」→ 完成「编辑 · 旧预算」', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      // 悬置桩:detail 永不完成 → 页面停 loading,注入串为加载中形态。
+      await pumpPushed(t,
+          budgetId: 'b1',
+          getBudgetAnswer:
+              Completer<dartz.Either<Failure, BudgetView>>().future,
+          settle: false);
+      expect(GetIt.instance<ShellDetailTitle>().value, '编辑预算',
+          reason: '编辑加载中占位串');
+    });
+
+    testWidgets('注入串编辑完成态 + 净态返回直放', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t, budgetId: 'b1');
+      expect(GetIt.instance<ShellDetailTitle>().value, '编辑 · 旧预算');
+      // 编辑预填不置脏(抑制)→ 系统返回零弹框直放。
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing, reason: '预填非用户编辑');
+      expect(find.text('__host__'), findsOneWidget);
+    });
+
+    testWidgets('脏态:首改(预算名)后系统返回弹确认,放弃后净放', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t, budgetId: 'b1');
+      await t.enterText(find.byKey(const ValueKey('nameField')), '新预算名');
+      await t.pumpAndSettle();
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget);
+      await t.tap(find.text('继续编辑'));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('nameField')), findsOneWidget);
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(find.text('__host__'), findsOneWidget);
+    });
+
+    testWidgets('脏态:面包屑 page 级 veto(gate.mayLeave)同弹确认;dispose 清注入',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue,
+          reason: '净态直放');
+      await t.enterText(find.byKey(const ValueKey('nameField')), '新预算名');
+      await t.pumpAndSettle();
+      final leave = GetIt.instance<FormLeaveGate>().mayLeave();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget, reason: '面包屑路径同守卫');
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(await leave, isTrue);
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull,
+          reason: 'dispose 清注入标题');
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue,
+          reason: 'veto 随 dispose 注销');
     });
   });
 }

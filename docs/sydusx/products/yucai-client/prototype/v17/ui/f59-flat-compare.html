@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · F59 悬浮簇终局对比</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:F59 悬浮簇终局对比 —— 模型B(两钮+菜单) vs 模型C'(全平铺+分级) */
+  .sec-h{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:700;margin:30px 0 12px;letter-spacing:.3px}
+  .sec-num{width:24px;height:24px;border-radius:8px;background:var(--q1-bg);color:var(--q1-fg);display:grid;place-items:center;font-size:12px;font-weight:800;flex:none}
+  .sec-h .chip{margin-left:2px}
+  .cmp2{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch}
+
+  /* ===== 同尺寸 mock 舞台 ===== */
+  .mock{position:relative;height:560px;border:1px solid var(--border);border-radius:16px;background:var(--bg);overflow:hidden}
+  .mock-top{display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;background:var(--topbar-bg)}
+  .mock-top a{color:var(--link)}
+  .mock-top b{color:var(--fg);font-weight:600}
+  .mock-top .sep{margin:0 8px;opacity:.5}
+  .mock-body{padding:14px}
+  .m-hero{padding:16px 18px 12px;border-radius:18px;margin-bottom:8px}
+  .mock-body .txn{padding:8px 2px}
+  .mock-body .day-label{margin-top:2px}
+
+  /* ===== 悬浮簇(两模型共用) ===== */
+  .dock{position:absolute;right:28px;bottom:28px;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:6}
+  .dwrap{position:relative;display:flex;justify-content:center}
+  .dbtn{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer;transition:.15s;box-shadow:var(--shadow)}
+  .dbtn .ic{width:18px;height:18px}
+  .dbtn:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--acc) 55%,var(--border))}
+  .dbtn.pri{width:52px;height:52px;border:0;background:var(--fab-bg);color:var(--fab-fg);box-shadow:var(--fab-shadow)}
+  .dbtn.pri .ic{width:21px;height:21px}
+  .dbtn.dim{color:var(--muted);border-color:color-mix(in srgb,var(--border) 60%,var(--bg));background:color-mix(in srgb,var(--surface) 70%,var(--bg));opacity:.55}
+  .dbtn.dim:hover{opacity:1;color:var(--fg);background:var(--surface)}
+  .dbtn.hot{border-color:color-mix(in srgb,var(--acc) 60%,var(--border));color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,var(--surface))}
+  .dbtn.pending{font-weight:800;font-size:18px;outline:2px dashed color-mix(in srgb,var(--fab-fg) 70%,transparent);outline-offset:3px}
+  .dsep{width:22px;height:1px;background:var(--border);margin:1px 0;flex:none}
+
+  .dmenu{position:absolute;right:0;bottom:calc(100% + 10px);min-width:196px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px;box-shadow:0 14px 36px color-mix(in srgb,var(--fg) 16%,transparent);z-index:7}
+  .dmi{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:pointer;color:var(--fg)}
+  .dmi:hover{background:var(--surface-2)}
+  .dmi .ic{width:15px;height:15px;flex:none}
+  .dmi b{font-size:13px;font-weight:600;display:block}
+  .dmi small{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:1px}
+  .dmi.danger{color:var(--neg)}
+  .dmi.danger:hover{background:var(--neg-soft)}
+
+  .dtip{position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(-50%);white-space:nowrap;background:var(--fg);color:var(--bg);font-size:11.5px;font-weight:600;border-radius:8px;padding:5px 9px;pointer-events:none;z-index:8}
+
+  .mlab{position:absolute;left:14px;bottom:14px;z-index:5;font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--surface) 85%,transparent);border:1px solid var(--border);border-radius:999px;padding:3px 10px;backdrop-filter:blur(6px)}
+  .guide{position:absolute;left:16px;right:104px;bottom:158px;border-top:1px dashed color-mix(in srgb,var(--acc) 55%,transparent);z-index:5}
+  .guide span{position:absolute;right:0;top:-20px;font-size:10.5px;color:var(--acc);font-weight:600;white-space:nowrap}
+
+  /* ===== 标注卡 ===== */
+  .annos{display:flex;flex-direction:column;gap:10px}
+  .anno{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-size:12.5px;line-height:1.65;color:var(--muted)}
+  .anno .mk{font-weight:800;flex:none;font-size:13px}
+  .anno.pos .mk{color:var(--pos)}
+  .anno.cost .mk{color:var(--warn)}
+  .anno b{color:var(--fg)}
+  .ratio{display:flex;align-items:center;gap:14px;padding:12px;border:1px dashed var(--border);border-radius:12px}
+  .r-vp{width:36px;height:144px;border:1px solid var(--border);border-radius:8px;background:var(--bar-track);position:relative;overflow:hidden;flex:none}
+  .r-dock{position:absolute;left:3px;right:3px;bottom:3px;height:63px;border-radius:5px;background:var(--bar-fill)}
+  .r-tag{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:9.5px;color:var(--muted)}
+  .r-txt{font-size:12px;color:var(--muted);line-height:1.7}
+  .r-txt b{color:var(--fg)}
+
+  /* ===== 区块三:速览小卡 ===== */
+  .speed-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  .sp-body{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+  .mmock{position:relative;height:210px;border:1px solid var(--border);border-radius:12px;background:var(--bg);overflow:hidden}
+  .mtag{position:absolute;top:9px;left:11px;font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--muted);z-index:4}
+  .sk{position:absolute;background:var(--surface-2);border-radius:8px}
+  .sk.hero-sk{left:12px;right:64px;top:30px;height:44px}
+  .sk.l1{left:12px;right:40%;top:88px;height:10px}
+  .sk.l2{left:12px;right:55%;top:106px;height:10px}
+  .sk.l3{left:12px;right:48%;top:124px;height:10px}
+  .mcap{font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:9px}
+  .mcap b{color:var(--fg);font-weight:600}
+  .mcap .warn-t{color:var(--warn)}
+  .mdock{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:center;gap:7px;z-index:5}
+  .mbtn{position:relative;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer;transition:.15s;box-shadow:var(--shadow)}
+  .mbtn .ic{width:14px;height:14px}
+  .mbtn:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--acc) 55%,var(--border))}
+  .mbtn.pri{width:42px;height:42px;border:0;background:var(--fab-bg);color:var(--fab-fg);box-shadow:var(--fab-shadow)}
+  .mbtn.pri .ic{width:17px;height:17px}
+  .mbtn.dim{color:var(--muted);border-color:color-mix(in srgb,var(--border) 60%,var(--bg));background:color-mix(in srgb,var(--surface) 70%,var(--bg));opacity:.55}
+  .mbtn.dim:hover{opacity:1;color:var(--fg);background:var(--surface)}
+  .mbtn.pending{font-weight:800;font-size:15px;outline:2px dashed color-mix(in srgb,var(--fab-fg) 70%,transparent);outline-offset:2px}
+  .msep{width:16px;height:1px;background:var(--border);flex:none}
+  .retired-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px dashed var(--border);border-radius:10px;padding:7px 12px;margin-top:11px;color:var(--muted);font-size:11.5px}
+  .retired-bar b{text-decoration:line-through;font-weight:600;opacity:.75}
+
+  /* ===== 区块四:goal 待选 ===== */
+  .goal-body{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .goal-opt .mmock{height:150px}
+
+  /* ===== 页尾:拍板清单 ===== */
+  .decide{display:flex;flex-direction:column;gap:14px}
+  .d-row{display:flex;gap:14px;align-items:flex-start;padding:14px;border:1px solid var(--border);border-radius:14px}
+  [data-theme="light"] .d-row{border-color:transparent;box-shadow:var(--shadow)}
+  .d-num{width:26px;height:26px;border-radius:9px;background:var(--q1-bg);color:var(--q1-fg);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+  .d-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .d-opts{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .opt{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--border);border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+  .opt i{width:15px;height:15px;border-radius:50%;border:2px solid var(--muted);flex:none}
+  .opt:hover{border-color:color-mix(in srgb,var(--acc) 55%,var(--border))}
+  .d-note{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.7}
+  .d-note b{color:var(--fg)}
+  .chip.ask{color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);border-color:transparent}
+  .foot-note{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.7}
+  .foot-note b{color:var(--fg)}
+
+  /* ===== 窄窗格压回桌面布局(本页为对比评审页,恒桌面:面包屑可见) ===== */
+  @media (max-width:900px){
+    body{display:grid;grid-template-columns:236px 1fr}
+    .sidebar{display:flex}
+    .crumb{display:block}
+    .bottom-nav{display:none}
+    .topbar{padding:14px 32px}
+    .search{width:280px;flex:none}
+    .page{padding:28px 32px 48px}
+    .page-head{flex-direction:row;align-items:flex-end;gap:16px}
+    .page-head-actions{width:auto}
+    .sum-strip{grid-template-columns:repeat(3,1fr);gap:18px}
+    .quick{grid-template-columns:repeat(4,1fr);gap:18px}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-transfer" viewBox="0 0 24 24"><polyline points="17 2 21 6 17 10"/><path d="M3 6h18"/><polyline points="7 22 3 18 7 14"/><path d="M21 18H3"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/><line x1="12" y1="2" x2="12" y2="11"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item active" href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">F59 <span class="sep">›</span> 详情页悬浮簇 <span class="sep">›</span> <b>B vs C' 终局对比</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索账户…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head" data-od-id="page-head">
+      <div>
+        <h1>F59 · 悬浮簇终局对比</h1>
+        <p class="date">模型 B(两钮 + 菜单) vs 模型 C'(全平铺 + 视觉分级) · 供拍板</p>
+      </div>
+      <div class="page-head-actions">
+        <span class="chip num">R19 已定 · 竖排全圆 主52 / 次44 / 间距10 / 右下28</span>
+      </div>
+    </div>
+
+    <div class="callout warn" data-od-id="bg-callout">
+      <span class="c-ic">💡</span>
+      <div>
+        <div class="c-title">背景</div>
+        <div class="c-body">R19 详情页右下悬浮簇已定竖排 + 全圆(主金圆 <span class="num">52</span> / 次圆 <span class="num">44</span> / 间距 <span class="num">10</span> / 右下 <span class="num">28</span>);用户质疑「更多」按钮的必要性,倾向全平铺 —— 本页以<b>同场景 · 同尺寸 mock</b> 并置两模型终局形态,高度差一眼可见,供拍板。</div>
+      </div>
+    </div>
+
+    <h2 class="sec-h"><span class="sec-num num">一</span>模型 B · 两钮 + 菜单 —— 账户详情场景<span class="chip">操作最富</span></h2>
+    <section class="card" data-od-id="sec-block-b">
+      <div class="cmp2">
+        <div class="mock" data-od-id="mock-b">
+          <div class="mock-top">财务 <span class="sep">›</span> <a href="../../../../../../../design-output-v2/ab/accounts.html">账户管理</a> <span class="sep">›</span> <b>招商银行储蓄卡</b></div>
+          <div class="mock-body">
+            <div class="hero m-hero">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="acct-logo lg-red">招</div>
+                <div style="flex:1;min-width:0">
+                  <div class="hero-label">招商银行储蓄卡 · 尾号 <span class="num">6225</span></div>
+                  <div class="hero-row">
+                    <div class="hero-amount sm num">¥86,420<span class="cents">.50</span></div>
+                    <span class="delta up num">本月 +¥13,860</span>
+                  </div>
+                </div>
+              </div>
+              <div class="hero-foot num"><span>本月流入 <b>+¥32,100</b></span><span>流出 <b>−¥18,240</b></span></div>
+            </div>
+            <div class="day-label num">10 月 12 日 · 周一</div>
+            <div class="txn">
+              <div class="txn-ic">💼</div>
+              <div class="txn-main"><div class="txn-name">工资发放</div><div class="txn-cat">代发工资 · 招商银行</div></div>
+              <div class="txn-amt in num">+¥15,000.00</div>
+            </div>
+            <div class="txn">
+              <div class="txn-ic">🏠</div>
+              <div class="txn-main"><div class="txn-name">房租</div><div class="txn-cat">转账 · 支出</div></div>
+              <div class="txn-amt out num">−¥4,500.00</div>
+            </div>
+            <div class="txn">
+              <div class="txn-ic">🛒</div>
+              <div class="txn-main"><div class="txn-name">超市购物</div><div class="txn-cat">POS · 消费</div></div>
+              <div class="txn-amt out num">−¥326.80</div>
+            </div>
+          </div>
+          <span class="mlab num" data-od-id="mlab-b">B 簇高 ~130px</span>
+          <div class="dock" data-od-id="dock-b">
+            <div class="dwrap">
+              <button class="dbtn" title="更多" aria-label="更多">
+                <svg class="ic"><use href="#i-more"/></svg>
+              </button>
+              <div class="dmenu" data-od-id="dock-b-menu">
+                <div class="dmi"><svg class="ic"><use href="#i-edit"/></svg><span><b>编辑</b></span></div>
+                <div class="dmi"><svg class="ic"><use href="#i-transfer"/></svg><span><b>转账</b><small>还款 · 充值</small></span></div>
+                <div class="dmi"><svg class="ic"><use href="#i-copy"/></svg><span><b>复制账户</b></span></div>
+                <div class="dmi"><svg class="ic"><use href="#i-power"/></svg><span><b>关闭账户</b></span></div>
+                <div class="dmi danger"><svg class="ic"><use href="#i-trash"/></svg><span><b>删除</b></span></div>
+              </div>
+            </div>
+            <button class="dbtn pri" title="记一笔" aria-label="记一笔">
+              <svg class="ic"><use href="#i-plus"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="annos" data-od-id="annos-b">
+          <div class="anno pos"><span class="mk">✓</span><span>高度最小 —— 簇高 <b class="num">~130px</b>,右下常驻占用最轻,不遮内容。</span></div>
+          <div class="anno pos"><span class="mk">✓</span><span>低频操作走菜单,保留<b>文字标签</b> —— 「关闭账户 / 复制账户」语义零歧义。</span></div>
+          <div class="anno cost"><span class="mk">⚠</span><span>代价 —— 次级操作<b>两击</b>可达,外加菜单「一开一关」的交互税;菜单浮层与页面滚动需协调。</span></div>
+          <div class="anno" style="background:transparent;border:1px dashed var(--border)"><span class="mk" style="color:var(--muted)">ⓘ</span><span>形态:主金圆 <b class="num">52</b>(记一笔)+ 次圆 <b class="num">44</b>(更多),菜单浮于更多钮正上方。</span></div>
+        </div>
+      </div>
+    </section>
+
+    <h2 class="sec-h"><span class="sec-num num">二</span>模型 C' · 全平铺 + 视觉分级 —— 同场景<span class="chip">同尺寸 mock</span></h2>
+    <section class="card" data-od-id="sec-block-c">
+      <div class="cmp2">
+        <div class="mock" data-od-id="mock-c">
+          <div class="mock-top">财务 <span class="sep">›</span> <a href="../../../../../../../design-output-v2/ab/accounts.html">账户管理</a> <span class="sep">›</span> <b>招商银行储蓄卡</b></div>
+          <div class="mock-body">
+            <div class="hero m-hero">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="acct-logo lg-red">招</div>
+                <div style="flex:1;min-width:0">
+                  <div class="hero-label">招商银行储蓄卡 · 尾号 <span class="num">6225</span></div>
+                  <div class="hero-row">
+                    <div class="hero-amount sm num">¥86,420<span class="cents">.50</span></div>
+                    <span class="delta up num">本月 +¥13,860</span>
+                  </div>
+                </div>
+              </div>
+              <div class="hero-foot num"><span>本月流入 <b>+¥32,100</b></span><span>流出 <b>−¥18,240</b></span></div>
+            </div>
+            <div class="day-label num">10 月 12 日 · 周一</div>
+            <div class="txn">
+              <div class="txn-ic">💼</div>
+              <div class="txn-main"><div class="txn-name">工资发放</div><div class="txn-cat">代发工资 · 招商银行</div></div>
+              <div class="txn-amt in num">+¥15,000.00</div>
+            </div>
+            <div class="txn">
+              <div class="txn-ic">🏠</div>
+              <div class="txn-main"><div class="txn-name">房租</div><div class="txn-cat">转账 · 支出</div></div>
+              <div class="txn-amt out num">−¥4,500.00</div>
+            </div>
+            <div class="txn">
+              <div class="txn-ic">🛒</div>
+              <div class="txn-main"><div class="txn-name">超市购物</div><div class="txn-cat">POS · 消费</div></div>
+              <div class="txn-amt out num">−¥326.80</div>
+            </div>
+          </div>
+          <div class="guide"><span class="num">B 簇高线 ~130px ↓</span></div>
+          <span class="mlab num" data-od-id="mlab-c">C' 簇高 ~330px ≈ 720p 的 46%</span>
+          <div class="dock" data-od-id="dock-c">
+            <button class="dbtn dim" title="删除" aria-label="删除"><svg class="ic"><use href="#i-trash"/></svg></button>
+            <button class="dbtn dim" title="关闭账户" aria-label="关闭账户"><svg class="ic"><use href="#i-power"/></svg></button>
+            <button class="dbtn dim" title="复制账户" aria-label="复制账户"><svg class="ic"><use href="#i-copy"/></svg></button>
+            <i class="dsep"></i>
+            <button class="dbtn" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-edit"/></svg></button>
+            <button class="dbtn hot" title="转账 · 还款 / 充值" aria-label="转账">
+              <svg class="ic"><use href="#i-transfer"/></svg>
+              <span class="dtip">转账 · 还款 / 充值</span>
+            </button>
+            <button class="dbtn pri" title="记一笔" aria-label="记一笔"><svg class="ic"><use href="#i-plus"/></svg></button>
+          </div>
+        </div>
+        <div class="annos" data-od-id="annos-c">
+          <div class="anno pos"><span class="mk">✓</span><span>一切操作<b>零点击</b>可见、可达;形态<b>绝对统一</b> —— 全圆平铺,无菜单分支。</span></div>
+          <div class="anno cost"><span class="mk">⚠</span><span>满配簇高 <b class="num">~330px</b> 常驻,占 <b class="num">720p 视口的 ≈46%</b> —— 近半屏(虚线为 B 簇高线,高度差一眼可见)。</span></div>
+          <div class="anno cost"><span class="mk">⚠</span><span><b>裸图标</b>靠 tooltip 认(转账钮 hover 示意),可达性降级;低频的「关闭 / 复制」也常驻占地。</span></div>
+          <div class="anno cost"><span class="mk">⚠</span><span><b>删除</b>常驻视野 —— 由「降饱和淡显 + 分隔线 + 置顶离主钮最远」压存在感,有确认弹窗兜底。</span></div>
+          <div class="ratio" data-od-id="ratio-fig">
+            <div class="r-vp"><span class="r-tag num">720p</span><i class="r-dock"></i></div>
+            <div class="r-txt"><b>真实比例</b> —— C' 满配簇 <b class="num">~330px</b> 叠在 <b class="num">720px</b> 视口上,占右下 <b class="num">≈46%</b> 高度常驻;模型 B 同位置仅 <b class="num">~130px</b>。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <h2 class="sec-h"><span class="sec-num num">三</span>其余页两模型速览<span class="chip">小卡网格</span></h2>
+    <section class="speed-grid" data-od-id="sec-speed">
+
+      <div class="card" data-od-id="speed-card-debt">
+        <div class="mini-head"><span class="mini-title">债务详情</span><span class="chip num">3 操作</span></div>
+        <div class="sp-body">
+          <div>
+            <div class="mmock">
+              <span class="mtag">B</span>
+              <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+              <div class="mdock">
+                <button class="mbtn" title="更多 · 编辑 / 删除" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+                <button class="mbtn pri" title="立即记账" aria-label="立即记账"><svg class="ic"><use href="#i-plus"/></svg></button>
+              </div>
+            </div>
+            <div class="mcap"><b>B</b> · 立即记账金圆 + 更多 →<span class="num"> 编辑 / 删除</span></div>
+          </div>
+          <div>
+            <div class="mmock">
+              <span class="mtag">C'</span>
+              <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+              <div class="mdock">
+                <button class="mbtn dim" title="删除" aria-label="删除"><svg class="ic"><use href="#i-trash"/></svg></button>
+                <i class="msep"></i>
+                <button class="mbtn" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-edit"/></svg></button>
+                <button class="mbtn pri" title="立即记账" aria-label="立即记账"><svg class="ic"><use href="#i-plus"/></svg></button>
+              </div>
+            </div>
+            <div class="mcap"><b>C'</b> · 立即记账金圆 + 编辑 + 删除淡显 · <b class="num">3 钮</b>平铺</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-od-id="speed-card-budget">
+        <div class="mini-head"><span class="mini-title">budget 详情</span><span class="chip num">2 操作</span></div>
+        <div class="sp-body">
+          <div>
+            <div class="mmock">
+              <span class="mtag">B</span>
+              <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+              <div class="mdock">
+                <button class="mbtn" title="更多 · 删除" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+                <button class="mbtn pri" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-edit"/></svg></button>
+              </div>
+            </div>
+            <div class="mcap"><b>B</b> · 编辑金圆 + 更多 →<span class="num"> 删除</span>(单菜单项,菜单略重)</div>
+          </div>
+          <div>
+            <div class="mmock">
+              <span class="mtag">C'</span>
+              <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+              <div class="mdock">
+                <button class="mbtn dim" title="删除" aria-label="删除"><svg class="ic"><use href="#i-trash"/></svg></button>
+                <button class="mbtn pri" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-edit"/></svg></button>
+              </div>
+            </div>
+            <div class="mcap"><b>C'</b> · 编辑金圆 + 删除淡显 · <b class="num">2 钮</b>,与 B 形态几乎合流</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-od-id="speed-card-goal">
+        <div class="mini-head"><span class="mini-title">goal 详情</span><span class="chip ask">主操作待选</span></div>
+        <div class="sp-body">
+          <div>
+            <div class="mmock">
+              <span class="mtag">B</span>
+              <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+              <div class="mdock">
+                <button class="mbtn" title="删除" aria-label="删除"><svg class="ic"><use href="#i-trash"/></svg></button>
+                <button class="mbtn pri pending" title="主操作待选:完成 / 编辑" aria-label="主操作待选">?</button>
+              </div>
+            </div>
+            <div class="mcap"><b>B</b> · 主操作金圆(<span class="warn-t">?</span> 待选)+ 删除</div>
+          </div>
+          <div>
+            <div class="mmock">
+              <span class="mtag">C'</span>
+              <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+              <div class="mdock">
+                <button class="mbtn" title="删除" aria-label="删除"><svg class="ic"><use href="#i-trash"/></svg></button>
+                <button class="mbtn pri pending" title="主操作待选:完成 / 编辑" aria-label="主操作待选">?</button>
+              </div>
+            </div>
+            <div class="mcap"><b>C'</b> · 与 B <b>同构</b> —— 操作数少,两模型形态一致;谁进金圆见<b>区块四</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-od-id="speed-card-holding">
+        <div class="mini-head"><span class="mini-title">holding 详情</span><span class="chip num">4 操作</span></div>
+        <div class="sp-body">
+          <div>
+            <div class="mmock">
+              <span class="mtag">B</span>
+              <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+              <div class="mdock">
+                <button class="mbtn" title="更多 · 减仓 / 清仓 / 删除" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+                <button class="mbtn pri" title="加仓" aria-label="加仓"><svg class="ic"><use href="#i-plus"/></svg></button>
+              </div>
+            </div>
+            <div class="mcap"><b>B</b> · 加仓金圆 + 更多 →<span class="num"> 减仓 / 清仓 / 删除</span></div>
+          </div>
+          <div>
+            <div class="mmock">
+              <span class="mtag">C'</span>
+              <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+              <div class="mdock">
+                <button class="mbtn dim" title="删除" aria-label="删除"><svg class="ic"><use href="#i-trash"/></svg></button>
+                <button class="mbtn" title="清仓" aria-label="清仓"><svg class="ic"><use href="#i-x"/></svg></button>
+                <i class="msep"></i>
+                <button class="mbtn" title="减仓" aria-label="减仓"><svg class="ic"><use href="#i-minus"/></svg></button>
+                <button class="mbtn pri" title="加仓" aria-label="加仓"><svg class="ic"><use href="#i-plus"/></svg></button>
+              </div>
+            </div>
+            <div class="mcap"><b>C'</b> · 加仓金圆 + 减仓 + 清仓 + 删除淡显 · <b class="num">4 钮</b></div>
+          </div>
+        </div>
+        <div class="retired-bar" data-od-id="retired-bar"><span>底部操作条 · 两模型均退役</span><b>减仓 · 清仓 · 删除</b></div>
+        <div class="mcap"><span class="warn-t">⚠</span> 可达性代价 —— 原底部操作条的<b>文字标签</b>退场,改由图标 + tooltip 承载,长按 / 无 hover 设备需长按看名。</div>
+      </div>
+    </section>
+
+    <h2 class="sec-h"><span class="sec-num num">四</span>goal 主操作待选<span class="chip">通用两模型</span></h2>
+    <section class="goal-body" data-od-id="sec-goal">
+      <div class="card goal-opt" data-od-id="goal-opt-a">
+        <div class="mini-head"><span class="mini-title">方案 A · 「完成」进金圆</span><span class="chip">checkCircle</span></div>
+        <div class="mmock">
+          <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+          <div class="mdock">
+            <button class="mbtn" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-edit"/></svg></button>
+            <button class="mbtn pri" title="完成" aria-label="完成"><svg class="ic"><use href="#i-check-circle"/></svg></button>
+          </div>
+        </div>
+        <div class="mcap">目标达成是页面的<b>高潮动作</b>,金圆承载完成仪式感;编辑退为次级 <span class="num">44</span> 圆。</div>
+      </div>
+      <div class="card goal-opt" data-od-id="goal-opt-b">
+        <div class="mini-head"><span class="mini-title">方案 B · 「编辑」进金圆</span><span class="chip">edit</span></div>
+        <div class="mmock">
+          <i class="sk hero-sk"></i><i class="sk l1"></i><i class="sk l2"></i><i class="sk l3"></i>
+          <div class="mdock">
+            <button class="mbtn" title="完成" aria-label="完成"><svg class="ic"><use href="#i-check-circle"/></svg></button>
+            <button class="mbtn pri" title="编辑" aria-label="编辑"><svg class="ic"><use href="#i-edit"/></svg></button>
+          </div>
+        </div>
+        <div class="mcap">目标多处于<b>推进期</b>,编辑(调金额 / 期限)更常用,金圆对齐日常动线;完成退为次级 <span class="num">44</span> 圆。</div>
+      </div>
+    </section>
+
+    <h2 class="sec-h"><span class="sec-num num">✓</span>页尾 · 拍板清单<span class="chip">逐项圈选</span></h2>
+    <section class="card" data-od-id="sec-decide">
+      <div class="decide">
+        <div class="d-row" data-od-id="decide-1">
+          <span class="d-num num">1</span>
+          <div>
+            <div class="d-title">悬浮簇模型<span class="chip ask">你倾向 ?</span></div>
+            <div class="d-opts">
+              <span class="opt"><i></i>模型 B · 两钮 + 菜单</span>
+              <span class="opt"><i></i>模型 C' · 全平铺 + 分级</span>
+            </div>
+            <div class="d-note">两模型各有硬代价 —— B:次级<b>两击</b> + 菜单一开一关;C':满配 <b class="num">~330px</b> 常驻 + 裸图标可达性。本页<b>不预挂推荐</b>,由你裁。</div>
+          </div>
+        </div>
+        <div class="d-row" data-od-id="decide-2">
+          <span class="d-num num">2</span>
+          <div>
+            <div class="d-title">goal 主操作</div>
+            <div class="d-opts">
+              <span class="opt"><i></i>A · 完成 checkCircle 进金圆</span>
+              <span class="opt"><i></i>B · 编辑进金圆</span>
+            </div>
+            <div class="d-note">见<b>区块四</b>;两方案通用两模型,拍板后 goal 卡的「?」金圆即落定。</div>
+          </div>
+        </div>
+        <div class="d-row" data-od-id="decide-3">
+          <span class="d-num num">3</span>
+          <div>
+            <div class="d-title">holding 底部操作条<span class="chip pos">随模型自动消解</span></div>
+            <div class="d-note">两模型下底部操作条<b>均退役</b>(见区块三 holding 卡的退役标注),无需单独拍板 —— 随第 <span class="num">1</span> 项的模型选择自动落定。</div>
+          </div>
+        </div>
+      </div>
+      <div class="foot-note">脚注:F58 三页(<b>债务 / 债权 / 账户</b>)按拍板结果回改,随 F59 一并落地。</div>
+    </section>
+
+    <footer class="foot">御财 v2 设计原型 · F59 悬浮簇终局对比(B vs C')· A+B 亮暗双主题 · 演示数据</footer>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a class="active" href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="../../../../../../../design-output-v2/ab/transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+</body>
+</html>

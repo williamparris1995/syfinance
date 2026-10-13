@@ -19,6 +19,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/form_leave_gate.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -2494,6 +2496,153 @@ void main() {
       expect(find.text('平安银行 · 卡贷'), findsWidgets);
       expect(find.text('广发银行 · 卡贷'), findsNothing,
           reason: '与当前债无关的载体户仍被滤(FR-3)');
+    });
+  });
+
+  // ── F59 FR-5(ADR-3):表单页接线 —— AppBar 退役 + 三级注入 + 离开守卫 ──
+  group('F59 FR-5 表单页接线', () {
+    /// 推入式 harness:form 页 push 于宿主页之上(系统返回断言的「回来」锚点,
+    /// 照 form_leave_guard_test 先例)。两 port 注册(生产 injection 1k 同款;
+    /// 同测试内多次 pumpPushed 复用注册,tearDown 统一 reset)。
+    Future<void> pumpPushed(WidgetTester t, {Debt? existing}) async {
+      if (!GetIt.instance.isRegistered<ShellDetailTitle>()) {
+        GetIt.instance.registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+      if (!GetIt.instance.isRegistered<FormLeaveGate>()) {
+        GetIt.instance.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
+      }
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'loan-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(MultiBlocProvider(
+        providers: [
+          BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+          BlocProvider<CurrencyBloc>.value(
+            value: _FakeCurrencyBloc(const CurrencyState()),
+          ),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).push(MaterialPageRoute<void>(
+                    builder: (_) => DebtFormPage(existing: existing),
+                  )),
+                  child: const Text('__host__'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await t.tap(find.text('__host__'));
+      await t.pumpAndSettle();
+      await t.pump(const Duration(milliseconds: 50)); // DetailTitleSync 帧回调
+    }
+
+    testWidgets('AppBar 零残留(创建/编辑两态)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(find.byType(AppBar), findsNothing, reason: '自带 AppBar 导航退役');
+      // 净态退栈后再推编辑态(Navigator element 复用,push 残留会挡宿主页)。
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+
+      await pumpPushed(t, existing: existingDebt());
+      expect(find.byType(AppBar), findsNothing);
+    });
+
+    testWidgets('注入串两态:创建「新建债务」/ 编辑「编辑 · 债权方」', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(GetIt.instance<ShellDetailTitle>().value, '新建债务');
+      // 净态退栈后再推编辑态;dispose 顺带清注入(下轮重新注入编辑串)。
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+
+      await pumpPushed(t, existing: existingDebt(counterparty: '王五'));
+      expect(GetIt.instance<ShellDetailTitle>().value, '编辑 · 王五');
+    });
+
+    testWidgets('净态:系统返回直放,零弹框', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing, reason: '净态零摩擦');
+      expect(find.text('__host__'), findsOneWidget, reason: '已回到宿主页');
+    });
+
+    testWidgets('脏态:系统返回弹确认 ——「继续编辑」留下,「放弃修改」放行', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      // 首改即脏:改债权方。
+      await t.enterText(find.byKey(const ValueKey('counterpartyField')), '张三');
+      await t.pumpAndSettle();
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget);
+      await t.tap(find.text('继续编辑'));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('counterpartyField')), findsOneWidget,
+          reason: '「继续编辑」应留在表单');
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget);
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(find.text('__host__'), findsOneWidget, reason: '「放弃修改」放行离开');
+    });
+
+    testWidgets('脏态:面包屑 page 级 veto 通道(gate.mayLeave)同弹确认', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      // 净态问询:直 true 零弹框。
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue);
+      expect(find.byType(AlertDialog), findsNothing);
+
+      await t.enterText(find.byKey(const ValueKey('counterpartyField')), '张三');
+      await t.pumpAndSettle();
+      final leave = GetIt.instance<FormLeaveGate>().mayLeave();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget, reason: '面包屑路径同守卫');
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(await leave, isTrue);
+      // mayLeave 只问询不导航:表单仍在树。
+      expect(find.byKey(const ValueKey('counterpartyField')), findsOneWidget);
+    });
+
+    testWidgets('dispose 清理注入标题 + gate 无残留注册', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(GetIt.instance<ShellDetailTitle>().value, '新建债务');
+      // 净态直走 → dispose。
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull,
+          reason: '页面 dispose 清注入标题');
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue,
+          reason: 'veto 随 dispose 注销');
     });
   });
 }

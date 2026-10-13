@@ -18,6 +18,9 @@ class DesignTokens extends ThemeExtension<DesignTokens> {
     // 构造器)零改动;消费端对空列表各自定义回落(如渐变空 → accent 纯色)。
     this.accentGradient = const <Color>[],
     this.actionShadow = const <BoxShadow>[],
+    // F59 增补(FloatingActionDock C'):降权透明度,淡显组与禁用态共用
+    // 同一视觉语言;缺省 0.45 中性值,既有构造点零改动。
+    this.dimmedOpacity = 0.45,
   });
 
   /// 容器/弹出面底色。
@@ -47,6 +50,10 @@ class DesignTokens extends ThemeExtension<DesignTokens> {
   /// 悬浮主操作投影(空 = 无阴影)。
   final List<BoxShadow> actionShadow;
 
+  /// 降权透明度(F59 C' 淡显组与禁用态共用;宿主可注入自有口径)。
+  /// 淡显 = 视觉淡但可点;禁用 = 不可点 —— 语义在组件侧区分,令牌只给数值。
+  final double dimmedOpacity;
+
   /// 亮色兜底(宿主未注册扩展时;取自中性石板色系,任何宿主下不刺眼)。
   static const DesignTokens light = DesignTokens(
     surface: Color(0xFFFFFFFF),
@@ -70,6 +77,7 @@ class DesignTokens extends ThemeExtension<DesignTokens> {
     // 列表型:不传 = 保留;显式传空列表 = 清空(null 语义天然二分)。
     List<Color>? accentGradient,
     List<BoxShadow>? actionShadow,
+    double? dimmedOpacity, // 非空标量:不传 = 保留
   }) =>
       DesignTokens(
         surface: surface ?? this.surface,
@@ -81,6 +89,7 @@ class DesignTokens extends ThemeExtension<DesignTokens> {
         negative: negative ?? this.negative,
         accentGradient: accentGradient ?? this.accentGradient,
         actionShadow: actionShadow ?? this.actionShadow,
+        dimmedOpacity: dimmedOpacity ?? this.dimmedOpacity,
       );
 
   @override
@@ -96,6 +105,7 @@ class DesignTokens extends ThemeExtension<DesignTokens> {
       negative: Color.lerp(negative, other.negative, t)!,
       accentGradient: _lerpList(accentGradient, other.accentGradient, t, Color.lerp),
       actionShadow: _lerpList(actionShadow, other.actionShadow, t, BoxShadow.lerp),
+      dimmedOpacity: dimmedOpacity + (other.dimmedOpacity - dimmedOpacity) * t,
     );
   }
 
@@ -122,7 +132,8 @@ class DesignTokens extends ThemeExtension<DesignTokens> {
       positive == other.positive &&
       negative == other.negative &&
       listEquals(accentGradient, other.accentGradient) &&
-      listEquals(actionShadow, other.actionShadow);
+      listEquals(actionShadow, other.actionShadow) &&
+      dimmedOpacity == other.dimmedOpacity;
 
   @override
   int get hashCode => Object.hashAll([
@@ -135,6 +146,7 @@ class DesignTokens extends ThemeExtension<DesignTokens> {
         negative,
         ...accentGradient,
         ...actionShadow,
+        dimmedOpacity,
       ]);
 }
 

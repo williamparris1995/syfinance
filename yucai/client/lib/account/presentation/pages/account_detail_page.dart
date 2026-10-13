@@ -52,9 +52,11 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 /// 账户详情页。承接 Task 11 GetAccountUseCase + AccountDetailLoaded。
 ///
 /// F58 T5 壳层导航迁移:AppBar 整条退役(FR-5,回退唯一路径 = 顶栏面包屑
-/// page 级),操作全量迁右下常驻悬浮簇 FloatingActionDock(FR-3/FR-4 两态:
-/// 活跃 = 记一笔 primary + 编辑/转账(还款·充值)/更多;归档 = 仅更多,
-/// primary 禁用)。结构:Hero(类型图标 + 名称 / 机构·币种·类型 / 余额 /
+/// page 级),操作全量迁右下常驻悬浮簇 FloatingActionDock(FR-3/FR-4;F59
+/// 模型 C' 三段式:活跃 = 记一笔 primary + 编辑/转账(还款·充值)secondary
+/// + 复制/关闭/删除 muted 淡显;归档 = primary 禁用在场 + 仅 muted
+/// [复制/重新激活/删除],菜单模型退役;loading/error 恒渲染全禁用 ADR-4)。
+/// 结构:Hero(类型图标 + 名称 / 机构·币种·类型 / 余额 /
 /// category 专属 chip)→ 统计行 → 双栏(近期交易 / 收支统计)→ 类型专属
 /// 面板(投资 → 持仓列表占位 / 贷款 → 还款计划只读面板 F35)。标题注入:
 /// loaded 分支 DetailTitleSync(账户名)(I-1 评审修复),dispose clear(FR-2)。
@@ -436,18 +438,16 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
               ),
             ),
           ),
-          // F58 FR-3:右下角常驻悬浮簇(视口边距 28,不随滚动移动)。账户
-          // 加载完成才渲染(加载中转圈/失败态无操作可言;旧 AppBar 的
-          // a==null 禁用态随迁移退役)。
+          // F59 FR-3/ADR-4:右下角常驻悬浮簇(视口边距 28,不随滚动移动)
+          // —— 恒渲染,移出 AccountDetailLoaded 门(照债务/债权页形态):
+          // loading/error 态整簇全禁用(操作锚点恒定 + 禁用语言,menu 退役
+          // 后 _dock 以 account == null 表达全禁用)。
           Positioned(
             right: 28,
             bottom: 28,
             child: BlocBuilder<AccountBloc, AccountState>(
-              builder: (context, state) {
-                return state is AccountDetailLoaded
-                    ? _dock(state.account)
-                    : const SizedBox.shrink();
-              },
+              builder: (context, state) =>
+                  _dock(state is AccountDetailLoaded ? state.account : null),
             ),
           ),
         ],
@@ -455,72 +455,68 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     );
   }
 
-  /// F58 FR-4:悬浮簇操作集(两态,design.md LLD 操作映射表)。
+  /// F59 FR-2:悬浮簇操作集(模型 C' 全平铺三段式,「更多」菜单模型退役)。
   ///
   /// - 活跃:primary「记一笔」(_recordTxn)+ secondary[编辑(_edit)、
-  ///   转账(_transfer;信用卡=还款/储值=充值,标签逻辑沿用旧 AppBar)、
-  ///   更多(AnchoredMenu:复制账户/关闭账户/删除)];
-  /// - 归档:primary 禁用(onTap null 半透明降权 —— FR-4「每页必有且仅有
-  ///   一个主 FAB」故主钮不缺席,「无主操作可用」以禁用表达;组件注释
-  ///   「归档页降级先例」即此语义)+ 仅「更多」(菜单换 关闭→重新激活;
-  ///   编辑/转账照旧 `!archived` 隐藏)。零功能丢失:复制/关闭/重新激活/
-  ///   删除/还款/充值/记一笔 全可达。
-  ///
-  /// 更多菜单经 AnchoredMenu 锚定整个 dock(自适应翻转:右下角场景菜单
-  /// 向上、向左弹出,恰贴合 dock 顶缘的「更多」钮),跨分支 Navigator
-  /// 边界像素级贴合(照 F5e 既有先例)。
-  Widget _dock(Account a) {
-    final archived = a.status == AccountStatus.archived;
+  ///   转账(_transfer;信用卡=还款/储值=充值,标签逻辑沿用旧 AppBar)]+
+  ///   muted[复制账户(_copy)/关闭账户(_close)/删除账户(_delete)]——
+  ///   原菜单三项平铺淡显,直达既有确认弹窗(复制直达表单,零功能丢失);
+  /// - 归档:primary 禁用在场(FR-4「每页必有一个主 FAB」故主钮不缺席,
+  ///   「无主操作可用」以禁用表达)+ secondary 空(编辑/转账照旧
+  ///   `!archived` 隐藏)+ muted[复制账户/重新激活账户(_reactivate)/
+  ///   删除账户] 全淡显(菜单换平铺:关闭 → 重新激活);
+  /// - loading/error([a] == null):恒渲染整簇,全部动作禁用(FR-3/ADR-4,
+  ///   与债务/债权页口径一致)。
+  /// muted 列表末项(删除)渲染置顶 —— 危险项离主钮最远(FR-1)。
+  Widget _dock(Account? a) {
+    final archived = a?.status == AccountStatus.archived;
     // 转账标签(信用卡=还款 / 储值=充值 / 其余=转账)与图标,复用旧
-    // AppBar 既有映射。
-    final transferLabel = a.category == AccountCategory.creditCard
+    // AppBar 既有映射;a == null(loading/error)时回退通用「转账」。
+    final transferLabel = a?.category == AccountCategory.creditCard
         ? '还款'
-        : a.category == AccountCategory.storedValue
+        : a?.category == AccountCategory.storedValue
             ? '充值'
             : '转账';
-    final transferIcon = a.category == AccountCategory.creditCard
+    final transferIcon = a?.category == AccountCategory.creditCard
         ? LucideIcons.creditCard
         : LucideIcons.arrowLeftRight;
-    return AnchoredMenu(
-      items: [
-        MenuItemData(
-            label: '复制账户',
-            icon: LucideIcons.copy,
-            onTap: () => _copy(a)),
-        MenuItemData(
-            label: archived ? '重新激活账户' : '关闭账户',
-            icon: archived ? LucideIcons.rotateCcw : LucideIcons.archive,
-            onTap: () => archived ? _reactivate(a) : _close(a)),
-        MenuItemData(
-            label: '删除账户',
-            icon: LucideIcons.trash2,
-            destructive: true,
-            onTap: () => _delete(a)),
-      ],
-      builder: (menuContext, open) => FloatingActionDock(
-        primary: DockAction(
-          icon: LucideIcons.penLine,
-          tooltip: '记一笔',
-          // 归档:禁用态(不可触发、不获焦、半透明降权)。
-          onTap: archived ? null : _recordTxn,
-        ),
-        secondary: [
-          if (!archived) ...[
-            DockAction(
-                icon: LucideIcons.edit,
-                tooltip: '编辑',
-                onTap: () => _edit(a)),
-            DockAction(
-                icon: transferIcon,
-                tooltip: transferLabel,
-                onTap: _transfer),
-          ],
-          DockAction(
-              icon: LucideIcons.moreHorizontal,
-              tooltip: '更多操作',
-              onTap: open),
-        ],
+    return FloatingActionDock(
+      primary: DockAction(
+        icon: LucideIcons.penLine,
+        tooltip: '记一笔',
+        // 归档/loading/error:禁用态(不可触发、不获焦、半透明降权)。
+        onTap: (a != null && !archived) ? _recordTxn : null,
       ),
+      secondary: [
+        // 归档:secondary 空(编辑/转账照旧 !archived 隐藏);loading/error
+        // 保留在场禁用(操作锚点恒定,FR-3/ADR-4)。
+        if (!archived) ...[
+          DockAction(
+              icon: LucideIcons.edit,
+              tooltip: '编辑',
+              onTap: a != null ? () => _edit(a) : null),
+          DockAction(
+              icon: transferIcon,
+              tooltip: transferLabel,
+              onTap: a != null ? _transfer : null),
+        ],
+      ],
+      muted: [
+        DockAction(
+            icon: LucideIcons.copy,
+            tooltip: '复制账户',
+            onTap: a != null ? () => _copy(a) : null),
+        DockAction(
+            icon: archived ? LucideIcons.rotateCcw : LucideIcons.archive,
+            tooltip: archived ? '重新激活账户' : '关闭账户',
+            onTap: a == null
+                ? null
+                : () => archived ? _reactivate(a) : _close(a)),
+        DockAction(
+            icon: LucideIcons.trash2,
+            tooltip: '删除账户',
+            onTap: a != null ? () => _delete(a) : null),
+      ],
     );
   }
 
@@ -539,12 +535,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     final isMobile = w <= 720; // ≤720 mobile
     return ListView(
       // F58 T5:AppBar 退役后 hero 直升页顶 —— 顶部只留 8-16px 呼吸位
-      // (mobile 14 / 其余 16,原 24 收敛);底部留白 ≥242(= dock 高 214
-      // [52 主钮 + 3×44 次钮 + 3×10 间距] + 视口底距 28,FR-3 防末屏
-      // 关键信息被悬浮簇遮挡),原 OD 60/70 padding 随迁移退役。
+      // (mobile 14 / 其余 16,原 24 收敛)。F59 FR-3:底部留白 ≥370
+      // (= C' 满配 6 钮簇高 333 [52 主钮 + 5×44 次级 + 6×10 间距 +
+      // 分隔线 1] + 视口底距 28 + 冗余,防末屏关键信息被悬浮簇遮挡),
+      // 原 OD 60/70 padding 随迁移退役。
       padding: isMobile
-          ? const EdgeInsets.fromLTRB(16, 14, 16, 242)
-          : const EdgeInsets.fromLTRB(36, 16, 36, 242),
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 370)
+          : const EdgeInsets.fromLTRB(36, 16, 36, 370),
       children: [
         _hero(a, summary?.netCents ?? 0),
         const SizedBox(height: 18),

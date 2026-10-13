@@ -65,6 +65,9 @@ class AppTheme {
               offset: const Offset(0, 8),
             ),
           ],
+          // F59 C' 淡显组透明度(OD 拍板页 f59-flat-compare .dim opacity=0.55
+          // 用户过审基线;T1 组件缺省 0.45 仅测试兜底)—— 双主题同值。
+          dimmedOpacity: 0.55,
         ),
       ],
       dividerTheme: DividerThemeData(

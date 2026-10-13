@@ -689,11 +689,11 @@ void main() {
     });
   });
 
-  // ───────────────────────── 更多菜单(删除) ─────────────────────────
-  // 修复「更多菜单待接入」占位:更多 → 删除债权 → 二次确认 → 成功回列表。
-  // 删除成功信号是 DebtsLoaded(bloc 删除后刷新列表态),页面需 go 回
-  // /receivables —— harness 换 GoRouter(静态 /receivables 在 /:id 前)。
-  group('更多菜单删除', () {
+  // ───────────────────── F59 FR-2:删除淡显钮直达(菜单退役) ─────────────────────
+  // C' 全平铺:删除为 muted 淡显常驻钮,零菜单一步直达既有二次确认弹窗,
+  // 成功回列表。删除成功信号是 DebtsLoaded(bloc 删除后刷新列表态),页面需
+  // go 回 /receivables —— harness 换 GoRouter(静态 /receivables 在 /:id 前)。
+  group("muted 删除钮(C' 直达)", () {
     Widget routerHarness(_MockDebtRepo debtRepo) {
       final router = GoRouter(
         initialLocation: '/receivables/r1',
@@ -719,7 +719,8 @@ void main() {
       );
     }
 
-    testWidgets('更多 → 删除债权 → 确认 → repo.delete + 返回列表页', (t) async {
+    testWidgets('muted 删除钮 → 直达确认弹窗 → 确认 → repo.delete + 返回列表页',
+        (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
@@ -742,28 +743,24 @@ void main() {
 
       await t.pumpWidget(routerHarness(debtRepo));
       await t.pumpAndSettle();
-      // 1. 更多菜单(不再弹「更多菜单待接入」)
+      // 菜单模型退役:整页零 AnchoredMenu;删除一步直达确认弹窗。
+      expect(find.byType(AnchoredMenu), findsNothing);
+      expect(find.byTooltip('更多'), findsNothing);
       expect(find.textContaining('待接入'), findsNothing);
-      await t.tap(find.byTooltip('更多'));
+      await t.tap(find.byTooltip('删除债权'));
       await t.pumpAndSettle();
+      // 直达既有二次确认弹窗(收款语义文案,无中间菜单)。
       expect(find.text('删除债权'), findsOneWidget);
-      // 2. 删除项 → 二次确认弹窗(收款语义文案)。
-      // 菜单经 CompositedTransformFollower 绘制,finder 报告的是 overlay
-      // 布局原点坐标(左上角),按 finder tap 必 miss —— 以触发按钮矩形
-      // 推算真实绘制位(菜单 padding 6 + 单项 ~33 高,锚 bottomLeft+6)。
-      await t.tap(find.text('删除债权'));
-      await t.pumpAndSettle();
-      expect(find.text('删除债权'), findsOneWidget); // 弹窗标题(菜单已关)
       expect(find.textContaining('收款计划将一并删除'), findsOneWidget);
       expect(find.textContaining('已记录的收款交易保留'), findsOneWidget);
-      // 3. 确认删除
+      // 确认删除
       await t.tap(find.widgetWithText(FilledButton, '删除'));
       for (var i = 0; i < 10 && deletedId.isEmpty; i++) {
         await t.pump(const Duration(milliseconds: 50));
       }
       await t.pumpAndSettle();
       expect(deletedId, 'r1');
-      // 4. 成功回列表路由
+      // 成功回列表路由
       expect(find.text('RECEIVABLES_LIST'), findsOneWidget);
       // AppToast Timer 推进避免 teardown 报 timersPending。
       await t.pump(const Duration(seconds: 4));
@@ -785,9 +782,7 @@ void main() {
 
       await t.pumpWidget(routerHarness(debtRepo));
       await t.pumpAndSettle();
-      await t.tap(find.byTooltip('更多'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('删除债权'));
+      await t.tap(find.byTooltip('删除债权'));
       await t.pumpAndSettle();
       await t.tap(find.text('取消'));
       await t.pumpAndSettle();
@@ -802,7 +797,7 @@ void main() {
 
   // ───────────────── F58 T4:AppBar 退役 + 右下悬浮簇 + 标题注入 ─────────────────
   // (镜像 debt_detail_page_test 同名 group;差异 = 收款语义:primary=收款,
-  // dialog=确认收款,菜单项=删除债权。)
+  // dialog=确认收款,删除债权=muted 淡显钮直达。)
   group('F58 悬浮簇 + AppBar 退役', () {
     testWidgets('FR-5 页面无 AppBar(第二层导航整条退役)', (t) async {
       t.view.physicalSize = desktop;
@@ -815,8 +810,8 @@ void main() {
     });
 
     testWidgets(
-        'FR-3/FR-4 dock 常驻右下:primary=收款,secondary=[编辑,更多],'
-        '滚动 bottom padding ≥242', (t) async {
+        'FR-3/FR-4 dock 常驻右下:primary=收款,secondary=[编辑],'
+        'muted=[删除债权],滚动 bottom padding ≥253', (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
@@ -830,20 +825,27 @@ void main() {
       );
       expect(pos.right, 28);
       expect(pos.bottom, 28);
-      // 操作映射(receivable 语义):primary=收款;secondary=[编辑,更多]。
+      // 操作映射(receivable 语义 C'):primary=收款;secondary=[编辑];
+      // muted=[删除债权](淡显,危险项离主钮最远)。
       final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
       expect(dock.primary.tooltip, '收款');
       expect(dock.primary.onTap, isNotNull, reason: '已加载且有未收期次 → 可触发');
-      expect(dock.secondary.map((a) => a.tooltip).toList(), ['编辑', '更多']);
+      expect(dock.secondary.map((a) => a.tooltip).toList(), ['编辑']);
       expect(dock.secondary.every((a) => a.onTap != null), isTrue);
-      // FR-3 防遮挡:页面滚动容器底部留白 ≥ 242(簇高 160 + 底边距 28 + 净空 54)。
+      expect(dock.muted.map((a) => a.tooltip).toList(), ['删除债权']);
+      expect(dock.muted.every((a) => a.onTap != null), isTrue);
+      // F59 FR-2:菜单模型退役,页面零 AnchoredMenu 挂载。
+      expect(find.byType(AnchoredMenu), findsNothing);
+      expect(find.byTooltip('更多'), findsNothing);
+      // FR-3 防遮挡:页面滚动容器底部留白 ≥ 253(C' 满配簇高 171
+      // [52 主钮 + 2×44 次级 + 3×10 间距 + 分隔线 1] + 底边距 28 + 净空 54)。
       final list = t.widget<ListView>(find
           .descendant(
               of: find.byType(ReceivableDetailPage),
               matching: find.byType(ListView))
           .first);
       expect((list.padding as EdgeInsets?)?.bottom ?? 0,
-          greaterThanOrEqualTo(242));
+          greaterThanOrEqualTo(253));
     });
 
     testWidgets('全部收清 → primary 禁用(无下期可收)', (t) async {
@@ -869,6 +871,7 @@ void main() {
       final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
       expect(dock.primary.onTap, isNull, reason: '无未收期次 → 主操作禁用');
       expect(dock.secondary.every((a) => a.onTap != null), isTrue);
+      expect(dock.muted.every((a) => a.onTap != null), isTrue);
     });
 
     testWidgets('tap primary 收款 → 打开下期确认收款 dialog(复用既有逻辑)',
@@ -949,16 +952,19 @@ void main() {
           reason: 'push 叠栈:详情页仍在编辑页之下');
     });
 
-    testWidgets('tap 更多 → AnchoredMenu 开(删除债权 可见)', (t) async {
+    testWidgets('tap muted 删除钮 → 直达既有确认弹窗(零菜单)', (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
-      await t.tap(find.byTooltip('更多'));
+      await t.tap(find.byTooltip('删除债权'));
       await t.pumpAndSettle();
+      // 直达既有 confirmDeleteDebt 二次确认弹窗(收款语义,无中间菜单)。
       expect(find.text('删除债权'), findsOneWidget);
-      await t.tapAt(const Offset(20, 20));
+      expect(find.textContaining('收款计划将一并删除'), findsOneWidget);
+      // 收尾:取消关闭弹窗。
+      await t.tap(find.widgetWithText(TextButton, '取消'));
       await t.pumpAndSettle();
     });
 
@@ -1004,6 +1010,13 @@ void main() {
       await t.pumpAndSettle();
       expect(find.text('加载失败'), findsOneWidget);
       expect(GetIt.instance<ShellDetailTitle>().value, isNull);
+      // FR-3(ADR-4) 恒渲染:error 态悬浮簇仍在(操作锚点恒定),全禁用。
+      final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
+      expect(dock.primary.onTap, isNull, reason: 'error:主操作禁用');
+      expect(dock.secondary.every((a) => a.onTap == null), isTrue,
+          reason: 'error:次级全禁用');
+      expect(dock.muted.every((a) => a.onTap == null), isTrue,
+          reason: 'error:淡显组全禁用');
     });
   });
 }

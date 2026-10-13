@@ -14,7 +14,6 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' show AppDatabase;
 import 'package:yucai_client/core/notifications/reminder_dismissal_store.dart';
-import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -60,8 +59,8 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
   // 不在 _accounts 的 asset 过滤集)。
   List<Account> _allAccounts = const [];
   bool _recordPending = false;
-  // 更多菜单删除流:成功信号是 DebtsLoaded(bloc 删除后刷新列表态),区别于
-  // 记账流的 DebtDetailLoaded。
+  // 删除流(muted 淡显钮直达):成功信号是 DebtsLoaded(bloc 删除后刷新
+  // 列表态),区别于记账流的 DebtDetailLoaded。
   bool _deletePending = false;
   // 合同文件附件(本地 v1):进页读取,编辑页替换后返回经 didPopNext 重读。
   ContractAttachment? _attachment;
@@ -126,9 +125,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
     // F58 FR-2:离开详情页清理注入标题(双保险之一;另一道 = AppShell
     // location-diff scrubber)。guarded getIt:stripped 测试 harness 未注册
     // port 时静默跳过(照 app_shell 先例)。
-    if (getIt.isRegistered<ShellDetailTitle>()) {
-      getIt<ShellDetailTitle>().clear();
-    }
+    scheduleDetailTitleClear();
     debtsRouteObserver.unsubscribe(this);
     super.dispose();
   }
@@ -229,16 +226,18 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
     );
   }
 
-  /// F58 FR-4 悬浮簇操作映射(debt 语义,经 [_sem] 双态复用):
+  /// F59 FR-2 悬浮簇操作映射(debt 语义,模型 C' 全平铺三段式,经 [_sem]
+  /// 双态复用;菜单模型退役):
   ///  - primary 立即记账:打开下期(首个未还期次)RecordPayment dialog ——
   ///    复用 [_openRecordPayment],与还款计划行内入口同款 dialog、行为一致;
   ///    无未还期次或卡贷(F48 期次自动并入挂接卡,手工记账停用防双重支付)
   ///    → 禁用(操作不缺席,仅降权);
   ///  - secondary 编辑:push `/{listRoutePrefix}/:id/edit`;
-  ///  - secondary 更多:AnchoredMenu(删除 = 既有 [_confirmDelete],
-  ///    destructive 红)。
-  /// 更多菜单锚定整簇(AnchoredMenu 包 FloatingActionDock):簇贴视口右下,
-  /// 菜单自适应翻转后恰于簇顶上方右对齐展开(AnchoredMenu 既有先例照用)。
+  ///  - muted 删除:降饱和淡显常驻钮(hover/焦点恢复亮度),一步直达
+  ///    既有 [_confirmDelete] 二次确认弹窗 —— 原「更多」AnchoredMenu
+  ///    挂载随菜单退役(F59 FR-2 零菜单零折叠)。
+  /// loading/error 态(非 DebtDetailLoaded)恒渲染整簇,全部动作禁用
+  /// (FR-3/ADR-4,操作锚点恒定 + 禁用语言)。
   Widget _dock() {
     return BlocBuilder<DebtBloc, DebtState>(
       builder: (context, state) {
@@ -247,40 +246,31 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
         final schedule = detail?.schedule ?? const <PaymentEntry>[];
         final nextUnpaid = schedule.where((e) => !e.paid).toList();
         final isCardLoan = debt?.subtype == DebtSubtypes.cardLoan;
-        return AnchoredMenu(
-          items: [
-            MenuItemData(
-              label: _sem.deleteMenuItem,
-              icon: LucideIcons.trash2,
-              destructive: true,
-              enabled: debt != null,
-              onTap: () => _confirmDelete(debt),
-            ),
-          ],
-          builder: (menuContext, open) => FloatingActionDock(
-            primary: DockAction(
-              icon: _sem.footCtaIcon,
-              tooltip: _sem.footCtaLabel,
-              onTap: (debt != null && nextUnpaid.isNotEmpty && !isCardLoan)
-                  ? () => _openRecordPayment(nextUnpaid.first)
+        return FloatingActionDock(
+          primary: DockAction(
+            icon: _sem.footCtaIcon,
+            tooltip: _sem.footCtaLabel,
+            onTap: (debt != null && nextUnpaid.isNotEmpty && !isCardLoan)
+                ? () => _openRecordPayment(nextUnpaid.first)
+                : null,
+          ),
+          secondary: [
+            DockAction(
+              icon: LucideIcons.pencil,
+              tooltip: '编辑',
+              onTap: debt != null
+                  ? () => context
+                      .push('${_sem.listRoutePrefix}/${debt.id}/edit')
                   : null,
             ),
-            secondary: [
-              DockAction(
-                icon: LucideIcons.pencil,
-                tooltip: '编辑',
-                onTap: debt != null
-                    ? () => context
-                        .push('${_sem.listRoutePrefix}/${debt.id}/edit')
-                    : null,
-              ),
-              DockAction(
-                icon: LucideIcons.moreHorizontal,
-                tooltip: '更多',
-                onTap: debt != null ? open : null,
-              ),
-            ],
-          ),
+          ],
+          muted: [
+            DockAction(
+              icon: LucideIcons.trash2,
+              tooltip: _sem.deleteMenuItem,
+              onTap: debt != null ? () => _confirmDelete(debt) : null,
+            ),
+          ],
         );
       },
     );
@@ -349,12 +339,13 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
             : const SizedBox.shrink();
 
     return ListView(
-      // F58 FR-3:底部留白 242(spec 下限 = 簇高 160 + 底边距 28 + 净空 54,
-      // 末屏关键信息(合计/末期)不被遮挡);顶部 12/14 = AppBar 64px 让位
-      // 后的呼吸位(≤24)。
+      // F59 FR-3:底部留白 253(spec 下限 = C' 满配簇高 171 [52 主钮 +
+      // 2×44 次级 + 3×10 间距 + 分隔线 1] + 底边距 28 + 净空 54,末屏关键
+      // 信息(合计/末期)不被遮挡);顶部 12/14 = AppBar 64px 让位后的
+      // 呼吸位(≤24)。
       padding: isMobile
-          ? const EdgeInsets.fromLTRB(16, 14, 16, 242)
-          : const EdgeInsets.fromLTRB(28, 12, 28, 242),
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 253)
+          : const EdgeInsets.fromLTRB(28, 12, 28, 253),
       children: [
         if (showSide) ...[
           hero,
@@ -473,7 +464,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
     );
   }
 
-  // ───────────────────────── 更多菜单(删除) ─────────────────────────
+  // ───────────────────── 删除(muted 淡显钮直达) ─────────────────────
 
   Future<void> _confirmDelete(Debt? debt) async {
     if (debt == null) return;

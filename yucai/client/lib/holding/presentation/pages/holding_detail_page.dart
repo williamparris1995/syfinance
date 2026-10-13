@@ -9,7 +9,9 @@
 //             trades 非空 → buy/sell/dividend/split 筛选 + 列表)
 //   ⑤ 配置占比环图(复用 HoldingPieChart,单持仓切片 = 该持仓占自身 100%)
 //   ⑥ 关联目标卡(导航入口 → /holdings/goals · GoalLinkPage Task 11 接真)
-//   ⑦ 操作按钮(buy/sell/dividend/split → trade_sheet_page)
+//   ⑦ 操作(F59 FR-4 迁移,AppBar + 底部 sticky 操作条双退役):右下悬浮簇
+//      —— 加仓(金圆 primary)+ 减仓/分红/拆分(secondary)→ trade_sheet_page,
+//      操作语义照原操作条 handler 原样迁移,零丢失。
 //
 // 照搬御财 debt_detail_page.dart:StatefulWidget + initState dispatch
 // LoadDetailRequested + BlocBuilder<HoldingBloc,HoldingState>。
@@ -39,10 +41,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
@@ -112,53 +116,99 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
 
   @override
   void dispose() {
+    // F59 FR-2:离开详情页清理注入标题(双保险之一;另一道 = AppShell
+    // location-diff scrubber)。guarded getIt:测试 harness 未注册 port 时静默跳过。
+    scheduleDetailTitleClear();
     _currencySettings.listenable.removeListener(_onBaseChanged);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // F59 FR-4:自带 AppBar(标题条 + 返回)与底部 sticky 操作条(买入/卖出/
+    // 分红/拆分)双退役 —— 导航语义移交全局 _TopBar 三段面包屑(page 级可点
+    // 回退);操作语义照原操作条 handler 原样迁入右下悬浮簇(见 [_dock],
+    // 零功能丢失)。
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      appBar: AppBar(
-        backgroundColor: context.yucai.surface,
-        foregroundColor: context.yucai.fg,
-        elevation: 0,
-        leading: BackButton(onPressed: () => context.pop()),
-        title: const Text('持仓详情'),
+      body: Stack(
+        children: [
+          BlocBuilder<HoldingBloc, HoldingState>(
+            builder: (context, state) {
+              if (state is HoldingLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state is HoldingDetailLoaded) {
+                // ⏳ isPendingBackend:true 时 holding 仍带(bloc 从 listHoldings
+                // 成功获取),仅交易历史区降级(brief:交易历史区空态,非整页)。
+                return Stack(
+                  children: [
+                    _body(state.holding, state.trades,
+                        tradesPendingBackend: state.isPendingBackend,
+                        detail: state),
+                    // 持仓名经帧回调幂等注入顶栏当前级;放滚动容器外
+                    //(深滚动时 ListView 子项可能离树,不可依赖)。
+                    DetailTitleSync(title: state.holding.securityName),
+                  ],
+                );
+              }
+              if (state is HoldingError) {
+                // 真业务错误(listHoldings fail,无 holding)→ 错误文案。
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Text(state.message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: context.yucai.muted)),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          // F59 FR-1:右下角常驻竖排悬浮簇(28 边距,不随页面滚动移动;
+          // loading/error 恒渲染全禁用 —— 操作锚点恒定)。
+          Positioned(right: 28, bottom: 28, child: _dock()),
+        ],
       ),
-      body: BlocBuilder<HoldingBloc, HoldingState>(
-        builder: (context, state) {
-          if (state is HoldingLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is HoldingDetailLoaded) {
-            // Stack:body 内容 + 底部 sticky 操作 bar(⑦)。
-            // ⏳ isPendingBackend:true 时 holding 仍带(bloc 从 listHoldings
-            // 成功获取),仅交易历史区降级(brief:交易历史区空态,非整页)。
-            return Stack(
-              children: [
-                _body(state.holding, state.trades,
-                    tradesPendingBackend: state.isPendingBackend,
-                    detail: state),
-                _actionBar(),
-              ],
-            );
-          }
-          if (state is HoldingError) {
-            // 真业务错误(listHoldings fail,无 holding)→ 错误文案。
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Text(state.message,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: context.yucai.muted)),
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        },
-      ),
+    );
+  }
+
+  /// F59 FR-4 悬浮簇操作映射(holding 语义,原操作条四操作平铺迁移):
+  ///  - primary 加仓:TradeType.buy → trade sheet(原「买入」);
+  ///  - secondary 减仓/分红/拆分:TradeType.sell/dividend/split(减仓最贴
+  ///    primary,拆分最远);handler 照原 [_onAction] 原样(push + toast)。
+  /// muted 组空:持仓模块无删除事件(brief「删除(若有)」:无此操作不造)。
+  /// 非 loaded 态(loading/error)全禁用。
+  Widget _dock() {
+    return BlocBuilder<HoldingBloc, HoldingState>(
+      builder: (context, state) {
+        final loaded = state is HoldingDetailLoaded;
+        return FloatingActionDock(
+          primary: DockAction(
+            icon: LucideIcons.plus,
+            tooltip: '加仓',
+            onTap: loaded ? () => _onAction(TradeType.buy) : null,
+          ),
+          secondary: [
+            DockAction(
+              icon: LucideIcons.minus,
+              tooltip: '减仓',
+              onTap: loaded ? () => _onAction(TradeType.sell) : null,
+            ),
+            DockAction(
+              icon: LucideIcons.coins,
+              tooltip: '分红',
+              onTap: loaded ? () => _onAction(TradeType.dividend) : null,
+            ),
+            DockAction(
+              icon: LucideIcons.gitMerge,
+              tooltip: '拆分',
+              onTap: loaded ? () => _onAction(TradeType.split) : null,
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -173,9 +223,13 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     final isMobile = MediaQuery.of(context).size.width <= 720;
     final currency = h.currency ?? 'CNY';
     return ListView(
+      // F59 FR-1:底部留白按钮数算 —— 满配簇高 214(加仓 52 + 间距 10 +
+      // 减仓 44 + 间距 10 + 分红 44 + 间距 10 + 拆分 44;无 muted 无分隔线)
+      // + 底边距 28 + 净空 54 = 296(末屏关键信息不被簇遮挡);顶部 14/16 =
+      // AppBar 64px 让位后的呼吸位(8-16)。
       padding: isMobile
-          ? const EdgeInsets.fromLTRB(16, 14, 16, 90)
-          : const EdgeInsets.fromLTRB(36, 24, 36, 90),
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 296)
+          : const EdgeInsets.fromLTRB(36, 16, 36, 296),
       children: [
         _header(h, currency),
         const SizedBox(height: 16),
@@ -1105,86 +1159,12 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     );
   }
 
-  // ───────────────────────── ⑦ 操作按钮(底部 sticky bar) ─────────────────────────
+  // ───────────────────────── ⑦ 操作(F59 迁 dock;原底部 sticky bar 退役) ────
 
-  /// build() body padding 底部留 90px,sticky action bar 浮于底部。
-  /// buy/sell/dividend/split → trade_sheet_page(路由 Task 11 接,这里
-  /// context.push('/holdings/trade', extra: {type}) 占位)。
-  Widget _actionBar() {
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: context.yucai.surface,
-          border: Border(top: BorderSide(color: context.yucai.border)),
-          boxShadow: [
-            BoxShadow(
-              // F27 FR-1③ 豁免:黑投影(底部操作条上抛 4%)—— 暗底天然弱可见,
-              // 等效 v2 暗色「无阴影」设计,保原值不迁。
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            children: [
-              Expanded(child: _actBtn('买入', LucideIcons.arrowDownCircle,
-                  context.yucai.negative, TradeType.buy)),
-              const SizedBox(width: 8),
-              Expanded(child: _actBtn('卖出', LucideIcons.arrowUpCircle,
-                  context.yucai.positive, TradeType.sell)),
-              const SizedBox(width: 8),
-              Expanded(child: _actBtn('分红', LucideIcons.coins,
-                  context.yucai.accent, TradeType.dividend)),
-              const SizedBox(width: 8),
-              Expanded(child: _actBtn('拆分', LucideIcons.gitMerge,
-                  holdingTypeColorOf(context, SecurityType.bond),
-                  TradeType.split)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _actBtn(
-      String label, IconData icon, Color color, TradeType type) {
-    return InkWell(
-      key: ValueKey('actBtn-${type.name}'),
-      onTap: () => _onAction(type),
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(height: 3),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-
+  /// 原底部操作条 handler 原样迁移(F59 零丢失):buy/sell/dividend/split →
+  /// trade_sheet_page。路由 Task 11 接 trade_sheet_page;extra 传 type 决定
+  /// 初始 TradeType。dock 按钮语义映射:买入→加仓 / 卖出→减仓(见 [_dock])。
   void _onAction(TradeType type) {
-    // 路由 Task 11 接 trade_sheet_page;此处 push 占位 + extra 传 type。
-    // trade_sheet 路由路径暂定 /holdings/trade(Task 11 校准)。
     context.push('/holdings/trade', extra: {'type': type.name});
     AppToast.show(context, '触发 ${_actionLabel(type)} 交易 Sheet',
         type: ToastType.warning);

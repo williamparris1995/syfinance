@@ -16,6 +16,10 @@ import 'package:yucai_client/core/theme/app_design.dart';
 /// setState 重建即刷新 canPop。dispose 必须 unregister —— 页面销毁后残留
 /// veto 会用死 context 拦截后续导航(FR-2/FR-7 残留类风险)。
 ///
+/// F59 T4:guarded getIt(照 DetailTitleSync 先例)—— stripped 测试 harness
+/// 未注册 gate 时守卫退化为「只走 PopScope 兜底、不注册 veto」,页面可
+/// 挂载不崩;生产 injection 1k 恒注册,veto 通道恒在。
+///
 /// 确认框文案中文,照 debt_delete_confirm 的 AlertDialog 先例;本组件
 /// 不打日志(零 log 串,无 CJK 入日志风险)。
 class FormLeaveGuard extends StatefulWidget {
@@ -43,12 +47,16 @@ class _FormLeaveGuardState extends State<FormLeaveGuard> {
     super.initState();
     // 同一闭包注册/注销:unregister 按引用移除,匿名重建会失配。
     _veto = _onVeto;
-    getIt<FormLeaveGate>().register(_veto);
+    if (getIt.isRegistered<FormLeaveGate>()) {
+      getIt<FormLeaveGate>().register(_veto);
+    }
   }
 
   @override
   void dispose() {
-    getIt<FormLeaveGate>().unregister(_veto);
+    if (getIt.isRegistered<FormLeaveGate>()) {
+      getIt<FormLeaveGate>().unregister(_veto);
+    }
     super.dispose();
   }
 

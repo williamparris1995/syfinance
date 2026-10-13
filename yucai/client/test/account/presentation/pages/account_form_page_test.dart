@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
+
+import 'package:yucai_client/core/form_leave_gate.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 
 import 'package:yucai_client/account/domain/account_presets.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -220,6 +224,127 @@ void main() {
       expect(find.text('信用卡信息'), findsNothing);
       expect(find.text('预设 · 可修改'), findsNothing);
       expect(find.text('账单日按激活日,建后可改'), findsNothing);
+    });
+  });
+
+  // ── F59 FR-5(ADR-3):表单页接线 —— AppBar 退役 + 三级注入 + 离开守卫 ──
+  group('F59 FR-5 表单页接线', () {
+    // 本文件其余组不使用 GetIt;组内两 port 用后复位,不外泄。
+    tearDown(() async {
+      await GetIt.instance.reset();
+    });
+
+    const existingSeed = Account(
+      id: 'a1',
+      name: '测试',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+
+    /// 推入式 harness(form 页 push 于宿主页上,系统返回断言锚点)+ 两 port。
+    Future<void> pumpPushed(WidgetTester t, {Account? existing}) async {
+      if (!GetIt.instance.isRegistered<ShellDetailTitle>()) {
+        GetIt.instance
+            .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+      if (!GetIt.instance.isRegistered<FormLeaveGate>()) {
+        GetIt.instance.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
+      }
+      // BlocProvider 须在 MaterialApp 之上:pushed 路由不在 home 子树内,
+      // provider 在 home 下则表单页 context.read 找不到。
+      await t.pumpWidget(BlocProvider<AccountBloc>(
+        create: (_) => _bloc(),
+        child: MaterialApp(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) =>
+                              AccountFormPage(existing: existing))),
+                  child: const Text('__host__'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await t.tap(find.text('__host__'));
+      await t.pumpAndSettle();
+      await t.pump(const Duration(milliseconds: 50)); // DetailTitleSync 帧回调
+    }
+
+    testWidgets('AppBar 零残留 + 注入串两态(新建账户 / 编辑 · 账户名)', (t) async {
+      await pumpPushed(t);
+      expect(find.byType(AppBar), findsNothing, reason: '自带 AppBar 导航退役');
+      expect(GetIt.instance<ShellDetailTitle>().value, '新建账户');
+      await t.binding.handlePopRoute(); // 净态退栈后再推编辑态
+      await t.pumpAndSettle();
+
+      await pumpPushed(t, existing: existingSeed);
+      expect(find.byType(AppBar), findsNothing);
+      expect(GetIt.instance<ShellDetailTitle>().value, '编辑 · 测试');
+    });
+
+    testWidgets('净态:系统返回直放零弹框', (t) async {
+      await pumpPushed(t);
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing, reason: '净态零摩擦');
+      expect(find.text('__host__'), findsOneWidget);
+    });
+
+    testWidgets('脏态:首改(账户名)后系统返回弹确认,放弃后净放', (t) async {
+      await pumpPushed(t);
+      await t.enterText(
+          find.widgetWithText(TextFormField, '账户名称'), '招商储蓄');
+      await t.pumpAndSettle();
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget);
+      await t.tap(find.text('继续编辑'));
+      await t.pumpAndSettle();
+      expect(find.widgetWithText(TextFormField, '账户名称'), findsOneWidget);
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(find.text('__host__'), findsOneWidget, reason: '「放弃修改」放行离开');
+    });
+
+    testWidgets('脏态:面包屑 page 级 veto(gate.mayLeave)同弹确认;dispose 清注入',
+        (t) async {
+      await pumpPushed(t);
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue,
+          reason: '净态直放');
+      await t.enterText(
+          find.widgetWithText(TextFormField, '账户名称'), '招商储蓄');
+      await t.pumpAndSettle();
+      final leave = GetIt.instance<FormLeaveGate>().mayLeave();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget, reason: '面包屑路径同守卫');
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(await leave, isTrue);
+      expect(GetIt.instance<ShellDetailTitle>().value, '新建账户');
+
+      // mayLeave 只问询不复净:退栈仍走确认(canPop=false)→ 放弃后 dispose
+      // 清注入 + veto 注销。
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget);
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull);
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue);
     });
   });
 }

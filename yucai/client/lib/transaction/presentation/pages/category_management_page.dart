@@ -17,14 +17,16 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 /// expense/income 的账户。
 ///
 /// 布局(对齐 OD):
-///   - desktop (≥1200):专属 topbar(crumb+h1+sub+导入模板+新建) + underline
+///   - desktop (≥1200):内容头(h1+sub+导入模板+新建) + underline
 ///     tabs(count+hint) + 2-col workspace(LIST panel 55fr + EDITOR panel 45fr)
-///   - tablet  (600–1200):topbar + underline tabs + LIST panel + 右侧 EDITOR 抽屉
-///   - mobile  (≤600):紧凑 topbar + summary card + segmented tabs + 卡片列表 +
+///   - tablet  (600–1200):内容头 + underline tabs + LIST panel + 右侧 EDITOR 抽屉
+///   - mobile  (≤600):紧凑内容头 + summary card + segmented tabs + 卡片列表 +
 ///     底部 EDITOR sheet
 ///
-/// shell topbar 已在 app_shell 对 /categories 隐藏(见 _isCategoryManagement),
-/// 本页渲染专属 OD topbar。CategoryBloc / account use-case 接口不变,仅改 UI。
+/// F59 FR-6:专属 topbar 的 crumb 部分已退役 —— 全局 shell _TopBar 对
+/// /categories 恒在并以 location 覆盖呈现「交易 › 分类管理」(见 app_shell
+/// _branchMetaOf);本页头部保留为**内容头**(h1/sub/操作钮,非导航)。
+/// CategoryBloc / account use-case 接口不变,仅改 UI。
 class CategoryManagementPage extends StatefulWidget {
   const CategoryManagementPage({super.key});
 
@@ -161,7 +163,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       endDrawer: bp == Breakpoint.tablet ? _EditorDrawer(state: this) : null,
       body: Column(
         children: [
-          _PageTopBar(
+          _PageHead(
             compact: bp == Breakpoint.mobile,
             onNew: _openNew,
             onExport: _exportHint,
@@ -222,12 +224,13 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   }
 }
 
-// ───────────────────────── topbar ─────────────────────────
+// ───────────────────────── page head(内容头) ─────────────────────────
 
-/// OD topbar:crumb + h1(serif)+ sub + 导入模板(btn-ghost)+ 新建分类(btn-primary)。
-/// mobile 紧凑:隐藏 sub 与导入模板。
-class _PageTopBar extends StatelessWidget {
-  const _PageTopBar({
+/// 页面内容头(F59 FR-6:crumb 部分退役 —— 面包屑「交易 › 分类管理」由全局
+/// shell _TopBar 承载):h1(serif)+ sub + 导入模板(btn-ghost)+ 新建分类
+/// (btn-primary)。mobile 紧凑:隐藏 sub 与导入模板。
+class _PageHead extends StatelessWidget {
+  const _PageHead({
     required this.compact,
     required this.onNew,
     required this.onExport,
@@ -250,60 +253,44 @@ class _PageTopBar extends StatelessWidget {
         color: context.yucai.bg,
         border: Border(bottom: BorderSide(color: context.yucai.border)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // crumb:交易 › 分类管理(对齐 app sidebar 分组)。
-          Row(children: [
-            Text('交易',
-                style: TextStyle(fontSize: 12, color: context.yucai.muted)),
-            const SizedBox(width: 6),
-            Icon(LucideIcons.chevronRight, size: 12, color: context.yucai.muted),
-            const SizedBox(width: 6),
-            Text('分类管理',
-                style: TextStyle(fontSize: 12, color: context.yucai.fg)),
-          ]),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('分类管理',
-                        style: TextStyle(
-                          fontSize: compact ? 20 : 26,
-                          fontWeight: FontWeight.w700,
-                          color: context.yucai.fg,
-                          fontFamily: AppTypography.displayFamily,
-                          fontFamilyFallback: AppTypography.displayFallback,
-                        )),
-                    if (!compact) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '管理收支分类账户 · 方案 A 分类即账户，每个分类对应一个累计余额的 Expense / Income 账户',
-                        style: TextStyle(fontSize: 12.5, color: context.yucai.muted),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (!compact) ...[
-                _GhostButton(
-                  icon: LucideIcons.download,
-                  label: '导入模板',
-                  onTap: onExport,
-                ),
-                const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('分类管理',
+                    style: TextStyle(
+                      fontSize: compact ? 20 : 26,
+                      fontWeight: FontWeight.w700,
+                      color: context.yucai.fg,
+                      fontFamily: AppTypography.displayFamily,
+                      fontFamilyFallback: AppTypography.displayFallback,
+                    )),
+                if (!compact) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '管理收支分类账户 · 方案 A 分类即账户，每个分类对应一个累计余额的 Expense / Income 账户',
+                    style: TextStyle(fontSize: 12.5, color: context.yucai.muted),
+                  ),
+                ],
               ],
-              _PrimaryButton(
-                key: CategoryManagementPage.newCategoryKey,
-                icon: LucideIcons.plus,
-                label: compact ? '新建' : '新建分类',
-                onTap: onNew,
-              ),
-            ],
+            ),
+          ),
+          if (!compact) ...[
+            _GhostButton(
+              icon: LucideIcons.download,
+              label: '导入模板',
+              onTap: onExport,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          _PrimaryButton(
+            key: CategoryManagementPage.newCategoryKey,
+            icon: LucideIcons.plus,
+            label: compact ? '新建' : '新建分类',
+            onTap: onNew,
           ),
         ],
       ),

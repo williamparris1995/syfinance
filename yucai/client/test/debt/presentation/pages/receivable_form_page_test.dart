@@ -20,6 +20,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/form_leave_gate.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -1055,6 +1057,147 @@ void main() {
       // AppToast 用 3s Timer 自动消失 —— 被拦截的提交不 pop,toast 留屏,
       // 需 pump 过 3s 让 Timer 完成否则「Timer pending」断言失败。
       await t.pump(const Duration(seconds: 4));
+    });
+  });
+
+  // ── F59 FR-5(ADR-3):表单页接线 —— AppBar 退役 + 三级注入 + 离开守卫 ──
+  group('F59 FR-5 表单页接线', () {
+    Debt f59Debt({String counterparty = '李四'}) => Debt(
+          id: 'r-9',
+          accountId: 'recv-1',
+          counterparty: counterparty,
+          interestRate: 0.08,
+          amortization: AmortizationMethod.equalPrincipalInterest,
+          startDate: DateTime(2025, 6, 15),
+          dueDate: DateTime(2026, 6, 15),
+          totalPrincipalCents: 10000000,
+          remainingPrincipalCents: 10000000,
+          version: 3,
+          createdAt: DateTime(2025, 6, 15),
+          updatedAt: DateTime(2025, 12, 1),
+          type: DebtType.borrowedOut,
+        );
+
+    /// 推入式 harness(form 页 push 于宿主页上,系统返回断言锚点)+ 两 port。
+    Future<void> pumpPushed(WidgetTester t, {Debt? existing}) async {
+      if (!GetIt.instance.isRegistered<ShellDetailTitle>()) {
+        GetIt.instance
+            .registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
+      }
+      if (!GetIt.instance.isRegistered<FormLeaveGate>()) {
+        GetIt.instance.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
+      }
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async =>
+          const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(MultiBlocProvider(
+        providers: [
+          BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+          BlocProvider<CurrencyBloc>.value(
+            value: _FakeCurrencyBloc(const CurrencyState()),
+          ),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) =>
+                              ReceivableFormPage(existing: existing))),
+                  child: const Text('__host__'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await t.tap(find.text('__host__'));
+      await t.pumpAndSettle();
+      await t.pump(const Duration(milliseconds: 50)); // DetailTitleSync 帧回调
+    }
+
+    testWidgets('AppBar 零残留 + 注入串两态(新建债权 / 编辑 · 债务人)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(find.byType(AppBar), findsNothing, reason: '自带 AppBar 导航退役');
+      expect(GetIt.instance<ShellDetailTitle>().value, '新建债权');
+      await t.binding.handlePopRoute(); // 净态退栈后再推编辑态
+      await t.pumpAndSettle();
+
+      await pumpPushed(t, existing: f59Debt(counterparty: '王五'));
+      expect(find.byType(AppBar), findsNothing);
+      expect(GetIt.instance<ShellDetailTitle>().value, '编辑 · 王五');
+    });
+
+    testWidgets('净态:系统返回直放零弹框;脏态弹确认后「放弃修改」放行', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing, reason: '净态零摩擦');
+      expect(find.text('__host__'), findsOneWidget);
+    });
+
+    testWidgets('脏态:首改(债务人)后系统返回弹确认;放弃后净放', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      await t.enterText(find.byKey(const ValueKey('counterpartyField')), '张三');
+      await t.pumpAndSettle();
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget);
+      await t.tap(find.text('继续编辑'));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('counterpartyField')), findsOneWidget);
+
+      await t.binding.handlePopRoute();
+      await t.pump();
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(find.text('__host__'), findsOneWidget, reason: '「放弃修改」放行离开');
+    });
+
+    testWidgets('脏态:面包屑 page 级 veto(gate.mayLeave)同弹确认', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue,
+          reason: '净态直放');
+
+      await t.enterText(find.byKey(const ValueKey('counterpartyField')), '张三');
+      await t.pumpAndSettle();
+      final leave = GetIt.instance<FormLeaveGate>().mayLeave();
+      await t.pump();
+      expect(find.text('未保存的修改'), findsOneWidget, reason: '面包屑路径同守卫');
+      await t.tap(find.text('放弃修改'));
+      await t.pumpAndSettle();
+      expect(await leave, isTrue);
+    });
+
+    testWidgets('dispose 清注入标题 + veto 注销', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      expect(GetIt.instance<ShellDetailTitle>().value, '新建债权');
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(GetIt.instance<ShellDetailTitle>().value, isNull);
+      expect(await GetIt.instance<FormLeaveGate>().mayLeave(), isTrue);
     });
   });
 }

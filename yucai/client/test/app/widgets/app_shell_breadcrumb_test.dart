@@ -39,13 +39,22 @@ import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/auth/data/auth_remote_ds.dart';
+import 'package:yucai_client/backup/domain/entities/backup_entity.dart';
+import 'package:yucai_client/backup/domain/repositories/backup_repository.dart';
+import 'package:yucai_client/backup/presentation/bloc/backup_bloc.dart';
+import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
+import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/form_leave_gate.dart';
+import 'package:yucai_client/core/notifications/tray_settings.dart';
+import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
@@ -59,6 +68,9 @@ import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/holding/data/networth_ds.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
+import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
+import 'package:yucai_client/tag/presentation/bloc/tag_bloc.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
 import 'package:yucai_client/template/domain/repositories/template_repository.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
@@ -89,6 +101,71 @@ class _MockBudgetRepo extends Mock implements BudgetRepository {}
 class _MockGoalRepo extends Mock implements GoalRepository {}
 class _MockSummaryRepo extends Mock implements ReceivablesSummaryRepository {}
 class _MockTemplateRepo extends Mock implements TemplateRepository {}
+class _MockTagRepo extends Mock implements TagRepository {}
+class _MockBackupRepo extends Mock implements BackupRepository {}
+class _MockAuthRemoteDataSource extends Mock implements AuthRemoteDataSource {}
+
+/// F59 T5:settings branch 子路由(tags/templates/backup)压栈时分支根
+/// SettingsPage 同帧构建 —— 其 build 期 getIt 解析需要以下替身(照
+/// router_test 同款 fake,默认值口径一致)。
+class _FakeThemeSettings extends Fake implements ThemeSettings {
+  final ValueNotifier<ThemeMode> _notifier =
+      ValueNotifier<ThemeMode>(ThemeMode.system);
+  @override
+  ValueListenable<ThemeMode> get listenable => _notifier;
+  @override
+  ThemeMode get value => ThemeMode.system;
+  @override
+  Future<void> load() async {}
+  @override
+  Future<void> setThemeMode(ThemeMode mode) async {}
+}
+
+class _FakeTraySettings extends Fake implements TraySettings {
+  final ValueNotifier<TrayCloseBehavior> _close =
+      ValueNotifier<TrayCloseBehavior>(TrayCloseBehavior.hide);
+  final ValueNotifier<TrayScanInterval> _scan =
+      ValueNotifier<TrayScanInterval>(TrayScanInterval.minutes30);
+  final ValueNotifier<bool> _amounts = ValueNotifier<bool>(true);
+
+  @override
+  ValueListenable<TrayCloseBehavior> get closeBehaviorListenable => _close;
+
+  @override
+  ValueListenable<TrayScanInterval> get scanIntervalListenable => _scan;
+
+  @override
+  ValueListenable<bool> get showTrayAmountsListenable => _amounts;
+
+  final ValueNotifier<int> _advanceDays = ValueNotifier<int>(3);
+  final ValueNotifier<ReminderRepeatInterval> _repeatInterval =
+      ValueNotifier<ReminderRepeatInterval>(ReminderRepeatInterval.hours6);
+
+  @override
+  int get reminderAdvanceDays => _advanceDays.value;
+
+  @override
+  ValueListenable<int> get reminderAdvanceDaysListenable => _advanceDays;
+
+  @override
+  ReminderRepeatInterval get reminderRepeatInterval => _repeatInterval.value;
+
+  @override
+  ValueListenable<ReminderRepeatInterval> get reminderRepeatIntervalListenable =>
+      _repeatInterval;
+
+  @override
+  Future<void> setReminderAdvanceDays(int days) async {}
+
+  @override
+  Future<void> setReminderRepeatInterval(
+      ReminderRepeatInterval interval) async {}
+}
+
+class _FakeBoundMarker extends Fake implements BoundMarker {
+  @override
+  Future<bool> isBound() async => false;
+}
 
 /// 路由层 /debts、/debts/:id、/receivables/:id builder 均经 getIt 取
 /// CurrencyBloc(照 router_test 的 fake:state/stream 桩,add 无操作)。
@@ -172,6 +249,13 @@ void main() {
     // F58 T3 两 port(生产 injection.dart 1k 同款注册;真实例即测真行为)。
     getIt.registerLazySingleton<ShellDetailTitle>(ShellDetailTitle.new);
     getIt.registerLazySingleton<FormLeaveGate>(FormLeaveGate.new);
+    // F59 T5:settings branch 根页(SettingsPage)在子路由压栈时同帧构建
+    // 的 build 期 getIt 解析(照 router_test 同款替身)。
+    getIt.registerSingleton<ThemeSettings>(_FakeThemeSettings());
+    getIt.registerSingleton<TraySettings>(_FakeTraySettings());
+    getIt.registerSingleton<BoundMarker>(_FakeBoundMarker());
+    getIt.registerLazySingleton<AuthRemoteDataSource>(
+        () => _MockAuthRemoteDataSource());
 
     when(() => accountRepo.list())
         .thenAnswer((_) async => const dartz.Right([]));
@@ -408,20 +492,21 @@ void main() {
     expect(locationOf(router), '/debts/d-42',
         reason: 'currentConfiguration 不反映 push(14.6.2 契约,防升级回归锚)');
 
-    // 非 detail 停留:显示层零泄漏 + port 值保留(M2 精确清零:不清)。
-    expect(crumbOf('…'), findsNothing);
-    expect(crumbOf('招商银行'), findsNothing);
-    expect(getIt<ShellDetailTitle>().value, '招商银行',
-        reason: '非 detail 目的地不清值(供 pop 回原 detail 恢复)');
+    // F59 T4 语义变更:/debts/new 为表单形态 —— 消费第三级,scrubber 在
+    // 表单注入前清零(旧 detail 标题不串台),表单页注入自身串。
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(crumbOf('新建债务'), findsOneWidget, reason: '表单形态注入「新建X」');
+    expect(crumbOf('招商银行'), findsNothing, reason: '旧 detail 标题不串台');
 
-    // pop 回原 detail:实体 key 未变 → 不清,保留值直接恢复显示,
-    // 无需任何页面侧重发事件。
+    // pop 回原 detail:didPopNext(debtsRouteObserver)重拉 → DetailTitleSync
+    // 重注入本页标题。
     router.pop();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
     expect(shellLocationOf(tester), '/debts/d-42');
     expect(crumbOf('招商银行'), findsOneWidget,
-        reason: 'pop 回原 detail:key 同不清,保留值自动恢复');
+        reason: 'didPopNext 重拉后恢复本页标题');
   });
 
   testWidgets('FR-6 债权 detail 回归全局 _TopBar(特例移除)', (tester) async {
@@ -465,11 +550,14 @@ void main() {
     expect(crumbOf('…'), findsNothing,
         reason: 'templates 段不含数字(静态子路由)→ 非 detail 形态');
 
-    // 深层路由 /debts/:id/edit(4 段)→ 非 detail(编辑表单维持两段口径)。
+    // 深层路由 /debts/:id/edit(4 段)→ F59 T4 表单形态:第三级 = 编辑表单
+    // 注入「编辑 · {实体名}」(bloc 加载完成后,照 _debtDetail 桩)。
     await pumpAt(tester, '/debts/d-42/edit');
+    await tester.pump(const Duration(milliseconds: 100));
     expect(crumbOf('财务'), findsOneWidget);
     expect(crumbOf('债务管理'), findsOneWidget);
-    expect(crumbOf('…'), findsNothing, reason: ':id/edit 段数不符 → 非 detail 形态');
+    expect(crumbOf('编辑 · 招商银行'), findsOneWidget,
+        reason: 'F59:编辑表单注入「编辑 · 实体名」');
   });
 
   testWidgets('FR-2 detail→detail 切换同样清零,占位「…」重现(scrubber 核心场景)',
@@ -525,6 +613,140 @@ void main() {
     expect(crumbOf('招商银行'), findsOneWidget, reason: '分支回退后重注入本页标题');
     expect(crumbOf('王五 · 应收'), findsNothing);
   });
+
+  // ── F59 T5(FR-6/FR-7/ADR-2):工具页 location 覆盖 + hideTopBar 全退役 ──
+
+  testWidgets('F59 FR-6 /categories:全局 _TopBar 恒在,面包屑「交易 › 分类管理」'
+      '(hideTopBar 退役)', (tester) async {
+    // /categories 路由 create CategoryBloc(四个 account use case 经 getIt
+    // 工厂逐个 resolve,照生产 injection 注册口径)。
+    final accountRepo = getIt<AccountRepository>();
+    getIt.registerFactory<ListAccountsUseCase>(
+        () => ListAccountsUseCase(accountRepo));
+    getIt.registerFactory<CreateAccountUseCase>(
+        () => CreateAccountUseCase(accountRepo));
+    getIt.registerFactory<DeleteAccountUseCase>(
+        () => DeleteAccountUseCase(accountRepo));
+    getIt.registerFactory<UpdateAccountUseCase>(
+        () => UpdateAccountUseCase(accountRepo));
+
+    await pumpAt(tester, '/categories');
+    // 此前 _isCategoryManagement 隐藏全局顶栏(专属 topbar 期);退役后
+    // _TopBar 恒在(毛玻璃屏障在树)。
+    expect(find.byType(BackdropFilter), findsWidgets,
+        reason: 'hideTopBar 退役:/categories 下全局 _TopBar 恒在');
+    // 面包屑按 location 覆盖 transactions branch 元数据(否则残留「财务 › 交易管理」)。
+    expect(crumbOf('交易'), findsOneWidget);
+    expect(crumbOf('分类管理'), findsOneWidget);
+    expect(crumbOf('交易管理'), findsNothing,
+        reason: 'branch 元数据被 location 覆盖,不显失真的「交易管理」');
+
+    // 窄屏(<1100)同构:此前 hideTopBar 态 appBar 为 null,退役后紧凑顶栏恒挂载。
+    await pumpAt(tester, '/categories', logical: const Size(1000, 900));
+    expect(crumbOf('交易'), findsOneWidget, reason: '窄屏紧凑顶栏同显覆盖面包屑');
+    expect(crumbOf('分类管理'), findsOneWidget);
+  });
+
+  testWidgets('F59 ADR-2 工具页面包屑 location 覆盖:标签/周期模板/本地备份',
+      (tester) async {
+    final templateRepo = _MockTemplateRepo();
+    when(() => templateRepo.list(paused: any(named: 'paused')))
+        .thenAnswer((_) async => const dartz.Right(<Template>[]));
+    getIt.registerFactory<TemplateBloc>(() => TemplateBloc(templateRepo));
+    final tagRepo = _MockTagRepo();
+    when(() => tagRepo.list())
+        .thenAnswer((_) async => const dartz.Right(<Tag>[]));
+    getIt.registerFactory<TagBloc>(() => TagBloc(tagRepo));
+    final backupRepo = _MockBackupRepo();
+    when(() => backupRepo.list())
+        .thenAnswer((_) async => const dartz.Right(<Backup>[]));
+    getIt.registerFactory<BackupBloc>(() => BackupBloc(backupRepo));
+
+    // /settings/tags(settings branch):覆盖为「交易 › 标签」。
+    await pumpAt(tester, '/settings/tags');
+    expect(crumbOf('交易'), findsOneWidget,
+        reason: '标签页面包屑按 location 覆盖(交易 › 标签)');
+    expect(crumbOf('标签'), findsOneWidget);
+    expect(crumbOf('设置'), findsNothing,
+        reason: 'settings branch 元数据不再失真残留(系统 › 设置)');
+
+    // /settings/templates(settings branch 入口):覆盖为「交易 › 周期模板」;
+    // /accounts/templates 维持 _isSubscriptionManagement 的订阅管理口径(F14)。
+    await pumpAt(tester, '/settings/templates');
+    expect(crumbOf('交易'), findsOneWidget);
+    expect(crumbOf('周期模板'), findsOneWidget);
+
+    // /settings/backup:settings branch 归属 →「系统 › 本地备份」。
+    await pumpAt(tester, '/settings/backup');
+    expect(crumbOf('系统'), findsOneWidget,
+        reason: 'backup 页属 settings branch,section 取「系统」');
+    expect(crumbOf('本地备份'), findsOneWidget);
+  });
+
+  // ── F59 FR-5(ADR-3,T4):表单形态路由第三级 —— new/edit 注入串 + 守卫 ──
+  group('F59 FR-5 表单形态面包屑', () {
+    testWidgets('/debts/new 三级:财务 › 债务管理 › 新建债务(表单页注入)',
+        (tester) async {
+      await pumpAt(tester, '/debts/new');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(crumbOf('财务'), findsOneWidget);
+      expect(crumbOf('债务管理'), findsOneWidget);
+      expect(crumbOf('新建债务'), findsOneWidget, reason: '创建态注入串');
+      expect(crumbOf('…'), findsNothing, reason: '注入已完成,无加载占位');
+    });
+
+    testWidgets('form→form key 变更:scrubber 清零防串台,新表单注入自身串',
+        (tester) async {
+      // /budgets/new 路由经 getIt 取 BudgetBloc(harness 未注册,补工厂)+
+      // 进入即 LoadListRequested(补空表桩)。
+      when(() => getIt<BudgetRepository>().listBudgets())
+          .thenAnswer((_) async => const dartz.Right(<BudgetView>[]));
+      getIt.registerLazySingleton<BudgetBloc>(
+          () => BudgetBloc(getIt<BudgetRepository>()));
+      final router = await pumpAt(tester, '/debts/new');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(crumbOf('新建债务'), findsOneWidget);
+
+      // go 到另一分支表单:key 变 → 清零 → 新表单注入前占位「…」,
+      // 旧串「新建债务」不得串台到 /budgets/new。
+      router.go('/budgets/new');
+      await tester.pump();
+      // 注入完成前的一帧:占位「…」(帧回调窗口极窄,值断言以最终态为准)。
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(crumbOf('新建预算'), findsOneWidget, reason: '新表单注入自身串');
+      expect(crumbOf('新建债务'), findsNothing, reason: '旧表单串不串台');
+    });
+
+    testWidgets('表单页 page 级 tap → go 列表 root(净态直走)', (tester) async {
+      final router = await pumpAt(tester, '/debts/new');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(crumbOf('债务管理'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(locationOf(router), '/debts', reason: '净态面包屑回退直走');
+    });
+
+    testWidgets('脏表单 page 级 tap → FormLeaveGate 问询,确认后离开', (tester) async {
+      final router = await pumpAt(tester, '/debts/new');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // 驱动脏态:表单 counterparty 输入(首改即脏)。
+      await tester.enterText(
+          find.byKey(const ValueKey('counterpartyField')), '张三');
+      await tester.pumpAndSettle();
+
+      await tester.tap(crumbOf('债务管理'));
+      await tester.pump();
+      expect(find.text('未保存的修改'), findsOneWidget, reason: '脏态离开弹确认');
+      await tester.tap(find.text('放弃修改'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(locationOf(router), '/debts', reason: '确认放弃后回退到列表');
+    });
+  });
 }
 
 class _SeededAuthedBloc extends AuthBloc {
@@ -533,6 +755,7 @@ class _SeededAuthedBloc extends AuthBloc {
             _MockHasCredentials(), SessionModeTracker()) {
     emit(Authenticated(_user));
   }
+
 }
 
 final _user = User(
