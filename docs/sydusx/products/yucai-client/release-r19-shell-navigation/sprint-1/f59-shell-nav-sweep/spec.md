@@ -72,6 +72,7 @@ technical 可行(FloatingActionDock 小幅 API 扩展+三页回改为配置变�
 - 列表页创建入口/顶栏创建钮 — owner: none(现状) — F58 定案不动。
 - 窄屏底栏改造 — owner: none(现状)。
 - A12 存量入口缺失(列表页「记一笔」等文本入口)— owner: none(存量软发现,非本票引入;F59 不扩入口,后续票)。
+- account 表单三级面包屑经列表入口不可见(F-2 评审裁定)— owner: 后续路由票 — excluded because: AccountFormPage 自 F52 起为页面内 Navigator.push(预设参数构造注入),无 GoRouter 路由,`_isFormShapedLocation` 不命中;注入/守卫/AppBar 退役均已接线,路由补全即自动生效,路由改造超本票「纯 UI」范围。
 - security 行情刷新钮重构 — owner: F59 扫页清单处置(若 list 型则维持)。
 
 ## Grill record

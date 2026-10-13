@@ -21,6 +21,12 @@
 - budget_form 编辑预填置 _prefilling 抑制窗;account_form 创建/编辑两路径分别接线(早退 return 前补);trade_sheet 恒「记录交易」注入串。
 - 限额连续击杀后控制器接管 T4 残余(budget/receivable/goal/account/trade_sheet 五页实现,照 debt_form 前任参照模式)。
 
+## holistic 评审 fixlist 处置(2026-10-13)
+
+- F-1 已修:goal 关联账户/债务多选 toggle、account 币种/归属下拉共 4 处 _markDirty() 补齐 + 2 钉测(goal 30 绿/account 12 绿)。
+- F-2 订正:spec Out of scope 加注记(account 表单无路由,面包屑经列表入口不显;守卫/注入已接线,路由票后补自动生效)。
+- nit 留后续票:DirtyFormMixin 抽取候选(六表单 ~30 行胶水,rule-of-three 已过)/分隔线 20↔22 口径统一/secondary 内序钉死。
+
 ## 走查项(用户验收)
 
 - goal 详情「标记完成」双入口(dock 金圆 + 底部 actionRow)冗余——留裁。

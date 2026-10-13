@@ -300,6 +300,24 @@ void main() {
       expect(find.text('__host__'), findsOneWidget);
     });
 
+    testWidgets('F-1:首改(币种下拉)后系统返回弹确认', (t) async {
+      await pumpPushed(t);
+      // 不触碰 name 字段 —— 隔离 F-1 缺口(下拉无 controller 写入)。
+      await t.tap(find.text('币种').first);
+      await t.pumpAndSettle();
+      final usd = find.text('USD').last;
+      if (usd.evaluate().isNotEmpty) {
+        await t.tap(usd);
+        await t.pumpAndSettle();
+        await t.binding.handlePopRoute();
+        await t.pump();
+        expect(find.text('未保存的修改'), findsOneWidget,
+            reason: '币种下拉须置脏(F-1)');
+        await t.tap(find.text('继续编辑'));
+        await t.pumpAndSettle();
+      }
+    });
+
     testWidgets('脏态:首改(账户名)后系统返回弹确认,放弃后净放', (t) async {
       await pumpPushed(t);
       await t.enterText(

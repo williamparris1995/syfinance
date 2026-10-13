@@ -679,8 +679,10 @@ class _GoalFormPageState extends State<GoalFormPage> {
               value: _linkedIds.contains(a.id),
               onChanged: submitting
                   ? null
-                  : (v) => setState(() =>
-                      v! ? _linkedIds.add(a.id) : _linkedIds.remove(a.id)),
+                  : (v) => setState(() {
+                      _markDirty(); // F59 FR-5(F-1):关联账户多选 = 用户编辑
+                      v! ? _linkedIds.add(a.id) : _linkedIds.remove(a.id);
+                    }),
               title: Text(a.name),
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -694,6 +696,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
   Widget _debtPicker(bool submitting) {
     // Phase 3 多选:CheckboxListTile。选债务 → target = 剩余本金合计(只读)。
     void toggleDebt(String id, bool add) {
+      _markDirty(); // F59 FR-5(F-1):关联债务多选 = 用户编辑
       setState(() {
         if (add) {
           _linkedIds.add(id);

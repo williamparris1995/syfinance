@@ -1468,6 +1468,27 @@ void main() {
       expect(find.text('__host__'), findsOneWidget);
     });
 
+    testWidgets('F-1:首改(关联账户多选)后系统返回弹确认', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await pumpPushed(t);
+      await t.tap(find.byKey(const ValueKey('typeOption_savings')));
+      await t.pumpAndSettle();
+      // name 留空不触碰 —— 隔离 F-1 缺口(该字段无 controller 写入)。
+      final option = find.byKey(const ValueKey('accountOption_a1'));
+      if (option.evaluate().isNotEmpty) {
+        await t.tap(option.first);
+        await t.pumpAndSettle();
+        await t.binding.handlePopRoute();
+        await t.pump();
+        expect(find.text('未保存的修改'), findsOneWidget,
+            reason: '关联账户 toggle 须置脏(F-1)');
+        await t.tap(find.text('继续编辑'));
+        await t.pumpAndSettle();
+      }
+    });
+
     testWidgets('脏态:首改(目标名)后系统返回弹确认,放弃后净放', (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;

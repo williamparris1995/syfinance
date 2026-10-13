@@ -784,8 +784,10 @@ class _AccountFormPageState extends State<AccountFormPage> {
                                     .map((c) => DropdownMenuItem(
                                         value: c, child: Text(c)))
                                     .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _currency = v ?? 'CNY'),
+                                onChanged: (v) {
+                                  _markDirty(); // F59 FR-5(F-1)
+                                  setState(() => _currency = v ?? 'CNY');
+                                },
                               ),
                               DropdownButtonFormField<Ownership>(
                                 decoration: const InputDecoration(
@@ -795,8 +797,11 @@ class _AccountFormPageState extends State<AccountFormPage> {
                                     .map((o) => DropdownMenuItem(
                                         value: o, child: Text(o.label)))
                                     .toList(),
-                                onChanged: (v) => setState(() =>
-                                    _ownership = v ?? Ownership.personal),
+                                onChanged: (v) {
+                                  _markDirty(); // F59 FR-5(F-1)
+                                  setState(
+                                      () => _ownership = v ?? Ownership.personal);
+                                },
                               ),
                             ]),
                           ],
