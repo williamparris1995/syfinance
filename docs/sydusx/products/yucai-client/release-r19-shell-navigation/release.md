@@ -17,7 +17,7 @@
 
 ## Sprint roster
 
-- [ ] [sprint-1](sprint-1/sprint.md) — F58 壳层导航地基+范式迁移 / F59 全量扫页(串行)
+- [x] [sprint-1](sprint-1/sprint.md) — F58 壳层导航地基+范式迁移 / F59 全量扫页(串行) ✅(2026-10-13 两票收官;F58 合并 425399ba/F59 合并 f3debb5d)
 
 ## Done criteria
 
@@ -27,4 +27,4 @@
 4. 窄屏(compact/mobile)布局语义不回归(与底栏导航/既有 .fab 共存形态 spec 拍板)。
 5. 全门:flutter test 全绿 + analyze 基线 + `make client-e2e`(零 proto 改动免 go 门)。
 
-## status: pending
+## status: done(2026-10-13 功能面收官;发版待用户 tag 推送;走查项:窄屏 dock 移动边距口径/goal 完成双入口冗余留裁)
