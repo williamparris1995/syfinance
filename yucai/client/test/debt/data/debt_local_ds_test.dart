@@ -1104,7 +1104,7 @@ void main() {
   // 独立结算产品 —— 分期不走卡账单,到期从储蓄卡手动记还款(语义照 e招贷
   // 同构:独立额度、不并卡)。catchup 并账跳过开关关的债;存量当日误并入由
   // repairs.runF59SpecialQuotaUnmerge 回退(见 f59_special_quota_unmerge_test)。
-  group('F59 专项池(countsTowardCardLimit=false)catchup 跳过', () {
+  group('F61 专项池并账两轴解耦(counts 开关不再影响 catchup)', () {
     late String cardId;
     late String cardLoanAccount;
 
@@ -1160,7 +1160,7 @@ void main() {
     });
 
     /// billingDay 5、3 期:期表 = [2026-10-05, 2026-11-05, 2026-12-05]
-    /// (与 F58 组同构,now 注入 11-05 时期 0 恰到期)。
+    /// (now 注入 11-05 时期 0 恰到期)。
     Future<Debt> createCardLoan59(bool countsTowardCardLimit) => debts.create(
           accountId: cardLoanAccount,
           counterparty: '平安银行',
@@ -1180,40 +1180,35 @@ void main() {
           countsTowardCardLimit: countsTowardCardLimit,
         );
 
-    test('开关关到期也不并(零动作零分录);开关开同形态并入对照', () async {
+    test('开关关到期同样并入(F61 订正:专项池只影响占用,期供仍随卡)', () async {
       final off = await createCardLoan59(false);
       final on = await createCardLoan59(true);
-      // 11-05 = 期 0(10-05 出账)的到期日:开关开者并入、开关关者跳过。
+      // 11-05 = 期 0(10-05 出账)的到期日:两债(开关无关)均并入。
       await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 11, 5));
 
       final offDetail = await debts.get(off.id);
-      expect(offDetail.schedule.every((e) => !e.paid), isTrue,
-          reason: '专项池开关关:到期期次也不并入(独立结算,不走卡账单)');
       final onDetail = await debts.get(on.id);
-      expect(onDetail.schedule[0].paid, isTrue,
-          reason: '对照:开关开同形态恰并入到期期0');
-      expect(onDetail.schedule[0].transactionId.isNotEmpty, isTrue);
-      expect(onDetail.schedule[1].paid, isFalse);
+      for (final d in [offDetail, onDetail]) {
+        expect(d.schedule[0].paid, isTrue,
+            reason: 'F61:占用开关不影响并账(专项池期供随卡还)');
+        expect(d.schedule[0].transactionId.isNotEmpty, isTrue);
+        expect(d.schedule[1].paid, isFalse);
+      }
 
-      // 卡余额只含开关开债的并入(credit-正);两载体均放款入账 5,000,000,
-      // 开关开载体 −total0(F36 不变式)、开关关载体不动。
+      // 卡应还 = 两债期 0 并入之和(credit-正);两载体均随并入递减。
       final onTotal = onDetail.schedule[0].totalCents;
+      final offTotal = offDetail.schedule[0].totalCents;
       expect((await accounts.getAccountById(cardId))!.currentBalanceCents,
-          onTotal,
-          reason: '卡应还只含开关开债的并入,专项池期次不上卡');
+          onTotal + offTotal,
+          reason: '专项池期供同上卡(F61:平安备用金/广发财智金实证)');
       expect((await accounts.getAccountById(cardLoanAccount))!
               .currentBalanceCents,
-          10000000 - onTotal,
-          reason: '两载体共用户;仅开关开载体欠款随并入递减');
-      // 无并入分录引用开关关债期次(逐期次无「信用卡分期」交易)。
+          10000000 - onTotal - offTotal,
+          reason: '两载体均随并入递减(F36 不变式不变)');
+      // 两笔并入交易(各债期 0)。
       final mergeTxns = (await database.select(database.transactions).get())
           .where((t) => t.description.startsWith('信用卡分期'));
-      expect(mergeTxns.length, 1,
-          reason: '恰一笔并入交易(开关开债期0),专项池零并入');
-      final paidEntryTxn = offDetail.schedule
-          .map((e) => e.transactionId)
-          .where((id) => id.isNotEmpty);
-      expect(paidEntryTxn, isEmpty);
+      expect(mergeTxns.length, 2);
     });
 
     test('开关关缺省(开关开)行为不变:既有路径仍并入(回归对照)', () async {

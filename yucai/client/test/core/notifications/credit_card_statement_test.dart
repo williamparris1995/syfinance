@@ -1,6 +1,6 @@
 // CreditCardStatementDue 单测(T7 账单口径):上期账单剩余应还推导的口径钉死:
 // 账单日后消费剔除、还款分录不进 Δ(剩余口径 = 账单 − 账单日后已还款)、
-// clamp 0、账单日 null 降级、跨月/跨年 clamp、账单日当天消费算已出账
+// clamp 0、账单日 null 降级、跨月/跨年 clamp、账单日当天消费归本期(F61 拍板 A)
 // (date > D 严格)、空交易 Δ=0、时钟注入。
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -181,7 +181,7 @@ void main() {
     DateTime clock() => DateTime(2026, 3, 20, 9);
     await seedCard('c1', balanceCents: 500000, billingDay: 31);
     await seedEntry('pre', 'c1', DateTime(2026, 2, 20), credit: 100000); // 账单内
-    // 恰在 clamp 后的账单日 02-28 当天 → 算已出账(date > D 严格)。
+    // 恰在 clamp 后的账单日 02-28 当天 → 归本期(F61 拍板 A:当天进新区间)。
     await seedEntry('on-d', 'c1', DateTime(2026, 2, 28), credit: 50000);
     await seedEntry('cycle', 'c1', DateTime(2026, 3, 5), credit: 70000); // 本周期
 
@@ -193,8 +193,8 @@ void main() {
       billingDay: 31,
       clock: clock,
     );
-    // Δ = 70000(02-28 当天属上期)→ 应还 430000。
-    expect(due, 430000);
+    // Δ = 70000+50000(02-28 当天属本期,拍板 A)→ 应还 380000。
+    expect(due, 380000);
   });
 
   test('跨年:1 月账单日未过 → 取上年 12 月账单日', () async {
@@ -214,7 +214,7 @@ void main() {
     expect(due, 140000);
   });
 
-  test('账单日当天消费算已出账:date > D 严格(当天不算本周期)', () async {
+  test('账单日当天消费归本期:F61 拍板 A(当天进新区间)', () async {
     await seedCard('c1', balanceCents: 400000, billingDay: 15);
     await seedEntry('on-d', 'c1', DateTime(2026, 9, 15), credit: 60000);
     await seedEntry('after', 'c1', DateTime(2026, 9, 16), credit: 50000);
@@ -227,8 +227,8 @@ void main() {
       billingDay: 15,
       clock: clock,
     );
-    // Δ = 50000(09-15 当天属上期账单)→ 应还 350000,而非 290000。
-    expect(due, 350000);
+    // Δ = 60000+50000(09-15 当天属本期,拍板 A)→ 应还 290000。
+    expect(due, 290000);
   });
 
   test('空交易(纯手工余额):Δ = 0 → 应还 = 当前欠款', () async {

@@ -28,7 +28,10 @@ Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
   await runF49CarrierHideRepair(db);
   await runF57Ts4PingAnRedate(db);
   await runF58UnmergeOvermergedCardLoans(db);
-  await runF59SpecialQuotaUnmerge(db);
+  // F61(2026-10-14):专项池并账 skip 订正(占用/并账两轴解耦,平安备用金
+  /// 广发财智金期供均随卡还),F59 unmerge 回退退役 —— 不再调用(函数保留
+  /// 留档,幂等标记防历史重放)。
+  // await runF59SpecialQuotaUnmerge(db);
 }
 
 /// F36 存量迁移(2026-09-18,design ADR-3/6):负债账户余额漂移修复。

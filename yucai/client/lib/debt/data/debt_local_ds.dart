@@ -669,11 +669,10 @@ class DebtLocalDataSource {
   /// ≤ todayStart 才并入;已出账未到期 = 自由窗口(不并,银行分期剩余也
   /// 不含它,见 debt_query F58 未出账口径)。
   ///
-  /// F59 专项池口径(2026-10-12 用户银行口径定案):专项额度现金分期
-  /// (countsTowardCardLimit == false)是独立结算产品 —— 分期**不走卡账单**,
-  /// 到期由用户从储蓄卡手动记还款(银行语义照 e招贷 同构:独立额度、不并
-  /// 卡;与 e招贷 的解挂处置不同,挂接卡保留,仅自动并账跳过)。存量当日
-  /// 误并入由 repairs.runF59SpecialQuotaUnmerge 回退。
+  /// F61 两轴解耦(2026-10-14 用户走查定案,订正 F59 专项池口径):专项
+  /// 额度(countsTowardCardLimit == false)只是**不占卡循环额度**,期供
+  /// 仍随卡账单(平安备用金/广发财智金实证);F59 的 skip 与 unmerge
+  /// 回退已退役。占用统计侧(debt_query Σ)照旧排除专项池,两轴互不影响。
   ///
   /// [now] 测试注入「当前时刻」(缺省 DateTime.now();UTC 日界对齐,与
   /// 期表存储口径一致)。
@@ -686,9 +685,10 @@ class DebtLocalDataSource {
       if (row.debtType != DebtType.borrowedIn.index + 1) continue;
       final card = row.collectionAccountId;
       if (card == null || card.isEmpty) continue;
-      // F59 专项池(开关关)独立结算:到期不并卡、手动记还款(照 e招贷
-      // 同构银行口径;占用侧 cardLoanOccupationCents 的 Σ 早已排除)。
-      if (!row.countsTowardCardLimit) continue;
+      // F61(2026-10-14 用户走查定案):「占用」与「并账」两轴解耦 —— 专项池
+      // (countsTowardCardLimit=false)只影响卡额度占用统计,期供仍随卡账单
+      // (平安备用金/广发财智金均随卡还,实证推翻 F59「独立结算不并卡」);
+      // F59 的 skip 分支与 runF59SpecialQuotaUnmerge 回退退役。
       final entries = await _dao.getScheduleByDebt(row.id);
       // 期次按日期升序(entry k 的到期日 = dates[k+1])。
       final sorted = [...entries]
