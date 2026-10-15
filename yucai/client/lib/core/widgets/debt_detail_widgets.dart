@@ -12,6 +12,7 @@ import 'package:yucai_client/core/widgets/gold_amount.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
+import 'package:yucai_client/debt/domain/debt_query.dart';
 
 /// 共享的 debt / receivable **详情页** 组件(结构样式两侧完全一致,差异由
 /// [DebtViewSemantics] 注入)。包含:
@@ -497,8 +498,11 @@ List<DebtStatCardData> buildDebtDetailStats(
   final pendingInterest =
       unpaidEntries.fold<int>(0, (s, e) => s + e.interestCents);
   final pendingTotal = pendingPrincipal + pendingInterest;
+  // F61:逾期口径账单感知(card_loan 自由窗口不红,见 paymentEntryStatusMap)。
+  final st = paymentEntryStatusMap(schedule,
+      cardLoanBilling: debt.subtype == DebtSubtypes.cardLoan);
   final overdueEntries =
-      schedule.where((e) => e.status == PaymentStatus.overdue && !e.paid);
+      schedule.where((e) => !e.paid && st[e.id] == PaymentStatus.overdue);
   final overdueTotal = overdueEntries.fold<int>(0, (s, e) => s + e.totalCents);
   final overdueCount = overdueEntries.length;
   final daysOverdue = overdueEntries.isEmpty
@@ -693,6 +697,23 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
   bool _selecting = false; // 多选模式(批量标记已还)
   final Set<String> _selectedIds = <String>{};
 
+  /// F61:期次状态账单口径缓存(card_loan 到期=下期出账日,自由窗口不红;
+  /// didUpdateWidget 失效)。消费点统一经 [_st],勿再用 e.status。
+  Map<String, PaymentStatus>? _statusMap;
+  Map<String, PaymentStatus> _statuses() => _statusMap ??=
+      paymentEntryStatusMap(widget.schedule,
+          cardLoanBilling: widget.debt.subtype == DebtSubtypes.cardLoan);
+  PaymentStatus _st(PaymentEntry e) => _statuses()[e.id] ?? e.status;
+
+  @override
+  void didUpdateWidget(DebtDetailSchedule oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.schedule != widget.schedule ||
+        oldWidget.debt.subtype != widget.debt.subtype) {
+      _statusMap = null;
+    }
+  }
+
   /// 多选/批量标记操作行:进入多选 → 勾选过去未还期次 → 批量标记。
   Widget _batchBar(BuildContext context) {
     final markableAll = _filtered.where(_markable).toList();
@@ -778,12 +799,12 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
 
   List<PaymentEntry> get _filtered => switch (_filter) {
         DebtScheduleFilter.all => widget.schedule,
-        DebtScheduleFilter.pending =>
-          widget.schedule.where((e) => e.status == PaymentStatus.pending).toList(),
-        DebtScheduleFilter.paid =>
-          widget.schedule.where((e) => e.status == PaymentStatus.paid).toList(),
-        DebtScheduleFilter.overdue => widget.schedule
-            .where((e) => e.status == PaymentStatus.overdue)
+        DebtScheduleFilter.pending => widget
+            .schedule.where((e) => _st(e) == PaymentStatus.pending).toList(),
+        DebtScheduleFilter.paid => widget
+            .schedule.where((e) => _st(e) == PaymentStatus.paid).toList(),
+        DebtScheduleFilter.overdue => widget
+            .schedule.where((e) => _st(e) == PaymentStatus.overdue)
             .toList(),
       };
 
@@ -865,11 +886,11 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
   }
 
   Widget _sumPills(List<PaymentEntry> schedule, DebtViewSemantics sem) {
-    final paid = schedule.where((e) => e.status == PaymentStatus.paid).length;
+    final paid = schedule.where((e) => _st(e) == PaymentStatus.paid).length;
     final pending =
-        schedule.where((e) => e.status == PaymentStatus.pending).length;
+        schedule.where((e) => _st(e) == PaymentStatus.pending).length;
     final overdue =
-        schedule.where((e) => e.status == PaymentStatus.overdue).length;
+        schedule.where((e) => _st(e) == PaymentStatus.overdue).length;
     return Wrap(
       spacing: 8,
       runSpacing: 4,
@@ -908,11 +929,11 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
 
   Widget _filterSegmented(DebtViewSemantics sem) {
     final paid =
-        widget.schedule.where((e) => e.status == PaymentStatus.paid).length;
+        widget.schedule.where((e) => _st(e) == PaymentStatus.paid).length;
     final pending =
-        widget.schedule.where((e) => e.status == PaymentStatus.pending).length;
+        widget.schedule.where((e) => _st(e) == PaymentStatus.pending).length;
     final overdue =
-        widget.schedule.where((e) => e.status == PaymentStatus.overdue).length;
+        widget.schedule.where((e) => _st(e) == PaymentStatus.overdue).length;
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
@@ -1093,7 +1114,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
 
   TableRow _scheduleRow(PaymentEntry e, int idx, int total) {
     final isLast = idx == total;
-    final isOverdue = e.status == PaymentStatus.overdue && !e.paid;
+    final isOverdue = _st(e) == PaymentStatus.overdue && !e.paid;
     final isPaid = e.paid;
     // 行分隔线 = 语义 border(原 v1 米白 #EFECE5 硬编码,暗色下会刺眼)。
     final border = BorderSide(color: context.yucai.border);
@@ -1174,7 +1195,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
 
   Widget _scheduleCard(PaymentEntry e, int idx) {
     final sem = widget.sem;
-    final status = e.status;
+    final status = _st(e);
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       decoration: BoxDecoration(
@@ -1249,7 +1270,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
 
   Widget _statusBadge(PaymentEntry e, DebtViewSemantics sem) {
     // badge 底 = positive/negative 令牌 10% 派生(原 v1 绿/红 10% 透底)。
-    final (label, fg, bg, icon) = switch (e.status) {
+    final (label, fg, bg, icon) = switch (_st(e)) {
       PaymentStatus.paid => (
           sem.statusPaidLabel,
           context.yucai.positive,
@@ -1333,7 +1354,7 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
         ],
       );
     }
-    final overdue = e.status == PaymentStatus.overdue;
+    final overdue = _st(e) == PaymentStatus.overdue;
     final hasCollection = widget.collectionAccountId != null &&
         widget.collectionAccountId!.isNotEmpty;
     final onPressed = hasCollection

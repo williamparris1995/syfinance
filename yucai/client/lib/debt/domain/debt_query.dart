@@ -194,6 +194,43 @@ DebtNextPeriod? debtNextPeriod(List<PaymentEntry> schedule) {
   return DebtNextPeriod(totalCents: earliest.totalCents, date: earliest.paymentDate);
 }
 
+/// 期次状态映射(账单口径感知,F61):card_loan(挂卡随卡还)的「逾期」按
+/// F58 到期语义 —— 到期日 = **下一期出账日**(末期 = 自身 +1 月,月钳),
+/// 出账后到下期出账前的自由窗口不红;其余债型沿用自身 paymentDate
+/// (私人借债的期次日即约定还款日,逾期口径不变)。返回 id→status 一次性
+/// 映射,消费方(widget)整表缓存勿逐期调用。
+Map<String, PaymentStatus> paymentEntryStatusMap(
+  List<PaymentEntry> schedule, {
+  bool cardLoanBilling = false,
+  DateTime? now,
+}) {
+  final sorted = [...schedule]..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+  final today = (now ?? DateTime.now());
+  final day = DateTime(today.year, today.month, today.day);
+  final result = <String, PaymentStatus>{};
+  for (var k = 0; k < sorted.length; k++) {
+    final e = sorted[k];
+    if (e.paid) {
+      result[e.id] = PaymentStatus.paid;
+      continue;
+    }
+    final due = !cardLoanBilling
+        ? e.paymentDate
+        : (k + 1 < sorted.length
+            ? sorted[k + 1].paymentDate
+            : _plusMonthClamped(e.paymentDate));
+    result[e.id] =
+        due.isBefore(day) ? PaymentStatus.overdue : PaymentStatus.pending;
+  }
+  return result;
+}
+
+DateTime _plusMonthClamped(DateTime d) {
+  final m = DateTime(d.year, d.month + 1, 1);
+  final lastDay = DateTime(m.year, m.month + 1, 0).day;
+  return DateTime(m.year, m.month, d.day > lastDay ? lastDay : d.day);
+}
+
 /// loan 派生四值(F51 FR-1,账户侧 loan 双重表示与债务域共用口径)。
 class DerivedLoanFields extends Equatable {
   const DerivedLoanFields({
