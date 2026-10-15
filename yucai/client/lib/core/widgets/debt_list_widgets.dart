@@ -1461,9 +1461,11 @@ class DebtCardFootCallout extends StatelessWidget {
     // F37 扩展:下一期还款日紧迫度(≤7 红/≤15 黄;已逾期走下方专用红字,
     // 不重复)。null = 无下一期或 >15 天,不加提示。
     int? nextDays;
-    if (hasNext && !isOverdue && debt.nextPaymentDate != null) {
-      final due = DateTime(debt.nextPaymentDate!.year,
-          debt.nextPaymentDate!.month, debt.nextPaymentDate!.day);
+    // F61:到期基准 = card_loan 的账单口径到期日(下期出账日,自由窗口
+    // 不红);普通债回落期次日(nextPaymentDate)。
+    final dueRef = debt.nextPaymentDueDate ?? debt.nextPaymentDate;
+    if (hasNext && !isOverdue && dueRef != null) {
+      final due = DateTime(dueRef.year, dueRef.month, dueRef.day);
       nextDays = due
           .difference(DateTime(now.year, now.month, now.day))
           .inDays;

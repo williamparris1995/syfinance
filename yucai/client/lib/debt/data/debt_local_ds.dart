@@ -1125,6 +1125,19 @@ class DebtLocalDataSource {
         transactionId: s.transactionId ?? '',
       );
 
+  /// 下一期(出账日 [nextDate])的到期日:其后首个期次出账日;无后续
+  /// 期次 = 自身 +1 月(月钳,F58 末期口径)。[nextDate] null → null。
+  static DateTime? _nextPeriodDueDate(
+      List<db.PaymentScheduleEntry> schedule, DateTime? nextDate) {
+    if (nextDate == null) return null;
+    final later = schedule
+        .map((s) => s.paymentDate)
+        .where((d) => d.isAfter(nextDate))
+        .toList()
+      ..sort();
+    return later.isEmpty ? plusOneMonthClamped(nextDate) : later.first;
+  }
+
   Future<Debt> _toEntity(db.Debt r) async {
     final schedule = await _dao.watchScheduleByDebt(r.id).first;
     // 委托收敛(F51):下一期选择删原「过滤 + 稳定排序 + firstOrNull」重复
@@ -1181,6 +1194,12 @@ class DebtLocalDataSource {
       // 已回填 true,无空值面)。
       countsTowardCardLimit: r.countsTowardCardLimit,
       nextPaymentDate: next?.date,
+      // F61:card_loan 下一期到期日(F58:到期=下一期出账日,末期 +1 月钳)
+      // —— 列表卡脚「已逾期 N 天」经此口径,自由窗口不红;普通债 null
+      // (消费方回落 nextPaymentDate 自身)。
+      nextPaymentDueDate: r.subtype == DebtSubtypes.cardLoan
+          ? _nextPeriodDueDate(schedule, next?.date)
+          : null,
       nextPaymentAmountCents: next?.totalCents ?? 0,
       nextPaymentPeriodNo: nextPeriodNo,
       remainingTrendCents: r.totalPrincipalCents - paidCents,

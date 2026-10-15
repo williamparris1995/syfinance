@@ -33,6 +33,7 @@ class Debt extends Equatable {
     this.nextPaymentDate,
     this.nextPaymentAmountCents = 0,
     this.nextPaymentPeriodNo = 0,
+    this.nextPaymentDueDate,
     this.remainingTrendCents = 0,
     this.countsTowardCardLimit = true,
   });
@@ -93,6 +94,12 @@ class Debt extends Equatable {
   final DateTime? nextPaymentDate; // 下一期还款日(date-only string → DateTime)
   final int nextPaymentAmountCents; // 下一期还款金额(本+利)
   final int nextPaymentPeriodNo; // 下一期期数
+
+  /// 下一期的**到期日**(F58/F61):card_loan 挂卡随卡还 = 下下期出账日
+  /// (末期 = 自身 +1 月钳)——出账后到到期前的自由窗口不算逾期;普通债
+  /// = null(消费方回落 [nextPaymentDate] 自身,约定还款日即期次日)。
+  /// 由 DS `_toEntity` 从期表推导,列表卡脚/详情统一经此口径。
+  final DateTime? nextPaymentDueDate;
   final int remainingTrendCents; // 剩余趋势(用于图表/预警,服务端算)
   /// 是否计入挂接卡额度占用(F50 债级开关):卡贷挂接信用卡时,剩余本金
   /// 是否占用该卡可用额度(银行口径)。默认 true(既有债全计入,行为不变);
@@ -135,6 +142,7 @@ class Debt extends Equatable {
         guarantorContact,
         collectionAccountId,
         nextPaymentDate,
+        nextPaymentDueDate,
         nextPaymentAmountCents,
         nextPaymentPeriodNo,
         remainingTrendCents,
