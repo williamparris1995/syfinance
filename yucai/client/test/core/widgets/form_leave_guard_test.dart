@@ -194,4 +194,37 @@ void main() {
     expect(await gate.mayLeave(), isTrue, reason: 'dispose 应注销 veto');
     expect(find.byType(AlertDialog), findsNothing);
   });
+
+  testWidgets('F61 走查:冻结分支(TickerMode 禁用)veto 直接放行零弹框', (t) async {
+    // 走查根因:其他分支悬挂的脏表单守卫参与全局问询 → 跨分支无限弹框
+    // (放弃不清脏)。冻结分支放行;切回活跃(TickerMode 翻真)恢复拦截。
+    var frozenDirty = true;
+    await t.pumpWidget(TickerMode(
+      enabled: false,
+      child: MaterialApp(
+        home: FormLeaveGuard(
+          isDirty: () => frozenDirty,
+          child: const Scaffold(body: SizedBox()),
+        ),
+      ),
+    ));
+    expect(await gate.mayLeave(), isTrue,
+        reason: '冻结分支守卫不参与拦截(防跨分支无限弹框)');
+    expect(find.byType(AlertDialog), findsNothing);
+    await t.pumpWidget(TickerMode(
+      enabled: true,
+      child: MaterialApp(
+        home: FormLeaveGuard(
+          isDirty: () => frozenDirty,
+          child: const Scaffold(body: SizedBox()),
+        ),
+      ),
+    ));
+    final f = gate.mayLeave();
+    await t.pump();
+    expect(find.text('未保存的修改'), findsOneWidget, reason: '活跃分支恢复拦截');
+    await t.tap(find.text('继续编辑'));
+    await t.pump();
+    expect(await f, isFalse);
+  });
 }
