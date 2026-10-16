@@ -525,6 +525,31 @@ void main() {
     expect(find.text('信用卡还款'), findsOneWidget);
   });
 
+  testWidgets('走查修复: 详情态还款对话框储蓄候选来自仓库(下拉非空)',
+      (tester) async {
+    final database = db.AppDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+    GetIt.instance.registerSingleton<db.AppDatabase>(database);
+    // 仓库 list 返回含储蓄账户的全量(详情页 bloc 态是 DetailLoaded,旧代码
+    // 回退 [card] → 储蓄候选恒空,走查实锤;修复后经 _allAccountsOr 拉取)。
+    final savings = _account(
+        name: '工商银行储蓄卡', category: AccountCategory.savings);
+    final repo = GetIt.instance<AccountRepository>();
+    await pumpPage(tester, account: _creditCardAccount());
+    // pumpPage 内部对 list 亦有默认桩(如 creditCard 夹具),覆桩须在其后。
+    when(() => repo.list()).thenAnswer(
+        (_) async => dartz.Right([savings, _creditCardAccount()]));
+    await tester.tap(find.byTooltip('还款'));
+    await tester.pumpAndSettle();
+    expect(find.text('信用卡还款'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.textContaining('工商银行储蓄卡')),
+        findsWidgets,
+        reason: '还款对话框储蓄卡候选须来自仓库全量列表(详情态修复)');
+  });
+
   testWidgets('F58/FR-4: 储值卡 → 转账钮=「充值」,tap 开充值对话框',
       (tester) async {
     final card = _account(

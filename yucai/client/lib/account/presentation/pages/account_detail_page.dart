@@ -2282,10 +2282,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     _transferForm();
   }
 
-  /// 储值卡充值对话框(付款账户候选来自账户列表 bloc 缓存,回退单账户)。
+  /// 储值卡充值对话框(候选源同 _repay:详情态取不到列表 → 仓库拉取)。
   Future<void> _topup(Account card) async {
-    final st = context.read<AccountBloc>().state;
-    final all = st is AccountsLoaded ? st.accounts : <Account>[card];
+    final all = await _allAccountsOr(card);
+    if (!mounted) return;
     await showStoredValueTopupDialog(context, card, all, onDone: () {
       if (mounted) {
         context.read<AccountBloc>().add(GetAccountRequested(widget.id));
@@ -2294,10 +2294,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
     });
   }
 
-  /// 信用卡还款对话框（储蓄卡候选来自账户列表 bloc 缓存，回退单账户）。
+  /// 信用卡还款对话框。储蓄卡候选:详情页 bloc 状态是 AccountDetailLoaded
+  /// (非列表态 AccountsLoaded,取不到全量列表)→ 经仓库拉取;失败/空回退
+  /// 仅本卡(对话框自行降级提示,与旧行为一致)。
   Future<void> _repay(Account card) async {
-    final st = context.read<AccountBloc>().state;
-    final all = st is AccountsLoaded ? st.accounts : <Account>[card];
+    final all = await _allAccountsOr(card);
+    if (!mounted) return;
     await showCreditCardRepayDialog(context, card, all,
         onDone: () {
           if (mounted) {
@@ -2305,6 +2307,18 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
             _refreshTxn();
           }
         });
+  }
+
+  /// 全量账户列表(还款/充值对话框候选源);仓库失败或空 → [fallback]。
+  Future<List<Account>> _allAccountsOr(Account fallback) async {
+    try {
+      final repo = getIt<AccountRepository>();
+      final result = await repo.list();
+      return result.fold((_) => [fallback],
+          (l) => l.isEmpty ? [fallback] : l);
+    } catch (_) {
+      return [fallback];
+    }
   }
 
   /// 转账表单：push TransactionFormPage 并直入转账 tab，预选本账户为转出账户。

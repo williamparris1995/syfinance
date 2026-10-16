@@ -44,12 +44,19 @@ class DebtRepositoryImpl implements DebtRepository {
   }
 
   /// 卡贷并账 catchup(F48):到账单日未并入的期次自动 recordPayment 并入
-  /// 挂接信用卡(幂等 = 期次 paid)。仅 guestLocal 跑 —— boundOffline 的
-  /// pending 上行与镜像重建均不识别卡贷语义,写了会漂移;失败静默不阻断读。
+  /// 挂接信用卡(幂等 = 期次 paid)。F61 B 模式:guestLocal 与
+  /// boundOfflineLocal 均跑 —— 离线路由下写置 **pending** 随批上行
+  /// (期次 paid 随债头行嵌套,PendingCollector 既有链路;pull 后 catchup
+  /// 幂等重跑自愈,裁决冲突走既有 converge 分支);boundRemote 不跑
+  /// (在线读远端真相,本地不写)。失败静默不阻断读。
   Future<void> _catchupCardLoans() async {
-    if (_tracker.resolveDataRoute() != DataRoute.guestLocal) return;
+    final route = _tracker.resolveDataRoute();
+    if (route != DataRoute.guestLocal && route != DataRoute.boundOfflineLocal) {
+      return;
+    }
     try {
-      await _local.catchupCardLoanMerges();
+      await _local.catchupCardLoanMerges(
+          markPending: route == DataRoute.boundOfflineLocal);
     } catch (_) {}
   }
 

@@ -669,15 +669,14 @@ class DebtLocalDataSource {
   /// ≤ todayStart 才并入;已出账未到期 = 自由窗口(不并,银行分期剩余也
   /// 不含它,见 debt_query F58 未出账口径)。
   ///
-  /// F59 专项池口径(2026-10-12 用户银行口径定案):专项额度现金分期
-  /// (countsTowardCardLimit == false)是独立结算产品 —— 分期**不走卡账单**,
-  /// 到期由用户从储蓄卡手动记还款(银行语义照 e招贷 同构:独立额度、不并
-  /// 卡;与 e招贷 的解挂处置不同,挂接卡保留,仅自动并账跳过)。存量当日
-  /// 误并入由 repairs.runF59SpecialQuotaUnmerge 回退。
+  /// F61 两轴解耦(2026-10-14 用户走查定案,订正 F59 专项池口径):专项
+  /// 额度(countsTowardCardLimit == false)只是**不占卡循环额度**,期供
+  /// 仍随卡账单(平安备用金/广发财智金实证);F59 的 skip 与 unmerge
+  /// 回退已退役。占用统计侧(debt_query Σ)照旧排除专项池,两轴互不影响。
   ///
   /// [now] 测试注入「当前时刻」(缺省 DateTime.now();UTC 日界对齐,与
   /// 期表存储口径一致)。
-  Future<void> catchupCardLoanMerges({DateTime? now}) async {
+  Future<void> catchupCardLoanMerges({DateTime? now, bool markPending = false}) async {
     final rows = await _dao.watchAllDebts().first;
     final today = (now ?? DateTime.now()).toUtc();
     final todayStart = DateTime.utc(today.year, today.month, today.day);
@@ -686,9 +685,10 @@ class DebtLocalDataSource {
       if (row.debtType != DebtType.borrowedIn.index + 1) continue;
       final card = row.collectionAccountId;
       if (card == null || card.isEmpty) continue;
-      // F59 专项池(开关关)独立结算:到期不并卡、手动记还款(照 e招贷
-      // 同构银行口径;占用侧 cardLoanOccupationCents 的 Σ 早已排除)。
-      if (!row.countsTowardCardLimit) continue;
+      // F61(2026-10-14 用户走查定案):「占用」与「并账」两轴解耦 —— 专项池
+      // (countsTowardCardLimit=false)只影响卡额度占用统计,期供仍随卡账单
+      // (平安备用金/广发财智金均随卡还,实证推翻 F59「独立结算不并卡」);
+      // F59 的 skip 分支与 runF59SpecialQuotaUnmerge 回退退役。
       final entries = await _dao.getScheduleByDebt(row.id);
       // 期次按日期升序(entry k 的到期日 = dates[k+1])。
       final sorted = [...entries]
@@ -709,6 +709,10 @@ class DebtLocalDataSource {
             scheduleEntryId: e.id,
             fromAccountId: card,
             description: '信用卡分期 ${row.counterparty}',
+            // F61 B 模式:绑定离线路由下并账写置 pending,回网经
+            // PendingCollector 随批上行(期次 paid 随债头行嵌套上行,
+            // 他设备 pull 一致);guest 维持缺省 synced。
+            markPending: markPending,
           );
         } on Failure catch (_) {
           // 单期失败(账户冻结等)不阻断其余期次,下一轮 catchup 重试。
@@ -1125,6 +1129,19 @@ class DebtLocalDataSource {
         transactionId: s.transactionId ?? '',
       );
 
+  /// 下一期(出账日 [nextDate])的到期日:其后首个期次出账日;无后续
+  /// 期次 = 自身 +1 月(月钳,F58 末期口径)。[nextDate] null → null。
+  static DateTime? _nextPeriodDueDate(
+      List<db.PaymentScheduleEntry> schedule, DateTime? nextDate) {
+    if (nextDate == null) return null;
+    final later = schedule
+        .map((s) => s.paymentDate)
+        .where((d) => d.isAfter(nextDate))
+        .toList()
+      ..sort();
+    return later.isEmpty ? plusOneMonthClamped(nextDate) : later.first;
+  }
+
   Future<Debt> _toEntity(db.Debt r) async {
     final schedule = await _dao.watchScheduleByDebt(r.id).first;
     // 委托收敛(F51):下一期选择删原「过滤 + 稳定排序 + firstOrNull」重复
@@ -1181,6 +1198,12 @@ class DebtLocalDataSource {
       // 已回填 true,无空值面)。
       countsTowardCardLimit: r.countsTowardCardLimit,
       nextPaymentDate: next?.date,
+      // F61:card_loan 下一期到期日(F58:到期=下一期出账日,末期 +1 月钳)
+      // —— 列表卡脚「已逾期 N 天」经此口径,自由窗口不红;普通债 null
+      // (消费方回落 nextPaymentDate 自身)。
+      nextPaymentDueDate: r.subtype == DebtSubtypes.cardLoan
+          ? _nextPeriodDueDate(schedule, next?.date)
+          : null,
       nextPaymentAmountCents: next?.totalCents ?? 0,
       nextPaymentPeriodNo: nextPeriodNo,
       remainingTrendCents: r.totalPrincipalCents - paidCents,

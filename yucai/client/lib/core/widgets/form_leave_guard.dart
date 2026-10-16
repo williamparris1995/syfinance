@@ -61,7 +61,14 @@ class _FormLeaveGuardState extends State<FormLeaveGuard> {
   }
 
   /// veto 问询(gate.mayLeave 路径):非 dirty 直接放行,dirty 走确认框。
+  ///
+  /// 冻结分支放行(F61 走查修复):IndexedShell 保分支态 —— 其他分支里
+  /// 悬挂的脏表单守卫仍在 gate 注册表上,若参与问询,用户在任何分支点
+  /// 面包屑都会被一张「看不见的表单」反复弹框(放弃不清脏 → 无限循环,
+  /// 走查实锤)。冻结分支(TickerMode 禁用)的守卫一律放行:表单状态
+  /// 原样保留在冻结栈里,用户切回该分支时守卫恢复拦截,编辑不丢。
   Future<bool> _onVeto() async {
+    if (!TickerMode.valuesOf(context).enabled) return true;
     if (!widget.isDirty()) return true;
     return _confirmLeave();
   }

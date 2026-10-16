@@ -11,19 +11,14 @@
 /// - Δ = 该卡分录(join Transactions 取 transactionDate)在
 ///   date(transactionDate) > D 且 ≤ 今天 的**正向变动**之和
 ///   (单笔 credit − debit > 0 计入,即消费;**还款分录为负不进 Δ**)。
-///   **账单日当天消费算已出账**(date > D 严格;各行账单日当天归属不同,
-///   按此默认,注释声明口径)。
-/// - 应还 = max(0, currentBalanceCents − Δ) = 上期账单**剩余**应还。
-///   推导:current = statement − R + S(R = 账单日后已还款、S = 账单日后
-///   消费 = Δ)→ 剩余应还 = statement − R = current − S —— 与行业口径一致
-///   (支付宝「剩余未还」/银行);不重建账单日历史原额(那会把已还部分
-///   加回,评审裁决废弃)。
-/// - 本推导**只读**,不动余额、不写任何表;时钟注入可测。
+/// F61(拍板 A):账单日当天交易归本期新区间([D, 次 D) 含 D),
+/// 区间经 core/billing billingCycleOf 单一事实源(订正原 date>D 严格口径)。
 library;
 
 import 'package:drift/drift.dart' hide Column;
 
 import 'package:yucai_client/core/localdb/app_database.dart';
+import 'package:yucai_client/core/billing/billing_cycle.dart';
 
 /// 账单周期四值拆解(T8 信用卡详情「账单周期」面板数据源)。
 /// 口径与 [CreditCardStatementDue] 库注释一致:
@@ -101,11 +96,11 @@ class CreditCardStatementDue {
 
     final now = (clock ?? DateTime.now)();
     final today = DateTime(now.year, now.month, now.day);
-    final thisMonth = clampDay(today.year, today.month, billingDay);
-    // 最近已过账单日 D:本月账单日未到 → 上月(月长 clamp / 跨年归一)。
-    final d = thisMonth.isAfter(today)
-        ? clampDay(today.year, today.month - 1, billingDay)
-        : thisMonth;
+    // F61:区间改经 core/billing 单一事实源(billingCycleOf)—— 边界为
+    // 拍板 A(账单日当天交易归下期=本期新区间 [D, 次 D) 含 D 当天),订正
+    // 原实现的 date>D 严格口径(当天消费掉缝)。
+    final cycle = billingCycleOf(today, billingDay: billingDay);
+    final d = cycle.start;
 
     // SQL 粗筛 [D, 明日):epoch 下界取本地 D 零点,保证日历日 ≥ D 的行
     // (无论以 UTC 还是本地零点落库)不漏;再在 Dart 侧按日历日严格复核
@@ -128,8 +123,8 @@ class CreditCardStatementDue {
       final t = r.readTable(db.transactions);
       final date =
           DateTime(t.transactionDate.year, t.transactionDate.month, t.transactionDate.day);
-      // date > D 严格(账单日当天 = 已出账);≤ 今日末(未来分录不计)。
-      if (!date.isAfter(d) || date.isAfter(today)) continue;
+      // ≥ D(拍板 A:账单日当天归本期新区间);≤ 今日末(未来分录不计)。
+      if (date.isBefore(d) || date.isAfter(today)) continue;
       final e = r.readTable(db.transactionEntries);
       final entryDelta = _entryDelta(accountType, e.debitCents, e.creditCents);
       if (entryDelta > 0) {

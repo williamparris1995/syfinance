@@ -41,6 +41,55 @@ Debt _d(
     );
 
 void main() {
+  group('F61 paymentEntryStatusMap(账单口径逾期)', () {
+    PaymentEntry pe(String id, DateTime d, {bool paid = false}) =>
+        PaymentEntry(
+          id: id,
+          paymentDate: d,
+          principalCents: 100000,
+          interestCents: 1000,
+          totalCents: 101000,
+          paid: paid,
+          paidCents: 0,
+          transactionId: '',
+        );
+
+    test('card_loan 自由窗口不红:出账后到下期出账前 = pending', () {
+      final sched = [
+        pe('a', DateTime(2026, 9, 12)),
+        pe('b', DateTime(2026, 10, 12)),
+        pe('c', DateTime(2026, 11, 12)),
+      ];
+      final st = paymentEntryStatusMap(sched,
+          cardLoanBilling: true, now: DateTime(2026, 10, 5));
+      expect(st['a'], PaymentStatus.pending,
+          reason: '09-12 已出账但到期=10-12 未到 → 自由窗口不红(F58)');
+      final st2 = paymentEntryStatusMap(sched,
+          cardLoanBilling: true, now: DateTime(2026, 10, 14));
+      expect(st2['a'], PaymentStatus.overdue, reason: '过下期出账日 → 逾期');
+      expect(st2['b'], PaymentStatus.pending);
+    });
+
+    test('card_loan 末期到期=自身+1 月(月钳)', () {
+      final st = paymentEntryStatusMap([pe('x', DateTime(2026, 1, 31))],
+          cardLoanBilling: true, now: DateTime(2026, 3, 1));
+      expect(st['x'], PaymentStatus.overdue, reason: '末期 1-31 到期=2-28');
+    });
+
+    test('普通债口径不变:自身 paymentDate 判逾期', () {
+      final sched = [pe('n', DateTime(2026, 10, 1)), pe('m', DateTime(2026, 11, 1))];
+      final st = paymentEntryStatusMap(sched, now: DateTime(2026, 10, 14));
+      expect(st['n'], PaymentStatus.overdue);
+      expect(st['m'], PaymentStatus.pending);
+    });
+
+    test('已还恒为 paid', () {
+      final st = paymentEntryStatusMap([pe('p', DateTime(2026, 9, 1), paid: true)],
+          cardLoanBilling: true, now: DateTime(2026, 12, 1));
+      expect(st['p'], PaymentStatus.paid);
+    });
+  });
+
   // 夹具:金额与到期日均乱序注入,已结清(settled)沉底一支验证默认序分组。
   final debts = [
     _d('mid', '招商银行', DateTime(2027, 6, 1), 1500000),
