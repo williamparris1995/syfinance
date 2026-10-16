@@ -31,23 +31,31 @@ import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
 import 'package:yucai_client/debt/presentation/widgets/debt_guarantor_contract_fields.dart';
+import 'package:yucai_client/debt/presentation/widgets/filtered_account_picker.dart';
+import 'package:yucai_client/debt/presentation/widgets/product_scenario_picker.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 
-/// 债务表单页（创建 + 编辑模式）。对齐 OD 原型 debt-form.html / tablet / mobile。
+/// 债务表单页（创建 + 编辑模式）。对齐 OD 原型 debt-form.html / tablet / mobile;
+/// F62 重做:场景卡首问 + 灰显过滤 + 载体户隐形 + 渐进披露三段 + 期供预览
+/// (prototype/v18 ui/debt-form-ux.html 区块二)。
 ///
-/// 结构对齐 [ReceivableFormPage]（已 OD 对齐的骨架）：OD `.sec` 分区卡 +
-/// `_RadioCard`（icon + label + desc）+ `AmortizationPreview` 深色实时预览 +
-/// `_actionsCard`（sticky footer actionbar）。文案/字段/数据按 **debt 语义**
-/// （借入）：债权方 / 借款本金 / 月供 / 还款计划 / 创建债务。
-///
-/// debt 专属(区别于 receivable):
-///  - type 默认 `DebtType.borrowedIn`（不渲染方向选择器）。
-///  - 关联账户 = liability loan/credit_card 账户（我欠别人的负债侧）。
-///  - subtype = DebtSubtypes（房贷/车贷/信用卡/亲友借款/其他）。
-///  - 信用卡子类型 → 信用卡信息区（账单日/还款日/额度/年费，回写 account）。
+/// F62 信息架构(desgin ADR-1..5):
+///  - 首问 = [ProductScenarioPicker] 4 场景卡(用户语言推导分类,角标露映射;
+///    「更多类型」入口保底全枚举;编辑态按存量 subtype 反选)。
+///  - 段①基本(债权方/本金/期数或到期日)+ 粗口径期供预览行(本金÷期数,
+///    附「以保存后生成的期表为准」;desktop 另有既有 AmortizationPreview 侧栏)。
+///  - 段②到账与还款(到账卡 [FilteredAccountPicker] 灰显过滤 / 起始日;
+///    信用卡分期含挂卡/出账方式/首期锚点;信用卡消费分期含挂卡账户)。
+///  - 段③高级默认折叠(利率方式/每期手续费/占用开关/担保人/附件,
+///    折叠头「已收起 N 项」)。
+///  - 载体户隐形(ADR-3):普通贷款无「关联账户」字段,保存时自动创建
+///    isSystem 隐藏载体户;信用卡消费分期保留挂卡选择。
+///  - isConflict 警示条仅编辑态渲染(存量冲突 = 数据修复入口);新建态
+///    冲突不可能(灰显过滤从源头消除)。
 ///
 /// 提交 → dispatch [CreateDebtRequested] / [UpdateDebtRequested] → 成功后 pop。
 /// DebtBloc 由 router provide；本页 `context.read<DebtBloc>()`。
+/// FormLeaveGuard/DetailTitleSync/守卫/提交流语义零改动(F62 仅 presentation)。
 class DebtFormPage extends StatefulWidget {
   const DebtFormPage({
     super.key,
@@ -89,10 +97,16 @@ class _DebtFormPageState extends State<DebtFormPage> {
   String? _existingAttachmentName; // 编辑态已有附件名(null = 无)
 
   /// 债务子类型 key（DebtSubtypes.*）。存 key —— 判断用 const，UI 显示 labels[key]。
-  String _subtypeKey = DebtSubtypes.mortgage;
+  /// F62:创建默认 = 场景一「借钱到银行卡」→ creditLoan(照原型 .scn.on 与
+  /// DebtSubtypeAffinity.defaultSubtypeFor(loan)=credit_loan 的智能默认);
+  /// 选择经 [ProductScenarioPicker](场景卡/二级/更多枚举)驱动。
+  String _subtypeKey = DebtSubtypes.creditLoan;
   /// 用户手动碰过 subtype 即为 true：创建模式自动归位不再覆盖（F33 LLD ②）。
   bool _subtypeTouched = false;
   AmortizationMethod _amortization = AmortizationMethod.equalPrincipalInterest;
+  /// F62 FR-4 段③高级默认折叠(渐进披露;折叠头「已收起 N 项」)。折叠用
+  /// Offstage(字段保持挂载 → Form validator 照常参与提交校验,不弱化)。
+  bool _advancedOpen = false;
 
   String? _accountId;
   DateTime? _startDate;
@@ -128,6 +142,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
   List<Account> _accounts = const [];
   // 借入到账账户(资产侧,可选):选择后创建时自动双记现金入账。
   List<Account> _assetAccounts = const [];
+  // F62 灰显过滤候选池:全量账户经 userVisible 滤 isSystem 载体户 ——
+  // 到账卡/挂卡 FilteredAccountPicker 的全量 items(不兼容项灰显保留)。
+  List<Account> _pickerPool = const [];
   String? _disbursementAccountId;
   bool _accountsLoading = true;
 
@@ -190,7 +207,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
         _waiverCtrl.text = (e.interestWaivedCents / 100).toStringAsFixed(2);
       }
       _accountId = e.accountId;
-      _subtypeKey = e.subtype.isEmpty ? DebtSubtypes.mortgage : e.subtype;
+      // F62:空存量 subtype 回落 creditLoan(场景一,与创建默认一致)。
+      _subtypeKey = e.subtype.isEmpty ? DebtSubtypes.creditLoan : e.subtype;
       // 出账方式回填:无挂接卡 = 独立账单(e招贷口径,2026-10-08 解挂存量)。
       if (_subtypeKey == DebtSubtypes.cardLoan) {
         _cardLoanIndependent = (e.collectionAccountId ?? '').isEmpty;
@@ -276,6 +294,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
             list.where((a) => a.accountType == AccountType.liability).toList();
         _assetAccounts =
             list.where((a) => a.accountType == AccountType.asset).toList();
+        // F62:灰显过滤候选池(全量账户经 userVisible 滤 isSystem 载体户,
+        // 资产在前 —— 兼容项先见;FR-3 载体不可见语义延续)。
+        _pickerPool = AccountVisibility.userVisible(
+            [..._assetAccounts, ...list.where((a) => a.accountType != AccountType.asset)]);
         _accountsLoading = false;
         _refillCreditCardFields();
         // 独立账单卡贷(如 e招贷)编辑:账单日/还款日回填自挂靠贷款账户
@@ -391,37 +413,22 @@ class _DebtFormPageState extends State<DebtFormPage> {
   int _cardLoanFeeCents() =>
       ((double.tryParse(_ccFeeCtrl.text.trim()) ?? 0) * 100).round();
 
-  /// F49 FR-3 消费点(T4 缺口 B):非信用卡分支经 [AccountVisibility.userVisible]
-  /// 滤掉 isSystem 载体户(账务载体不可见不可选);**编辑态当前债已挂的账户
-  /// 始终保留** —— 否则编辑既有债时下拉丢当前值(DropdownButtonFormField
-  /// value ⊄ items 断言/存量无法回显)。实现:全量经 userVisible,当前债挂的
-  /// 载体户(若被滤)按 [_accounts] 原序插回,下拉项次序稳定。
-  /// 信用卡分支本就按类别收窄(信用卡永非载体),不叠加过滤。金额计算侧
-  /// (净资产/负债总额)不消费本 getter,照常取全量(FR-3「可见处过滤、
-  /// 计算处保留」)。
-  List<Account> get _visibleAccounts {
-    if (_isCreditCard) {
-      return _accounts
-          .where((a) => a.category == AccountCategory.creditCard)
-          .toList();
-    }
-    final linkedId = _existing?.accountId;
-    final visible = AccountVisibility.userVisible(_accounts);
-    final linked = _accounts.where((a) => a.id == linkedId).firstOrNull;
-    // 未挂接/已挂账户本就可见(userVisible 已含)→ 直接返回。
-    if (linked == null || !linked.isSystem) return visible;
-    // 当前债挂的载体户:保序插回(落在原位置前最后一个可见账户之后)。
-    final at = _accounts.indexOf(linked);
-    final insertAt =
-        visible.where((a) => _accounts.indexOf(a) < at).length;
-    return [...visible]..insert(insertAt.clamp(0, visible.length), linked);
-  }
+  /// F49 FR-3 → F62 演进:普通贷款「关联账户」字段整体退役(载体户隐形,
+  /// ADR-3);唯一存留的手选账户 = 信用卡消费分期的挂卡账户(信用卡永非
+  /// isSystem 载体,天然可见)。灰显过滤候选池 [_pickerPool] 同源
+  /// userVisible(滤载体),见 _loadAccounts。
 
   Account? get _selectedAccount =>
       _accounts.where((a) => a.id == _accountId).cast<Account?>().firstWhere(
             (_) => true,
             orElse: () => null,
           );
+
+  /// F62:下拉 value ⊆ items 不变量(F49 retention 语义延续)—— 候选池外
+  /// 的存留值(测试/深链 seed 未列示账户,或加载间隙)渲染为空选择而非
+  /// DropdownButton 断言;池就绪后(同 id 在列)自动恢复回显。
+  String? _poolValue(String? id) =>
+      (id != null && _pickerPool.any((a) => a.id == id)) ? id : null;
 
   void _refillCreditCardFields() {
     // F59 FR-5:账户联动回填是程序化写入(非用户编辑信用卡字段),经
@@ -449,8 +456,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _ccDirty = false;
   }
 
-  /// F33-T6 FR-4:当前选择是否构成 subtype × 账户类别不一致。
+  /// F33-T6 FR-4 → F62 收窄:当前选择是否构成 subtype × 账户类别不一致。
   /// 判定收敛在 [DebtSubtypeAffinity.isConflict](category null / other 恒 false)。
+  /// F62:新建态经灰显过滤不可能冲突(ADR-2),警示条仅编辑态渲染 ——
+  /// 存量冲突数据 = 数据修复入口(design Risks)。
   bool get _showSubtypeConflict => DebtSubtypeAffinity.isConflict(
       _selectedAccount?.category.name, _subtypeKey);
 
@@ -527,10 +536,31 @@ class _DebtFormPageState extends State<DebtFormPage> {
     });
     // F33-T5 创建自动归位(design LLD ②):仅创建模式且用户未手动碰过 subtype
     // 时按账户类别联动默认值;编辑模式不归位(存量修正靠编辑自由改)。
+    // F62 后唯一手选账户 = 信用卡消费分期挂卡(creditCard 恒 credit_card),
+    // 联动实际为不动点 —— 逻辑保留(数据源 DebtSubtypeAffinity 不变)。
     if (_isEdit || _subtypeTouched) return;
     final d = DebtSubtypeAffinity.defaultSubtypeFor(
         _selectedAccount?.category.name);
     if (d != null) setState(() => _subtypeKey = d);
+  }
+
+  /// F62 FR-1:场景卡/二级/更多枚举选择 → subtype 推导(取代 10 术语卡
+  /// 直选)。卡贷固定按期数;切走 credit_card 清空挂卡;**切入 credit_card
+  /// 时仅保留信用卡类账户**(seed/编辑存量挂的 loan/资产户清空 —— 镜像旧
+  /// debtType 直选语义:不兼容值不作灰显回显;评审 I-1;value ⊆ items 由
+  /// [_poolValue] 双保险)。
+  void _onScenarioSelected(String key) {
+    _markDirty(); // F59 FR-5
+    setState(() {
+      _subtypeKey = key;
+      _subtypeTouched = true;
+      if (key == DebtSubtypes.cardLoan) _byPeriods = true;
+      if (key != DebtSubtypes.creditCard ||
+          _selectedAccount?.category != AccountCategory.creditCard) {
+        _accountId = null;
+      }
+      _refillCreditCardFields();
+    });
   }
 
   Future<void> _persistCreditCardFieldsIfNeeded() async {
@@ -808,8 +838,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
       AppToast.show(context, '请填写债权方', type: ToastType.warning);
       return;
     }
-    if (!_isCardLoan && _accountId == null) {
-      AppToast.show(context, '请选择关联账户', type: ToastType.warning);
+    // F62 ADR-3:普通贷款「关联账户」字段退役(载体户隐形,保存时自动建);
+    // 信用卡消费分期(credit_card)仍需手选挂卡账户(债务落在真卡上)。
+    if (_isCreditCard && (_accountId == null || _accountId!.isEmpty)) {
+      AppToast.show(context, '请选择关联信用卡账户', type: ToastType.warning);
       return;
     }
     if (_isCardLoan &&
@@ -870,7 +902,13 @@ class _DebtFormPageState extends State<DebtFormPage> {
     // 按期数模式:到期日 = 末个发生日(服务端按期数推导,此处供展示/编辑)。
     final effectiveDue = dates.last;
 
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      // 段③高级默认折叠:必填字段(卡贷每期手续费等)校验失败时若无动作
+      // = 无声死区 → 自动展开显露行内错误(R21 规范 E1 行内校验,不 toast
+      // 弹射;评审 I-3)。
+      if (!_advancedOpen) setState(() => _advancedOpen = true);
+      return;
+    }
     _formKey.currentState?.save();
     _submitted = true;
     final principalCents = (principal * 100).round();
@@ -947,9 +985,11 @@ class _DebtFormPageState extends State<DebtFormPage> {
       )));
     } else {
       // 卡贷(F48):债务落在自动创建的贷款类负债户(用户不手选);失败则
-      // 回滚提交态留在表单。非卡贷 = 用户所选关联账户(上方校验已保证
-      // 非空)。注意:_accountId 只在非卡贷分支解引用 —— 卡贷无关联账户
-      // 选择器,_accountId 恒为 null。
+      // 回滚提交态留在表单。F62 ADR-3:普通贷款同范式 —— 表单不再出现
+      // 「关联账户」字段,accountId 空 → 自动创建隐藏载体户(isSystem 既有
+      // 机制,复用卡贷建户路径);family 亲和 otherLiability(白名单数据源
+      // DebtSubtypeAffinity),其余 loan —— 不制造编辑态存量冲突。
+      // credit_card = 用户所选挂卡账户;深链/测试 seed 的 accountId 直用。
       var accountForParams = '';
       if (_isCardLoan) {
         final cp = _counterpartyCtrl.text.trim();
@@ -986,8 +1026,34 @@ class _DebtFormPageState extends State<DebtFormPage> {
           return;
         }
         accountForParams = newId;
-      } else {
+      } else if ((_accountId ?? '').isNotEmpty) {
         accountForParams = _accountId!;
+      } else {
+        final cp = _counterpartyCtrl.text.trim();
+        final created = await getIt<AccountRepository>().create(
+            CreateAccountParams(
+          name: '${cp.isEmpty ? '债务' : cp} · 债务',
+          accountType: AccountType.liability,
+          category: _subtypeKey == DebtSubtypes.family
+              ? AccountCategory.otherLiability
+              : AccountCategory.loan,
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          ownership: Ownership.personal,
+          notes: '债务自动创建管理账户',
+          // 载体户隐形(F62 FR-3):纯账务载体,展示层隐藏、金额计算照常。
+          isSystem: true,
+        ));
+        var newId = '';
+        created.fold((f) {
+          newId = '';
+          AppToast.show(context, f.displayMessage, type: ToastType.error);
+        }, (a) => newId = a.id);
+        if (newId.isEmpty) {
+          setState(() => _submitted = false);
+          return;
+        }
+        accountForParams = newId;
       }
       final effRule = _effectiveRule;
       bloc.add(CreateDebtRequested(CreateDebtParams(
@@ -1090,7 +1156,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
     );
   }
 
-  // ----- desktop / tablet：双列（表单 | 预览） -----
+  // ----- desktop / tablet：双列（表单 | 预览）;表单列 = 渐进披露三段 -----
   Widget _wideLayout(bool submitting) {
     final isDesktop = Breakpoints.of(context) == Breakpoint.desktop;
     return SingleChildScrollView(
@@ -1123,7 +1189,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
     );
   }
 
-  // ----- mobile：step wizard -----
+  // ----- mobile：step wizard(F62:三步映射三段,ADR-4;场景卡嵌第一步) -----
   Widget _mobileLayout(bool submitting) {
     return Column(
       children: [
@@ -1138,12 +1204,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_step == 0) ..._basicInfoFields(),
-                  if (_step == 1) ..._amountRateFields(),
-                  if (_step == 2) ...[
-                    ..._dateFields(),
-                    const SizedBox(height: 18),
-                    _guarantorContractFields(),
-                  ],
+                  if (_step == 1) ..._settlementFields(),
+                  if (_step == 2) ...[_advancedFold()],
                   const SizedBox(height: AppSpacing.lg),
                   _stepActions(submitting),
                 ],
@@ -1224,7 +1286,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
     );
   }
 
-  // ----- 表单列（desktop / tablet） -----
+  // ----- 表单列（desktop / tablet）:F62 三段渐进(基本 → 到账与还款 → 高级折叠) -----
   Widget _formColumn() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1232,30 +1294,18 @@ class _DebtFormPageState extends State<DebtFormPage> {
         _ODFormSection(
           num: '1',
           title: '基本信息',
-          sub: '债权方 · 类型 · 关联账户',
+          sub: '场景 · 债权方 · 本金 · 期数',
           children: _basicInfoFields(),
         ),
         const SizedBox(height: 16),
         _ODFormSection(
           num: '2',
-          title: '金额与利率',
-          sub: '本金 · 年利率 · 摊还方法',
-          children: _amountRateFields(),
+          title: '到账与还款',
+          sub: '到账卡 · 起始日 · 挂卡(信用卡分期)',
+          children: _settlementFields(),
         ),
         const SizedBox(height: 16),
-        _ODFormSection(
-          num: '3',
-          title: '借款日期',
-          sub: '起止日期决定还款期数',
-          children: _dateFields(),
-        ),
-        const SizedBox(height: 16),
-        _ODFormSection(
-          num: '4',
-          title: '担保人与合同',
-          sub: '全部选填 · 合同文件保存在本机',
-          children: [_guarantorContractFields()],
-        ),
+        _advancedFold(),
         const SizedBox(height: 16),
         _actionsCard(),
       ],
@@ -1318,9 +1368,21 @@ class _DebtFormPageState extends State<DebtFormPage> {
     );
   }
 
-  // ----- 字段：基本信息（Step 1） -----
+  // ----- 段① 基本(Step 1):场景卡首问 + 债权方/本金/期数 + 粗预览 -----
   List<Widget> _basicInfoFields() {
     return [
+      // F62 FR-1 首问:产品场景卡(用户语言 → 分类推导;角标露映射;
+      // 「更多类型」保底全枚举;编辑态按存量 subtype 反选)。
+      _ODField(
+        label: '这次借的是什么?',
+        required: true,
+        hint: '用生活语言作答即可,分类自动推导(角标可见)',
+        child: ProductScenarioPicker(
+          key: const ValueKey('scenarioPicker'),
+          selectedSubtype: _subtypeKey,
+          onSubtypeSelected: _onScenarioSelected,
+        ),
+      ),
       _ODGrid2(children: [
         _ODField(
           label: '债权方 / 借出方',
@@ -1333,129 +1395,79 @@ class _DebtFormPageState extends State<DebtFormPage> {
             validator: (v) => _required(v, '债权方'),
           ),
         ),
-        // 卡贷:债务落在自动创建的负债户,不手选(隐藏选择器);普通路径原样。
-        if (!_isCardLoan)
-          _ODField(
-            label: _isCreditCard ? '关联信用卡账户' : '关联账户',
-            required: true,
-            hint: '债务挂载的 Loan 账户',
-            child: DropdownButtonFormField<String>(
-              key: const ValueKey('accountDropdown'),
-              value: _accountId,
-              isExpanded: true,
-              decoration: _odDec(context,
-                  hint: _accountsLoading
-                      ? '加载中…'
-                      : (_isCreditCard ? '选择信用卡账户' : '选择 Loan 账户')),
-              items: [
-                for (final a in _visibleAccounts)
-                  DropdownMenuItem(value: a.id, child: Text(a.name)),
-              ],
-              onChanged: _onAccountChanged,
-              validator: (v) => v == null || v.isEmpty ? '请选择关联账户' : null,
-            ),
-          ),
         _ODField(
-          label: '到账账户',
+          label: '借款本金',
           required: true,
-          hint: '借款金额到账的资产账户(必选:保证还款时账户不为负)',
-          child: DropdownButtonFormField<String>(
-            key: const ValueKey('disbursementDropdown'),
-            value: _disbursementAccountId,
-            isExpanded: true,
-            decoration: _odDec(context, hint: '选择到账的银行卡/资产账户'),
-            items: [
-              for (final a in _assetAccounts)
-                DropdownMenuItem(value: a.id, child: Text(a.name)),
-            ],
-            onChanged: (v) {
-              _markDirty(); // F59 FR-5
-              setState(() => _disbursementAccountId = v);
-            },
+          child: TextFormField(
+            key: const ValueKey('principalField'),
+            controller: _principalCtrl,
+            decoration:
+                _odDec(context, prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
+            style: TextStyle(
+                fontSize: 14,
+                color: context.yucai.fg,
+                fontFeatures: AppTypography.tabularFigures),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            validator: (v) => _required(v, '借款本金'),
           ),
         ),
       ]),
-      // 卡贷专属区(F48):挂接卡 + 每期手续费 + 出账锚说明。
-      if (_isCardLoan) ..._cardLoanFields(),
-      _ODField(
-        label: '利息减免(选填)',
-        hint: '银行一次性优惠,从最早几期利息中扣减',
-        child: TextFormField(
-          key: const ValueKey('waiverField'),
-          controller: _waiverCtrl,
-          decoration: _odDec(context, prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
-          style: TextStyle(
-              fontSize: 14,
-              color: context.yucai.fg,
-              fontFeatures: AppTypography.tabularFigures),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (_) => setState(() {}),
-        ),
-      ),
-      const SizedBox(height: AppSpacing.sm),
-      // 债务类型(5 卡):OD .radio-row.c5。icon + label(无 desc,对齐 OD 类型卡)。
-      _ODField(
-        label: '债务类型',
-        required: true,
-        child: _ResponsiveRadioRow(
-          children: [
-            for (final key in DebtSubtypes.all)
-              _RadioCard(
-                key: ValueKey('debtType-$key'),
-                iconKey: ValueKey('debtTypeIcon-$key'),
-                icon: _debtTypeIcon(key),
-                label: DebtSubtypes.labels[key]!,
-                selected: _subtypeKey == key,
-                // F33-T5:创建+编辑都可选;触碰后创建模式不再自动归位。
-                onTap: () {
-                  _markDirty(); // F59 FR-5
-                  setState(() {
-                    _subtypeKey = key;
-                    _subtypeTouched = true;
-                    // 卡贷固定按期数模式(银行现金分期口径,无按到期日)。
-                    if (key == DebtSubtypes.cardLoan) _byPeriods = true;
-                    // 切到 credit_card 时 _visibleAccounts 收窄为信用卡
-                    // 账户,已选非信用卡账户失效 → 清空保持下拉
-                    // value ⊆ items(design.md「归位 × 信用卡过滤交互」)。
-                    if (_accountId != null &&
-                        !_visibleAccounts.any((a) => a.id == _accountId)) {
-                      _accountId = null;
-                    }
-                    _refillCreditCardFields();
-                  });
-                },
-              ),
-          ],
-        ),
-      ),
-      // F33-T6 FR-4:subtype × 账户类别不一致 → 非阻断警示条(callout.warn,
-      // 判定 isConflict:category null / other 恒 false → 永不显示)。
-      if (_showSubtypeConflict) ...[
+      ..._termFields(),
+      // FR-4 期供实时预览(粗口径 = 本金 ÷ 期数;预览是反馈不是承诺,
+      // 精算在保存后期表)。
+      _roughPreviewRow(),
+      // F33-T6 FR-4 → F62 退役收窄:警示条仅编辑态渲染(存量冲突 = 数据
+      // 修复入口);新建态灰显过滤从源头消除冲突,不可能出现。
+      if (_isEdit && _showSubtypeConflict) ...[
         const SizedBox(height: AppSpacing.sm),
         _subtypeConflictCallout(),
       ],
-      // 信用卡子类型 + 无 credit_card 账户 → 提示去账户管理创建。
-      if (_isCreditCard && _visibleAccounts.isEmpty && !_accountsLoading)
-        Padding(
-          key: const ValueKey('createCreditCardHint'),
-          padding: const EdgeInsets.only(top: AppSpacing.sm),
-          child: GestureDetector(
-            onTap: _goCreateCreditCardAccount,
-            child: Text(
-              '尚未找到信用卡账户，点此去账户管理创建',
-              style: TextStyle(
-                  color: context.yucai.accent,
-                  fontSize: 12,
-                  decoration: TextDecoration.underline),
-            ),
-          ),
-        ),
-      // 信用卡信息区(仅 subtype == DebtSubtypes.creditCard)。
-      if (_isCreditCard) ...[
-        const SizedBox(height: AppSpacing.md),
-        ..._creditCardFields(),
-      ],
     ];
+  }
+
+  /// F62 FR-4:段①期供粗预览行(本金 ÷ 期数;附「以保存后生成的期表为准」)。
+  Widget _roughPreviewRow() {
+    final p = double.tryParse(_principalCtrl.text) ?? 0;
+    final n = _byPeriods ? _termPeriods() : _effectiveDates().length;
+    final per = (p > 0 && n > 0) ? p / n : null;
+    final nLabel = n > 0 ? '$n' : '—';
+    return Container(
+      key: const ValueKey('roughPreviewRow'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.yucai.accentSoft,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(LucideIcons.calculator,
+                  size: 14, color: context.yucai.accentDeep),
+              const SizedBox(width: 8),
+              Text(
+                per == null
+                    ? '约 ¥—/期 · 共 $nLabel 期'
+                    : '约 ¥${per.round()}/期 · 共 $nLabel 期',
+                key: const ValueKey('roughPreviewAmount'),
+                style: TextStyle(
+                    color: context.yucai.accentDeep,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '按本金 ÷ 期数实时估算,不含利息;以保存后生成的期表为准',
+            style: TextStyle(
+                color: context.yucai.muted, fontSize: 11, height: 1.4),
+          ),
+        ],
+      ),
+    );
   }
 
   // ----- 字段：信用卡信息（账单日 / 还款日 / 额度 / 年费） -----
@@ -1501,9 +1513,105 @@ class _DebtFormPageState extends State<DebtFormPage> {
     ];
   }
 
-  // ===================== 卡贷字段区(F48) =====================
+  // ===================== 段② 到账与还款(F62 FR-4/FR-5) =====================
 
-  List<Widget> _cardLoanFields() {
+  List<Widget> _settlementFields() {
+    return [
+      // 「钱到账到了哪张卡」(用户语言)= sourceAccount;灰显过滤仅亮资产类
+      // active(ADR-2,冲突不可能选出)。
+      _ODField(
+        label: '钱到账到了哪张卡?',
+        required: true,
+        hint: '借款金额到账的资产账户(保证还款时账户不为负)',
+        child: FilteredAccountPicker(
+          key: const ValueKey('disbursementDropdown'),
+          mode: FilteredAccountMode.disbursement,
+          accounts: _pickerPool,
+          value: _poolValue(_disbursementAccountId),
+          hint: _accountsLoading ? '加载中…' : '选择到账的银行卡/资产账户',
+          onChanged: (v) {
+            _markDirty(); // F59 FR-5
+            setState(() => _disbursementAccountId = v);
+          },
+        ),
+      ),
+      // F62 FR-3 载体户隐形说明(普通贷款;仅创建态 —— 编辑态债务已有
+      // 载体,「保存时创建」文案失实 → 不渲染,评审 M-3)。
+      if (!_isEdit && !_isCardLoan && !_isCreditCard)
+        Padding(
+          key: const ValueKey('carrierAutoNote'),
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(LucideIcons.info, size: 13, color: context.yucai.muted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '没有「关联账户」要选 —— 系统将自动生成管理账户(保存时创建)',
+                  style: TextStyle(
+                      color: context.yucai.muted,
+                      fontSize: 11.5,
+                      height: 1.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      _ODField(
+        label: '起始日期',
+        required: true,
+        child: _ODDateField(
+          key: const ValueKey('startDatePicker'),
+          value: _startDate,
+          onChanged: (d) {
+            _markDirty(); // F59 FR-5
+            setState(() => _startDate = d);
+          },
+        ),
+      ),
+      // 卡贷(F48/FR-5):出账方式 / 挂卡 / 首期锚点(既有语义逐项保留)。
+      if (_isCardLoan) ..._cardLoanSettlementFields(),
+      // 信用卡消费分期(credit_card subtype,经「更多类型」可达):挂卡
+      // 账户(灰显过滤:仅亮信用卡)+ 信用卡信息区在段③高级。
+      if (_isCreditCard) ...[
+        _ODField(
+          label: '关联信用卡账户',
+          required: true,
+          hint: '这笔消费分期挂在哪张信用卡(账单随卡走)',
+          child: FilteredAccountPicker(
+            key: const ValueKey('accountDropdown'),
+            mode: FilteredAccountMode.cardMount,
+            accounts: _pickerPool,
+            value: _poolValue(_accountId),
+            hint: _accountsLoading ? '加载中…' : '选择信用卡账户',
+            onChanged: _onAccountChanged,
+            validator: (v) =>
+                v == null || v.isEmpty ? '请选择关联信用卡账户' : null,
+          ),
+        ),
+        if (_cardAccounts.isEmpty && !_accountsLoading)
+          Padding(
+            key: const ValueKey('createCreditCardHint'),
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: GestureDetector(
+              onTap: _goCreateCreditCardAccount,
+              child: Text(
+                '尚未找到信用卡账户，点此去账户管理创建',
+                style: TextStyle(
+                    color: context.yucai.accent,
+                    fontSize: 12,
+                    decoration: TextDecoration.underline),
+              ),
+            ),
+          ),
+      ],
+    ];
+  }
+
+  // ===================== 卡贷(F48)段②字段组 =====================
+
+  List<Widget> _cardLoanSettlementFields() {
     return [
       const SizedBox(height: AppSpacing.sm),
       // 出账方式(e招贷定案 2026-10-08):按银行行为问,不按金融概念问。
@@ -1539,69 +1647,47 @@ class _DebtFormPageState extends State<DebtFormPage> {
         ),
       ),
       const SizedBox(height: AppSpacing.sm),
-      _ODGrid2(children: [
-        if (!_cardLoanIndependent)
-          _ODField(
-            label: '挂接信用卡',
-            required: true,
-            hint: '每期金额自动并入该卡账单',
-            child: DropdownButtonFormField<String>(
-              key: const ValueKey('cardLoanCardDropdown'),
-              value: _cardLoanCardId,
-              isExpanded: true,
-              decoration: _odDec(context, hint: '选择信用卡账户'),
-              items: [
-                for (final a in _cardAccounts)
-                  DropdownMenuItem(value: a.id, child: Text(a.name)),
-              ],
-              onChanged: (v) {
-                _markDirty(); // F59 FR-5
-                setState(() => _cardLoanCardId = v);
-              },
-              validator: (v) => v == null || v.isEmpty ? '请选择挂接的信用卡' : null,
-            ),
-          )
-        else
-          _ODField(
-            label: '账单日',
-            required: true,
-            hint: '每月该日合并出账(如 e招贷 5 日)',
-            child: TextFormField(
-              key: const ValueKey('cardLoanBillDayField'),
-              controller: _clBillDayCtrl,
-              enabled: !_isEdit,
-              decoration: _odDec(context, hint: '1-31'),
-              keyboardType: TextInputType.number,
-              // 编辑态字段禁用(存量经「账户→编辑」改),并入→独立切换后
-              // 为空:validator 必须放行,否则 Form.validate 卡死提交
-              // (F49 T10 编辑切换同步前置)。
-              validator: _isEdit
-                  ? null
-                  : (v) {
-                      final d = int.tryParse(v ?? '');
-                      return d == null || d < 1 || d > 31 ? '账单日 1-31' : null;
-                    },
-            ),
-          ),
+      if (!_cardLoanIndependent)
+        // F62 FR-2/FR-5:挂接卡选择器换灰显过滤(仅亮信用卡,其余灰显+原因)。
         _ODField(
-          label: '每期手续费',
+          label: '挂接信用卡',
           required: true,
-          hint: '银行现金分期口径,按全额本金每期收取',
+          hint: '每期金额自动并入该卡账单',
+          child: FilteredAccountPicker(
+            key: const ValueKey('cardLoanCardDropdown'),
+            mode: FilteredAccountMode.cardMount,
+            accounts: _pickerPool,
+            value: _poolValue(_cardLoanCardId),
+            hint: '选择信用卡账户',
+            onChanged: (v) {
+              _markDirty(); // F59 FR-5
+              setState(() => _cardLoanCardId = v);
+            },
+            validator: (v) => v == null || v.isEmpty ? '请选择挂接的信用卡' : null,
+          ),
+        )
+      else
+        _ODField(
+          label: '账单日',
+          required: true,
+          hint: '每月该日合并出账(如 e招贷 5 日)',
           child: TextFormField(
-            key: const ValueKey('cardLoanFeeField'),
-            controller: _ccFeeCtrl,
-            decoration:
-                _odDec(context, prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
-            style: TextStyle(
-                fontSize: 14,
-                color: context.yucai.fg,
-                fontFeatures: AppTypography.tabularFigures),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            validator: (v) => _required(v, '每期手续费'),
-            onChanged: (_) => setState(() {}),
+            key: const ValueKey('cardLoanBillDayField'),
+            controller: _clBillDayCtrl,
+            enabled: !_isEdit,
+            decoration: _odDec(context, hint: '1-31'),
+            keyboardType: TextInputType.number,
+            // 编辑态字段禁用(存量经「账户→编辑」改),并入→独立切换后
+            // 为空:validator 必须放行,否则 Form.validate 卡死提交
+            // (F49 T10 编辑切换同步前置)。
+            validator: _isEdit
+                ? null
+                : (v) {
+                    final d = int.tryParse(v ?? '');
+                    return d == null || d < 1 || d > 31 ? '账单日 1-31' : null;
+                  },
           ),
         ),
-      ]),
       // F57 首期锚点(创建态 + 并入模式常驻,v15 形态 B):银行起扣惯例分歧
       // —— 典型银行放款次月起扣(默认,现状);平安当期起扣(首期 = 放款日
       // 当天)。副行以所选起始日实例化日期(8/2 起始 → 9/2 / 8/2),随起始日
@@ -1650,11 +1736,6 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ),
         ),
       ],
-      // F50 债级开关行:仅挂接卡贷(并账 + 已选卡)显示,默认开。
-      if (_showCardLimitSwitch) ...[
-        const SizedBox(height: AppSpacing.sm),
-        _cardLimitSwitchField(),
-      ],
       if (_cardLoanIndependent) ...[
         const SizedBox(height: AppSpacing.sm),
         _ODField(
@@ -1695,50 +1776,48 @@ class _DebtFormPageState extends State<DebtFormPage> {
           style: TextStyle(fontSize: 11.5, color: context.yucai.muted),
         ),
       ),
+      // 出账节奏提示(F57 联动;原日期区随起始日迁入段②)。
+      Padding(
+        key: const ValueKey('cardLoanScheduleHint'),
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          // F57:并入模式首期随锚点选项联动;独立模式/编辑态无锚点选项,
+          // 保持既有中性表述(现状语义)。
+          _cardLoanIndependent || _isEdit
+              ? '出账节奏:首期 = 放款日的下个每月对应日,此后每月一期;到期日按末期推导'
+              : _firstPeriodCurrent
+                  ? '出账节奏:首期 = 放款日当天(锚点「放款当期」),此后每月一期;到期日按末期推导'
+                  : '出账节奏:首期 = 放款日的下个每月对应日(锚点「放款次月」),此后每月一期;到期日按末期推导',
+          style: TextStyle(fontSize: 11.5, color: context.yucai.muted, height: 1.5),
+        ),
+      ),
     ];
   }
 
-  // ----- 字段：金额利率（Step 2） -----
-  List<Widget> _amountRateFields() {
+  // ----- 段③ 高级(F62 FR-4:默认折叠,折叠头「已收起 N 项」) -----
+
+  /// 高级段字段清单(动态按 subtype 组合;N = 清单长度)。
+  List<Widget> _advancedChildren() {
     return [
-      _ODGrid2(children: [
+      // 利率方式:非卡贷 = 年利率 + 摊还方法;卡贷 = 每期手续费(年利率由
+      // 月费率推导,摊销固定,二者不手填)。
+      if (!_isCardLoan) ...[
         _ODField(
-          label: '借款本金',
+          label: '年利率',
           required: true,
+          hint: '亲友无息借款可填 0',
           child: TextFormField(
-            key: const ValueKey('principalField'),
-            controller: _principalCtrl,
-            decoration:
-                _odDec(context, prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
+            key: const ValueKey('rateField'),
+            controller: _rateCtrl,
+            decoration: _odDec(context, suffix: '%', hint: '0.0'),
             style: TextStyle(
                 fontSize: 14,
                 color: context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            validator: (v) => _required(v, '借款本金'),
+            validator: (v) => _required(v, '年利率'),
           ),
         ),
-        // 卡贷:金额口径 = 本金/N + 每期固定手续费(卡贷区录入),年利率
-        // 由月费率推导、摊销固定,二者不手填。
-        if (!_isCardLoan)
-          _ODField(
-            label: '年利率',
-            required: true,
-            hint: '亲友无息借款可填 0',
-            child: TextFormField(
-              key: const ValueKey('rateField'),
-              controller: _rateCtrl,
-              decoration: _odDec(context, suffix: '%', hint: '0.0'),
-              style: TextStyle(
-                  fontSize: 14,
-                  color: context.yucai.fg,
-                  fontFeatures: AppTypography.tabularFigures),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) => _required(v, '年利率'),
-            ),
-          ),
-      ]),
-      if (!_isCardLoan)
         _ODField(
           label: '摊还方法',
           required: true,
@@ -1759,19 +1838,137 @@ class _DebtFormPageState extends State<DebtFormPage> {
             ],
           ),
         ),
-      if (_isCardLoan)
+      ] else ...[
+        _ODField(
+          label: '每期手续费',
+          required: true,
+          hint: '银行现金分期口径,按全额本金每期收取',
+          child: TextFormField(
+            key: const ValueKey('cardLoanFeeField'),
+            controller: _ccFeeCtrl,
+            decoration:
+                _odDec(context, prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
+            style: TextStyle(
+                fontSize: 14,
+                color: context.yucai.fg,
+                fontFeatures: AppTypography.tabularFigures),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            validator: (v) => _required(v, '每期手续费'),
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
         Padding(
           key: const ValueKey('cardLoanRateHint'),
           padding: const EdgeInsets.only(top: 4),
           child: Text(
-              '名义年化 ${_cardLoanAnnualRatePct.toStringAsFixed(2)}%(月费率 × 12,银行现金分期口径;每期 = 本金/期数 + 手续费)',
-              style:
-                  TextStyle(fontSize: 11.5, color: context.yucai.muted)),
+            '名义年化 ${_cardLoanAnnualRatePct.toStringAsFixed(2)}%(月费率 × 12,银行现金分期口径;每期 = 本金/期数 + 手续费)',
+            style:
+                TextStyle(fontSize: 11.5, color: context.yucai.muted),
+          ),
         ),
+      ],
+      _ODField(
+        label: '利息减免(选填)',
+        hint: '银行一次性优惠,从最早几期利息中扣减',
+        child: TextFormField(
+          key: const ValueKey('waiverField'),
+          controller: _waiverCtrl,
+          decoration: _odDec(context, prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
+          style: TextStyle(
+              fontSize: 14,
+              color: context.yucai.fg,
+              fontFeatures: AppTypography.tabularFigures),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
+        ),
+      ),
+      // F50 债级开关行:仅挂接卡贷(并账 + 已选卡)显示,默认开。
+      if (_showCardLimitSwitch) _cardLimitSwitchField(),
+      // 信用卡信息区(仅 subtype == credit_card,经「更多类型」可达)。
+      if (_isCreditCard) ..._creditCardFields(),
+      // 担保人与合同(选填;合同文件保存在本机)。
+      _guarantorContractFields(),
     ];
   }
 
-  // ----- 字段：日期（Step 3;含周期规则入口与期数双模式） -----
+  /// 高级折叠卡:折叠头「高级 + 已收起 N 项」(展开后「已展开」);折叠实现
+  /// 用 Offstage —— 字段保持挂载,Form validator 照常参与提交校验(必填
+  /// 语义零弱化),仅移出视觉主路径(渐进披露)。
+  Widget _advancedFold() {
+    final children = _advancedChildren();
+    return Container(
+      key: const ValueKey('advancedFold'),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+      decoration: BoxDecoration(
+        color: context.yucai.surface,
+        border: Border.all(color: context.yucai.border),
+        borderRadius: AppRadius.lgBorder,
+        boxShadow: const [
+          // 深灰黑阴影豁免(暗底不可见 = v2 暗色无阴影),保原值。
+          BoxShadow(
+              color: Color(0x0A1C1E21), blurRadius: 3, offset: Offset(0, 1)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            key: const ValueKey('advancedFoldToggle'),
+            onTap: () => setState(() => _advancedOpen = !_advancedOpen),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                AnimatedRotation(
+                  turns: _advancedOpen ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 150),
+                  child: Icon(LucideIcons.chevronRight,
+                      size: 15, color: context.yucai.muted),
+                ),
+                const SizedBox(width: 9),
+                const Text('高级',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: AppTypography.displayFamily,
+                        fontFamilyFallback: AppTypography.displayFallback)),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    _advancedOpen ? '已展开' : '已收起 ${children.length} 项',
+                    key: ValueKey(
+                        _advancedOpen ? 'advancedHintOpen' : 'advancedHintClosed'),
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                        fontSize: 12, color: context.yucai.muted),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 不用 AnimatedSize:desktop 表单列在 IntrinsicHeight(Row)内,
+          // 动画中间态尺寸 ≠ intrinsic 高度 → 溢出断言(照 _ResponsiveRadioRow
+          // 同裁定)。Offstage 直接切换:字段保持挂载,validator 照常参与。
+          Offstage(
+            offstage: !_advancedOpen,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < children.length; i++) ...[
+                    children[i],
+                    if (i < children.length - 1)
+                      const SizedBox(height: 18),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ----- 期数或月供(段①:周期规则入口与期数双模式;起始日随段②) -----
 
   /// 当前生效的发生日序列(按期数模式含推导;空 = 输入不全)。
   List<DateTime> _effectiveDates() {
@@ -1812,7 +2009,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
     }
   }
 
-  List<Widget> _dateFields() {
+  List<Widget> _termFields() {
     final dates = _effectiveDates();
     final periods = dates.length;
     final derivedDue = dates.isEmpty ? null : dates.last;
@@ -1852,63 +2049,38 @@ class _DebtFormPageState extends State<DebtFormPage> {
           },
         ),
       ],
-      if (_isCardLoan)
-        Padding(
-          key: const ValueKey('cardLoanScheduleHint'),
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: Text(
-              // F57:并入模式首期随锚点选项联动;独立模式/编辑态无锚点选项,
-              // 保持既有中性表述(现状语义)。
-              _cardLoanIndependent || _isEdit
-                  ? '出账节奏:首期 = 放款日的下个每月对应日,此后每月一期;到期日按末期推导'
-                  : _firstPeriodCurrent
-                      ? '出账节奏:首期 = 放款日当天(锚点「放款当期」),此后每月一期;到期日按末期推导'
-                      : '出账节奏:首期 = 放款日的下个每月对应日(锚点「放款次月」),此后每月一期;到期日按末期推导',
-              style:
-                  TextStyle(fontSize: 11.5, color: context.yucai.muted)),
-        ),
-      const SizedBox(height: AppSpacing.sm),
-      _ODGrid2(children: [
-        _ODField(
-          label: '起始日期',
-          required: true,
-          child: _ODDateField(
-            key: const ValueKey('startDatePicker'),
-            value: _startDate,
-            onChanged: (d) {
-              _markDirty(); // F59 FR-5
-              setState(() => _startDate = d);
-            },
-          ),
-        ),
-        if (_byPeriods)
-          _ODField(
-            label: '期数',
-            required: true,
-            hint: derivedDue == null ? null : '到期 ${_fmtDate(derivedDue)}',
-            child: TextFormField(
-              key: const ValueKey('termPeriodsField'),
-              controller: _termPeriodsCtrl,
-              decoration: _odDec(context, hint: '例如：12'),
-              keyboardType: TextInputType.number,
-              onChanged: (_) => setState(() {}),
+      if (!_isCardLoan || _byPeriods) ...[
+        const SizedBox(height: AppSpacing.sm),
+        _ODGrid2(children: [
+          if (_byPeriods)
+            _ODField(
+              label: '期数',
+              required: true,
+              hint: derivedDue == null ? null : '到期 ${_fmtDate(derivedDue)}',
+              child: TextFormField(
+                key: const ValueKey('termPeriodsField'),
+                controller: _termPeriodsCtrl,
+                decoration: _odDec(context, hint: '例如：12'),
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+              ),
+            )
+          else
+            _ODField(
+              label: '到期日期',
+              required: true,
+              hint: periods > 0 ? '共 $periods 期' : null,
+              child: _ODDateField(
+                key: const ValueKey('dueDatePicker'),
+                value: _dueDate,
+                onChanged: (d) {
+                  _markDirty(); // F59 FR-5
+                  setState(() => _dueDate = d);
+                },
+              ),
             ),
-          )
-        else
-          _ODField(
-            label: '到期日期',
-            required: true,
-            hint: periods > 0 ? '共 $periods 期' : null,
-            child: _ODDateField(
-              key: const ValueKey('dueDatePicker'),
-              value: _dueDate,
-              onChanged: (d) {
-                _markDirty(); // F59 FR-5
-                setState(() => _dueDate = d);
-              },
-            ),
-          ),
-      ]),
+        ]),
+      ],
     ];
   }
 
@@ -1941,7 +2113,8 @@ class _StepIndicator extends StatelessWidget {
   const _StepIndicator({required this.current});
   final int current;
 
-  static const _labels = ['基本信息', '金额利率', '日期'];
+  // F62:三步标签映射三段(基本 / 到账与还款 / 高级)。
+  static const _labels = ['基本', '到账与还款', '高级'];
 
   @override
   Widget build(BuildContext context) {
@@ -2013,13 +2186,12 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-/// 单选卡(债务类型 9 / 摊还方法 3)。对齐 OD .radio:32px icon tile(选中金实心)
+/// 单选卡(摊还方法/出账方式/首期锚点)。对齐 OD .radio:32px icon tile(选中金实心)
 /// + label + 可选 desc。复用 TypeTabs 金选中态视觉。
 /// [onTap] == null → 禁用态视觉(当前无调用方传 null,保留通用禁用样式)。
 class _RadioCard extends StatelessWidget {
   const _RadioCard({
     super.key,
-    this.iconKey,
     required this.icon,
     required this.label,
     this.desc,
@@ -2027,7 +2199,6 @@ class _RadioCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final Key? iconKey; // F33-T6:icon key(测试断言 9 类 subtype 图标不漏项)。
   final IconData icon;
   final String label;
   final String? desc;
@@ -2076,7 +2247,7 @@ class _RadioCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(9),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, key: iconKey, size: 17, color: tileFg),
+              child: Icon(icon, size: 17, color: tileFg),
             ),
             const SizedBox(height: 7),
             Text(label,
@@ -2439,32 +2610,5 @@ String _amortizationDesc(AmortizationMethod m) {
       return '到期还本付息 无月供';
     case AmortizationMethod.interestFirst:
       return '每期付息 到期一次还本';
-  }
-}
-
-/// 债务类型 icon(对齐 OD debt-form.html .radio svg:home/car/creditCard/users/help;
-/// F33-T6 补 4 新类:handCoins/calendarClock/shoppingBag/briefcase,
-/// 均已核对 lucide_icons_flutter 3.1.14+2 包内 static const 命名)。
-IconData _debtTypeIcon(String key) {
-  switch (key) {
-    case DebtSubtypes.mortgage:
-      return LucideIcons.home;
-    case DebtSubtypes.autoLoan:
-      return LucideIcons.car;
-    case DebtSubtypes.creditLoan:
-      return LucideIcons.handCoins;
-    case DebtSubtypes.cashInstallment:
-      return LucideIcons.calendarClock;
-    case DebtSubtypes.consumptionLoan:
-      return LucideIcons.shoppingBag;
-    case DebtSubtypes.businessLoan:
-      return LucideIcons.briefcase;
-    case DebtSubtypes.creditCard:
-      return LucideIcons.creditCard;
-    case DebtSubtypes.family:
-      return LucideIcons.users;
-    case DebtSubtypes.other:
-    default:
-      return LucideIcons.helpCircle;
   }
 }
