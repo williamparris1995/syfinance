@@ -16,7 +16,7 @@
 
 ## Sprint roster
 
-- [ ] [sprint-1](sprint-1/sprint.md) — F60 周期域模型+广发收口 / F61 消费面切换(串行)
+- [x] [sprint-1](sprint-1/sprint.md) — F60 周期域模型+广发收口 / F61 消费面切换(串行) ✅(2026-10-16 两票收官;F60 合并 5aa8448b/F61 合并 ba47b60e)
 
 ## Done criteria
 
@@ -26,4 +26,4 @@
 4. 存量交易零重算/零迁移(周期为视图口径,时间戳不动)。
 5. 全门:flutter test 全绿 + analyze 基线 + make client-e2e(零 proto 改动免 go 门;若确需 server 透传在 spec 显式拍板)。
 
-## status: pending
+## status: done(2026-10-16 功能面收官;发版待用户;招商对账补记挂用户(银行流水两窗口差 474.61/366.85+还款记录);后续票候选:月钳收敛/普通债边界日/mapper due 字段/账户表单路由(F59-F2))
