@@ -676,7 +676,7 @@ class DebtLocalDataSource {
   ///
   /// [now] 测试注入「当前时刻」(缺省 DateTime.now();UTC 日界对齐,与
   /// 期表存储口径一致)。
-  Future<void> catchupCardLoanMerges({DateTime? now}) async {
+  Future<void> catchupCardLoanMerges({DateTime? now, bool markPending = false}) async {
     final rows = await _dao.watchAllDebts().first;
     final today = (now ?? DateTime.now()).toUtc();
     final todayStart = DateTime.utc(today.year, today.month, today.day);
@@ -709,6 +709,10 @@ class DebtLocalDataSource {
             scheduleEntryId: e.id,
             fromAccountId: card,
             description: '信用卡分期 ${row.counterparty}',
+            // F61 B 模式:绑定离线路由下并账写置 pending,回网经
+            // PendingCollector 随批上行(期次 paid 随债头行嵌套上行,
+            // 他设备 pull 一致);guest 维持缺省 synced。
+            markPending: markPending,
           );
         } on Failure catch (_) {
           // 单期失败(账户冻结等)不阻断其余期次,下一轮 catchup 重试。

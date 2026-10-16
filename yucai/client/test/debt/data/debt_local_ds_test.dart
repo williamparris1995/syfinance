@@ -1211,6 +1211,32 @@ void main() {
       expect(mergeTxns.length, 2);
     });
 
+    test('F61 B 模式:markPending=true 并账写置 pending(随批上行口径)',
+        () async {
+      final d = await createCardLoan59(true);
+      await debts.catchupCardLoanMerges(
+          now: DateTime.utc(2026, 11, 5), markPending: true);
+      final detail = await debts.get(d.id);
+      expect(detail.schedule[0].paid, isTrue);
+      // 并账交易头行 sync_state = pending(上行批收集口径)。
+      final txns = await database.select(database.transactions).get();
+      final merge = txns
+          .firstWhere((t) => t.description.startsWith('信用卡分期'));
+      expect(merge.syncState, 'pending',
+          reason: '绑定离线路由下并账写须 pending(回网随批上行)');
+      // 债头行同样 pending(期次 paid 随头行嵌套上行)。
+      final row = await (database.select(database.debts)
+            ..where((t) => t.id.equals(d.id)))
+          .getSingle();
+      expect(row.syncState, 'pending');
+      // 缺省(guest)路径仍 synced:同债再并下一期不传 markPending。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 12, 5));
+      final txns2 = await database.select(database.transactions).get();
+      final merge2 = txns2
+          .lastWhere((t) => t.description.startsWith('信用卡分期'));
+      expect(merge2.syncState, 'synced', reason: 'guest 维持缺省 synced');
+    });
+
     test('开关关缺省(开关开)行为不变:既有路径仍并入(回归对照)', () async {
       final d = await createCardLoan59(true);
       await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 11, 5));
