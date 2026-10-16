@@ -248,7 +248,7 @@ void main() {
     // page-head h1 + 保存 btn
     expect(find.text('记一笔'), findsOneWidget);
     expect(find.text('保存'), findsOneWidget);
-    expect(find.text('返回'), findsOneWidget);
+    expect(find.text('返回'), findsNothing, reason: 'F63 返回链接退役');
     // type tabs (3 segmented, sub-captions present)
     expect(find.text('支出'), findsWidgets);
     expect(find.text('花出去的钱'), findsOneWidget);

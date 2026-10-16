@@ -31,6 +31,7 @@ import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 债务详情页 —— 还款语义。
 ///
@@ -201,7 +202,12 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (state is DebtError) {
-                  return Center(child: Text(state.message));
+                  // F63 FR-1:错误态可重试(原纯文案)。
+                  return ErrorRetryView(
+                    message: state.message,
+                    onRetry: () =>
+                        context.read<DebtBloc>().add(LoadDebtRequested(widget.id)),
+                  );
                 }
                 if (state is DebtDetailLoaded) {
                   return Stack(

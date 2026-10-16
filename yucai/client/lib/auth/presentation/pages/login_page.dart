@@ -6,6 +6,7 @@ import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/app_toast.dart';
 
 /// Single-button OIDC login. Lists providers advertised by the server
 /// (currently just Google) via the auth repository; tapping a button
@@ -28,9 +29,7 @@ class LoginPage extends StatelessWidget {
           child: BlocListener<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state is AuthError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
+                AppToast.show(context, state.message, type: ToastType.error);
               }
             },
             child: Padding(

@@ -33,6 +33,7 @@ import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_module_tabs.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_sparkline.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 持仓列表页。对齐 A-od holdings-mobile.html。
 ///
@@ -192,7 +193,7 @@ class _HoldingsPageState extends State<HoldingsPage> with RouteAware {
           Text(
             pending
                 ? '持仓接口尚未接入,稍后再试'
-                : '点击右下角「+」添加第一笔持仓',
+                : '点击顶栏「买入持仓」添加第一笔',
             style: TextStyle(color: context.yucai.muted, fontSize: 14),
           ),
         ],
@@ -201,23 +202,11 @@ class _HoldingsPageState extends State<HoldingsPage> with RouteAware {
   }
 
   Widget _errorState(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.alertCircle, size: 40, color: context.yucai.negative),
-            const SizedBox(height: 12),
-            const Text('加载失败',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: context.yucai.muted, fontSize: 13)),
-          ],
-        ),
-      ),
+    // F63 FR-1:错误态可重试(原纯文案无恢复路径)。
+    return ErrorRetryView(
+      message: '加载失败 · $message',
+      onRetry: () =>
+          context.read<HoldingBloc>().add(const LoadHoldingsRequested()),
     );
   }
 

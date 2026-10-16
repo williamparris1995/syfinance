@@ -148,7 +148,9 @@ void main() {
     await t.pumpAndSettle();
 
     expect(find.text('provider 暂不可用'), findsOneWidget);
-    expect(find.byType(SnackBar), findsOneWidget);
+    // F63 FR-8:SnackBar → AppToast(渠道统一),SnackBar 不再出现。
+    // AppToast 3s Timer 完成。
+    await t.pump(const Duration(seconds: 4));
 
     await controller.close();
   });

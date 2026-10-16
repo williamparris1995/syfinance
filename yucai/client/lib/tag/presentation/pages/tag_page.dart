@@ -10,6 +10,7 @@ import 'package:yucai_client/tag/presentation/bloc/tag_event.dart';
 import 'package:yucai_client/tag/presentation/bloc/tag_state.dart';
 import 'package:yucai_client/tag/presentation/widgets/tag_card.dart';
 import 'package:yucai_client/tag/presentation/widgets/tag_color_picker.dart';
+import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart'
     show tagFilterAvailable;
 
@@ -64,7 +65,7 @@ class _TagPageState extends State<TagPage> {
               onPressed: () {
                 final name = nameCtrl.text.trim();
                 if (name.isEmpty) {
-                  ScaffoldMessenger.of(dctx).showSnackBar(const SnackBar(content: Text('名称不能为空')));
+                  AppToast.show(dctx, '名称不能为空', type: ToastType.error);
                   return;
                 }
                 Navigator.pop(dctx);
@@ -112,7 +113,7 @@ class _TagPageState extends State<TagPage> {
         listenWhen: (p, c) => c is TagActionSuccess,
         listener: (ctx, s) {
           if (s is TagActionSuccess) {
-            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(s.message)));
+            AppToast.show(ctx, s.message, type: ToastType.error);
           }
         },
         child: SafeArea(

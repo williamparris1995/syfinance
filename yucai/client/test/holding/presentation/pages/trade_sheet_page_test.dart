@@ -377,6 +377,7 @@ void main() {
     await t.pumpAndSettle();
     await t.enterText(find.byKey(const ValueKey('qtyField')), '100');
     await t.enterText(find.byKey(const ValueKey('perShareField')), '0.30');
+    await t.pump(); // F63 FR-2:enterText 后按钮门重估
     await t.tap(find.byKey(const ValueKey('submitButton')));
     await t.pumpAndSettle();
     verify(() => holdingRepo.recordDividend(

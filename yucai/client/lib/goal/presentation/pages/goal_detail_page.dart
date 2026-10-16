@@ -49,6 +49,7 @@ import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_event.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_state.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 目标详情页。对齐 budget BudgetDetailPage / holding_detail_page 范式。
 class GoalDetailPage extends StatefulWidget {
@@ -146,13 +147,12 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                 );
               }
               if (state is GoalError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Text(state.message,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: context.yucai.muted)),
-                  ),
+                // F63 FR-1:错误态可重试。
+                return ErrorRetryView(
+                  message: state.message,
+                  onRetry: () => context
+                      .read<GoalBloc>()
+                      .add(LoadDetailRequested(widget.id)),
                 );
               }
               return const SizedBox.shrink();

@@ -218,7 +218,7 @@ class _TransactionsViewState extends State<_TransactionsView> with RouteAware {
             loadingMore: state is TransactionsLoadingMore,
             onFilterChanged: _onFilterChanged,
             onCreate: _openCreateForm,
-            onExport: _export,
+            onExport: null, // F63 FR-7:导出后端未落地,入口隐藏(死按钮退役)
             onOpenDetail: _openDetail,
             // 反馈1b:右键删除后回拉(保留筛选,同 didPopNext 语义)。
             onRowDeleted: _reloadAfterMutation,
@@ -242,7 +242,7 @@ class _Content extends StatefulWidget {
     required this.loadingMore,
     required this.onFilterChanged,
     required this.onCreate,
-    required this.onExport,
+    this.onExport, // F63 FR-7:可空 = 入口隐藏
     required this.onOpenDetail,
     this.onRowDeleted,
   });
@@ -252,7 +252,7 @@ class _Content extends StatefulWidget {
   final bool loadingMore;
   final ValueChanged<TxnFilterState> onFilterChanged;
   final VoidCallback onCreate;
-  final VoidCallback onExport;
+  final VoidCallback? onExport; // F63 FR-7:可空
   final ValueChanged<String> onOpenDetail;
 
   /// 反馈1b:行右键删除成功后的回拉(透传至 _TxTableRow)。
@@ -715,12 +715,12 @@ class _Header extends StatelessWidget {
     required this.count,
     required this.monthLabel,
     required this.onCreate,
-    required this.onExport,
+    this.onExport, // F63 FR-7:可空 = 入口隐藏
   });
   final int count;
   final String monthLabel;
   final VoidCallback onCreate;
-  final VoidCallback onExport;
+  final VoidCallback? onExport; // F63 FR-7:可空
 
   @override
   Widget build(BuildContext context) {
@@ -747,7 +747,7 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        _ExportButton(onPressed: onExport),
+        if (onExport != null) _ExportButton(onPressed: onExport!),
       ],
     );
   }

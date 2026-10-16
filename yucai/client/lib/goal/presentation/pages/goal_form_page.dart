@@ -284,21 +284,9 @@ class _GoalFormPageState extends State<GoalFormPage> {
   }
 
   void _submit() {
-    if (!_canSubmit) {
-      if (_nameCtrl.text.trim().isEmpty) {
-        AppToast.show(context, '请填写目标名称', type: ToastType.warning);
-      } else if (double.tryParse(_targetCtrl.text) == null ||
-          (double.tryParse(_targetCtrl.text) ?? 0) <= 0) {
-        AppToast.show(context, '目标金额需大于 0', type: ToastType.warning);
-      } else if (_linkedIds.isEmpty) {
-        AppToast.show(
-          context,
-          _type == GoalType.debtPayoff ? '请选择关联债务' : '请选择关联账户',
-          type: ToastType.warning,
-        );
-      }
-      return;
-    }
+    // F63 FR-2:字段校验改行内 validator + 提交钮随 _canSubmit 禁用
+    //(toast 集中报错退役,照 budget_form 范式)。
+    if (!_canSubmit) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _formKey.currentState?.save();
     _submitted = true;
@@ -403,7 +391,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
                             // (暗=金底深墨 #1A1408,亮=绿底白)。
                             ElevatedButton.icon(
                               key: const ValueKey('goalFormSubmit'),
-                              onPressed: submitting ? null : _submit,
+                              onPressed: (submitting || !_canSubmit) ? null : _submit,
                               icon: submitting
                                   ? SizedBox(
                                       height: 16,
@@ -595,6 +583,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
       TextFormField(
         key: const ValueKey('nameField'),
         controller: _nameCtrl,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         decoration: const InputDecoration(
           labelText: '目标名称',
           hintText: '例如：紧急备用金',
@@ -629,6 +618,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
           hintText: _type == GoalType.investment ? '200000' : '60000',
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: (v) {
           final amt = double.tryParse(v ?? '');
           if (amt == null || amt <= 0) return '目标金额需大于 0';

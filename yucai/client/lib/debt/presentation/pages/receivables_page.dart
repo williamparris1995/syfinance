@@ -20,6 +20,7 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 债权列表页(别人欠我 / 应收)。
 ///
@@ -127,7 +128,18 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
           final debts = _debtsOf(state);
           final loading = state is DebtLoading && debts.isEmpty;
           if (loading) return const Center(child: CircularProgressIndicator());
-          if (debts.isEmpty) return _emptyState();
+          if (debts.isEmpty) {
+            // F63 FR-1 错误/空态分治(镜像 debts_page)。
+            if (state is DebtError && state.last.isEmpty) {
+              return ErrorRetryView(
+                message: state.message,
+                onRetry: () => context
+                    .read<DebtBloc>()
+                    .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut)),
+              );
+            }
+            return _emptyState();
+          }
           return _content(debts);
         },
       ),

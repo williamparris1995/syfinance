@@ -833,72 +833,54 @@ class _DebtFormPageState extends State<DebtFormPage> {
 
   // ===================== 提交 =====================
 
-  Future<void> _submit() async {
-    if (_counterpartyCtrl.text.trim().isEmpty) {
-      AppToast.show(context, '请填写债权方', type: ToastType.warning);
-      return;
-    }
-    // F62 ADR-3:普通贷款「关联账户」字段退役(载体户隐形,保存时自动建);
-    // 信用卡消费分期(credit_card)仍需手选挂卡账户(债务落在真卡上)。
+  /// F63 FR-2:可提交聚合(原 toast 逐条条件的合集;行内 validator 承载
+  /// 原因句,提交钮随本门禁用 —— 空/缺选不弹 toast)。
+  bool get _canSubmit {
+    if (_counterpartyCtrl.text.trim().isEmpty) return false;
     if (_isCreditCard && (_accountId == null || _accountId!.isEmpty)) {
-      AppToast.show(context, '请选择关联信用卡账户', type: ToastType.warning);
-      return;
+      return false;
     }
     if (_isCardLoan &&
         !_cardLoanIndependent &&
         (_cardLoanCardId == null || _cardLoanCardId!.isEmpty)) {
-      AppToast.show(context, '请选择挂接的信用卡(每期并入其账单)',
-          type: ToastType.warning);
-      return;
+      return false;
     }
     if (_isCardLoan && _cardLoanIndependent && !_isEdit) {
       final bill = int.tryParse(_clBillDayCtrl.text);
       final repay = int.tryParse(_clRepayDayCtrl.text);
       if (bill == null || bill < 1 || bill > 31 ||
           repay == null || repay < 1 || repay > 31) {
-        AppToast.show(context, '独立账单需填账单日与还款日(1-31)',
-            type: ToastType.warning);
-        return;
+        return false;
       }
     }
     final principal = double.tryParse(_principalCtrl.text) ?? 0;
-    if (_principalCtrl.text.isEmpty || principal <= 0) {
-      AppToast.show(context, '请输入借款本金', type: ToastType.warning);
-      return;
-    }
+    if (_principalCtrl.text.isEmpty || principal <= 0) return false;
+    final rate = _isCardLoan
+        ? _cardLoanAnnualRatePct / 100
+        : (double.tryParse(_rateCtrl.text) ?? 0) / 100;
+    if (!_isCardLoan && (_rateCtrl.text.isEmpty || rate < 0)) return false;
+    if (!_isEdit && _disbursementAccountId == null) return false;
+    if (_startDate == null) return false;
+    if (_effectiveDates().isEmpty) return false;
+    if (!_byPeriods && _dueDate!.isBefore(_startDate!)) return false;
+    return true;
+  }
+
+  Future<void> _submit() async {
+    // F63 FR-2:字段校验改行内 + 按钮门(原 toast 逐条报错退役)。
+    if (!_canSubmit) return;
+    // F62 ADR-3:普通贷款「关联账户」字段退役(载体户隐形,保存时自动建);
+    // 信用卡消费分期(credit_card)仍需手选挂卡账户(债务落在真卡上)。
+    final principal = double.tryParse(_principalCtrl.text) ?? 0;
     // 输入为百分数(如 5 表示 5%),存储为小数 0.05 —— 与预览公式同口径
     // (user-acceptance 修复:此前漏 /100,5% 被存成 500% 年化,期次利息 ×100)。
     // 卡贷年利率不手填,由月费率推导(名义年化 = 月费率 × 12)。
     final rate = _isCardLoan
         ? _cardLoanAnnualRatePct / 100
         : (double.tryParse(_rateCtrl.text) ?? 0) / 100;
-    if (!_isCardLoan && (_rateCtrl.text.isEmpty || rate < 0)) {
-      AppToast.show(context, '请输入年利率', type: ToastType.warning);
-      return;
-    }
     // 到账账户必选(创建):借款金额必须落到一个资产账户,否则后续还款会把
     // 还款账户扣成负数(账不平)。
-    if (!_isEdit && _disbursementAccountId == null) {
-      AppToast.show(context, '请选择到账账户(借款金额到账的账户)',
-          type: ToastType.warning);
-      return;
-    }
-    if (_startDate == null) {
-      AppToast.show(context, '请选择起始日期', type: ToastType.warning);
-      return;
-    }
     final dates = _effectiveDates();
-    if (dates.isEmpty) {
-      AppToast.show(
-          context,
-          _byPeriods ? '请输入有效的期数' : '请选择晚于起始日期的到期日期',
-          type: ToastType.warning);
-      return;
-    }
-    if (!_byPeriods && _dueDate!.isBefore(_startDate!)) {
-      AppToast.show(context, '到期日期需晚于起始日期', type: ToastType.warning);
-      return;
-    }
     // 按期数模式:到期日 = 末个发生日(服务端按期数推导,此处供展示/编辑)。
     final effectiveDue = dates.last;
 
@@ -1266,7 +1248,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
         else
           FilledButton(
             key: const ValueKey('submitButton'),
-            onPressed: submitting ? null : _submit,
+            onPressed: (submitting || !_canSubmit) ? null : _submit,
             style: FilledButton.styleFrom(
               backgroundColor: context.yucai.accent,
               // F27 FR-1①:accent 面提交按钮前景 → onAccent(暗=金底深墨)。
@@ -1348,7 +1330,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
           const SizedBox(width: 10),
           FilledButton.icon(
             key: const ValueKey('submitButton'),
-            onPressed: _submit,
+            onPressed: _canSubmit ? _submit : null,
             style: FilledButton.styleFrom(
               backgroundColor: context.yucai.accent,
               // F27 FR-1①:accent 面提交按钮前景 → onAccent(暗=金底深墨)。

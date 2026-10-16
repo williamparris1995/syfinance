@@ -39,6 +39,7 @@ import 'package:yucai_client/core/widgets/search_field.dart';
 import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 账户管理列表页。对齐 OD 原型 CSS 1:1：
 ///  - design-output/accounts-responsive/tablet.html （desktop/tablet）
@@ -404,9 +405,17 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     return buf.toString();
   }
 
+  /// F63 FR-1:错误且无背景数据的文案(分治门);非错误态返回 null。
+  String? _lastError(AccountState state) =>
+      state is AccountError && state.accounts.isEmpty ? state.message : null;
+
   List<Account> _accountsOf(AccountState state) {
     if (state is AccountsLoaded) return state.accounts;
-    if (state is AccountError) return state.accounts;
+    if (state is AccountError) {
+      // F63 FR-1 错误/空态分治:有背景(降级渲染)回落背景;无背景走错误
+      // 态(可重试)—— 原口径错误+空列表渲染「还没有账户」空态,误导。
+      return state.accounts;
+    }
     if (state is AccountFormSubmitting) return state.accounts;
     return const [];
   }
@@ -552,24 +561,12 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
     });
   }
 
-  /// 重新激活：把归档账户恢复为 active（与 _confirmClose 对称）。
+  /// 重新激活:把归档账户恢复为 active。F63 FR-6:可逆操作直接做
+  ///(确认弹窗退役,「已重新激活」轻提示;再归档随时可逆)。
   void _reactivate(Account a) {
-    showDialog<bool>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('重新激活账户'),
-        content: Text('重新激活「${a.name}」？账户恢复活跃状态。'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, false),
-              child: const Text('取消')),
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, true),
-              child: const Text('激活')),
-        ],
-      ),
-    ).then((ok) {
-      if (ok == true && mounted) {
+    {
+      AppToast.show(context, '已重新激活「${a.name}」', type: ToastType.success);
+      if (mounted) {
         setState(() => _pendingIds.add(a.id));
         context.read<AccountBloc>().add(UpdateAccountRequested(
               UpdateAccountParams(
@@ -588,7 +585,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
               ),
             ));
       }
-    });
+    }
   }
 
   @override
@@ -613,6 +610,15 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
             return const Center(child: CircularProgressIndicator());
           }
           if (accounts.isEmpty) {
+            // F63 FR-1 错误/空态分治:错误无背景 → 可重试错误态。
+            if (_lastError(state) case final msg?) {
+              return ErrorRetryView(
+                message: msg,
+                onRetry: () => context
+                    .read<AccountBloc>()
+                    .add(LoadAccountsRequested()),
+              );
+            }
             return _emptyState();
           }
           return _content(accounts);

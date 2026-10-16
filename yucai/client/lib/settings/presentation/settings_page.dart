@@ -33,6 +33,7 @@ import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/settings/data/data_reset_controller.dart';
 import 'package:yucai_client/settings/data/local_snapshot_service.dart';
 import 'package:yucai_client/settings/widgets/llm_settings_card.dart';
+import 'package:yucai_client/core/widgets/app_toast.dart';
 
 /// 设置页 —— 偏好货币 + 本位币 + 汇率同步频率。
 ///
@@ -534,14 +535,10 @@ class SettingsPage extends StatelessWidget {
     try {
       await settings.setBaseCurrency(code);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('本位币已更新')),
-      );
+      AppToast.show(context, '本位币已更新', type: ToastType.error);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('更新失败：$e')),
-      );
+      AppToast.show(context, '更新失败：$e', type: ToastType.error);
     }
   }
 
@@ -554,15 +551,11 @@ class SettingsPage extends StatelessWidget {
     try {
       await ds.updatePreferences(preferred, interval);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('偏好货币已更新')),
-      );
+      AppToast.show(context, '偏好货币已更新', type: ToastType.error);
       context.read<CurrencyBloc>().add(const LoadPreferencesRequested());
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('更新失败：$e')),
-      );
+      AppToast.show(context, '更新失败：$e', type: ToastType.error);
     }
   }
 
@@ -575,15 +568,11 @@ class SettingsPage extends StatelessWidget {
     try {
       await ds.updatePreferences(preferred, interval);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('同步频率已更新')),
-      );
+      AppToast.show(context, '同步频率已更新', type: ToastType.error);
       context.read<CurrencyBloc>().add(const LoadPreferencesRequested());
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('更新失败：$e')),
-      );
+      AppToast.show(context, '更新失败：$e', type: ToastType.error);
     }
   }
 
@@ -692,8 +681,7 @@ class SettingsPage extends StatelessWidget {
             onPressed: () {
               if (controller.text.isEmpty) return;
               if (confirm && controller.text != controller2.text) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('两次输入不一致')));
+                AppToast.show(ctx, '两次输入不一致', type: ToastType.error);
                 return;
               }
               Navigator.of(ctx).pop(controller.text);
@@ -870,8 +858,7 @@ class SettingsPage extends StatelessWidget {
             onPressed: () {
               if (controller.text.isEmpty) return;
               if (controller.text != controller2.text) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('两次输入不一致')));
+                AppToast.show(ctx, '两次输入不一致', type: ToastType.error);
                 return;
               }
               Navigator.of(ctx).pop(controller.text);
@@ -1209,27 +1196,19 @@ class _IntervalDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = _options
-        .map((h) => DropdownMenuItem<int>(
-              value: h,
-              child: Text('${h}h',
-                  style: const TextStyle(fontSize: 14)),
-            ))
-        .toList();
+    // F63 FR-5:4 值频率下拉改分段(审计 C①;同页托盘间隔 SegmentedButton
+    // 先例,消灭同页两种形态表达同一维度)。
     final v = _options.contains(value) ? value : 24;
-    return SizedBox(
-      width: 120,
-      child: DropdownButton<int>(
-        value: v,
-        items: items,
-        isExpanded: true,
-        underline: const SizedBox(),
-        dropdownColor: context.yucai.surface,
-        icon: Icon(LucideIcons.chevronDown,
-            color: context.yucai.accent, size: 20),
-        onChanged: (h) {
-          if (h != null) onChanged(h);
-        },
+    return SegmentedButton<int>(
+      segments: _options
+          .map((h) => ButtonSegment(value: h, label: Text('${h}h')))
+          .toList(),
+      selected: {v},
+      onSelectionChanged: (sel) => onChanged(sel.first),
+      showSelectedIcon: false,
+      style: const ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 13)),
       ),
     );
   }

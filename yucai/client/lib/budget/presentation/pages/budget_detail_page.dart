@@ -36,6 +36,7 @@ import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/detail_title_sync.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 // F4-P2:超支红原 brief 色 #C0392B 已语义令牌化 → context.yucai.negative
 // (v2 亮=玫红 / 暗=提亮红,与全应用支出红统一;顶层常量删除)。
@@ -93,13 +94,12 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
                 );
               }
               if (state is BudgetError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Text(state.message,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: context.yucai.muted)),
-                  ),
+                // F63 FR-1:错误态可重试(原纯文案无恢复路径)。
+                return ErrorRetryView(
+                  message: state.message,
+                  onRetry: () => context
+                      .read<BudgetBloc>()
+                      .add(LoadDetailRequested(widget.id)),
                 );
               }
               return const SizedBox.shrink();

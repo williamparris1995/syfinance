@@ -22,6 +22,10 @@ import 'package:yucai_client/tag/domain/tag_color.dart';
 import 'package:yucai_client/tag/presentation/widgets/tag_color_picker.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:get_it/get_it.dart';
+import 'package:yucai_client/core/shell_detail_title.dart';
+import 'package:yucai_client/core/widgets/detail_title_sync.dart';
+import 'package:yucai_client/core/widgets/form_leave_guard.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_event.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_state.dart';
@@ -144,6 +148,20 @@ class _TransactionFormView extends StatefulWidget {
 class _TransactionFormViewState extends State<_TransactionFormView> {
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
+
+  // ---- F63 FR-3:脏态追踪(首改即脏)+ 三级面包屑注入串 ----
+  /// 首改即脏:任何字段首次用户编辑置位;脏态离开(面包屑/系统返回)经
+  /// FormLeaveGuard 弹「未保存的修改」确认(六表单族第七员,闭环)。
+  /// 编辑预填在 initState(早于监听注册)天然不置脏。
+  bool _dirty = false;
+
+  void _markDirty() {
+    if (_dirty) return;
+    setState(() => _dirty = true);
+  }
+
+  /// 三级面包屑注入串:创建 =「记一笔」;编辑 =「编辑交易」。
+  String get _crumbTitle => _existingId == null ? '记一笔' : '编辑交易';
   final _payeeCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
 
@@ -197,6 +215,10 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
       _noteCtrl.text = _firstNoteOf(ex);
       _inferTypeAndAccountsFromExisting(ex);
       _loadTransactionTags(ex.id);
+    }
+    // F63 FR-3:全字段首改即脏(编辑预填已先行,不置脏)。
+    for (final c in [_amountCtrl, _payeeCtrl, _noteCtrl]) {
+      c.addListener(_markDirty);
     }
   }
 
@@ -343,6 +365,10 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
 
   @override
   void dispose() {
+    // F63 FR-3:离开表单清注入标题(guarded getIt)。
+    if (GetIt.instance.isRegistered<ShellDetailTitle>()) {
+      GetIt.instance<ShellDetailTitle>().clear();
+    }
     _amountCtrl.dispose();
     _payeeCtrl.dispose();
     _noteCtrl.dispose();
@@ -633,7 +659,13 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.yucai.bg,
-      body: BlocConsumer<TransactionFormBloc, TransactionFormState>(
+      // F63 FR-3:FormLeaveGuard 包 body(脏态弹确认,净态直走;提交成功的
+      // 程序化 pop 不经 canPop 不受影响)+ DetailTitleSync 三级面包屑注入。
+      body: FormLeaveGuard(
+        isDirty: () => _dirty,
+        child: Stack(
+          children: [
+            BlocConsumer<TransactionFormBloc, TransactionFormState>(
         listenWhen: (prev, curr) =>
             curr is TransactionFormSuccess || curr is TransactionFormError,
         listener: (context, state) async {
@@ -708,6 +740,11 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
             ),
           );
         },
+            ),
+            // F63 FR-3:三级面包屑注入串;放滚动容器外。
+            DetailTitleSync(title: _crumbTitle),
+          ],
+        ),
       ),
     );
   }
@@ -1357,7 +1394,7 @@ class _OdCard extends StatelessWidget {
   }
 }
 
-/// OD .page-head：返回链接 + h1(serif 26px) + 右侧 actions(取消 btn + 保存
+/// page-head:h1(serif 26px) + 右侧 actions(取消 btn + 保存(F63 返回链接退役
 /// btn-primary gold ✓)。固定在顶部，不随内容滚动。
 class _PageHead extends StatelessWidget {
   const _PageHead({
@@ -1378,26 +1415,9 @@ class _PageHead extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
       child: Row(
         children: [
-          InkWell(
-            onTap: onCancel,
-            borderRadius: BorderRadius.circular(6),
-            child: Padding(
-              padding:
-                  EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(LucideIcons.chevronLeft,
-                      size: 16, color: context.yucai.muted),
-                  SizedBox(width: 2),
-                  Text('返回',
-                      style:
-                          TextStyle(color: context.yucai.muted, fontSize: 13)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
+          // F63 FR-3:「‹ 返回」链接退役(规范 D 禁项;回退走顶栏面包屑/
+          // 系统返回,经脏态守卫确认)。
+          const SizedBox(width: AppSpacing.xs),
           DefaultTextStyle(
             style: TextStyle(
               fontSize: 24,

@@ -363,6 +363,8 @@ void main() {
     await t.pumpAndSettle();
 
     verify(() => authRemote.updatePreferences('USD', 8)).called(1);
+    // F63 FR-8:保存 toast 走 AppToast(3s Timer)。
+    await t.pump(const Duration(seconds: 4));
   });
 
   testWidgets('selecting a new interval calls updatePreferences with new interval',
@@ -384,16 +386,13 @@ void main() {
     await t.pumpWidget(_harness(state, authRemote, currencySettings));
     await t.pumpAndSettle();
 
-    // The interval selector is the second DropdownButton<int>.
-    final intervalDropdowns = find.byType(DropdownButton<int>);
-    await t.tap(intervalDropdowns);
-    await t.pumpAndSettle();
-
-    // Pick 24h.
+    // F63 FR-5:频率下拉改 SegmentedButton — 直接 tap 24h 段。
     await t.tap(find.text('24h').last);
     await t.pumpAndSettle();
 
     verify(() => authRemote.updatePreferences('CNY', 24)).called(1);
+    // F63 FR-8:保存 toast 走 AppToast(3s Timer)。
+    await t.pump(const Duration(seconds: 4));
   });
 
   testWidgets('renders in a surface card (御财 token)', (t) async {
@@ -474,8 +473,10 @@ void main() {
     expect(currencySettings.setCalls, ['USD']);
     // Brief: 刷新 (refresh) — surfaced as a snackbar telling the user the new
     // base takes effect on next visit to performance/detail.
-    expect(find.byType(SnackBar), findsOneWidget);
+    // F63 FR-8:SnackBar → AppToast 统一,SnackBar 不再出现。
     expect(find.textContaining('本位币已更新'), findsOneWidget);
+    // AppToast 3s Timer 完成。
+    await t.pump(const Duration(seconds: 4));
   });
 
   // ── F22 T2:窗口与提醒区 + 页底退出按钮 ──────────────────────────

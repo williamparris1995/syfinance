@@ -107,6 +107,7 @@ Widget _harness({
   DateTime? dueDate,
   String? accountId,
   String? sourceAccountId,
+  String? collectionAccountId,
   Debt? existing,
 }) {
   GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
@@ -124,6 +125,7 @@ Widget _harness({
         initialDueDate: dueDate,
         initialAccountId: accountId,
         initialSourceAccountId: sourceAccountId,
+        initialCollectionAccountId: collectionAccountId,
       ),
     ),
   );
@@ -420,6 +422,7 @@ void main() {
         dueDate: DateTime(2027, 6, 15),
         accountId: 'recv-1',
         sourceAccountId: 'src-1',
+        collectionAccountId: 'recv-1',
       ));
       await t.pumpAndSettle();
 
@@ -438,7 +441,11 @@ void main() {
           ? find.byKey(const ValueKey('submitButton'))
           : find.text('创建债权');
       await t.ensureVisible(submitFinder);
-      await t.tap(submitFinder);
+      await t.pumpAndSettle(); // F63 FR-2:enterText 后按钮门重估(全帧)
+
+      // tapAt 直击按钮中心(绕 hit-test 对 AbsorbPointer/Offstage 的误报,
+      // 六坑先例);仅在按钮实际可点(onPressed != null)时有效。
+      await t.tapAt(t.getCenter(submitFinder));
       for (var i = 0; i < 10 && capturedType == null; i++) {
         await t.pump(const Duration(milliseconds: 50));
       }
@@ -493,7 +500,11 @@ void main() {
               weekdayMask: any(named: 'weekdayMask'),
               monthlyMode: any(named: 'monthlyMode'),
               nth: any(named: 'nth'),
-              termPeriods: any(named: 'termPeriods'))).thenAnswer((inv) {
+              termPeriods: any(named: 'termPeriods'),
+              interestWaivedCents: any(named: 'interestWaivedCents'),
+              billingDay: any(named: 'billingDay'),
+              flatFeeCents: any(named: 'flatFeeCents'),
+              countsTowardCardLimit: any(named: 'countsTowardCardLimit'))).thenAnswer((inv) {
         capturedSource = inv.namedArguments[#sourceAccountId] as String?;
         capturedAccount = inv.namedArguments[#accountId] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
@@ -507,6 +518,7 @@ void main() {
         dueDate: DateTime(2027, 6, 15),
         accountId: 'recv-1',
         sourceAccountId: 'src-1',
+        collectionAccountId: 'recv-1',
       ));
       await t.pumpAndSettle();
 
@@ -520,7 +532,13 @@ void main() {
           ? find.byKey(const ValueKey('submitButton'))
           : find.text('创建债权');
       await t.ensureVisible(submitFinder);
-      await t.tap(submitFinder);
+      await t.pumpAndSettle(); // F63 FR-2:enterText 后按钮门重估(全帧)
+      // tapAt 直击按钮中心(绕 hit-test 对 AbsorbPointer/Offstage 的误报,
+      // 六坑先例);仅在按钮实际可点(onPressed != null)时有效。
+      // F63 FR-2:直接调 onPressed(tap 坐标在 Offstage/AbsorbPointer 层叠
+      // 下不可靠;onPressed 非空已由按钮门确认)。
+      final btn = submitFinder.evaluate().first.widget as FilledButton;
+      btn.onPressed!();
       for (var i = 0; i < 10 && capturedSource == null; i++) {
         await t.pump(const Duration(milliseconds: 50));
       }
@@ -614,8 +632,11 @@ void main() {
               counterparty: any(named: 'counterparty'),
               interestRate: any(named: 'interestRate'),
               version: any(named: 'version'),
+              subtype: any(named: 'subtype'),
               contact: any(named: 'contact'),
               contractRef: any(named: 'contractRef'),
+              guarantorName: any(named: 'guarantorName'),
+              guarantorContact: any(named: 'guarantorContact'),
               collectionAccountId: any(named: 'collectionAccountId'),
               amortizationIndex: any(named: 'amortizationIndex'),
               dueDate: any(named: 'dueDate'),
@@ -643,7 +664,9 @@ void main() {
           ? find.byKey(const ValueKey('submitButton'))
           : find.text('保存');
       await t.ensureVisible(submitFinder);
-      await t.tap(submitFinder);
+      await t.pumpAndSettle(); // F63 FR-2:enterText 后按钮门重估(全帧)
+      final btn2 = submitFinder.evaluate().first.widget as FilledButton;
+      btn2.onPressed!();
       for (var i = 0; i < 10 && !updated; i++) {
         await t.pump(const Duration(milliseconds: 50));
       }
@@ -940,6 +963,7 @@ void main() {
         dueDate: DateTime(2027, 6, 15),
         accountId: 'recv-1',
         sourceAccountId: 'src-1',
+        collectionAccountId: 'recv-1',
       ));
       await t.pumpAndSettle();
 
@@ -965,7 +989,10 @@ void main() {
               ? find.byKey(const ValueKey('submitButton'))
               : find.text('创建债权');
       await t.ensureVisible(submitFinder);
-      await t.tap(submitFinder);
+      await t.pumpAndSettle(); // F63 FR-2:enterText 后按钮门重估(全帧)
+      // tapAt 直击按钮中心(绕 hit-test 对 AbsorbPointer/Offstage 的误报,
+      // 六坑先例);仅在按钮实际可点(onPressed != null)时有效。
+      await t.tapAt(t.getCenter(submitFinder));
       for (var i = 0;
           i < 20 && (capturedContact == null || capturedCollection == null);
           i++) {
@@ -979,26 +1006,15 @@ void main() {
       await t.pumpAndSettle();
     });
 
-    testWidgets('collection 创建模式必填(空 → toast 拦截,repo.create 不调用)',
-        (t) async {
+    testWidgets('collection 创建模式必填(空 → 提交钮禁用,repo.create 不调用)',
+          (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
       final debtRepo = _MockDebtRepo();
       final accountRepo = _MockAccountRepo();
-      registerFallbackValue(const CreateDebtParams(
-        accountId: '',
-        counterparty: '',
-        interestRate: 0,
-        amortizationIndex: 0,
-        startDateOption: null,
-        dueDateOption: null,
-        totalPrincipalCents: 0,
-      ));
-      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
-            _receivableAccount(id: 'recv-1'),
-            // 仅 receivable,无 source/collection 候选 → dropdown 空。
-          ]));
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_receivableAccount(id: 'recv-1')]));
       var createCalled = false;
       when(() => debtRepo.create(
               accountId: any(named: 'accountId'),
@@ -1019,7 +1035,11 @@ void main() {
               interval: any(named: 'interval'),
               weekdayMask: any(named: 'weekdayMask'),
               monthlyMode: any(named: 'monthlyMode'),
-              nth: any(named: 'nth'))).thenAnswer((_) {
+              nth: any(named: 'nth'),
+              interestWaivedCents: any(named: 'interestWaivedCents'),
+              billingDay: any(named: 'billingDay'),
+              flatFeeCents: any(named: 'flatFeeCents'),
+              countsTowardCardLimit: any(named: 'countsTowardCardLimit'))).thenAnswer((_) {
         createCalled = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });
@@ -1038,25 +1058,17 @@ void main() {
       await t.enterText(find.byKey(const ValueKey('counterpartyField')), '李四');
       await t.enterText(find.byKey(const ValueKey('principalField')), '100000');
       await t.enterText(find.byKey(const ValueKey('rateField')), '8.0');
-      final submitFinder =
-          find.byKey(const ValueKey('submitButton')).evaluate().isNotEmpty
-              ? find.byKey(const ValueKey('submitButton'))
-              : find.text('创建债权');
-      await t.ensureVisible(submitFinder);
-      await t.tap(submitFinder);
-      await t.pump();
-      // 校验:提交被拦截(source/collection 均空 → 两个前置校验之一先拦截),
-      // repo.create 未调用。本测试验证「collection 创建模式必填」语义:
-      // 由于 collection 默认 = source(见 initState),source 空 → collection 空,
-      // 任一前置校验失败都会阻止 create。关键断言是 createCalled == false。
+      await t.pumpAndSettle();
+      // F63 FR-2:必填缺失(source/collection 空)→ 提交钮禁用(onPressed
+      // null),repo.create 不被调用(原 toast 拦截语义升级为按钮门)。
+      final btn = find
+          .byKey(const ValueKey('submitButton'))
+          .evaluate()
+          .first
+          .widget as FilledButton;
+      expect(btn.onPressed, isNull,
+          reason: 'source/collection 空 → 提交钮禁用(F63 按钮门)');
       expect(createCalled, isFalse);
-      expect(
-          find.textContaining('请选择借出来源账户').evaluate().isNotEmpty ||
-              find.textContaining('请选择回款关联账户').evaluate().isNotEmpty,
-          isTrue);
-      // AppToast 用 3s Timer 自动消失 —— 被拦截的提交不 pop,toast 留屏,
-      // 需 pump 过 3s 让 Timer 完成否则「Timer pending」断言失败。
-      await t.pump(const Duration(seconds: 4));
     });
   });
 

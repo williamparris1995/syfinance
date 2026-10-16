@@ -135,7 +135,8 @@ void main() {
         reason: 'crumb 退役,面包屑由全局顶栏承载');
     // 内容头保留:h1 + 导入模板 + 新建分类。
     expect(find.text('分类管理'), findsOneWidget);
-    expect(find.text('导入模板'), findsOneWidget);
+    // F63 FR-7:导入模板入口隐藏(未上线不露,死按钮退役)。
+    expect(find.text('导入模板'), findsNothing);
     expect(find.byKey(CategoryManagementPage.newCategoryKey), findsOneWidget);
 
     // mobile 紧凑态:crumb 同步退役,紧凑按钮文案「新建」仍在。

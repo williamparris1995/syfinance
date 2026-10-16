@@ -789,19 +789,21 @@ class _AccountFormPageState extends State<AccountFormPage> {
                                   setState(() => _currency = v ?? 'CNY');
                                 },
                               ),
-                              DropdownButtonFormField<Ownership>(
-                                decoration: const InputDecoration(
-                                    labelText: '归属'),
-                                value: _ownership,
-                                items: Ownership.values
-                                    .map((o) => DropdownMenuItem(
-                                        value: o, child: Text(o.label)))
-                                    .toList(),
-                                onChanged: (v) {
-                                  _markDirty(); // F59 FR-5(F-1)
-                                  setState(
-                                      () => _ownership = v ?? Ownership.personal);
-                                },
+                              // F63 FR-5:2 值「归属」下拉改分段(审计 C①)。
+                              FormField<Ownership>(
+                                initialValue: _ownership,
+                                builder: (f) => SegmentedButton<Ownership>(
+                                  segments: Ownership.values
+                                      .map((o) => ButtonSegment(
+                                          value: o, label: Text(o.label)))
+                                      .toList(),
+                                  selected: {_ownership},
+                                  onSelectionChanged: (sel) {
+                                    _markDirty(); // F59 FR-5(F-1)
+                                    setState(
+                                        () => _ownership = sel.first);
+                                  },
+                                ),
                               ),
                             ]),
                           ],

@@ -96,11 +96,7 @@ class _BackupSettingsPageState extends State<BackupSettingsPage> {
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
       child: Row(
         children: [
-          IconButton(
-            tooltip: '返回',
-            icon: Icon(LucideIcons.chevronLeft, color: context.yucai.fg),
-            onPressed: () => context.pop(),
-          ),
+          // F63 FR-4:返回钮退役(回退走顶栏面包屑;规范 D 禁项)。
           Expanded(
             child: Text(
               '自动备份',
@@ -336,13 +332,7 @@ class _IntervalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = _options
-        .map((h) => DropdownMenuItem<int>(
-              value: h,
-              child: Text(_label(h),
-                  style: const TextStyle(fontSize: 14)),
-            ))
-        .toList();
+    // F63 FR-5:4 值频率下拉改分段(审计 C①)。
     final v = _options.contains(value) ? value : 24;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -364,19 +354,16 @@ class _IntervalRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.md),
-        SizedBox(
-          width: 120,
-          child: DropdownButton<int>(
-            value: v,
-            items: items,
-            isExpanded: true,
-            underline: const SizedBox(),
-            dropdownColor: context.yucai.surface,
-            icon: Icon(LucideIcons.chevronDown,
-                color: context.yucai.accent, size: 20),
-            onChanged: (h) {
-              if (h != null) onChanged?.call(h);
-            },
+        SegmentedButton<int>(
+          segments: _options
+              .map((h) => ButtonSegment(value: h, label: Text(_label(h))))
+              .toList(),
+          selected: {v},
+          onSelectionChanged: (sel) => onChanged?.call(sel.first),
+          showSelectedIcon: false,
+          style: const ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 13)),
           ),
         ),
       ],

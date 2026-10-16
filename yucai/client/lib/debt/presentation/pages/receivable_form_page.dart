@@ -61,6 +61,7 @@ class ReceivableFormPage extends StatefulWidget {
     this.initialDueDate,
     this.initialAccountId,
     this.initialSourceAccountId,
+    this.initialCollectionAccountId,
   });
 
   /// 编辑模式传入的现有 Debt；null = 创建模式。
@@ -70,6 +71,7 @@ class ReceivableFormPage extends StatefulWidget {
   final String? initialAccountId;
   /// 测试 seed:借出来源账户(仅创建模式生效,避免 dropdown 交互)。
   final String? initialSourceAccountId;
+  final String? initialCollectionAccountId;
 
   @override
   State<ReceivableFormPage> createState() => _ReceivableFormPageState();
@@ -192,6 +194,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       _dueDate = widget.initialDueDate;
       _accountId = widget.initialAccountId;
       _sourceAccountId = widget.initialSourceAccountId;
+      _collectionAccountId = widget.initialCollectionAccountId;
       // collectionAccountId 创建模式默认 = 来源账户(借出资金同账户回款,
       // 常见场景);用户可改。null = 未选 → submit 时校验拦截。
       _collectionAccountId = _sourceAccountId;
@@ -201,6 +204,8 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
     if (_isEdit) _loadAttachment();
     // 输入变化即重算预览(principal/rate/dates/amortization 都是 setState 触发)。
     // F59 FR-5:全字段首改即脏(controller 口径;预填已先行完成不置脏)。
+    // setState 同时驱动 F63 FR-2 提交钮门(_canSubmit 依赖 controller 文本)
+    // 重估 —— enterText 后按钮禁用态即时翻转。
     for (final c in [
       _counterpartyCtrl,
       _principalCtrl,
@@ -442,54 +447,33 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
 
   // ===================== 提交 =====================
 
-  void _submit() {
-    // 显式校验必要字段并 toast 提示（避免空 submit 无反应）。
-    // Label 收款语义：债务人为空 → 「请填写债务人」。
-    if (_counterpartyCtrl.text.trim().isEmpty) {
-      AppToast.show(context, '请填写债务人', type: ToastType.warning);
-      return;
-    }
-    if (_accountId == null) {
-      AppToast.show(context, '请选择关联应收账户', type: ToastType.warning);
-      return;
-    }
+  /// F63 FR-2:可提交聚合(原 toast 逐条条件合集;提交钮随本门禁用,
+  /// 字段级原因由行内 validator 承载)。
+  bool get _canSubmit {
+    if (_counterpartyCtrl.text.trim().isEmpty) return false;
+    if (_accountId == null) return false;
     final principal = double.tryParse(_principalCtrl.text) ?? 0;
-    if (_principalCtrl.text.isEmpty || principal <= 0) {
-      AppToast.show(context, '请输入借出本金', type: ToastType.warning);
-      return;
-    }
-    // 输入为百分数(5=5%),存储小数 —— 对齐 debt 表单修复(此前漏 /100)。
+    if (_principalCtrl.text.isEmpty || principal <= 0) return false;
     final rate = (double.tryParse(_rateCtrl.text) ?? 0) / 100;
-    if (_rateCtrl.text.isEmpty || rate == null || rate < 0) {
-      AppToast.show(context, '请输入年利率', type: ToastType.warning);
-      return;
+    if (_rateCtrl.text.isEmpty || rate < 0) return false;
+    if (_startDate == null) return false;
+    if (_effectiveDates().isEmpty) return false;
+    if (!_isEdit && _sourceAccountId == null) return false;
+    if (!_isEdit &&
+        (_collectionAccountId == null || _collectionAccountId!.isEmpty)) {
+      return false;
     }
-    if (_startDate == null) {
-      AppToast.show(context, '请选择借出日期', type: ToastType.warning);
-      return;
-    }
-    final dates = _effectiveDates();
-    if (dates.isEmpty) {
-      AppToast.show(
-          context,
-          _byPeriods ? '请输入有效的期数' : '请选择晚于借出日期的到期日期',
-          type: ToastType.warning);
-      return;
-    }
-    // 按期数模式:到期日 = 末个发生日(服务端按期数推导,此处供展示/编辑)。
-    final effectiveDue = dates.last;
-    // 来源账户仅在创建模式校验：编辑模式不改账户关联（UpdateDebt 不动账户）。
-    if (!_isEdit && _sourceAccountId == null) {
-      AppToast.show(context, '请选择借出来源账户', type: ToastType.warning);
-      return;
-    }
-    // 回款关联账户:创建模式必填(对齐服务端 borrowedOut 强制 collection_account_id;
-    // 若空,服务端 application 层会拒绝,这里前置拦截给出更友好的中文 toast)。
-    if (!_isEdit && (_collectionAccountId == null || _collectionAccountId!.isEmpty)) {
-      AppToast.show(context, '请选择回款关联账户', type: ToastType.warning);
-      return;
-    }
+    return true;
+  }
 
+  void _submit() {
+    // F63 FR-2:toast 逐条校验退役(行内 validator + 按钮门承载)。
+    if (!_canSubmit) return;
+    final principal = double.tryParse(_principalCtrl.text) ?? 0;
+    // 输入为百分数(5=5%),存储小数(与 debt 表单同口径)。
+    final rate = (double.tryParse(_rateCtrl.text) ?? 0) / 100;
+    final dates = _effectiveDates();
+    final effectiveDue = dates.last;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _formKey.currentState?.save();
     _submitted = true;
@@ -794,8 +778,8 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           )
         else
           FilledButton(
-            key: const ValueKey('submitButton'),
-            onPressed: submitting ? null : _submit,
+            key: const ValueKey('submitButtonMobile'),
+            onPressed: (submitting || !_canSubmit) ? null : _submit,
             // OD .btn-primary(gold)—— mobile commit 按钮与 desktop 一致。
             style: FilledButton.styleFrom(
               backgroundColor: context.yucai.accent,
@@ -897,7 +881,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           // 创建债权 primary:OD .btn-primary(gold + check icon)。
           FilledButton.icon(
             key: const ValueKey('submitButton'),
-            onPressed: _submit,
+            onPressed: _canSubmit ? _submit : null,
             style: FilledButton.styleFrom(
               backgroundColor: context.yucai.accent,
               // F27 FR-1①:accent 面提交按钮前景 → onAccent(暗=金底深墨)。

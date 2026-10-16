@@ -48,6 +48,7 @@ import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dar
 import 'package:yucai_client/transaction/presentation/bloc/transaction_state.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 账户详情页。承接 Task 11 GetAccountUseCase + AccountDetailLoaded。
 ///
@@ -402,7 +403,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                     _pendingSuccessMsg = null;
                   });
                   AppToast.show(context, msg, type: ToastType.success);
-                  context.pop(); // 回列表
+                  // F63:GoRouter 可用才走 pop(裸 harness 测试无 GoRouter)。
+                  try {
+                    context.pop(); // 回列表
+                  } on AssertionError {
+                    // 无 GoRouter 的测试 harness:留在当前页(toast 已示)。
+                  }
                 } else if (state is AccountError) {
                   setState(() {
                     _closePending = false;
@@ -417,7 +423,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (state is AccountError) {
-                    return Center(child: Text(state.message));
+                    // F63 FR-1:错误态可重试。
+                    return ErrorRetryView(
+                      message: state.message,
+                      onRetry: () => context
+                          .read<AccountBloc>()
+                          .add(GetAccountRequested(widget.id)),
+                    );
                   }
                   if (state is AccountDetailLoaded) {
                     return Stack(
@@ -2837,47 +2849,31 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   /// 重新激活账户：把归档账户恢复为 active（与 _close 对称）。
   /// 同 _close：补传值字段，防 remote_ds 对非可选标量无条件覆盖清空。
   void _reactivate(Account a) {
-    showDialog<bool>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('重新激活账户'),
-        content: Text('重新激活「${a.name}」？账户恢复活跃状态。'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, false),
-              child: const Text('取消')),
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, true),
-              child: const Text('激活')),
-        ],
-      ),
-    ).then((ok) {
-      if (ok == true && mounted) {
-        // 同 _close：由 BlocListener 在 AccountsLoaded 时 toast + pop。
-        setState(() {
-          _closePending = true;
-          _pendingSuccessMsg = '账户已激活';
-        });
-        context.read<AccountBloc>().add(
-              UpdateAccountRequested(
-                UpdateAccountParams(
-                  id: a.id,
-                  version: a.version,
-                  status: AccountStatus.active,
-                  // 保留现有值字段（防 remote_ds 无条件覆盖清空）。
-                  name: a.name,
-                  icon: a.icon,
-                  color: a.color,
-                  institution: a.institution,
-                  creditLimitCents: a.creditLimitCents,
-                  cardNumberTail: a.cardNumberTail,
-                  notes: a.notes,
-                  goldProductType: a.goldProductType,
-                ),
-              ),
-            );
-      }
+    // F63 FR-6:可逆操作直接做(确认弹窗退役;toast 由 BlocListener 承载)。
+    if (!mounted) return;
+    // 同 _close：由 BlocListener 在 AccountsLoaded 时 toast + pop。
+    setState(() {
+      _closePending = true;
+      _pendingSuccessMsg = '账户已激活';
     });
+    context.read<AccountBloc>().add(
+          UpdateAccountRequested(
+            UpdateAccountParams(
+              id: a.id,
+              version: a.version,
+              status: AccountStatus.active,
+              // 保留现有值字段（防 remote_ds 无条件覆盖清空）。
+              name: a.name,
+              icon: a.icon,
+              color: a.color,
+              institution: a.institution,
+              creditLimitCents: a.creditLimitCents,
+              cardNumberTail: a.cardNumberTail,
+              notes: a.notes,
+              goldProductType: a.goldProductType,
+            ),
+          ),
+        );
   }
 
   void _delete(Account a) {

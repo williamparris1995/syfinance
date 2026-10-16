@@ -18,6 +18,7 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 债务列表页(我欠别人 / 应付)。
 ///
@@ -133,7 +134,18 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
           final debts = _debtsOf(state);
           final loading = state is DebtLoading && debts.isEmpty;
           if (loading) return const Center(child: CircularProgressIndicator());
-          if (debts.isEmpty) return _emptyState();
+          // F63 FR-1 错误/空态分治:错误无背景 → 可重试错误态(原空态误导)。
+          if (debts.isEmpty) {
+            if (state is DebtError && state.last.isEmpty) {
+              return ErrorRetryView(
+                message: state.message,
+                onRetry: () => context
+                    .read<DebtBloc>()
+                    .add(const LoadDebtsRequested()),
+              );
+            }
+            return _emptyState();
+          }
           return _content(debts);
         },
       ),

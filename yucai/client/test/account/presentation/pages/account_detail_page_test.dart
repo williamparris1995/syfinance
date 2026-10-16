@@ -265,6 +265,8 @@ void main() {
     final getUc = _MockGet();
     final updateUc = _MockUpdate();
     when(() => getUc.call(any())).thenAnswer((_) async => dartz.Right(a));
+    // F63 FR-6:重新激活直做 → 归档测试会触发 update;默认桩返回原账户。
+    when(() => updateUc.call(any())).thenAnswer((_) async => dartz.Right(a));
     // Task 12：详情页 initState 现在也发 LoadAccountsRequested（供近期交易行
     // 解析 entries 的账户名）。listUc 默认返回单账户；具体测试可通过
     // accounts 参数注入多账户。
@@ -430,10 +432,13 @@ void main() {
     expect(find.byType(AnchoredMenu), findsNothing);
     expect(find.byTooltip('更多操作'), findsNothing);
 
-    // 重新激活直达既有确认弹窗(原菜单项 → 一钮一弹窗)。
+    // F63 FR-6:重新激活直接执行(确认弹窗退役)。
+    // mock update 的命名参全 any → 直做不炸(返回值不被消费,toast 由
+    // BlocListener 承载,mock 只要不抛即可)。
     await tester.tap(find.byTooltip('重新激活账户'));
     await tester.pumpAndSettle();
-    expect(find.text('重新激活「现金」？账户恢复活跃状态。'), findsOneWidget);
+    // AppToast 3s Timer(直做后 toast 由 BlocListener 承载)— pump 完成它。
+    await tester.pump(const Duration(seconds: 4));
   });
 
   // ───── F58 T5: 壳层导航迁移(AppBar 退役 + 悬浮簇 + 标题注入)─────

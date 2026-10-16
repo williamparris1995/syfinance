@@ -993,16 +993,10 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
   }
 
   void _submit() {
+    // F63 FR-2:toast 校验退役(行内 validator + 按钮门承载)。
     final symbol = _symbolCtrl.text.trim();
     final name = _nameCtrl.text.trim();
-    if (symbol.isEmpty) {
-      AppToast.show(context, '请输入 Symbol', type: ToastType.warning);
-      return;
-    }
-    if (name.isEmpty) {
-      AppToast.show(context, '请输入名称', type: ToastType.warning);
-      return;
-    }
+    if (symbol.isEmpty || name.isEmpty) return;
     setState(() => _saving = true);
     context.read<HoldingBloc>().add(
       CreateSecurityRequested(

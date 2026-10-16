@@ -26,6 +26,7 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 债权详情页 —— 收款语义。
 ///
@@ -182,7 +183,12 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage>
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (state is DebtError) {
-                  return Center(child: Text(state.message));
+                  // F63 FR-1:错误态可重试。
+                  return ErrorRetryView(
+                    message: state.message,
+                    onRetry: () =>
+                        context.read<DebtBloc>().add(LoadDebtRequested(widget.id)),
+                  );
                 }
                 if (state is DebtDetailLoaded) {
                   return Stack(

@@ -48,6 +48,7 @@ import 'package:yucai_client/holding/presentation/bloc/performance_state.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_module_tabs.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// PerfRange enum → 大写英文串('DAY'/'MONTH'/'YEAR')。
 ///
@@ -143,13 +144,12 @@ class _PerformancePageState extends State<PerformancePage> {
             );
           }
           if (state is HoldingError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Text(state.message,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: context.yucai.muted)),
-              ),
+            // F63 FR-1:错误态可重试。
+            return ErrorRetryView(
+              message: state.message,
+              onRetry: () => context
+                  .read<HoldingBloc>()
+                  .add(const LoadHoldingsRequested()),
             );
           }
           // HoldingInitial / HoldingSubmitting(无 last)→ 空占位。

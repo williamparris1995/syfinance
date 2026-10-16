@@ -166,7 +166,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           _PageHead(
             compact: bp == Breakpoint.mobile,
             onNew: _openNew,
-            onExport: _exportHint,
+            onExport: null, // F63 FR-7:导入模板未落地,入口隐藏(死按钮退役)
           ),
           Expanded(
             child: ResponsiveLayout(
@@ -233,12 +233,12 @@ class _PageHead extends StatelessWidget {
   const _PageHead({
     required this.compact,
     required this.onNew,
-    required this.onExport,
+    this.onExport, // F63 FR-7:可空 = 导入入口隐藏
   });
 
   final bool compact;
   final VoidCallback onNew;
-  final VoidCallback onExport;
+  final VoidCallback? onExport;
 
   @override
   Widget build(BuildContext context) {
@@ -278,11 +278,11 @@ class _PageHead extends StatelessWidget {
               ],
             ),
           ),
-          if (!compact) ...[
+          if (!compact && onExport != null) ...[
             _GhostButton(
               icon: LucideIcons.download,
               label: '导入模板',
-              onTap: onExport,
+              onTap: onExport!,
             ),
             const SizedBox(width: AppSpacing.sm),
           ],

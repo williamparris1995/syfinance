@@ -37,6 +37,7 @@ import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 仪表盘（侧栏「概览」）。严格还原 desktop-dashboard.html 结构：
 /// 问候头 → 净资产大卡 → 资产分解 4 卡 → 快捷操作 4 格 → 双栏（近期交易 /
@@ -1353,7 +1354,14 @@ class _AssetAllocationPanel extends StatelessWidget {
                 ? _panelEmpty(context, '暂无持仓数据', '买入后将展示资产分布')
                 : HoldingPieChart(slices: slices);
           } else if (state is HoldingError) {
-            body = _panelEmpty(context, '加载失败', '稍后重试');
+            // F63 FR-1:面板错误态内嵌重试(compact)。
+            body = ErrorRetryView(
+              compact: true,
+              message: '资产配置加载失败',
+              onRetry: () => context
+                  .read<HoldingBloc>()
+                  .add(const LoadHoldingsRequested()),
+            );
           } else {
             body = _panelLoading(context);
           }

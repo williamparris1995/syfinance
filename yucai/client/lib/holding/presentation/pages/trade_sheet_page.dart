@@ -279,40 +279,42 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
 
   // ===================== 提交 =====================
 
+  /// F63 FR-2:可提交聚合(原 toast 条件合集;钮随门禁用,余额不足同灰)。
+  bool get _canSubmit {
+    if (_securityId == null) return false;
+    if (_accountId == null) return false;
+    switch (_type) {
+      case TradeType.buy:
+      case TradeType.sell:
+        if (_fromAccountId == null) return false;
+        final qty = double.tryParse(_qtyCtrl.text) ?? 0;
+        if (_qtyCtrl.text.isEmpty || qty <= 0) return false;
+        final price = double.tryParse(_priceCtrl.text) ?? -1;
+        if (_priceCtrl.text.isEmpty || price < 0) return false;
+        if (_balanceInsufficient) return false;
+        return true;
+      case TradeType.dividend:
+        final per = double.tryParse(_perShareCtrl.text) ?? 0;
+        if (_perShareCtrl.text.isEmpty || per <= 0) return false;
+        return true;
+      case TradeType.split:
+        final ratio = double.tryParse(_ratioCtrl.text) ?? 0;
+        if (_ratioCtrl.text.isEmpty || ratio <= 0) return false;
+        return true;
+    }
+  }
+
   void _submit() {
     // 显式校验必要字段(对齐 receivable_form._submit toast 模式)。
-    if (_securityId == null) {
-      AppToast.show(context, '请选择证券', type: ToastType.warning);
-      return;
-    }
-    if (_accountId == null) {
-      AppToast.show(context, '请选择持仓账户', type: ToastType.warning);
-      return;
-    }
+    if (!_canSubmit) return; // F63 FR-2:按钮门 + 行内承载
     final dateStr = _isoDate(_date);
 
     switch (_type) {
       case TradeType.buy:
       case TradeType.sell:
-        if (_fromAccountId == null) {
-          AppToast.show(context, '请选择资金账户', type: ToastType.warning);
-          return;
-        }
         final qty = double.tryParse(_qtyCtrl.text) ?? 0;
-        if (_qtyCtrl.text.isEmpty || qty <= 0) {
-          AppToast.show(context, '请输入数量', type: ToastType.warning);
-          return;
-        }
         final price = double.tryParse(_priceCtrl.text) ?? -1;
-        if (_priceCtrl.text.isEmpty || price < 0) {
-          AppToast.show(context, '请输入价格', type: ToastType.warning);
-          return;
-        }
         final fee = double.tryParse(_feeCtrl.text) ?? 0;
-        if (_balanceInsufficient) {
-          AppToast.show(context, '资金账户余额不足', type: ToastType.warning);
-          return;
-        }
         final priceCents = (price * 100).round();
         final feeCents = (fee * 100).round();
         if (_type == TradeType.buy) {
@@ -345,15 +347,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         break;
       case TradeType.dividend:
         final qty = double.tryParse(_qtyCtrl.text) ?? 0;
-        if (_qtyCtrl.text.isEmpty || qty <= 0) {
-          AppToast.show(context, '请输入数量', type: ToastType.warning);
-          return;
-        }
         final per = double.tryParse(_perShareCtrl.text) ?? -1;
-        if (_perShareCtrl.text.isEmpty || per < 0) {
-          AppToast.show(context, '请输入每股股息', type: ToastType.warning);
-          return;
-        }
         final perCents = (per * 100).round();
         final totalCents = (_dividendAmount * 100).round();
         context.read<HoldingBloc>().add(RecordDividendRequested(DividendParams(
@@ -370,10 +364,6 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         break;
       case TradeType.split:
         final ratio = double.tryParse(_ratioCtrl.text) ?? 0;
-        if (_ratioCtrl.text.isEmpty || ratio <= 0) {
-          AppToast.show(context, '请输入拆分比例', type: ToastType.warning);
-          return;
-        }
         context.read<HoldingBloc>().add(RecordSplitRequested(SplitParams(
               accountId: _accountId!,
               securityId: _securityId!,
@@ -828,7 +818,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
   Widget _submitButton(bool submitting) {
     return FilledButton(
       key: const ValueKey('submitButton'),
-      onPressed: submitting ? null : _submit,
+      onPressed: (submitting || !_canSubmit) ? null : _submit, // F63 FR-2
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
       ),

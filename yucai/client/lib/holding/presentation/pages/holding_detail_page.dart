@@ -58,6 +58,7 @@ import 'package:yucai_client/holding/presentation/pages/performance_page.dart'
     show rangeName;
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
+import 'package:yucai_client/core/widgets/error_retry_view.dart';
 
 /// 持仓详情页。对齐 A-od holding-detail-*.html。
 class HoldingDetailPage extends StatefulWidget {
@@ -153,14 +154,12 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 );
               }
               if (state is HoldingError) {
-                // 真业务错误(listHoldings fail,无 holding)→ 错误文案。
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Text(state.message,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: context.yucai.muted)),
-                  ),
+                // 真业务错误(listHoldings fail,无 holding)→ F63 FR-1 可重试。
+                return ErrorRetryView(
+                  message: state.message,
+                  onRetry: () => context
+                      .read<HoldingBloc>()
+                      .add(const LoadHoldingsRequested()),
                 );
               }
               return const SizedBox.shrink();
