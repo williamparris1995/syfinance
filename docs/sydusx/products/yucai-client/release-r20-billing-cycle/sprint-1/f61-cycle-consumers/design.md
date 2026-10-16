@@ -53,7 +53,7 @@ spec 起草时未预见、票内走查新增的四块(实现与测试均以落�
 
 1. **期次逾期口径账单感知**:`paymentEntryStatusMap`(debt_query,详情表/统计两簇消费)+ `Debt.nextPaymentDueDate`(DS `_toEntity` 期表推导,列表卡脚消费)—— card_loan 到期=下期出账日(F58 语义),出账后自由窗口不红;普通债自身日期不变。**已知限制**:boundRemote 路由 debt_mapper 不产 due 字段,卡脚对 card_loan 缺 due 时抑制负天数提示(详情页现算不受影响);mapper/proto 补字段留后续契约票。
 2. **B 模式 catchup**(评审确认为 spec 范围内实现):绑定离线路由放行并账,写经 recordPayment markPending 置 pending 随批上行(PendingCollector 债行嵌套期次);pull 后幂等重跑自愈;boundRemote 不跑。
-3. **走查修复×3**:还款/充值对话框候选源=仓库拉取(详情态 bloc 取不到列表);FormLeaveGuard 冻结分支(TickerMode)放行防跨分支无限弹框;跨分支链接 push→go(R19 遗留面包屑残留)。
+3. **走查修复×3**:还款/充值对话框候选源=仓库拉取(详情态 bloc 取不到列表);FormLeaveGuard 冻结分支(TickerMode)放行防跨分支无限弹框。(跨分支链接 push→go 已随 F59 走查修复 f3debb5d 落地,此处注记归属订正——复审 nit-1。)
 4. **探针处置**:catchup 诊断探针轮以 WAL 三件套取证收束(平安补并早已生效,拷库漏 -wal 致误判);探针文件评审后删除。
 
 **结构注记(后续票候选)**:月钳(+1 月短月 clamp)现存三份(catchup 内联/DS 静态/domain helper)——收敛进 core/billing 单一实现;普通债逾期边界由「到期当天红」微移为「次日起红」(新 map 用当日零点比较),方向更合理,随收敛票加注记钉测。
