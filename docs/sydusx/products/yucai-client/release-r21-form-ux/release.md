@@ -15,7 +15,7 @@
 
 ## Sprint roster
 
-- [ ] [sprint-1](sprint-1/sprint.md) — F62 债务表单重做 / F63 范式推广(串行)
+- [x] [sprint-1](sprint-1/sprint.md) ✅(2026-10-16 两票收官;F62 合并 12a326c6/F63 合并 0c2a71c6) — F62 债务表单重做 / F63 范式推广(串行)
 
 ## Done criteria
 
@@ -24,4 +24,4 @@
 3. 渐进披露三段 + 期供实时预览;编辑态按存量 subtype 反选场景卡,存量数据零迁移零 diff。
 4. 全门:flutter test 全绿 + analyze 基线 + make client-e2e;金图波及重录。
 
-## status: pending
+## status: done(2026-10-16 功能面收官;发版待用户)
