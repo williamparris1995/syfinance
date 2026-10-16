@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · F63 UX 整改扫票</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('yc2-theme') || 'dark';</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:F63 UX 整改扫票(六组前→后对照) */
+  /* —— 区块骨架 —— */
+  .fix-sec{margin-top:32px}
+  .sec-head{display:flex;align-items:center;gap:13px;margin-bottom:14px}
+  .sec-no{width:40px;height:40px;border-radius:13px;background:var(--nav-active-bg);color:var(--nav-active-fg);display:grid;place-items:center;font-weight:800;font-size:15px;flex:none}
+  .sec-head h2{font-size:17px;font-weight:700;letter-spacing:.2px}
+  .sec-sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media (max-width:1150px){.duo{grid-template-columns:1fr}}
+  .mock-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  [data-theme="light"] .mock-card{border-color:transparent}
+  .mock-label{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 16px;border-bottom:1px solid var(--line);font-size:12px;font-weight:700;letter-spacing:2px}
+  .mock-label.is-before{color:var(--neg)}
+  .mock-label.is-after{color:var(--pos)}
+  .mock-label .chip{letter-spacing:0}
+  .demo{position:relative;padding:16px;background:var(--bg)}
+  .demo.demo-dd{padding-bottom:132px}
+  .demo-scroll{max-height:262px;overflow-y:auto}
+  .anno-list{display:grid;gap:8px;padding:13px 16px;border-top:1px solid var(--line)}
+  .anno{display:flex;gap:9px;font-size:12px;color:var(--muted);line-height:1.65}
+  .anno b{color:var(--fg)}
+  .mk{flex:none;width:17px;height:17px;border-radius:50%;border:1px solid var(--neg);color:var(--neg);display:grid;place-items:center;font-size:10px;font-weight:800;margin-top:3px}
+  .is-after .mk,.mk.ok{border-color:var(--pos);color:var(--pos)}
+  .mk.inl{display:inline-grid;vertical-align:1px;margin-left:7px;width:15px;height:15px;font-size:9px;margin-top:0}
+  /* —— 审计背景卡 —— */
+  .audit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:4px 0 16px}
+  .audit-cell{background:var(--surface-2);border-radius:12px;padding:12px 14px}
+  .audit-cell b{display:block;font-size:22px;font-weight:800}
+  .audit-cell b small{font-size:13px;color:var(--muted);font-weight:600}
+  .audit-cell span{font-size:11.5px;color:var(--muted)}
+  .gap-list{display:grid;gap:7px;list-style:none}
+  .gap-list li{font-size:12.5px;color:var(--muted);display:flex;gap:8px;line-height:1.65}
+  .gap-list li::before{content:"";flex:none;width:5px;height:5px;border-radius:50%;background:var(--acc);margin-top:8px}
+  .gap-list b{color:var(--fg)}
+  /* —— 表单 mock —— */
+  .fm-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+  .fm-back{color:var(--link);font-size:13px;font-weight:600;cursor:pointer}
+  .f-title{font-size:15px;font-weight:700}
+  .mini-crumb{font-size:12px;color:var(--muted)}
+  .mini-crumb .sep{margin:0 6px;opacity:.5}
+  .mini-crumb b{color:var(--fg)}
+  .mini-crumb a{color:var(--link);font-weight:600;cursor:pointer}
+  .f-row{display:grid;gap:6px;margin-top:12px}
+  .f-label{font-size:12px;font-weight:600;color:var(--muted)}
+  .f-input{display:flex;align-items:center;background:var(--search-bg);border:1px solid var(--search-border);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--fg)}
+  .f-input input{background:none;border:0;outline:0;color:var(--fg);font-size:13px;width:100%;font-family:inherit}
+  .f-input.err{border-color:var(--neg)}
+  .f-err{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--neg);font-weight:600}
+  .f-err .ic{width:13px;height:13px}
+  .f-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .f-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  .btn-primary[disabled]{opacity:.4;cursor:not-allowed;box-shadow:none;filter:none}
+  .btn-ghost[disabled]{opacity:.5;cursor:not-allowed}
+  .hint-line{margin-top:14px;font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .hint-line .ic{width:13px;height:13px;flex:none}
+  /* —— toast(右上角位) —— */
+  .mock-toasts{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:8px;z-index:5}
+  .toast{display:flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:600;box-shadow:0 10px 26px color-mix(in srgb,var(--fg) 16%,transparent)}
+  .toast .ic{width:15px;height:15px;flex:none}
+  .toast.err{color:var(--neg)}
+  .toast.ok{color:var(--pos)}
+  .toast.info{color:var(--link)}
+  #toastWrap{position:fixed;top:68px;right:32px;z-index:80;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+  .toast.pop{animation:toastin .22s ease}
+  @keyframes toastin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  /* —— 设置行 / 分段 / 下拉 —— */
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .set-row:last-child{border-bottom:0}
+  .set-main b{display:block;font-size:13.5px;font-weight:600}
+  .set-main .g-sub{font-size:11.5px}
+  .segbtn{display:inline-flex;gap:2px;background:var(--seg-track);border-radius:11px;padding:3px;flex:none}
+  .segbtn button{border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:600;padding:6px 13px;border-radius:8px;cursor:pointer;font-family:inherit;font-variant-numeric:tabular-nums}
+  .segbtn button.on{background:var(--surface);color:var(--nav-active-fg);box-shadow:0 1px 4px color-mix(in srgb,var(--fg) 12%,transparent)}
+  .dd{position:relative;flex:none}
+  .dd-btn{display:inline-flex;align-items:center;gap:12px;background:var(--search-bg);border:1px solid var(--search-border);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--fg);cursor:pointer}
+  .dd-btn .ic{width:15px;height:15px;color:var(--muted)}
+  .dd-pop{position:absolute;top:calc(100% + 6px);right:0;min-width:168px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 34px color-mix(in srgb,var(--fg) 14%,transparent);padding:5px;z-index:6}
+  .dd-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;font-size:12.5px;color:var(--fg)}
+  .dd-opt .ic{width:14px;height:14px;color:var(--nav-active-fg)}
+  .dd-opt.on{background:var(--nav-active-bg);color:var(--nav-active-fg);font-weight:600}
+  .mini-note{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;padding:11px 13px;border:1px dashed var(--border);border-radius:12px;font-size:12px;color:var(--muted)}
+  /* —— 错误态 / 列表页 mock —— */
+  .lp-bar{display:flex;align-items:center;gap:10px;padding-bottom:11px;border-bottom:1px solid var(--line)}
+  .lp-bar b{font-size:14px;font-weight:700}
+  .lp-empty{display:grid;place-items:center;min-height:168px}
+  .lp-fail{color:var(--muted);font-size:14px}
+  .errview{display:grid;justify-items:center;gap:5px;padding:26px 14px;text-align:center}
+  .errview .e-ic{width:46px;height:46px;border-radius:50%;background:var(--neg-soft);color:var(--neg);display:grid;place-items:center;margin-bottom:7px}
+  .errview .e-ic .ic{width:22px;height:22px}
+  .errview .e-msg{font-size:14px;font-weight:700}
+  .errview .e-sub{font-size:12px;color:var(--muted)}
+  .e-actions{display:flex;gap:10px;margin-top:13px}
+  .lp-rows{padding-top:6px}
+  .lp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13px}
+  .lp-row:last-child{border-bottom:0}
+  .lp-row b{font-weight:600}
+  /* —— 账户 / 债务 mock —— */
+  .acct-row{display:flex;align-items:center;gap:13px}
+  .acct-main{flex:1;min-width:0}
+  .acct-main b{display:block;font-size:14px;font-weight:700}
+  .acct-state{font-size:11.5px;color:var(--muted)}
+  .acct-state.on{color:var(--pos)}
+  .debt-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .debt-head b{display:block;font-size:14.5px;font-weight:700}
+  .debt-acts{display:flex;gap:8px;flex:none;flex-wrap:wrap}
+  .fact-row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted);padding:8px 2px;border-bottom:1px solid var(--line)}
+  .fact-row b{color:var(--fg);font-weight:600}
+  .plan-block{margin-top:16px;border:1px solid var(--border);border-radius:14px;padding:14px 16px;background:var(--surface)}
+  .plan-block h4{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .plan-block h4 .ic{width:15px;height:15px;color:var(--link)}
+  .plan-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .plan-chips .chip{font-variant-numeric:tabular-nums}
+  .plan-chips .chip.next{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);border-color:transparent}
+  .flash{animation:flashbg 1.8s ease}
+  @keyframes flashbg{0%{background:color-mix(in srgb,var(--acc) 16%,var(--surface))}100%{background:var(--surface)}}
+  /* —— 对话框 —— */
+  .dlg-mask{position:fixed;inset:0;z-index:90;display:none;place-items:center;padding:24px;background:color-mix(in srgb,var(--bg) 64%,transparent);backdrop-filter:blur(3px)}
+  .dlg-mask.open{display:grid}
+  .dlg{width:min(372px,100%);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:0 26px 60px color-mix(in srgb,var(--fg) 20%,transparent)}
+  .dlg h3{font-size:15.5px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:9px}
+  .dlg h3 .ic{width:17px;height:17px;color:var(--warn)}
+  .dlg p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:18px}
+  .dlg p b{color:var(--fg)}
+  .dlg-actions{display:flex;justify-content:flex-end;gap:10px}
+  .btn-danger{display:inline-flex;align-items:center;gap:8px;border:0;cursor:pointer;background:var(--neg);color:var(--bg);font-weight:700;font-size:13px;padding:10px 16px;border-radius:12px}
+  .btn-danger:hover{filter:brightness(1.05)}
+  /* —— 旁注 / 汇总表 —— */
+  .note-strip{margin-top:14px;display:flex;gap:11px;align-items:flex-start;border:1px dashed var(--border);border-radius:14px;padding:13px 16px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .note-strip .ic{width:16px;height:16px;flex:none;margin-top:3px;color:var(--link)}
+  .note-strip b{color:var(--fg)}
+  .tbl-scroll{overflow-x:auto}
+  .sum-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px}
+  .sum-table th{text-align:left;font-size:11px;color:var(--muted);letter-spacing:1px;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .sum-table td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.6}
+  .sum-table tr:last-child td{border-bottom:0}
+  .sum-table td:first-child{color:var(--muted);font-weight:700}
+  .cost{font-size:11px;font-weight:700;border-radius:999px;padding:2px 10px;white-space:nowrap}
+  .cost.low{color:var(--pos);background:var(--pos-soft)}
+  .cost.mid{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .sum-foot{margin-top:14px;display:grid;gap:7px;font-size:12px;color:var(--muted);line-height:1.7}
+  .sum-foot b{color:var(--fg)}
+  /* —— 动效守卫 —— */
+  @media (prefers-reduced-motion:reduce){
+    .toast.pop,.flash{animation:none}
+  }
+  /* —— BRIEF 硬约束:窄窗格(<900px)压回桌面布局,评审页不进移动壳 —— */
+  @media (max-width:900px){
+    body{display:grid;grid-template-columns:236px 1fr}
+    .sidebar{display:flex}
+    .crumb{display:block}
+    .topbar{padding:14px 32px}
+    .search{width:280px;flex:none}
+    .page{padding:28px 32px 48px}
+    .page-head{flex-direction:row;align-items:flex-end;gap:16px}
+    .page-head h1{font-size:24px}
+    .page-head-actions{width:auto}
+    .page-head-actions .btn-primary,.page-head-actions .btn-ghost{flex:none}
+    .bottom-nav{display:none}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-retry" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/report.html"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/performance.html"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item active" href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="../../../../../../../design-output-v2/ab/budgets.html"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">设计评审 <span class="sep">›</span> <b>F63 UX 整改扫票</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索整改项…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>F63 UX 整改扫票</h1>
+        <p class="date num">R21 全页面审计 · <span class="num">38</span> 页 · 六组「前 → 后」对照 · 演示数据</p>
+      </div>
+      <div class="page-head-actions">
+        <button class="btn-ghost" id="goSummary"><svg class="ic"><use href="#i-check"/></svg>整改汇总</button>
+      </div>
+    </div>
+
+    <!-- 背景卡 -->
+    <section class="card">
+      <div class="card-head">
+        <h2>审计背景 · R21 全页面扫票结论</h2>
+        <span class="chip">F63 视觉伴侣</span>
+      </div>
+      <div class="audit-grid">
+        <div class="audit-cell"><b class="num">28<small>/38</small></b><span>页无命中 · 保持现状</span></div>
+        <div class="audit-cell"><b class="num">10</b><span>页命中(部分重叠)</span></div>
+        <div class="audit-cell"><b class="num">6</b><span>组整改 · 本页逐组对照供拍板</span></div>
+      </div>
+      <ul class="gap-list">
+        <li><b>系统性缺口三组</b>:错误态无重试 <b class="num">9</b> 页 · toast 校验 <b class="num">5</b> 表单 · 返回残留 <b class="num">2</b> 页(区块一至三,急件优先)</li>
+        <li><b>次要项</b>:可逆确认冗余 · 死按钮 · <span class="num">2–4</span> 值下拉形态不一(区块四至六)</li>
+        <li><b>豁免</b>:holding tab 经用户拍板 A —— 加豁免条款保留,不计入本轮整改;本页 = 整改效果预览</li>
+      </ul>
+    </section>
+
+    <!-- 区块一 -->
+    <section class="fix-sec" id="fix1">
+      <div class="sec-head">
+        <div class="sec-no num">01</div>
+        <div>
+          <h2>transaction_form 返回条退役 + 脏态守卫</h2>
+          <div class="sec-sub">急件 · 最高频表单</div>
+        </div>
+      </div>
+      <div class="duo">
+        <div class="mock-card is-before">
+          <div class="mock-label is-before"><span>前 · 现状</span><span class="chip">transaction_form</span></div>
+          <div class="demo">
+            <div class="fm-head">
+              <a class="fm-back" id="f1-back">‹ 返回<span class="mk inl num">1</span></a>
+              <span class="f-title">记一笔 · 债权</span>
+            </div>
+            <div class="f-row"><span class="f-label">债权方</span><div class="f-input"><input value="平安消费金融" id="f1-old-creditor"></div></div>
+            <div class="f-2col">
+              <div class="f-row"><span class="f-label">本金</span><div class="f-input num"><input value="¥8,400.00" id="f1-old-amt"></div></div>
+              <div class="f-row"><span class="f-label">期数</span><div class="f-input num">12 期</div></div>
+            </div>
+            <div class="f-actions"><button class="btn-primary">保存债权</button></div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>点「‹ 返回」试试 —— 已填内容直接清空</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span><b>唯一自带返回条</b>的表单 —— 全站其余表单回退都走顶栏面包屑,唯独它页面内再嵌一条</span></div>
+            <div class="anno"><span class="mk num">2</span><span><b>唯一无脏态守卫</b> —— 填一半点「返回」= 直接丢弃,无任何确认</span></div>
+          </div>
+        </div>
+        <div class="mock-card is-after">
+          <div class="mock-label is-after"><span>后 · 整改</span><span class="chip">推荐</span></div>
+          <div class="demo">
+            <div class="fm-head">
+              <span class="mini-crumb">收支 <span class="sep">›</span> 交易记录 <span class="sep">›</span> <b><a id="crumb-form">记一笔</a><span class="mk inl ok num">1</span></b></span>
+            </div>
+            <div class="f-row"><span class="f-label">债权方</span><div class="f-input"><input value="平安消费金融"></div></div>
+            <div class="f-2col">
+              <div class="f-row"><span class="f-label">本金</span><div class="f-input num"><input value="¥8,400.00"></div></div>
+              <div class="f-row"><span class="f-label">期数</span><div class="f-input num">12 期</div></div>
+            </div>
+            <div class="f-actions"><button class="btn-primary">保存债权</button></div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>点面包屑「记一笔」试试 → 弹脏态确认框</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>返回条<b>退役</b>,回退路径与全站统一(顶栏面包屑,page 级)</span></div>
+            <div class="anno"><span class="mk num">2</span><span>离开触发的脏态守卫照 <b>F58 FormLeaveGuard</b> 形态,文案逐字一致(放弃修改红钮 / 继续编辑)</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 区块二 -->
+    <section class="fix-sec" id="fix2">
+      <div class="sec-head">
+        <div class="sec-no num">02</div>
+        <div>
+          <h2>toast 校验 → 行内校验</h2>
+          <div class="sec-sub">波及 <span class="num">5</span> 张表单(含 goal_form)</div>
+        </div>
+      </div>
+      <div class="duo">
+        <div class="mock-card is-before">
+          <div class="mock-label is-before"><span>前 · 现状</span><span class="chip num">5 表单</span></div>
+          <div class="demo">
+            <div class="mock-toasts">
+              <div class="toast err"><svg class="ic"><use href="#i-alert"/></svg>请填写债权方<span class="mk inl num">1</span></div>
+              <div class="toast err"><svg class="ic"><use href="#i-alert"/></svg>请选择到期日</div>
+            </div>
+            <div class="fm-head"><span class="f-title">新增债权</span></div>
+            <div class="f-row"><span class="f-label">债权方</span><div class="f-input"><input placeholder="如:平安消费金融"></div></div>
+            <div class="f-2col">
+              <div class="f-row"><span class="f-label">金额</span><div class="f-input num"><input value="¥8,400.00"></div></div>
+              <div class="f-row"><span class="f-label">到期日</span><div class="f-input num"><input placeholder="选择日期"></div></div>
+            </div>
+            <div class="f-actions"><button class="btn-primary" id="f2-save-old">保存债权<span class="mk inl num">2</span></button></div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>点「保存债权」试试 —— 连弹右上角 toast</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>校验错误弹在<b>右上角 toast</b>,离字段很远 —— 用户自己找字段</span></div>
+            <div class="anno"><span class="mk num">2</span><span>连续提交连弹多枚,信息一闪而过,无法逐条对应</span></div>
+          </div>
+        </div>
+        <div class="mock-card is-after">
+          <div class="mock-label is-after"><span>后 · 整改</span><span class="chip">推荐</span></div>
+          <div class="demo">
+            <div class="fm-head"><span class="f-title">新增债权</span></div>
+            <div class="f-row">
+              <span class="f-label">债权方</span>
+              <div class="f-input err"><input placeholder="如:平安消费金融" id="f2-creditor"></div>
+              <span class="f-err" id="f2-err"><svg class="ic"><use href="#i-alert"/></svg>请填写债权方<span class="mk inl num">1</span></span>
+            </div>
+            <div class="f-2col">
+              <div class="f-row"><span class="f-label">金额</span><div class="f-input num"><input value="¥8,400.00"></div></div>
+              <div class="f-row"><span class="f-label">到期日</span><div class="f-input num"><input value="2026-11-12"></div></div>
+            </div>
+            <div class="f-actions"><button class="btn-primary" id="f2-save" disabled>保存债权<span class="mk inl ok num">2</span></button></div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>在「债权方」输入一个字试试 —— 错误消失、按钮解禁</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span><b>错误贴字段</b>:红描边 + 字段下方行内文案,一眼定位</span></div>
+            <div class="anno"><span class="mk num">2</span><span><b>提交钮随可提交性禁用</b>(灰置),空必填时点不了</span></div>
+            <div class="anno"><span class="mk num">3</span><span>goal_form 等 <b class="num">5</b> 张表单同修</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 区块三 -->
+    <section class="fix-sec" id="fix3">
+      <div class="sec-head">
+        <div class="sec-no num">03</div>
+        <div>
+          <h2>错误态无重试 → ErrorRetryView</h2>
+          <div class="sec-sub">波及 <span class="num">9</span> 页</div>
+        </div>
+      </div>
+      <div class="duo">
+        <div class="mock-card is-before">
+          <div class="mock-label is-before"><span>前 · 现状</span><span class="chip num">9 页</span></div>
+          <div class="demo">
+            <div class="lp-bar"><b>债务管理</b><span class="chip num">3 笔</span></div>
+            <div class="lp-empty"><p class="lp-fail">加载失败<span class="mk inl num">1</span></p></div>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>页面中央<b>纯灰文案</b>,无任何动作 —— 用户只能后退或手动刷新</span></div>
+            <div class="anno"><span class="mk num">2</span><span><b class="num">9</b> 页共用此形态</span></div>
+          </div>
+        </div>
+        <div class="mock-card is-after">
+          <div class="mock-label is-after"><span>后 · 整改</span><span class="chip">推荐</span></div>
+          <div class="demo">
+            <div class="lp-bar"><b>债务管理</b><span class="chip num">3 笔</span></div>
+            <div class="errview" id="f3-view">
+              <span class="e-ic"><svg class="ic"><use href="#i-alert"/></svg></span>
+              <span class="e-msg">加载失败,请稍后重试<span class="mk inl ok num">1</span></span>
+              <span class="e-sub">网络连接异常 · 已保留你的筛选条件</span>
+              <div class="e-actions">
+                <button class="btn-primary" id="f3-retry"><svg class="ic"><use href="#i-retry"/></svg>重试</button>
+                <button class="btn-ghost">返回列表<span class="mk inl ok num">2</span></button>
+              </div>
+            </div>
+            <div class="lp-rows num" id="f3-rows" hidden>
+              <div class="lp-row"><b>平安现金分期</b><span class="g-sub">剩余 ¥8,400 · 月供 ¥1,113</span></div>
+              <div class="lp-row"><b>e招贷</b><span class="g-sub">剩余 ¥31,200 · 月供 ¥2,600</span></div>
+            </div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>点「重试」试试 —— 恢复后直接出列表</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>统一组件:警示图标 + 错误消息 + <b>重试主钮</b> + 次级动作</span></div>
+            <div class="anno"><span class="mk num">2</span><span>蓝本 = <b>transactions_page _ErrorView</b>(全站错误态以此为准)</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 区块四 -->
+    <section class="fix-sec" id="fix4">
+      <div class="sec-head">
+        <div class="sec-no num">04</div>
+        <div>
+          <h2>2–4 值下拉 → SegmentedButton</h2>
+          <div class="sec-sub">波及 <span class="num">3</span> 处(settings 同屏对照)</div>
+        </div>
+      </div>
+      <div class="duo">
+        <div class="mock-card is-before">
+          <div class="mock-label is-before"><span>前 · 现状</span><span class="chip">settings</span></div>
+          <div class="demo demo-dd">
+            <div class="set-row">
+              <div class="set-main"><b>汇率同步频率</b><span class="g-sub">每次同步拉取最新汇率</span></div>
+              <div class="dd">
+                <div class="dd-btn"><span class="num">每 12 小时</span><svg class="ic"><use href="#i-chev-down"/></svg><span class="mk inl num">1</span></div>
+                <div class="dd-pop">
+                  <div class="dd-opt"><span class="num">每 1 小时</span></div>
+                  <div class="dd-opt"><span class="num">每 8 小时</span></div>
+                  <div class="dd-opt on"><span class="num">每 12 小时</span><svg class="ic"><use href="#i-check"/></svg></div>
+                  <div class="dd-opt"><span class="num">每 24 小时</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="set-row">
+              <div class="set-main"><b>扫描间隔</b><span class="g-sub">后台自动扫描新增账单</span></div>
+              <div class="segbtn"><span class="mk inl num">2</span><button class="num">15 分</button><button class="num on">30 分</button><button class="num">60 分</button></div>
+            </div>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>「汇率同步频率」<b class="num">4</b> 值收在下拉里,要点开才见全貌</span></div>
+            <div class="anno"><span class="mk num">2</span><span>同屏相邻「扫描间隔」已是分段形态 —— <b>同页两种形态打架</b></span></div>
+          </div>
+        </div>
+        <div class="mock-card is-after">
+          <div class="mock-label is-after"><span>后 · 整改</span><span class="chip">推荐</span></div>
+          <div class="demo">
+            <div class="set-row">
+              <div class="set-main"><b>汇率同步频率</b><span class="g-sub">每次同步拉取最新汇率</span></div>
+              <div class="segbtn"><button class="num">1h</button><button class="num">8h</button><button class="num on">12h</button><button class="num">24h</button><span class="mk inl ok num">1</span></div>
+            </div>
+            <div class="set-row">
+              <div class="set-main"><b>扫描间隔</b><span class="g-sub">后台自动扫描新增账单</span></div>
+              <div class="segbtn"><button class="num">15 分</button><button class="num on">30 分</button><button class="num">60 分</button></div>
+            </div>
+            <div class="mini-note">附 · 归属维度同批迁移(2 段):<span class="mk inl ok num">2</span>
+              <div class="segbtn"><button class="on">个人</button><button>共同</button></div>
+            </div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>点任意分段可切换选中</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>频率改 <b class="num">4</b> 段 SegmentedButton(1h/8h/12h/24h),与同页一致,全部选项平铺</span></div>
+            <div class="anno"><span class="mk num">2</span><span>归属 <b class="num">2</b> 段(个人/共同)一并迁移 —— <b class="num">3</b> 处 2–4 值下拉清零</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 区块五 -->
+    <section class="fix-sec" id="fix5">
+      <div class="sec-head">
+        <div class="sec-no num">05</div>
+        <div>
+          <h2>可逆确认 → 直做 + 可撤销提示</h2>
+          <div class="sec-sub">以「重新激活账户」为首例,类推其余可逆动作</div>
+        </div>
+      </div>
+      <div class="duo">
+        <div class="mock-card is-before">
+          <div class="mock-label is-before"><span>前 · 现状</span><span class="chip">账户详情</span></div>
+          <div class="demo">
+            <div class="acct-row">
+              <div class="acct-logo lg-gold">平</div>
+              <div class="acct-main"><b>平安信用卡</b><span class="acct-state" id="f5-before-sub">已关闭 · 不参与统计</span></div>
+              <button class="btn-ghost" id="f5-before-btn">重新激活账户<span class="mk inl num">1</span></button>
+            </div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>点「重新激活账户」试试 —— 先弹确认框</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>激活与关闭<b>互逆</b> —— 关闭时已确认过,激活不该再确认:两步做了本可一步的事</span></div>
+          </div>
+        </div>
+        <div class="mock-card is-after">
+          <div class="mock-label is-after"><span>后 · 整改</span><span class="chip">推荐</span></div>
+          <div class="demo">
+            <div class="acct-row">
+              <div class="acct-logo lg-gold">平</div>
+              <div class="acct-main"><b>平安信用卡</b><span class="acct-state" id="f5-after-sub">已关闭 · 不参与统计</span></div>
+              <button class="btn-ghost" id="f5-after-btn">重新激活账户</button>
+            </div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>点「重新激活账户」试试 —— 直做 + 右上角 toast<span class="mk inl ok num">1</span></p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>点击<b>直做</b>:状态即翻「活跃」,右上 toast「已重新激活 · 可随时再次关闭」</span></div>
+            <div class="anno"><span class="mk num">2</span><span>可撤销性在提示里说清,不留「做错了怎么办」的疑问</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="note-strip">
+        <svg class="ic"><use href="#i-info"/></svg>
+        <span><b>旁注 · 确认分级:</b>关闭(影响统计)<b>保留确认</b>但文案列明后果;删除(不可逆)<b>确认照旧</b> —— 只有互逆且无副作用的动作才直做 + 可撤销提示。</span>
+      </div>
+    </section>
+
+    <!-- 区块六 -->
+    <section class="fix-sec" id="fix6">
+      <div class="sec-head">
+        <div class="sec-no num">06</div>
+        <div>
+          <h2>死按钮清理</h2>
+          <div class="sec-sub">「导出」与「登记一笔还款」两处 · 债务详情页</div>
+        </div>
+      </div>
+      <div class="duo">
+        <div class="mock-card is-before">
+          <div class="mock-label is-before"><span>前 · 现状</span><span class="chip">债务详情</span></div>
+          <div class="demo">
+            <div class="debt-head">
+              <div><b>平安现金分期</b><span class="g-sub num">剩余 ¥8,400 · 12 期</span></div>
+              <div class="debt-acts">
+                <button class="btn-ghost" id="f6-export">导出<span class="mk inl num">1</span></button>
+                <button class="btn-ghost" id="f6-register"><svg class="ic"><use href="#i-pen"/></svg>登记一笔还款<span class="mk inl num">2</span></button>
+              </div>
+            </div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>两枚按钮都点一下试试 —— 只有 toast,没有去向</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span>「导出」点击 → toast「即将上线」:<b>未上线却露出</b></span></div>
+            <div class="anno"><span class="mk num">2</span><span>「登记一笔还款」点击 → toast「请在下方逐期记账」:让用户自己找「下方」—— <b>按钮存在却不做也不跳 = 训人</b></span></div>
+          </div>
+        </div>
+        <div class="mock-card is-after">
+          <div class="mock-label is-after"><span>后 · 整改</span><span class="chip">推荐</span></div>
+          <div class="demo demo-scroll" id="f6-demo">
+            <div class="debt-head">
+              <div><b>平安现金分期</b><span class="g-sub num">剩余 ¥8,400 · 12 期</span></div>
+              <div class="debt-acts">
+                <button class="btn-primary" id="f6-go"><svg class="ic"><use href="#i-pen"/></svg>登记一笔还款<span class="mk inl ok num">2</span></button>
+              </div>
+            </div>
+            <div class="fact-row"><span>借款本金</span><b class="num">¥8,400.00</b></div>
+            <div class="fact-row"><span>已还期数</span><b class="num">4 / 12 期</b></div>
+            <div class="fact-row"><span>每期月供</span><b class="num">¥1,113.00</b></div>
+            <div class="fact-row"><span>下期还款日</span><b class="num">2026-11-12</b></div>
+            <div class="plan-block" id="f6-plan">
+              <h4><svg class="ic"><use href="#i-receipt"/></svg>还款计划<span class="chip num">12 期</span></h4>
+              <div class="plan-chips">
+                <span class="chip num">1✓</span><span class="chip num">2✓</span><span class="chip num">3✓</span><span class="chip num">4✓</span>
+                <span class="chip next num">5 · 11-12</span>
+                <span class="chip num">6</span><span class="chip num">7</span><span class="chip num">8</span><span class="chip num">9</span>
+                <span class="chip num">10</span><span class="chip num">11</span><span class="chip num">12</span>
+              </div>
+            </div>
+            <p class="hint-line"><svg class="ic"><use href="#i-info"/></svg>点「登记一笔还款」试试 —— 滚动定位到这里并高亮</p>
+          </div>
+          <div class="anno-list">
+            <div class="anno"><span class="mk num">1</span><span><b>未上线入口隐藏</b> —— 「导出」不再露出,避免点空</span></div>
+            <div class="anno"><span class="mk num">2</span><span>「登记一笔还款」→ <b>滚动定位到还款计划区</b>(动作有去向),定位后高亮承接视线</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 页尾汇总 -->
+    <section class="fix-sec" id="summary">
+      <div class="sec-head">
+        <div class="sec-no">Σ</div>
+        <div>
+          <h2>整改清单汇总</h2>
+          <div class="sec-sub">六组 × 波及面 × 规范条目 × 修复成本</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="tbl-scroll">
+          <table class="sum-table">
+            <thead><tr><th class="num">#</th><th>整改组</th><th>波及</th><th>规范条目</th><th>成本</th></tr></thead>
+            <tbody>
+              <tr><td class="num">1</td><td>返回条退役 + 脏态守卫</td><td class="num">2 页</td><td>表单离开必过 F58 FormLeaveGuard;返回统一顶栏面包屑</td><td><span class="cost low">低</span></td></tr>
+              <tr><td class="num">2</td><td>toast 校验 → 行内校验</td><td class="num">5 表单</td><td>错误贴字段(红描边+行内文案);提交钮随可提交性禁用</td><td><span class="cost low">低</span></td></tr>
+              <tr><td class="num">3</td><td>ErrorRetryView 统一错误态</td><td class="num">9 页</td><td>错误态必须含:警示图标 + 消息 + 重试主钮 + 次级动作</td><td><span class="cost mid">中</span></td></tr>
+              <tr><td class="num">4</td><td>2–4 值单选 → SegmentedButton</td><td class="num">3 处</td><td>2–4 值单选一律分段平铺,不再用下拉</td><td><span class="cost low">低</span></td></tr>
+              <tr><td class="num">5</td><td>可逆动作 → 直做 + 可撤销提示</td><td class="num">1 处起步</td><td>互逆且无副作用不确认;影响统计的列后果;不可逆必确认</td><td><span class="cost low">低</span></td></tr>
+              <tr><td class="num">6</td><td>死按钮清理</td><td class="num">2 处</td><td>动作必有去向(执行或定位);未上线入口不露出</td><td><span class="cost low">低</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="sum-foot">
+          <p><b>豁免注记</b>:holding tab 经用户拍板 A —— 加豁免条款保留,不纳入本轮整改。</p>
+          <p><b>优秀先例引用(照审计报告)</b>:F58 FormLeaveGuard(脏态守卫蓝本) · transactions_page _ErrorView(错误重试蓝本) · settings 扫描间隔(分段形态先例)。</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">御财 v2 设计原型 · F63 UX 整改扫票 · 六组前后对照 · 演示数据</footer>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a href="../../../../../../../design-output-v2/ab/dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+  <a class="active" href="../../../../../../../design-output-v2/ab/transactions.html"><svg class="ic"><use href="#i-receipt"/></svg>交易</a>
+  <a class="fab" href="../../../../../../../design-output-v2/ab/transaction-form.html"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></a>
+  <a href="../../../../../../../design-output-v2/ab/accounts.html"><svg class="ic"><use href="#i-wallet"/></svg>账户</a>
+  <a href="#"><svg class="ic"><use href="#i-user"/></svg>我的</a>
+</nav>
+
+<!-- F58 形态脏态对话框 -->
+<div class="dlg-mask" id="dlg-dirty" role="dialog" aria-modal="true" aria-label="未保存的修改">
+  <div class="dlg">
+    <h3><svg class="ic"><use href="#i-alert"/></svg>未保存的修改</h3>
+    <p>离开将丢弃未保存的更改。</p>
+    <div class="dlg-actions">
+      <button class="btn-ghost" id="dlg-keep">继续编辑</button>
+      <button class="btn-danger" id="dlg-drop">放弃修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- 旧确认对话框(区块五·前) -->
+<div class="dlg-mask" id="dlg-confirm" role="dialog" aria-modal="true" aria-label="重新激活账户">
+  <div class="dlg">
+    <h3><svg class="ic"><use href="#i-info"/></svg>重新激活账户?</h3>
+    <p>即将重新激活「<b>平安信用卡</b>」,激活后将重新参与统计与预算。</p>
+    <div class="dlg-actions">
+      <button class="btn-ghost" id="dlg-cancel">取消</button>
+      <button class="btn-primary" id="dlg-yes">确认</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastWrap" aria-live="polite"></div>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+<script>
+(function(){
+  var $=function(s,c){return (c||document).querySelector(s)};
+  var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
+  var reduce=function(){return window.matchMedia('(prefers-reduced-motion: reduce)').matches};
+
+  /* 右上角 toast(照既有 toast 位) */
+  var wrap=document.getElementById('toastWrap');
+  function toast(msg,type){
+    var t=document.createElement('div');
+    t.className='toast pop '+(type||'info');
+    var icon=type==='err'?'#i-alert':type==='ok'?'#i-check':'#i-info';
+    t.innerHTML='<svg class="ic"><use href="'+icon+'"/></svg><span></span>';
+    t.lastChild.textContent=msg;
+    wrap.appendChild(t);
+    setTimeout(function(){t.style.transition='opacity .25s ease';t.style.opacity='0';},2400);
+    setTimeout(function(){t.remove();},2750);
+  }
+
+  /* 对话框 */
+  function openDlg(sel){$(sel).classList.add('open')}
+  function closeDlg(m){m.classList.remove('open')}
+  $$('.dlg-mask').forEach(function(m){
+    m.addEventListener('click',function(e){if(e.target===m)closeDlg(m)});
+  });
+
+  /* 区块一·前:返回条直接丢弃(无守卫) */
+  $('#f1-back').addEventListener('click',function(){
+    $('#f1-old-creditor').value='';$('#f1-old-amt').value='';
+    toast('已填内容被直接丢弃(现状:无守卫)','err');
+  });
+
+  /* 区块一·后:面包屑 → F58 脏态守卫 */
+  $('#crumb-form').addEventListener('click',function(){openDlg('#dlg-dirty')});
+  $('#dlg-keep').addEventListener('click',function(){closeDlg($('#dlg-dirty'))});
+  $('#dlg-drop').addEventListener('click',function(){
+    closeDlg($('#dlg-dirty'));toast('已放弃修改 · 返回交易记录','ok');
+  });
+
+  /* 区块二·前:提交连弹 toast */
+  $('#f2-save-old').addEventListener('click',function(){
+    toast('请填写债权方','err');toast('请选择到期日','err');
+  });
+
+  /* 区块二·后:行内校验 + 提交钮联动 */
+  var f2c=$('#f2-creditor'),f2err=$('#f2-err'),f2btn=$('#f2-save');
+  f2c.addEventListener('input',function(){
+    var ok=f2c.value.trim().length>0;
+    f2c.classList.toggle('err',!ok);
+    f2err.style.display=ok?'none':'flex';
+    f2btn.disabled=!ok;
+  });
+
+  /* 区块三·后:重试 → 恢复列表 */
+  $('#f3-retry').addEventListener('click',function(){
+    var b=this;b.disabled=true;
+    b.innerHTML='<svg class="ic"><use href="#i-retry"/></svg>重试中…';
+    setTimeout(function(){
+      $('#f3-view').style.display='none';
+      $('#f3-rows').hidden=false;
+      toast('已恢复连接 · 显示 2 笔','ok');
+    },900);
+  });
+
+  /* 区块四:分段控件可点击切换 */
+  $$('.segbtn').forEach(function(seg){
+    seg.addEventListener('click',function(e){
+      var b=e.target.closest('button');if(!b)return;
+      $$('button',seg).forEach(function(x){x.classList.remove('on')});
+      b.classList.add('on');
+    });
+  });
+
+  /* 区块五·前:旧确认流 */
+  $('#f5-before-btn').addEventListener('click',function(){openDlg('#dlg-confirm')});
+  $('#dlg-cancel').addEventListener('click',function(){closeDlg($('#dlg-confirm'))});
+  $('#dlg-yes').addEventListener('click',function(){
+    closeDlg($('#dlg-confirm'));
+    var s=$('#f5-before-sub');s.textContent='活跃 · 参与统计';s.classList.add('on');
+    var b=$('#f5-before-btn');b.disabled=true;b.textContent='已激活';
+    toast('已重新激活(旧流程:确认 + 激活两步)','ok');
+  });
+
+  /* 区块五·后:直做 + 可撤销提示 */
+  $('#f5-after-btn').addEventListener('click',function(){
+    var s=$('#f5-after-sub');s.textContent='活跃 · 参与统计';s.classList.add('on');
+    var b=$('#f5-after-btn');b.disabled=true;b.textContent='已激活';
+    toast('已重新激活 · 可随时再次关闭','ok');
+  });
+
+  /* 区块六·前:死按钮只弹 toast */
+  $('#f6-export').addEventListener('click',function(){toast('即将上线','info')});
+  $('#f6-register').addEventListener('click',function(){toast('请在下方逐期记账','info')});
+
+  /* 区块六·后:滚动定位到还款计划(OD 预览内不用 scrollIntoView) */
+  $('#f6-go').addEventListener('click',function(){
+    var box=$('#f6-demo'),target=$('#f6-plan');
+    var r=target.getBoundingClientRect(),c=box.getBoundingClientRect();
+    box.scrollTo({top:box.scrollTop+r.top-c.top-10,behavior:reduce()?'auto':'smooth'});
+    target.classList.remove('flash');void target.offsetWidth;target.classList.add('flash');
+  });
+
+  /* 页头:查看汇总 */
+  $('#goSummary').addEventListener('click',function(){
+    var r=$('#summary').getBoundingClientRect();
+    window.scrollTo({top:r.top+window.scrollY-70,behavior:reduce()?'auto':'smooth'});
+  });
+})();
+</script>
+</body>
+</html>
