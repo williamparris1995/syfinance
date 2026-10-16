@@ -1463,8 +1463,13 @@ class DebtCardFootCallout extends StatelessWidget {
     int? nextDays;
     // F61:到期基准 = card_loan 的账单口径到期日(下期出账日,自由窗口
     // 不红);普通债回落期次日(nextPaymentDate)。
+    // boundRemote 已知限制:debt_mapper(gRPC DTO)不产 nextPaymentDueDate,
+    // 在线路由下 card_loan 缺账单口径到期 —— 抑制负天数「已逾期」提示
+    // (用出账日算必误红),详情页不受影响(paymentEntryStatusMap 现算)。
     final dueRef = debt.nextPaymentDueDate ?? debt.nextPaymentDate;
-    if (hasNext && !isOverdue && dueRef != null) {
+    final suppressOverdueSuffix = debt.subtype == DebtSubtypes.cardLoan &&
+        debt.nextPaymentDueDate == null;
+    if (hasNext && !isOverdue && dueRef != null && !suppressOverdueSuffix) {
       final due = DateTime(dueRef.year, dueRef.month, dueRef.day);
       nextDays = due
           .difference(DateTime(now.year, now.month, now.day))

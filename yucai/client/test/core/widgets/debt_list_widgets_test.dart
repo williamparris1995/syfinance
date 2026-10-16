@@ -59,6 +59,45 @@ Widget _harness(Debt debt, double width) => MediaQuery(
     );
 
 void main() {
+// F61 评审 fixlist-3:卡脚到期口径钉测。
+group('DebtCardFootCallout 到期口径(F61)', () {
+  Debt cardLoan({DateTime? nextDue, required DateTime nextPayment}) => Debt(
+        id: 'd1',
+        accountId: 'a1',
+        counterparty: '平安银行',
+        interestRate: 0.05,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2026, 1, 1),
+        dueDate: DateTime(2028, 1, 1), // 债级远期 → isOverdue=false
+        totalPrincipalCents: 2000,
+        remainingPrincipalCents: 1000,
+        version: 1,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        subtype: DebtSubtypes.cardLoan,
+        nextPaymentDate: nextPayment,
+        nextPaymentDueDate: nextDue,
+        nextPaymentPeriodNo: 3,
+        nextPaymentAmountCents: 101000,
+      );
+
+  testWidgets('自由窗口:出账日已过但到期日未到 → 无「已逾期」', (t) async {
+    await t.pumpWidget(_harness(
+        cardLoan(nextDue: DateTime(2026, 10, 24), nextPayment: DateTime(2026, 9, 24)),
+        1400));
+    expect(find.textContaining('已逾期'), findsNothing,
+        reason: 'card_loan 自由窗口(出账≠到期)不红');
+  });
+
+  testWidgets('boundRemote 抑制:due 字段缺省(null)→ 不渲染负天数', (t) async {
+    await t.pumpWidget(_harness(
+        cardLoan(nextDue: null, nextPayment: DateTime(2026, 9, 24)), 1400));
+    expect(find.textContaining('已逾期'), findsNothing,
+        reason: 'boundRemote 缺 due 字段时抑制负天数提示');
+  });
+});
+
+
   testWidgets('F37 desktop:5 天内到期 → 「（5天内）」后缀+negative 色',
       (t) async {
     await t.binding.setSurfaceSize(const Size(1440, 1000));

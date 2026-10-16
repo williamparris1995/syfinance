@@ -11,14 +11,8 @@
 /// - Δ = 该卡分录(join Transactions 取 transactionDate)在
 ///   date(transactionDate) > D 且 ≤ 今天 的**正向变动**之和
 ///   (单笔 credit − debit > 0 计入,即消费;**还款分录为负不进 Δ**)。
-///   **账单日当天消费算已出账**(date > D 严格;各行账单日当天归属不同,
-///   按此默认,注释声明口径)。
-/// - 应还 = max(0, currentBalanceCents − Δ) = 上期账单**剩余**应还。
-///   推导:current = statement − R + S(R = 账单日后已还款、S = 账单日后
-///   消费 = Δ)→ 剩余应还 = statement − R = current − S —— 与行业口径一致
-///   (支付宝「剩余未还」/银行);不重建账单日历史原额(那会把已还部分
-///   加回,评审裁决废弃)。
-/// - 本推导**只读**,不动余额、不写任何表;时钟注入可测。
+/// F61(拍板 A):账单日当天交易归本期新区间([D, 次 D) 含 D),
+/// 区间经 core/billing billingCycleOf 单一事实源(订正原 date>D 严格口径)。
 library;
 
 import 'package:drift/drift.dart' hide Column;

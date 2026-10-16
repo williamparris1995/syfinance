@@ -1237,6 +1237,30 @@ void main() {
       expect(merge2.syncState, 'synced', reason: 'guest 维持缺省 synced');
     });
 
+    test('F61 评审 fixlist-3:实体 nextPaymentDueDate=下期出账日(末期月钳)',
+        () async {
+      // 期表 [10-05, 11-05, 12-05];到期未并(catchup 不跑)→ 实体下一期
+      // = 期0(10-05),其到期 = 期1(11-05)。
+      final d = await createCardLoan59(true);
+      final detail = await debts.get(d.id);
+      expect(detail.debt.nextPaymentDate, DateTime.utc(2026, 10, 5));
+      expect(detail.debt.nextPaymentDueDate, DateTime.utc(2026, 11, 5),
+          reason: '到期=下一期出账日(F58 口径经 DS 推导)');
+      // 还掉前两期 → 下一期=期2(12-05),末期到期=自身+1 月钳(2027-01-05)。
+      await debts.recordPayment(
+          debtId: d.id,
+          scheduleEntryId: (await debts.get(d.id)).schedule[0].id,
+          fromAccountId: cardId);
+      await debts.recordPayment(
+          debtId: d.id,
+          scheduleEntryId: (await debts.get(d.id)).schedule[1].id,
+          fromAccountId: cardId);
+      final d3 = await debts.get(d.id);
+      expect(d3.debt.nextPaymentDate, DateTime.utc(2026, 12, 5));
+      expect(d3.debt.nextPaymentDueDate, DateTime.utc(2027, 1, 5),
+          reason: '末期到期=自身+1 月(月钳)');
+    });
+
     test('开关关缺省(开关开)行为不变:既有路径仍并入(回归对照)', () async {
       final d = await createCardLoan59(true);
       await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 11, 5));

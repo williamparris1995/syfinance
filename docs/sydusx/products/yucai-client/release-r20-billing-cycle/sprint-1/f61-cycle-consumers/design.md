@@ -45,3 +45,22 @@ F60 周期 port 就绪;三轮走查拍板(专项池随卡还/期供自动/还款
 ## Open Questions
 
 无。
+
+
+## 票内演进附录(holistic 评审 fixlist-4 补录,2026-10-16)
+
+spec 起草时未预见、票内走查新增的四块(实现与测试均以落码为准):
+
+1. **期次逾期口径账单感知**:`paymentEntryStatusMap`(debt_query,详情表/统计两簇消费)+ `Debt.nextPaymentDueDate`(DS `_toEntity` 期表推导,列表卡脚消费)—— card_loan 到期=下期出账日(F58 语义),出账后自由窗口不红;普通债自身日期不变。**已知限制**:boundRemote 路由 debt_mapper 不产 due 字段,卡脚对 card_loan 缺 due 时抑制负天数提示(详情页现算不受影响);mapper/proto 补字段留后续契约票。
+2. **B 模式 catchup**(评审确认为 spec 范围内实现):绑定离线路由放行并账,写经 recordPayment markPending 置 pending 随批上行(PendingCollector 债行嵌套期次);pull 后幂等重跑自愈;boundRemote 不跑。
+3. **走查修复×3**:还款/充值对话框候选源=仓库拉取(详情态 bloc 取不到列表);FormLeaveGuard 冻结分支(TickerMode)放行防跨分支无限弹框;跨分支链接 push→go(R19 遗留面包屑残留)。
+4. **探针处置**:catchup 诊断探针轮以 WAL 三件套取证收束(平安补并早已生效,拷库漏 -wal 致误判);探针文件评审后删除。
+
+**结构注记(后续票候选)**:月钳(+1 月短月 clamp)现存三份(catchup 内联/DS 静态/domain helper)——收敛进 core/billing 单一实现;普通债逾期边界由「到期当天红」微移为「次日起红」(新 map 用当日零点比较),方向更合理,随收敛票加注记钉测。
+
+## FR-5 平安对账数字(ledger,2026-10-16 WAL 三件套取证)
+
+- 平安 35k(1bc53282):09-12 期 **已并**(paid ✓,期供交易落卡);平安卡欠款 333.13 → **1,950.09**(含并入期供);四笔 1,630.46 期供交易=6/7/8/9 月各期正常并入(非重复)。
+- 取证方法:拷库必连 `-wal`/`-shm` 三件套(guest-db-forensics 记忆已更新;漏 WAL 曾三次误判「未并」)。
+- 广发:维持 F60 ts-gf-closeout 基线(truing 4,925.66 后期供随银行同增,模型自洽)。
+- 银行侧最终复核(容差)留用户走查确认。
