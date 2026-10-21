@@ -28,6 +28,7 @@ Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
   await runF49CarrierHideRepair(db);
   await runF57Ts4PingAnRedate(db);
   await runF58UnmergeOvermergedCardLoans(db);
+  await seedGfBillingTransitionOverride(db);
   /// F61(2026-10-14):专项池并账 skip 订正(占用/并账两轴解耦,平安备用金
   /// /广发财智金期供均随卡还),F59 unmerge 回退退役 —— 不再调用(函数保留
   /// 留档,幂等标记防历史重放)。
@@ -1269,6 +1270,47 @@ Future<void> runF59SpecialQuotaUnmerge(AppDatabase db) async {
                 paidCents: Value(0),
                 transactionId: Value(null)));
     }
+  }
+
+  await db.into(db.appMeta).insert(
+        AppMetaCompanion.insert(key: markerKey, value: 'done'),
+        mode: InsertMode.insertOrIgnore,
+      );
+}
+
+/// 广发账单日变更过渡覆盖播种(2026-10-20 用户定案):广发卡 10 月起
+/// 账单日 19→6,银行 10 月无账单、11 月账单 = [9/19,11/6)(9 月账单
+/// [8/19,9/19) 已还清,9/19 那笔 5,558.60 即其还款;未出账单 6,188.14 =
+/// 9/19 起全部消费含已并期供)。固定日推导(billingCycleOf)表达不了
+/// 跳过的 10 月账单 —— 会切出不存在的 10/06 账单、催无据的 10/26 还款
+/// 日。播种 CardBillingCycleOverrides 一行,breakdown 在过渡窗口内按
+/// 真实周期拆分(上期应还 0 / 本期 = 9/19 起全部);11/6 起覆盖自然失效
+/// 回落固定日推导(行留档不删)。卡按名匹配(「广发」前缀信用卡,与
+/// catchup 并账分化同口径);日期以 UTC 零点落库(与期表口径一致)。
+/// 幂等 = 主键 insertOrIgnore + AppMeta marker(全量恢复后 marker 重置
+/// 自然重播,自愈备份缺口)。
+Future<void> seedGfBillingTransitionOverride(AppDatabase db) async {
+  const markerKey = 'gf_billing_transition_v1';
+  final done = await (db.select(db.appMeta)
+        ..where((t) => t.key.equals(markerKey)))
+      .getSingleOrNull();
+  if (done != null) return;
+
+  final cards = await (db.select(db.accounts)
+        ..where((t) =>
+            t.category.equals(2) &
+            t.name.like('广发%') &
+            t.creditBillingDay.isNotNull()))
+      .get();
+  for (final c in cards) {
+    await db.into(db.cardBillingCycleOverrides).insert(
+          CardBillingCycleOverridesCompanion.insert(
+            accountId: c.id,
+            cycleStart: DateTime.utc(2026, 9, 19),
+            nextBillingDate: DateTime.utc(2026, 11, 6),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
   }
 
   await db.into(db.appMeta).insert(

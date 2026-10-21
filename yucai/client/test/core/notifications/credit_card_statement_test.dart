@@ -7,6 +7,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
+import 'package:yucai_client/core/localdb/repairs.dart'
+    show seedGfBillingTransitionOverride;
 import 'package:yucai_client/core/notifications/credit_card_statement.dart';
 
 void main() {
@@ -62,12 +64,13 @@ void main() {
     DateTime date, {
     int debit = 0,
     int credit = 0,
+    String description = 'fixture',
   }) async {
     await database.into(database.transactions).insert(
           db.TransactionsCompanion.insert(
             id: 't-$id',
             transactionDate: date,
-            description: 'fixture',
+            description: description,
             version: 1,
             createdAt: DateTime.now().toUtc(),
             updatedAt: DateTime.now().toUtc(),
@@ -459,5 +462,111 @@ void main() {
     );
     expect(due3, 500000);
     expect(b3, isNull);
+  });
+
+  test('退款净额口径:描述含「退款」的负项冲减本期消费,不虚增已还', () async {
+    await seedCard('c1', balanceCents: 53500, billingDay: 15);
+    await seedEntry('spend', 'c1', DateTime(2026, 9, 18), credit: 80000);
+    await seedEntry('refund', 'c1', DateTime(2026, 9, 20),
+        debit: 2650, description: '武汉协和医院(挂号费退款)');
+    await seedEntry('repay', 'c1', DateTime(2026, 9, 21),
+        debit: 24000, description: '信用卡还款 广发银行(通联)');
+
+    final b = await CreditCardStatementDue.breakdown(
+      db: database, accountId: 'c1', accountType: 2,
+      currentBalanceCents: 53500, billingDay: 15, clock: clock,
+    );
+    // 本期 = 消费 80000 − 退款 2650 = 77350(净额,银行口径);
+    // 已还只含还款 24000,退款不混入。
+    expect(b!.cycleNewCents, 77350);
+    expect(b.repaidSinceCents, 24000);
+    expect(b.remainingCents, 53500 - 77350 < 0 ? 0 : 53500 - 77350);
+    expect(b.statementCents, 53500 - 77350 + 24000);
+  });
+
+  // ───── 账单日变更过渡覆盖(2026-10-20 广发 19→6 定案) ─────
+  group('过渡覆盖', () {
+    Future<void> seedOverride(String accountId,
+        {required DateTime start, required DateTime next}) async {
+      await database.into(database.cardBillingCycleOverrides).insert(
+            db.CardBillingCycleOverridesCompanion.insert(
+              accountId: accountId,
+              cycleStart: start,
+              nextBillingDate: next,
+            ),
+          );
+    }
+
+    test('命中:当期 = [cycleStart, nextBillingDate),上期账单已还清 → 应还 0',
+        () async {
+      await seedCard('gf', balanceCents: 300000, billingDay: 6);
+      // 广发实证形状:9 月账单([cycleStart 前消费 50000)已由 9/19 还款结清;
+      // 9/19 起为新周期(拍板 A:起点当天归本周期)。余额 = 50000+300000−50000。
+      await seedEntry('pre', 'gf', DateTime(2026, 9, 10), credit: 50000);
+      await seedEntry('repay', 'gf', DateTime(2026, 9, 19), debit: 50000);
+      await seedEntry('s1', 'gf', DateTime(2026, 9, 20), credit: 200000);
+      await seedEntry('s2', 'gf', DateTime(2026, 10, 19), credit: 100000);
+      await seedOverride('gf',
+          start: DateTime.utc(2026, 9, 19), next: DateTime.utc(2026, 11, 6));
+
+      final b = await CreditCardStatementDue.breakdown(
+        db: database, accountId: 'gf', accountType: 2,
+        currentBalanceCents: 300000, billingDay: 6,
+        clock: () => DateTime(2026, 10, 20, 10),
+      );
+      expect(b!.billingDate, DateTime(2026, 9, 19),
+          reason: '过渡窗口起点 = 上一张真实账单日,非固定日 10/06');
+      expect(b.cycleNewCents, 300000, reason: '本期 = 9/19 起全部消费');
+      expect(b.repaidSinceCents, 50000, reason: '9/19 还款(起点当天)归 R');
+      expect(b.statementCents, 50000, reason: '还原 = 已还清的 9 月账单原额');
+      expect(b.remainingCents, 0, reason: '过渡期无上期账单应还(银行同口径)');
+    });
+
+    test('过期:今天 ≥ nextBillingDate → 回落固定日推导', () async {
+      await seedCard('gf', balanceCents: 70000, billingDay: 6);
+      await seedEntry('pre', 'gf', DateTime(2026, 11, 3), credit: 20000);
+      await seedEntry('s1', 'gf', DateTime(2026, 11, 8), credit: 50000);
+      await seedOverride('gf',
+          start: DateTime.utc(2026, 9, 19), next: DateTime.utc(2026, 11, 6));
+
+      final b = await CreditCardStatementDue.breakdown(
+        db: database, accountId: 'gf', accountType: 2,
+        currentBalanceCents: 70000, billingDay: 6,
+        clock: () => DateTime(2026, 11, 10, 10),
+      );
+      expect(b!.billingDate, DateTime(2026, 11, 6),
+          reason: '11/6 账单已出,周期回落固定日(账单日 6)');
+      expect(b.remainingCents, 20000,
+          reason: '11/6 前消费属上期账单,之后为本期(S=50000)');
+    });
+  });
+
+  test('repair:广发卡播种过渡覆盖(9/19→11/6),非广发卡与幂等', () async {
+    await seedCard('gf-x', billingDay: 6);
+    await (database.update(database.accounts)
+          ..where((t) => t.id.equals('gf-x')))
+        .write(const db.AccountsCompanion(name: Value('广发银行信用卡')));
+    await seedCard('pa-x', billingDay: 1);
+    await (database.update(database.accounts)
+          ..where((t) => t.id.equals('pa-x')))
+        .write(const db.AccountsCompanion(name: Value('平安银行信用卡')));
+
+    // beforeOpen 已随建库跑过一轮(marker 已置但当时无卡)——清 marker
+    // 模拟「有卡后重播」(生产:用户库首开即有卡,一步到位)。
+    await (database.delete(database.appMeta)
+          ..where((t) => t.key.equals('gf_billing_transition_v1')))
+        .go();
+    await seedGfBillingTransitionOverride(database);
+    await seedGfBillingTransitionOverride(database); // 幂等重放
+
+    final rows = await database.select(database.cardBillingCycleOverrides).get();
+    expect(rows.length, 1);
+    expect(rows.single.accountId, 'gf-x');
+    expect(DateTime(rows.single.cycleStart.year, rows.single.cycleStart.month,
+        rows.single.cycleStart.day), DateTime(2026, 9, 19));
+    expect(
+        DateTime(rows.single.nextBillingDate.year,
+            rows.single.nextBillingDate.month, rows.single.nextBillingDate.day),
+        DateTime(2026, 11, 6));
   });
 }

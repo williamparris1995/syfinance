@@ -1099,6 +1099,122 @@ void main() {
     });
   });
 
+  // ───────── 并账时机按挂接卡分化(广发出账即并,2026-10-20 定案) ─────────
+  // 银行实证:广发从出账日起把期供计入卡账单(未出账单 5,612.55 =
+  // 已入账欠款 5,005.66 + 10/19 出账期供 606.89,严丝合缝);账单日改
+  // 6 号后 F58「下期出账日到期」会把期供归入晚一档账期。挂接卡名以
+  // 「广发」开头 → 出账日即到期并入;其余卡(平安)沿用 F58 自由窗口。
+  group('并账时机分化(广发卡出账日即并,平安卡仍 F58)', () {
+    late String gfCardId;
+    late String paCardId;
+    late String cardLoanAccount;
+
+    setUp(() async {
+      Future<void> seedCard(String id, String name) async {
+        await accounts.insertAccount(db.AccountsCompanion.insert(
+          id: id,
+          name: name,
+          accountType: 2, // liability
+          category: 2, // creditCard
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          currentBalanceCents: 0,
+          ownership: 1,
+          icon: '',
+          color: '',
+          chartCode: '',
+          isSystem: false,
+          sortOrder: 0,
+          institution: '',
+          cardNumberTail: '8888',
+          notes: '',
+          goldProductType: '',
+          status: 1,
+          version: 1,
+          createdAt: DateTime.now().toUtc(),
+          updatedAt: DateTime.now().toUtc(),
+        ));
+      }
+
+      gfCardId = 'acc-ccgf';
+      await seedCard(gfCardId, '广发银行信用卡');
+      paCardId = 'acc-ccpa';
+      await seedCard(paCardId, '平安银行信用卡');
+      cardLoanAccount = 'acc-cardloan-gf';
+      await accounts.insertAccount(db.AccountsCompanion.insert(
+        id: cardLoanAccount,
+        name: '广发财智金 · 分化',
+        accountType: 2,
+        category: 7, // loan
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: 1,
+        icon: '',
+        color: '',
+        chartCode: '',
+        isSystem: false,
+        sortOrder: 0,
+        institution: '',
+        cardNumberTail: '',
+        notes: '',
+        goldProductType: '',
+        status: 1,
+        version: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ));
+    });
+
+    /// billingDay 19、3 期:期表 = [2026-10-19, 2026-11-19, 2026-12-19]。
+    Future<Debt> createCardLoan(String card) => debts.create(
+          accountId: cardLoanAccount,
+          counterparty: '广发银行',
+          interestRate: 0.072,
+          amortizationIndex: 0,
+          startDate: DateTime.utc(2026, 9, 24),
+          dueDate: DateTime.utc(2026, 9, 24),
+          totalPrincipalCents: 5000000,
+          type: DebtType.borrowedIn,
+          subtype: DebtSubtypes.cardLoan,
+          sourceAccountId: cash,
+          collectionAccountId: card,
+          cycle: 2,
+          termPeriods: 3,
+          billingDay: 19,
+          flatFeeCents: 30000,
+        );
+
+    test('广发卡:出账日即并入(F58 自由窗口在广发口径下不保留)', () async {
+      final d = await createCardLoan(gfCardId);
+      // now = 2026-10-20:期次 10/19 出账(昨日)——F58 下未到期(11/19)
+      // 不并;广发口径下出账日 ≤ 今日 → 立即并入。次期 11/19 未出账不并。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 10, 20));
+      final detail = await debts.get(d.id);
+      expect(detail.schedule[0].paid, isTrue,
+          reason: '广发:出账日 10/19 ≤ 今日 → 即并');
+      expect(detail.schedule[1].paid, isFalse, reason: '11/19 未出账,不并');
+      final card = await accounts.getAccountById(gfCardId);
+      expect(card!.currentBalanceCents, detail.schedule[0].totalCents,
+          reason: '信用卡余额含出账即并的期供本息');
+      // 幂等:再跑无新并入。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 10, 20));
+      final card2 = await accounts.getAccountById(gfCardId);
+      expect(card2!.currentBalanceCents, detail.schedule[0].totalCents);
+    });
+
+    test('平安卡:同日期表仍走 F58(出账未到期 = 自由窗口不并)', () async {
+      final d = await createCardLoan(paCardId);
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 10, 20));
+      final detail = await debts.get(d.id);
+      expect(detail.schedule[0].paid, isFalse,
+          reason: '平安:10/19 出账但 11/19 才到期 → 自由窗口不并');
+      expect(detail.schedule.every((e) => !e.paid), isTrue);
+      final card = await accounts.getAccountById(paCardId);
+      expect(card!.currentBalanceCents, 0);
+    });
+  });
+
   // ───────────────── F59 专项池分期不并卡账单(银行口径) ─────────────────
   // 2026-10-12 用户定案:专项额度现金分期(countsTowardCardLimit=false)是
   // 独立结算产品 —— 分期不走卡账单,到期从储蓄卡手动记还款(语义照 e招贷

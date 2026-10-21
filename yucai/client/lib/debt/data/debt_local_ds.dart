@@ -20,6 +20,15 @@ import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
+/// 卡贷并账时机分化:挂接卡名以此前缀开头的债「出账日即到期并入」
+/// (2026-10-20 广发定案)。银行实证:广发从出账日起把期供计入卡账单
+/// (未出账单 5,612.55 = 已入账欠款 5,005.66 + 10/19 出账期供 606.89,
+/// 严丝合缝),账单日改 6 号后 F58「下期出账日到期」会把期供归入晚一档
+/// 的账期(11 月账单 [9/19,11/6) 三期全部错档);平安沿用 F58(2026-10-12
+/// 用户定案,出账未到期 = 自由窗口,银行不计卡待还)。银行口径由用户逐卡
+/// 给定(建卡贷先问口径),新银行先缺省 F58、实证后再入此分化。
+const String _kPostDateMergeCardPrefix = '广发';
+
 /// 一次性利息减免(镜像 server domain.ApplyInterestWaiver):
 /// 最早几期依次扣减、逐期触底、余量后移;total 重建保持本息一致。
 void applyInterestWaiver(
@@ -674,12 +683,31 @@ class DebtLocalDataSource {
   /// 仍随卡账单(平安备用金/广发财智金实证);F59 的 skip 与 unmerge
   /// 回退已退役。占用统计侧(debt_query Σ)照旧排除专项池,两轴互不影响。
   ///
+  /// 并账时机按挂接卡分化(2026-10-20 广发定案):挂接卡名以「广发」开头
+  /// 的债**出账日即到期并入**([_kPostDateMergeCardPrefix] 注释),其余卡
+  /// 沿用 F58 到期触发(平安口径)。
+  ///
   /// [now] 测试注入「当前时刻」(缺省 DateTime.now();UTC 日界对齐,与
   /// 期表存储口径一致)。
   Future<void> catchupCardLoanMerges({DateTime? now, bool markPending = false}) async {
     final rows = await _dao.watchAllDebts().first;
     final today = (now ?? DateTime.now()).toUtc();
     final todayStart = DateTime.utc(today.year, today.month, today.day);
+    // 并账时机分化:一次查出全部挂接卡名称(广发 → 出账日即并)。
+    final linkedCardIds = <String>{
+      for (final row in rows)
+        if (row.subtype == DebtSubtypes.cardLoan &&
+            row.debtType == DebtType.borrowedIn.index + 1 &&
+            row.collectionAccountId != null &&
+            row.collectionAccountId!.isNotEmpty)
+          row.collectionAccountId!
+    };
+    final linkedCardNames = {
+      for (final a in await (_database.select(_database.accounts)
+            ..where((t) => t.id.isIn(linkedCardIds)))
+          .get())
+        a.id: a.name
+    };
     for (final row in rows) {
       if (row.subtype != DebtSubtypes.cardLoan) continue;
       if (row.debtType != DebtType.borrowedIn.index + 1) continue;
@@ -689,17 +717,22 @@ class DebtLocalDataSource {
       // (countsTowardCardLimit=false)只影响卡额度占用统计,期供仍随卡账单
       // (平安备用金/广发财智金均随卡还,实证推翻 F59「独立结算不并卡」);
       // F59 的 skip 分支与 runF59SpecialQuotaUnmerge 回退退役。
+      final mergeAtPost =
+          linkedCardNames[card]?.startsWith(_kPostDateMergeCardPrefix) ??
+              false;
       final entries = await _dao.getScheduleByDebt(row.id);
-      // 期次按日期升序(entry k 的到期日 = dates[k+1])。
+      // 期次按日期升序(F58 到期日 = dates[k+1])。
       final sorted = [...entries]
         ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
       final due = <db.PaymentScheduleEntry>[];
       for (var k = 0; k < sorted.length; k++) {
         final e = sorted[k];
         if (e.paid) continue;
-        final dueDate = k + 1 < sorted.length
-            ? sorted[k + 1].paymentDate // 到期 = 下一期出账日
-            : plusOneMonthClamped(e.paymentDate); // 末期 = 自身 +1 月(月钳)
+        final dueDate = mergeAtPost
+            ? e.paymentDate // 广发口径:出账日即到期并入
+            : (k + 1 < sorted.length
+                ? sorted[k + 1].paymentDate // 平安:到期 = 下一期出账日
+                : plusOneMonthClamped(e.paymentDate)); // 末期 = 自身 +1 月(月钳)
         if (!dueDate.isAfter(todayStart)) due.add(e); // 到期日 ≤ 今日
       }
       for (final e in due) {

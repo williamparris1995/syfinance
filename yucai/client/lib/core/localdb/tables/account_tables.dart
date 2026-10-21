@@ -79,3 +79,21 @@ class ChartOfAccounts extends Table {
   @override
   Set<Column> get primaryKey => {code};
 }
+
+/// 信用卡账单周期过渡覆盖(2026-10-20 广发账单日 19→6 变更定案):银行
+/// 改账单日时过渡期真实周期 = [上一张真实账单日, 新日历首个账单日)
+/// (广发实证:9 月账单 [8/19,9/19) 已还清、10 月无账单、11 月账单 =
+/// [9/19,11/6))—— 固定日推导(billingCycleOf)表达不了「跳过的账单」。
+/// 一行一卡;CreditCardStatementDue.breakdown 查得覆盖且今天 <
+/// nextBillingDate 时,以该窗口为当期周期(账单面板/催办/还款对话框
+/// 三消费面同源生效);过期后行失效回落固定日推导(留档不删)。
+/// 本地表(镜像重建不触及);全量备份恢复后需重设(与
+/// countsTowardCardLimit 同类已接受缺口,见 repairs 播种)。
+class CardBillingCycleOverrides extends Table {
+  TextColumn get accountId => text()();
+  DateTimeColumn get cycleStart => dateTime()();
+  DateTimeColumn get nextBillingDate => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {accountId};
+}

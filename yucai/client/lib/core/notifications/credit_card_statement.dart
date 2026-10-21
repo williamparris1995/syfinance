@@ -96,10 +96,31 @@ class CreditCardStatementDue {
 
     final now = (clock ?? DateTime.now)();
     final today = DateTime(now.year, now.month, now.day);
-    // F61:区间改经 core/billing 单一事实源(billingCycleOf)—— 边界为
-    // 拍板 A(账单日当天交易归下期=本期新区间 [D, 次 D) 含 D 当天),订正
-    // 原实现的 date>D 严格口径(当天消费掉缝)。
-    final cycle = billingCycleOf(today, billingDay: billingDay);
+    // 账单日变更过渡覆盖(2026-10-20 广发 19→6 定案):命中且今天 <
+    // nextBillingDate → 当期 = [cycleStart, nextBillingDate) 的真实过渡
+    // 周期(广发:9 月账单 [8/19,9/19) 已还清、10 月无账单、11 月账单 =
+    // [9/19,11/6) —— 固定日推导会切出不存在的 10/06 账单、并催无据的
+    // 10/26 还款日);过期后覆盖失效回落固定日推导(行留档不删)。边界同
+    // 拍板 A(周期起点当天交易归本周期)。
+    final override = await (db.select(db.cardBillingCycleOverrides)
+          ..where((t) => t.accountId.equals(accountId)))
+        .getSingleOrNull();
+    final BillingCycle cycle;
+    if (override != null) {
+      final next = DateTime(override.nextBillingDate.year,
+          override.nextBillingDate.month, override.nextBillingDate.day);
+      cycle = today.isBefore(next)
+          ? BillingCycle(
+              start: DateTime(override.cycleStart.year, override.cycleStart.month,
+                  override.cycleStart.day),
+              end: next,
+            )
+          // F61:区间经 core/billing 单一事实源(billingCycleOf)—— 边界为
+          // 拍板 A(账单日当天交易归下期=本期新区间 [D, 次 D) 含 D 当天)。
+          : billingCycleOf(today, billingDay: billingDay);
+    } else {
+      cycle = billingCycleOf(today, billingDay: billingDay);
+    }
     final d = cycle.start;
 
     // SQL 粗筛 [D, 明日):epoch 下界取本地 D 零点,保证日历日 ≥ D 的行
@@ -130,7 +151,15 @@ class CreditCardStatementDue {
       if (entryDelta > 0) {
         cycleNew += entryDelta;
       } else if (entryDelta < 0) {
-        repaidSince += -entryDelta;
+        // 商户退款(描述含「退款」,2026-10-20 广发对账定案)冲减本期
+        // 消费 —— 银行账单为净额口径(协和退款 26.50 实证:毛额口径使
+        // 本期虚高、已还虚高);其余负项(还款)仍归 R。仅显式标「退款」
+        // 的负项净额化,误标风险单向安全(未标退款维持旧口径)。
+        if (t.description.contains('退款')) {
+          cycleNew += entryDelta;
+        } else {
+          repaidSince += -entryDelta;
+        }
       }
     }
     final remainingUnclamped = currentBalanceCents - cycleNew;

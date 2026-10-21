@@ -132,11 +132,6 @@ extension GetItInjectableX on _i174.GetIt {
         uuid: gh<_i706.Uuid>(),
       ),
     );
-    // F49 FR-5 手工补齐(照 accounts 参数先例,免 build_runner 重生成;
-    // 下次再生时由 @LazySingleton(as: AccountCloser) 注解产出等价绑定)。
-    gh.lazySingleton<_i270.AccountCloser>(
-      () => _i697.AccountCloserImpl(gh<_i581.AppDatabase>()),
-    );
     gh.lazySingleton<_i99.ContractAttachmentStore>(
       () => _i99.ContractAttachmentStore(
         gh<_i581.AppDatabase>(),
@@ -162,6 +157,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i249.ReportLedgerStore>(
       () => _i58.ReportLedgerStoreImpl(gh<_i581.AppDatabase>()),
+    );
+    gh.lazySingleton<_i270.AccountCloser>(
+      () => _i697.AccountCloserImpl(gh<_i581.AppDatabase>()),
     );
     gh.lazySingleton<_i507.BoundMirror>(
       () => _i507.BoundMirror(gh<_i581.AppDatabase>()),
@@ -320,16 +318,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i726.UpdateAccountUseCase>(
       () => _i726.UpdateAccountUseCase(gh<_i270.AccountRepository>()),
     );
-    gh.lazySingleton<_i464.DebtLocalDataSource>(
-      () => _i464.DebtLocalDataSource(
-        gh<_i581.AppDatabase>(),
-        gh<_i991.TransactionLocalDataSource>(),
-        uuid: gh<_i706.Uuid>(),
-        accounts: gh<_i697.AccountLocalDataSource>(),
-        // F49 FR-5 债删自动关户 port(手工补齐,同上 AccountCloser 注册)。
-        closer: gh<_i270.AccountCloser>(),
-      ),
-    );
     gh.factory<_i990.OidcLoginUseCase>(
       () => _i990.OidcLoginUseCase(
         gh<_i937.AuthRepository>(),
@@ -358,6 +346,15 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i82.CreateAccountUseCase>(),
         gh<_i1051.DeleteAccountUseCase>(),
         gh<_i726.UpdateAccountUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i464.DebtLocalDataSource>(
+      () => _i464.DebtLocalDataSource(
+        gh<_i581.AppDatabase>(),
+        gh<_i991.TransactionLocalDataSource>(),
+        uuid: gh<_i706.Uuid>(),
+        accounts: gh<_i697.AccountLocalDataSource>(),
+        closer: gh<_i270.AccountCloser>(),
       ),
     );
     gh.lazySingleton<_i585.TagRepository>(

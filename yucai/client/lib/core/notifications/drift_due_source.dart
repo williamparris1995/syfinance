@@ -7,6 +7,12 @@ import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/due_target.dart';
 
+/// drift 列存储编码(照 CreditCardDueSource 的本地常量先例,不跨模块
+/// import debt 模块):subtype 文本列原样存 'card_loan'
+/// (DebtSubtypes.cardLoan);debtType 存枚举序+1,借入 = 1。
+const String _kCardLoanSubtype = 'card_loan';
+const int _kBorrowedInDebtType = 1;
+
 /// 未付期次候选:paymentDate ≤ today+advanceDays(档位细分留给 policy),
 /// join Debts 取 counterparty 作债务展示名。
 class DriftDueSource implements DueScheduleSource {
@@ -30,11 +36,23 @@ class DriftDueSource implements DueScheduleSource {
     final now = DateTime.now();
     final windowEnd = DateTime(now.year, now.month, now.day)
         .add(Duration(days: _effectiveWindowDays + 1));
+    // 挂卡随卡还排除(2026-10-20 用户报障):card_loan 借入债挂接信用卡的
+    // 期供,到期由 catchupCardLoanMerges 自动并账进信用卡记录
+    // (recordPayment from 挂接卡,还款由卡侧 CreditCardDueSource 按账单
+    // 应还统一催)——此处再按期次 paymentDate(=出账日)判档,会把 F58
+    // 自由窗口(已出账未到期)的期次误报成「已逾期」(平安/广发实证)。
+    // 排除谓词逐字镜像 catchupCardLoanMerges 的并入条件,两处不得分叉;
+    // 未挂卡 card_loan(e招贷独立授信,已解挂)不受排除,期次催办照旧。
+    final cardLoanAttachedToCard = db.debts.subtype.equals(_kCardLoanSubtype) &
+        db.debts.debtType.equals(_kBorrowedInDebtType) &
+        db.debts.collectionAccountId.isNotNull() &
+        db.debts.collectionAccountId.isNotIn(const ['']);
     final rows = await (db.select(db.paymentScheduleEntries).join([
       innerJoin(db.debts, db.debts.id.equalsExp(db.paymentScheduleEntries.debtId)),
     ])
           ..where(db.paymentScheduleEntries.paid.equals(false) &
-              db.paymentScheduleEntries.paymentDate.isSmallerThanValue(windowEnd)))
+              db.paymentScheduleEntries.paymentDate.isSmallerThanValue(windowEnd) &
+              cardLoanAttachedToCard.not()))
         .get();
     return [
       for (final r in rows)

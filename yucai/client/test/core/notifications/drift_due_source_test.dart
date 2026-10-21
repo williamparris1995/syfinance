@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
@@ -19,6 +20,9 @@ void main() {
   Future<void> seedDebtWithEntries(
     String debtId, {
     required List<(DateTime, int, bool)> rows,
+    String subtype = '',
+    int debtType = 0,
+    String? collectionAccountId,
   }) async {
     await db.into(db.debts).insert(DebtsCompanion.insert(
           id: debtId,
@@ -29,10 +33,11 @@ void main() {
           startDate: DateTime(2026, 1, 1),
           dueDate: DateTime(2027, 1, 1),
           totalPrincipalCents: 1000000,
-          debtType: 0,
-          subtype: '',
+          debtType: debtType,
+          subtype: subtype,
           contact: '',
           contractRef: '',
+          collectionAccountId: Value(collectionAccountId),
           version: 1,
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),
@@ -75,6 +80,36 @@ void main() {
       expect(t, isA<DebtTarget>());
       expect((t as DebtTarget).debtId, 'd1');
     }
+  });
+
+  test('source:挂卡随卡还 card_loan 期次不产候选;未挂卡/空串/普通债照常',
+      () async {
+    // 2026-10-20 报障回归:挂卡 card_loan 的期供由 catchupCardLoanMerges
+    // 自动并账进信用卡记录,还款提醒由卡侧 CreditCardDueSource 按账单应还
+    // 覆盖;期次侧再催(尤其出账未到期的自由窗口被误判逾期)是残留。
+    final n = DateTime.now();
+    final today = DateTime(n.year, n.month, n.day);
+    final rows = <(DateTime, int, bool)>[
+      (today.subtract(const Duration(days: 5)), 100000, false), // 自由窗口(误报源)
+      (today.add(const Duration(days: 2)), 110000, false), // 到期前 advance 档
+    ];
+    // 挂卡随卡还(平安/广发现金分期):整体排除。
+    await seedDebtWithEntries('d-linked', rows: rows,
+        subtype: 'card_loan', debtType: 1, collectionAccountId: 'card1');
+    // 未挂卡 card_loan(e招贷独立授信,已解挂):期次催办照旧。
+    await seedDebtWithEntries('d-unlinked', rows: rows,
+        subtype: 'card_loan', debtType: 1);
+    // 挂接为空串(防御:'' = 无挂接的另一种存储形态):照常催。
+    await seedDebtWithEntries('d-empty-str', rows: rows,
+        subtype: 'card_loan', debtType: 1, collectionAccountId: '');
+    // 普通借入债(subtype 非card_loan):不受排除影响。
+    await seedDebtWithEntries('d-normal', rows: rows,
+        subtype: 'cash_installment', debtType: 1, collectionAccountId: 'card1');
+    final out = await DriftDueSource(db, windowDays: 3).unpaidDueCandidates();
+    expect(out.map((e) => e.id).toSet(), {
+      for (final d in ['d-unlinked', 'd-empty-str', 'd-normal'])
+        for (final suffix in ['-e0', '-e1']) '$d$suffix',
+    });
   });
 
   test('log store:markSent 后 wasSent 真;跨桶/跨档互不影响', () async {

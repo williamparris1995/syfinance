@@ -3189,6 +3189,294 @@ class ChartOfAccountsCompanion extends UpdateCompanion<ChartOfAccount> {
   }
 }
 
+class $CardBillingCycleOverridesTable extends CardBillingCycleOverrides
+    with TableInfo<$CardBillingCycleOverridesTable, CardBillingCycleOverride> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CardBillingCycleOverridesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cycleStartMeta = const VerificationMeta(
+    'cycleStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> cycleStart = GeneratedColumn<DateTime>(
+    'cycle_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nextBillingDateMeta = const VerificationMeta(
+    'nextBillingDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextBillingDate =
+      GeneratedColumn<DateTime>(
+        'next_billing_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    accountId,
+    cycleStart,
+    nextBillingDate,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'card_billing_cycle_overrides';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CardBillingCycleOverride> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('cycle_start')) {
+      context.handle(
+        _cycleStartMeta,
+        cycleStart.isAcceptableOrUnknown(data['cycle_start']!, _cycleStartMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cycleStartMeta);
+    }
+    if (data.containsKey('next_billing_date')) {
+      context.handle(
+        _nextBillingDateMeta,
+        nextBillingDate.isAcceptableOrUnknown(
+          data['next_billing_date']!,
+          _nextBillingDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nextBillingDateMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {accountId};
+  @override
+  CardBillingCycleOverride map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CardBillingCycleOverride(
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      cycleStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}cycle_start'],
+      )!,
+      nextBillingDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_billing_date'],
+      )!,
+    );
+  }
+
+  @override
+  $CardBillingCycleOverridesTable createAlias(String alias) {
+    return $CardBillingCycleOverridesTable(attachedDatabase, alias);
+  }
+}
+
+class CardBillingCycleOverride extends DataClass
+    implements Insertable<CardBillingCycleOverride> {
+  final String accountId;
+  final DateTime cycleStart;
+  final DateTime nextBillingDate;
+  const CardBillingCycleOverride({
+    required this.accountId,
+    required this.cycleStart,
+    required this.nextBillingDate,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['account_id'] = Variable<String>(accountId);
+    map['cycle_start'] = Variable<DateTime>(cycleStart);
+    map['next_billing_date'] = Variable<DateTime>(nextBillingDate);
+    return map;
+  }
+
+  CardBillingCycleOverridesCompanion toCompanion(bool nullToAbsent) {
+    return CardBillingCycleOverridesCompanion(
+      accountId: Value(accountId),
+      cycleStart: Value(cycleStart),
+      nextBillingDate: Value(nextBillingDate),
+    );
+  }
+
+  factory CardBillingCycleOverride.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CardBillingCycleOverride(
+      accountId: serializer.fromJson<String>(json['accountId']),
+      cycleStart: serializer.fromJson<DateTime>(json['cycleStart']),
+      nextBillingDate: serializer.fromJson<DateTime>(json['nextBillingDate']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'accountId': serializer.toJson<String>(accountId),
+      'cycleStart': serializer.toJson<DateTime>(cycleStart),
+      'nextBillingDate': serializer.toJson<DateTime>(nextBillingDate),
+    };
+  }
+
+  CardBillingCycleOverride copyWith({
+    String? accountId,
+    DateTime? cycleStart,
+    DateTime? nextBillingDate,
+  }) => CardBillingCycleOverride(
+    accountId: accountId ?? this.accountId,
+    cycleStart: cycleStart ?? this.cycleStart,
+    nextBillingDate: nextBillingDate ?? this.nextBillingDate,
+  );
+  CardBillingCycleOverride copyWithCompanion(
+    CardBillingCycleOverridesCompanion data,
+  ) {
+    return CardBillingCycleOverride(
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      cycleStart: data.cycleStart.present
+          ? data.cycleStart.value
+          : this.cycleStart,
+      nextBillingDate: data.nextBillingDate.present
+          ? data.nextBillingDate.value
+          : this.nextBillingDate,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CardBillingCycleOverride(')
+          ..write('accountId: $accountId, ')
+          ..write('cycleStart: $cycleStart, ')
+          ..write('nextBillingDate: $nextBillingDate')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(accountId, cycleStart, nextBillingDate);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CardBillingCycleOverride &&
+          other.accountId == this.accountId &&
+          other.cycleStart == this.cycleStart &&
+          other.nextBillingDate == this.nextBillingDate);
+}
+
+class CardBillingCycleOverridesCompanion
+    extends UpdateCompanion<CardBillingCycleOverride> {
+  final Value<String> accountId;
+  final Value<DateTime> cycleStart;
+  final Value<DateTime> nextBillingDate;
+  final Value<int> rowid;
+  const CardBillingCycleOverridesCompanion({
+    this.accountId = const Value.absent(),
+    this.cycleStart = const Value.absent(),
+    this.nextBillingDate = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CardBillingCycleOverridesCompanion.insert({
+    required String accountId,
+    required DateTime cycleStart,
+    required DateTime nextBillingDate,
+    this.rowid = const Value.absent(),
+  }) : accountId = Value(accountId),
+       cycleStart = Value(cycleStart),
+       nextBillingDate = Value(nextBillingDate);
+  static Insertable<CardBillingCycleOverride> custom({
+    Expression<String>? accountId,
+    Expression<DateTime>? cycleStart,
+    Expression<DateTime>? nextBillingDate,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (accountId != null) 'account_id': accountId,
+      if (cycleStart != null) 'cycle_start': cycleStart,
+      if (nextBillingDate != null) 'next_billing_date': nextBillingDate,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CardBillingCycleOverridesCompanion copyWith({
+    Value<String>? accountId,
+    Value<DateTime>? cycleStart,
+    Value<DateTime>? nextBillingDate,
+    Value<int>? rowid,
+  }) {
+    return CardBillingCycleOverridesCompanion(
+      accountId: accountId ?? this.accountId,
+      cycleStart: cycleStart ?? this.cycleStart,
+      nextBillingDate: nextBillingDate ?? this.nextBillingDate,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (cycleStart.present) {
+      map['cycle_start'] = Variable<DateTime>(cycleStart.value);
+    }
+    if (nextBillingDate.present) {
+      map['next_billing_date'] = Variable<DateTime>(nextBillingDate.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CardBillingCycleOverridesCompanion(')
+          ..write('accountId: $accountId, ')
+          ..write('cycleStart: $cycleStart, ')
+          ..write('nextBillingDate: $nextBillingDate, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $TransactionsTable extends Transactions
     with TableInfo<$TransactionsTable, Transaction> {
   @override
@@ -18049,6 +18337,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ChartOfAccountsTable chartOfAccounts = $ChartOfAccountsTable(
     this,
   );
+  late final $CardBillingCycleOverridesTable cardBillingCycleOverrides =
+      $CardBillingCycleOverridesTable(this);
   late final $TransactionsTable transactions = $TransactionsTable(this);
   late final $TransactionEntriesTable transactionEntries =
       $TransactionEntriesTable(this);
@@ -18116,6 +18406,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     accounts,
     chartOfAccounts,
+    cardBillingCycleOverrides,
     transactions,
     transactionEntries,
     debts,
@@ -19526,6 +19817,191 @@ typedef $$ChartOfAccountsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $ChartOfAccountsTable, ChartOfAccount>,
       ),
       ChartOfAccount,
+      PrefetchHooks Function()
+    >;
+typedef $$CardBillingCycleOverridesTableCreateCompanionBuilder =
+    CardBillingCycleOverridesCompanion Function({
+      required String accountId,
+      required DateTime cycleStart,
+      required DateTime nextBillingDate,
+      Value<int> rowid,
+    });
+typedef $$CardBillingCycleOverridesTableUpdateCompanionBuilder =
+    CardBillingCycleOverridesCompanion Function({
+      Value<String> accountId,
+      Value<DateTime> cycleStart,
+      Value<DateTime> nextBillingDate,
+      Value<int> rowid,
+    });
+
+class $$CardBillingCycleOverridesTableFilterComposer
+    extends Composer<_$AppDatabase, $CardBillingCycleOverridesTable> {
+  $$CardBillingCycleOverridesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get cycleStart => $composableBuilder(
+    column: $table.cycleStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextBillingDate => $composableBuilder(
+    column: $table.nextBillingDate,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CardBillingCycleOverridesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CardBillingCycleOverridesTable> {
+  $$CardBillingCycleOverridesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get cycleStart => $composableBuilder(
+    column: $table.cycleStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextBillingDate => $composableBuilder(
+    column: $table.nextBillingDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CardBillingCycleOverridesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CardBillingCycleOverridesTable> {
+  $$CardBillingCycleOverridesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get cycleStart => $composableBuilder(
+    column: $table.cycleStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextBillingDate => $composableBuilder(
+    column: $table.nextBillingDate,
+    builder: (column) => column,
+  );
+}
+
+class $$CardBillingCycleOverridesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CardBillingCycleOverridesTable,
+          CardBillingCycleOverride,
+          $$CardBillingCycleOverridesTableFilterComposer,
+          $$CardBillingCycleOverridesTableOrderingComposer,
+          $$CardBillingCycleOverridesTableAnnotationComposer,
+          $$CardBillingCycleOverridesTableCreateCompanionBuilder,
+          $$CardBillingCycleOverridesTableUpdateCompanionBuilder,
+          (
+            CardBillingCycleOverride,
+            BaseReferences<
+              _$AppDatabase,
+              $CardBillingCycleOverridesTable,
+              CardBillingCycleOverride
+            >,
+          ),
+          CardBillingCycleOverride,
+          PrefetchHooks Function()
+        > {
+  $$CardBillingCycleOverridesTableTableManager(
+    _$AppDatabase db,
+    $CardBillingCycleOverridesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CardBillingCycleOverridesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CardBillingCycleOverridesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CardBillingCycleOverridesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> accountId = const Value.absent(),
+                Value<DateTime> cycleStart = const Value.absent(),
+                Value<DateTime> nextBillingDate = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CardBillingCycleOverridesCompanion(
+                accountId: accountId,
+                cycleStart: cycleStart,
+                nextBillingDate: nextBillingDate,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String accountId,
+                required DateTime cycleStart,
+                required DateTime nextBillingDate,
+                Value<int> rowid = const Value.absent(),
+              }) => CardBillingCycleOverridesCompanion.insert(
+                accountId: accountId,
+                cycleStart: cycleStart,
+                nextBillingDate: nextBillingDate,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CardBillingCycleOverridesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CardBillingCycleOverridesTable,
+      CardBillingCycleOverride,
+      $$CardBillingCycleOverridesTableFilterComposer,
+      $$CardBillingCycleOverridesTableOrderingComposer,
+      $$CardBillingCycleOverridesTableAnnotationComposer,
+      $$CardBillingCycleOverridesTableCreateCompanionBuilder,
+      $$CardBillingCycleOverridesTableUpdateCompanionBuilder,
+      (
+        CardBillingCycleOverride,
+        BaseReferences<
+          _$AppDatabase,
+          $CardBillingCycleOverridesTable,
+          CardBillingCycleOverride
+        >,
+      ),
+      CardBillingCycleOverride,
       PrefetchHooks Function()
     >;
 typedef $$TransactionsTableCreateCompanionBuilder =
@@ -28713,6 +29189,11 @@ class $AppDatabaseManager {
       $$AccountsTableTableManager(_db, _db.accounts);
   $$ChartOfAccountsTableTableManager get chartOfAccounts =>
       $$ChartOfAccountsTableTableManager(_db, _db.chartOfAccounts);
+  $$CardBillingCycleOverridesTableTableManager get cardBillingCycleOverrides =>
+      $$CardBillingCycleOverridesTableTableManager(
+        _db,
+        _db.cardBillingCycleOverrides,
+      );
   $$TransactionsTableTableManager get transactions =>
       $$TransactionsTableTableManager(_db, _db.transactions);
   $$TransactionEntriesTableTableManager get transactionEntries =>
