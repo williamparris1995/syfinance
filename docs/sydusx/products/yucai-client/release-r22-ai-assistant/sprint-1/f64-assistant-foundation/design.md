@@ -29,7 +29,7 @@ prototype: none —— 无 UI 单元(纯服务层地基);F65 聊天 UI 时另走
 ```
 lib/assistant/
   domain/
-    assistant_tool.dart        // AssistantTool 抽象 + ToolResult + ToolContext
+    assistant_tool.dart        // AssistantTool 抽象 + ToolResult sealed
     tool_registry.dart         // AssistantToolRegistry(注册/分发/OpenAI schema 序列化)
     agent_loop.dart            // AgentLoopService port + AssistantEvent sealed + 会话态
     assistant_settings.dart    // AssistantConfig 值类型(ready 放宽规则)
@@ -88,7 +88,7 @@ abstract class NetWorthSnapshotSource {
 - **AssistantConfig**:fields {enabled,provider,baseUrl,apiKey,model};keys `assistant.enabled/.provider/.base_url/.api_key/.model`;ready 规则照 ADR-4(localhost 判定:Uri.parse(host∈{localhost,127.0.0.1,::1}))。
 - **三工具 schema/口径**:
   - networth_snapshot {}:→{totalAssetsCents, totalLiabilitiesCents, netWorthCents, currency, formatted:{...元字符串}, asOf:取数时刻}。baseCurrency 经 CurrencySettings.getBaseCurrency()(与 home 大卡同源)。
-  - accounts_list {kind?, page?, page_size≤50}:AccountRepository.list()→AccountVisibility 过滤(载体户出局,total_count 不计)→按类分组汇总+每户{名称/类型/余额 cents+元};信用卡类挂卡贷占用:复用 **F50 占用派生口径**(卡欠款+Σ「计入开关开」挂接卡贷剩余本金)——执行期定位既有派生单元;若在 presentation 层则提为 account/domain 纯函数(小改,复用第一)。
+  - accounts_list {kind?, page?, page_size≤50}:AccountRepository.list()→AccountVisibility 过滤(载体户出局,total_count 不计)→按类分组汇总+每户{名称/类型/余额 cents+元};信用卡类挂卡贷占用:复用 `debt/domain/debt_query.dart` 的 `cardLoanOccupationCents`(T3 实证=domain 纯函数零改动复用;**实际口径=F58 未出账期次本金**(Σ unpaid 且 paymentDate>今天),非设计原稿的「Σ剩余本金」——以页面同源为准);期表组装照 accounts_page 范式,单债失败静默计 0。
   - debts_list {page?, page_size≤50}:DebtRepository.list(borrowedIn)→未结清过滤→每笔{counterparty/剩余本金 cents+元/nextPaymentAmountCents/nextPaymentDueDate/逾期标记(dueDate<今天)}+汇总(笔数/Σ剩余)。
 - **audit**:line 格式 `assistant tool=<name> status=<ok|error> ms=<t> args=<摘要>` + `assistant llm host=<domain> ms=<t> model=<model>`;LogFn typedef 注入,生产=debugPrint(ASCII only,grep 门禁)。
 - **测试缝**:LlmStreamClient mock 回放(预设 chunk 序列含 tool_calls 分片);工具单测直调;口径断言参数化全工具 vs repository 同库取数逐分。
@@ -107,5 +107,6 @@ abstract class NetWorthSnapshotSource {
 
 ## Open Questions
 
-- F50 占用派生当前落点(mapper/presentation)?——execute T1 定位回填此处。
-- 智谱 `/v4` 流式 tool_calls 兼容性实测结果——execute 冒烟后回填。
+- ~~F50 占用派生当前落点?~~ **已回填(T3,2026-10-23)**:`debt/domain/debt_query.dart` 的 `cardLoanOccupationCents` —— domain 纯函数,零改动复用;口径=F58 未出账期次本金(见 LLD 订正)。
+- ~~Debt mapper 缺 nextPaymentDueDate?~~ **已回填(T3)**:策略 A 断言证明本地路径三字段实填(card_loan 的 dueDate 由期表推导,普通债 null 回落 nextPaymentDate)——**无需补列**;proto mapper 无该字段但本地路径不经它,不构成缺口。
+- 智谱 `/v4` 流式 tool_calls 兼容性实测——**仍开**(需真 Key;T4 已记 openai_dart `FinishReason` 方言收拢行为:eos/end_turn→stop,未知值→'unknown' 原串丢失,冒烟时留意)。
