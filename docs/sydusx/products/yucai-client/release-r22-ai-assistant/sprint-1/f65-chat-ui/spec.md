@@ -17,10 +17,10 @@ status: confirmed
 - WHEN 发送一个需查数的问题
 - THEN 助手回复逐字上屏;期间工具调用显示状态条;完成后内容定格
 
-#### Scenario: 未配置引导态
-- GIVEN 助手端点未配置
+#### Scenario: 未就绪引导态
+- GIVEN 助手未启用或模型未就绪
 - WHEN 进入助手页
-- THEN 显示引导去设置的空态,不发起任何 LLM 调用
+- THEN 显示引导态(去启用/查看下载进度),不发起任何 LLM 调用
 
 #### Scenario: 错误可重试
 - GIVEN 一次往返中 LLM 调用失败
@@ -42,17 +42,17 @@ status: confirmed
 - WHEN 按时间范围+账户+分类+关键词+收支方向组合查询
 - THEN 结果为过滤后聚合摘要(总额+top-N+total_count+分页),超界页空而汇总不丢
 
-### Requirement: FR-3 助手设置卡
-- [ ] 设置页 SHALL 提供助手端点配置卡(独立于 F46 报告 BYOK):provider/baseUrl/model/key,key 仅 secure storage;localhost 端点 SHALL 允许空 Key;配置保存后 agent loop SHALL 立即使用新端点(热切换)。
+### Requirement: FR-3 端侧模型管理卡
+- [ ] 设置页 SHALL 提供独立「AI 助手」卡(与 F46「AI 解读」并列,语义彻底分离):启用开关+模型下载(首跑引导/进度/断点续传)+模型状态(版本/磁盘占用)+引擎状态(运行中);**用户面零端点/零 Key/零云选项**(纯内嵌独立运行,2026-10-23 用户拍板;引擎与下载能力由 F66/F67 供给,本票做 UI 面与接线)。
 
-#### Scenario: localhost 空 Key 可用
-- WHEN 配置 custom baseUrl=http://localhost:11434/v1 且 key 留空并保存
-- THEN 配置生效且助手可直接对话
+#### Scenario: 首次启用引导下载
+- GIVEN 模型未下载
+- WHEN 在助手卡点启用
+- THEN 引导进入模型下载(进度可见,可断点续传),完成前助手页显示下载进度态
 
-#### Scenario: 端点热切换
-- GIVEN 会话进行中
-- WHEN 设置中更换端点并保存
-- THEN 下一次发送即走新端点,无需重启
+#### Scenario: 引擎状态可见
+- GIVEN 边车进程已拉起
+- THEN 助手卡显示「运行中」状态;异常退出显示可重试状态
 
 ### Requirement: FR-4 会话形态
 - [ ] 会话 SHALL 为内存态单会话(F64 loop 既有语义):应用重启即清空(已知明确行为,非缺陷);「新对话」SHALL 清空当前会话上下文。
@@ -99,6 +99,7 @@ status: confirmed
 - 技能包形态(system prompt 按意图加载扩展) — owner: R22 backlog v2 — excluded because: 质询中用户提议的演进方向,依赖 v1 工具面稳定后才有意义。
 - 端侧推理/语音/写操作 — owner: sprint-2/3/4 — excluded because: release 三段路线既定。
 - 悬浮面板等入口变体 — owner: design/OD 对比页 — excluded because: 形态是设计决策,OD 变体由用户终拍(可替换基线)。
+- 云服务商选项/Ollama 检测/自定义端点 — owner: none(永久排除) — excluded because: 用户 2026-10-23 拍板「只使用内嵌的端侧 LLM…纯内嵌独立运行」;F46 报告 BYOK 云端线不受影响(独立 feature)。
 - MCP/R18 — owner: yucai-server R18(观望) — excluded because: release 立项拍板(应用内=进程内注册表)。
 
 ## Grill record
@@ -107,4 +108,6 @@ status: confirmed
 - 通用化 vs 工具表面积 — challenged: 用户问「不能形成 SDK/skill/MCP,按意图调 API 取数行事吗」 — defended: 该机制 F64 已建成(注册表=LLM 的 SDK,意图→工具→执行已测);过滤面收窄是表面积设计非机制限制(4B 参数面实证约束);裸 SQL/裸接口为财务禁忌(错数看似对;口径须焊死工具内);MCP=R18 外部宿主场;skill 形态记 backlog v2。
 - 对话历史持久化 — challenged: 内存态 vs 落库 — defended: 用户按推荐 A——F65 内存态,历史另票;重启清空=已知明确行为。
 - 交易过滤维度 — challenged: v1 收哪些维度 — defended: 用户同意六项(时间范围+账户+分类+关键词+收支方向+分页),标签/金额区间 backlog(机制一行可加)。
+- 纯内嵌独立运行 — challenged: 设置卡归属之争(A 独立卡 vs B 并入 F46)+用户连收两次窄(「只使用内嵌的端侧 LLM,不提供其他云服务商」→「纯内嵌独立运行」) — defended: 云预设/Ollama 检测/自定义端点全部作废,助手=随包 llama-server+Qwen3-4B 唯一路径;设置卡之争自动消解=独立「AI 助手(端侧模型管理)」卡;F46 报告 BYOK 不动;sprint 重构 F66→F67→F65(sprint-2 并入);F64 provider 收窄归 F66 返工(localhost 零 Key 路径 F64 已建,loop/流客户端零改)。
+- 主入口=右下角 FAB — challenged: spec 基线原为侧栏页 — defended: 用户直接定方向「右下角 FAB 按钮作为主入口」;ADR-3 修订,OD 对比页验证共存形态(与 R19 悬浮簇同屏关系)与唤出形态(浮层 vs 全页 vs 并存)。
 - 持仓收益口径与「所有问题」 — challenged: 用户质疑「今年收益率答不了」的边界 — defended: 纠正——限制非查询/计算能力,F43 汇编器现成;修订定案=holdings_list 面板口径+**performance_range 第 5 工具入列**(包 F43 汇编,报告口径);用户再定「必须能答所有问题+不明先问」→ 升格 FR-5 意图澄清原则(澄清优先/超界明局限/禁编造),「所有」诚实操作化为三层(v1 可答/反问后可答/明说局限)。
