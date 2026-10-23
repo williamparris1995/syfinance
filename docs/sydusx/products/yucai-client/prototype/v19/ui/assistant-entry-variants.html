@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · AI 助手入口变体</title>
+<script>
+  (function(){
+    var saved = localStorage.getItem('yc2-theme') || 'dark';
+    if (saved === 'system') saved = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.dataset.theme = saved;
+  })();
+</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* ============ 页面专属:入口变体对比 ============ */
+  .variant{margin-bottom:38px}
+  .v-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .v-tag{font-size:11px;font-weight:800;letter-spacing:1px;color:var(--acc);background:var(--nav-active-bg);border-radius:7px;padding:3px 8px;flex:none}
+  .v-head h2{font-size:17px;font-weight:700}
+  .v-sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .v-tradeoff{margin-top:11px;font-size:12.5px;color:var(--muted)}
+  .v-tradeoff b{color:var(--fg);font-weight:700}
+
+  /* ============ 缩微场景(页内强制桌面布局) ============ */
+  .scene{position:relative;height:440px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--bg);display:grid;grid-template-columns:200px 1fr;box-shadow:var(--shadow)}
+  .scene.small{height:420px;grid-template-columns:170px 1fr}
+  .scene .sidebar{position:static;height:auto;overflow:hidden;padding:14px 10px}
+  .scene .brand{padding:2px 8px 10px}
+  .scene .nav-group{margin-top:10px}
+  .scene .user{margin-top:auto;padding:10px 8px}
+  .scene .topbar{position:static;padding:10px 16px}
+  .scene .search{width:170px;padding:6px 10px}
+  .scene .page{padding:16px 18px}
+  .scene .hero{padding:15px 18px 12px;border-radius:18px;margin-bottom:14px}
+  .scene .hero-amount{font-size:28px}
+  .scene .hero-amount .cents{font-size:15px}
+  .scene .spark{height:34px;margin-top:4px}
+  .scene .hero-foot{gap:14px;font-size:11px;margin-top:6px}
+  .scene .card{padding:13px 15px;border-radius:13px}
+  .scene .mini-head{margin-bottom:8px}
+  .nav-item.nav-new{outline:1px dashed var(--acc);outline-offset:-5px}
+
+  /* ============ 悬浮层:FAB / 簇 / 浮层聊天 ============ */
+  .cluster{position:absolute;right:22px;bottom:22px;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:6}
+  .cluster.open{align-items:flex-end;gap:9px}
+  .cl-item{display:flex;align-items:center;gap:9px}
+  .cl-label{font-size:11px;color:var(--muted);font-weight:600;background:var(--topbar-bg);border:1px solid var(--chip-border);border-radius:999px;padding:2px 9px}
+  .fab-main{width:52px;height:52px;border-radius:50%;background:var(--fab-bg);color:var(--fab-fg);box-shadow:var(--fab-shadow);display:grid;place-items:center;border:0;cursor:pointer;flex:none}
+  .fab-sub{width:44px;height:44px;border-radius:50%;background:var(--surface);border:1px solid var(--border);color:var(--muted);display:grid;place-items:center;cursor:pointer;box-shadow:var(--shadow);flex:none}
+  .fab-sub:hover{color:var(--fg)}
+  .fab-assist{position:absolute;right:90px;bottom:22px;width:44px;height:44px;border-radius:50%;background:var(--surface);border:1px solid var(--acc);color:var(--acc);display:grid;place-items:center;cursor:pointer;box-shadow:var(--shadow);z-index:6}
+  .fab-assist:hover{background:var(--nav-active-bg)}
+
+  .chat-panel{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .float-chat{position:absolute;right:16px;bottom:136px;width:400px;z-index:5}
+  .float-chat .chat-panel{box-shadow:var(--fab-shadow)}
+  .float-chat .cp-body{max-height:196px}
+  .cp-head{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--chip-bg);flex:none}
+  .cp-badge{width:30px;height:30px;border-radius:9px;background:var(--q1-bg);color:var(--q1-fg);display:grid;place-items:center;flex:none}
+  .cp-title{flex:1;min-width:0;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .cp-x{width:28px;height:28px;border-radius:8px;border:1px solid var(--chip-border);background:var(--surface);color:var(--muted);display:grid;place-items:center;cursor:pointer;flex:none}
+  .cp-x:hover{color:var(--fg)}
+  .cp-body{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px;background:var(--bg)}
+  .msg{max-width:86%;font-size:12.5px;line-height:1.6;padding:8px 11px;border-radius:13px}
+  .msg.user{align-self:flex-end;background:var(--acc);color:var(--acc-text);border-bottom-right-radius:4px;font-weight:500}
+  .msg.bot{align-self:flex-start;background:var(--chip-bg);border:1px solid var(--chip-border);border-bottom-left-radius:4px}
+  .msg.bot b{font-weight:700}
+  .tool{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);background:var(--ic-bg);border-radius:999px;padding:4px 10px}
+  .spin{width:11px;height:11px;border-radius:50%;border:2px solid var(--chip-border);border-top-color:var(--acc);animation:rot .8s linear infinite;flex:none}
+  .typing{display:inline-flex;gap:4px;align-items:center;padding:10px 12px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:tp 1.2s ease-in-out infinite}
+  .typing i:nth-child(2){animation-delay:.15s}
+  .typing i:nth-child(3){animation-delay:.3s}
+  .cursor{display:inline-block;width:7px;height:13px;border-radius:2px;background:var(--acc);vertical-align:-2px;margin-left:2px;animation:blink 1.1s steps(1) infinite}
+  .cp-input{display:flex;gap:8px;padding:9px 10px;border-top:1px solid var(--line);background:var(--chip-bg);flex:none}
+  .cp-input input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 11px;color:var(--fg);font-size:12.5px;outline:0}
+  .cp-input input:focus{border-color:var(--acc)}
+  .cp-input input:disabled{opacity:.55;cursor:not-allowed}
+  .cp-send{width:36px;height:36px;border-radius:10px;border:0;background:var(--btn-bg);color:var(--btn-fg);display:grid;place-items:center;cursor:pointer;flex:none}
+  .cp-send:hover{filter:brightness(1.05)}
+  .q-chips{display:flex;flex-wrap:wrap;gap:7px;align-self:flex-start}
+  .q-chip{font-size:11.5px;font-weight:600;color:var(--link);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:5px 11px;cursor:pointer}
+  .q-chip:hover{border-color:var(--acc);color:var(--acc)}
+
+  /* V2 双面板 */
+  .duo{display:grid;grid-template-columns:1.15fr auto 1fr;gap:14px;align-items:stretch}
+  .jump{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:11.5px;font-weight:600;text-align:center;line-height:1.5;padding:0 2px}
+  .fullchat{flex:1;min-height:0;display:flex;flex-direction:column}
+  .fullchat .chat-panel{flex:1;border:0;border-radius:0;box-shadow:none}
+  .sc-main{display:flex;flex-direction:column;min-width:0}
+  .sc-main .page{flex:1;min-height:0;overflow:hidden}
+
+  /* 标注 */
+  .anno{position:absolute;z-index:7;font-size:11px;font-weight:600;color:var(--muted);background:var(--topbar-bg);border:1px dashed var(--muted);border-radius:8px;padding:3px 9px;backdrop-filter:blur(6px);white-space:nowrap}
+
+  @keyframes rot{to{transform:rotate(360deg)}}
+  @keyframes tp{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-3px);opacity:1}}
+  @keyframes blink{50%{opacity:0}}
+  @media (prefers-reduced-motion:reduce){
+    .spin,.typing i,.cursor{animation:none}
+  }
+
+  /* ============ 页内强制桌面布局(撤销套件 <900px 移动规则) ============ */
+  @media (max-width:900px){
+    body{display:grid;grid-template-columns:236px 1fr}
+    .sidebar{display:flex}
+    .crumb{display:block}
+    .topbar{padding:14px 32px}
+    .search{width:280px}
+    .page{padding:28px 32px 48px}
+    .page-head{flex-direction:row;align-items:flex-end;gap:16px}
+    .page-head h1{font-size:24px}
+    .page-head-actions{width:auto}
+    .hero{padding:26px 28px 20px;border-radius:24px}
+    .hero-amount{font-size:46px}
+    .bottom-nav{display:none}
+  }
+  @media (max-width:1100px){
+    .duo{grid-template-columns:1fr}
+    .jump{flex-direction:row}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8Z"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 20l1.1-5.3A8.5 8.5 0 1 1 21 11.5Z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="dashboard.html"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item" href="settings.html"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">工具 <span class="sep">›</span> <b>AI 助手 · 入口变体</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索账户、交易、持仓…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>AI 助手 · 入口形态四变体</h1>
+        <p class="date">F65 · 同一端侧助手的四种入口形态,供拍板 · 呈现顺序 V1–V4,推荐标记仅见于各段权衡行 · 演示数据</p>
+      </div>
+      <div class="page-head-actions">
+        <a class="btn-ghost" href="assistant-chat-states.html">聊天状态全景 ›</a>
+      </div>
+    </div>
+
+    <!-- ============ V1 ============ -->
+    <section class="variant" data-od-id="variant-v1-float-overlay">
+      <div class="v-head"><span class="v-tag">V1</span><h2>FAB 唤出悬浮聊天浮层</h2></div>
+      <p class="v-sub">右下角独立助手 FAB,点击就地唤出 400px 聊天浮层,不离开当前页。</p>
+      <div class="scene" data-od-id="scene-v1">
+        <aside class="sidebar">
+          <div class="brand">
+            <div class="brand-mark">御</div>
+            <div><div class="brand-name">御财</div><div class="brand-sub">YUCAI FINANCE</div></div>
+          </div>
+          <nav>
+            <div class="nav-group">
+              <div class="g-label">概览</div>
+              <a class="nav-item active" href="#"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">资产</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">收支</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">工具</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+            </div>
+          </nav>
+          <div class="user">
+            <div class="avatar">A</div>
+            <div><div class="user-name">Andy</div><div class="user-mail">andy@yucai.app</div></div>
+          </div>
+        </aside>
+        <div class="sc-main">
+          <header class="topbar">
+            <div class="crumb">概览 <span class="sep">›</span> <b>仪表盘</b></div>
+            <div class="topbar-right">
+              <div class="search"><svg class="ic"><use href="#i-search"/></svg><input placeholder="搜索…"></div>
+              <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+            </div>
+          </header>
+          <div class="page">
+            <section class="hero">
+              <div class="hero-label">净资产 · 总资产 − 负债</div>
+              <div class="hero-row">
+                <div class="hero-amount num">¥1,284,650<span class="cents">.32</span></div>
+                <span class="delta up"><svg class="ic" style="width:13px;height:13px"><use href="#i-trend"/></svg>本月 +2.3%</span>
+              </div>
+              <svg class="spark" viewBox="0 0 520 60" preserveAspectRatio="none">
+                <defs><linearGradient id="g-v1" x1="0" y1="0" x2="0" y2="1"><stop class="stop-hi" offset="0"/><stop class="stop-lo" offset="1"/></linearGradient></defs>
+                <path d="M0,48 L40,44 L80,46 L120,38 L160,41 L200,32 L240,35 L280,26 L320,30 L360,22 L400,25 L440,15 L480,18 L520,9 L520,60 L0,60 Z" fill="url(#g-v1)"/>
+                <path class="line" d="M0,48 L40,44 L80,46 L120,38 L160,41 L200,32 L240,35 L280,26 L320,30 L360,22 L400,25 L440,15 L480,18 L520,9" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle class="dot" cx="520" cy="9" r="3.4"/>
+              </svg>
+              <div class="hero-foot num"><span>总资产 <b>¥1,384,650.00</b></span><span>负债 <b>¥100,000.00</b></span></div>
+            </section>
+            <div class="card">
+              <div class="mini-head"><span class="mini-title">本月收支</span><span class="chip">8月</span></div>
+              <div class="mini-row num">
+                <span class="pos"><svg class="ic" style="width:14px;height:14px"><use href="#i-upright"/></svg>¥28,500.00</span>
+                <span class="neg"><svg class="ic" style="width:14px;height:14px;transform:rotate(90deg)"><use href="#i-upright"/></svg>¥16,240.00</span>
+              </div>
+              <div class="bar"><i style="width:43%"></i></div>
+              <div class="mini-foot num">结余 ¥12,260.00 · 结余率 43%</div>
+            </div>
+          </div>
+        </div>
+        <div class="cluster" data-od-id="cluster-v1">
+          <button type="button" class="fab-sub" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          <button type="button" class="fab-main" aria-label="记一笔"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></button>
+        </div>
+        <button type="button" class="fab-assist" data-od-id="fab-assist-v1" aria-label="御财助手" title="御财助手"><svg class="ic" style="width:20px;height:20px"><use href="#i-msg"/></svg></button>
+        <div class="float-chat" data-od-id="chat-overlay-v1">
+          <div class="chat-panel">
+            <div class="cp-head">
+              <span class="cp-badge"><svg class="ic" style="width:16px;height:16px"><use href="#i-spark"/></svg></span>
+              <div class="cp-title">御财助手 <span class="chip pos">本机运行</span></div>
+              <button type="button" class="cp-x" aria-label="收起"><svg class="ic" style="width:14px;height:14px"><use href="#i-x"/></svg></button>
+            </div>
+            <div class="cp-body">
+              <div class="msg user">这个月花了多少?</div>
+              <div class="tool"><i class="spin"></i>正在查询本月交易…<span class="num">0.4s</span></div>
+              <div class="msg bot">本月至今支出 <b class="num">¥16,240.00</b>,其中餐饮 <b class="num">¥4,860.00</b>、日用 <b class="num">¥2,150.00</b>、交通 <b class="num">¥980.00</b>,其余 <b class="num">¥8,250.00</b>。</div>
+              <div class="msg bot typing"><i></i><i></i><i></i></div>
+            </div>
+            <div class="cp-input">
+              <input placeholder="问点什么,如:广发卡还差多少">
+              <button type="button" class="cp-send" aria-label="发送"><svg class="ic" style="width:16px;height:16px"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <span class="anno" style="right:150px;bottom:30px">◂ 助手 FAB · 独立于记一笔簇</span>
+        <span class="anno" style="right:432px;bottom:262px">聊天浮层 · 400px ▸</span>
+      </div>
+      <div class="v-tradeoff"><b>权衡:就地最快 · 基线推荐</b> —— 问答在当前页浮层内完成,不打断浏览;浮层空间有限,长对话与多图表展示受限。</div>
+    </section>
+
+    <!-- ============ V2 ============ -->
+    <section class="variant" data-od-id="variant-v2-fullpage">
+      <div class="v-head"><span class="v-tag">V2</span><h2>FAB 跳转全页</h2></div>
+      <p class="v-sub">同一枚右下角 FAB,点击跳转 /assistant 全页,会话与图表拥有完整空间。</p>
+      <div class="duo">
+        <div class="scene small" data-od-id="scene-v2-dashboard">
+          <aside class="sidebar">
+            <div class="brand">
+              <div class="brand-mark">御</div>
+              <div><div class="brand-name">御财</div><div class="brand-sub">YUCAI FINANCE</div></div>
+            </div>
+            <nav>
+              <div class="nav-group">
+                <div class="g-label">概览</div>
+                <a class="nav-item active" href="#"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+              </div>
+              <div class="nav-group">
+                <div class="g-label">资产</div>
+                <a class="nav-item" href="#"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+              </div>
+              <div class="nav-group">
+                <div class="g-label">收支</div>
+                <a class="nav-item" href="#"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+              </div>
+              <div class="nav-group">
+                <div class="g-label">工具</div>
+                <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+              </div>
+            </nav>
+            <div class="user">
+              <div class="avatar">A</div>
+              <div><div class="user-name">Andy</div></div>
+            </div>
+          </aside>
+          <div class="sc-main">
+            <header class="topbar">
+              <div class="crumb">概览 <span class="sep">›</span> <b>仪表盘</b></div>
+              <div class="topbar-right">
+                <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+              </div>
+            </header>
+            <div class="page">
+              <section class="hero">
+                <div class="hero-label">净资产 · 总资产 − 负债</div>
+                <div class="hero-row">
+                  <div class="hero-amount num">¥1,284,650<span class="cents">.32</span></div>
+                  <span class="delta up"><svg class="ic" style="width:13px;height:13px"><use href="#i-trend"/></svg>本月 +2.3%</span>
+                </div>
+                <svg class="spark" viewBox="0 0 520 60" preserveAspectRatio="none">
+                  <defs><linearGradient id="g-v2a" x1="0" y1="0" x2="0" y2="1"><stop class="stop-hi" offset="0"/><stop class="stop-lo" offset="1"/></linearGradient></defs>
+                  <path d="M0,48 L40,44 L80,46 L120,38 L160,41 L200,32 L240,35 L280,26 L320,30 L360,22 L400,25 L440,15 L480,18 L520,9 L520,60 L0,60 Z" fill="url(#g-v2a)"/>
+                  <path class="line" d="M0,48 L40,44 L80,46 L120,38 L160,41 L200,32 L240,35 L280,26 L320,30 L360,22 L400,25 L440,15 L480,18 L520,9" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle class="dot" cx="520" cy="9" r="3.4"/>
+                </svg>
+                <div class="hero-foot num"><span>总资产 <b>¥1,384,650.00</b></span><span>负债 <b>¥100,000.00</b></span></div>
+              </section>
+              <div class="card">
+                <div class="mini-head"><span class="mini-title">本月收支</span><span class="chip">8月</span></div>
+                <div class="mini-row num">
+                  <span class="pos"><svg class="ic" style="width:14px;height:14px"><use href="#i-upright"/></svg>¥28,500.00</span>
+                  <span class="neg"><svg class="ic" style="width:14px;height:14px;transform:rotate(90deg)"><use href="#i-upright"/></svg>¥16,240.00</span>
+                </div>
+                <div class="bar"><i style="width:43%"></i></div>
+                <div class="mini-foot num">结余 ¥12,260.00 · 结余率 43%</div>
+              </div>
+            </div>
+          </div>
+          <div class="cluster">
+            <button type="button" class="fab-sub" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            <button type="button" class="fab-main" aria-label="记一笔"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></button>
+          </div>
+          <button type="button" class="fab-assist" aria-label="御财助手" title="御财助手"><svg class="ic" style="width:20px;height:20px"><use href="#i-msg"/></svg></button>
+          <span class="anno" style="right:150px;bottom:30px">◂ 点击 FAB · 离开当前页</span>
+        </div>
+        <div class="jump" data-od-id="jump-v2">
+          <svg class="ic" style="width:26px;height:26px"><use href="#i-upright"/></svg>
+          <span>跳转<br>/assistant 全页</span>
+        </div>
+        <div class="scene small" data-od-id="scene-v2-target">
+          <aside class="sidebar">
+            <div class="brand">
+              <div class="brand-mark">御</div>
+              <div><div class="brand-name">御财</div><div class="brand-sub">YUCAI FINANCE</div></div>
+            </div>
+            <nav>
+              <div class="nav-group">
+                <div class="g-label">概览</div>
+                <a class="nav-item" href="#"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+              </div>
+              <div class="nav-group">
+                <div class="g-label">资产</div>
+                <a class="nav-item" href="#"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+              </div>
+              <div class="nav-group">
+                <div class="g-label">收支</div>
+                <a class="nav-item" href="#"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+              </div>
+              <div class="nav-group">
+                <div class="g-label">工具</div>
+                <a class="nav-item active" href="#"><svg class="ic"><use href="#i-spark"/></svg>助手</a>
+                <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+              </div>
+            </nav>
+            <div class="user">
+              <div class="avatar">A</div>
+              <div><div class="user-name">Andy</div></div>
+            </div>
+          </aside>
+          <div class="sc-main">
+            <header class="topbar">
+              <div class="crumb">工具 <span class="sep">›</span> <b>助手</b></div>
+              <div class="topbar-right">
+                <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+              </div>
+            </header>
+            <div class="fullchat">
+              <div class="chat-panel">
+                <div class="cp-head">
+                  <span class="cp-badge"><svg class="ic" style="width:16px;height:16px"><use href="#i-spark"/></svg></span>
+                  <div class="cp-title">御财助手 <span class="chip pos">本机运行</span></div>
+                </div>
+                <div class="cp-body">
+                  <div class="msg bot">我是御财助手,数据都在本机,随时可以问我。</div>
+                  <div class="msg user">我的净资产是多少?</div>
+                  <div class="tool"><i class="spin"></i>正在查询净资产…<span class="num">0.4s</span></div>
+                  <div class="msg bot">截至 8月30日,你的净资产为 <b class="num">¥1,284,650.32</b>(总资产 <b class="num">¥1,384,650.00</b> − 负债 <b class="num">¥100,000.00</b>),较上月 <b class="num">+2.3%</b>。</div>
+                </div>
+                <div class="cp-input">
+                  <input placeholder="问点什么,如:广发卡还差多少">
+                  <button type="button" class="cp-send" aria-label="发送"><svg class="ic" style="width:16px;height:16px"><use href="#i-send"/></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <span class="anno" style="right:16px;top:64px">目标全页 · 完整会话空间 ▾</span>
+        </div>
+      </div>
+      <div class="v-tradeoff"><b>权衡:空间最完整</b> —— 全页放下完整会话历史与富图表,适合长对话与深度分析;但每次问答都要离开当前页,来回跳转成本高。</div>
+    </section>
+
+    <!-- ============ V3 ============ -->
+    <section class="variant" data-od-id="variant-v3-dual-entry">
+      <div class="v-head"><span class="v-tag">V3</span><h2>并存 · FAB 浮层 + 侧栏导航项</h2></div>
+      <p class="v-sub">V1 的浮层 FAB 与侧栏新增「助手」导航项(工具组)同屏并存,快问与长谈各走各路。</p>
+      <div class="scene" data-od-id="scene-v3">
+        <aside class="sidebar">
+          <div class="brand">
+            <div class="brand-mark">御</div>
+            <div><div class="brand-name">御财</div><div class="brand-sub">YUCAI FINANCE</div></div>
+          </div>
+          <nav>
+            <div class="nav-group">
+              <div class="g-label">概览</div>
+              <a class="nav-item active" href="#"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">资产</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">收支</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">工具</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+              <a class="nav-item nav-new" href="#"><svg class="ic"><use href="#i-spark"/></svg>助手</a>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+            </div>
+          </nav>
+          <div class="user">
+            <div class="avatar">A</div>
+            <div><div class="user-name">Andy</div><div class="user-mail">andy@yucai.app</div></div>
+          </div>
+        </aside>
+        <div class="sc-main">
+          <header class="topbar">
+            <div class="crumb">概览 <span class="sep">›</span> <b>仪表盘</b></div>
+            <div class="topbar-right">
+              <div class="search"><svg class="ic"><use href="#i-search"/></svg><input placeholder="搜索…"></div>
+              <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+            </div>
+          </header>
+          <div class="page">
+            <section class="hero">
+              <div class="hero-label">净资产 · 总资产 − 负债</div>
+              <div class="hero-row">
+                <div class="hero-amount num">¥1,284,650<span class="cents">.32</span></div>
+                <span class="delta up"><svg class="ic" style="width:13px;height:13px"><use href="#i-trend"/></svg>本月 +2.3%</span>
+              </div>
+              <svg class="spark" viewBox="0 0 520 60" preserveAspectRatio="none">
+                <defs><linearGradient id="g-v3" x1="0" y1="0" x2="0" y2="1"><stop class="stop-hi" offset="0"/><stop class="stop-lo" offset="1"/></linearGradient></defs>
+                <path d="M0,48 L40,44 L80,46 L120,38 L160,41 L200,32 L240,35 L280,26 L320,30 L360,22 L400,25 L440,15 L480,18 L520,9 L520,60 L0,60 Z" fill="url(#g-v3)"/>
+                <path class="line" d="M0,48 L40,44 L80,46 L120,38 L160,41 L200,32 L240,35 L280,26 L320,30 L360,22 L400,25 L440,15 L480,18 L520,9" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle class="dot" cx="520" cy="9" r="3.4"/>
+              </svg>
+              <div class="hero-foot num"><span>总资产 <b>¥1,384,650.00</b></span><span>负债 <b>¥100,000.00</b></span></div>
+            </section>
+            <div class="card">
+              <div class="mini-head"><span class="mini-title">本月收支</span><span class="chip">8月</span></div>
+              <div class="mini-row num">
+                <span class="pos"><svg class="ic" style="width:14px;height:14px"><use href="#i-upright"/></svg>¥28,500.00</span>
+                <span class="neg"><svg class="ic" style="width:14px;height:14px;transform:rotate(90deg)"><use href="#i-upright"/></svg>¥16,240.00</span>
+              </div>
+              <div class="bar"><i style="width:43%"></i></div>
+              <div class="mini-foot num">结余 ¥12,260.00 · 结余率 43%</div>
+            </div>
+          </div>
+        </div>
+        <div class="cluster">
+          <button type="button" class="fab-sub" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          <button type="button" class="fab-main" aria-label="记一笔"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></button>
+        </div>
+        <button type="button" class="fab-assist" aria-label="御财助手" title="御财助手"><svg class="ic" style="width:20px;height:20px"><use href="#i-msg"/></svg></button>
+        <span class="anno" style="right:150px;bottom:30px">◂ FAB=快速问</span>
+        <span class="anno" style="left:212px;top:196px">◂ 侧栏「助手」= 长对话</span>
+      </div>
+      <div class="v-tradeoff"><b>权衡:双入口冗余但各得其所</b> —— FAB 管快速问,侧栏管长对话,两种意图各有顺手的入口;两个入口需要双份维护,新手要多学一处。</div>
+    </section>
+
+    <!-- ============ V4 ============ -->
+    <section class="variant" data-od-id="variant-v4-in-cluster">
+      <div class="v-head"><span class="v-tag">V4</span><h2>助手并入悬浮簇</h2></div>
+      <p class="v-sub">照悬浮簇模型:主 FAB 记一笔金圆 + 次级成员竖排,「问助手」作为次级成员与编辑/转账/更多并列(非主级)。</p>
+      <div class="scene" data-od-id="scene-v4">
+        <aside class="sidebar">
+          <div class="brand">
+            <div class="brand-mark">御</div>
+            <div><div class="brand-name">御财</div><div class="brand-sub">YUCAI FINANCE</div></div>
+          </div>
+          <nav>
+            <div class="nav-group">
+              <div class="g-label">概览</div>
+              <a class="nav-item active" href="#"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">资产</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">收支</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+            </div>
+            <div class="nav-group">
+              <div class="g-label">工具</div>
+              <a class="nav-item" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+            </div>
+          </nav>
+          <div class="user">
+            <div class="avatar">A</div>
+            <div><div class="user-name">Andy</div><div class="user-mail">andy@yucai.app</div></div>
+          </div>
+        </aside>
+        <div class="sc-main">
+          <header class="topbar">
+            <div class="crumb">概览 <span class="sep">›</span> <b>仪表盘</b></div>
+            <div class="topbar-right">
+              <div class="search"><svg class="ic"><use href="#i-search"/></svg><input placeholder="搜索…"></div>
+              <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+            </div>
+          </header>
+          <div class="page">
+            <section class="hero">
+              <div class="hero-label">净资产 · 总资产 − 负债</div>
+              <div class="hero-row">
+                <div class="hero-amount num">¥1,284,650<span class="cents">.32</span></div>
+                <span class="delta up"><svg class="ic" style="width:13px;height:13px"><use href="#i-trend"/></svg>本月 +2.3%</span>
+              </div>
+              <svg class="spark" viewBox="0 0 520 60" preserveAspectRatio="none">
+                <defs><linearGradient id="g-v4" x1="0" y1="0" x2="0" y2="1"><stop class="stop-hi" offset="0"/><stop class="stop-lo" offset="1"/></linearGradient></defs>
+                <path d="M0,48 L40,44 L80,46 L120,38 L160,41 L200,32 L240,35 L280,26 L320,30 L360,22 L400,25 L440,15 L480,18 L520,9 L520,60 L0,60 Z" fill="url(#g-v4)"/>
+                <path class="line" d="M0,48 L40,44 L80,46 L120,38 L160,41 L200,32 L240,35 L280,26 L320,30 L360,22 L400,25 L440,15 L480,18 L520,9" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle class="dot" cx="520" cy="9" r="3.4"/>
+              </svg>
+              <div class="hero-foot num"><span>总资产 <b>¥1,384,650.00</b></span><span>负债 <b>¥100,000.00</b></span></div>
+            </section>
+            <div class="card">
+              <div class="mini-head"><span class="mini-title">本月收支</span><span class="chip">8月</span></div>
+              <div class="mini-row num">
+                <span class="pos"><svg class="ic" style="width:14px;height:14px"><use href="#i-upright"/></svg>¥28,500.00</span>
+                <span class="neg"><svg class="ic" style="width:14px;height:14px;transform:rotate(90deg)"><use href="#i-upright"/></svg>¥16,240.00</span>
+              </div>
+              <div class="bar"><i style="width:43%"></i></div>
+              <div class="mini-foot num">结余 ¥12,260.00 · 结余率 43%</div>
+            </div>
+          </div>
+        </div>
+        <div class="cluster open" data-od-id="cluster-v4-expanded">
+          <div class="cl-item"><span class="cl-label">问助手</span><button type="button" class="fab-sub" style="color:var(--acc);border-color:var(--acc)" aria-label="问助手"><svg class="ic"><use href="#i-spark"/></svg></button></div>
+          <div class="cl-item"><span class="cl-label">编辑</span><button type="button" class="fab-sub" aria-label="编辑"><svg class="ic"><use href="#i-edit"/></svg></button></div>
+          <div class="cl-item"><span class="cl-label">转账</span><button type="button" class="fab-sub" aria-label="转账"><svg class="ic"><use href="#i-repeat"/></svg></button></div>
+          <div class="cl-item"><span class="cl-label">更多</span><button type="button" class="fab-sub" aria-label="更多"><svg class="ic"><use href="#i-more"/></svg></button></div>
+          <button type="button" class="fab-main" aria-label="记一笔"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></button>
+        </div>
+        <span class="anno" style="right:160px;bottom:180px">◂ 问助手 · 次级成员(非主级)</span>
+      </div>
+      <div class="v-tradeoff"><b>权衡:统一性强但主入口弱</b> —— 与记一笔同簇,交互模型统一、右下角不新增独立按钮;但助手降为簇内次级成员,要先展开簇才能到达,入口层级低一级。</div>
+    </section>
+
+    <footer class="foot">御财 v2 设计原型 · F65 应用内 AI 助手 · 入口四变体对比 · 演示数据 · 页内强制桌面布局</footer>
+  </div>
+</main>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+</body>
+</html>
