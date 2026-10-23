@@ -15,8 +15,9 @@ library;
 /// 助手配置快照(不可变;secure storage 持久化由 AssistantSettingsStore
 /// 承担)。
 class AssistantConfig {
-  /// v1 钉死的随包模型 id(gguf 文件名主干)。默认值常量 = 单一事实源:
-  /// F67 多模型管理在此扩展(模型清单/切换),store 与设置面零散改。
+  /// v1 钉死的随包模型 id(gguf 文件名主干;settings 层模型 id 默认值)。
+  /// 模型文件名的单一事实源 = kModelManifest.file(F67 model_manager_port
+  /// 钉死清单);多模型管理在 F67 manifest 清单扩展,store 与设置面零散改。
   static const String defaultModel = 'qwen3-4b-instruct-q4_k_m';
 
   const AssistantConfig({

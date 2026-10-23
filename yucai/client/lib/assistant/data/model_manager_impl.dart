@@ -14,11 +14,13 @@
 ///   `Range: bytes=<n>-` 续传;服务器忽略 Range(仍 200)→ 从零重写
 ///   (append 会错位,防 corrupt 死循环);
 /// - 源回落:官方 huggingface.co → hf-mirror 各一次(ADR-4,连接错/
-///   >399/流中断 → 下一源;两源皆败 → error(network));
+///   >399/流中断 → 下一源;两源皆败 → error(network);源间挂起窗口的
+///   用户干预不回落且落 pause/cancel 终态,防状态卡 Downloading 死锁);
 /// - 校验:**下载完成后对完整 .part 单遍流式 sha256**(crypto;下载中不
 ///   增量算摘要 —— 续传段无前缀可续,单遍重算实现简单且正确,T2 简报
-///   定案修正);比对 [ModelManifest.sha256] → 通过 rename 原子落地,
-///   不符 error(corrupt) 且 .part 保留;
+///   定案修正);比对 [ModelManifest.sha256] → 不符 error(corrupt) 且
+///   .part 保留;通过 → rename 前复查 cancel(校验窗口干预不吞,L-1)
+///   → rename 原子落地;
 /// - 进度:ModelDownloading 节流发射(默认 200ms,0 = 每块;速度 = 相邻
 ///   发射间隔的 lastBytes/dt 简版滑动窗,ADR-6);
 /// - 删除:在途先 cancel → await [EngineManager.shutdown](幂等,ADR-5)
@@ -171,16 +173,15 @@ class ModelManagerImpl implements ModelStore, ModelManagerPort {
   @override
   Future<int> diskUsageBytes() async {
     await _initFuture;
-    final current = _stateNotifier.value;
-    if (current is ModelReady) {
-      final target = await _targetFile();
-      return await target.exists() ? await target.length() : 0;
-    }
-    if (current is ModelDownloading || current is ModelPaused) {
-      final part = await _partFile();
-      return await part.exists() ? await part.length() : 0;
-    }
-    return 0;
+    // port 契约「.gguf + .part 之和」按文件实查求和,与状态无关(M-2 修正:
+    // 曾按状态分支,error(corrupt) 残留 .part 回 0 → corrupt 后占用少报)。
+    // 正常路径 rename 落地后 .part 消失,和 = 目标长;任何残留组合如实上报。
+    var usage = 0;
+    final target = await _targetFile();
+    if (await target.exists()) usage += await target.length();
+    final part = await _partFile();
+    if (await part.exists()) usage += await part.length();
+    return usage;
   }
 
   // -- ModelStore 面(F66 port 形状不变) ---------------------------------------
@@ -221,7 +222,21 @@ class ModelManagerImpl implements ModelStore, ModelManagerPort {
       } catch (_) {
         // 连接错 / >399 / 流中断 → 下一源(续传基数 = .part 已增量)。
         _log('model download source failed host=${url.host}');
-        if (_cancelRequested || _pauseRequested) return; // 用户干预不回落
+        if (_cancelRequested || _pauseRequested) {
+          // 用户干预不回落,且须落终态:源间挂起窗口的干预断流柄已空,
+          // 只 return 会卡 Downloading 且 _active 已清,download() 守卫
+          // 短路死锁(M-3)。pause → Paused(断点基数 = .part 实长);
+          // cancel → 删 .part + notDownloaded(与流中路径同语义)。
+          if (_cancelRequested) {
+            if (await part.exists()) await part.delete();
+            _setState(const ModelNotDownloaded());
+          } else {
+            final received = await part.exists() ? await part.length() : 0;
+            _setState(ModelPaused(
+                receivedBytes: received, totalBytes: _manifest.totalBytes));
+          }
+          return;
+        }
         if (await part.exists()) {
           received = await part.length(); // 中断回落的 Range 新基数
         } else {
@@ -306,6 +321,13 @@ class ModelManagerImpl implements ModelStore, ModelManagerPort {
       _log('model verify failed');
       _setState(const ModelError(ModelFailureReason.corrupt));
       return; // .part 保留(ADR-3:可整段重下,排查依据)
+    }
+    if (_cancelRequested) {
+      // sha 校验窗口到达的 cancel(流已尽,断流柄空仅剩旗标):同 cancel
+      // 语义删 .part 落 notDownloaded,不得越过 rename 落 ready(L-1)。
+      if (await part.exists()) await part.delete();
+      _setState(const ModelNotDownloaded());
+      return;
     }
     final target = await _targetFile();
     if (await target.exists()) await target.delete(); // rename 原子前置

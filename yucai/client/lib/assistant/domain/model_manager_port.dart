@@ -33,7 +33,8 @@ abstract class ModelManagerPort {
   /// 模型状态(当前态缓存 + 转移通知;F65 订阅渲染,FR-1..4)。
   ValueListenable<ModelState> get state;
 
-  /// 模型磁盘占用字节(.gguf + .part 之和;占用展示/删除确认消费)。
+  /// 模型磁盘占用字节(按文件实查求和:.gguf + .part 之和,与状态无关;
+  /// 占用展示/删除确认消费)。
   Future<int> diskUsageBytes();
 
   /// 四钉死清单(ADR-4 单点常量,[kModelManifest])。
