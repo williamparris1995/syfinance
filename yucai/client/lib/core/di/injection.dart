@@ -9,6 +9,16 @@ import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/oidc_authenticator.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
+import 'package:yucai_client/assistant/data/agent_loop_impl.dart';
+import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
+import 'package:yucai_client/assistant/data/audit_log.dart';
+import 'package:yucai_client/assistant/data/llm_stream_client_impl.dart';
+import 'package:yucai_client/assistant/data/tools/accounts_list_tool.dart';
+import 'package:yucai_client/assistant/data/tools/debts_list_tool.dart';
+import 'package:yucai_client/assistant/data/tools/networth_snapshot_tool.dart';
+import 'package:yucai_client/assistant/domain/agent_loop.dart';
+import 'package:yucai_client/assistant/domain/assistant_settings.dart';
+import 'package:yucai_client/assistant/domain/tool_registry.dart';
 import 'package:yucai_client/backup/data/archive_importer.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/binding/data/grpc_offline_sync_port.dart';
@@ -23,6 +33,7 @@ import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
+import 'package:yucai_client/core/di/networth_snapshot_source_adapter.dart';
 import 'package:yucai_client/core/form_leave_gate.dart';
 import 'package:yucai_client/core/shell_detail_title.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
@@ -35,6 +46,8 @@ import 'package:yucai_client/core/session_mode/bound_marker.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/core/theme/theme_settings.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/holding/data/holding_local_ds.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/report/data/llm/llm_http.dart';
 import 'package:yucai_client/report/data/llm/llm_mda_narrator.dart';
@@ -68,6 +81,37 @@ Future<void> configureDependencies() async {
   //     测试绕开 getIt 直接注入 fake。API Key 只经请求头从此处出站,
   //     任何日志/错误零携带(FR-5)。
   getIt.registerSingleton<LlmHttpFn>(llmHttpPost);
+
+  // 1m. F64 (2026-10-23): 助手服务装配(全部手工注册,照 1h/F21 先例;
+  //     code-plan T6 = core/di 手工绑定 LlmStreamClient/AgentLoopService)。
+  //     缘由:build_runner regen 在本仓不可用 —— injectable_generator 无法
+  //     解析 impl 构造参数的内联函数类型 `AssistantConfig Function()`
+  //     (报 "Can not resolve function type, try using an alias"),T2/T4/T5
+  //     的 @LazySingleton 注解进不了生成图,生产绑定由此段承担。
+  //     - AssistantConfig Function():配置取值缝,函数类型照 1j LlmHttpFn
+  //       先例手工注册;工厂读 AssistantSettings 当前值,每次 chat/send
+  //       取最新 —— 端点热切换即时生效(T4/T5 设计)。测试绕开 getIt 直接
+  //       传闭包。
+  //     - AssistantSettings:注入 1a 共享 secure-storage 后端(单实例家法);
+  //       load 挂 2f。
+  //     - AssistantAuditLog:默认缝 = debugPrint(English 结构化日志)。
+  //     - LlmStreamClient / AgentLoopService:经取值缝闭包构造;
+  //       AgentLoopService 持内存态单会话,lazySingleton 语义照注解本意。
+  //     工具注册表(其构造依赖)在 init 后的 2g 装配;本组全部 lazy,
+  //       首次消费(F65 UI)远晚于 bootstrap,时序安全。
+  getIt.registerSingleton<AssistantConfig Function()>(
+      () => getIt<AssistantSettings>().value);
+  getIt.registerLazySingleton<AssistantSettings>(
+      () => AssistantSettings(storage: getIt<FlutterSecureStorage>()));
+  getIt.registerLazySingleton<AssistantAuditLog>(AssistantAuditLog.new);
+  getIt.registerLazySingleton<LlmStreamClient>(
+      () => LlmStreamClientImpl(getIt<AssistantConfig Function()>()));
+  getIt.registerLazySingleton<AgentLoopService>(() => AgentLoopServiceImpl(
+        getIt<LlmStreamClient>(),
+        getIt<AssistantToolRegistry>(),
+        getIt<AssistantAuditLog>(),
+        getIt<AssistantConfig Function()>(),
+      ));
 
   final tokenStorage = TokenStorage(backend: getIt<FlutterSecureStorage>());
   getIt.registerSingleton<TokenStorage>(tokenStorage);
@@ -242,6 +286,31 @@ Future<void> configureDependencies() async {
   //     on the user's saved expand/collapse state. Default empty = all groups
   //     expanded (zero behavior change for first run).
   await getIt<NavSettings>().load();
+
+  // 2f. F64 (2026-10-23): sync the persisted assistant endpoint config
+  //     (AssistantSettings, LlmSettings 家法镜像 ADR-4) so the loop's
+  //     not-ready gate and future F65 entry read persisted truth
+  //     synchronously. Default off = zero behavior change (Migration Plan).
+  await getIt<AssistantSettings>().load();
+
+  // 2g. F64 助手地基:工具注册表启动装配(FR-1;registry 单例 + 三只读
+  //     工具集中此一段,勿散落)。工具构造依赖均为既有注册件:
+  //     AccountRepository / DebtRepository(assistant 跨模块只 import
+  //     domain port,ADR-2)、CurrencySettings(2a 同源本位币)、
+  //     NetWorthLocalDataSource(生成图)经 core/di 适配件转
+  //     NetWorthSnapshotSource(ADR-2:assistant 不 import holding/data,
+  //     与 home 净资产大卡同源,NFR-1)。
+  final assistantTools = AssistantToolRegistry();
+  assistantTools.register(NetWorthSnapshotTool(
+    NetWorthSnapshotSourceAdapter(getIt<NetWorthLocalDataSource>()),
+    getIt<CurrencySettings>(),
+  ));
+  assistantTools.register(AccountsListTool(
+    getIt<AccountRepository>(),
+    getIt<DebtRepository>(),
+  ));
+  assistantTools.register(DebtsListTool(getIt<DebtRepository>()));
+  getIt.registerSingleton<AssistantToolRegistry>(assistantTools);
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
   final refreshTokenUseCase = getIt<RefreshTokenUseCase>();
