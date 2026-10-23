@@ -48,7 +48,7 @@ class Done extends AssistantEvent {
   const Done();
 }
 
-/// 失败终态(自解释英文错误,零 Key/零完整 payload —— 照 F46 红线)。
+/// 失败终态(自解释错误(用户态中文消息,ADR-006;不进日志串),零 Key/零完整 payload —— 照 F46 红线)。
 class AssistantError extends AssistantEvent {
   const AssistantError(this.message);
 
