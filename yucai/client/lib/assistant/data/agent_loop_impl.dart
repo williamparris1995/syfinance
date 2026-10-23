@@ -78,8 +78,10 @@ class AgentLoopServiceImpl implements AgentLoopService {
   @override
   Stream<AssistantEvent> send(String userMessage) async* {
     if (!_config().ready) {
-      // FR-4:未配置拒跑 —— 单中文错误事件,零 LLM 调用、零审计行。
-      yield const AssistantError('助手未配置端点,请先在设置中配置');
+      // FR-4:未启用拒跑 —— 单中文错误事件,零 LLM 调用、零审计行。
+      // 文案退役「端点」词汇(评审 T3-M1):R22 起端点由引擎侧供给,
+      // 用户可操作的只有设置里的启用开关。
+      yield const AssistantError('助手未启用,请在设置中开启');
       return;
     }
     if (_messages.isEmpty || _messages.first['role'] != 'system') {

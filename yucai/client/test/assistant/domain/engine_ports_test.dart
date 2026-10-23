@@ -80,6 +80,14 @@ class _FakeEngineManager implements EngineManager {
     _state.value = EngineReady(Uri.parse('http://127.0.0.1:8123/v1'));
   }
 
+  // T5 活跃 port 上提:契约面含 begin/end(消费方 LlmStreamClient 包夹
+  // 流;行为语义归 EngineManagerImpl 单测 idle 组)。
+  @override
+  void beginActivity() {}
+
+  @override
+  void endActivity() {}
+
   @override
   Future<void> shutdown() async {
     _state.value = const EngineStopped();

@@ -207,6 +207,21 @@ Future<void> _bootstrap(AppDatabase db) async {
   //   controller 兜底 hide);
   // - headProvider/newTransactionNav: F25 FR-1/2 数据头 + 记一笔(上方
   //   两个闭包,组合根跨模块接线)。
+  // F66 引擎边车退出杀(ADR-3):EngineManager 由 injection.dart 1m 无条件
+  // 注册(F66-T2 已合入,恒在)—— 过渡期 isRegistered 守卫已死分支,按
+  // 评审 T3-L2 简化为直调。同一闭包两处注入(同源杀):TrayController
+  // (engineShutdown,盖不经 AppExitPort 的托盘/关闭退出路径,评审
+  // T3-H1)+ TrayAppExit(设置页退出按钮)。两路径均容忍清理失败仍
+  // exit(TrayAppExit try/finally / TrayController fail-open)。
+  Future<void> engineShutdown() async {
+    try {
+      await getIt<EngineManager>().shutdown();
+    } catch (e) {
+      // ignore: avoid_print — 引擎清理降级不得阻断退出。
+      print('engine shutdown degraded: $e');
+    }
+  }
+
   final tray = TrayController(
     scan: () => scanner.scan(DateTime.now()),
     autoRecord: runAutoRecord,
@@ -232,6 +247,7 @@ Future<void> _bootstrap(AppDatabase db) async {
     versionProvider: trayVersion,
     newTransactionNav: navigateNewTransaction,
     inboxNav: navigateInbox,
+    engineShutdown: engineShutdown,
   );
   await tray.start();
 
@@ -240,16 +256,9 @@ Future<void> _bootstrap(AppDatabase db) async {
   // 设置页经 AppExitPort.exitApp 消费;退出清理失败由其 try/finally
   // 保证仍 exit(0)。
   getIt.registerSingleton<TrayController>(tray);
-  // F66 engine sidecar: kill the engine process tree on app exit (ADR-3).
-  // EngineManager is registered by F66-T2 (in flight at T3 time) — the
-  // isRegistered guard keeps this a no-op until that lands; a shutdown
-  // failure is tolerated by TrayAppExit's try/finally (cleanup errors
-  // still exit the process).
   getIt.registerSingleton<AppExitPort>(TrayAppExit(() async {
     await tray.stop();
-    if (getIt.isRegistered<EngineManager>()) {
-      await getIt<EngineManager>().shutdown();
-    }
+    await engineShutdown();
   }));
 
   // 回网触发(review R2 polish):绑定模式断网期间的 autoRecord 延迟落账,

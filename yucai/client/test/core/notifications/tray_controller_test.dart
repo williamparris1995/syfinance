@@ -219,6 +219,7 @@ void main() {
     Future<void> Function()? newTransactionNav,
     Future<void> Function()? inboxNav,
     Future<String?> Function()? versionProvider,
+    Future<void> Function()? engineShutdown,
   }) =>
       TrayController(
         scan: scanOk,
@@ -229,6 +230,7 @@ void main() {
         newTransactionNav: newTransactionNav,
         inboxNav: inboxNav,
         versionProvider: versionProvider,
+        engineShutdown: engineShutdown,
         exitFn: exitSpy.exit0,
       )..trayReady = true;
 
@@ -470,6 +472,40 @@ void main() {
       await expectLater(controller.quit(), throwsA(isA<_ExitSentinel>()));
       expect(trayLog.calls, contains('destroy'));
       expect(exitSpy.calls, [0]);
+    });
+
+    test(
+        'engineShutdown 注入:quit() 在 exit 前 await 引擎杀(F66 T3-H1;托盘菜单/关闭偏好=退出/首关选退出同路)',
+        () async {
+      final order = <String>[];
+      final controller = mk(engineShutdown: () async {
+        order.add('engineShutdown');
+      });
+      await expectLater(controller.quit(), throwsA(isA<_ExitSentinel>()));
+      expect(order, ['engineShutdown']); // 恰一次
+      expect(exitSpy.calls, [0]); // exit 在 shutdown 之后到达
+    });
+
+    test('engineShutdown 抛错也必退出(fail-open,不留引擎僵尸)', () async {
+      final controller = mk(engineShutdown: () async {
+        throw StateError('taskkill refused');
+      });
+      await expectLater(controller.quit(), throwsA(isA<_ExitSentinel>()));
+      expect(exitSpy.calls, [0]);
+    });
+
+    test('分支① 托盘不可用兜底真退出:同样先 await 引擎杀(F66 T3-H1)',
+        () async {
+      final order = <String>[];
+      final controller = mk(engineShutdown: () async {
+        order.add('engineShutdown');
+      })..trayReady = false;
+      final errors = startCloseGuarded(controller);
+      await pump();
+
+      expect(order, ['engineShutdown']);
+      expect(exitSpy.calls, [0]);
+      expect(errors.whereType<_ExitSentinel>(), hasLength(1));
     });
   });
 

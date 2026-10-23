@@ -99,7 +99,10 @@ class ProcessLauncherImpl implements ProcessLauncher {
       final tokens = (result.stdout as String).split(RegExp(r'\s+'));
       return tokens.contains('$pid');
     } catch (_) {
-      // tasklist unavailable -> assume dead so the taskkill fallback runs.
+      // tasklist unavailable -> assume dead: nothing left to kill, return
+      // WITHOUT the taskkill fallback (the graceful kill above already did
+      // its best; reporting alive here would force-run taskkill on every
+      // killTree call). Review T2-L1: comment now matches the behavior.
       return false;
     }
   }

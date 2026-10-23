@@ -22,6 +22,15 @@ abstract class EngineManager {
   /// 停止引擎并终结进程树(闲置回收与 app 退出钩子共用;ADR-3)。
   Future<void> shutdown();
 
+  /// 请求开始标记(T5 自 impl 上提 port;FR-1 活跃计数):流开始时调,
+  /// 顺延闲置回收窗口 —— 引擎不回收进行中的流。
+  void beginActivity();
+
+  /// 请求结束标记:流关闭(含异常路径)时调;活跃归零后闲置回收恢复
+  /// 生效。实现须保证与 [beginActivity] 可安全配对(异常路径由调用方
+  /// finally 兜底)。
+  void endActivity();
+
   /// 引擎状态(当前态缓存 + 转移通知;F65 订阅渲染,FR-3)。
   ValueListenable<EngineState> get state;
 }

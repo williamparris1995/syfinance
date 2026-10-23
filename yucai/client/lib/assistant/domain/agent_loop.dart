@@ -10,8 +10,9 @@ library;
 abstract class AgentLoopService {
   /// 发送一条用户消息并流式返回助手事件。
   ///
-  /// 未配置端点(AssistantConfig not ready)→ 仅发 [AssistantError]
-  /// (自解释「未配置」,零网络请求,FR-4);循环编排细节见 T2 impl。
+  /// 未启用(AssistantConfig not ready)→ 仅发 [AssistantError](自解释
+  /// 「未启用」,零网络请求,FR-4;文案不含「端点」词汇,评审 T3-M1);
+  /// 循环编排细节见 T2 impl。
   Stream<AssistantEvent> send(String userMessage);
 }
 

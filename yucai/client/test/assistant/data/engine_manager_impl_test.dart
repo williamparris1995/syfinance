@@ -101,6 +101,20 @@ void main() {
     expect(sut.models.isReadyCalls, 2);
   });
 
+  test('disabled config: ensureReady is a no-op, engine never spawns (T2-L3)',
+      () async {
+    final sut = _Sut(enabled: false);
+    final seen = sut.collectStates();
+
+    await sut.manager.ensureReady();
+
+    expect(sut.manager.state.value, const EngineStopped()); // 状态不动
+    expect(sut.launcher.starts, isEmpty); // 零进程
+    expect(sut.scannedPorts, isEmpty); // 连端口扫描都不进
+    expect(seen, isEmpty); // F65 预热在 disabled 时不得拉起引擎
+    expect(sut.models.isReadyCalls, 0); // 模型前置检查也跳过
+  });
+
   test('health timeout retries with 1s/3s/9s backoff, then Error(startFailed)',
       () async {
     final sut = _Sut(healthRule: (_) => false, healthAttempts: 1);
@@ -112,7 +126,8 @@ void main() {
       seen,
       [const EngineStarting(), const EngineError(EngineFailureReason.startFailed)],
     );
-    expect(sut.launcher.processes, hasLength(4)); // initial + 3 restarts
+    // 冷启口径(T2-M1):初试不计重启预算 → 1 初试 + 3 次重试 = 4 进程。
+    expect(sut.launcher.processes, hasLength(4));
     expect(sut.scannedPorts, hasLength(4)); // fresh port scan per attempt
     expect(
       sut.delays,
@@ -152,7 +167,8 @@ void main() {
     expect(sut.launcher.killTreeCalls, isEmpty); // clean crash: nothing to tree-kill
   });
 
-  test('crash loop: three failed restarts cap at Error(crashed), no self-heal',
+  test(
+      'crash loop: respawns capped at 3 (first counts, T2-M1) -> Error(crashed), no self-heal',
       () async {
     var grantFirst = true;
     final sut = _Sut(healthRule: (_) {
@@ -169,16 +185,46 @@ void main() {
 
     await _until(() => sut.manager.state.value is EngineError);
     expect(sut.manager.state.value, const EngineError(EngineFailureReason.crashed));
-    expect(sut.launcher.processes, hasLength(5)); // initial + 3 restart retries
+    // 崩溃重入口径(T2-M1 修 off-by-one):首重生计入预算 → 总重生 ≤3,
+    // 即 Ready 进程 + 3 次重生 = 4(此前首重生免费,5 个进程才 Error)。
+    expect(sut.launcher.processes, hasLength(4));
     expect(
       sut.logs.where((l) => l.startsWith('engine restart attempt=')),
-      hasLength(3),
+      ['engine restart attempt=1', 'engine restart attempt=2'],
     );
 
     // Capped: no further spawns without re-intervention.
     final spawns = sut.launcher.processes.length;
     await _pumpEventLoop();
     expect(sut.launcher.processes.length, spawns);
+  });
+
+  test(
+      'shutdown during a backoff delay aborts the ladder: no respawn after teardown (T2-L2)',
+      () async {
+    // Gate the first backoff delay: hold it until shutdown() has completed,
+    // then release — the sequence must NOT spawn again (generation check).
+    final gate = Completer<void>();
+    var delayCalls = 0;
+    final sut = _Sut(
+      healthRule: (_) => false,
+      healthAttempts: 1,
+      delayFn: (d) async {
+        delayCalls++;
+        if (delayCalls == 1) await gate.future; // hold the 1s backoff
+      },
+    );
+    final starting = sut.manager.ensureReady();
+    await _until(() => delayCalls == 1); // first attempt failed into the gate
+
+    await sut.manager.shutdown(); // tears down while the delay is pending
+    gate.complete(); // backoff resolves after shutdown
+    await starting;
+    await _pumpEventLoop();
+
+    expect(sut.launcher.processes, hasLength(1)); // no respawn post-shutdown
+    expect(sut.manager.state.value, const EngineStopped());
+    expect(delayCalls, 1); // ladder aborted, no further backoffs scheduled
   });
 
   test('idle timeout (10min fast-forward) with no activity tree-kills -> Stopped',
@@ -281,13 +327,15 @@ class _Sut {
     Future<bool> Function()? isReadyFn,
     bool Function(Uri health)? healthRule,
     int healthAttempts = 60,
+    bool enabled = true,
+    EngineDelayFn? delayFn,
   }) : models = _FakeModelStore(path: modelPath, isReadyFn: isReadyFn) {
     _healthRule = healthRule ?? (_) => true;
     manager = EngineManagerImpl(
       launcher,
       models,
-      () => const AssistantConfig(),
-      delay: _recordDelay,
+      () => AssistantConfig(enabled: enabled),
+      delay: delayFn ?? _recordDelay,
       healthProbe: _probe,
       portScan: _scanPort,
       exePath: () => _exeName,

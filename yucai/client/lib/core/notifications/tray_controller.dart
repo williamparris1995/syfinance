@@ -89,6 +89,7 @@ class TrayController with TrayListener, WindowListener {
     this.versionProvider,
     this.newTransactionNav,
     this.inboxNav,
+    this.engineShutdown,
     AppExitFn? exitFn,
   }) : _exit = exitFn ?? _defaultExit;
 
@@ -132,6 +133,14 @@ class TrayController with TrayListener, WindowListener {
   /// GoRouter go('/inbox') —— 托盘唯二入口之一);null / 抛错 = 降级
   /// 仅 show/focus 窗口(不炸,NFR-1,照 [newTransactionNav] 范式)。
   final Future<void> Function()? inboxNav;
+
+  /// 引擎边车退出钩子(F66 评审 T3-H1 修复):所有**不经 AppExitPort** 的
+  /// 进程退出路径(托盘菜单「退出」/关闭偏好=退出/首关对话框选退出/托盘
+  /// 不可用兜底真退出)在 _exit 前 await 本回调,终结引擎进程树(ADR-3);
+  /// 组合根(notifications_bootstrap)与 TrayAppExit 注入同一闭包(同源)。
+  /// null = 未接线(F66 前语义/单测缺省)→ 零行为;回调抛错吞掉
+  /// (fail-open:清理失败不得把进程留成僵尸,同 TrayAppExit try/finally)。
+  final Future<void> Function()? engineShutdown;
 
   final AppExitFn _exit;
 
@@ -233,11 +242,26 @@ class TrayController with TrayListener, WindowListener {
     trayReady = false;
   }
 
-  /// 退出进程(F22 FR-1):清理托盘后 exit(0)。供 AppExitPort 与
-  /// 关闭决策树的 quit 路径复用。
+  /// 退出进程(F22 FR-1 + F66 T3-H1):清理托盘、终结引擎进程树后
+  /// exit(0)。供关闭决策树的 quit 路径(托盘菜单/关闭偏好=退出/首关
+  /// 对话框选退出)复用;设置页退出按钮走 AppExitPort(bootstrap 注入
+  /// 同一引擎闭包,同源杀)。
   Future<void> quit() async {
     await stop();
+    await _shutdownEngine();
     _exit();
+  }
+
+  /// 引擎退出钩子统一落点([quit] 与托盘不可用兜底真退出共用);
+  /// null / 抛错吞掉(fail-open,见 [engineShutdown])。
+  Future<void> _shutdownEngine() async {
+    final shutdown = engineShutdown;
+    if (shutdown == null) return;
+    try {
+      await shutdown();
+    } catch (_) {
+      // Cleanup failure must still exit the process (no orphaned engine).
+    }
   }
 
   void _armScanTick() {
@@ -319,9 +343,10 @@ class TrayController with TrayListener, WindowListener {
   @override
   void onWindowClose() async {
     // ① 托盘不可用:隐藏=用户无法找回的僵尸窗口,直接真退出(NFR-1,
-    //    历史用户验收修复优先于一切偏好)。_exit 返回 Never,后续分支
-    //    静态不可达。
+    //    历史用户验收修复优先于一切偏好)。引擎退出钩子与 quit 路径
+    //    同源(F66 T3-H1)。_exit 返回 Never,后续分支静态不可达。
     if (!trayReady) {
+      await _shutdownEngine();
       _exit();
     } else if (_closeBehavior == TrayCloseBehavior.exit) {
       // ② 用户偏好「关闭=退出」(FR-2):与设置页退出按钮同路径。守卫

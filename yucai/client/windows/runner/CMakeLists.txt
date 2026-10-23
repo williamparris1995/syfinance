@@ -46,6 +46,21 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
 
+# F66 engine sidecar bundling (ADR-9): copy the llama.cpp engine archive
+# (llama-server.exe + impl/backend DLLs, the full tool/fetch_engine.py zip
+# product) next to the app exe, so the sidecar ships in the bundle and in
+# the installer (packaging/yucai.iss packs this directory recursively).
+# The source directory is git-ignored and only exists after
+# `python tool/fetch_engine.py` ran (release CI does; a local dev checkout
+# may not) — when absent we skip silently so a plain dev build never breaks.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../tool/engines/llama-server.exe")
+  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../tool/engines"
+            "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+    COMMENT "Bundling F66 engine sidecar (tool/engines -> bundle)")
+endif()
+
 # F24 自动更新:Runner.rc 内嵌 DSAPub(dsa_pub.pem);RC 编译规则不追踪其依赖,
 # 换钥后增量构建会静默沿用旧公钥(review MEDIUM)——显式声明依赖强制重编。
 set_property(SOURCE "Runner.rc" PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/dsa_pub.pem")

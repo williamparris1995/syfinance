@@ -2,9 +2,11 @@
 ///
 /// 照 design LLD 编排:懒启动(端口扫描→拉起→/health 轮询→Ready)、
 /// 幂等 ensureReady(Starting→等待既有 Future;Ready→即返)、模型缺失
-/// 前置检查(不起进程)、退避重启(1s/3s/9s,上限 3 次,按失败点定
+/// 前置检查(不起进程)、退避重启(1s/3s/9s;冷启=初试+3 次重试,崩溃
+/// 重入=总重生 ≤3 且首重生计入预算,评审 T2-M1;按失败点定
 /// crashed/startFailed)、闲置 10min 回收(活跃计数顺延)、shutdown 强杀
-/// 进程树。全缝注入(NFR-2):延时/健康探测/端口扫描/exe 路径/闲置
+/// 进程树(代数计数使在途启动序列的退避 delay 到点后不再拉起,评审
+/// T2-L2)。全缝注入(NFR-2):延时/健康探测/端口扫描/exe 路径/闲置
 /// Timer/日志 —— 单测零真进程零真等待。
 ///
 /// 日志全 English 结构化(NFR-3):`engine start port=<n>` /
@@ -89,8 +91,8 @@ class EngineManagerImpl implements EngineManager {
     Duration(seconds: 9),
   ];
 
-  /// 随包边车 exe 名(T5 捆绑工程落位前的固定相对名;spawn 失败自然落
-  /// startFailed 退避路径)。
+  /// 随包边车 exe 名(ADR-9:windows/runner 构建把 tool/engines/ 整包拷到
+  /// app exe 同级;缺省路径解析见文件尾 [_defaultExePath])。
   static const String bundledExeName = 'llama-server.exe';
 
   /// llama-server 启动参数(ADR-6;flag 名冒烟测钉死):
@@ -131,8 +133,12 @@ class EngineManagerImpl implements EngineManager {
   /// 当前序列内连续失败次数(成功清零;超 [maxRestartAttempts] 进 Error)。
   int _failedAttempts = 0;
 
-  /// 进行中请求数(T3 的 beginActivity/endActivity 维护;闲置回收依据)。
+  /// 进行中请求数(活跃 port beginActivity/endActivity 维护;闲置回收依据)。
   int _activeRequests = 0;
+
+  /// 生命周期代数(评审 T2-L2):shutdown 递增;在途启动序列每次 spawn 前
+  /// 比对,已换代 → 立即中止不再拉起(退避 delay 到点晚于 shutdown 时)。
+  int _generation = 0;
 
   Timer? _idleTimer;
 
@@ -141,6 +147,9 @@ class EngineManagerImpl implements EngineManager {
 
   @override
   Future<void> ensureReady() async {
+    // disabled 前置检查(评审 T2-L3):F65 浮层打开即调本口预热,disabled
+    // 时直接 return —— 不拉引擎、不动状态(防 disabled 白拉起)。
+    if (!_config().enabled) return;
     _touchIdleTimer();
     final current = _stateNotifier.value;
     // 幂等热路径:Ready 且进程仍在(崩溃竞态漏报时 _process 已清,走冷启)。
@@ -157,9 +166,12 @@ class EngineManagerImpl implements EngineManager {
     await _ownStartSequence();
   }
 
-  /// 停止引擎并终结进程树(app 退出钩子/强杀共用;ADR-3)。
+  /// 停止引擎并终结进程树(app 退出钩子/强杀共用;ADR-3)。递增代数使
+  /// 在途启动序列的退避 delay 到点后中止,不再于 shutdown 后拉起(评审
+  /// T2-L2)。
   @override
   Future<void> shutdown() async {
+    _generation++;
     _idleTimer?.cancel();
     _idleTimer = null;
     final process = _process;
@@ -176,15 +188,16 @@ class EngineManagerImpl implements EngineManager {
     }
   }
 
-  /// 请求开始标记(T3 stream client 包夹 chat 用;FR-1 活跃计数)。
-  ///
-  /// 同时重置闲置窗口(design LLD「每次 ensureReady/请求 touch」)。
+  /// 请求开始标记(T5 活跃 port 上提:LlmStreamClient 流开始调;FR-1
+  /// 活跃计数)。同时重置闲置窗口(design LLD「每次 ensureReady/请求 touch」)。
+  @override
   void beginActivity() {
     _activeRequests++;
     _touchIdleTimer();
   }
 
   /// 请求结束标记(以流关闭为界;归零后闲置回收恢复生效)。
+  @override
   void endActivity() {
     if (_activeRequests > 0) _activeRequests--;
   }
@@ -192,9 +205,10 @@ class EngineManagerImpl implements EngineManager {
   // -- 启动序列 ---------------------------------------------------------------
 
   /// 独占持有启动序列(_starting 赋值在首个 await 前,单线程下并发调用
-  /// 确定性 join)。
-  Future<void> _ownStartSequence() async {
-    final sequence = _runStartSequence();
+  /// 确定性 join)。[firstAttemptIsRestart] 见 [_runStartSequence]。
+  Future<void> _ownStartSequence({bool firstAttemptIsRestart = false}) async {
+    final sequence =
+        _runStartSequence(firstAttemptIsRestart: firstAttemptIsRestart);
     _starting = sequence;
     try {
       await sequence;
@@ -203,9 +217,14 @@ class EngineManagerImpl implements EngineManager {
     }
   }
 
-  /// 全流程:模型前置检查 → [maxRestartAttempts]+1 次尝试,每次重扫端口;
-  /// 失败按退避延时重试,计数到顶按最后失败点定 Error 终态。
-  Future<void> _runStartSequence() async {
+  /// 全流程:模型前置检查 → 尝试循环,失败按退避延时重试,计数到顶按
+  /// 最后失败点定 Error 终态。预算口径(评审 T2-M1):
+  /// - 冷启(ensureReady 重入,[firstAttemptIsRestart]=false):初试不计
+  ///   重启预算 → 1 次初试 + [maxRestartAttempts] 次重试(1s/3s/9s);
+  /// - 崩溃重入(Ready 后意外退出自动重启,=true):**首重生即计入预算**
+  ///   → 总重生 ≤ [maxRestartAttempts](此前首重生免费致 P1+1s+3s+9s=4
+  ///   次重生才 Error,off-by-one 已修)。
+  Future<void> _runStartSequence({bool firstAttemptIsRestart = false}) async {
     // 模型缺失前置检查(FR-2):不起进程,直接终态。
     bool modelReady;
     try {
@@ -217,7 +236,13 @@ class EngineManagerImpl implements EngineManager {
       _setState(const EngineError(EngineFailureReason.modelMissing));
       return;
     }
+    // 崩溃重入:首次 spawn 本身就是一次重启,预算 -1(评审 T2-M1)。
+    final restartBudgetOffset = firstAttemptIsRestart ? 1 : 0;
+    // 代数快照(评审 T2-L2):shutdown 递增代数后,在途序列每次 spawn 前
+    // 比对即知已被终结 —— 退避 delay 到点晚于 shutdown 时不再拉起。
+    final generation = _generation;
     while (true) {
+      if (_generation != generation) return; // shutdown superseded: abort
       final failure = await _attemptStart();
       if (failure == null) {
         _failedAttempts = 0; // 成功清零(「连续」失败才计退避上限)。
@@ -229,7 +254,7 @@ class EngineManagerImpl implements EngineManager {
         return;
       }
       _failedAttempts++;
-      if (_failedAttempts > maxRestartAttempts) {
+      if (_failedAttempts + restartBudgetOffset > maxRestartAttempts) {
         _log('engine error reason=${failure.name}');
         _setState(EngineError(failure));
         return;
@@ -314,13 +339,14 @@ class EngineManagerImpl implements EngineManager {
     return exited ? EngineFailureReason.crashed : EngineFailureReason.startFailed;
   }
 
-  /// Ready 态进程意外退出回调(非有意停止):自动重启序列。
+  /// Ready 态进程意外退出回调(非有意停止):自动重启序列(首重生计入
+  /// 重启预算,评审 T2-M1 —— 见 [_runStartSequence])。
   void _onUnexpectedExit(LaunchedProcess process) {
     if (!identical(_process, process)) return; // superseded/intentional stop
     if (_stateNotifier.value is! EngineReady) return;
     _log('engine crash pid=${process.pid}');
     _process = null;
-    unawaited(_ownStartSequence());
+    unawaited(_ownStartSequence(firstAttemptIsRestart: true));
   }
 
   // -- 闲置回收 ---------------------------------------------------------------
@@ -410,4 +436,13 @@ Future<bool> _defaultHealthProbe(Uri healthUrl) async {
   }
 }
 
-String _defaultExePath() => EngineManagerImpl.bundledExeName;
+/// ADR-9 捆绑落位解析(T5):边车随包在 app exe 同级(windows/runner
+/// CMake 把 tool/engines/ 整包拷入 bundle)。Windows 下
+/// `Platform.resolvedExecutable` = yucai_client.exe 全路径(照
+/// LaunchAtStartup appPath 同源惯例),取父目录拼边车名 —— 构建输出目录
+/// 与安装目录同一解析。注入缝不变(单测/冒烟传固定路径);exe 缺失时
+/// spawn 抛错自然落 startFailed 退避路径。
+String _defaultExePath() {
+  final exeDir = File(Platform.resolvedExecutable).parent.path;
+  return '$exeDir${Platform.pathSeparator}${EngineManagerImpl.bundledExeName}';
+}

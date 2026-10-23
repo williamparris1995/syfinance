@@ -226,7 +226,8 @@ void main() {
     expect(tool.receivedArgs, isEmpty);
   });
 
-  test('未配置拒跑:单 AssistantError,零 LLM 调用(FR-4)', () async {
+  test('未启用拒跑:单 AssistantError,零 LLM 调用(FR-4;文案无「端点」)',
+      () async {
     final llm = _ScriptedLlmClient(const []);
     final registry = AssistantToolRegistry()
       ..register(_FakeTool('demo_query', (args) => const ToolData({})));
@@ -234,7 +235,7 @@ void main() {
 
     final events = await loop.send('你好').toList();
 
-    expect(events.map(_describe), ['error:助手未配置端点,请先在设置中配置']);
+    expect(events.map(_describe), ['error:助手未启用,请在设置中开启']);
     expect(llm.requests, isEmpty);
     expect(lines, isEmpty); // 零 LLM 请求 → 零审计行
   });

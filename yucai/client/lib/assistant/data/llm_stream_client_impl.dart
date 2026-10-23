@@ -10,7 +10,9 @@
 /// + 非 Ready 态自解释 `StateError('engine not ready: <reason>')`(中文
 /// 转译在 agent loop);Ready 态端点作 OpenAIClient baseUrl,apiKey=
 /// 'sk-noauth' 占位(llama-server 不校验 Authorization,openai_dart 需
-/// 非空,ADR-8)。T1 期固定假端点随本票删除。
+/// 非空,ADR-8)。T1 期固定假端点随本票删除。T5 活跃 port 接线:流开始
+/// beginActivity / finally endActivity(FR-1 闲置回收不杀进行中的流,
+/// 端口已自 impl 上提,本文件零 impl 强转)。
 ///
 /// 流异常重抛为自解释格式(**错误类名+端点域名**,零 Key/零完整 body ——
 /// 照 F46 红线,底层 message 可能携带 payload 被弃用);AssistantError
@@ -38,39 +40,44 @@ class LlmStreamClientImpl implements LlmStreamClient {
     // ADR-1 请求前兜底预热(幂等):F65 打开浮层已先行调;此处兜住未经
     // 预热的直问与闲置回收后的再问。模型缺失等终态由 port 契约以
     // EngineError 落 state(不抛),故随后必做 state 检查。
-    // TODO(F66-T2 合入后):闲置回收「请求进行中不回收」(design LLD,以流
-    // 关闭为界)需活跃计数接线 —— EngineManagerImpl 侧已备
-    // beginActivity/endActivity,待其上提到 domain port 后,在本流开/
-    // finally 处成对调用(port 未含之前不强转 impl,遵守 port 隔离)。
-    await _engine.ensureReady();
-    final state = _engine.state.value;
-    if (state is! EngineReady) {
-      // FR-4:引擎未就绪直给自解释语义,零网络请求;中文转译在 agent
-      // loop(_llmErrorEvent 映射「引擎未就绪」)。
-      throw StateError('engine not ready: ${_notReadyDetail(state)}');
-    }
-    final endpoint = state.endpoint.toString();
-    final host = _hostOf(endpoint);
-    // 请求构造在 try 之前:非法消息形状(自解释 ArgumentError)在此直接
-    // 上抛,不被网络异常包装吞掉语义(评审 L2)。
-    final request = buildRequest(req);
-    final client = openai.OpenAIClient.withApiKey(
-      // ADR-8 占位:llama-server 不校验 Authorization,openai_dart 需非空。
-      'sk-noauth',
-      baseUrl: endpoint,
-    );
+    //
+    // T5 活跃包夹(FR-1):流开始 beginActivity、finally endActivity ——
+    // 闲置回收窗口在请求进行中不回收引擎(以流关闭为界);finally 保证
+    // 异常/取消路径配对(across ensureReady 未就绪抛错也先 end 再冒)。
+    _engine.beginActivity();
     try {
-      final stream = client.chat.completions.createStream(request);
-      await for (final event in stream) {
-        for (final chunk in chunksFromOpenAi(event)) {
-          yield chunk;
-        }
+      await _engine.ensureReady();
+      final state = _engine.state.value;
+      if (state is! EngineReady) {
+        // FR-4:引擎未就绪直给自解释语义,零网络请求;中文转译在 agent
+        // loop(_llmErrorEvent 映射「引擎未就绪」)。
+        throw StateError('engine not ready: ${_notReadyDetail(state)}');
       }
-    } catch (e) {
-      // F46 红线:只携带错误类名+端点域名(零 Key/零完整 body)。
-      throw StateError('LLM stream failed: ${e.runtimeType}($host)');
+      final endpoint = state.endpoint.toString();
+      final host = _hostOf(endpoint);
+      // 请求构造在 try 之前:非法消息形状(自解释 ArgumentError)在此直接
+      // 上抛,不被网络异常包装吞掉语义(评审 L2)。
+      final request = buildRequest(req);
+      final client = openai.OpenAIClient.withApiKey(
+        // ADR-8 占位:llama-server 不校验 Authorization,openai_dart 需非空。
+        'sk-noauth',
+        baseUrl: endpoint,
+      );
+      try {
+        final stream = client.chat.completions.createStream(request);
+        await for (final event in stream) {
+          for (final chunk in chunksFromOpenAi(event)) {
+            yield chunk;
+          }
+        }
+      } catch (e) {
+        // F46 红线:只携带错误类名+端点域名(零 Key/零完整 body)。
+        throw StateError('LLM stream failed: ${e.runtimeType}($host)');
+      } finally {
+        client.close();
+      }
     } finally {
-      client.close();
+      _engine.endActivity();
     }
   }
 

@@ -484,6 +484,70 @@ void main() {
     );
 
     test(
+      'T5 活跃包夹:流开始 begin、流关闭 end 成功路径配对(FR-1 闲置回收'
+      '保护,loopback 往返)',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        final served = () async {
+          await for (final request in server) {
+            await request.drain<void>();
+            const body =
+                'data: {"id":"c1","object":"chat.completion.chunk",'
+                '"created":0,"model":"m","choices":[{"index":0,'
+                '"delta":{"content":"ok"},"finish_reason":null}]}\n\n'
+                'data: [DONE]\n\n';
+            final response = request.response;
+            response.statusCode = 200;
+            response.headers.contentType =
+                ContentType('text', 'event-stream', charset: 'utf-8');
+            response.write(body);
+            await response.close();
+          }
+        }();
+        served.ignore();
+        final engine = _FakeEngineManager(
+          EngineReady(Uri.parse('http://127.0.0.1:${server.port}/v1')),
+        );
+        final client = LlmStreamClientImpl(engine);
+
+        await client.chat(const LlmChatRequest(
+          model: 'm',
+          messages: [
+            {'role': 'user', 'content': 'q'},
+          ],
+          toolsSchema: [],
+        )).toList();
+
+        // 包夹形状:begin 起手、end 收尾、各恰一次(进行中不回收)。
+        expect(engine.activityLog.first, 'begin');
+        expect(engine.activityLog.last, 'end');
+        expect(engine.activityLog.where((e) => e == 'begin'), hasLength(1));
+        expect(engine.activityLog.where((e) => e == 'end'), hasLength(1));
+        expect(engine.ensureReadyCalls, 1); // 预热在 begin 之后仍被调
+        await server.close();
+      },
+    );
+
+    test('T5 活跃包夹:未就绪抛错路径 finally end 兜底配对', () async {
+      final engine = _FakeEngineManager(const EngineStopped());
+      final client = LlmStreamClientImpl(engine);
+
+      await expectLater(
+        client.chat(const LlmChatRequest(
+          model: 'm',
+          messages: [
+            {'role': 'user', 'content': 'q'},
+          ],
+          toolsSchema: [],
+        )),
+        emitsError(isA<StateError>()),
+      );
+
+      // 抛错也配对:end 在错误冒出前已调(finally 兜底)。
+      expect(engine.activityLog, ['begin', 'ensureReady', 'end']);
+    });
+
+    test(
       '非法 role 抛自解释 ArgumentError,非泛化 StateError(评审 L2:请求'
       '构造在引擎门之后、try 之外,零网络)',
       () async {
@@ -508,22 +572,31 @@ void main() {
   });
 }
 
-/// F66-T3 接线 fake:初始态注入 + ensureReady 调用计数(state 恒为初始态;
-/// 转移编排语义归 T2 EngineManagerImpl,此处只验接线消费面)。
+/// F66-T3 接线 fake:初始态注入 + ensureReady/beginActivity/endActivity
+/// 调用记录(state 恒为初始态;转移编排语义归 T2 EngineManagerImpl,
+/// 此处只验接线消费面;activityLog 供 T5 活跃包夹断言)。
 class _FakeEngineManager implements EngineManager {
   _FakeEngineManager(EngineState state)
       : _state = ValueNotifier<EngineState>(state);
 
   final ValueNotifier<EngineState> _state;
   int ensureReadyCalls = 0;
+  final activityLog = <String>[];
 
   @override
   ValueListenable<EngineState> get state => _state;
 
   @override
   Future<void> ensureReady() async {
+    activityLog.add('ensureReady');
     ensureReadyCalls++;
   }
+
+  @override
+  void beginActivity() => activityLog.add('begin');
+
+  @override
+  void endActivity() => activityLog.add('end');
 
   @override
   Future<void> shutdown() async {}

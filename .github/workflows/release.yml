@@ -81,6 +81,16 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Fetch engine sidecar (F66 ADR-9)
+        shell: bash
+        run: |
+          # F66 引擎边车:钉死下载 llama-server.exe + DLL 整包(tag b11669 +
+          # zip sha256 校验,升级=改 tool/fetch_engine.py 两常量)到
+          # tool/engines/(git 忽略);构建时由 windows/runner CMake 拷入
+          # bundle(目录缺失=dev 未跑脚本,构建零报错跳过)。幂等:已在位
+          # 且版本匹配则跳过。windows-latest 预装 python。
+          python yucai/client/tool/fetch_engine.py
+
       - name: Build Windows release
         shell: bash
         run: |
