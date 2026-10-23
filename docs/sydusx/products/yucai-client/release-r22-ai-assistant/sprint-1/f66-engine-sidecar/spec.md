@@ -41,7 +41,7 @@ status: confirmed
 - THEN 读取忽略未知键,不抛错不迁移
 
 ### Requirement: FR-3 引擎状态 port
-- [ ] 系统 SHALL 暴露多播 `Stream<EngineState>`(stopped/starting/ready/error(reason)),供 F65 消费;**starting 态 MUST 可供 F65 渲染引擎加载动效**(用户拍板 2026-10-23)。
+- [ ] 系统 SHALL 暴露引擎状态可订阅源(实装=ValueListenable<EngineState> 当前态缓存+转移通知,行为等价多播流,评审 T1-L1 订正措辞)(stopped/starting/ready/error(reason)),供 F65 消费;**starting 态 MUST 可供 F65 渲染引擎加载动效**(用户拍板 2026-10-23)。
 
 #### Scenario: 状态可订阅
 - GIVEN 任一时刻订阅状态流
