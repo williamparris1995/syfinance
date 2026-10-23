@@ -1,7 +1,8 @@
 // F64-T3 TDD RED → GREEN:networth_snapshot 只读工具(FR-2/ADR-6)。
 //
 // 口径:与 home 净资产大卡同源 —— NetWorthSnapshotSource port(DI 适配
-// NetWorthLocalDataSource)+ CurrencySettings.getBaseCurrency()(NFR-1 逐分
+// NetWorthLocalDataSource)+ BaseCurrencySource 微 port(组合根适配
+// CurrencySettings.getBaseCurrency,评审 fixlist M1;NFR-1 逐分
 // 一致的前提是同一取数通道,这里用 port 契约钉形状,真库逐分比对见
 // tools_caliber_test.dart)。
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/assistant/domain/assistant_tool.dart';
 import 'package:yucai_client/assistant/data/tools/networth_snapshot_tool.dart';
 import 'package:yucai_client/assistant/domain/networth_port.dart';
-import 'package:yucai_client/currency/data/currency_settings.dart';
+import 'package:yucai_client/assistant/domain/base_currency_port.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 
 class _FakeSource implements NetWorthSnapshotSource {
@@ -31,8 +32,8 @@ class _ThrowingSource implements NetWorthSnapshotSource {
   }
 }
 
-class _FakeCurrencySettings extends Fake implements CurrencySettings {
-  _FakeCurrencySettings(this._base);
+class _FakeBaseCurrency implements BaseCurrencySource {
+  _FakeBaseCurrency(this._base);
   final String _base;
 
   @override
@@ -49,7 +50,7 @@ void main() {
             netWorthCents: 0,
             currency: 'CNY',
           )),
-          _FakeCurrencySettings('CNY'));
+          _FakeBaseCurrency('CNY'));
       expect(tool.name, 'networth_snapshot');
       expect(tool.description, isNotEmpty);
       expect(tool.parametersSchema['type'], 'object');
@@ -66,7 +67,7 @@ void main() {
             netWorthCents: 123452222, // ¥1,234,522.22
             currency: 'CNY',
           )),
-          _FakeCurrencySettings('CNY'));
+          _FakeBaseCurrency('CNY'));
 
       final result = await tool.execute(const {});
       expect(result, isA<ToolData>());
@@ -90,7 +91,7 @@ void main() {
           isTrue);
     });
 
-    test('execute: base currency flows from CurrencySettings into fetch',
+    test('execute: base currency flows from BaseCurrencySource into fetch',
         () async {
       final source = _FakeSource(const NetWorthView(
         totalAssetsCents: 1,
@@ -98,7 +99,7 @@ void main() {
         netWorthCents: 1,
         currency: 'USD',
       ));
-      final tool = NetWorthSnapshotTool(source, _FakeCurrencySettings('USD'));
+      final tool = NetWorthSnapshotTool(source, _FakeBaseCurrency('USD'));
       await tool.execute(const {});
       expect(source.lastBaseCurrency, 'USD');
     });
@@ -111,7 +112,7 @@ void main() {
             netWorthCents: -100,
             currency: 'CNY',
           )),
-          _FakeCurrencySettings('CNY'));
+          _FakeBaseCurrency('CNY'));
       final json = (await tool.execute(const {}) as ToolData).json;
       expect((json['formatted'] as Map<String, Object>)['netWorth'], '-1.00');
     });
@@ -119,7 +120,7 @@ void main() {
     test('execute: source failure becomes self-correcting ToolError, no throw',
         () async {
       final tool =
-          NetWorthSnapshotTool(_ThrowingSource(), _FakeCurrencySettings('CNY'));
+          NetWorthSnapshotTool(_ThrowingSource(), _FakeBaseCurrency('CNY'));
       final result = await tool.execute(const {});
       expect(result, isA<ToolError>());
       expect((result as ToolError).message, isNotEmpty);
@@ -134,7 +135,7 @@ void main() {
             netWorthCents: 0,
             currency: 'CNY',
           )),
-          _FakeCurrencySettings('CNY'));
+          _FakeBaseCurrency('CNY'));
       final result =
           await tool.execute({'page': 3, 'junk': 'value'}); // 无视多余参数
       expect(result, isA<ToolData>());

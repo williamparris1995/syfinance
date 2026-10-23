@@ -1,16 +1,17 @@
 // F64-T3 —— networth_snapshot 只读工具(FR-2/ADR-6,NFR-1 口径)。
 //
-// 取数与 home 净资产大卡同源:baseCurrency 经 CurrencySettings
-// .getBaseCurrency(),数据经 assistant/domain 的 [NetWorthSnapshotSource]
-// port(DI 组合根适配 NetWorthLocalDataSource;本模块不 import holding/data,
-// AccountCloser 家法,见 networth_port.dart)。
+// 取数与 home 净资产大卡同源:baseCurrency 经 assistant/domain 的
+// [BaseCurrencySource] 微 port(评审 fixlist M1:不 import currency/data,
+// 组合根适配 CurrencySettings.getBaseCurrency),数据经
+// [NetWorthSnapshotSource] port(DI 组合根适配 NetWorthLocalDataSource;
+// 本模块不 import holding/data,AccountCloser 家法,见 networth_port.dart)。
 library;
 
 import 'package:yucai_client/assistant/domain/assistant_tool.dart';
+import 'package:yucai_client/assistant/domain/base_currency_port.dart';
 import 'package:yucai_client/assistant/domain/networth_port.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart'
     show DueReminderPolicy;
-import 'package:yucai_client/currency/data/currency_settings.dart';
 
 /// 净资产快照工具:最新资产/负债/净资产(cents + 元双口径)+ 本位币 + 取数时点。
 ///
@@ -18,10 +19,10 @@ import 'package:yucai_client/currency/data/currency_settings.dart';
 /// (两位小数 + 千分位;presentation 各页的 formatCents 为私有/带币符,
 /// 不适合数据层 —— core 既有等价纯函数即此,复用第一,不自写第五份)。
 class NetWorthSnapshotTool implements AssistantTool {
-  NetWorthSnapshotTool(this._source, this._currencySettings);
+  NetWorthSnapshotTool(this._source, this._baseCurrency);
 
   final NetWorthSnapshotSource _source;
-  final CurrencySettings _currencySettings;
+  final BaseCurrencySource _baseCurrency;
 
   @override
   String get name => 'networth_snapshot';
@@ -43,7 +44,7 @@ class NetWorthSnapshotTool implements AssistantTool {
   @override
   Future<ToolResult> execute(Map<String, Object> args) async {
     try {
-      final base = await _currencySettings.getBaseCurrency();
+      final base = await _baseCurrency.getBaseCurrency();
       final view = await _source.fetch(baseCurrency: base);
       return ToolData({
         'totalAssetsCents': view.totalAssetsCents,

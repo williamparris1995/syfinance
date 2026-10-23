@@ -32,8 +32,11 @@ class AccountsListTool implements AssistantTool {
   /// 占用口径「未出账」分界时钟(测试注入;缺省当前时刻)。
   final DateTime Function()? _clock;
 
-  /// kind 合法值 = AccountType 值域(枚举对齐,单一事实源)。
-  static const _legalKinds = [
+  /// kind 合法值 = AccountType 值域名(const 硬编码副本 —— parametersSchema
+  /// 的 const enum 需要编译期常量,无法从枚举派生)。**对齐守卫测试**钉死
+  /// 与 `AccountType.values` 派生集一致(评审 fixlist M2:漂移即红,
+  /// 见 accounts_list_tool_test「legalKinds alignment guard」)。
+  static const legalKinds = [
     'asset',
     'liability',
     'equity',
@@ -61,7 +64,7 @@ class AccountsListTool implements AssistantTool {
         'properties': {
           'kind': {
             'type': 'string',
-            'enum': _legalKinds,
+            'enum': legalKinds,
             'description': 'Optional account type filter.',
           },
           'page': {
@@ -81,7 +84,7 @@ class AccountsListTool implements AssistantTool {
   @override
   Future<ToolResult> execute(Map<String, Object> args) async {
     final kind = lenientString(args['kind'])?.toLowerCase();
-    final invalid = checkKindFilter(kind, _legalKinds);
+    final invalid = checkKindFilter(kind, legalKinds);
     if (invalid != null) return invalid;
     final page = parsePagination(args);
 
@@ -97,9 +100,16 @@ class AccountsListTool implements AssistantTool {
     // 载体户出局(展示层同口径)→ kind 过滤。
     var visible = AccountVisibility.userVisible(all);
     if (kind != null) {
-      final t = AccountType.values
-          .firstWhere((e) => e.name == kind, orElse: () => AccountType.asset);
-      visible = visible.where((a) => a.accountType == t).toList();
+      // 评审 fixlist L1:未知 kind 不静默按 asset 兜底 —— 白名单
+      // (checkKindFilter)理论已拦,防御路径仍显式 ToolError 自纠。
+      final matches =
+          AccountType.values.where((e) => e.name == kind).toList();
+      if (matches.isEmpty) {
+        return ToolError(
+          'invalid kind "$kind"; allowed values: ${legalKinds.join(', ')}',
+        );
+      }
+      visible = visible.where((a) => a.accountType == matches.single).toList();
     }
 
     // 分组汇总(按 accountType:count + subtotal 双口径)。
@@ -121,8 +131,17 @@ class AccountsListTool implements AssistantTool {
     final slice = start >= visible.length
         ? const <Account>[]
         : visible.skip(start).take(page.pageSize).toList();
+    // 评审 fixlist L2:整页一次拉借入债列表下传(镜像 accounts_page
+    // _loadDebts 整页一次范式),_occupationFor 不再逐卡重拉;
+    // 页片无信用卡 → 完全不触发债务取数;失败降级空表(占用计 0)。
+    final hasCard = slice.any((a) => a.category == AccountCategory.creditCard);
+    List<Debt> borrowedInDebts = const [];
+    if (hasCard) {
+      final r = await _debts.list(typeFilter: DebtType.borrowedIn);
+      r.fold((_) {}, (list) => borrowedInDebts = list);
+    }
     final items = <Map<String, Object>>[
-      for (final a in slice) await _itemOf(a),
+      for (final a in slice) await _itemOf(a, borrowedInDebts),
     ];
 
     return ToolData({
@@ -137,10 +156,11 @@ class AccountsListTool implements AssistantTool {
     });
   }
 
-  /// 单账户页片项;信用卡补 {limitCents, usedCents/usedYuan,
+  /// 单账户页片项;信用卡补 {limitCents/limitYuan, usedCents/usedYuan,
   /// availableCents/availableYuan}(F50:已用 = 欠款 + 挂卡占用,可用 =
-  /// 限额 − 已用,与 accounts_page「已用/可用」同式)。
-  Future<Map<String, Object>> _itemOf(Account a) async {
+  /// 限额 − 已用,与 accounts_page「已用/可用」同式;金额字段双口径,
+  /// limitYuan 为评审 fixlist L3 补配对)。
+  Future<Map<String, Object>> _itemOf(Account a, List<Debt> debts) async {
     final item = <String, Object>{
       'name': a.name,
       'type': a.accountType.name,
@@ -149,10 +169,11 @@ class AccountsListTool implements AssistantTool {
     };
     if (a.category != AccountCategory.creditCard) return item;
 
-    final occupation = await _occupationFor(a.id);
+    final occupation = await _occupationFor(a.id, debts);
     final used = a.currentBalanceCents.abs() + occupation;
     item
       ..['limitCents'] = a.creditLimitCents
+      ..['limitYuan'] = yuan(a.creditLimitCents)
       ..['usedCents'] = used
       ..['usedYuan'] = yuan(used)
       ..['availableCents'] = a.creditLimitCents - used
@@ -162,12 +183,9 @@ class AccountsListTool implements AssistantTool {
 
   /// 挂接该卡的卡贷未出账占用(cardLoanOccupationCents 唯一实现,镜像
   /// accounts_page._cardLoanSchedulesOf:只拉挂卡 card_loan 的期表,单债
-  /// 失败静默跳过 = 缺项计 0)。无挂卡债 → 0(不触发债务取数)。
-  Future<int> _occupationFor(String cardId) async {
-    final result = await _debts.list(typeFilter: DebtType.borrowedIn);
-    final List<Debt>? debts = result.fold((l) => null, (r) => r);
-    if (debts == null) return 0;
-
+  /// 失败静默跳过 = 缺项计 0)。[debts] 为 execute 一次拉取的借入债列表
+  /// (评审 fixlist L2:不再逐卡重拉);无挂卡债 → 0。
+  Future<int> _occupationFor(String cardId, List<Debt> debts) async {
     final attached = debts
         .where((d) =>
             d.subtype == DebtSubtypes.cardLoan &&

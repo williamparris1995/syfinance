@@ -32,6 +32,7 @@ import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/data_refresh.dart';
+import 'package:yucai_client/core/di/base_currency_source_adapter.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
 import 'package:yucai_client/core/di/networth_snapshot_source_adapter.dart';
 import 'package:yucai_client/core/form_leave_gate.dart';
@@ -296,14 +297,16 @@ Future<void> configureDependencies() async {
   // 2g. F64 助手地基:工具注册表启动装配(FR-1;registry 单例 + 三只读
   //     工具集中此一段,勿散落)。工具构造依赖均为既有注册件:
   //     AccountRepository / DebtRepository(assistant 跨模块只 import
-  //     domain port,ADR-2)、CurrencySettings(2a 同源本位币)、
+  //     domain port,ADR-2)、CurrencySettings(2a 同源本位币,经
+  //     BaseCurrencySourceAdapter 转 BaseCurrencySource 微 port —— 评审
+  //     fixlist M1:assistant 不 import currency/data)、
   //     NetWorthLocalDataSource(生成图)经 core/di 适配件转
   //     NetWorthSnapshotSource(ADR-2:assistant 不 import holding/data,
   //     与 home 净资产大卡同源,NFR-1)。
   final assistantTools = AssistantToolRegistry();
   assistantTools.register(NetWorthSnapshotTool(
     NetWorthSnapshotSourceAdapter(getIt<NetWorthLocalDataSource>()),
-    getIt<CurrencySettings>(),
+    BaseCurrencySourceAdapter(getIt<CurrencySettings>()),
   ));
   assistantTools.register(AccountsListTool(
     getIt<AccountRepository>(),

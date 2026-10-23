@@ -14,7 +14,9 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/account/data/account_remote_ds.dart';
 import 'package:yucai_client/account/data/account_repository_impl.dart';
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/assistant/data/tools/accounts_list_tool.dart';
 import 'package:yucai_client/assistant/domain/assistant_tool.dart';
 import 'package:yucai_client/core/error/failures.dart';
@@ -23,6 +25,7 @@ import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
 import 'package:yucai_client/debt/data/debt_remote_ds.dart';
 import 'package:yucai_client/debt/data/debt_repository_impl.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
@@ -217,6 +220,8 @@ void main() {
       expect(card['availableCents'], 5000000 - 500500 - expectedOccupation);
       expect(card['availableYuan'], '42,495.00');
       expect(card['limitCents'], 5000000);
+      // 评审 fixlist L3:limitCents 配对 limitYuan(金额字段双口径)。
+      expect(card['limitYuan'], '50,000.00');
 
       // 非信用卡户无卡字段。
       final cash = accounts.singleWhere((a) => a['name'] == '现金');
@@ -304,6 +309,83 @@ void main() {
     });
   });
 
+  group('accounts_list review fixlist guards', () {
+    test('M2: legalKinds alignment guard vs AccountType values (drift = red)',
+        () async {
+      // parametersSchema 的 const enum 需要编译期常量,legalKinds 只能是
+      // AccountType 值域的硬编码副本 —— 本守卫钉死两者逐项一致,枚举
+      // 增删/改名而副本未跟随时即红。
+      expect(AccountsListTool.legalKinds,
+          [for (final t in AccountType.values) t.name]);
+    });
+
+    test('L2: debt list fetched once per execute across cards', () async {
+      final accounts = _MockAccountRepo();
+      Account card(String id, String name) => Account(
+            id: id,
+            name: name,
+            accountType: AccountType.liability,
+            category: AccountCategory.creditCard,
+            currencyCode: 'CNY',
+            initialBalanceCents: 0,
+            currentBalanceCents: 100000,
+            ownership: Ownership.personal,
+            status: AccountStatus.active,
+            creditLimitCents: 500000,
+          );
+      when(() => accounts.list()).thenAnswer(
+          (_) async => dz.Right([card('c1', 'card one'), card('c2', 'card two')]));
+
+      Debt cardLoan(String id, String cardId) => Debt(
+            id: id,
+            accountId: 'acc-any',
+            counterparty: 'cp-$id',
+            interestRate: 0,
+            amortization: AmortizationMethod.equalPrincipalInterest,
+            startDate: DateTime.utc(2026, 1, 1),
+            dueDate: DateTime.utc(2027, 1, 1),
+            totalPrincipalCents: 100000,
+            remainingPrincipalCents: 100000,
+            version: 1,
+            createdAt: DateTime.utc(2026, 1, 1),
+            updatedAt: DateTime.utc(2026, 1, 1),
+            subtype: DebtSubtypes.cardLoan,
+            collectionAccountId: cardId,
+          );
+      final debts = _MockDebtRepo();
+      when(() => debts.list(typeFilter: any(named: 'typeFilter'))).thenAnswer(
+          (_) async => dz.Right([cardLoan('d1', 'c1'), cardLoan('d2', 'c2')]));
+      when(() => debts.get(any())).thenAnswer((inv) async => dz.Right(DebtDetail(
+          debt: cardLoan(inv.positionalArguments[0] as String, 'c1'),
+          schedule: [
+            PaymentEntry(
+              id: 'e-${inv.positionalArguments[0]}',
+              paymentDate: DateTime.utc(2026, 12, 1), // 未出账(> fixedNow)
+              principalCents: 50000,
+              interestCents: 0,
+              totalCents: 50000,
+              paid: false,
+              paidCents: 0,
+              transactionId: '',
+            )
+          ])));
+
+      final json = (await AccountsListTool(accounts, debts, () => _fixedNow)
+              .execute(const {}) as ToolData)
+          .json;
+      final items = (json['accounts'] as List).cast<Map<String, Object?>>();
+      expect(items, hasLength(2));
+      // 两卡占用均生效(每卡一笔挂卡未出账期次 50000)。
+      for (final item in items) {
+        expect(item['usedCents'], 100000 + 50000, reason: '${item['name']}');
+      }
+      // L2 核心:整页只拉一次借入债列表(不逐卡重拉);期表逐债 get。
+      verify(() => debts.list(typeFilter: any(named: 'typeFilter')))
+          .called(1);
+      verify(() => debts.get(any())).called(2);
+    });
+  });
+
   group('accounts_list failure path', () {
     test('repository failure → ToolError, no throw', () async {
       final repo = _MockAccountRepo();
@@ -317,3 +399,5 @@ void main() {
 }
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
+
+class _MockDebtRepo extends Mock implements DebtRepository {}

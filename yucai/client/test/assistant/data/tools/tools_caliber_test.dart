@@ -24,7 +24,7 @@ import 'package:yucai_client/assistant/domain/assistant_tool.dart';
 import 'package:yucai_client/assistant/domain/networth_port.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
-import 'package:yucai_client/currency/data/currency_settings.dart';
+import 'package:yucai_client/assistant/domain/base_currency_port.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
 import 'package:yucai_client/debt/data/debt_remote_ds.dart';
 import 'package:yucai_client/debt/data/debt_repository_impl.dart';
@@ -39,7 +39,7 @@ class _MockAccountRemote extends Mock implements AccountRemoteDataSource {}
 
 class _MockDebtRemote extends Mock implements DebtRemoteDataSource {}
 
-class _FakeCurrencySettings extends Fake implements CurrencySettings {
+class _FakeBaseCurrency implements BaseCurrencySource {
   @override
   Future<String> getBaseCurrency() async => 'CNY';
 }
@@ -79,7 +79,7 @@ void main() {
     );
     networthTool = NetWorthSnapshotTool(
         _NetWorthSourceAdapter(NetWorthLocalDataSource(database)),
-        _FakeCurrencySettings());
+        _FakeBaseCurrency());
     accountsTool = AccountsListTool(accountsRepo, debtsRepo, () => _fixedNow);
     debtsTool = DebtsListTool(debtsRepo, () => _fixedNow);
 
