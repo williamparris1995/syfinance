@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""F66 引擎边车 —— llama-server.exe 获取脚本(T4;ADR-6/ADR-9)。
+"""F66  —— llama-server.exe (T4;ADR-6/ADR-9)
 
-从 llama.cpp 官方 GitHub release 下载 **Windows Vulkan x64** 构建并解压到
-`tool/engines/`(git 忽略 —— 真 exe 不入 git,测试资产只有 test/fixtures/
-下的 tiny gguf)。集成为真件冒烟(test/assistant/integration/
-engine_smoke_test.dart)与本机调试共用。
+ llama.cpp  GitHub release  **Windows Vulkan x64** 
+`tool/engines/`(git  ——  exe  git, test/fixtures/
+ tiny gguf)(test/assistant/integration/
+engine_smoke_test.dart)
 
-【版本钉死】(design.md Open Question 回填项;升级=改这两常量+重算 sha256):
-  - release tag: b11669(= stable 标签 v0.7.0 的 nightly-tag.txt 所指构建,
-    版本串 0.7.0-dev build 11669 commit 620d2225c,2026-10-23 选定)
+【】(design.md Open Question ;=+ sha256):
+  - release tag: b11669(= stable  v0.7.0  nightly-tag.txt ,
+     0.7.0-dev build 11669 commit 620d2225c,2026-10-23 )
   - zip sha256: 2c07574e7bde71321cb785282b20cc821e951132149eeceeea32ddebdbf0598e
 
-【为何整 zip 解压而非单文件】该构建是"薄 exe + impl/后端 DLL"布局:
-llama-server.exe 仅 9KB,真身在 llama-server-impl.dll,且运行时按 CPU 动态
-挑选 ggml-cpu-<arch>.dll + ggml-vulkan.dll —— 单拷 exe 起不来,整包解压
-(~91MB 本地缓存)是官方发布口径的唯一稳妥形态。exe 落位
-`tool/engines/llama-server.exe`,与 EngineManagerImpl.exePath 缝约定一致。
+【 zip 】" exe + impl/ DLL":
+llama-server.exe  9KB, llama-server-impl.dll, CPU 
+ ggml-cpu-<arch>.dll + ggml-vulkan.dll ——  exe ,
+(~91MB )exe 
+`tool/engines/llama-server.exe`, EngineManagerImpl.exePath 
 
-flag 校准(b11669 --help 实测,2026-10-23):ADR-6 清单
-`--host/--port/-m/-c/-ngl/--jinja/--no-webui` 全部在位零偏差;唯一备注:
-`--no-webui` 已是 `--no-ui` 的弃用别名(仍有效,启动日志提示),暂不改
-生产参数面 —— 换大版本时以 --help 复核。
+flag (b11669 --help ,2026-10-23):ADR-6 
+`--host/--port/-m/-c/-ngl/--jinja/--no-webui` ;:
+`--no-webui`  `--no-ui` (,),
+ ——  --help 
 
-用法(仓库根或 yucai/client 下均可):
-  python tool/fetch_engine.py           # 幂等:已在位且版本匹配则跳过
-  python tool/fetch_engine.py --force   # 强制重新下载解压
+( yucai/client ):
+  python tool/fetch_engine.py           # :
+  python tool/fetch_engine.py --force   # 
 
-依赖:python3 标准库(urllib/zipfile/hashlib),零 pip 包。
+:python3 (urllib/zipfile/hashlib), pip 
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-# -- 钉死常量(升级点) ---------------------------------------------------------
+# -- () ---------------------------------------------------------
 
 RELEASE_TAG = "b11669"
 ZIP_NAME = f"llama-{RELEASE_TAG}-bin-win-vulkan-x64.zip"
@@ -50,13 +50,13 @@ ZIP_URL = (
 )
 ZIP_SHA256 = "2c07574e7bde71321cb785282b20cc821e951132149eeceeea32ddebdbf0598e"
 
-# -- 落位 ---------------------------------------------------------------------
+# --  ---------------------------------------------------------------------
 
-# 本文件 = <client>/tool/fetch_engine.py -> 引擎目录 = 同级 engines/
+#  = <client>/tool/fetch_engine.py ->  =  engines/
 ENGINES_DIR = Path(__file__).resolve().parent / "engines"
 EXE_PATH = ENGINES_DIR / "llama-server.exe"
 
-# 版本指纹(已有 exe 与钉死版本不符时视为陈旧,--force 之外的自动重下判据)
+# ( exe ,--force )
 VERSION_STAMP = ENGINES_DIR / ".engine-version"
 
 
@@ -94,7 +94,7 @@ def fetch(force: bool) -> int:
         if digest != ZIP_SHA256:
             print(
                 f"FATAL sha256 mismatch: want {ZIP_SHA256}, got {digest} "
-                "(上游 release 资产被重推?改脚本常量前先人工核验)"
+                "( release ?)"
             )
             return 1
 
@@ -103,7 +103,7 @@ def fetch(force: bool) -> int:
         print(f"OK extracted {len(zipfile.ZipFile(zip_path).namelist())} entries -> {ENGINES_DIR}")
 
     if not EXE_PATH.is_file():
-        print(f"FATAL {EXE_PATH} missing after extract (上游布局变更?)")
+        print(f"FATAL {EXE_PATH} missing after extract (?)")
         return 1
     VERSION_STAMP.write_text(f"{RELEASE_TAG}\n", encoding="ascii")
     print(f"OK {EXE_PATH} ready (build {RELEASE_TAG})")

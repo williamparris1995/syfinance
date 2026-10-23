@@ -55,7 +55,7 @@ status: confirmed
 - THEN 返回自解释中文错误(引擎未就绪)而非裸网络异常
 
 ### Requirement: NFR-1 真引擎集成冒烟
-- [ ] SHALL 含一条真 llama-server.exe 集成测试(仓库内置 tiny gguf fixture):拉起→健康 ready→一次最小 chat 往返→终止;后端自动回落(Vulkan 不可用→CPU)不断言具体后端。
+- [ ] SHALL 含一条真 llama-server.exe 集成测试(仓库内置 tiny gguf fixture):拉起→健康 ready→一次最小推理往返(/v1/completions;stories15M base LM 无 chat 模板,chat/工具面由 sprint 真模型门验——评审 Spec-1 订正)→终止;后端自动回落(Vulkan 不可用→CPU)不断言具体后端。
 
 ### Requirement: NFR-2 注入缝
 - [ ] 进程启动(ProcessLauncher)与模型位置(ModelStore)MUST 为注入 port,单测零真进程零真模型。
