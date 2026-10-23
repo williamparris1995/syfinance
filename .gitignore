@@ -15,6 +15,8 @@ yucai/client/.pub-cache/
 yucai/client/.pub/
 yucai/client/coverage/
 yucai/client/lib/proto/**/*.freezed.dart
+# F66 引擎边车真 exe(tool/fetch_engine.py 下载,不入 git;测试资产仅 fixtures gguf)
+yucai/client/tool/engines/
 
 # === proto gen scratch ===
 graphify-out/cache/

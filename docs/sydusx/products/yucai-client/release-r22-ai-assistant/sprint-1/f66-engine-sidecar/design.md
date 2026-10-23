@@ -64,5 +64,7 @@ keys 直改零迁移(F64 未发版);回滚=删 assistant/data 引擎三文件+DI
 
 ## Open Questions
 
-- tiny gguf fixture 具体选型(执行期 S4 定,回填此处)。
-- llama-server Vulkan 官方构建的精确版本号与下载管线(执行期 S5 捆绑时钉死记档)。
+两条均已于 F66-T4(2026-10-23)执行期回填:
+
+- ~~tiny gguf fixture 具体选型~~ → **stories15M-q4_0.gguf**(ggml-org 官方公开 tiny 测试模型,base LM;q4_0,19,077,344 bytes≈18.2MB,sha256 `66967fbe…32d1861739`;来源 https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf,落 `test/fixtures/models/` 入 git)。**带 chat 模板的 instruct 模型 ≤20MB 不可得**(最小 instruct GGUF 如 Qwen3-0.6B q4 ≈390MB 起)→ 冒烟按预案降级走 `/v1/completions` 断言(chat 端点/工具面留 sprint 真模型门验);实测 `--jinja` 对无模板模型不阻启(仅 chat 端点受影响)。
+- ~~llama-server Vulkan 官方构建的精确版本号与下载管线~~ → **build b11669**(stable 标签 v0.7.0 的 nightly-tag 所指;版本串 0.7.0-dev build 11669 commit 620d2225c);下载管线=`tool/fetch_engine.py`(钉死 tag+zip sha256 `2c07574e…dbf0598e`;整 zip 解压到 git 忽略的 `tool/engines/`——薄 exe(9KB)+impl/CPU 派系/Vulkan DLL 布局,单拷 exe 起不来,~91MB 本地缓存)。flag 校准:ADR-6 七个 flag(`--host/--port/-m/-c/-ngl/--jinja/--no-webui`)实测全在位零偏差;唯一备注=`--no-webui` 已是 `--no-ui` 的弃用别名(仍有效,暂不改生产参数面)。
