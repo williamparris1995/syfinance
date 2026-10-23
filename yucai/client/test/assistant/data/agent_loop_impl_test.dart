@@ -5,7 +5,6 @@ import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
 import 'package:yucai_client/assistant/domain/assistant_tool.dart';
 import 'package:yucai_client/assistant/domain/tool_registry.dart';
-import 'package:yucai_client/core/llm/llm_settings.dart' show LlmProvider;
 
 /// F64 T5:AgentLoopServiceImpl mock 回放集成测试(NFR-4)——
 /// fake LlmStreamClient 脚本化 chunk 序列 + 自注册 fake 工具 + LogFn
@@ -375,11 +374,9 @@ void main() {
   });
 }
 
-/// 就绪配置(localhost 免 Key,ADR-4)。
+/// 就绪配置(F66-T1 收窄后:enabled + model;端点归引擎侧)。
 const _readyConfig = AssistantConfig(
   enabled: true,
-  provider: LlmProvider.custom,
-  baseUrl: 'http://localhost:11434/v1',
   model: 'qwen3:latest',
 );
 

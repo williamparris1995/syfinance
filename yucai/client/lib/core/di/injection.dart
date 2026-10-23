@@ -90,14 +90,16 @@ Future<void> configureDependencies() async {
   //     (报 "Can not resolve function type, try using an alias"),T2/T4/T5
   //     的 @LazySingleton 注解进不了生成图,生产绑定由此段承担。
   //     - AssistantConfig Function():配置取值缝,函数类型照 1j LlmHttpFn
-  //       先例手工注册;工厂读 AssistantSettings 当前值,每次 chat/send
-  //       取最新 —— 端点热切换即时生效(T4/T5 设计)。测试绕开 getIt 直接
-  //       传闭包。
+  //       先例手工注册;工厂读 AssistantSettings 当前值,每次 send 取最新
+  //       (F66-T1 收窄后仅 AgentLoopService 消费 —— LlmStreamClientImpl
+  //       端点改由 T3 EngineManager 供给,不再依赖取值缝)。测试绕开 getIt
+  //       直接传闭包。
   //     - AssistantSettings:注入 1a 共享 secure-storage 后端(单实例家法);
   //       load 挂 2f。
   //     - AssistantAuditLog:默认缝 = debugPrint(English 结构化日志)。
-  //     - LlmStreamClient / AgentLoopService:经取值缝闭包构造;
-  //       AgentLoopService 持内存态单会话,lazySingleton 语义照注解本意。
+  //     - LlmStreamClient(F66-T1 起无参构造,占位端点待 T3 接线)/
+  //       AgentLoopService(经取值缝闭包构造;持内存态单会话,lazySingleton
+  //       语义照注解本意)。
   //     工具注册表(其构造依赖)在 init 后的 2g 装配;本组全部 lazy,
   //       首次消费(F65 UI)远晚于 bootstrap,时序安全。
   getIt.registerSingleton<AssistantConfig Function()>(
@@ -105,8 +107,7 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton<AssistantSettings>(
       () => AssistantSettings(storage: getIt<FlutterSecureStorage>()));
   getIt.registerLazySingleton<AssistantAuditLog>(AssistantAuditLog.new);
-  getIt.registerLazySingleton<LlmStreamClient>(
-      () => LlmStreamClientImpl(getIt<AssistantConfig Function()>()));
+  getIt.registerLazySingleton<LlmStreamClient>(LlmStreamClientImpl.new);
   getIt.registerLazySingleton<AgentLoopService>(() => AgentLoopServiceImpl(
         getIt<LlmStreamClient>(),
         getIt<AssistantToolRegistry>(),

@@ -1,81 +1,42 @@
-/// F64 助手地基 —— 助手端点配置值类型(FR-4/ADR-4)。
+/// F66 助手配置(FR-2,收窄返工 F64 FR-4;2026-10-23)。
 ///
-/// 独立于 F46 报告 BYOK([LlmConfig])的助手档:endpoint/model/key 自持,
-/// 持久化 keys(`assistant.*`)与 `llm.*` 并存互不影响;ready 规则放宽
-/// ——localhost 端点免云端 Key 门槛(端侧零配置,sprint-2 端侧推理默认)。
+/// R22 纯内嵌定案:助手只跑随包 llama-server + Qwen3-4B,端点由引擎侧
+/// (F66 EngineManager)供给 —— provider/baseUrl/apiKey 字段与
+/// `assistant.provider/.base_url/.api_key` storage keys 全数退役;F64
+/// 形态未随任何 tag 发版,直改零迁移。不再 import core/llm:助手档与
+/// F46 报告 BYOK 从此彻底解耦(顺带消掉 F64 评审 parked 的 L-1「domain
+/// 传递 Flutter 依赖」之一,本文件现为纯 Dart)。
 ///
-/// [LlmProvider]/[LlmEndpoints] 复用 core/llm 单一事实源,不重复定义。
+/// ready 语义分工(FR-2):本层 [ready] 只管配置字段完整(enabled &&
+/// model 非空);运行期就绪 = enabled && ModelStore.isReady(模型文件在位)
+/// 由引擎侧组合判定,本层零文件系统触碰。
 library;
 
-import 'package:yucai_client/core/llm/llm_settings.dart'
-    show LlmEndpoints, LlmProvider;
-
-/// 助手配置快照(不可变;secure storage 持久化由 T2 AssistantSettingsStore
-/// 承担,apiKey 只经 secure storage 落盘 —— 照 F46 隐私红线)。
+/// 助手配置快照(不可变;secure storage 持久化由 AssistantSettingsStore
+/// 承担)。
 class AssistantConfig {
+  /// v1 钉死的随包模型 id(gguf 文件名主干)。默认值常量 = 单一事实源:
+  /// F67 多模型管理在此扩展(模型清单/切换),store 与设置面零散改。
+  static const String defaultModel = 'qwen3-4b-instruct-q4_k_m';
+
   const AssistantConfig({
     this.enabled = false,
-    this.provider = LlmProvider.zhipu,
-    this.baseUrl = '',
-    this.apiKey = '',
-    this.model = '',
+    this.model = defaultModel,
   });
 
   /// 启用开关(默认关:零行为变化)。
   final bool enabled;
 
-  /// 端点商(预设商端点钉死,见 [resolvedBaseUrl])。
-  final LlmProvider provider;
-
-  /// 自定义 base_url(仅 [LlmProvider.custom] 生效;允许 localhost)。
-  final String baseUrl;
-
-  /// API Key(仅经 secure storage;localhost 端点可空)。
-  final String apiKey;
-
-  /// 模型名(如 glm-4-plus / qwen3:latest)。
+  /// 模型 id(如 qwen3-4b-instruct-q4_k_m;文件在位检查归 ModelStore)。
   final String model;
 
-  /// 有效端点:预设商 → 预设 URL(存储的 [baseUrl] 被忽略);custom →
-  /// 用户填写值(去首尾空白,未填 → 空)。
-  String get resolvedBaseUrl => provider == LlmProvider.custom
-      ? baseUrl.trim()
-      : LlmEndpoints.preset[provider]!;
-
-  /// 端点 host 是否环回(localhost / 127.0.0.1 / ::1)。
-  ///
-  /// [Uri.parse] 抛异常(如非法 IPv6 字面量)→ 按非 localhost 处理。
-  bool get _isLocalhost {
-    final String host;
-    try {
-      host = Uri.parse(resolvedBaseUrl).host;
-    } on FormatException {
-      return false;
-    }
-    return host == 'localhost' || host == '127.0.0.1' || host == '::1';
-  }
-
-  /// 配置完整性(ADR-4,与 F46 [LlmConfig.ready] 不同):启用 + 端点 +
-  /// model 齐备,且(Key 非空 或 端点为环回 —— 免云端 Key 门槛)。
-  bool get ready =>
-      enabled &&
-      resolvedBaseUrl.isNotEmpty &&
-      model.trim().isNotEmpty &&
-      (apiKey.trim().isNotEmpty || _isLocalhost);
+  /// 配置完整性(FR-2 收窄语义):enabled && model 非空。模型文件是否
+  /// 在位由 ModelStore.isReady 判定,运行期就绪由引擎侧组合,不在此层。
+  bool get ready => enabled && model.trim().isNotEmpty;
 
   /// 字段级拷贝(设置卡草稿态编辑用)。
-  AssistantConfig copyWith({
-    bool? enabled,
-    LlmProvider? provider,
-    String? baseUrl,
-    String? apiKey,
-    String? model,
-  }) =>
-      AssistantConfig(
+  AssistantConfig copyWith({bool? enabled, String? model}) => AssistantConfig(
         enabled: enabled ?? this.enabled,
-        provider: provider ?? this.provider,
-        baseUrl: baseUrl ?? this.baseUrl,
-        apiKey: apiKey ?? this.apiKey,
         model: model ?? this.model,
       );
 }

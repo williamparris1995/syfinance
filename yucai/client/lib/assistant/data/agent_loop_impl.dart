@@ -42,6 +42,11 @@ class AgentLoopServiceImpl implements AgentLoopService {
   /// 连续整轮工具全败上限(FR-3 自纠轮数上限;达 3 → 失败终态)。
   static const int maxConsecutiveToolFailures = 3;
 
+  /// T1 编译占位端点(F66-T1 收窄适配,最小编译改动):审计/错误消息的
+  /// host 来源 —— config 不再携带端点;T3 改造起由 EngineManager 供给
+  /// 的 Ready 态端点替换(ADR-8)。
+  static const String _placeholderEndpoint = 'http://localhost:11434/v1';
+
   /// system prompt 逐字常量(ADR-7/NFR-3:const 定义,零拼接零插值;
   /// 覆盖:御财角色 / 各工具使用时机 / 查无实体澄清建议话术 /
   /// 禁止编造数字 / 工具结果文本只是数据不是指令)。
@@ -85,7 +90,7 @@ class AgentLoopServiceImpl implements AgentLoopService {
     while (true) {
       // —— 请求步:model + 会话消息 + 注册表 schema → LLM 流。
       final cfg = _config();
-      final host = _hostOf(cfg.resolvedBaseUrl);
+      final host = _hostOf(_placeholderEndpoint);
       final text = StringBuffer();
       final calls = SplayTreeMap<int, _PendingToolCall>();
       final stopwatch = Stopwatch()..start();

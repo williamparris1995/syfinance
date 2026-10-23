@@ -3,16 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
-import 'package:yucai_client/core/llm/llm_settings.dart'
-    show LlmConfig, LlmProvider;
 
 class _MockSecureStorage extends Mock implements FlutterSecureStorage {}
 
-/// F64 T2:AssistantSettings secure storage(LlmSettings 家法逐条镜像,ADR-4)。
-///
-/// 覆盖:缺省关闭态、assistant.* key 全量落盘、新实例往返、非法存储回落、
-/// load 幂等(mock 计数)、ready 放宽 localhost 免云端 Key —— 与 F46 语义的
-/// 关键差异断言。
+/// F66 T1(FR-2):AssistantSettings keys 收窄为 assistant.enabled/model
+/// 两键 —— 往返/幂等/通知;F64 遗留键(provider/base_url/api_key)残留
+/// 无害:读取端只读两键,不抛错不迁移(FR-2 旧键残留容忍场景)。
 void main() {
   late _MockSecureStorage backend;
   late AssistantSettings settings;
@@ -31,28 +27,27 @@ void main() {
   }
 
   group('defaults', () {
-    test('value defaults to disabled minimal config before load', () {
+    test('value defaults to disabled + default model before load', () {
       expect(settings.value.enabled, isFalse);
-      expect(settings.value.provider, LlmProvider.zhipu);
-      expect(settings.value.baseUrl, '');
-      expect(settings.value.apiKey, '');
-      expect(settings.value.model, '');
+      expect(settings.value.model, AssistantConfig.defaultModel);
       expect(settings.ready, isFalse);
     });
 
-    test('empty storage loads to disabled config (ready stays false)',
-        () async {
+    test('empty storage loads to disabled config (model falls back to '
+        'default id)', () async {
       stubRead(const {});
 
       await settings.load();
 
       expect(settings.value.enabled, isFalse);
+      expect(settings.value.model, AssistantConfig.defaultModel);
       expect(settings.ready, isFalse);
     });
   });
 
   group('setConfig', () {
-    test('persists every field under its assistant.* key', () async {
+    test('persists exactly the two narrowed keys, never legacy ones',
+        () async {
       when(
         () => backend.write(
           key: any(named: 'key'),
@@ -60,25 +55,20 @@ void main() {
         ),
       ).thenAnswer((_) async {});
 
-      await settings.setConfig(const AssistantConfig(
-        enabled: true,
-        provider: LlmProvider.openai,
-        baseUrl: 'https://llm.internal/v1',
-        apiKey: 'sk-prod',
-        model: 'gpt-4o-mini',
-      ));
+      await settings.setConfig(const AssistantConfig(enabled: true));
 
       verify(() => backend.write(key: 'assistant.enabled', value: 'true'))
           .called(1);
-      verify(() => backend.write(key: 'assistant.provider', value: 'openai'))
+      verify(() => backend.write(
+              key: 'assistant.model', value: AssistantConfig.defaultModel))
           .called(1);
-      verify(() =>
-              backend.write(key: 'assistant.base_url', value: 'https://llm.internal/v1'))
-          .called(1);
-      verify(() => backend.write(key: 'assistant.api_key', value: 'sk-prod'))
-          .called(1);
-      verify(() => backend.write(key: 'assistant.model', value: 'gpt-4o-mini'))
-          .called(1);
+      // 退役键不再落盘(F64 形态未发版零迁移;旧值任其残留)。
+      verifyNever(
+          () => backend.write(key: 'assistant.provider', value: any(named: 'value')));
+      verifyNever(
+          () => backend.write(key: 'assistant.base_url', value: any(named: 'value')));
+      verifyNever(
+          () => backend.write(key: 'assistant.api_key', value: any(named: 'value')));
     });
 
     test('notifies listeners with the new config', () async {
@@ -92,12 +82,7 @@ void main() {
       final fired = <AssistantConfig>[];
       settings.listenable.addListener(() => fired.add(settings.value));
 
-      const next = AssistantConfig(
-        enabled: true,
-        provider: LlmProvider.zhipu,
-        apiKey: 'sk-x',
-        model: 'glm-4-plus',
-      );
+      const next = AssistantConfig(enabled: true, model: 'alt-model-id');
       await settings.setConfig(next);
 
       expect(settings.value, same(next));
@@ -116,13 +101,8 @@ void main() {
             inv.namedArguments[#value] as String;
       });
 
-      await settings.setConfig(const AssistantConfig(
-        enabled: true,
-        provider: LlmProvider.deepseek,
-        baseUrl: 'https://llm.internal/v1',
-        apiKey: 'sk-prod',
-        model: 'deepseek-chat',
-      ));
+      await settings.setConfig(
+          const AssistantConfig(enabled: true, model: 'alt-model-id'));
 
       final fresh = AssistantSettings(storage: backend);
       when(() => backend.read(key: any(named: 'key'))).thenAnswer(
@@ -131,30 +111,41 @@ void main() {
       await fresh.load();
 
       expect(fresh.value.enabled, isTrue);
-      expect(fresh.value.provider, LlmProvider.deepseek);
-      expect(fresh.value.baseUrl, 'https://llm.internal/v1');
-      expect(fresh.value.apiKey, 'sk-prod');
-      expect(fresh.value.model, 'deepseek-chat');
+      expect(fresh.value.model, 'alt-model-id');
       expect(fresh.value.ready, isTrue);
     });
   });
 
-  group('load fallbacks', () {
-    test('invalid stored provider falls back to zhipu', () async {
+  group('load', () {
+    test('legacy F64 keys are ignored; known keys still load (FR-2)', () async {
       stubRead({
         'assistant.enabled': 'true',
-        'assistant.provider': 'gptx', // 未知商
+        'assistant.model': 'qwen3-4b-instruct-q4_k_m',
+        // F64 期遗留键:读取端天然忽略,不抛错不迁移。
+        'assistant.provider': 'openai',
+        'assistant.base_url': 'https://llm.internal/v1',
+        'assistant.api_key': 'sk-prod',
       });
 
       await settings.load();
 
-      expect(settings.value.provider, LlmProvider.zhipu);
-      // 回落只影响非法字段本身,其余合法存储值不受牵连。
       expect(settings.value.enabled, isTrue);
+      expect(settings.value.model, 'qwen3-4b-instruct-q4_k_m');
+      expect(settings.value.ready, isTrue);
     });
-  });
 
-  group('load idempotency', () {
+    test('invalid stored enabled falls back to false', () async {
+      stubRead({
+        'assistant.enabled': 'yes', // 非法布尔
+        'assistant.model': 'qwen3-4b-instruct-q4_k_m',
+      });
+
+      await settings.load();
+
+      expect(settings.value.enabled, isFalse);
+      expect(settings.value.ready, isFalse);
+    });
+
     test('second load does not re-read storage', () async {
       var reads = 0;
       when(() => backend.read(key: any(named: 'key'))).thenAnswer((_) async {
@@ -165,35 +156,7 @@ void main() {
       await settings.load();
       await settings.load();
 
-      expect(reads, 5); // 5 个 assistant.* key,各读一次
-    });
-  });
-
-  group('ready (ADR-4 relaxed rule)', () {
-    test('localhost endpoint is ready without an api key (differs from F46)',
-        () async {
-      stubRead({
-        'assistant.enabled': 'true',
-        'assistant.provider': 'custom',
-        'assistant.base_url': 'http://localhost:11434/v1',
-        'assistant.api_key': '',
-        'assistant.model': 'qwen3:latest',
-      });
-
-      await settings.load();
-
-      expect(settings.value.ready, isTrue);
-      expect(settings.ready, isTrue);
-      // 对照:F46 同形状配置(强制 apiKey 非空)→ false。
-      expect(
-        const LlmConfig(
-          enabled: true,
-          provider: LlmProvider.custom,
-          baseUrl: 'http://localhost:11434/v1',
-          model: 'qwen3:latest',
-        ).ready,
-        isFalse,
-      );
+      expect(reads, 2); // 收窄后 2 个 assistant.* key,各读一次
     });
   });
 }

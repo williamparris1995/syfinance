@@ -2,14 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openai_dart/openai_dart.dart' as openai;
 import 'package:yucai_client/assistant/data/llm_stream_client_impl.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
-import 'package:yucai_client/assistant/domain/assistant_settings.dart';
-import 'package:yucai_client/core/llm/llm_settings.dart' show LlmProvider;
 
 /// F64 T4:LlmStreamClientImpl 三个纯映射函数(ADR-3)——
 /// messageFromMap / chunksFromOpenAi / buildRequest,零网络请求。
+///
+/// F66-T1 收窄适配:config 不再携带端点,Impl 无参构造、固定 localhost
+/// 占位端点(127.0.0.1 关端口 —— 网络组用例仍零外网、就地失败);原
+/// 「空端点快速失败」用例随字段退役删除(未就绪闸在 loop 层,T3 归引擎)。
 void main() {
-  LlmStreamClientImpl makeClient() =>
-      LlmStreamClientImpl(() => const AssistantConfig());
+  LlmStreamClientImpl makeClient() => LlmStreamClientImpl();
 
   /// 造一颗流事件(单 choice 形状,OpenAI 流标准形态)。
   openai.ChatStreamEvent chunkEvent({
@@ -343,31 +344,11 @@ void main() {
   });
 
   group('chat', () {
-    test('empty base url fails fast with zero network attempt', () {
-      final client = LlmStreamClientImpl(() => const AssistantConfig(
-            provider: LlmProvider.custom,
-            baseUrl: ' ',
-          ));
-      expectLater(
-        client.chat(const LlmChatRequest(
-          model: 'm',
-          messages: [
-            {'role': 'user', 'content': 'q'},
-          ],
-          toolsSchema: [],
-        )),
-        emitsError(isA<StateError>()),
-      );
-    });
-
     test(
       'network failure rethrows as "LLM stream failed: <Type>(<host>)" '
-      '(评审 L1;127.0.0.1 已关端口,零外网)',
+      '(评审 L1;占位端点 127.0.0.1 已关端口,零外网)',
       () {
-        final client = LlmStreamClientImpl(() => const AssistantConfig(
-              provider: LlmProvider.custom,
-              baseUrl: 'http://127.0.0.1:1/v1',
-            ));
+        final client = LlmStreamClientImpl();
         expectLater(
           client.chat(const LlmChatRequest(
             model: 'm',
@@ -392,10 +373,7 @@ void main() {
       'illegal role throws self-explaining ArgumentError, not generic '
       'StateError (评审 L2:请求构造在 try 外,零网络)',
       () {
-        final client = LlmStreamClientImpl(() => const AssistantConfig(
-              provider: LlmProvider.custom,
-              baseUrl: 'http://127.0.0.1:1/v1',
-            ));
+        final client = LlmStreamClientImpl();
         expectLater(
           client.chat(const LlmChatRequest(
             model: 'm',

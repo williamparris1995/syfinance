@@ -32,7 +32,6 @@ import 'package:yucai_client/assistant/domain/assistant_settings.dart';
 import 'package:yucai_client/assistant/domain/base_currency_port.dart';
 import 'package:yucai_client/assistant/domain/tool_registry.dart';
 import 'package:yucai_client/core/di/networth_snapshot_source_adapter.dart';
-import 'package:yucai_client/core/llm/llm_settings.dart' show LlmProvider;
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
@@ -56,11 +55,9 @@ class _FixedBaseCurrency implements BaseCurrencySource {
   Future<String> getBaseCurrency() async => 'CNY';
 }
 
-/// 就绪配置(localhost 免 Key,ADR-4;与 T5 同款)。
+/// 就绪配置(F66-T1 收窄后:enabled + model;与 T5 同款)。
 const _readyConfig = AssistantConfig(
   enabled: true,
-  provider: LlmProvider.custom,
-  baseUrl: 'http://localhost:11434/v1',
   model: 'qwen3:latest',
 );
 
