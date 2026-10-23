@@ -50,9 +50,10 @@ String? _skipReason() {
   return null;
 }
 
-/// fixture 固定路径 ModelStore(brief 指定形状:生产 ModelStoreImpl 指向
+/// fixture 固定路径 ModelStore(brief 指定形状:生产 ModelStore 指向
 /// %APPDATA% 用户模型位,冒烟以 fake 实现改指仓内 fixture 文件 —— 文件
-/// 本身是真件,存在性语义与生产一致)。
+/// 本身是真件,存在性语义与生产一致;F67-T2 起生产实现 =
+/// ModelManagerImpl 下载管理面与本冒烟无涉)。
 class _FixtureModelStore implements ModelStore {
   @override
   Future<String?> modelPath() async => _fixtureModel;

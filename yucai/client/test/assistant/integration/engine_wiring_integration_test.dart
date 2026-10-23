@@ -10,11 +10,12 @@
 //   /v1/chat/completions SSE),**不真拉进程**(NFR-2 缝内)。
 //
 // 真件清单:
-//   ModelStoreImpl(supportDirFn 缝指向 temp fixture:真 gguf 命名文件+真
-//   存在性检查)→ EngineManagerImpl(健康探测/端口扫描/退避延时全走生产
-//   缺省 —— 真 ServerSocket bind(0) 扫端口 + 真 HTTP GET /health;
-//   launcher/exe 为假)→ LlmStreamClientImpl(真 openai_dart 客户端,
-//   baseUrl 从 Ready 端点流入,打向假服务随机端口)。
+//   _FixtureModelStore(F67-T2 起生产实现 = ModelManagerImpl 下载管理,
+//   本 wiring 测不涉下载面 —— 以最小 fake 保「固定路径存在性」同语义,
+//   真 gguf 命名文件 + 真存在性检查)→ EngineManagerImpl(健康探测/
+//   端口扫描/退避延时全走生产缺省 —— 真 ServerSocket bind(0) 扫端口 +
+//   真 HTTP GET /health;launcher/exe 为假)→ LlmStreamClientImpl(真
+//   openai_dart 客户端,baseUrl 从 Ready 端点流入,打向假服务随机端口)。
 //
 // 断言链(FR-1/FR-3/FR-4 wiring 级):未就绪 Stopped → chat() 内置
 // ensureReady 懒拉起(经 fake launcher,ADR-6 参数+fixture 模型路径)→
@@ -32,12 +33,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/assistant/data/engine_manager_impl.dart';
 import 'package:yucai_client/assistant/data/llm_stream_client_impl.dart';
-import 'package:yucai_client/assistant/data/model_store_impl.dart';
 import 'package:yucai_client/assistant/data/process_launcher.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
 import 'package:yucai_client/assistant/domain/engine_port.dart';
 import 'package:yucai_client/assistant/domain/engine_state.dart';
+import 'package:yucai_client/assistant/domain/model_store_port.dart';
 
 /// 假边车 SSE 最小应答(与 llm_stream_client_impl_test 同款、已证可被
 /// openai_dart 11.x createStream 解析):一颗 content 增量 + 一颗 stop 终包。
@@ -56,7 +57,7 @@ void main() {
     'probe/scan -> Ready on scanned port -> SSE -> LlmChunks -> begin/end '
     'paired -> shutdown releases the sidecar port',
     () async {
-      // -- fixture:真 ModelStoreImpl 落位 <tmp>/yucai/models/<default>.gguf --
+      // -- fixture:固定路径存在性 ModelStore 落位 <tmp>/yucai/models/<default>.gguf --
       final tmpRoot = await Directory.systemTemp.createTemp('f66_wiring');
       addTearDown(() async => tmpRoot.delete(recursive: true));
       final modelFile = File(
@@ -69,7 +70,7 @@ void main() {
       )
         ..createSync(recursive: true)
         ..writeAsBytesSync([1, 2, 3]);
-      final models = ModelStoreImpl(supportDirFn: () async => tmpRoot);
+      final models = _FixtureModelStore(modelFile.path);
       // 注入缝 → fixture 文件的 wiring 前置断言(ADR-7 固定落位)。
       expect(await models.modelPath(), modelFile.path);
       expect(await models.isReady(), isTrue);
@@ -212,10 +213,17 @@ void main() {
     'wiring: model missing -> Error(modelMissing) with zero spawn, '
     'self-explaining StateError from the stream client, begin/end still paired',
     () async {
-      // 空 support 目录:真 ModelStoreImpl 存在性检查得 null(FR-2 源)。
+      // 空 support 目录:存在性检查得 null(FR-2 源)。
       final tmpRoot = await Directory.systemTemp.createTemp('f66_wiring_mm');
       addTearDown(() async => tmpRoot.delete(recursive: true));
-      final models = ModelStoreImpl(supportDirFn: () async => tmpRoot);
+      final models = _FixtureModelStore(
+        [
+          tmpRoot.path,
+          'yucai',
+          'models',
+          '${AssistantConfig.defaultModel}.gguf',
+        ].join(Platform.pathSeparator),
+      );
       expect(await models.modelPath(), isNull);
 
       final launcher = _FakeSidecarLauncher();
@@ -259,6 +267,22 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
+}
+
+/// 固定路径存在性 ModelStore(F67-T2 前为生产 ModelStoreImpl 真件;
+/// 简版退役后本测不涉下载面,以最小 fake 保 ADR-7 路径存在性同语义,
+/// 文件本身仍是真件)。
+class _FixtureModelStore implements ModelStore {
+  _FixtureModelStore(this._path);
+
+  final String _path;
+
+  @override
+  Future<String?> modelPath() async =>
+      await File(_path).exists() ? _path : null;
+
+  @override
+  Future<bool> isReady() async => await modelPath() != null;
 }
 
 /// 透明 port 记录器:全部调用内联转发真 [EngineManager](副作用真实发生),
