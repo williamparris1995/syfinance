@@ -69,6 +69,11 @@ dependencies:
   # 库,pub cache 实证),桌面/测试环境无 channel;3.x 当前稳定线,3.13.1
   # 实测解析。
   pdf: ^3.13.1
+  # F64 助手地基(ADR-3):OpenAI 兼容流式客户端 + tool_calls 分片拼装。
+  # 纯 Dart(http/crypto/logging/meta 传递依赖,无 dio/freezed),MIT,
+  # 活跃维护;仅 assistant/data 生产 impl 出现,domain 走 LlmStreamClient
+  # port 隔离(替换面=1 文件)。
+  openai_dart: ^11.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

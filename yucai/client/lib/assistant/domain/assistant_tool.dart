@@ -1,0 +1,44 @@
+/// F64 助手地基 —— 工具契约(FR-1/ADR-1:进程内注册表,不上 MCP)。
+///
+/// 每个可被 LLM 调用的本地能力实现 [AssistantTool];结果统一为
+/// [ToolResult] 结构(JSON 数据 / 可自纠错误),金额口径由具体工具
+/// 保证 cents 整数 + 元两位小数字符串双口径(ADR-6)。
+library;
+
+/// 助手工具契约(name/description/schema 直接进入 LLM 上下文)。
+abstract class AssistantTool {
+  /// 唯一名:域前缀 + 动词式(如 networth_snapshot),约束
+  /// `[A-Za-z0-9_-]`(OpenAI function name 合法字符集)。
+  String get name;
+
+  /// 何时用 / 何时不用(自描述,注册表序列化进 tools schema)。
+  String get description;
+
+  /// 参数 JSON Schema(OpenAI tools function.parameters 形状)。
+  Map<String, Object> get parametersSchema;
+
+  /// 执行(参数为 LLM 产出的原始 map;非法参数应返回 [ToolError]
+  /// 而非抛异常,供 agent loop 回传自纠)。
+  Future<ToolResult> execute(Map<String, Object> args);
+}
+
+/// 工具执行结果(两态;执行方永不抛异常冒泡,失败也走 [ToolError])。
+sealed class ToolResult {
+  const ToolResult();
+}
+
+/// 成功:结构化 JSON payload(cents + 元双口径,NFR-2 聚合摘要)。
+class ToolData extends ToolResult {
+  const ToolData(this.json);
+
+  /// 结果树(可整树 jsonEncode)。
+  final Map<String, Object> json;
+}
+
+/// 失败:自解释可自纠信息,回传 LLM 让其改参重试(FR-3;连续达上限
+/// 由 agent loop 终止循环)。英文消息,零敏感数据携带。
+class ToolError extends ToolResult {
+  const ToolError(this.message);
+
+  final String message;
+}
