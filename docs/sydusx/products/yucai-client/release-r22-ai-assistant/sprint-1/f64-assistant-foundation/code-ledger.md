@@ -32,3 +32,13 @@
 | NFR-5 server 零改动 | 合并前验证 | 非测试:全门验证 | `git diff main -- yucai/server` 输出 0 字节 + `git status`(server 子目录)干净(T6 实测通过;每票全门复跑) |
 
 > 漏项检查:spec ADDED 10 条需求(FR-1..5 + NFR-1..5)全部有对应测试/门,**零 BLOCKED**。T6 接线本身(DI 装配/bootstrap)为组合根胶水,按 code-plan 门以三条全门覆盖,不另立测试文件。
+
+## 评审与修复轮记录(2026-10-23)
+
+- T1 评审:PASS(零 High/Medium;3 Low parked——L-1 domain 经 core/llm 传递拉 Flutter 依赖,F65 前提取票候选;L-2 pubspec 传递依赖措辞;L-3 design ToolContext 漂移已当轮修)。
+- T2/T3/T4 批量两轴评审:T2 PASS(2 Low 家法继承不修);T3 PASS-with-fixlist(2 Medium+3 Low);T4 PASS(2 Low)。
+- T3-fix(e0246264):M1 BaseCurrencySource 微 port(assistant/domain)+core/di 适配(照 NetWorthSnapshotSourceAdapter 先例)/M2 legalKinds 值域守卫测(枚举漂移即红)/L1 未知 kind 显式 ToolError(不静默按 asset)/L2 占用债列表整页一次(mock 计数钉死 called(1))/L3 limitYuan 配对;tools 测 29→31。
+- T4-fix(55f69176):重抛格式契约测(config 指 127.0.0.1:1 零外网,StateError 消息含 host)/buildRequest 移出 try 保 ArgumentError 语义(附零资源泄漏收益);T4 测 30→32。
+- T5 对 LLD 伪码两处防御性收紧:轮次按累积 tool_calls 收口(不依赖 provider 方言 finish_reason——对症 openai_dart FinishReason 方言收拢)/工具步 args 防御解析+「永不抛」兜底(异常仅携 runtimeType);audit argsSummary 只传顶层 key 名,任何参数值不入日志。
+- T6 build_runner 坑记档:injectable_generator 无法解析内联函数类型 `AssistantConfig Function()` → 按 1h/F21 先例 core/di 手工注册(1m 段);T2/T4/T5 的 @LazySingleton 注解因此 inert——未来 regen 前置=函数参数改命名 typedef+删手工段,再生成债(候选票)。
+- 控制器终验:flutter test 全量 **2965 全绿**(main 基线 2849+assistant 116)/flutter analyze **459==基线零新增**/git diff main -- yucai/server **0 字节**;分支线性 12 commit,工作区净。
