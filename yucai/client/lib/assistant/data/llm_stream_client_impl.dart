@@ -41,10 +41,12 @@ class LlmStreamClientImpl implements LlmStreamClient {
     final apiKey =
         cfg.apiKey.trim().isNotEmpty ? cfg.apiKey.trim() : 'sk-noauth';
     final host = _hostOf(baseUrl);
+    // 请求构造在 try 之前:非法消息形状(自解释 ArgumentError)在此直接
+    // 上抛,不被网络异常包装吞掉语义(评审 L2)。
+    final request = buildRequest(req);
     final client = openai.OpenAIClient.withApiKey(apiKey, baseUrl: baseUrl);
     try {
-      final stream =
-          client.chat.completions.createStream(buildRequest(req));
+      final stream = client.chat.completions.createStream(request);
       await for (final event in stream) {
         for (final chunk in chunksFromOpenAi(event)) {
           yield chunk;

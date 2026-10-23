@@ -359,5 +359,58 @@ void main() {
         emitsError(isA<StateError>()),
       );
     });
+
+    test(
+      'network failure rethrows as "LLM stream failed: <Type>(<host>)" '
+      '(评审 L1;127.0.0.1 已关端口,零外网)',
+      () {
+        final client = LlmStreamClientImpl(() => const AssistantConfig(
+              provider: LlmProvider.custom,
+              baseUrl: 'http://127.0.0.1:1/v1',
+            ));
+        expectLater(
+          client.chat(const LlmChatRequest(
+            model: 'm',
+            messages: [
+              {'role': 'user', 'content': 'q'},
+            ],
+            toolsSchema: [],
+          )),
+          emitsError(isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              startsWith('LLM stream failed:'),
+              contains('127.0.0.1'),
+            ),
+          )),
+        );
+      },
+    );
+
+    test(
+      'illegal role throws self-explaining ArgumentError, not generic '
+      'StateError (评审 L2:请求构造在 try 外,零网络)',
+      () {
+        final client = LlmStreamClientImpl(() => const AssistantConfig(
+              provider: LlmProvider.custom,
+              baseUrl: 'http://127.0.0.1:1/v1',
+            ));
+        expectLater(
+          client.chat(const LlmChatRequest(
+            model: 'm',
+            messages: [
+              {'role': 'wizard', 'content': 'x'},
+            ],
+            toolsSchema: [],
+          )),
+          emitsError(isA<ArgumentError>().having(
+            (e) => e.message.toString(),
+            'message',
+            contains('wizard'),
+          )),
+        );
+      },
+    );
   });
 }
