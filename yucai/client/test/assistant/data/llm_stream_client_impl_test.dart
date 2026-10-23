@@ -1,16 +1,27 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openai_dart/openai_dart.dart' as openai;
 import 'package:yucai_client/assistant/data/llm_stream_client_impl.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
+import 'package:yucai_client/assistant/domain/engine_port.dart';
+import 'package:yucai_client/assistant/domain/engine_state.dart';
 
 /// F64 T4:LlmStreamClientImpl 三个纯映射函数(ADR-3)——
 /// messageFromMap / chunksFromOpenAi / buildRequest,零网络请求。
 ///
-/// F66-T1 收窄适配:config 不再携带端点,Impl 无参构造、固定 localhost
-/// 占位端点(127.0.0.1 关端口 —— 网络组用例仍零外网、就地失败);原
-/// 「空端点快速失败」用例随字段退役删除(未就绪闸在 loop 层,T3 归引擎)。
+/// F66-T3 引擎接线:构造注入 EngineManager(fake 三态);chat 前置
+/// ensureReady 兜底 + Ready 端点作 baseUrl(ADR-1/ADR-8)—— ready 路径经
+/// loopback SSE 服务端实测端点贯通,未就绪路径断言自解释 StateError。
 void main() {
-  LlmStreamClientImpl makeClient() => LlmStreamClientImpl();
+  /// 关端口端点(127.0.0.1:1)上的 Ready fake:映射组仅构造不调 chat;
+  /// 网络失败组复用同端点(零外网、就地失败)。
+  EngineReady closedPortReady() =>
+      EngineReady(Uri.parse('http://127.0.0.1:1/v1'));
+
+  LlmStreamClientImpl makeClient() =>
+      LlmStreamClientImpl(_FakeEngineManager(closedPortReady()));
 
   /// 造一颗流事件(单 choice 形状,OpenAI 流标准形态)。
   openai.ChatStreamEvent chunkEvent({
@@ -343,13 +354,116 @@ void main() {
     });
   });
 
-  group('chat', () {
+  group('chat(F66-T3 引擎接线,fake EngineManager 三态)', () {
     test(
-      'network failure rethrows as "LLM stream failed: <Type>(<host>)" '
-      '(评审 L1;占位端点 127.0.0.1 已关端口,零外网)',
-      () {
-        final client = LlmStreamClientImpl();
-        expectLater(
+      'ready:ensureReady 兜底被调,baseUrl 取 Ready 端点,流经该端点往返 '
+      '(loopback SSE;ADR-1/ADR-8)',
+      () async {
+        // 本机随机端口 SSE 服务端:证明端点从 EngineManager Ready 态真实
+        // 流入 OpenAIClient(非固定常量)。
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        final paths = <String>[];
+        final served = () async {
+          await for (final request in server) {
+            paths.add(request.uri.path);
+            await request.drain<void>();
+            const body = 'data: {"id":"c1","object":"chat.completion.chunk",'
+                '"created":0,"model":"m","choices":[{"index":0,'
+                '"delta":{"content":"hi"},"finish_reason":null}]}\n\n'
+                'data: {"id":"c1","object":"chat.completion.chunk",'
+                '"created":0,"model":"m","choices":[{"index":0,'
+                '"delta":{},"finish_reason":"stop"}]}\n\n'
+                'data: [DONE]\n\n';
+            final response = request.response;
+            response.statusCode = 200;
+            response.headers.contentType =
+                ContentType('text', 'event-stream', charset: 'utf-8');
+            response.write(body);
+            await response.close();
+          }
+        }();
+        served.ignore();
+        final engine = _FakeEngineManager(
+          EngineReady(Uri.parse('http://127.0.0.1:${server.port}/v1')),
+        );
+        final client = LlmStreamClientImpl(engine);
+
+        final events = await client.chat(const LlmChatRequest(
+          model: 'm',
+          messages: [
+            {'role': 'user', 'content': 'q'},
+          ],
+          toolsSchema: [],
+        )).toList();
+
+        expect(events, hasLength(2));
+        expect((events[0] as TextChunk).delta, 'hi');
+        expect((events[1] as Finish).reason, 'stop');
+        // 端点真实生效:请求打到 loopback 服务端的 /v1/chat/completions
+        // (openai_dart 在 baseUrl 后追加 chat/completions)。
+        expect(paths, ['/v1/chat/completions']);
+        // ADR-1:请求前兜底预热被调(幂等语义归 port 契约)。
+        expect(engine.ensureReadyCalls, 1);
+        await server.close();
+      },
+    );
+
+    test(
+      '未就绪 Error(modelMissing):抛自解释 StateError,零网络(FR-4/FR-2)',
+      () async {
+        final engine = _FakeEngineManager(
+          const EngineError(EngineFailureReason.modelMissing),
+        );
+        final client = LlmStreamClientImpl(engine);
+
+        await expectLater(
+          client.chat(const LlmChatRequest(
+            model: 'm',
+            messages: [
+              {'role': 'user', 'content': 'q'},
+            ],
+            toolsSchema: [],
+          )),
+          emitsError(isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'engine not ready: modelMissing',
+          )),
+        );
+        // 状态门在客户端构造之前 —— ensureReady 已调、请求未发出。
+        expect(engine.ensureReadyCalls, 1);
+      },
+    );
+
+    test('未就绪 Stopped(ensureReady 后仍未就绪):同路径自解释语义',
+        () async {
+      final engine = _FakeEngineManager(const EngineStopped());
+      final client = LlmStreamClientImpl(engine);
+
+      await expectLater(
+        client.chat(const LlmChatRequest(
+          model: 'm',
+          messages: [
+            {'role': 'user', 'content': 'q'},
+          ],
+          toolsSchema: [],
+        )),
+        emitsError(isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          'engine not ready: stopped',
+        )),
+      );
+      expect(engine.ensureReadyCalls, 1);
+    });
+
+    test(
+      '网络失败重抛 "LLM stream failed: <Type>(<host>)"(评审 L1;Ready '
+      '端点=关端口 127.0.0.1:1,零外网)',
+      () async {
+        final client =
+            LlmStreamClientImpl(_FakeEngineManager(closedPortReady()));
+        await expectLater(
           client.chat(const LlmChatRequest(
             model: 'm',
             messages: [
@@ -370,11 +484,12 @@ void main() {
     );
 
     test(
-      'illegal role throws self-explaining ArgumentError, not generic '
-      'StateError (评审 L2:请求构造在 try 外,零网络)',
-      () {
-        final client = LlmStreamClientImpl();
-        expectLater(
+      '非法 role 抛自解释 ArgumentError,非泛化 StateError(评审 L2:请求'
+      '构造在引擎门之后、try 之外,零网络)',
+      () async {
+        final client =
+            LlmStreamClientImpl(_FakeEngineManager(closedPortReady()));
+        await expectLater(
           client.chat(const LlmChatRequest(
             model: 'm',
             messages: [
@@ -391,4 +506,25 @@ void main() {
       },
     );
   });
+}
+
+/// F66-T3 接线 fake:初始态注入 + ensureReady 调用计数(state 恒为初始态;
+/// 转移编排语义归 T2 EngineManagerImpl,此处只验接线消费面)。
+class _FakeEngineManager implements EngineManager {
+  _FakeEngineManager(EngineState state)
+      : _state = ValueNotifier<EngineState>(state);
+
+  final ValueNotifier<EngineState> _state;
+  int ensureReadyCalls = 0;
+
+  @override
+  ValueListenable<EngineState> get state => _state;
+
+  @override
+  Future<void> ensureReady() async {
+    ensureReadyCalls++;
+  }
+
+  @override
+  Future<void> shutdown() async {}
 }

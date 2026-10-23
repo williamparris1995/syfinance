@@ -258,6 +258,27 @@ void main() {
     expect(lines.where((l) => l.contains('llm host=localhost')), isNotEmpty);
   });
 
+  test('引擎未就绪→中文 AssistantError 直给「引擎未就绪」语义(F66-T3/FR-4)',
+      () async {
+    final registry = AssistantToolRegistry()
+      ..register(_FakeTool('demo_query', (args) => const ToolData({})));
+    final llm = _ScriptedLlmClient([
+      StateError('engine not ready: modelMissing'),
+    ]);
+    final loop = makeLoop(llm, registry);
+
+    final events = await loop.send('hi').toList();
+
+    // 自解释中文(引擎未就绪),非裸网络异常;reason 原样透传供排查。
+    expect(
+      events.map(_describe),
+      ['error:LLM 请求失败(引擎未就绪: modelMissing)'],
+    );
+    expect(events.whereType<Done>(), isEmpty);
+    // 未就绪轮同样有审计行(失败请求也审计,FR-5)。
+    expect(lines.where((l) => l.contains('llm host=localhost')), isNotEmpty);
+  });
+
   test('LLM 原始异常仅携类名,不携带 payload(隐私红线)', () async {
     final registry = AssistantToolRegistry()
       ..register(_FakeTool('demo_query', (args) => const ToolData({})));

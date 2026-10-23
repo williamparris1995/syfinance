@@ -12,12 +12,17 @@ import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
 import 'package:yucai_client/assistant/data/agent_loop_impl.dart';
 import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
 import 'package:yucai_client/assistant/data/audit_log.dart';
+import 'package:yucai_client/assistant/data/engine_manager_impl.dart';
 import 'package:yucai_client/assistant/data/llm_stream_client_impl.dart';
+import 'package:yucai_client/assistant/data/model_store_impl.dart';
+import 'package:yucai_client/assistant/data/process_launcher.dart';
 import 'package:yucai_client/assistant/data/tools/accounts_list_tool.dart';
 import 'package:yucai_client/assistant/data/tools/debts_list_tool.dart';
 import 'package:yucai_client/assistant/data/tools/networth_snapshot_tool.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
+import 'package:yucai_client/assistant/domain/engine_port.dart';
+import 'package:yucai_client/assistant/domain/model_store_port.dart';
 import 'package:yucai_client/assistant/domain/tool_registry.dart';
 import 'package:yucai_client/backup/data/archive_importer.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
@@ -91,15 +96,23 @@ Future<void> configureDependencies() async {
   //     的 @LazySingleton 注解进不了生成图,生产绑定由此段承担。
   //     - AssistantConfig Function():配置取值缝,函数类型照 1j LlmHttpFn
   //       先例手工注册;工厂读 AssistantSettings 当前值,每次 send 取最新
-  //       (F66-T1 收窄后仅 AgentLoopService 消费 —— LlmStreamClientImpl
-  //       端点改由 T3 EngineManager 供给,不再依赖取值缝)。测试绕开 getIt
+  //       (F66-T1 收窄后仅 AgentLoopService 消费)。测试绕开 getIt
   //       直接传闭包。
   //     - AssistantSettings:注入 1a 共享 secure-storage 后端(单实例家法);
   //       load 挂 2f。
   //     - AssistantAuditLog:默认缝 = debugPrint(English 结构化日志)。
-  //     - LlmStreamClient(F66-T1 起无参构造,占位端点待 T3 接线)/
+  //     - ModelStore(F66-T3):简版固定路径存在性实现(ADR-7;supportDirFn
+  //       缺省 path_provider,F67 换下载管理实现 port 不变)。
+  //     - LlmStreamClient(F66-T3 起构造注入 EngineManager:chat 前置
+  //       ensureReady 兜底 + Ready 端点作 baseUrl,ADR-1/ADR-8)/
   //       AgentLoopService(经取值缝闭包构造;持内存态单会话,lazySingleton
   //       语义照注解本意)。
+  //     - EngineManager + ProcessLauncher(F66-T2,2026-10-23):边车生命周期
+  //       编排 + dart:io 进程缝(NFR-2)。EngineManagerImpl 构造缝(延时/
+  //       健康探测/端口扫描/exe 路径/闲置 Timer/日志)全走生产缺省,
+  //       仅注入 ProcessLauncher/ModelStore/取值缝三件;lazy resolution,
+  //       首消费(T3 接线后的 LlmStreamClient / F65 UI)远晚于 bootstrap,
+  //       时序安全。退出钩子侧(notifications_bootstrap)以 isRegistered 守卫。
   //     工具注册表(其构造依赖)在 init 后的 2g 装配;本组全部 lazy,
   //       首次消费(F65 UI)远晚于 bootstrap,时序安全。
   getIt.registerSingleton<AssistantConfig Function()>(
@@ -107,11 +120,19 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton<AssistantSettings>(
       () => AssistantSettings(storage: getIt<FlutterSecureStorage>()));
   getIt.registerLazySingleton<AssistantAuditLog>(AssistantAuditLog.new);
-  getIt.registerLazySingleton<LlmStreamClient>(LlmStreamClientImpl.new);
+  getIt.registerLazySingleton<ModelStore>(ModelStoreImpl.new);
+  getIt.registerLazySingleton<LlmStreamClient>(
+      () => LlmStreamClientImpl(getIt<EngineManager>()));
   getIt.registerLazySingleton<AgentLoopService>(() => AgentLoopServiceImpl(
         getIt<LlmStreamClient>(),
         getIt<AssistantToolRegistry>(),
         getIt<AssistantAuditLog>(),
+        getIt<AssistantConfig Function()>(),
+      ));
+  getIt.registerLazySingleton<ProcessLauncher>(ProcessLauncherImpl.new);
+  getIt.registerLazySingleton<EngineManager>(() => EngineManagerImpl(
+        getIt<ProcessLauncher>(),
+        getIt<ModelStore>(),
         getIt<AssistantConfig Function()>(),
       ));
 

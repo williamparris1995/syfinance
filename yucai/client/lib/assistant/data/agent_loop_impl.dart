@@ -42,9 +42,10 @@ class AgentLoopServiceImpl implements AgentLoopService {
   /// 连续整轮工具全败上限(FR-3 自纠轮数上限;达 3 → 失败终态)。
   static const int maxConsecutiveToolFailures = 3;
 
-  /// T1 编译占位端点(F66-T1 收窄适配,最小编译改动):审计/错误消息的
-  /// host 来源 —— config 不再携带端点;T3 改造起由 EngineManager 供给
-  /// 的 Ready 态端点替换(ADR-8)。
+  /// 审计 host 占位(F66-T3 后定态):端点由 LlmStreamClientImpl 持有的
+  /// EngineManager 供给(127.0.0.1 随机端口,每会话不同),loop 不再可见
+  /// —— 审计行 host 固定 localhost 占位;错误消息的真实域名经 T4 格式
+  /// `LLM stream failed: <Type>(<host>)` 从 client 透传,不经此常量。
   static const String _placeholderEndpoint = 'http://localhost:11434/v1';
 
   /// system prompt 逐字常量(ADR-7/NFR-3:const 定义,零拼接零插值;
@@ -246,10 +247,18 @@ class AgentLoopServiceImpl implements AgentLoopService {
   /// 零 Key/零完整 payload)。
   ///
   /// T4 流异常格式 `LLM stream failed: <Type>(<host>)` → 原样提取
-  /// `<Type>(<host>)`;其余异常只携 [Object.runtimeType] + 当前端点域名
+  /// `<Type>(<host>)`;F66-T3 引擎未就绪格式 `engine not ready: <reason>`
+  /// → 直给「引擎未就绪」语义(FR-4:自解释中文而非裸网络异常,reason
+  /// 原样透传供排查);其余异常只携 [Object.runtimeType] + 当前端点域名
   /// (toString 可能携带 payload,弃用)。
   AssistantError _llmErrorEvent(Object error, String host) {
     final raw = error is StateError ? error.message : error.toString();
+    final engineMatch = RegExp('engine not ready: (.*)').firstMatch(raw);
+    if (engineMatch != null) {
+      return AssistantError(
+        'LLM 请求失败(引擎未就绪: ${engineMatch.group(1)})',
+      );
+    }
     final match = RegExp('LLM stream failed: (.*)').firstMatch(raw);
     final detail =
         match != null ? match.group(1)! : '${error.runtimeType}($host)';

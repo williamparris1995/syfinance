@@ -7,6 +7,9 @@ import 'dart:async';
 
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+// F66-T3 退出钩子(组合根豁免区):仅 import domain port —— core/
+// notifications 不触 assistant/data,引擎生产实现经 getIt 解析。
+import 'package:yucai_client/assistant/domain/engine_port.dart';
 import 'package:yucai_client/app/router.dart' show rootNavigatorKey;
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
@@ -237,7 +240,17 @@ Future<void> _bootstrap(AppDatabase db) async {
   // 设置页经 AppExitPort.exitApp 消费;退出清理失败由其 try/finally
   // 保证仍 exit(0)。
   getIt.registerSingleton<TrayController>(tray);
-  getIt.registerSingleton<AppExitPort>(TrayAppExit(tray.stop));
+  // F66 engine sidecar: kill the engine process tree on app exit (ADR-3).
+  // EngineManager is registered by F66-T2 (in flight at T3 time) — the
+  // isRegistered guard keeps this a no-op until that lands; a shutdown
+  // failure is tolerated by TrayAppExit's try/finally (cleanup errors
+  // still exit the process).
+  getIt.registerSingleton<AppExitPort>(TrayAppExit(() async {
+    await tray.stop();
+    if (getIt.isRegistered<EngineManager>()) {
+      await getIt<EngineManager>().shutdown();
+    }
+  }));
 
   // 回网触发(review R2 polish):绑定模式断网期间的 autoRecord 延迟落账,
   // 网络恢复即刻补齐(spec grill #0「回网后一次性补齐」的完整语义;
