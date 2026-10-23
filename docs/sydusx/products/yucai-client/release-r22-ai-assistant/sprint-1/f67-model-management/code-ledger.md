@@ -6,6 +6,21 @@
 - **T2 模型管理实现+换绑 ✅ done**(commit 5d844f5d;http_downloader[ModelHttpClient 缝+IoModelHttpClient dart:io impl]+ model_manager_impl 双面实现 + DI 1m 换绑 + F66 ModelStoreImpl 退役删除[三态语义由承接测照搬] + F66 wiring capstone 改固定路径 fixture fake;mock 单测 19)。
 - **T3 loopback 集成+全门+覆盖表 ✅ done**(commit 见 git log;`test/assistant/integration/model_download_integration_test.dart` 6 用例 = spec NFR-1 四场景 + FR-4 回落 + Range 忽略防御佐证;真 IoModelHttpClient 打真 HttpServer[HttpOverrides 域名重定向双假源,生产码零改动];全门:flutter test **3031 全绿**(+1 自跳过=F66 engine_smoke 引擎夹具不在场自跳,与本票无关;基线 3025+1 skip,本票 +6)/ flutter analyze **459 == 基线零新增** / `git diff main -- yucai/server` **0 字节**;集成测本机真跑 5 连绿)。
 
+## test 门覆盖率实测(2026-10-23,review PASS 后验证轮;review 零 commit 外仅本记档)
+
+`flutter test --coverage test/assistant/` → **186 全绿 +1 自跳过**(engine_smoke 引擎夹具不在场,与本票无关);`flutter analyze` **459 == 基线零新增**;`git diff main -- yucai/server` **0 字节**(NFR-3 复测过)。lcov DA 汇总 **lib/assistant 总行覆盖 724/775 = 93.4%**。lib/assistant 23 个 dart 中 4 个纯抽象 port(base_currency/engine/model_store/networth)无可执行行不入 lcov,19 文件实测:
+
+| 文件 | 覆盖 | 说明 |
+| --- | --- | --- |
+| data/model_manager_impl.dart | **167/167 = 100%** | 本票核心,满覆盖 |
+| data/http_downloader.dart | 26/28 = 92.9% | 仅未覆盖 52-53 = `ModelHttpException.toString()`(诊断渲染;异常本体在回落/错误路径真实抛接),防御分支可接受 |
+| domain/model_manager_port.dart | 7/13 = 53.8% | 未覆盖 = `ModelManifest.hashCode`/`toString`(值对象管道;`==` 已覆盖);诊断 plumbing,可接受 |
+| data/process_launcher.dart | 0/23 = 0% | F66 边车真 dart:io 实现(NFR-2 单测全 fake 注入,真件仅 engine_smoke——本机自跳);F67 范围外,非本票缺口 |
+| data/engine_manager_impl.dart | 100/108 = 92.6% | 未覆盖 8 行 = 生产缺省缝(`_defaultDelay/EngineLog/IdleTimer/PortScan` 兜底 throw/`_defaultHealthProbe` catch+finally/`_defaultExePath`)+ 2 防御(撕裂态 modelMissing 终态/probing 中死亡 break);F66 侧,fake 注入设计使然 |
+| 其余 14 文件(agent_loop_impl 95.7 / llm_stream 94.0 / audit_log 93.3 / tools 97-100 / 全部 domain 100) | ≥92.6% | 无热点 |
+
+热点裁决:<80% 两文件均为「真 dart:io 生产缺省缝按设计 fake 注入」或「值对象诊断管道」,非可达业务分支漏测;F67 范围内(model_manager_impl + http_downloader + model_state + model_manager_port 契约)有效业务行全覆盖。验收清单:spec 6 Scenario 逐行对号(断点续传→T3 断点续传用例+T2 续传/磁盘重启;校验失败不落地→T3 校验失败+T2 sha 不符/corrupt 重试;状态转移可订阅→T3 暂停恢复全程序列+port 测订阅两例+T2 isReady 翻转;删除联动停引擎→T2 删除三态(shutdownCalls==1)+DI cycle deferred 全链路;占用查询→T2 diskUsage 全口径六分支;官方失败回落镜像→T3 官方源 500 回落+T2 回落/双源皆败/M-3)+NFR-1 四场景即 T3 前四用例+NFR-2 ASCII 门禁三处(T2 专测+T3 逐行+model_state_test)+NFR-3 diff 0 字节,**全部 ✓ 零 BLOCKED**。
+
 ## T2 评审 fixlist 修复轮(2026-10-23,commit 见 git log)
 
 - **M-1 Range-ignored 防御**:核认 **M-1 由 T3 集成测覆盖**(第六用例 `Range 忽略防御…` 真 HTTP 级:残留 .part + `ignoreRange` 仍回 200 全量 → 断言从零重写非 4096+65536 append 错位);另补 mock 级快反馈单测 1 例(`Range 忽略防御(M-1)` 直测 `startBytes>0 && statusCode==200` 分支)成双覆盖。
