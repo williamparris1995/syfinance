@@ -77,7 +77,13 @@ class ModelManagerImpl implements ModelStore, ModelManagerPort {
   static const List<String> _segments = ['yucai', 'models'];
 
   final ModelHttpClient _http;
-  final EngineManager _engine;
+
+  /// deferred 打断 DI 构造环 2026-10-24:1m 段 ModelStore 工厂(→ 本构造)
+  /// 若急取 EngineManager,对向工厂又急取 ModelStore,get_it 7.7.0 lazy
+  /// 无重入保护 → 首消费者解析即 SOF(L-3 探针实证)。环断在本侧,
+  /// EngineManagerImpl 持 ModelStore 直接引用不动;唯一消费点 delete()
+  /// 的 shutdown(幂等)延迟到调用点取值,无时序影响。
+  final EngineManager Function() _engine;
   final Future<Directory> Function() _supportDir;
   final AssistantLogFn _log;
 
@@ -161,7 +167,7 @@ class ModelManagerImpl implements ModelStore, ModelManagerPort {
       final task = _active;
       if (task != null) await task;
     }
-    await _engine.shutdown(); // 幂等;运行中不裸删(FR-3)
+    await _engine().shutdown(); // 幂等;运行中不裸删(FR-3)
     final target = await _targetFile();
     final part = await _partFile();
     if (await target.exists()) await target.delete();

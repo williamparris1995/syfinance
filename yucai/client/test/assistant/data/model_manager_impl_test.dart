@@ -540,9 +540,10 @@ void main() {
   test('manifest getter 直通构造清单(生产缺省 = kModelManifest)', () async {
     final h = makeHarness();
     expect(h.manager.manifest, fakeManifest);
+    final bareEngine = _FakeEngineManager();
     final bare = ModelManagerImpl(
       _MockHttpClient(const []),
-      _FakeEngineManager(),
+      () => bareEngine,
     );
     expect(bare.manifest, kModelManifest);
   });
@@ -662,7 +663,7 @@ class _Harness {
         logs = <String>[] {
     manager = ModelManagerImpl(
       http,
-      engine,
+      () => engine, // deferred 缝(生产同形,DI 构造环打断后签名)
       supportDirFn: () async => temp,
       manifest: manifest,
       throttleMs: throttleMs,

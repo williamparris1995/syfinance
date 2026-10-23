@@ -109,6 +109,12 @@ Future<void> configureDependencies() async {
   //       shutdown)+ F66 port 面不变;F66 简版 ModelStoreImpl 退役删除。
   //       ModelManagerPort 同实例第二注册(F65 消费 state 流;lazy 工厂
   //       回读 getIt<ModelStore> 缓存,一体两 as 手工段家法)。
+  //       EngineManager 参数走 deferred 取值缝 `() => getIt<EngineManager>()`
+  //       打断 ModelStore ↔ EngineManager 构造环(2026-10-24 L-3 探针实证:
+  //       两 lazy 工厂构造期互急取,get_it 7.7.0 无重入保护,首消费者
+  //       解析即 SOF;断在 ModelManager 侧 —— EngineManagerImpl 持
+  //       ModelStore 直接引用不动,环另一侧即无环。回归钉 =
+  //       test/assistant/data/model_store_engine_di_cycle_test.dart)。
   //     - ModelHttpClient(F67-T2):IoModelHttpClient dart:io 生产实现
   //       (生成图不可 regen,同样手工注册;单测绕开 getIt 注入 mock)。
   //     - LlmStreamClient(F66-T3 起构造注入 EngineManager:chat 前置
@@ -131,7 +137,7 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton<ModelHttpClient>(IoModelHttpClient.new);
   getIt.registerLazySingleton<ModelStore>(() => ModelManagerImpl(
         getIt<ModelHttpClient>(),
-        getIt<EngineManager>(),
+        () => getIt<EngineManager>(), // deferred:打断与 EngineManager 的构造环
       ));
   getIt.registerLazySingleton<ModelManagerPort>(
       () => getIt<ModelStore>() as ModelManagerPort);

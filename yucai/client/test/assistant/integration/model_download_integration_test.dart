@@ -469,9 +469,10 @@ class _Harness {
       mirrorPort: mirror.port,
     );
     final logs = <String>[];
+    final engine = _FakeEngineManager();
     final manager = ModelManagerImpl(
       IoModelHttpClient(), // 真生产件(T2 mock 单测的互补面)
-      _FakeEngineManager(),
+      () => engine, // deferred 缝(生产同形,DI 构造环打断后签名)
       supportDirFn: () async => temp,
       manifest: kManifest,
       throttleMs: 0, // 每块进度发射(状态序确定性)
