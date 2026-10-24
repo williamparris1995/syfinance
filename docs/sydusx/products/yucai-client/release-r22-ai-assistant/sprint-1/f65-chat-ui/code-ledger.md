@@ -52,7 +52,7 @@
 
 | v19 事实源段 | 实现落点 | 对齐口径 |
 | --- | --- | --- |
-| assistant-entry-variants V1 段 .fab-assist(44px 圆,surface 底+accent 描边+sparkle,hover accentSoft) | `_AssistantFab` | 逐字对齐(44px 与 dock 52px 金渐变主 FAB 区分;sparkle=LucideIcons.sparkle) |
+| assistant-entry-variants V1 段 .fab-assist(44px 圆,surface 底+accent 描边+sparkle,hover accentSoft) | `_AssistantFab` | 逐字对齐(44px 与 dock 52px 金渐变主 FAB 区分;v19 原型 .fab-assist 图标实为 i-msg 消息泡;实现取 LucideIcons.sparkle 与浮层头部徽标品牌一致[整体评审门订正转录:改文档优先,实现二选一保留 sparkle]) |
 | .float-chat(400px 右下锚定浮层) | `_AssistantChatPanel` | 400px 对齐;高有界随视口收敛,窄屏降级=收视口边距(design Risk 既定) |
 | .float-chat bottom:136 | `_kPanelBottom=142` | 同构口径:28 锚 + dock 标配高(52 主+10 间距+44 次)+ 8 净空(=v19 22+106+8 的同构换算) |
 | .cp-head(徽标+标题+「本机运行」chip+新对话+收起) | `_PanelHeader` | 逐字对齐;「新对话」在浮层头部(FR-4/ADR-1 拍板) |
@@ -68,6 +68,12 @@
 
 1. **dock 并列几何依据 v19**:design LLD 原文「主 FAB 正上方 56px 间距」→ 实现取 v19 并列几何(right=28+52+16,与 dock 底线对齐)。理由:竖向「正上方」会与六 detail 页 dock 底锚上摞的 44px 次级钮(编辑/转账/减仓等,dock 总高至 214)重叠,并列错位对任意 dock 高零碰撞;且并列即 v19 V1 段本身的几何(design LLD「正上方」与 v19 冲突,取用户拍板的 v19)。
 2. **澄清以文本承载**:design HLD widgets 列有 clarify-chips;v1 落地 = 澄清问句以 AssistantMsg 文本承载(prompt 要素⑥话术:问句内给具体选项,如「TWR/净资产变动/账户收支」),不做交互式选项 chips。理由:选项面因问题域而异(口径/账户/时间/方向),文本为通用最稳载体,交互式 chips 留后续增强(小模型选项解析不确定);FR-5 验收面 = 澄清优先(常量+回放钉),不押交互形态。
+
+
+## 整体评审门附记(2026-10-24,PASS)
+
+- 三条非阻断建议处置:①v19 差异表第 1 段图标转录已订正(上文);②浮层头部 chip 恒显「本机运行」记为已报备差异(state-6「准备中」切显留后续票,cosmetic);③_ReadyModelDescription memo 加调用计数回归钉=nice-to-have 缓办(fake 加 counter 断言 diskUsageBytes 仅调一次,后续票顺手)。
+- e2e 真壳 Windows 实跑绿(make client-e2e-ui 单文件)。
 
 ## 评审与修复轮记录(2026-10-24)
 
