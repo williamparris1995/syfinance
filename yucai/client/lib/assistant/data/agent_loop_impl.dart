@@ -75,6 +75,11 @@ class AgentLoopServiceImpl implements AgentLoopService {
   /// 单会话消息序列(内存态,ADR-5;跨会话持久化不在本票)。
   final List<Map<String, Object>> _messages = [];
 
+  /// 清空内存会话(F65「新对话」,FR-4):下次 send 时 `_messages` 为空
+  /// → system prompt 重新队首注入一次(见 send 的插入守卫)。
+  @override
+  void resetConversation() => _messages.clear();
+
   @override
   Stream<AssistantEvent> send(String userMessage) async* {
     if (!_config().ready) {

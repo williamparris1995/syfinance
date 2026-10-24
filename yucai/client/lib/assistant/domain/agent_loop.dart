@@ -14,6 +14,10 @@ abstract class AgentLoopService {
   /// 「未启用」,零网络请求,FR-4;文案不含「端点」词汇,评审 T3-M1);
   /// 循环编排细节见 T2 impl。
   Stream<AssistantEvent> send(String userMessage);
+
+  /// 清空内存会话(F65「新对话」,FR-4):丢弃全部历史上下文;下次
+  /// [send] 重新注入 system prompt(队首插入一次)。
+  void resetConversation();
 }
 
 /// 助手事件五态(ADR-5;sealed,消费方穷尽分支)。

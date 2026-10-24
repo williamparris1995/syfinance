@@ -394,6 +394,39 @@ void main() {
       hasLength(1),
     );
   });
+
+  test('resetConversation 清空会话:下次 send system prompt 仍队首注入一次(F65)',
+      () async {
+    final registry = AssistantToolRegistry()
+      ..register(_FakeTool('demo_query', (args) => const ToolData({})));
+    final llm = _ScriptedLlmClient([
+      _textRound(['第一答。']),
+      _textRound(['新答。']),
+    ]);
+    final loop = makeLoop(llm, registry);
+
+    await loop.send('第一问').toList();
+    loop.resetConversation();
+    await loop.send('新问').toList();
+
+    // 两轮各一次请求;reset 后无残留历史(回到 system+user 两消息)。
+    expect(llm.requests, hasLength(2));
+    expect(
+      llm.requests.last.messages.map((m) => m['role']),
+      ['system', 'user'],
+    );
+    // system prompt 重新队首注入一次,内容与常量同一实例。
+    expect(llm.requests.last.messages.first['role'], 'system');
+    expect(
+      identical(llm.requests.last.messages.first['content'],
+          AgentLoopServiceImpl.systemPrompt),
+      isTrue,
+    );
+    expect(
+      llm.requests.last.messages.where((m) => m['role'] == 'system'),
+      hasLength(1),
+    );
+  });
 }
 
 /// 就绪配置(F66-T1 收窄后:enabled + model;端点归引擎侧)。
