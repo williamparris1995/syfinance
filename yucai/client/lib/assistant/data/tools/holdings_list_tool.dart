@@ -5,8 +5,8 @@
 // (tie-break symbol/id 升序,DS listPaged 同式)→ 分页页片。
 //
 // 口径 = 持仓面板同源:每标的 {名称/代码/数量/成本(cents+元)/市值/浮动
-// 盈亏+百分比};汇总 = HoldingSummary 同式(Σ成本 = Σ round(qty×avgCost),
-// holding_bloc._summarize→derivedInvestFields 同式;Σ市值/Σ浮盈 = 直和);
+// 盈亏+百分比};汇总 = HoldingSummary 同源(Σ成本/Σ市值 复用 holding 域
+// 纯函数 derivedInvestFields,holding_bloc._summarize 同源;Σ浮盈 = 直和);
 // pnlPct = pnl/cost×100(页面同式,零成本 → 0 不除零)。逐分一致由
 // tools_caliber_test 参数化钉死(NFR-1 八工具化)。
 library;
@@ -14,6 +14,8 @@ library;
 import 'package:yucai_client/assistant/data/tools/tool_args.dart';
 import 'package:yucai_client/assistant/domain/assistant_tool.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/holding_query.dart'
+    show derivedInvestFields;
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 
 /// 持仓列表工具:面板口径每标的行 + 汇总,name 过滤 + 分页。
@@ -92,13 +94,14 @@ class HoldingsListTool implements AssistantTool {
         return bySymbol != 0 ? bySymbol : a.id.compareTo(b.id);
       });
 
-    // 汇总(HoldingSummary 同式:Σ round(qty×avgCost) 成本 / Σ市值 / Σ浮盈)。
-    var totalCost = 0;
-    var totalMv = 0;
+    // 汇总(HoldingSummary 同源):Σ成本/Σ市值 复用 holding 域纯函数
+    // derivedInvestFields(工具→他域 domain 纯函数 = 标准路径,不手抄同式;
+    // 与 holding_bloc._summarize 同源);Σ浮盈 = 直和(域函数只收两值)。
+    final invest = derivedInvestFields(visible);
+    final totalCost = invest.totalCostCents;
+    final totalMv = invest.totalMarketValueCents;
     var totalPnl = 0;
     for (final h in visible) {
-      totalCost += (h.quantity * h.avgCostCents).round();
-      totalMv += h.marketValueCents;
       totalPnl += h.unrealizedPnlCents;
     }
 

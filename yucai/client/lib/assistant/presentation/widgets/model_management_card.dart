@@ -188,13 +188,11 @@ class ModelManagementCard extends StatelessWidget {
             ),
           ModelReady() => _Row(
               label: '模型',
-              // 占用按文件实查(.gguf 求和)非清单常量(FR-3 版本/占用)。
-              descriptionBuilder: (context) => FutureBuilder<int>(
-                future: modelManager.diskUsageBytes(),
-                builder: (context, snap) => Text(
-                  'Qwen3-4B · 占用 ${_gb(snap.data ?? modelManager.manifest.totalBytes)} · v1',
-                  style: TextStyle(color: context.yucai.muted, fontSize: 12),
-                ),
+              // 占用按文件实查(.gguf 求和)非清单常量(FR-3 版本/占用);
+              // future 缓存在 _ReadyModelDescription 的 State 里(ready 态
+              // 重建不重扫磁盘,T4-L1;详见其注释)。
+              descriptionBuilder: (context) => _ReadyModelDescription(
+                modelManager: modelManager,
               ),
               control: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -346,7 +344,7 @@ class ModelManagementCard extends StatelessWidget {
 }
 
 /// 设置行(label + description 左,control 右;照 settings 卡 _Row 形态,
-/// 本文件私有)。description 可为 builder(ready 态占用走 FutureBuilder)。
+/// 本文件私有)。description 可为 builder(ready 态占用走 memo 态子件)。
 class _Row extends StatelessWidget {
   const _Row({
     required this.label,
@@ -388,6 +386,47 @@ class _Row extends StatelessWidget {
         const SizedBox(width: AppSpacing.md),
         control,
       ],
+    );
+  }
+}
+
+/// ready 态模型行占用文案(FR-3 版本/占用):占用按文件实查
+/// ([ModelManagerPort.diskUsageBytes] .gguf 求和)非清单常量。
+///
+/// future 取一次缓存在 State 里(T4-L1):ready 态本卡任何重建(启用开关
+/// 落盘/引擎态流转/主题)不重扫 .gguf —— 若在 build 里新建 future,
+/// FutureBuilder 会每帧重查。离开 ready(删除/下载失败)→ 再入 ready 时
+/// descriptionBuilder 产物与 Text 不同型,元素重建、State 重生,自然重查;
+/// pending/失败回退文案与原 FutureBuilder 同面(状态面不变)。
+class _ReadyModelDescription extends StatefulWidget {
+  const _ReadyModelDescription({required this.modelManager});
+
+  final ModelManagerPort modelManager;
+
+  @override
+  State<_ReadyModelDescription> createState() => _ReadyModelDescriptionState();
+}
+
+class _ReadyModelDescriptionState extends State<_ReadyModelDescription> {
+  /// initState 取一次(生命周期内 memo;防 build 新建 future → 重扫磁盘)。
+  late final Future<int> _diskUsageBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _diskUsageBytes = widget.modelManager.diskUsageBytes();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<int>(
+      future: _diskUsageBytes,
+      builder: (context, snap) => Text(
+        'Qwen3-4B · 占用 '
+        '${ModelManagementCard._gb(snap.data ?? widget.modelManager.manifest.totalBytes)}'
+        ' · v1',
+        style: TextStyle(color: context.yucai.muted, fontSize: 12),
+      ),
     );
   }
 }
