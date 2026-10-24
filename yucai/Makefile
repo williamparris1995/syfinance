@@ -70,7 +70,8 @@ E2E_FILES := integration_test/app_pages_test.dart integration_test/linked_transa
 # UI 链文件(一链一文件,不进默认回归;T4 十文件 + review round-1 补 ui_template_record = 11;
 # fix round 1 尾追加 ui_template_record —— FR-12「手动触发记一笔」枚举项补齐;
 # F9-T4 尾追加 ui_list_unify —— 列表能力统一 UI 抽验,= 12)。
-E2E_UI_FILES := integration_test/ui_boot_subscription_test.dart integration_test/ui_record_form_test.dart integration_test/ui_transfer_form_test.dart integration_test/ui_collect_form_test.dart integration_test/ui_buy_form_test.dart integration_test/ui_contribution_form_test.dart integration_test/ui_budget_page_test.dart integration_test/ui_tag_page_test.dart integration_test/ui_backup_entry_test.dart integration_test/ui_list_filter_test.dart integration_test/ui_template_record_test.dart integration_test/ui_list_unify_test.dart integration_test/ui_bill_cycle_panel_test.dart
+# F65-T5 尾追加 assistant_panel_e2e —— 助手浮层引导态链(FAB→浮层→未启用引导→去设置卡未下载态),= 14。
+E2E_UI_FILES := integration_test/ui_boot_subscription_test.dart integration_test/ui_record_form_test.dart integration_test/ui_transfer_form_test.dart integration_test/ui_collect_form_test.dart integration_test/ui_buy_form_test.dart integration_test/ui_contribution_form_test.dart integration_test/ui_budget_page_test.dart integration_test/ui_tag_page_test.dart integration_test/ui_backup_entry_test.dart integration_test/ui_list_filter_test.dart integration_test/ui_template_record_test.dart integration_test/ui_list_unify_test.dart integration_test/ui_bill_cycle_panel_test.dart integration_test/assistant_panel_e2e_test.dart
 
 # F= 单文件精准重跑(两入口通用,F 非空则只跑该文件),例:
 #   make client-e2e F=integration_test/link_budget_goal_test.dart

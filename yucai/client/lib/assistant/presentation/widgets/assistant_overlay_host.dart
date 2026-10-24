@@ -284,42 +284,49 @@ class _AssistantChatPanelState extends State<_AssistantChatPanel> {
     final height = math.min(480.0, mq.size.height - _kPanelBottom - 100);
     return BlocProvider<AssistantPanelBloc>.value(
       value: widget.bloc,
-      child: Container(
-        width: width,
-        height: height,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: t.surface,
-          borderRadius: AppRadius.lgBorder,
-          border: Border.all(color: t.border),
-          boxShadow: [
-            BoxShadow(
-              color: t.accent.withValues(alpha: 0.18),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            _PanelHeader(onClose: widget.onClose),
-            Expanded(
-              child: BlocBuilder<AssistantPanelBloc, AssistantPanelState>(
-                builder: (context, state) => DecoratedBox(
-                  decoration: BoxDecoration(color: t.bg),
-                  child: state.messages.isEmpty
-                      ? _PanelEmpty(onAsk: (q) =>
-                          widget.bloc.add(SendRequested(q)))
-                      : _MessageList(
-                          messages: state.messages,
-                          busy: state.isBusy,
-                          modelManager: widget.modelManager,
-                        ),
+      // Material 作用域(F65-T5 e2e 红灯修复):浮层挂 shell 级遮罩 Stack,
+      // 位置在页面 Scaffold 之侧而非其内 —— 输入行 TextField 需 Material
+      // 祖先,真壳缺位会 build 抛错(T3 widget 测试 harness 的 Scaffold 掩
+      // 盖了该缺陷);透明 Material 与 [_AssistantFab] 同款,零视觉变化。
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: width,
+          height: height,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: t.surface,
+            borderRadius: AppRadius.lgBorder,
+            border: Border.all(color: t.border),
+            boxShadow: [
+              BoxShadow(
+                color: t.accent.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _PanelHeader(onClose: widget.onClose),
+              Expanded(
+                child: BlocBuilder<AssistantPanelBloc, AssistantPanelState>(
+                  builder: (context, state) => DecoratedBox(
+                    decoration: BoxDecoration(color: t.bg),
+                    child: state.messages.isEmpty
+                        ? _PanelEmpty(onAsk: (q) =>
+                            widget.bloc.add(SendRequested(q)))
+                        : _MessageList(
+                            messages: state.messages,
+                            busy: state.isBusy,
+                            modelManager: widget.modelManager,
+                          ),
+                  ),
                 ),
               ),
-            ),
-            _InputBar(controller: _input, onSend: _send),
-          ],
+              _InputBar(controller: _input, onSend: _send),
+            ],
+          ),
         ),
       ),
     );
