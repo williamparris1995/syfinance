@@ -10,6 +10,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
+import 'package:yucai_client/assistant/domain/engine_port.dart';
+import 'package:yucai_client/assistant/domain/model_manager_port.dart';
+import 'package:yucai_client/assistant/presentation/widgets/model_management_card.dart';
 import 'package:yucai_client/backup/data/archive_codec.dart';
 import 'package:yucai_client/backup/data/archive_importer.dart';
 import 'package:yucai_client/core/notifications/app_updater.dart';
@@ -59,6 +63,9 @@ class SettingsPage extends StatelessWidget {
     DataResetController? resetController,
     LocalSnapshotService? snapshotService,
     LlmSettings? llmSettings,
+    AssistantSettings? assistantSettings,
+    ModelManagerPort? modelManager,
+    EngineManager? engineManager,
   })  : _authRemote = authRemote,
         _currencySettings = currencySettings,
         _themeSettings = themeSettings,
@@ -70,7 +77,13 @@ class SettingsPage extends StatelessWidget {
         _snapshotService = // ignore: prefer_initializing_formals
             snapshotService,
         _llmSettings = // ignore: prefer_initializing_formals
-            llmSettings;
+            llmSettings,
+        _assistantSettings = // ignore: prefer_initializing_formals
+            assistantSettings,
+        _modelManager = // ignore: prefer_initializing_formals
+            modelManager,
+        _engineManager = // ignore: prefer_initializing_formals
+            engineManager;
 
   final AuthRemoteDataSource? _authRemote;
   final CurrencySettings? _currencySettings;
@@ -80,6 +93,9 @@ class SettingsPage extends StatelessWidget {
   final DataResetController? _resetController;
   final LocalSnapshotService? _snapshotService;
   final LlmSettings? _llmSettings;
+  final AssistantSettings? _assistantSettings;
+  final ModelManagerPort? _modelManager;
+  final EngineManager? _engineManager;
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +122,20 @@ class SettingsPage extends StatelessWidget {
     // 隐藏,不炸 build);显式注入优先,供 widget 测试用 fake。
     final llm = _llmSettings ??
         (getIt.isRegistered<LlmSettings>() ? getIt<LlmSettings>() : null);
+    // F65「AI 助手」端侧模型管理卡三依赖(AssistantSettings/
+    // ModelManagerPort/EngineManager):core/di 1m 段已全部注册,照上方
+    // llm 同款 isRegistered 守卫(测试挂页无 DI 图时整卡隐藏,不炸 build);
+    // 显式注入优先,供 widget 测试用 fake。
+    final assistant = _assistantSettings ??
+        (getIt.isRegistered<AssistantSettings>()
+            ? getIt<AssistantSettings>()
+            : null);
+    final modelMgr = _modelManager ??
+        (getIt.isRegistered<ModelManagerPort>()
+            ? getIt<ModelManagerPort>()
+            : null);
+    final engineMgr = _engineManager ??
+        (getIt.isRegistered<EngineManager>() ? getIt<EngineManager>() : null);
     return Scaffold(
       backgroundColor: context.yucai.bg,
       // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
@@ -418,6 +448,19 @@ class SettingsPage extends StatelessWidget {
                     if (llm != null) ...[
                       const SizedBox(height: AppSpacing.md),
                       LlmSettingsCard(settings: llm),
+                    ],
+                    // F65「AI 助手」端侧模型管理卡(spec FR-3:与 F46 并列,
+                    // 语义彻底分离 —— 纯端侧,零端点/零 Key/零云)。三依赖
+                    // 齐备才挂(缺任一 = 测试无 DI 图,整卡隐藏)。
+                    if (assistant != null &&
+                        modelMgr != null &&
+                        engineMgr != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      ModelManagementCard(
+                        settings: assistant,
+                        modelManager: modelMgr,
+                        engineManager: engineMgr,
+                      ),
                     ],
                     const SizedBox(height: AppSpacing.md),
                     _SettingsCard(

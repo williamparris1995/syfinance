@@ -22,6 +22,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
+import 'package:yucai_client/assistant/domain/assistant_settings.dart';
+import 'package:yucai_client/assistant/domain/engine_port.dart';
+import 'package:yucai_client/assistant/domain/engine_state.dart';
+import 'package:yucai_client/assistant/domain/model_manager_port.dart';
+import 'package:yucai_client/assistant/domain/model_state.dart';
 import 'package:yucai_client/core/feedback/feedback_launcher.dart';
 import 'package:yucai_client/core/feedback/feedback_submit_service.dart';
 import 'package:yucai_client/core/llm/llm_settings.dart';
@@ -220,6 +226,9 @@ Widget _harness(
   TraySettings? traySettings,
   AppExitPort? appExitPort,
   LlmSettings? llmSettings,
+  AssistantSettings? assistantSettings,
+  ModelManagerPort? modelManager,
+  EngineManager? engineManager,
 }) {
   final bloc = _StubCurrencyBloc(state);
   final getIt = GetIt.instance;
@@ -254,7 +263,11 @@ Widget _harness(
         BlocProvider<AuthBloc>.value(value: authBloc),
       ],
       child: SettingsPage(
-          authRemote: authRemote, llmSettings: llmSettings),
+          authRemote: authRemote,
+          llmSettings: llmSettings,
+          assistantSettings: assistantSettings,
+          modelManager: modelManager,
+          engineManager: engineManager),
     ),
   );
 }
@@ -855,6 +868,48 @@ group('F41 意见反馈行', () {
       expect(getIt.isRegistered<LlmSettings>(), isFalse); // 前提:本文件未注册
     });
   });
+
+  group('F65 AI 助手卡挂载(2026-10-24,prototype v19;与 F46 并列)', () {
+    testWidgets('三依赖经注入缝:卡标题+启用行+模型引导行+引擎行均渲染',
+        (t) async {
+      const state = CurrencyState(
+        currencies: _currencies,
+        preferred: 'CNY',
+        intervalHours: 8,
+        status: CurrencyStatus.loaded,
+      );
+      await t.pumpWidget(_harness(state, authRemote, currencySettings,
+          assistantSettings:
+              _FakeAssistantSettingsForPage(const AssistantConfig(enabled: true)),
+          modelManager:
+              _FakeModelManagerForPage(const ModelNotDownloaded()),
+          engineManager: _FakeEngineManagerForPage(const EngineStopped())));
+      await t.pumpAndSettle();
+      expect(find.text('AI 助手'), findsOneWidget);
+      expect(find.text('启用 AI 助手'), findsOneWidget);
+      expect(find.byKey(const ValueKey('assistantEnableSwitch')), findsOneWidget);
+      expect(find.byKey(const ValueKey('assistantDownloadButton')), findsOneWidget,
+          reason: 'notDownloaded 空态 = 首跑引导下载');
+      expect(find.text('本机引擎 · 随应用启动'), findsOneWidget);
+    });
+
+    testWidgets('未注入且未注册:整卡缺席(isRegistered 守卫,无 DI 图不炸)',
+        (t) async {
+      const state = CurrencyState(
+        currencies: _currencies,
+        preferred: 'CNY',
+        intervalHours: 8,
+        status: CurrencyStatus.loaded,
+      );
+      await t.pumpWidget(_harness(state, authRemote, currencySettings));
+      await t.pumpAndSettle();
+      expect(find.text('AI 助手'), findsNothing);
+      expect(getIt.isRegistered<AssistantSettings>(), isFalse,
+          reason: '前提:本文件未注册助手件');
+      expect(getIt.isRegistered<ModelManagerPort>(), isFalse);
+      expect(getIt.isRegistered<EngineManager>(), isFalse);
+    });
+  });
 });
 } // main
 
@@ -872,6 +927,69 @@ class _FakeLlmSettingsForPage extends Fake implements LlmSettings {
 
   @override
   Future<void> setConfig(LlmConfig config) async => _notifier.value = config;
+}
+
+/// Fake AssistantSettings(F65 挂载测试,照上方 llm 同款):只读 listenable。
+class _FakeAssistantSettingsForPage extends Fake implements AssistantSettings {
+  _FakeAssistantSettingsForPage(AssistantConfig initial)
+      : _notifier = ValueNotifier<AssistantConfig>(initial);
+  final ValueNotifier<AssistantConfig> _notifier;
+
+  @override
+  AssistantConfig get value => _notifier.value;
+
+  @override
+  ValueListenable<AssistantConfig> get listenable => _notifier;
+
+  @override
+  Future<void> setConfig(AssistantConfig config) async =>
+      _notifier.value = config;
+}
+
+/// Fake ModelManagerPort(F65 挂载测试):固定状态,动作零需求。
+class _FakeModelManagerForPage implements ModelManagerPort {
+  _FakeModelManagerForPage(ModelState initial)
+      : state = ValueNotifier<ModelState>(initial);
+  @override
+  final ValueNotifier<ModelState> state;
+
+  @override
+  Future<void> download() async {}
+
+  @override
+  void pause() {}
+
+  @override
+  void cancel() {}
+
+  @override
+  Future<void> delete() async {}
+
+  @override
+  Future<int> diskUsageBytes() async => kModelManifest.totalBytes;
+
+  @override
+  ModelManifest get manifest => kModelManifest;
+}
+
+/// Fake EngineManager(F65 挂载测试):固定状态。
+class _FakeEngineManagerForPage implements EngineManager {
+  _FakeEngineManagerForPage(EngineState initial)
+      : state = ValueNotifier<EngineState>(initial);
+  @override
+  final ValueNotifier<EngineState> state;
+
+  @override
+  Future<void> ensureReady() async {}
+
+  @override
+  Future<void> shutdown() async {}
+
+  @override
+  void beginActivity() {}
+
+  @override
+  void endActivity() {}
 }
 
 /// Fills the feedback form (type 问题 + body) and taps 提交反馈.
