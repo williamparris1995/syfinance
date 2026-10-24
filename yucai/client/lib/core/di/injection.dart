@@ -18,8 +18,13 @@ import 'package:yucai_client/assistant/data/http_downloader.dart';
 import 'package:yucai_client/assistant/data/model_manager_impl.dart';
 import 'package:yucai_client/assistant/data/process_launcher.dart';
 import 'package:yucai_client/assistant/data/tools/accounts_list_tool.dart';
+import 'package:yucai_client/assistant/data/tools/budgets_status_tool.dart';
 import 'package:yucai_client/assistant/data/tools/debts_list_tool.dart';
+import 'package:yucai_client/assistant/data/tools/goals_list_tool.dart';
+import 'package:yucai_client/assistant/data/tools/holdings_list_tool.dart';
 import 'package:yucai_client/assistant/data/tools/networth_snapshot_tool.dart';
+import 'package:yucai_client/assistant/data/tools/performance_range_tool.dart';
+import 'package:yucai_client/assistant/data/tools/transactions_search_tool.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
 import 'package:yucai_client/assistant/domain/engine_port.dart';
@@ -35,6 +40,8 @@ import 'package:yucai_client/binding/domain/offline_sync_port.dart';
 import 'package:yucai_client/binding/presentation/bloc/binding_bloc.dart';
 import 'package:yucai_client/binding/presentation/bloc/conflict_list_bloc.dart';
 import 'package:yucai_client/binding/presentation/bloc/sync_coordinator_bloc.dart';
+import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
+import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
@@ -336,15 +343,20 @@ Future<void> configureDependencies() async {
   //     synchronously. Default off = zero behavior change (Migration Plan).
   await getIt<AssistantSettings>().load();
 
-  // 2g. F64 助手地基:工具注册表启动装配(FR-1;registry 单例 + 三只读
+  // 2g. F64 助手地基:工具注册表启动装配(FR-1;registry 单例 + 只读
   //     工具集中此一段,勿散落)。工具构造依赖均为既有注册件:
-  //     AccountRepository / DebtRepository(assistant 跨模块只 import
-  //     domain port,ADR-2)、CurrencySettings(2a 同源本位币,经
+  //     AccountRepository / DebtRepository / TransactionRepository /
+  //     BudgetRepository / GoalRepository / HoldingRepository(assistant 跨
+  //     模块只 import domain port,ADR-2;holding repo 为 F65 performance_range
+  //     直连 F43 汇编器区间入口所需 —— 显式 rangeStart/rangeEnd 强制本地
+  //     引擎,报告口径)、CurrencySettings(2a 同源本位币,经
   //     BaseCurrencySourceAdapter 转 BaseCurrencySource 微 port —— 评审
   //     fixlist M1:assistant 不 import currency/data)、
   //     NetWorthLocalDataSource(生成图)经 core/di 适配件转
   //     NetWorthSnapshotSource(ADR-2:assistant 不 import holding/data,
   //     与 home 净资产大卡同源,NFR-1)。
+  //     F65-T1(2026-10-24):五只读工具入列(FR-2)—— holdings_list /
+  //     transactions_search / budgets_status / goals_list / performance_range。
   final assistantTools = AssistantToolRegistry();
   assistantTools.register(NetWorthSnapshotTool(
     NetWorthSnapshotSourceAdapter(getIt<NetWorthLocalDataSource>()),
@@ -355,6 +367,14 @@ Future<void> configureDependencies() async {
     getIt<DebtRepository>(),
   ));
   assistantTools.register(DebtsListTool(getIt<DebtRepository>()));
+  assistantTools.register(HoldingsListTool(getIt<HoldingRepository>()));
+  assistantTools.register(TransactionsSearchTool(
+    getIt<TransactionRepository>(),
+    getIt<AccountRepository>(),
+  ));
+  assistantTools.register(BudgetsStatusTool(getIt<BudgetRepository>()));
+  assistantTools.register(GoalsListTool(getIt<GoalRepository>()));
+  assistantTools.register(PerformanceRangeTool(getIt<HoldingRepository>()));
   getIt.registerSingleton<AssistantToolRegistry>(assistantTools);
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
