@@ -80,3 +80,64 @@
 - T1-T4:按 code-plan SDD 门交付,未单独安排评审轮;T5 全门(全量 test/analyze/server diff/e2e)为本票验收面。
 - **T5 e2e 红灯 → T3 真壳缺陷修复**:首跑 e2e 揭示 `_AssistantChatPanel` 输入行 TextField 在真壳无 Material 祖先(浮层挂 shell 级遮罩 Stack,位置在页面 Scaffold 之侧而非其内)→ build 抛 `No Material widget found`,连带 RenderFlex 溢出;T3 widget 测试 harness(MaterialApp+Scaffold)掩盖了该缺陷。最小修复:浮层 Container 外包透明 `Material(color: Colors.transparent)`(与 `_AssistantFab` 同款,零视觉变化);T3 15 件 widget 测复跑全绿,e2e 转绿。
 - **e2e 基建记档**:本机两轮跑全顺,未触发已知 errno 32(Windows sqlite 文件占用删除竞态)现象;Makefile E2E_UI_FILES 尾追加登记(=14)。
+
+## test 阶段门:覆盖率实测 + 验收清单(2026-10-24)
+
+门跑实测:`flutter test --coverage test/assistant/` **+260 ~1 全绿**(skip=F66 engine_smoke 引擎夹具不在场自跳);`flutter analyze` **459 == 基线零新增**;`git diff main -- yucai/server` **0 字节**(NFR-4 本阶段复跑)。
+
+### 覆盖率(lcov DA 行覆盖,lib/assistant 汇总)
+
+**总覆盖 1662/1774 = 93.7%**(31 文件中 27 有可执行行记录;base_currency_port/engine_port/model_store_port/networth_port 四纯抽象 port 无 DA 记录)。
+
+| 文件(lib/assistant/) | 命中/总 | 覆盖率 |
+| --- | --- | --- |
+| presentation/assistant_panel/assistant_panel_bloc.dart | 150/173 | **86.7%** |
+| presentation/widgets/assistant_overlay_host.dart | 379/391 | **96.9%** |
+| presentation/widgets/model_management_card.dart | 162/163 | **99.4%** |
+| data/agent_loop_impl.dart | 90/94 | 95.7% |
+| data/assistant_settings_store.dart | 17/17 | 100% |
+| data/audit_log.dart | 14/15 | 93.3% |
+| data/engine_manager_impl.dart | 100/108 | 92.6% |
+| data/http_downloader.dart | 26/28 | 92.9% |
+| data/llm_stream_client_impl.dart | 79/84 | 94.0% |
+| data/model_manager_impl.dart | 167/167 | 100% |
+| data/process_launcher.dart | 0/23 | 0.0% ⚠ |
+| data/tools/accounts_list_tool.dart | 64/66 | 97.0% |
+| data/tools/budgets_status_tool.dart | 31/36 | 86.1% |
+| data/tools/debts_list_tool.dart | 34/34 | 100% |
+| data/tools/goals_list_tool.dart | 31/34 | 91.2% |
+| data/tools/holdings_list_tool.dart | 49/54 | 90.7% |
+| data/tools/networth_snapshot_tool.dart | 17/17 | 100% |
+| data/tools/performance_range_tool.dart | 41/44 | 93.2% |
+| data/tools/tool_args.dart | 23/23 | 100% |
+| data/tools/transactions_search_tool.dart | 93/102 | 91.2% |
+| domain/agent_loop.dart / assistant_settings / assistant_tool / engine_state / model_state / tool_registry | 全满 | 100% |
+| domain/model_manager_port.dart | 7/13 | 53.8% ⚠ |
+
+**<80% 热点两处(均非 F65 面,判断为可接受)**:
+- `data/process_launcher.dart` 0%(0/23):dart:io 生产实现(真进程拉起/tasklist 探活/taskkill 树杀),单测经 fake 注入零真进程,真 exe 冒烟=engine_smoke_test 本机自跳 —— F66 域按设计留白,非 F65 缺口。
+- `domain/model_manager_port.dart` 53.8%(7/13):未覆盖行 74-81 = `ModelManifest` 值对象 `==`/`hashCode`/`toString` 样板成员,无逻辑。
+
+**presentation 三新文件全 ≥80% 门**(本票重点面):bloc 86.7% / overlay host 96.9% / model card 99.4%。bloc 未覆盖 23 行拆解:sealed 事件 Equatable `props` 样板(41-126 成对,13 行)+ `onError` 防御路径(363/365,loop 契约保证终态事件、流级异常为防御)+ `_drainFrame` 原位追加分支(479:第二合帧窗口才走;单窗多 delta 合并已测,多窗追加分支未钉 —— 记缓办,后续票顺手)。
+
+### 验收清单(spec Scenario 逐行;grep 实数 11 场景全核对)
+
+对照上方「需求覆盖对照表」逐行复核(用例名均经 grep 实存验证):
+
+| Scenario(spec 实数 11) | 代验用例(实证) | ✓ |
+| --- | --- | --- |
+| FR-1 流式上屏与工具状态 | overlay 5 件(气泡/光标/ToolStatus pill/合帧/发送禁用)+ bloc「流式合帧」 | ✓ |
+| FR-1 未就绪引导态 | overlay 引导三型(零 LLM)+ bloc 三引导(零 LLM)+ e2e 真壳 | ✓ |
+| FR-1 错误可重试 | overlay「错误条+重试…历史不删错」+ bloc「错误可重试…再走全流程」 | ✓ |
+| FR-2 performance_range 报告口径 | 「explicit window matches the F43 report oracle, cent-exact」+ YTD 缺省 + caliber 参数化 | ✓ |
+| FR-2 holdings 面板口径 | 「summary mirrors the holdings panel caliber, cent-exact」+ per-holding 双口径 | ✓ |
+| FR-2 transactions 六项过滤+分页 | 七件:日期/账户/分类/关键词/方向/组合/超界页保汇总空 items | ✓ |
+| FR-3 首次启用引导下载 | model card 三件(下载按钮真调 port.download/五态全切换/启用落盘)+ overlay 下载引导 + e2e 未下载态 | ✓ |
+| FR-3 引擎状态可见 | model card「stopped→starting→ready」+「error(crashed)→重试真调 ensureReady」+ modelMissing | ✓ |
+| FR-4 新对话重置 | bloc「新对话…resetConversation 被调」+ overlay 清空回空态 + agent_loop「resetConversation…system prompt 仍队首注入一次」 | ✓ |
+| FR-5 歧义范围先澄清 | agent_loop「歧义先澄清再执行:首轮纯文本澄清问句零工具…」+ 七要素常量断言⑥ | ✓ |
+| FR-5 超界明局限 | 七要素常量断言⑦(「超出当前工具能力」+「最接近的替代路径」=spec 例句按标签筛选→分类/关键词) | ✓ |
+
+NFR 门:NFR-1 八工具 caliber 参数化(grep 实数 8 处 execute vs 同库直查)✓;NFR-2 两处源码静态守门测试 ✓;NFR-3 引用整体评审门 PASS 结论(2026-10-24,v19 图标转录订正/两差异报备/memo 回归钉缓办)✓;NFR-4 本阶段实测 0 字节 ✓;e2e 真壳 Windows 实跑绿(评审门附记引用)✓。
+
+**test 阶段裁决:PASS**(11/11 场景有实证用例、4 NFR 门全绿、覆盖 93.7% 且 presentation 三新文件全过 80% 线;两 <80% 热点均为 F66 域/样板代码,非本票缺口)。
