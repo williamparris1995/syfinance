@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/app/nav_settings.dart';
 import 'package:yucai_client/app/widgets/command_palette.dart';
+import 'package:yucai_client/assistant/presentation/widgets/assistant_overlay_host.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
@@ -383,6 +384,10 @@ class _ShellCommandSurfaceState extends State<_ShellCommandSurface> {
             fit: StackFit.expand,
             children: [
               Positioned.fill(child: widget.child),
+              // F65-T3:全局助手浮层宿主(右下助手 FAB + 400px 聊天浮层,ADR-1
+              // V1 形态)—— 挂 shell 级遮罩 Stack(宽/窄两形态全域;与各页
+              // FloatingActionDock 同屏错位见 host 注)。命令面板在其上。
+              const Positioned.fill(child: AssistantOverlayHost()),
               if (_paletteOpen)
                 Positioned.fill(
                   child: CommandPalette(
