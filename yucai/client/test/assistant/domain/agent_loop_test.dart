@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
+import 'package:yucai_client/assistant/domain/write_action.dart';
 
 /// F64 T1:事件流五态 + LLM 流缝 chunk/请求形状(轻量构造契约)。
 /// 循环编排行为(工具往返/自纠上限)属 T2 data 层 mock 回放测试范围。
@@ -31,12 +32,14 @@ void main() {
       expect(error.message, 'assistant endpoint not configured');
     });
 
-    test('sealed hierarchy covers exactly the five states', () {
+    test('sealed hierarchy covers exactly the six states', () {
       // 穷尽 switch 可编译即穷尽性证明(新增态会编译失败钉住契约)。
+      // F70-T2:六态 = 五态 + WriteProposed(写提案,确认门数据面)。
       String describe(AssistantEvent event) => switch (event) {
             TextDelta(:final delta) => 'text:$delta',
             ToolCallStart(:final id, :final name) => 'start:$id:$name',
             ToolCallEnd(:final id, :final ok) => 'end:$id:$ok',
+            WriteProposed(:final toolName) => 'proposed:$toolName',
             Done() => 'done',
             AssistantError(:final message) => 'error:$message',
           };
@@ -46,6 +49,11 @@ void main() {
       expect(
         describe(const AssistantError('boom')),
         'error:boom',
+      );
+      expect(
+        describe(const WriteProposed('transaction_add',
+            TransactionDelete(transactionId: 't'), <String, Object>{})),
+        'proposed:transaction_add',
       );
     });
   });

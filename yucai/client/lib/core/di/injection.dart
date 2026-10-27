@@ -34,6 +34,8 @@ import 'package:yucai_client/assistant/domain/engine_port.dart';
 import 'package:yucai_client/assistant/domain/model_manager_port.dart';
 import 'package:yucai_client/assistant/domain/model_store_port.dart';
 import 'package:yucai_client/assistant/domain/tool_registry.dart';
+import 'package:yucai_client/assistant/domain/write_executor.dart';
+import 'package:yucai_client/assistant/data/write_executor_impl.dart';
 import 'package:yucai_client/backup/data/archive_importer.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/binding/data/grpc_offline_sync_port.dart';
@@ -158,6 +160,17 @@ Future<void> configureDependencies() async {
         getIt<AssistantToolRegistry>(),
         getIt<AssistantAuditLog>(),
         getIt<AssistantConfig Function()>(),
+      ));
+  // F70-T2(2026-10-27):WriteExecutor 确认门执行器 —— 实际落库唯一入口,
+  // 仅 bloc 确认回调可达(FR-5 代码门)。手工注册(照 AgentLoopService
+  // 家法;impl 类上的 @LazySingleton 注解仅文档)。依赖:TransactionRepository
+  // (生成图)+ AgentLoopService(appendToolOutcome 注入已执行结果,ADR-2
+  // —— loop 不依赖 executor,无构造环)+ AssistantAuditLog(logWrite,
+  // NFR-3 先日志)。lazySingleton = 幂等集会话内驻留(ADR-3)。
+  getIt.registerLazySingleton<WriteExecutor>(() => WriteExecutorImpl(
+        getIt<TransactionRepository>(),
+        getIt<AgentLoopService>(),
+        getIt<AssistantAuditLog>(),
       ));
   getIt.registerLazySingleton<ProcessLauncher>(ProcessLauncherImpl.new);
   getIt.registerLazySingleton<EngineManager>(() => EngineManagerImpl(

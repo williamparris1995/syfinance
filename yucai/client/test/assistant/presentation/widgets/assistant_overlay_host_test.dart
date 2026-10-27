@@ -26,6 +26,8 @@ import 'package:yucai_client/assistant/domain/engine_port.dart';
 import 'package:yucai_client/assistant/domain/engine_state.dart';
 import 'package:yucai_client/assistant/domain/model_manager_port.dart';
 import 'package:yucai_client/assistant/domain/model_state.dart';
+import 'package:yucai_client/assistant/domain/write_action.dart';
+import 'package:yucai_client/assistant/domain/write_executor.dart';
 import 'package:yucai_client/assistant/presentation/widgets/assistant_overlay_host.dart';
 
 /// Fake AgentLoopService(照 T2 assistant_panel_bloc_test._FakeLoop):
@@ -126,6 +128,19 @@ class _FakeEngineManager implements EngineManager {
   void endActivity() {}
 }
 
+/// F70-T2:计数型 fake WriteExecutor(确认门缝;本文件只验证装配接线,
+/// 执行语义在 assistant_panel_bloc_test / write_executor_impl_test)。
+class _FakeWriteExecutor implements WriteExecutor {
+  final List<(WriteAction, String)> calls = [];
+
+  @override
+  Future<WriteOutcome> execute(
+      WriteAction action, String idempotencyKey) async {
+    calls.add((action, idempotencyKey));
+    return const WriteExecuted('txn-host');
+  }
+}
+
 /// 全就绪缺省(发送守卫全过)。
 const _readyConfig = AssistantConfig(enabled: true);
 
@@ -141,6 +156,7 @@ Widget _host(
   _FakeAssistantSettings? settings,
   _FakeModelManager? modelManager,
   _FakeEngineManager? engineManager,
+  _FakeWriteExecutor? writeExecutor,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -152,6 +168,7 @@ Widget _host(
             modelManager ?? _FakeModelManager(const ModelReady()),
         engineManager: engineManager ??
             _FakeEngineManager(EngineReady(Uri.parse('http://127.0.0.1:1/v1'))),
+        writeExecutor: writeExecutor ?? _FakeWriteExecutor(),
         frameInterval: Duration.zero,
       ),
     ),

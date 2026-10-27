@@ -168,6 +168,8 @@ void main() {
       expect(action['type'], 'transaction_update');
       expect(action['transactionId'], txns['美团买菜']!.id,
           reason: '最近一笔 in/out = 10-05 美团买菜(10-10 是转账)');
+      expect(action['direction'], 'out',
+          reason: 'F70-T2:方向随提案携带(执行器全分录重建借贷侧依据)');
       expect((action['patch'] as Map)['amountCents'], 4000);
       expect(json['requiresApproval'], isTrue);
     });

@@ -22,6 +22,7 @@ import 'package:yucai_client/account/domain/repositories/account_repository.dart
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/assistant/data/tools/tool_args.dart';
 import 'package:yucai_client/assistant/domain/assistant_tool.dart';
+import 'package:yucai_client/assistant/domain/write_action.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -130,6 +131,71 @@ Future<(List<Account>?, ToolError?)> loadAccounts(
 String isoDate(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-'
     '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// 工具 ToolData.action JSON → typed [WriteAction](F70-T2 确认门反序列化;
+/// 三写工具序列化形状的镜像解码)。**任何字段缺失/类型不符/枚举非法 →
+/// null**(调用方 = agent loop:解析失败不发写提案事件 —— 降级为普通
+/// 工具结果,零卡零写;确认门代码语义:无卡即无执行)。
+WriteAction? writeActionFromJson(Map<String, Object?> json) {
+  switch (json['type']) {
+    case 'transaction_add':
+      final direction =
+          WriteDirection.fromWire(json['direction'] as String? ?? '');
+      final amountCents = json['amountCents'];
+      final date = DateTime.tryParse(json['date'] as String? ?? '');
+      if (direction == null || amountCents is! int || date == null) {
+        return null;
+      }
+      return TransactionAdd(
+        direction: direction,
+        amountCents: amountCents,
+        description: json['description'] as String? ?? '',
+        accountId: json['accountId'] as String? ?? '',
+        categoryId: json['categoryId'] as String? ?? '',
+        date: date,
+      );
+    case 'transaction_update':
+      final direction =
+          WriteDirection.fromWire(json['direction'] as String? ?? '');
+      final transactionId = json['transactionId'] as String?;
+      final patchJson = json['patch'];
+      if (direction == null || transactionId == null || patchJson is! Map) {
+        return null;
+      }
+      final amountCents = patchJson['amountCents'];
+      final rawDate = patchJson['date'];
+      final date = rawDate == null ? null : DateTime.tryParse('$rawDate');
+      if ((amountCents != null && amountCents is! int) ||
+          (rawDate != null && date == null)) {
+        return null;
+      }
+      // patch「至少一字段」是 TransactionPatch 常开不变量(构造即抛)——
+      // 解码侧先判空集,杜绝异常冒泡(本函数契约:非法 → null 不抛)。
+      final hasAnyField = amountCents != null ||
+          patchJson['description'] != null ||
+          patchJson['categoryId'] != null ||
+          patchJson['accountId'] != null ||
+          rawDate != null;
+      if (!hasAnyField) return null;
+      return TransactionUpdate(
+        direction: direction,
+        transactionId: transactionId,
+        patch: TransactionPatch(
+          amountCents: amountCents,
+          description: patchJson['description'] as String?,
+          categoryId: patchJson['categoryId'] as String?,
+          accountId: patchJson['accountId'] as String?,
+          date: date,
+        ),
+      );
+    case 'transaction_delete':
+      final transactionId = json['transactionId'] as String?;
+      if (transactionId == null) return null;
+      return TransactionDelete(transactionId: transactionId);
+    default:
+      return null;
+  }
+}
 
 /// 单笔交易的 in/out 判定(与 transactions_search 同口径:income 科目
 /// credit 单边 = in;expense 科目 debit 单边 = out;转账两者皆否)。

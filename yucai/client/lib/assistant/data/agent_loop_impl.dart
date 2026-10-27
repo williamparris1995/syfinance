@@ -20,6 +20,7 @@ import '../domain/assistant_settings.dart';
 import '../domain/assistant_tool.dart';
 import '../domain/tool_registry.dart';
 import 'audit_log.dart';
+import 'tools/write_tool_support.dart';
 
 /// AgentLoopService 生产绑定(DI 手工接线归 T6;mock 回放测试缝在
 /// domain port 上,NFR-4)。
@@ -211,6 +212,11 @@ class AgentLoopServiceImpl implements AgentLoopService {
           'tool_call_id': call.id,
           'content': _toolResultContent(result),
         });
+        // F70 ADR-1:写提案特判 —— requiresApproval ToolData 额外发
+        // WriteProposed(bloc 渲染 pending 确认卡;此处零写副作用)。解析
+        // 失败(null)静默降级为普通工具结果:零卡零写(代码门)。
+        final proposal = _writeProposalOf(call.name, result);
+        if (proposal != null) yield proposal;
       }
 
       // —— 闸门步:整轮全败计数,达上限终止;否则清零回到请求步。
@@ -273,6 +279,23 @@ class AgentLoopServiceImpl implements AgentLoopService {
         ? result.json
         : {'error': (result as ToolError).message};
     return '<tool_data>${jsonEncode(payload)}</tool_data>';
+  }
+
+  /// 写提案解析(F70 ADR-1):requiresApproval ToolData → [WriteProposed]?
+  /// 非 ToolData / 无 requiresApproval / action JSON 解析失败 → null(调用
+  /// 方降级为普通工具结果,零卡零写)。
+  static WriteProposed? _writeProposalOf(String toolName, ToolResult result) {
+    if (result is! ToolData) return null;
+    if (result.json['requiresApproval'] != true) return null;
+    final actionJson = result.json['action'];
+    if (actionJson is! Map) return null;
+    final action = writeActionFromJson(Map<String, Object>.from(actionJson));
+    if (action == null) return null;
+    final rawPreview = result.json['preview'];
+    final preview = rawPreview is Map
+        ? Map<String, Object>.from(rawPreview)
+        : const <String, Object>{};
+    return WriteProposed(toolName, action, preview);
   }
 
   /// LLM 异常 → 中文终态事件(中文一句+括号内错误类与端点域名;

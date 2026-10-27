@@ -129,21 +129,33 @@ class TransactionPatch extends Equatable {
       ].join(', ')})';
 }
 
-/// 改一笔:定位笔内部 id + 增量补丁。执行器(T2)在确认回调时按
-/// optimistic version 全分录重建(UpdateTransactionParams 契约)。
+/// 改一笔:定位笔内部 id + 增量补丁 + 定位笔方向(提案时解析钉定;
+/// 方向不可改 —— [TransactionPatch] 注)。执行器(T2)在确认回调时
+/// getById 现读 version/现状字段,按表单编辑路径语义
+/// (transaction_form `_buildEntries` 的 _type switch)镜像全分录重建:
+/// expense=[科目 debit, 资产 credit] / income=[资产 debit, 科目 credit],
+/// note 逐侧保留(update 全分录替换,note 不随包会被冲掉)。
 class TransactionUpdate extends WriteAction {
-  const TransactionUpdate({required this.transactionId, required this.patch});
+  const TransactionUpdate({
+    required this.direction,
+    required this.transactionId,
+    required this.patch,
+  });
+
+  /// 定位笔的收支方向(提案时由工具按分录+账户类型判定;执行器重建
+  /// 分录借贷侧的依据 —— 执行器不注入 AccountRepository,方向随提案携带)。
+  final WriteDirection direction;
 
   final String transactionId;
   final TransactionPatch patch;
 
   @override
-  List<Object?> get props => [transactionId, patch];
+  List<Object?> get props => [direction, transactionId, patch];
 
   @override
   String toString() =>
-      'TransactionUpdate(transactionId=${_ascii(transactionId)}, '
-      'patch=$patch)';
+      'TransactionUpdate(direction=${direction.wire}, '
+      'transactionId=${_ascii(transactionId)}, patch=$patch)';
 }
 
 /// 删一笔:定位笔内部 id(destructive,确认卡强提示)。

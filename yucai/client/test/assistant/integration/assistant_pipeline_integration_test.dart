@@ -80,6 +80,8 @@ String _describe(AssistantEvent event) => switch (event) {
       TextDelta(:final delta) => 'text:$delta',
       ToolCallStart(:final id, :final name) => 'start:$id:$name',
       ToolCallEnd(:final id, :final ok) => 'end:$id:$ok',
+      // F70-T2:写提案事件(此处注册表无写工具,分支不可达 —— 穷尽性钉住)。
+      WriteProposed(:final toolName) => 'proposed:$toolName',
       Done() => 'done',
       AssistantError(:final message) => 'error:$message',
     };

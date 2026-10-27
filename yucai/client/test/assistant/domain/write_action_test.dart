@@ -121,15 +121,18 @@ void main() {
   });
 
   group('TransactionUpdate / TransactionDelete', () {
-    test('update 携 transactionId + patch;toString ASCII', () {
+    test('update 携 direction + transactionId + patch;toString ASCII', () {
       final update = TransactionUpdate(
+        direction: WriteDirection.outflow,
         transactionId: 'txn-9',
         patch: TransactionPatch(amountCents: 4000),
       );
+      expect(update.direction, WriteDirection.outflow);
       expect(update.transactionId, 'txn-9');
       final s = update.toString();
       expect(s, matches(RegExp(r'^[\x20-\x7E]*$')));
       expect(s, contains('TransactionUpdate'));
+      expect(s, contains('direction=out'));
       expect(s, contains('transactionId=txn-9'));
       expect(s, contains('amountCents=4000'));
     });

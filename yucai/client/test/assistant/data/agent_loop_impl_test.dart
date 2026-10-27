@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yucai_client/assistant/data/agent_loop_impl.dart';
 import 'package:yucai_client/assistant/data/audit_log.dart';
+import 'package:yucai_client/assistant/data/tools/write_tool_support.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
 import 'package:yucai_client/assistant/domain/assistant_tool.dart';
 import 'package:yucai_client/assistant/domain/tool_registry.dart';
+import 'package:yucai_client/assistant/domain/write_action.dart';
 
 /// F64 T5:AgentLoopServiceImpl mock 回放集成测试(NFR-4)——
 /// fake LlmStreamClient 脚本化 chunk 序列 + 自注册 fake 工具 + LogFn
@@ -575,6 +577,197 @@ void main() {
       );
     });
   });
+
+  group('写提案事件 WriteProposed(F70 ADR-1:requiresApproval 特判)', () {
+    // 与三写工具序列化形状逐位一致的提案 ToolData(transaction_add)。
+    const addProposalJson = {
+      'requiresApproval': true,
+      'action': {
+        'type': 'transaction_add',
+        'direction': 'out',
+        'amountCents': 3500,
+        'description': '午饭',
+        'accountId': 'acc-cash',
+        'categoryId': 'acc-food',
+        'date': '2026-10-27',
+      },
+      'preview': {
+        'direction': 'out',
+        'amountCents': 3500,
+        'amountYuan': '35.00',
+        'description': '午饭',
+        'account': '现金',
+        'category': '餐饮',
+        'date': '2026-10-27',
+      },
+    };
+
+    test('requiresApproval ToolData → ToolCallEnd 后发 WriteProposed(typed '
+        'action + preview);LLM 回填不受影响', () async {
+      final registry = AssistantToolRegistry()
+        ..register(_FakeTool('transaction_add',
+            (args) => const ToolData(addProposalJson)));
+      final llm = _ScriptedLlmClient([
+        _toolRound('call_w1', 'transaction_add'),
+        _textRound(['已生成待确认的记账,请在确认卡上确认。']),
+      ]);
+      final loop = makeLoop(llm, registry);
+
+      final events = await loop.send('记一笔午饭 35 块').toList();
+
+      expect(events.map(_describe), [
+        'start:call_w1:transaction_add',
+        'end:call_w1:true',
+        'proposed:transaction_add:TransactionAdd',
+        'text:已生成待确认的记账,请在确认卡上确认。',
+        'done',
+      ]);
+      // typed action:名称已在提案时解析为内部 id;preview 原样透传。
+      final proposed = events.whereType<WriteProposed>().single;
+      final action = proposed.action;
+      expect(action, isA<TransactionAdd>());
+      action as TransactionAdd;
+      expect(action.amountCents, 3500);
+      expect(action.accountId, 'acc-cash');
+      expect(action.categoryId, 'acc-food');
+      expect(action.date, DateTime(2026, 10, 27));
+      expect(proposed.preview['account'], '现金');
+      // ToolData 照常回填 LLM(轮次正常收口,LLM 可见待确认提案)。
+      final toolMessage = llm.requests[1].messages[3];
+      expect(toolMessage['content'] as String, contains('requiresApproval'));
+    });
+
+    test('普通 ToolData(无 requiresApproval)→ 零 WriteProposed', () async {
+      final registry = AssistantToolRegistry()
+        ..register(_FakeTool(
+            'networth_snapshot', (args) => const ToolData({'v': 1})));
+      final llm = _ScriptedLlmClient([
+        _toolRound('call_r1', 'networth_snapshot'),
+        _textRound(['答。']),
+      ]);
+      final loop = makeLoop(llm, registry);
+
+      final events = await loop.send('查').toList();
+
+      expect(events.whereType<WriteProposed>(), isEmpty);
+    });
+
+    test('action JSON 畸形 → 静默降级零 WriteProposed(零卡零写),轮次正常',
+        () async {
+      for (final malformed in [
+        {'requiresApproval': true}, // 无 action
+        {
+          'requiresApproval': true,
+          'action': {'type': 'transaction_add'}, // 字段缺失
+        },
+        {
+          'requiresApproval': true,
+          'action': {
+            'type': 'transaction_update', // 无 direction
+            'transactionId': 'txn-9',
+            'patch': {'amountCents': 4000},
+          },
+        },
+        {
+          'requiresApproval': true,
+          'action': {'type': 'no_such_type'}, // 未知类型
+        },
+      ]) {
+        final registry = AssistantToolRegistry()
+          ..register(_FakeTool('transaction_add',
+              (args) => ToolData(Map<String, Object>.from(malformed))));
+        final llm = _ScriptedLlmClient([
+          _toolRound('call_m1', 'transaction_add'),
+          _textRound(['答。']),
+        ]);
+        final loop = makeLoop(llm, registry);
+
+        final events = await loop.send('写').toList();
+
+        expect(events.whereType<WriteProposed>(), isEmpty,
+            reason: '畸形提案 $malformed 不得发卡');
+        expect(events.whereType<Done>(), isNotEmpty,
+            reason: '降级不炸流,轮次正常收口');
+      }
+    });
+
+    test('写工具 ToolError(自纠失败)→ 零 WriteProposed', () async {
+      final registry = AssistantToolRegistry()
+        ..register(_FakeTool('transaction_add',
+            (args) => const ToolError('invalid direction; allowed: in, out')));
+      final llm = _ScriptedLlmClient([
+        _toolRound('call_w2', 'transaction_add', args: '{"direction":"x"}'),
+        _textRound(['请补充方向。']),
+      ]);
+      final loop = makeLoop(llm, registry);
+
+      final events = await loop.send('记一笔').toList();
+
+      expect(events.whereType<WriteProposed>(), isEmpty);
+    });
+  });
+
+  group('writeActionFromJson(工具 action JSON → typed WriteAction 解码)',
+      () {
+    test('transaction_update 携 direction + patch 逐字段解码', () {
+      final action = writeActionFromJson(const {
+        'type': 'transaction_update',
+        'direction': 'in',
+        'transactionId': 'txn-9',
+        'patch': {
+          'amountCents': 4000,
+          'description': '备注',
+          'categoryId': 'acc-bonus',
+          'accountId': 'acc-card',
+          'date': '2026-09-21',
+        },
+      });
+      expect(action, isA<TransactionUpdate>());
+      action as TransactionUpdate;
+      expect(action.direction, WriteDirection.inflow);
+      expect(action.transactionId, 'txn-9');
+      expect(action.patch.amountCents, 4000);
+      expect(action.patch.description, '备注');
+      expect(action.patch.categoryId, 'acc-bonus');
+      expect(action.patch.accountId, 'acc-card');
+      expect(action.patch.date, DateTime(2026, 9, 21));
+    });
+
+    test('transaction_delete 解码;空 patch / 非法枚举 / 缺字段 → null 不抛',
+        () {
+      expect(
+        writeActionFromJson(const {
+          'type': 'transaction_delete',
+          'transactionId': 'txn-1',
+        }),
+        isA<TransactionDelete>(),
+      );
+      expect(
+        writeActionFromJson(const {
+          'type': 'transaction_update',
+          'direction': 'out',
+          'transactionId': 'txn-9',
+          'patch': {},
+        }),
+        isNull,
+        reason: '空 patch(至少一字段不变量)→ null',
+      );
+      expect(
+        writeActionFromJson(const {
+          'type': 'transaction_add',
+          'direction': 'sideways',
+          'amountCents': 3500,
+          'description': '',
+          'accountId': 'a',
+          'categoryId': 'c',
+          'date': '2026-10-27',
+        }),
+        isNull,
+        reason: '非法方向枚举 → null',
+      );
+      expect(writeActionFromJson(const {}), isNull, reason: '无类型 → null');
+    });
+  });
 }
 
 /// 就绪配置(F66-T1 收窄后:enabled + model;端点归引擎侧)。
@@ -589,6 +782,8 @@ String _describe(AssistantEvent event) => switch (event) {
       TextDelta(:final delta) => 'text:$delta',
       ToolCallStart(:final id, :final name) => 'start:$id:$name',
       ToolCallEnd(:final id, :final ok) => 'end:$id:$ok',
+      WriteProposed(:final toolName, :final action) =>
+        'proposed:$toolName:${action.runtimeType}',
       Done() => 'done',
       AssistantError(:final message) => 'error:$message',
     };

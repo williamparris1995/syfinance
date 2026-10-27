@@ -210,6 +210,8 @@ class TransactionUpdateTool implements AssistantTool {
       'requiresApproval': true,
       'action': {
         'type': 'transaction_update',
+        // 方向随提案携带(T2 执行器全分录重建的借贷侧依据;方向不可改)。
+        'direction': direction,
         'transactionId': txn.id,
         'patch': {
           if (patch.amountCents != null) 'amountCents': patch.amountCents!,

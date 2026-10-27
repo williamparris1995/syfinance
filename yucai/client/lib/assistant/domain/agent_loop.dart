@@ -5,6 +5,8 @@
 /// assistant/data 生产 impl 出现,mock 回放测试缝不变(NFR-4)。
 library;
 
+import 'write_action.dart';
+
 /// agent loop 服务 port(单轮:追加 user 消息 → 驱动 LLM↔工具多轮循环
 /// → 终答;内存态单会话消息序列,跨会话持久化不在本票)。
 abstract class AgentLoopService {
@@ -53,6 +55,26 @@ class ToolCallEnd extends AssistantEvent {
 
   final String id;
   final bool ok;
+}
+
+/// 写提案(F70 ADR-1/ADR-7,FR-5 确认门):写工具返回
+/// `requiresApproval:true` ToolData 时,在 [ToolCallEnd] 后随流发出 ——
+/// 携解析后的 typed [action](内部 id 已钉定)与 [preview](确认卡渲染
+/// 数据,T3 消费)。bloc 特判此事件渲染 pending 确认卡;**实际落库唯一
+/// 入口 = WriteExecutor.execute,仅 bloc 确认回调可达** —— 本事件只是
+/// 提案通知,零写副作用。action JSON 解析失败 → 不发(降级为普通工具
+/// 结果:零卡零写,代码门「无卡即无执行」)。
+class WriteProposed extends AssistantEvent {
+  const WriteProposed(this.toolName, this.action, this.preview);
+
+  /// 提案工具名(transaction_add/update/delete;审计与卡片语境用)。
+  final String toolName;
+
+  /// 解析后的写操作(名称→内部 id 于提案时钉定)。
+  final WriteAction action;
+
+  /// 预览摘要(名称展示;update 为 before/after,delete 携 destructive)。
+  final Map<String, Object> preview;
 }
 
 /// 终答完成(正常收束)。
