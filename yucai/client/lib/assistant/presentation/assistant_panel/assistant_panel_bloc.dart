@@ -32,6 +32,8 @@ import 'package:uuid/uuid.dart';
 
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
+import 'package:yucai_client/assistant/domain/assistant_tool.dart'
+    show ToolGuideHint;
 import 'package:yucai_client/assistant/domain/engine_state.dart';
 import 'package:yucai_client/assistant/domain/model_state.dart';
 import 'package:yucai_client/assistant/domain/write_action.dart';
@@ -102,6 +104,15 @@ class RetryWriteRequested extends AssistantPanelEvent {
 
   @override
   List<Object?> get props => [key];
+}
+
+/// F70-T3 引导卡:「换个账户试试」仅关闭卡(移除最后一张
+/// [GuidanceMsg];无卡时静默忽略)。不触发任何 loop 调用。
+class DismissGuidanceClicked extends AssistantPanelEvent {
+  const DismissGuidanceClicked();
+
+  @override
+  List<Object?> get props => [];
 }
 
 /// 内部事件:loop 流 TextDelta 到达(仅入合帧缓冲)。
@@ -181,6 +192,16 @@ class _LoopWriteProposed extends AssistantPanelEvent {
   List<Object?> get props => [proposal];
 }
 
+/// 内部事件:loop 发出工具引导(F70-T3 v20 V4;→ 引导卡)。
+class _LoopToolGuidance extends AssistantPanelEvent {
+  const _LoopToolGuidance(this.guidance);
+
+  final ToolGuidance guidance;
+
+  @override
+  List<Object?> get props => [guidance];
+}
+
 // —— 消息 view-model(sealed,presentation 内;ADR-2) ——
 
 /// 面板消息渲染模型:穷尽分支由 T3 浮层消费。
@@ -253,6 +274,24 @@ enum GuideKind {
 
   /// 引擎冷启动中(3-8s;渲染加载动效,F66 拍板)。
   engineStarting,
+}
+
+/// F70-T3 引导卡消息(v20 V4 查无实体引导;ADR-7 PanelMessage 新型态)。
+/// 与 [GuideMsg](F65 未就绪引导)不同型:本型 = 写工具解析口述账户名
+/// 零命中(loop [ToolGuidance] 事件映射),卡片给「新建账户」跳转 +
+/// 「换个账户试试」关闭;LLM 文本澄清(ToolError 回填自纠)照常并存。
+class GuidanceMsg extends PanelMessage {
+  const GuidanceMsg({required this.text, required this.route});
+
+  /// 澄清文案(如「没有找到『滴滴』这个账户,要新建吗?」)。
+  final String text;
+
+  /// 主钮跳转目标(unknownAccount → `/accounts`;T1 查证无独立新建路由
+  /// —— 账户创建 = 账户页内对话框,跳账户页即达,ADR-5)。
+  final String route;
+
+  @override
+  List<Object?> get props => [text, route];
 }
 
 /// F70 写确认卡状态(v20 六形态数据面;ADR-7/FR-5)。
@@ -376,11 +415,13 @@ class AssistantPanelBloc
     on<ConfirmWriteRequested>(_onConfirmWriteRequested);
     on<CancelWriteRequested>(_onCancelWriteRequested);
     on<RetryWriteRequested>(_onRetryWriteRequested);
+    on<DismissGuidanceClicked>(_onDismissGuidanceClicked);
     on<_LoopTextDelta>(_onLoopTextDelta);
     on<_FlushFrame>(_onFlushFrame);
     on<_LoopToolCallStart>(_onLoopToolCallStart);
     on<_LoopToolCallEnd>(_onLoopToolCallEnd);
     on<_LoopWriteProposed>(_onLoopWriteProposed);
+    on<_LoopToolGuidance>(_onLoopToolGuidance);
     on<_LoopDone>(_onLoopDone);
     on<_LoopError>(_onLoopError);
     on<_LoopStreamClosed>(_onLoopStreamClosed);
@@ -484,6 +525,8 @@ class AssistantPanelBloc
                 add(_LoopToolCallEnd(id, ok));
               case WriteProposed():
                 add(_LoopWriteProposed(event));
+              case ToolGuidance():
+                add(_LoopToolGuidance(event));
               case Done():
                 add(const _LoopDone());
               case AssistantError(:final message):
@@ -654,6 +697,48 @@ class AssistantPanelBloc
       }
     }
     return null;
+  }
+
+  // —— F70-T3 引导卡(V4 查无实体引导)——
+
+  /// loop [ToolGuidance] → [GuidanceMsg]:先冲刷合帧缓冲(引导前文本保持
+  /// 在前,会话保序)。unknown-account 唯一型 → 澄清文本 + 跳账户页
+  /// (T1 查证无独立新建路由);实体名缺省 → 通用文案。不触 sendState
+  /// (引导与流式往返独立,LLM 轮次照常收口)。
+  void _onLoopToolGuidance(
+    _LoopToolGuidance event,
+    Emitter<AssistantPanelState> emit,
+  ) {
+    final hint = event.guidance;
+    final String text;
+    switch (hint.hint) {
+      case ToolGuideHint.unknownAccount:
+        final name = hint.entityName.trim();
+        text = name.isEmpty
+            ? '没有找到该账户,要新建吗?'
+            : '没有找到『$name』这个账户,要新建吗?';
+    }
+    final messages = _drainFrame(state.messages);
+    messages.add(GuidanceMsg(
+      text: text,
+      route: '/accounts',
+    ));
+    emit(state.copyWith(messages: messages));
+  }
+
+  /// 关闭引导卡(「换个账户试试」):移除最后一张 [GuidanceMsg]
+  /// (照 [RetryRequested] 取最后 UserMsg 先例);无卡静默忽略。
+  void _onDismissGuidanceClicked(
+    DismissGuidanceClicked event,
+    Emitter<AssistantPanelState> emit,
+  ) {
+    for (var i = state.messages.length - 1; i >= 0; i--) {
+      if (state.messages[i] is GuidanceMsg) {
+        final messages = List<PanelMessage>.of(state.messages)..removeAt(i);
+        emit(state.copyWith(messages: messages));
+        return;
+      }
+    }
   }
 
   /// TextDelta 只入缓冲;窗口内首个 delta 起表([frameInterval] 到点

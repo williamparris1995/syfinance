@@ -230,7 +230,7 @@ void main() {
       expect((result as ToolError).message, contains('accounts_list'));
     });
 
-    test('account 未知 → ToolError(查无引导,FR-4)', () async {
+    test('account 未知 → ToolError(查无引导,FR-4;携 V4 结构标记)', () async {
       final result = await tool.execute(const {
         'direction': 'out',
         'amount': 35,
@@ -240,6 +240,10 @@ void main() {
       });
       expect(result, isA<ToolError>());
       expect((result as ToolError).message, contains('accounts_list'));
+      // F70-T3 V4 标记协议:零命中账户名 ToolError 携结构标记
+      // (loop → bloc → GuidanceMsg 引导卡);分类零命中不携(非本型)。
+      expect(result.guideHint, ToolGuideHint.unknownAccount);
+      expect(result.guideName, '不存在的卡');
     });
 
     test('account 多候选(同名「现金」×2)→ ToolError 列候选', () async {
@@ -278,6 +282,8 @@ void main() {
         'category': '餐饮',
       });
       expect(result, isA<ToolError>());
+      // 分类零命中属 LLM 自纠面(列候选/建议表单新建),不携 V4 账户引导标记。
+      expect((result as ToolError).guideHint, isNull);
     });
   });
 

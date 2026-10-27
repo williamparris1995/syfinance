@@ -49,14 +49,16 @@ Future<(List<Account>?, ToolError?)> loadAccounts(
 }
 
 /// 名称 → 唯一账户(大小写不敏感精确匹配;[pool] 已按用途过滤)。
-/// 零命中 → ToolError 携 [zeroGuidance];多候选 → ToolError 列前
-/// [maxCandidates] 个名称让 LLM 问用户(ADR-4 澄清)。
+/// 零命中 → ToolError 携 [zeroGuidance](F70-T3:[guideHint] 非 null 时
+/// 另携结构标记 + 实体名,v20 V4 引导卡判型用;文案不变);多候选 →
+/// ToolError 列前 [maxCandidates] 个名称让 LLM 问用户(ADR-4 澄清)。
 (Account?, ToolError?) resolveUnique(
   String name,
   List<Account> pool, {
   required String what,
   required String zeroGuidance,
   int maxCandidates = 3,
+  ToolGuideHint? guideHint,
 }) {
   final lower = name.toLowerCase();
   final matches =
@@ -64,7 +66,8 @@ Future<(List<Account>?, ToolError?)> loadAccounts(
   if (matches.isEmpty) {
     return (
       null,
-      ToolError('no $what matches "$name"; $zeroGuidance'),
+      ToolError('no $what matches "$name"; $zeroGuidance',
+          guideHint: guideHint, guideName: name),
     );
   }
   if (matches.length > 1) {

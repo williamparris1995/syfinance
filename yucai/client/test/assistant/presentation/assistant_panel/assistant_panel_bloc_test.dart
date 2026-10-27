@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
+import 'package:yucai_client/assistant/domain/assistant_tool.dart' show ToolGuideHint;
 import 'package:yucai_client/assistant/domain/engine_state.dart';
 import 'package:yucai_client/assistant/domain/model_state.dart';
 import 'package:yucai_client/assistant/domain/write_action.dart';
@@ -528,6 +529,82 @@ void main() {
 
     expect(executor.calls, isEmpty);
     expect(bloc.state.messages, before.messages);
+    await bloc.close();
+  });
+
+  // —— F70-T3 引导卡(V4 查无实体引导;bloc 映射面)——
+
+  /// unknown-account 引导轮脚本:工具失败 + 引导事件 + LLM 文本澄清收口。
+  Stream<AssistantEvent> guidanceRound() => Stream.fromIterable(const [
+        ToolCallStart('call_g1', 'transaction_add'),
+        ToolCallEnd('call_g1', false),
+        ToolGuidance(ToolGuideHint.unknownAccount, '滴滴'),
+        TextDelta('没有找到「滴滴」这个账户,要新建吗?'),
+        Done(),
+      ]);
+
+  test('unknown-account 引导映射:ToolGuidance → GuidanceMsg(text+route);'
+      'LLM 文本澄清照常并存', () async {
+    final loop = _FakeLoop([guidanceRound()]);
+    final executor = _FakeWriteExecutor([const WriteExecuted('txn-1')]);
+    final bloc = makeBloc(loop, writeExecutor: executor);
+
+    bloc.add(const SendRequested('记一笔打车 12 块,滴滴账户'));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    final guidance = bloc.state.messages.whereType<GuidanceMsg>().single;
+    expect(guidance.text, '没有找到『滴滴』这个账户,要新建吗?');
+    expect(guidance.route, '/accounts',
+        reason: 'T1 查证无 /accounts/new 独立路由 → 跳账户页(页面内建户)');
+    // v20 V4:LLM 文本澄清(bot 消息)与引导卡并存,两通道独立。
+    expect(
+      bloc.state.messages,
+      contains(const AssistantMsg('没有找到「滴滴」这个账户,要新建吗?')),
+    );
+    expect(bloc.state.messages.whereType<WriteApprovalMsg>(), isEmpty,
+        reason: '查无账户不产生确认卡(不静默代建)');
+    expect(executor.calls, isEmpty, reason: '引导路径零执行');
+    await bloc.close();
+  });
+
+  test('entityName 缺省防御:空名 → 通用澄清文案(不出现『』空壳)', () async {
+    final loop = _FakeLoop([
+      Stream.fromIterable(const [
+        ToolCallStart('call_g2', 'transaction_update'),
+        ToolCallEnd('call_g2', false),
+        ToolGuidance(ToolGuideHint.unknownAccount, ''),
+        Done(),
+      ]),
+    ]);
+    final bloc = makeBloc(loop);
+    bloc.add(const SendRequested('改一下'));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(
+      bloc.state.messages.whereType<GuidanceMsg>().single.text,
+      '没有找到该账户,要新建吗?',
+    );
+    await bloc.close();
+  });
+
+  test('DismissGuidanceClicked:移除最后一张引导卡;再点(无卡)静默忽略',
+      () async {
+    final loop = _FakeLoop([guidanceRound()]);
+    final bloc = makeBloc(loop);
+    bloc.add(const SendRequested('记一笔打车 12 块,滴滴账户'));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(bloc.state.messages.whereType<GuidanceMsg>(), hasLength(1));
+
+    bloc.add(const DismissGuidanceClicked());
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(bloc.state.messages.whereType<GuidanceMsg>(), isEmpty,
+        reason: '「换个账户试试」仅关闭卡');
+    expect(bloc.state.messages.whereType<AssistantMsg>(), isNotEmpty,
+        reason: '会话其余消息保留');
+
+    final before = bloc.state;
+    bloc.add(const DismissGuidanceClicked());
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(bloc.state.messages, before.messages, reason: '无卡时零变化');
     await bloc.close();
   });
 }

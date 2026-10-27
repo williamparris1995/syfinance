@@ -36,6 +36,7 @@ import 'package:yucai_client/assistant/domain/model_manager_port.dart';
 import 'package:yucai_client/assistant/domain/model_state.dart';
 import 'package:yucai_client/assistant/domain/write_executor.dart';
 import 'package:yucai_client/assistant/presentation/assistant_panel/assistant_panel_bloc.dart';
+import 'package:yucai_client/assistant/presentation/widgets/write_approval_card.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
@@ -766,56 +767,12 @@ class _MessageListState extends State<_MessageList> {
         ),
       GuideMsg(:final kind) => _GuideCard(kind: kind,
           modelManager: widget.modelManager),
-      // F70-T2:确认卡占位分支(sealed 穷尽性强制)。v20 六形态确认卡
-      // (预览/前后对比/destructive/失败重试 + 确认/取消按钮)归 T3 渲染;
-      // 此处仅非交互状态摘要,保证 T2 合入后面板可编译可用(写执行经
-      // bloc 事件,T3 卡片接线)。
-      WriteApprovalMsg(:final status, :final failureReason) =>
-          _WriteApprovalPlaceholder(status: status, failureReason: failureReason),
+      // F70-T3:v20 六形态确认卡(三形态×五状态徽标;按钮真调 bloc 事件)。
+      WriteApprovalMsg approval => WriteApprovalCard(card: approval),
+      // F70-T3:v20 V4 查无实体引导卡(新建账户跳路由/换个账户试试仅关闭)。
+      GuidanceMsg(:final text, :final route) =>
+          GuidanceCard(text: text, route: route),
     };
-  }
-}
-
-/// F70-T2 确认卡占位(T3 以 v20 形态卡整体替换):状态单行摘要,
-/// 零交互(确认/取消按钮与提案预览归 T3)。
-class _WriteApprovalPlaceholder extends StatelessWidget {
-  const _WriteApprovalPlaceholder({required this.status, this.failureReason});
-
-  final WriteApprovalStatus status;
-  final String? failureReason;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.yucai;
-    final (label, color) = switch (status) {
-      WriteApprovalStatus.pending => ('写操作待确认', t.warn),
-      WriteApprovalStatus.confirmed => ('写操作已执行', t.positive),
-      WriteApprovalStatus.cancelled => ('写操作已取消', t.muted),
-      WriteApprovalStatus.superseded => ('写操作已替换', t.muted),
-      WriteApprovalStatus.voided => ('写操作已作废', t.muted),
-      WriteApprovalStatus.failed => ('写操作失败:${failureReason ?? ''}', t.negative),
-    };
-    return Container(
-      key: const ValueKey('assistantWriteApprovalPlaceholder'),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: t.surfaceAlt,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: t.border),
-      ),
-      child: Row(
-        children: [
-          Icon(LucideIcons.pencilLine, size: 13, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(label,
-                style: TextStyle(
-                    color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
   }
 }
 

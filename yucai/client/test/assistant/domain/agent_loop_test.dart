@@ -32,14 +32,16 @@ void main() {
       expect(error.message, 'assistant endpoint not configured');
     });
 
-    test('sealed hierarchy covers exactly the six states', () {
+    test('sealed hierarchy covers exactly the seven states', () {
       // 穷尽 switch 可编译即穷尽性证明(新增态会编译失败钉住契约)。
       // F70-T2:六态 = 五态 + WriteProposed(写提案,确认门数据面)。
+      // F70-T3:七态 = 六态 + ToolGuidance(查无实体引导,v20 V4)。
       String describe(AssistantEvent event) => switch (event) {
             TextDelta(:final delta) => 'text:$delta',
             ToolCallStart(:final id, :final name) => 'start:$id:$name',
             ToolCallEnd(:final id, :final ok) => 'end:$id:$ok',
             WriteProposed(:final toolName) => 'proposed:$toolName',
+            ToolGuidance(:final hint) => 'guidance:$hint',
             Done() => 'done',
             AssistantError(:final message) => 'error:$message',
           };

@@ -707,6 +707,56 @@ void main() {
     });
   });
 
+  group('工具引导事件 ToolGuidance(F70-T3 v20 V4 查无实体引导)', () {
+    test('unknown-account ToolError(结构标记)→ ToolCallEnd 后发 '
+        'ToolGuidance;错误照常回填 LLM 自纠', () async {
+      final registry = AssistantToolRegistry()
+        ..register(_FakeTool('transaction_add', (args) => const ToolError(
+              'no account matches "滴滴"; call accounts_list to see the '
+              'available account names, or offer to create the account via '
+              'the accounts form',
+              guideHint: ToolGuideHint.unknownAccount,
+              guideName: '滴滴',
+            )));
+      final llm = _ScriptedLlmClient([
+        _toolRound('call_g1', 'transaction_add'),
+        _textRound(['没有找到滴滴这个账户,要新建吗?']),
+      ]);
+      final loop = makeLoop(llm, registry);
+
+      final events = await loop.send('记一笔打车 12 块,滴滴账户').toList();
+
+      expect(events.map(_describe), [
+        'start:call_g1:transaction_add',
+        'end:call_g1:false',
+        'guidance:ToolGuideHint.unknownAccount:滴滴',
+        'text:没有找到滴滴这个账户,要新建吗?',
+        'done',
+      ], reason: 'ToolCallEnd(false) 后旁路发 ToolGuidance(引导卡通知)');
+      // 错误本身照常回填 LLM(自纠/澄清话术 —— 与引导卡并存,v20 V4)。
+      final toolMessage = llm.requests[1].messages[3];
+      expect(toolMessage['content'] as String, contains('no account matches'));
+      expect(events.whereType<WriteProposed>(), isEmpty,
+          reason: '引导不产生写提案');
+    });
+
+    test('普通 ToolError(无结构标记)→ 零 ToolGuidance', () async {
+      final registry = AssistantToolRegistry()
+        ..register(_FakeTool('transaction_add',
+            (args) => const ToolError('amount is required')));
+      final llm = _ScriptedLlmClient([
+        _toolRound('call_g2', 'transaction_add'),
+        _textRound(['请说金额。']),
+      ]);
+      final loop = makeLoop(llm, registry);
+
+      final events = await loop.send('记一笔').toList();
+
+      expect(events.whereType<ToolGuidance>(), isEmpty,
+          reason: '标记协议:仅 guideHint 携带的错误发引导事件(不猜文案)');
+    });
+  });
+
   group('writeActionFromJson(工具 action JSON → typed WriteAction 解码)',
       () {
     test('transaction_update 携 direction + patch 逐字段解码', () {
@@ -784,6 +834,8 @@ String _describe(AssistantEvent event) => switch (event) {
       ToolCallEnd(:final id, :final ok) => 'end:$id:$ok',
       WriteProposed(:final toolName, :final action) =>
         'proposed:$toolName:${action.runtimeType}',
+      ToolGuidance(:final hint, :final entityName) =>
+        'guidance:$hint:$entityName',
       Done() => 'done',
       AssistantError(:final message) => 'error:$message',
     };

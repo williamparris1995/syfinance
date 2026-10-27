@@ -217,6 +217,11 @@ class AgentLoopServiceImpl implements AgentLoopService {
         // 失败(null)静默降级为普通工具结果:零卡零写(代码门)。
         final proposal = _writeProposalOf(call.name, result);
         if (proposal != null) yield proposal;
+        // F70-T3 v20 V4:unknown-account 型 ToolError(结构标记)旁路发
+        // ToolGuidance(bloc 映射引导卡);错误已照常回填 LLM 自纠 ——
+        // LLM 文本澄清与引导卡并存。
+        final guidance = _toolGuidanceOf(result);
+        if (guidance != null) yield guidance;
       }
 
       // —— 闸门步:整轮全败计数,达上限终止;否则清零回到请求步。
@@ -296,6 +301,13 @@ class AgentLoopServiceImpl implements AgentLoopService {
         ? Map<String, Object>.from(rawPreview)
         : const <String, Object>{};
     return WriteProposed(toolName, action, preview);
+  }
+
+  /// 引导标记透传(F70-T3 v20 V4):ToolError 携 guideHint → [ToolGuidance]?;
+  /// 普通 ToolError / ToolData → null(零引导事件,不猜文案)。
+  static ToolGuidance? _toolGuidanceOf(ToolResult result) {
+    if (result is! ToolError || result.guideHint == null) return null;
+    return ToolGuidance(result.guideHint!, result.guideName ?? '');
   }
 
   /// LLM 异常 → 中文终态事件(中文一句+括号内错误类与端点域名;

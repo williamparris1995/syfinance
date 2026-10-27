@@ -22,6 +22,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
+import 'package:yucai_client/assistant/domain/assistant_tool.dart'
+    show ToolGuideHint;
 import 'package:yucai_client/assistant/domain/engine_port.dart';
 import 'package:yucai_client/assistant/domain/engine_state.dart';
 import 'package:yucai_client/assistant/domain/model_manager_port.dart';
@@ -130,19 +132,36 @@ class _FakeEngineManager implements EngineManager {
 
 /// F70-T2:计数型 fake WriteExecutor(确认门缝;本文件只验证装配接线,
 /// 执行语义在 assistant_panel_bloc_test / write_executor_impl_test)。
+/// F70-T3:脚本化逐调用回放结果(默认恒成功,保持 T2 用例零扰动)。
 class _FakeWriteExecutor implements WriteExecutor {
+  _FakeWriteExecutor([List<WriteOutcome>? outcomes])
+      : _outcomes = outcomes ?? const [];
+
+  final List<WriteOutcome> _outcomes;
   final List<(WriteAction, String)> calls = [];
+  int _next = 0;
 
   @override
   Future<WriteOutcome> execute(
       WriteAction action, String idempotencyKey) async {
     calls.add((action, idempotencyKey));
-    return const WriteExecuted('txn-host');
+    return _next < _outcomes.length
+        ? _outcomes[_next++]
+        : const WriteExecuted('txn-host');
   }
 }
 
 /// 全就绪缺省(发送守卫全过)。
 const _readyConfig = AssistantConfig(enabled: true);
+
+/// 卡片按钮点击:浮层消息流可滚动 —— 先滚入可视区再点(按钮在折线下
+/// 时直接 tap 命中不了 hit test)。
+Future<void> _tapCardButton(WidgetTester tester, ValueKey<String> key) async {
+  final finder = find.byKey(key);
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+}
 
 /// 演示数据(照 v19 state-6:1.2GB / 2.5GB · 48%)。
 const _downloading = ModelDownloading(
@@ -150,6 +169,41 @@ const _downloading = ModelDownloading(
   totalBytes: 2497281120,
   bytesPerSec: 8200000,
 );
+
+/// F70-T3 提案 fixture(照 assistant_panel_bloc_test 同款数据形状)。
+final _addAction = TransactionAdd(
+  direction: WriteDirection.outflow,
+  amountCents: 1234500,
+  description: '午饭',
+  accountId: 'acc-cmb',
+  categoryId: 'acc-food',
+  date: DateTime(2026, 10, 5),
+);
+
+const _addPreview = {
+  'direction': 'out',
+  'amountCents': 1234500,
+  'amountYuan': '12,345.00',
+  'description': '午饭',
+  'account': '招商银行(储蓄卡)',
+  'category': '餐饮',
+  'date': '2026-10-05',
+};
+
+const _deleteAction = TransactionDelete(transactionId: 'txn-9');
+
+const _deletePreview = {
+  'destructive': true,
+  'target': {
+    'date': '2026-10-05',
+    'description': '地铁通勤',
+    'direction': 'out',
+    'amountCents': 600,
+    'amountYuan': '6.00',
+    'account': '支付宝',
+    'category': '交通出行',
+  },
+};
 
 Widget _host(
   _FakeLoop loop, {
@@ -616,6 +670,160 @@ void main() {
           reason: 'presentation 不 import 下载实现(经 ModelManagerPort port)');
       expect(src.contains('agent_loop_impl'), isFalse,
           reason: 'presentation 不 import loop 实现(经 AgentLoopService port)');
+    });
+  });
+
+  group('F70-T3 确认卡与引导卡接线(v20 六形态浮层渲染面)', () {
+    /// 写提案轮脚本(add)。
+    Stream<AssistantEvent> proposalRound() => Stream.fromIterable([
+          const ToolCallStart('call_w1', 'transaction_add'),
+          const ToolCallEnd('call_w1', true),
+          WriteProposed('transaction_add', _addAction, _addPreview),
+          const Done(),
+        ]);
+
+    testWidgets('pending add 卡:参数逐行 + 确认记账按钮;点击真调 executor',
+        (tester) async {
+      final loop = _FakeLoop([proposalRound()]);
+      final executor = _FakeWriteExecutor();
+      await tester.pumpWidget(_host(loop, writeExecutor: executor));
+      await _open(tester);
+      await _send(tester, '记一笔午饭 35 块');
+      // V1 形态:参数逐行 + 待确认头 + 按钮区。
+      expect(find.text('待确认操作'), findsOneWidget);
+      expect(find.text('记一笔'), findsOneWidget);
+      expect(find.text('支出'), findsOneWidget);
+      expect(find.text('¥12,345.00'), findsOneWidget);
+      expect(find.byKey(const ValueKey('writeApprovalConfirm')), findsOneWidget);
+      expect(find.byKey(const ValueKey('writeApprovalCancel')), findsOneWidget);
+      expect(find.byKey(const ValueKey('assistantWriteApprovalPlaceholder')),
+          findsNothing,
+          reason: 'T2 占位已由 T3 v20 形态卡整体替换');
+
+      await _tapCardButton(tester, const ValueKey('writeApprovalConfirm'));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(executor.calls, hasLength(1), reason: '确认 = 唯一写通道真调');
+      expect(find.byKey(const ValueKey('writeApprovalDoneStrip')), findsOneWidget,
+          reason: 'confirmed 卡出落库条');
+    });
+
+    testWidgets('delete 卡:红警示条 + 主位反转(确认删除 negative 在前)',
+        (tester) async {
+      final loop = _FakeLoop([
+        Stream.fromIterable([
+          const ToolCallStart('call_d1', 'transaction_delete'),
+          const ToolCallEnd('call_d1', true),
+          const WriteProposed('transaction_delete', _deleteAction, _deletePreview),
+          const Done(),
+        ]),
+      ]);
+      final executor = _FakeWriteExecutor();
+      await tester.pumpWidget(_host(loop, writeExecutor: executor));
+      await _open(tester);
+      await _send(tester, '把那笔地铁删了');
+      expect(find.text('删除后不可恢复'), findsOneWidget, reason: 'V3 红警示条');
+      expect(find.text('确认删除'), findsOneWidget);
+      final dangerLeft = tester.getTopLeft(
+          find.byKey(const ValueKey('writeApprovalConfirm')));
+      final cancelLeft = tester.getTopLeft(
+          find.byKey(const ValueKey('writeApprovalCancel')));
+      expect(dangerLeft.dx, lessThan(cancelLeft.dx), reason: 'V3 主位反转');
+
+      await _tapCardButton(tester, const ValueKey('writeApprovalConfirm'));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(executor.calls, hasLength(1));
+    });
+
+    testWidgets('failed 卡重试:重试钮真调 executor 同键(幂等键复用)',
+        (tester) async {
+      final loop = _FakeLoop([proposalRound()]);
+      final executor = _FakeWriteExecutor(
+          [const WriteFailed('account deleted'), const WriteExecuted('t1')]);
+      await tester.pumpWidget(_host(loop, writeExecutor: executor));
+      await _open(tester);
+      await _send(tester, '记一笔午饭 35 块');
+      await _tapCardButton(tester, const ValueKey('writeApprovalConfirm'));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('account deleted'), findsOneWidget, reason: 'V6 失败原因直说');
+      expect(find.text('重试不会产生重复记录;也可以改用其他账户重新记账。'),
+          findsOneWidget,
+          reason: 'V6 幂等小字');
+      expect(find.byKey(const ValueKey('writeApprovalConfirm')), findsNothing,
+          reason: 'failed 收起确认/取消钮');
+
+      await _tapCardButton(tester, const ValueKey('writeApprovalRetry'));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(executor.calls, hasLength(2));
+      expect(executor.calls[0].$2, executor.calls[1].$2,
+          reason: '失败不消耗键(ADR-3)');
+      expect(find.byKey(const ValueKey('writeApprovalDoneStrip')), findsOneWidget);
+    });
+
+    testWidgets('引导卡(V4)与 LLM 文本澄清、工具 pill 并存互不干扰', (tester) async {
+      final loop = _FakeLoop([
+        Stream.fromIterable(const [
+          ToolCallStart('call_g1', 'transaction_add'),
+          ToolCallEnd('call_g1', false),
+          ToolGuidance(ToolGuideHint.unknownAccount, '滴滴'),
+          TextDelta('没有找到「滴滴」这个账户,要新建吗?'),
+          Done(),
+        ]),
+      ]);
+      await tester.pumpWidget(_host(loop));
+      await _open(tester);
+      await _send(tester, '记一笔打车 12 块,滴滴账户');
+      // 工具 pill(失败态)与引导卡卡头先行(列表上段)。
+      expect(find.byKey(const ValueKey('assistantToolPill')), findsOneWidget);
+      expect(find.text('需要补充信息'), findsOneWidget);
+      expect(find.text('没有找到『滴滴』这个账户,要新建吗?'), findsOneWidget);
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')), findsNothing,
+          reason: '终态无打字指示(互不干扰回归)');
+      // 滚到消息流尾段:LLM 文本气泡与引导卡按钮(浮层限高,折线下
+      // 惰性未建 —— 滚入后断言三通道并存)。
+      await tester.drag(find.byType(ListView), const Offset(0, -260));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byKey(const ValueKey('assistantBotBubble')), findsOneWidget,
+          reason: 'LLM 文本澄清照常并存(v20 V4:bot 消息 + 引导卡)');
+      expect(find.byKey(const ValueKey('guidanceNewAccountButton')),
+          findsOneWidget);
+      // 「换个账户试试」仅关闭卡:LLM 文本与 pill 留存。
+      await _tapCardButton(tester, const ValueKey('guidanceDismissButton'));
+      await tester.pump(const Duration(milliseconds: 50));
+      // 回滚顶部:引导卡整体移除,工具条/文本不受影响(互不干扰回归)。
+      await tester.drag(find.byType(ListView), const Offset(0, 400));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('需要补充信息'), findsNothing, reason: '引导卡移除');
+      expect(find.byKey(const ValueKey('assistantToolPill')), findsOneWidget,
+          reason: '工具条不受引导卡关闭影响');
+      await tester.drag(find.byType(ListView), const Offset(0, -400));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byKey(const ValueKey('assistantBotBubble')), findsOneWidget);
+    });
+
+    testWidgets('pending 卡与打字指示并存(流式轮次中卡片不阻塞指示面)',
+        (tester) async {
+      final controller = StreamController<AssistantEvent>();
+      final loop = _FakeLoop([controller.stream]);
+      await tester.pumpWidget(_host(loop));
+      await _open(tester);
+      await _send(tester, '记一笔咖啡 22 块');
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsOneWidget);
+      controller
+        ..add(const ToolCallStart('call_w2', 'transaction_add'))
+        ..add(const ToolCallEnd('call_w2', true))
+        ..add(WriteProposed('transaction_add', _addAction, _addPreview));
+      await tester.pump(const Duration(milliseconds: 50));
+      // 提案落卡后仍处 streaming(无 AssistantMsg);确认卡与打字指示
+      // 并存(指示在列表尾,浮层限高折线下惰性未建 —— 滚入后断言)。
+      expect(find.byKey(const ValueKey('writeApprovalConfirm')), findsOneWidget);
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsOneWidget,
+          reason: '确认卡不挤占死区指示面');
+      await controller.close();
+      await tester.pump(const Duration(milliseconds: 50));
     });
   });
 }

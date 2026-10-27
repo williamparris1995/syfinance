@@ -5,6 +5,7 @@
 /// assistant/data 生产 impl 出现,mock 回放测试缝不变(NFR-4)。
 library;
 
+import 'assistant_tool.dart' show ToolGuideHint;
 import 'write_action.dart';
 
 /// agent loop 服务 port(单轮:追加 user 消息 → 驱动 LLM↔工具多轮循环
@@ -75,6 +76,20 @@ class WriteProposed extends AssistantEvent {
 
   /// 预览摘要(名称展示;update 为 before/after,delete 携 destructive)。
   final Map<String, Object> preview;
+}
+
+/// 工具引导(F70-T3,v20 V4 查无实体引导):写工具解析口述账户名零命中
+/// 时,ToolError 携 [ToolGuideHint.unknownAccount] 结构标记 —— loop 在
+/// [ToolCallEnd] 后旁路发本事件(bloc 映射 GuidanceMsg 渲染引导卡);
+/// 错误本身照常回填 LLM 自纠,LLM 文本澄清与引导卡两通道并存(ADR-4)。
+class ToolGuidance extends AssistantEvent {
+  const ToolGuidance(this.hint, this.entityName);
+
+  /// 引导判型(结构标记,不猜文案)。
+  final ToolGuideHint hint;
+
+  /// 引导实体名(如零命中的账户名;可能为空串,消费方兜底通用文案)。
+  final String entityName;
 }
 
 /// 终答完成(正常收束)。

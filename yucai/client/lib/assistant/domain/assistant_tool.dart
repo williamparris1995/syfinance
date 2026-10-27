@@ -37,8 +37,29 @@ class ToolData extends ToolResult {
 
 /// 失败:自解释可自纠信息,回传 LLM 让其改参重试(FR-3;连续达上限
 /// 由 agent loop 终止循环)。英文消息,零敏感数据携带。
+///
+/// F70-T3 最小扩(豁免面):部分错误额外携 [guideHint] 结构标记 ——
+/// T1 写工具的消歧错误原为纯文案无标记(v20 V4 引导卡需要结构化判型),
+/// 扩枚举不改既有消息文案/调用方,T1 测试面零扰动。
 class ToolError extends ToolResult {
-  const ToolError(this.message);
+  const ToolError(this.message, {this.guideHint, this.guideName});
 
   final String message;
+
+  /// 引导标记(null = 普通自纠错误;非 null = agent loop 旁路发
+  /// ToolGuidance 事件 → bloc 映射 GuidanceMsg 引导卡,v20 V4)。
+  final ToolGuideHint? guideHint;
+
+  /// 引导实体名(如零命中的账户名;[guideHint] 非 null 时有值)。
+  final String? guideName;
+}
+
+/// 引导标记协议(F70-T3 v20 V4 查无实体引导):unknown-account 型
+/// ToolError 的结构化判型 —— 写工具解析口述账户名零命中时携带
+/// (add 的 account / update 的 new_account;分类零命中不携,仍走
+/// LLM 列候选自纠)。消费链:tool → agent loop(ToolGuidance 事件)→
+/// bloc(GuidanceMsg)→ 引导卡。
+enum ToolGuideHint {
+  /// 账户名零命中(→ 引导卡「新建账户」跳 /accounts;不静默代建,FR-4)。
+  unknownAccount,
 }

@@ -183,6 +183,8 @@ class TransactionUpdateTool implements AssistantTool {
         paymentPool,
         what: 'account',
         zeroGuidance: 'call accounts_list to see the available account names',
+        // F70-T3 V4:账户零命中携结构标记(loop→bloc→引导卡「新建账户」)。
+        guideHint: ToolGuideHint.unknownAccount,
       );
       if (err != null) return err;
       newAccount = resolved;

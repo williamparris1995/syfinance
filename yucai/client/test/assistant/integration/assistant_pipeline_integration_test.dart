@@ -82,6 +82,8 @@ String _describe(AssistantEvent event) => switch (event) {
       ToolCallEnd(:final id, :final ok) => 'end:$id:$ok',
       // F70-T2:写提案事件(此处注册表无写工具,分支不可达 —— 穷尽性钉住)。
       WriteProposed(:final toolName) => 'proposed:$toolName',
+      // F70-T3:工具引导事件(同上,穷尽性钉住)。
+      ToolGuidance(:final hint) => 'guidance:$hint',
       Done() => 'done',
       AssistantError(:final message) => 'error:$message',
     };
