@@ -170,6 +170,9 @@ class TransactionUpdateTool implements AssistantTool {
         zeroGuidance: 'available categories for direction=$direction: '
             '${pool.map((a) => a.name).join(', ')}; pick the closest one, '
             'or offer to create it via the categories form',
+        // FR-4 分类引导补齐(评审 T3-M3):分类零命中同出引导卡。
+        guideHint: ToolGuideHint.unknownAccount,
+        guideAmountYuan: yuan(newAmountCents ?? txn.totalDebitCents),
       );
       if (err != null) return err;
       newCategory = resolved;
@@ -183,8 +186,10 @@ class TransactionUpdateTool implements AssistantTool {
         paymentPool,
         what: 'account',
         zeroGuidance: 'call accounts_list to see the available account names',
-        // F70-T3 V4:账户零命中携结构标记(loop→bloc→引导卡「新建账户」)。
+        // F70-T3 V4:账户零命中携结构标记 + 请求金额(评审 T3-M2;金额 =
+        // new_amount,未改则定位笔现额 —— 引导卡参数行不丢上下文)。
         guideHint: ToolGuideHint.unknownAccount,
+        guideAmountYuan: yuan(newAmountCents ?? txn.totalDebitCents),
       );
       if (err != null) return err;
       newAccount = resolved;

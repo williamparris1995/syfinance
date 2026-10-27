@@ -538,13 +538,13 @@ void main() {
   Stream<AssistantEvent> guidanceRound() => Stream.fromIterable(const [
         ToolCallStart('call_g1', 'transaction_add'),
         ToolCallEnd('call_g1', false),
-        ToolGuidance(ToolGuideHint.unknownAccount, '滴滴'),
+        ToolGuidance(ToolGuideHint.unknownAccount, '滴滴', '12.00'),
         TextDelta('没有找到「滴滴」这个账户,要新建吗?'),
         Done(),
       ]);
 
-  test('unknown-account 引导映射:ToolGuidance → GuidanceMsg(text+route);'
-      'LLM 文本澄清照常并存', () async {
+  test('unknown-account 引导映射:ToolGuidance → GuidanceMsg(text+route'
+      '+V4 参数行字段);LLM 文本澄清照常并存', () async {
     final loop = _FakeLoop([guidanceRound()]);
     final executor = _FakeWriteExecutor([const WriteExecuted('txn-1')]);
     final bloc = makeBloc(loop, writeExecutor: executor);
@@ -556,6 +556,9 @@ void main() {
     expect(guidance.text, '没有找到『滴滴』这个账户,要新建吗?');
     expect(guidance.route, '/accounts',
         reason: 'T1 查证无 /accounts/new 独立路由 → 跳账户页(页面内建户)');
+    // 评审 T3-M2:V4 参数行字段(amountYuan/accountName)随事件映射。
+    expect(guidance.amountYuan, '12.00');
+    expect(guidance.accountName, '滴滴');
     // v20 V4:LLM 文本澄清(bot 消息)与引导卡并存,两通道独立。
     expect(
       bloc.state.messages,
@@ -572,17 +575,17 @@ void main() {
       Stream.fromIterable(const [
         ToolCallStart('call_g2', 'transaction_update'),
         ToolCallEnd('call_g2', false),
-        ToolGuidance(ToolGuideHint.unknownAccount, ''),
+        ToolGuidance(ToolGuideHint.unknownAccount, '', '  '),
         Done(),
       ]),
     ]);
     final bloc = makeBloc(loop);
     bloc.add(const SendRequested('改一下'));
     await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(
-      bloc.state.messages.whereType<GuidanceMsg>().single.text,
-      '没有找到该账户,要新建吗?',
-    );
+    final guidance = bloc.state.messages.whereType<GuidanceMsg>().single;
+    expect(guidance.text, '没有找到该账户,要新建吗?');
+    expect(guidance.amountYuan, isNull, reason: '空白金额归一 null(不出行)');
+    expect(guidance.accountName, isNull, reason: '空名归一 null(不出行)');
     await bloc.close();
   });
 

@@ -140,8 +140,10 @@ class TransactionAddTool implements AssistantTool {
       what: 'account',
       zeroGuidance: 'call accounts_list to see the available account names, '
           'or offer to create the account via the accounts form',
-      // F70-T3 V4:账户零命中携结构标记(loop→bloc→引导卡「新建账户」)。
+      // F70-T3 V4:账户零命中携结构标记 + 请求金额(loop→bloc→引导卡
+      //「新建账户」+ 金额/账户参数行,评审 T3-M2)。
       guideHint: ToolGuideHint.unknownAccount,
+      guideAmountYuan: yuan(amountCents!),
     );
     if (accountError != null) return accountError;
 
@@ -170,6 +172,11 @@ class TransactionAddTool implements AssistantTool {
       zeroGuidance: 'available categories: '
           '${categoryPool.map((a) => a.name).join(', ')}; pick the closest '
           'one, or offer to create it via the categories form',
+      // FR-4 分类引导补齐(评审 T3-M3):分类 = 收支型科目账户,
+      // account-as-category —— 零命中同携结构标记出引导卡(同一 /accounts
+      // 跳转;spec 原文即「账户/分类不存在时引导」)。
+      guideHint: ToolGuideHint.unknownAccount,
+      guideAmountYuan: yuan(amountCents),
     );
     if (categoryError != null) return categoryError;
 
@@ -177,7 +184,7 @@ class TransactionAddTool implements AssistantTool {
     final description = lenientString(args['description']) ?? '';
     final action = TransactionAdd(
       direction: direction,
-      amountCents: amountCents!,
+      amountCents: amountCents,
       description: description,
       accountId: account!.id,
       categoryId: category!.id,

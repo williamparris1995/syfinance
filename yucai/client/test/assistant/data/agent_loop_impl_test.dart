@@ -709,7 +709,8 @@ void main() {
 
   group('工具引导事件 ToolGuidance(F70-T3 v20 V4 查无实体引导)', () {
     test('unknown-account ToolError(结构标记)→ ToolCallEnd 后发 '
-        'ToolGuidance;错误照常回填 LLM 自纠', () async {
+        'ToolGuidance(金额随行,评审 T3-M2);错误照常回填 LLM 自纠',
+        () async {
       final registry = AssistantToolRegistry()
         ..register(_FakeTool('transaction_add', (args) => const ToolError(
               'no account matches "滴滴"; call accounts_list to see the '
@@ -717,6 +718,7 @@ void main() {
               'the accounts form',
               guideHint: ToolGuideHint.unknownAccount,
               guideName: '滴滴',
+              guideAmountYuan: '12.00',
             )));
       final llm = _ScriptedLlmClient([
         _toolRound('call_g1', 'transaction_add'),
@@ -729,10 +731,13 @@ void main() {
       expect(events.map(_describe), [
         'start:call_g1:transaction_add',
         'end:call_g1:false',
-        'guidance:ToolGuideHint.unknownAccount:滴滴',
+        'guidance:ToolGuideHint.unknownAccount:滴滴:12.00',
         'text:没有找到滴滴这个账户,要新建吗?',
         'done',
       ], reason: 'ToolCallEnd(false) 后旁路发 ToolGuidance(引导卡通知)');
+      final guidance = events.whereType<ToolGuidance>().single;
+      expect(guidance.amountYuan, '12.00',
+          reason: 'guideAmountYuan 原样透传(V4 参数行数据面)');
       // 错误本身照常回填 LLM(自纠/澄清话术 —— 与引导卡并存,v20 V4)。
       final toolMessage = llm.requests[1].messages[3];
       expect(toolMessage['content'] as String, contains('no account matches'));
@@ -834,8 +839,8 @@ String _describe(AssistantEvent event) => switch (event) {
       ToolCallEnd(:final id, :final ok) => 'end:$id:$ok',
       WriteProposed(:final toolName, :final action) =>
         'proposed:$toolName:${action.runtimeType}',
-      ToolGuidance(:final hint, :final entityName) =>
-        'guidance:$hint:$entityName',
+      ToolGuidance(:final hint, :final entityName, :final amountYuan) =>
+        'guidance:$hint:$entityName:$amountYuan',
       Done() => 'done',
       AssistantError(:final message) => 'error:$message',
     };

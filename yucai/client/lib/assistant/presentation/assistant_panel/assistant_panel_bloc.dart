@@ -277,11 +277,17 @@ enum GuideKind {
 }
 
 /// F70-T3 引导卡消息(v20 V4 查无实体引导;ADR-7 PanelMessage 新型态)。
-/// 与 [GuideMsg](F65 未就绪引导)不同型:本型 = 写工具解析口述账户名
+/// 与 [GuideMsg](F65 未就绪引导)不同型:本型 = 写工具解析口述账户/分类名
 /// 零命中(loop [ToolGuidance] 事件映射),卡片给「新建账户」跳转 +
-/// 「换个账户试试」关闭;LLM 文本澄清(ToolError 回填自纠)照常并存。
+/// 金额/账户参数行 + 「换个账户试试」关闭;LLM 文本澄清(ToolError 回填
+/// 自纠)照常并存。
 class GuidanceMsg extends PanelMessage {
-  const GuidanceMsg({required this.text, required this.route});
+  const GuidanceMsg({
+    required this.text,
+    required this.route,
+    this.amountYuan,
+    this.accountName,
+  });
 
   /// 澄清文案(如「没有找到『滴滴』这个账户,要新建吗?」)。
   final String text;
@@ -290,8 +296,16 @@ class GuidanceMsg extends PanelMessage {
   /// —— 账户创建 = 账户页内对话框,跳账户页即达,ADR-5)。
   final String route;
 
+  /// 请求金额元串(v20 V4 参数行「金额 ¥12.00」;ToolGuidance.amountYuan
+  /// 映射,评审 T3-M2;null/空 = 不出行)。
+  final String? amountYuan;
+
+  /// 零命中实体名(v20 V4 参数行「账户 滴滴(未找到)」;ToolGuidance
+  /// .entityName 映射;null/空 = 不出行)。
+  final String? accountName;
+
   @override
-  List<Object?> get props => [text, route];
+  List<Object?> get props => [text, route, amountYuan, accountName];
 }
 
 /// F70 写确认卡状态(v20 六形态数据面;ADR-7/FR-5)。
@@ -703,8 +717,9 @@ class AssistantPanelBloc
 
   /// loop [ToolGuidance] → [GuidanceMsg]:先冲刷合帧缓冲(引导前文本保持
   /// 在前,会话保序)。unknown-account 唯一型 → 澄清文本 + 跳账户页
-  /// (T1 查证无独立新建路由);实体名缺省 → 通用文案。不触 sendState
-  /// (引导与流式往返独立,LLM 轮次照常收口)。
+  /// (T1 查证无独立新建路由);实体名缺省 → 通用文案;金额/实体名随
+  /// 事件透传(V4 参数行,评审 T3-M2)。不触 sendState(引导与流式往返
+  /// 独立,LLM 轮次照常收口)。
   void _onLoopToolGuidance(
     _LoopToolGuidance event,
     Emitter<AssistantPanelState> emit,
@@ -722,8 +737,16 @@ class AssistantPanelBloc
     messages.add(GuidanceMsg(
       text: text,
       route: '/accounts',
+      amountYuan: _blankToNull(hint.amountYuan),
+      accountName: _blankToNull(hint.entityName),
     ));
     emit(state.copyWith(messages: messages));
+  }
+
+  /// 空/白串 → null(参数行「空值不出行」口径的归一)。
+  static String? _blankToNull(String? v) {
+    final trimmed = v?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 
   /// 关闭引导卡(「换个账户试试」):移除最后一张 [GuidanceMsg]

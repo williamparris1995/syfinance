@@ -276,6 +276,40 @@ void main() {
       expect(result, isA<ToolError>());
     });
 
+    test('new_category 未知 → ToolError 携 V4 引导标记(分类引导补齐,'
+        '评审 T3-M3;金额 = new_amount,未改则定位笔现额)', () async {
+      // 未携 new_amount → 参数行金额 = 定位笔现额(美团买菜 ¥30.00)。
+      final noAmount = await tool.execute(const {
+        'keyword': '美团买菜',
+        'new_category': '不存在的分类',
+      });
+      expect(noAmount, isA<ToolError>());
+      expect((noAmount as ToolError).guideHint, ToolGuideHint.unknownAccount);
+      expect(noAmount.guideName, '不存在的分类');
+      expect(noAmount.guideAmountYuan, '30.00');
+
+      // 携 new_amount → 参数行金额 = 请求新额。
+      final withAmount = await tool.execute(const {
+        'keyword': '美团买菜',
+        'new_category': '不存在的分类',
+        'new_amount': 40,
+      });
+      expect((withAmount as ToolError).guideAmountYuan, '40.00');
+    });
+
+    test('new_account 未知 → ToolError 携 V4 引导标记 + 请求金额(评审 T3-M2)',
+        () async {
+      final result = await tool.execute(const {
+        'keyword': '京东购物',
+        'new_account': '不存在的账户',
+        'new_amount': 15,
+      });
+      expect(result, isA<ToolError>());
+      expect((result as ToolError).guideHint, ToolGuideHint.unknownAccount);
+      expect(result.guideName, '不存在的账户');
+      expect(result.guideAmountYuan, '15.00', reason: '金额 = new_amount');
+    });
+
     test('new_account 解析到资产账户 id;new_amount/new_date 同批', () async {
       final json = ok(await tool.execute(const {
         'keyword': '京东购物',

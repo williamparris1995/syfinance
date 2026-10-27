@@ -78,18 +78,22 @@ class WriteProposed extends AssistantEvent {
   final Map<String, Object> preview;
 }
 
-/// 工具引导(F70-T3,v20 V4 查无实体引导):写工具解析口述账户名零命中
-/// 时,ToolError 携 [ToolGuideHint.unknownAccount] 结构标记 —— loop 在
+/// 工具引导(F70-T3,v20 V4 查无实体引导):写工具解析口述账户/分类名
+/// 零命中时,ToolError 携 [ToolGuideHint.unknownAccount] 结构标记 —— loop 在
 /// [ToolCallEnd] 后旁路发本事件(bloc 映射 GuidanceMsg 渲染引导卡);
 /// 错误本身照常回填 LLM 自纠,LLM 文本澄清与引导卡两通道并存(ADR-4)。
 class ToolGuidance extends AssistantEvent {
-  const ToolGuidance(this.hint, this.entityName);
+  const ToolGuidance(this.hint, this.entityName, [this.amountYuan]);
 
   /// 引导判型(结构标记,不猜文案)。
   final ToolGuideHint hint;
 
-  /// 引导实体名(如零命中的账户名;可能为空串,消费方兜底通用文案)。
+  /// 引导实体名(如零命中的账户/分类名;可能为空串,消费方兜底通用文案)。
   final String entityName;
+
+  /// 请求金额元串(v20 V4 参数行「金额 ¥12.00」;评审 T3-M2 卡不丢
+  /// 请求上下文;ToolError.guideAmountYuan 透传,可空 = 不出行)。
+  final String? amountYuan;
 }
 
 /// 终答完成(正常收束)。

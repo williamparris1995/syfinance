@@ -10,11 +10,13 @@
 /// - V3 destructive:`.ap-strip` 红警示条「删除后不可恢复」+ 按钮主位
 ///   反转(确认删除 negative 在前,取消升主视觉 —— 误删需刻意越过一级)。
 /// - V4 查无引导([GuidanceCard]):「需要补充信息+待补充 chip」+ 澄清
-///   文本 + 「新建账户」(跳 [GuidanceMsg.route],无独立新建路由 → 账户页)
-///   + 「换个账户试试」(仅关闭卡)。
+///   文本 + 参数行(金额/账户「未找到该账户」,评审 T3-M2)+ 「新建账户」
+///   (跳 [GuidanceMsg.route],无独立新建路由 → 账户页)+ 「换个账户试试」
+///   (仅关闭卡)。
 /// - V5 替换/作废:灰化留档(opacity .55)+ 状态 chip(已被新操作替换/
 ///   已作废/已取消),按钮区收起(pending 才有按钮区)。
-/// - V6 失败:头转 negative「记账失败」+ 执行失败 chip + 原因直说 +
+/// - V6 失败:头转 negative「记账失败」+ 执行失败 chip + 原因直说
+///   ([failureReasonText] 中文化:契约英文 token 不裸出,评审 T3-M1)+
 ///   重试钮(幂等键复用)+ 幂等小字「重试不会产生重复记录…」。
 ///
 /// 零裸色:全部走 `context.yucai` 令牌(destructive 走 negative 令牌,
@@ -529,6 +531,16 @@ class _ApprovalButtons extends StatelessWidget {
 
 // —— V6 失败盒 + 幂等小字 ——
 
+/// V6 失败原因中文化(executor 契约 [WriteApprovalMsg.failureReason] 为
+/// 英文单行 token,评审 T3-M1:UI 不裸出英文)。映射:已知 token → 定制
+/// 中文文案;其余(runtimeType 类名/任意未知 token)→ 通用重试文案。
+/// executor/审计/LLM 注入侧英文契约不动 —— 本层仅渲染面转译。
+String failureReasonText(String? reason) => switch (reason) {
+      'versionConflict' => '内容已被其他修改更新,请重试',
+      'transactionNotFound' => '这笔交易已不存在',
+      _ => '执行失败,请重试',
+    };
+
 class _FailureBox extends StatelessWidget {
   const _FailureBox({required this.card});
 
@@ -551,7 +563,7 @@ class _FailureBox extends StatelessWidget {
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              card.failureReason ?? '',
+              failureReasonText(card.failureReason),
               style: TextStyle(
                   color: t.negative,
                   fontSize: 12,
@@ -647,12 +659,20 @@ class _DoneStrip extends StatelessWidget {
 
 // —— V4 引导卡(v20 查无实体引导态)——
 
-/// 查无实体引导卡([GuidanceMsg] 的浮层渲染面):澄清文本 + 「新建账户」
+/// 查无实体引导卡([GuidanceMsg] 的浮层渲染面):澄清文本 + 参数行
+/// (金额 [amountYuan] / 账户 [accountName]「未找到该账户」neg 注记,
+/// v20 V4 两行照排,评审 T3-M2 —— 请求金额先挂起不丢失)+「新建账户」
 /// (跳 [GuidanceMsg.route] —— ADR-5 既有路由,无独立新建路由 → 账户页)
 /// + 「换个账户试试」(仅关闭卡 = [DismissGuidanceClicked])。LLM 文本
 /// 澄清(ToolError 回填自纠)照常并存 —— 两通道独立。
 class GuidanceCard extends StatelessWidget {
-  const GuidanceCard({super.key, required this.text, required this.route});
+  const GuidanceCard({
+    super.key,
+    required this.text,
+    required this.route,
+    this.amountYuan,
+    this.accountName,
+  });
 
   /// 澄清文案(如「没有找到『滴滴』这个账户,要新建吗?」)。
   final String text;
@@ -660,9 +680,39 @@ class GuidanceCard extends StatelessWidget {
   /// 主钮跳转目标(如 `/accounts`)。
   final String route;
 
+  /// 请求金额元串(V4「金额 ¥12.00」行;null/空不出行)。
+  final String? amountYuan;
+
+  /// 零命中实体名(V4「账户 滴滴(未找到)」行;null/空不出行)。
+  final String? accountName;
+
   @override
   Widget build(BuildContext context) {
     final t = context.yucai;
+    // V4 参数行(v20 .ap-row:金额 + 账户;末行随按钮区上边框收分隔线,
+    // 避免双线 —— 主卡 lastRowHasBorder 同口径)。
+    final rows = <Widget>[
+      if (amountYuan != null && amountYuan!.trim().isNotEmpty)
+        _approvalRow(context, '金额', _value(context, '¥$amountYuan')),
+      if (accountName != null && accountName!.trim().isNotEmpty)
+        _approvalRow(
+          context,
+          '账户',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _value(context, accountName!),
+              Text('未找到该账户',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                      color: t.negative,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+    ];
     return Align(
       alignment: Alignment.centerLeft,
       child: FractionallySizedBox(
@@ -729,6 +779,10 @@ class GuidanceCard extends StatelessWidget {
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600)),
               ),
+              for (var i = 0; i < rows.length; i++)
+                i == rows.length - 1
+                    ? rows[i]
+                    : _withRowDivider(context, rows[i]),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

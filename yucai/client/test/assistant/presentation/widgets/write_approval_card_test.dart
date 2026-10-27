@@ -160,7 +160,12 @@ void main() {
                         if (message is WriteApprovalMsg)
                           WriteApprovalCard(card: message)
                         else if (message is GuidanceMsg)
-                          GuidanceCard(text: message.text, route: message.route),
+                          GuidanceCard(
+                            text: message.text,
+                            route: message.route,
+                            amountYuan: message.amountYuan,
+                            accountName: message.accountName,
+                          ),
                     ],
                   ),
                 ),
@@ -396,7 +401,7 @@ void main() {
       expect(find.byKey(const ValueKey('writeApprovalConfirm')), findsNothing);
     });
 
-    testWidgets('failed:记账失败头 + 执行失败 chip + 原因 + 重试钮 + 幂等小字(v20 V6)',
+    testWidgets('failed:记账失败头 + 执行失败 chip + 原因中文 + 重试钮 + 幂等小字(v20 V6;评审 T3-M1)',
         (tester) async {
       await tester.pumpWidget(staticHost(card(addAction, addPreview,
           status: WriteApprovalStatus.failed,
@@ -407,14 +412,38 @@ void main() {
       final head = tester.widget<Text>(find.text('记账失败'));
       expect(head.style?.color, t.negative, reason: 'v20 .ap-head.fail');
       expect(find.text('执行失败'), findsOneWidget);
-      expect(find.text('account deleted'), findsOneWidget,
-          reason: '失败原因直说无粉饰(英文单行 reason)');
+      expect(find.text('执行失败,请重试'), findsOneWidget,
+          reason: '未知 reason(runtimeType 类名等)→ 通用中文文案');
+      expect(find.text('account deleted'), findsNothing,
+          reason: '英文 token 不裸出渲染面(executor 契约英文不动)');
       expect(find.byKey(const ValueKey('writeApprovalRetry')), findsOneWidget);
       expect(find.text('重试不会产生重复记录;也可以改用其他账户重新记账。'),
           findsOneWidget,
           reason: 'v20 .ap-note-line 幂等小字');
       expect(find.byKey(const ValueKey('writeApprovalConfirm')), findsNothing,
           reason: 'failed 无确认/取消钮(重试走失败盒)');
+    });
+
+    testWidgets('failed reason 中文映射逐字:versionConflict/transactionNotFound/其余',
+        (tester) async {
+      Future<void> pumpReason(String? reason) async {
+        await tester.pumpWidget(staticHost(card(addAction, addPreview,
+            status: WriteApprovalStatus.failed, failureReason: reason)));
+        await tester.pumpAndSettle();
+      }
+
+      await pumpReason('versionConflict');
+      expect(find.text('内容已被其他修改更新,请重试'), findsOneWidget,
+          reason: '乐观锁冲突单行原因(与 executor 契约 token 对应)');
+      await pumpReason('transactionNotFound');
+      expect(find.text('这笔交易已不存在'), findsOneWidget,
+          reason: '提案与确认之间实体消失');
+      await pumpReason('NetworkFailure');
+      expect(find.text('执行失败,请重试'), findsOneWidget,
+          reason: '其余 runtimeType 类名 → 通用重试文案');
+      await pumpReason(null);
+      expect(find.text('执行失败,请重试'), findsOneWidget,
+          reason: 'reason 缺省 → 通用重试文案(不空串)');
     });
   });
 
@@ -540,14 +569,17 @@ void main() {
   });
 
   group('引导卡 GuidanceCard(v20 V4 查无实体引导)', () {
-    Widget guidanceHost({GoRouter? router, required AssistantPanelBloc bloc}) {
-      const card = GuidanceCard(
+    Widget guidanceHost(GoRouter? router, AssistantPanelBloc bloc,
+        {String? amountYuan, String? accountName}) {
+      final card = GuidanceCard(
         text: '没有找到『滴滴』这个账户,要新建吗?',
         route: '/accounts',
+        amountYuan: amountYuan,
+        accountName: accountName,
       );
       final body = BlocProvider<AssistantPanelBloc>.value(
         value: bloc,
-        child: const Scaffold(
+        child: Scaffold(
             body: Center(child: SizedBox(width: 400, child: card))),
       );
       if (router == null) {
@@ -565,7 +597,7 @@ void main() {
     testWidgets('卡头「需要补充信息」+ 待补充 chip + 澄清文本 + 双钮 + 提示行',
         (tester) async {
       await tester.pumpWidget(guidanceHost(
-          bloc: makeBloc(loopOf(const []), _FakeWriteExecutor(const []))));
+          null, makeBloc(loopOf(const []), _FakeWriteExecutor(const []))));
       await tester.pumpAndSettle();
       expect(find.text('需要补充信息'), findsOneWidget);
       expect(find.text('待补充'), findsOneWidget, reason: 'v20 chip warn');
@@ -576,6 +608,36 @@ void main() {
       expect(find.text('新建账户'), findsOneWidget);
       expect(find.text('也可以直接说用哪个现有账户,如「用支付宝记」。'), findsOneWidget,
           reason: 'v20 .ap-note-line');
+    });
+
+    testWidgets('参数行两行照 v20 V4(评审 T3-M2):金额 ¥12.00 / 账户 滴滴(未找到)',
+        (tester) async {
+      await tester.pumpWidget(guidanceHost(
+        null,
+        makeBloc(loopOf(const []), _FakeWriteExecutor(const [])),
+        amountYuan: '12.00',
+        accountName: '滴滴',
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('金额'), findsOneWidget);
+      expect(find.text('¥12.00'), findsOneWidget,
+          reason: '请求金额先挂起不丢失(v20 V4 金额行)');
+      expect(find.text('账户'), findsOneWidget);
+      expect(find.text('滴滴'), findsOneWidget, reason: '零命中实体名');
+      final note = tester.widget<Text>(find.text('未找到该账户'));
+      expect(note.style?.color, YucaiTheme.light().negative,
+          reason: 'v20 .sm-note.neg');
+      expect(find.text('新建账户'), findsOneWidget, reason: '参数行不挤掉按钮');
+    });
+
+    testWidgets('amountYuan/accountName 缺省 → 参数行不出(向后兼容)',
+        (tester) async {
+      await tester.pumpWidget(guidanceHost(
+          null, makeBloc(loopOf(const []), _FakeWriteExecutor(const []))));
+      await tester.pumpAndSettle();
+      expect(find.text('金额'), findsNothing);
+      expect(find.text('账户'), findsNothing);
+      expect(find.text('未找到该账户'), findsNothing);
     });
 
     testWidgets('新建账户 → GoRouter 跳 /accounts(路由意图断言,ADR-5)',
@@ -629,7 +691,7 @@ void main() {
           Stream.fromIterable(const [
             ToolCallStart('call_g1', 'transaction_add'),
             ToolCallEnd('call_g1', false),
-            ToolGuidance(ToolGuideHint.unknownAccount, '滴滴'),
+            ToolGuidance(ToolGuideHint.unknownAccount, '滴滴', '12.00'),
             Done(),
           ]),
         ]),
@@ -641,6 +703,9 @@ void main() {
       expect(find.byKey(const ValueKey('guidanceDismissButton')), findsOneWidget,
           reason: 'ToolGuidance 轮 → GuidanceMsg 出引导卡');
       expect(find.text('没有找到『滴滴』这个账户,要新建吗?'), findsOneWidget);
+      expect(find.text('¥12.00'), findsOneWidget,
+          reason: 'ToolGuidance.amountYuan → 卡参数行(评审 T3-M2 全链)');
+      expect(find.text('滴滴'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('guidanceDismissButton')));
       await tester.pump(const Duration(milliseconds: 50));

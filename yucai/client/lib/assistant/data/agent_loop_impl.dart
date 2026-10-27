@@ -303,11 +303,16 @@ class AgentLoopServiceImpl implements AgentLoopService {
     return WriteProposed(toolName, action, preview);
   }
 
-  /// 引导标记透传(F70-T3 v20 V4):ToolError 携 guideHint → [ToolGuidance]?;
-  /// 普通 ToolError / ToolData → null(零引导事件,不猜文案)。
+  /// 引导标记透传(F70-T3 v20 V4):ToolError 携 guideHint → [ToolGuidance]?
+  /// 普通 ToolError / ToolData → null(零引导事件,不猜文案);金额随
+  /// guideAmountYuan 原样透传(V4 参数行,评审 T3-M2)。
   static ToolGuidance? _toolGuidanceOf(ToolResult result) {
     if (result is! ToolError || result.guideHint == null) return null;
-    return ToolGuidance(result.guideHint!, result.guideName ?? '');
+    return ToolGuidance(
+      result.guideHint!,
+      result.guideName ?? '',
+      result.guideAmountYuan,
+    );
   }
 
   /// LLM 异常 → 中文终态事件(中文一句+括号内错误类与端点域名;

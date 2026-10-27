@@ -42,7 +42,8 @@ class ToolData extends ToolResult {
 /// T1 写工具的消歧错误原为纯文案无标记(v20 V4 引导卡需要结构化判型),
 /// 扩枚举不改既有消息文案/调用方,T1 测试面零扰动。
 class ToolError extends ToolResult {
-  const ToolError(this.message, {this.guideHint, this.guideName});
+  const ToolError(this.message,
+      {this.guideHint, this.guideName, this.guideAmountYuan});
 
   final String message;
 
@@ -50,16 +51,22 @@ class ToolError extends ToolResult {
   /// ToolGuidance 事件 → bloc 映射 GuidanceMsg 引导卡,v20 V4)。
   final ToolGuideHint? guideHint;
 
-  /// 引导实体名(如零命中的账户名;[guideHint] 非 null 时有值)。
+  /// 引导实体名(如零命中的账户/分类名;[guideHint] 非 null 时有值)。
   final String? guideName;
+
+  /// 引导参数行金额(v20 V4「金额 ¥12.00」行;请求金额的元两位小数串,
+  /// [guideHint] 非 null 时可携 —— 评审 T3-M2:卡不丢请求上下文)。
+  final String? guideAmountYuan;
 }
 
 /// 引导标记协议(F70-T3 v20 V4 查无实体引导):unknown-account 型
-/// ToolError 的结构化判型 —— 写工具解析口述账户名零命中时携带
-/// (add 的 account / update 的 new_account;分类零命中不携,仍走
-/// LLM 列候选自纠)。消费链:tool → agent loop(ToolGuidance 事件)→
-/// bloc(GuidanceMsg)→ 引导卡。
+/// ToolError 的结构化判型 —— 写工具解析口述账户/分类名零命中时携带
+/// (add 的 account 与 category / update 的 new_account 与 new_category;
+/// 分类 = 收支型科目账户,account-as-category 同一引导与跳转,FR-4)。
+/// 消费链:tool → agent loop(ToolGuidance 事件)→ bloc(GuidanceMsg)
+/// → 引导卡。
 enum ToolGuideHint {
-  /// 账户名零命中(→ 引导卡「新建账户」跳 /accounts;不静默代建,FR-4)。
+  /// 账户/分类名零命中(→ 引导卡「新建账户」跳 /accounts;不静默代建,
+  /// FR-4「账户/分类不存在时引导」——分类即账户,同一账户页表单可达)。
   unknownAccount,
 }

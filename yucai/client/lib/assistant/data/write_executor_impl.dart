@@ -32,6 +32,7 @@ library;
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/assistant/data/audit_log.dart';
+import 'package:yucai_client/assistant/data/tools/tool_args.dart' show yuan;
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/write_action.dart';
 import 'package:yucai_client/assistant/domain/write_executor.dart';
@@ -229,8 +230,11 @@ class WriteExecutorImpl implements WriteExecutor {
         TransactionDelete() => 'transaction_delete',
       };
 
-  /// cents → 元两位小数(note/确认文案共口径)。
-  static String _yuan(int cents) => (cents / 100).toStringAsFixed(2);
+  /// cents → 元字符串(两位小数 + 千分位,负数带 -)。复用工具侧同源
+  /// `yuan()`(= core `DueReminderPolicy.formatYuan`;tool_args 先例)——
+  /// note 与 bloc 确认消息(preview.amountYuan 同源)在 ≥¥1000 千分位
+  /// 逐字一致(评审 T2-M1:消除 toStringAsFixed 无千分位分叉)。
+  static String _yuan(int cents) => yuan(cents);
 
   /// 自由文本压平空白 + 首尾去空 —— appendToolOutcome 契约「单行紧凑」
   /// (上下文膨胀防线;口述描述可能含换行)。

@@ -769,9 +769,16 @@ class _MessageListState extends State<_MessageList> {
           modelManager: widget.modelManager),
       // F70-T3:v20 六形态确认卡(三形态×五状态徽标;按钮真调 bloc 事件)。
       WriteApprovalMsg approval => WriteApprovalCard(card: approval),
-      // F70-T3:v20 V4 查无实体引导卡(新建账户跳路由/换个账户试试仅关闭)。
-      GuidanceMsg(:final text, :final route) =>
-          GuidanceCard(text: text, route: route),
+      // F70-T3:v20 V4 查无实体引导卡(新建账户跳路由/金额与账户参数行/
+      // 换个账户试试仅关闭)。
+      GuidanceMsg(:final text, :final route, :final amountYuan,
+              :final accountName) =>
+          GuidanceCard(
+        text: text,
+        route: route,
+        amountYuan: amountYuan,
+        accountName: accountName,
+      ),
     };
   }
 }

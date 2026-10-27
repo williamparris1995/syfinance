@@ -18,6 +18,7 @@ import 'package:yucai_client/account/data/account_remote_ds.dart';
 import 'package:yucai_client/account/data/account_repository_impl.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/assistant/data/audit_log.dart';
+import 'package:yucai_client/assistant/data/tools/tool_args.dart' show yuan;
 import 'package:yucai_client/assistant/data/write_executor_impl.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/write_action.dart';
@@ -236,9 +237,35 @@ void main() {
       final txn = await txnByDesc('外快');
       expectEntry(txn!.entries[0], 'acc-cash', debit: 800000);
       expectEntry(txn.entries[1], 'acc-salary', credit: 800000);
-      expect(loop.appendedOutcomes, ['已记:收入 ¥8000.00 外快']);
+      // 千分位单源(评审 T2-M1):≥¥1000 note 与工具 preview 同格式。
+      expect(loop.appendedOutcomes, ['已记:收入 ¥8,000.00 外快']);
       // 收入同管道余额联动:1,797,000 + 800,000。
       expect(await cashBalance(), 2597000);
+    });
+
+    test('千分位单源(评审 T2-M1):1234567 cents 两通道字符串逐字相等', () async {
+      await executor.execute(
+        TransactionAdd(
+          direction: WriteDirection.outflow,
+          amountCents: 1234567,
+          description: '大额',
+          accountId: 'acc-cash',
+          categoryId: 'acc-food',
+          date: DateTime(2026, 10, 27),
+        ),
+        'key-add-thousands',
+      );
+
+      // 通道一:工具 preview.amountYuan(bloc 确认消息数据源)= yuan()
+      // 同源(DueReminderPolicy.formatYuan,含千分位)。
+      expect(yuan(1234567), '12,345.67', reason: '含千分位');
+      // 通道二:executor note —— 与通道一金额段逐字相等(≥¥1000 不分叉)。
+      expect(loop.appendedOutcomes.single, '已记:支出 ¥12,345.67 大额');
+      expect(
+        loop.appendedOutcomes.single,
+        '已记:支出 ¥${yuan(1234567)} 大额',
+        reason: 'note 金额段 = 工具 preview 元串(两通道同源)',
+      );
     });
 
     test('repo Left → WriteFailed(runtimeType) + 审计 error 行 + 零注入',

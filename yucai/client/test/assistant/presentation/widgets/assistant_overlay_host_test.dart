@@ -744,7 +744,10 @@ void main() {
       await _send(tester, '记一笔午饭 35 块');
       await _tapCardButton(tester, const ValueKey('writeApprovalConfirm'));
       await tester.pump(const Duration(milliseconds: 50));
-      expect(find.text('account deleted'), findsOneWidget, reason: 'V6 失败原因直说');
+      expect(find.text('执行失败,请重试'), findsOneWidget,
+          reason: 'V6 失败原因中文化(评审 T3-M1:英文 token 不裸出)');
+      expect(find.text('account deleted'), findsNothing,
+          reason: '契约 reason 英文只留数据面(executor/审计不动)');
       expect(find.text('重试不会产生重复记录;也可以改用其他账户重新记账。'),
           findsOneWidget,
           reason: 'V6 幂等小字');
@@ -764,7 +767,7 @@ void main() {
         Stream.fromIterable(const [
           ToolCallStart('call_g1', 'transaction_add'),
           ToolCallEnd('call_g1', false),
-          ToolGuidance(ToolGuideHint.unknownAccount, '滴滴'),
+          ToolGuidance(ToolGuideHint.unknownAccount, '滴滴', '12.00'),
           TextDelta('没有找到「滴滴」这个账户,要新建吗?'),
           Done(),
         ]),
@@ -776,6 +779,10 @@ void main() {
       expect(find.byKey(const ValueKey('assistantToolPill')), findsOneWidget);
       expect(find.text('需要补充信息'), findsOneWidget);
       expect(find.text('没有找到『滴滴』这个账户,要新建吗?'), findsOneWidget);
+      expect(find.text('¥12.00'), findsOneWidget,
+          reason: 'V4 参数行金额接线(overlay 透传 GuidanceMsg.amountYuan)');
+      expect(find.text('未找到该账户'), findsOneWidget,
+          reason: 'V4 账户行 neg 注记(overlay 透传 GuidanceMsg.accountName)');
       expect(find.byKey(const ValueKey('assistantTypingIndicator')), findsNothing,
           reason: '终态无打字指示(互不干扰回归)');
       // 滚到消息流尾段:LLM 文本气泡与引导卡按钮(浮层限高,折线下
