@@ -47,3 +47,42 @@
 - **tool_call args 分片拆段**:add/update/delete 三轮脚本的 args JSON 均拆 2 段 argsDelta,钉流式拼装(SplayTreeMap 按 index 归并)非单发整串。
 - **真库直查独立断言**:全部 DB 断言走 `database.transactionDao/accountDao` 直查(getAllTransactions/getAllEntries/getAllAccounts),不 import 工具结果对象、不经 repo 回读 —— 与提案 payload 互证余额联动/分录借贷侧/级联清理(NFR-1)。
 - **消息序断言**:确认前断言 bloc 消息流 runtimeType 序 = [UserMsg, AssistantMsg, ToolStatusMsg, WriteApprovalMsg, AssistantMsg](前导文本→工具条 ok→pending 卡→收尾文本),一次钉死 loop 事件序(ToolCallStart/End(true)→WriteProposed)在 bloc 消费面的落位。
+
+## test 门覆盖率实测(2026-10-27,HEAD d029234a,评审 PASS 后)
+
+命令 `flutter test --coverage test/assistant/`(仅 assistant 套件注入,lcov DA 行覆盖汇总 `lib/assistant/**`,35 文件):**404 绿 + 1 自跳过**(F66 engine_smoke 夹具不在场)/ **lib/assistant 总行覆盖 94.2%(2605/2764)** / flutter analyze **466 == 基线零新增** / `git diff main -- yucai/server` **0 字节**(NFR-4 复测)。
+
+F70 写面分文件(全部 ≥80%,无本票热点):
+
+| 文件 | 行覆盖 | 未覆盖行定性 |
+| --- | --- | --- |
+| data/tools/transaction_add_tool.dart | 94.6%(53/56) | 155-157:direction 对应分类池全空时的引导 ToolError(空库冷启动分支) |
+| data/tools/transaction_update_tool.dart | 100%(59/59) | — |
+| data/tools/transaction_delete_tool.dart | 100%(20/20) | — |
+| data/tools/write_tool_support.dart | 100%(101/101) | — |
+| data/write_executor_impl.dart | 97.8%(87/89) | 199/219:update 非 ServerFailure 映射 + delete 失败映射各 1 行(失败面由 mock 组另路覆盖) |
+| data/agent_loop_impl.dart | 96.5%(110/114) | 265-276:args JSON FormatException/TypeError/crash 三重兜底 catch;344:Uri host 回退 |
+| presentation/widgets/write_approval_card.dart | 99.2%(378/381) | 334-335:failed 终态 update/delete 标题分支(add 已覆盖);481:failed 态取消钮条件分支 |
+| presentation/assistant_panel/assistant_panel_bloc.dart | 86.1%(260/302) | 55-202:事件类 equatable props/toString 样板行;368/371 copyWith failureReason 保留;550/552 onError 防御路径(loop 契约保证终态);862 流式合并段 |
+| domain/write_action.dart | 84.9%(45/53) | 构造防御 ArgumentError(工具层上游已守卫)+ toString 覆写 |
+| domain/write_executor.dart(port) | 40.0%(4/10) | 6 行 = WriteOutcome 三态 toString 覆写;port 本体与接缝全覆盖 |
+
+<80% 判定:全模块仅 3 文件,均**非 F70 写面**——`data/process_launcher.dart` 0%(0/23,F66 引擎域真 OS 进程启杀 Process.start/taskkill,CI 无夹具,engine_smoke 自跳过同因)/ `domain/write_executor.dart` 40%(toString 样板,见上表)/ `domain/model_manager_port.dart` 53.8%(ModelManifest ==/hashCode/toString,F66/F67 域)。**F70 写面零 <80% 热点**,未覆盖行全部为防御分支或 Dart 样板,无功能缺口。
+
+## test 门验收清单(spec 9 需求 / 7 Scenario 逐行,grep 实数)
+
+| 需求 | Scenario | 代验用例(测试文件实名在册) | 判定 |
+| --- | --- | --- | --- |
+| FR-1 | 口述记账全流程(spec L15) | 帽石 `记一笔全链①②③④⑤⑧`(integration/write_pipeline_integration_test.dart:232:①提案卡解析后 id/摘要 ②确认前真库直查交易/分录/余额全零 ③确认后 DB 逐字段+余额联动 ④logWrite 行 ⑤「已记:」注入下轮 ⑧幂等)+ add_tool `支出:账户/分类名称解析为 id…`/`收入:direction=in…` + executor `支出:recordExpense 落库…`/`收入:recordIncome 方向分流` | ✓ |
+| FR-1 | 幂等(spec L20) | 帽石⑧ + executor `同 key 重复触发:AlreadyExecuted 回放,零写/零注入/零重复审计`/`不同 key 同操作 = 两次独立执行` + bloc `幂等负测:确认后再触发同 key 确认 → 状态守卫拒` + card `失败→重试 → RetryWriteRequested:同幂等键复用` | ✓ |
+| FR-2 | 改最近一笔(spec L28) | 帽石 `改一笔全链⑥`(before ¥30.00/after ¥40.00 diff 卡) + update_tool `无过滤 = 最近一笔:时间倒序首条且跳过转账`/`keyword 唯一命中(京东购物)`/`before = 定位笔现状;after = patch 覆盖后` + executor `改金额+描述:entries 全重建,note 逐侧保留`/`改日期:patch.date 覆盖…full-replace 语义` | ✓ |
+| FR-3 | 删除确认(spec L35) | 帽石 `删一笔全链⑦`(destructive 卡→确认→分录级联+余额回滚) + delete_tool `keyword 唯一命中 → action{transactionId} + destructive preview` + executor `同管道删除 + note 已删 + 审计行 + 余额回滚` + card `红警示条「删除后不可恢复」`/`按钮主位反转` + 帽石 `取消⑨`(取消保留) | ✓ |
+| FR-4 | 未知账户引导(spec L42) | add_tool `account 未知 → ToolError(查无引导,FR-4;携 V4 结构标记+请求金额)`/`category 未知 → ToolError 携 V4 引导标记` + loop `unknown-account ToolError(结构标记)→ ToolCallEnd 后发 ToolGuidance` + bloc `unknown-account 引导映射:ToolGuidance → GuidanceMsg(text+route)` + card `新建账户 → GoRouter 跳 /accounts(路由意图断言,ADR-5)` + overlay `引导卡(V4)与 LLM 文本澄清、工具 pill 并存互不干扰`(跳转即验收面:预填降级由 OQ-1/ADR-5 承接,见领域发现③,不算缺口) | ✓(跳转面)/注 |
+| FR-5 | 提示词不可绕过(spec L49) | 三工具 `mock repo verifyNever:…零调用` ×3 + `真实 repo:成功提案后…不变` ×3 + loop `action JSON 畸形 → 静默降级零 WriteProposed(零卡零写)` + bloc `绕过负测:提案到达只发 pending 卡,loop 流事件本身零 executor 调用` + 帽石②⑨ | ✓ |
+| FR-5 | 新对话作废(spec L54) | bloc `作废负测:新对话后旧 key 确认 → 查无此卡守卫拒,零执行` + loop `resetConversation 一并清空注入结果(新对话作废口径,FR-5)` | ✓ |
+| NFR-1 | 写路径同源(无 Scenario,SHALL) | 帽石③⑥⑦ 余额直查断言 + 分录借贷侧断言;T2 真库组(recordExpense→recordIncome→update 重建→delete 回滚全走 TransactionRepositoryImpl) | ✓ |
+| NFR-2 | 参数面约束(无 Scenario,SHALL) | `参数面 ≤8 项(NFR-2)`(add)+ `参数面 ≤8 项(NFR-2),不暴露内部 id 参数`(update/delete) | ✓ |
+| NFR-3 | 审计衔接(无 Scenario,SHALL) | audit_log `ok line format: tool/status/entity/payload`/`error line: empty entity allowed`/`ASCII gate: CJK payloadSummary stripped` + executor `全部审计行可打印 ASCII;中文 note 只进 appendToolOutcome` + 帽石④ | ✓ |
+| NFR-4 | server 零改动(无 Scenario,SHALL) | 本门实测 `git diff main -- yucai/server` = 0 字节(merge-base 98ce8339) | ✓ |
+
+真壳手验(带真引擎+真模型的端到端口述「记→改→删→取消」)= 移交用户,注记见上文「真壳手验移交注记」;用户实际使用即验收,手验问题走 F71/fixlist 不阻塞合并。**7/7 Scenario + 4/4 NFR 全代验通过,零真缺口,test 门 PASS。**
