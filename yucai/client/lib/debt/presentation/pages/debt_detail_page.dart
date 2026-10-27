@@ -26,6 +26,7 @@ import 'package:design_kit/design_kit.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/data/contract_attachment_store.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart' as debt_repo;
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
@@ -268,6 +269,13 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
                   ? () => context
                       .push('${_sem.listRoutePrefix}/${debt.id}/edit')
                   : null,
+            ),
+            // v15「抄一次银行计划」:粘贴银行还款计划覆写未还期次
+            //(金额与银行对齐,之后自动并入分毫不差)。
+            DockAction(
+              icon: LucideIcons.clipboardList,
+              tooltip: '导入银行计划',
+              onTap: debt != null ? () => _openBankPlanImport(debt) : null,
             ),
           ],
           muted: [
@@ -574,6 +582,40 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
     AppToast.show(context, '本期已不再提醒', type: ToastType.success);
   }
 
+  /// v15 银行计划导入:对话框 → repo.importBankSchedule(未还期次按日期
+  /// 覆写,已还冻结)→ toast 摘要 → 刷新详情。直连 repo 为 widget 层先例
+  /// (transactions 页右键删除同款);bloc 只负责刷新。
+  Future<void> _openBankPlanImport(Debt debt) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dctx) => BankPlanImportDialog(
+        counterparty: debt.counterparty,
+        onApply: (rows) async {
+          final r = await getIt<debt_repo.DebtRepository>()
+              .importBankSchedule(debtId: widget.id, rows: rows);
+          if (!dctx.mounted) return;
+          r.fold(
+            (failure) {
+              AppToast.show(dctx, failure.displayMessage,
+                  type: ToastType.error);
+            },
+            (summary) {
+              AppToast.show(
+                dctx,
+                '已更新 ${summary.applied} 期'
+                '${summary.skippedPaid > 0 ? '(已还冻结 ${summary.skippedPaid} 期)' : ''}'
+                '${summary.noMatch.isNotEmpty ? ' · 未匹配 ${summary.noMatch.length} 行(日期对不上)' : ''}',
+                  type: ToastType.success);
+            },
+          );
+        },
+      ),
+    );
+    if (!mounted) return;
+    // 关闭即刷新(导入可能已发生;bloc 重拉详情)。
+    context.read<DebtBloc>().add(LoadDebtRequested(widget.id));
+  }
+
   void _openRecordPayment(PaymentEntry e) {
     final preferred = context.read<CurrencyBloc>().state.preferred;
     showDialog<void>(
@@ -583,13 +625,21 @@ class _DebtDetailPageState extends State<DebtDetailPage> with RouteAware {
         entry: e,
         accounts: _accounts,
         preferred: preferred,
-        onSubmit: (fromAccountId) {
+        // 贴息腿候选 = 活动收入类账户(账户页创建,如「财政贴息」)。
+        incomeAccounts: _allAccounts
+            .where((a) =>
+                a.accountType == AccountType.income &&
+                a.status == AccountStatus.active)
+            .toList(),
+        onSubmit: (fromAccountId, subsidyCents, subsidyAccountId) {
           Navigator.pop(dctx);
           setState(() => _recordPending = true);
           context.read<DebtBloc>().add(RecordPaymentRequested(
                 debtId: widget.id,
                 scheduleEntryId: e.id,
                 fromAccountId: fromAccountId,
+                subsidyCents: subsidyCents,
+                subsidyAccountId: subsidyAccountId,
               ));
         },
       ),

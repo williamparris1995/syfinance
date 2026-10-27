@@ -1727,8 +1727,12 @@ class DebtListCard extends StatelessWidget {
                               letterSpacing: 0.5,
                               color: context.yucai.muted)),
                       const SizedBox(height: 4),
+                      // 卡大字口径 = 剩余本金(期表本金,与详情 hero/账户页
+                      // Σ债剩余本金同源);本息口径只在总览卡「剩余待还(本息)」。
+                      // 勿把 unpaidInterest 加回卡面 —— 标签是「剩余本金」,
+                      // 值却成本息(dev 2026-10-25 反馈,e8966072 引入)。
                       GoldAmount(
-                        cents: debt.remainingPrincipalCents + debt.unpaidInterestCents,
+                        cents: debt.remainingPrincipalCents,
                         preferred: preferred,
                         curSize: 13,
                         numSize: 19,
@@ -1752,7 +1756,7 @@ class DebtListCard extends StatelessWidget {
                         sem.cardCollectedMetaLabel,
                         sharedFmtSymbol(
                             debt.totalPrincipalCents -
-                                debt.remainingPrincipalCents + debt.unpaidInterestCents,
+                                debt.remainingPrincipalCents,
                             preferred),
                       ),
                     ],
@@ -1854,7 +1858,7 @@ class DebtListCard extends StatelessWidget {
                   fontSize: 10.5, letterSpacing: 0.5, color: context.yucai.muted)),
           const SizedBox(height: 4),
           Text(
-            sharedFmtSymbol(debt.remainingPrincipalCents + debt.unpaidInterestCents, preferred),
+            sharedFmtSymbol(debt.remainingPrincipalCents, preferred),
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -1969,7 +1973,7 @@ class DebtListCard extends StatelessWidget {
                           TextStyle(fontSize: 10, color: context.yucai.muted)),
                   const SizedBox(height: 2),
                   Text(
-                    sharedFmtSymbol(debt.remainingPrincipalCents + debt.unpaidInterestCents, preferred),
+                    sharedFmtSymbol(debt.remainingPrincipalCents, preferred),
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,

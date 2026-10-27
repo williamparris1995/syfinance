@@ -9,6 +9,7 @@ import 'package:yucai_client/core/session_mode/bound_write_fallback.dart';
 import 'package:yucai_client/core/session_mode/session_mode_tracker.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
+import 'package:yucai_client/debt/domain/bank_plan_parser.dart';
 import 'package:yucai_client/debt/data/debt_remote_ds.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
@@ -268,23 +269,45 @@ class DebtRepositoryImpl implements DebtRepository {
             markPending: markPending,
           ));
 
+  @override
   Future<Either<Failure, PaymentEntry>> recordPayment({
     required String debtId,
     required String scheduleEntryId,
     required String fromAccountId,
+    int subsidyCents = 0,
+    String? subsidyAccountId,
   }) =>
       _routedWrite(MirrorModule.debt,
-          () => _remote.recordPayment(
-            debtId: debtId,
-            scheduleEntryId: scheduleEntryId,
-            fromAccountId: fromAccountId,
-          ),
+          // 远端 proto 无贴息字段:subsidy>0 显式拒绝 —— 勿静默丢弃贴息
+          // 腿降级两腿(金额口径失真)。离线回写的 local 分支不受影响。
+          () => subsidyCents > 0
+              ? (throw const ServerFailure('远端模式暂不支持贴息记账'))
+              : _remote.recordPayment(
+                  debtId: debtId,
+                  scheduleEntryId: scheduleEntryId,
+                  fromAccountId: fromAccountId,
+                ),
           (markPending) => _local.recordPayment(
             markPending: markPending,
             debtId: debtId,
             scheduleEntryId: scheduleEntryId,
             fromAccountId: fromAccountId,
+            subsidyCents: subsidyCents,
+            subsidyAccountId: subsidyAccountId,
           ));
+
+  @override
+  Future<Either<Failure, ({int applied, List<DateTime> noMatch, int skippedPaid})>>
+      importBankSchedule({
+    required String debtId,
+    required List<BankPlanRow> rows,
+  }) =>
+          _routedWrite(
+              MirrorModule.debt,
+              // 远端 proto 无期表优惠字段(v15 本地口径),显式拒绝。
+              () => throw const ServerFailure('远端模式暂不支持计划表导入'),
+              (markPending) => _local.importBankSchedule(
+                  debtId: debtId, rows: rows, markPending: markPending));
 
   @override
   Future<Either<Failure, void>> repayBill({

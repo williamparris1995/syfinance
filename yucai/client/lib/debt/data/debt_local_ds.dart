@@ -14,20 +14,22 @@ import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/debt_dao.dart';
 import 'package:yucai_client/core/localdb/sync_state.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart';
+import 'package:yucai_client/debt/domain/bank_plan_parser.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/transaction_local_ds.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 
-/// 卡贷并账时机分化:挂接卡名以此前缀开头的债「出账日即到期并入」
-/// (2026-10-20 广发定案)。银行实证:广发从出账日起把期供计入卡账单
-/// (未出账单 5,612.55 = 已入账欠款 5,005.66 + 10/19 出账期供 606.89,
-/// 严丝合缝),账单日改 6 号后 F58「下期出账日到期」会把期供归入晚一档
-/// 的账期(11 月账单 [9/19,11/6) 三期全部错档);平安沿用 F58(2026-10-12
-/// 用户定案,出账未到期 = 自由窗口,银行不计卡待还)。银行口径由用户逐卡
-/// 给定(建卡贷先问口径),新银行先缺省 F58、实证后再入此分化。
-const String _kPostDateMergeCardPrefix = '广发';
+/// 卡贷并账时机分化:挂接卡名以此前缀开头的债「出账日即到期并入」。
+/// - 广发(2026-10-20 定案):从出账日起把期供计入卡账单(未出账单
+///   5,612.55 = 已入账欠款 5,005.66 + 10/19 出账期供 606.89,严丝合缝)。
+/// - 平安(2026-10-26 用户改定):银行 App 出账日(2/12/24/25 号)当天即把
+///   期供计入卡账单可见,F58「下期出账日到期」晚一档导致当期记录缺失
+///   (10-24/10-25 期次未生成)、自由窗口模型对平安退役。
+/// 其余卡沿用 F58 到期并入。银行口径由用户逐卡给定(建卡贷先问口径),
+/// 新银行先缺省 F58、实证后再入此分化。
+const Set<String> _kPostDateMergeCardPrefixes = {'广发', '平安'};
 
 /// 一次性利息减免(镜像 server domain.ApplyInterestWaiver):
 /// 最早几期依次扣减、逐期触底、余量后移;total 重建保持本息一致。
@@ -607,6 +609,57 @@ class DebtLocalDataSource {
     return created.id;
   }
 
+  /// 「贷款利息」费用户(本金/利息分腿,2026-10-26 用户定案):还款借方
+  /// 的利息腿统一入此账户,便于对账定位期表与银行实扣的偏差。find-or-
+  /// create 口径照 [_ensureSettlementAccount](名字+账户类型匹配;历史库
+  /// 由数据补丁预建,代码兜底新建,幂等)。
+  Future<String> _ensureLoanInterestAccount({bool markPending = false}) async {
+    const name = '贷款利息';
+    const wantType = 5; // AccountType.expense
+    final existing = await _database.select(_database.accounts).get();
+    final match = existing
+        .where((a) => a.name == name && a.accountType == wantType)
+        .firstOrNull;
+    if (match != null) return match.id;
+    final created = await _accounts.create(
+      CreateAccountParams(
+        name: name,
+        accountType: acct_vo.AccountType.expense,
+        category: acct_vo.AccountCategory.otherAsset,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        ownership: acct_vo.Ownership.personal,
+      ),
+      markPending: markPending,
+    );
+    return created.id;
+  }
+
+  /// 「贷款利息优惠」收入户(v15 银行计划表口径):期表优惠/银行利率券
+  /// 的减免收入腿(与政策性「财政贴息」分列)。find-or-create 同
+  /// [_ensureLoanInterestAccount] 口径。
+  Future<String> _ensureLoanDiscountAccount({bool markPending = false}) async {
+    const name = '贷款利息优惠';
+    const wantType = 4; // AccountType.income
+    final existing = await _database.select(_database.accounts).get();
+    final match = existing
+        .where((a) => a.name == name && a.accountType == wantType)
+        .firstOrNull;
+    if (match != null) return match.id;
+    final created = await _accounts.create(
+      CreateAccountParams(
+        name: name,
+        accountType: acct_vo.AccountType.income,
+        category: acct_vo.AccountCategory.otherAsset,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        ownership: acct_vo.Ownership.personal,
+      ),
+      markPending: markPending,
+    );
+    return created.id;
+  }
+
   /// [writeTombstone]:bound 路由删除硬删行后补墓碑(FR-4);guest 删除不写
   /// 墓碑(绑定走全量首传)。
   ///
@@ -621,8 +674,11 @@ class DebtLocalDataSource {
     await _database.transaction(() async {
       if (row.debtType == DebtType.borrowedIn.index + 1) {
         final schedule = await _dao.getScheduleByDebt(id);
-        final paid = schedule.fold(0, (a, e) => a + e.paidCents);
-        final remaining = row.totalPrincipalCents - paid;
+        // 分腿后不变式(2026-10-26):载体余额 = 总额 − Σ已还期次本金
+        // (利息腿已分流至「贷款利息」费用户,不再冲减载体)。
+        final paidPrincipal =
+            schedule.fold(0, (a, e) => a + (e.paid ? e.principalCents : 0));
+        final remaining = row.totalPrincipalCents - paidPrincipal;
         if (remaining != 0) {
           final settlement = await _ensureSettlementAccount();
           final isLiabilityLeft = remaining > 0;
@@ -693,7 +749,7 @@ class DebtLocalDataSource {
     final rows = await _dao.watchAllDebts().first;
     final today = (now ?? DateTime.now()).toUtc();
     final todayStart = DateTime.utc(today.year, today.month, today.day);
-    // 并账时机分化:一次查出全部挂接卡名称(广发 → 出账日即并)。
+    // 并账时机分化:一次查出全部挂接卡名称(广发/平安 → 出账日即并)。
     final linkedCardIds = <String>{
       for (final row in rows)
         if (row.subtype == DebtSubtypes.cardLoan &&
@@ -717,9 +773,8 @@ class DebtLocalDataSource {
       // (countsTowardCardLimit=false)只影响卡额度占用统计,期供仍随卡账单
       // (平安备用金/广发财智金均随卡还,实证推翻 F59「独立结算不并卡」);
       // F59 的 skip 分支与 runF59SpecialQuotaUnmerge 回退退役。
-      final mergeAtPost =
-          linkedCardNames[card]?.startsWith(_kPostDateMergeCardPrefix) ??
-              false;
+      final mergeAtPost = _kPostDateMergeCardPrefixes
+          .any((p) => linkedCardNames[card]?.startsWith(p) ?? false);
       final entries = await _dao.getScheduleByDebt(row.id);
       // 期次按日期升序(F58 到期日 = dates[k+1])。
       final sorted = [...entries]
@@ -729,9 +784,9 @@ class DebtLocalDataSource {
         final e = sorted[k];
         if (e.paid) continue;
         final dueDate = mergeAtPost
-            ? e.paymentDate // 广发口径:出账日即到期并入
+            ? e.paymentDate // 广发/平安口径:出账日即到期并入
             : (k + 1 < sorted.length
-                ? sorted[k + 1].paymentDate // 平安:到期 = 下一期出账日
+                ? sorted[k + 1].paymentDate // 其余卡(F58 缺省):到期 = 下一期出账日
                 : plusOneMonthClamped(e.paymentDate)); // 末期 = 自身 +1 月(月钳)
         if (!dueDate.isAfter(todayStart)) due.add(e); // 到期日 ≤ 今日
       }
@@ -773,33 +828,96 @@ class DebtLocalDataSource {
     // 卡贷并账复用本入口:分录语义 = 借债务/贷信用卡(账单 +),描述区别
     // 于手工还款;缺省维持既有「还款 X」。
     String? description,
+    // 财政贴息(政策性利息补贴,dev 2026-10-25):应还全额中由补贴承担的
+    // 部分。>0 时分录三腿 = 借债务(全额) / 贷还款账户(净额) / 贷补贴
+    // 收入账户(贴息),paidCents 仍记全额(现金+补贴合计清偿该期)。
+    int subsidyCents = 0,
+    String? subsidyAccountId,
   }) async {
     final row = await _require(debtId);
     final schedule = await _dao.watchScheduleByDebt(debtId).first;
     final entry = schedule.where((s) => s.id == scheduleEntryId).firstOrNull;
     if (entry == null) throw const ServerFailure('还款期次不存在');
     if (entry.paid) throw const ServerFailure('该期次已还款');
+    if (subsidyCents < 0) throw const ServerFailure('贴息金额不能为负');
+    if (subsidyCents > 0 &&
+        (subsidyAccountId == null || subsidyAccountId.isEmpty)) {
+      throw const ServerFailure('贴息记账需选择补贴收入账户');
+    }
+    if (subsidyCents >= entry.totalCents && entry.totalCents > 0) {
+      throw const ServerFailure('贴息金额须小于该期应还');
+    }
+    // 期表优惠(v15 银行计划口径):与手工贴息同为减免,叠加后不得吃空
+    // 应还(实付 > 0)。
+    if (entry.discountCents < 0) {
+      throw const ServerFailure('期次优惠金额不能为负');
+    }
+    if (entry.discountCents + subsidyCents >= entry.totalCents &&
+        entry.totalCents > 0) {
+      throw const ServerFailure('优惠+贴息须小于该期应还');
+    }
 
     late PaymentEntry paid;
     await _database.transaction(() async {
       // Double-entry repayment (server debt_handler.go:450-462):
       // borrowedIn = credit from + debit debt (liability−);
       // borrowedOut = debit from + credit debt (receivable−).
+      // 贴息仅借入语义(政策性补贴冲利息,应收收款无此形态):三腿中
+      // 补贴腿恒为贷(收入)。
       final isBorrowedIn = row.debtType == DebtType.borrowedIn.index + 1;
+      if (subsidyCents > 0 && !isBorrowedIn) {
+        throw const ServerFailure('贴息记账仅支持借入债务');
+      }
+      // 实付 = 毛口径应还 − 期表优惠(v15) − 手工贴息;优惠/贴息同为
+      // 减免收入腿。本金/利息分腿(2026-10-26):借方拆「借债务户(本金)+
+      // 借贷款利息(毛息)」—— 载体余额收敛纯本金口径,利息集中进费用
+      // 账户;利息 0(无息期次)不产生利息腿。借出方向暂保持本息合记。
+      final discountCents = isBorrowedIn ? entry.discountCents : 0;
+      final cashCents = entry.totalCents - discountCents - subsidyCents;
+      final interestAcct = (isBorrowedIn && entry.interestCents > 0)
+          ? await _ensureLoanInterestAccount(markPending: markPending)
+          : null;
+      final discountAcct = discountCents > 0
+          ? await _ensureLoanDiscountAccount(markPending: markPending)
+          : null;
+      final entries = <TransactionEntry>[
+        if (isBorrowedIn) ...[
+          TransactionEntry(
+              accountId: row.accountId,
+              debitCents: entry.principalCents,
+              creditCents: 0),
+          if (entry.interestCents > 0)
+            TransactionEntry(
+                accountId: interestAcct!,
+                debitCents: entry.interestCents,
+                creditCents: 0,
+                note: '利息'),
+        ] else
+          TransactionEntry(
+              accountId: fromAccountId,
+              debitCents: entry.totalCents,
+              creditCents: 0),
+        TransactionEntry(
+            accountId: isBorrowedIn ? fromAccountId : row.accountId,
+            debitCents: 0,
+            creditCents: cashCents),
+        if (discountCents > 0)
+          TransactionEntry(
+              accountId: discountAcct!,
+              debitCents: 0,
+              creditCents: discountCents,
+              note: '贷款利息优惠'),
+        if (subsidyCents > 0)
+          TransactionEntry(
+              accountId: subsidyAccountId!,
+              debitCents: 0,
+              creditCents: subsidyCents),
+      ];
       final txn = await _txns.recordTransaction(
           RecordTransactionParams(
         transactionDate: entry.paymentDate,
         description: description ?? '还款 ${row.counterparty}',
-        entries: [
-          TransactionEntry(
-              accountId: isBorrowedIn ? row.accountId : fromAccountId,
-              debitCents: entry.totalCents,
-              creditCents: 0),
-          TransactionEntry(
-              accountId: isBorrowedIn ? fromAccountId : row.accountId,
-              debitCents: 0,
-              creditCents: entry.totalCents),
-        ],
+        entries: entries,
       ), markPending: markPending);
       await _dao.updateScheduleEntry(db.PaymentScheduleEntriesCompanion(
         id: Value(scheduleEntryId),
@@ -824,6 +942,57 @@ class DebtLocalDataSource {
   /// 合并为**一笔**还款交易(借贷款账户/贷还款来源;银行「X日出账、Y日前
   /// 一次还清」口径),期次批量标记已还并挂到同一交易。复合写语义照
   /// [recordPayment]:期次已还事实与债务头行 pending 同事务保护。
+  /// 导入银行还款计划(v15,2026-10-27「抄一次银行计划」模式):按日期
+  /// 匹配**未还**期次,覆写本金/利息/优惠/合计(毛口径 = 本金+利息);
+  /// 已还期次冻结不动(历史以实记为准);无匹配日期的行计入返回值。
+  /// total 语义对齐银行毛口径,记账实付 = total − discount。
+  Future<({int applied, List<DateTime> noMatch, int skippedPaid})>
+      importBankSchedule({
+    required String debtId,
+    required List<BankPlanRow> rows,
+    bool markPending = false,
+  }) async {
+    await _require(debtId); // 校验存在(不存在 → ServerFailure)
+    final entries = await _dao.getScheduleByDebt(debtId);
+    var applied = 0;
+    var skippedPaid = 0;
+    final noMatch = <DateTime>[];
+    await _database.transaction(() async {
+      for (final r in rows) {
+        final matches = entries.where((e) =>
+            e.paymentDate.year == r.date.year &&
+            e.paymentDate.month == r.date.month &&
+            e.paymentDate.day == r.date.day);
+        if (matches.isEmpty) {
+          noMatch.add(r.date);
+          continue;
+        }
+        for (final e in matches) {
+          if (e.paid) {
+            skippedPaid++;
+            continue;
+          }
+          await _dao.updateScheduleEntry(
+              db.PaymentScheduleEntriesCompanion(
+            id: Value(e.id),
+            principalCents: Value(r.principalCents),
+            interestCents: Value(r.interestCents),
+            discountCents: Value(r.discountCents),
+            totalCents: Value(r.principalCents + r.interestCents),
+          ));
+          applied++;
+        }
+      }
+      if (markPending && applied > 0) {
+        await _dao.updateDebt(db.DebtsCompanion(
+          id: Value(debtId),
+          syncState: const Value(SyncState.pending),
+        ));
+      }
+    });
+    return (applied: applied, noMatch: noMatch, skippedPaid: skippedPaid);
+  }
+
   Future<void> repayBill({
     required String loanAccountId,
     required List<({String debtId, String entryId})> items,
@@ -834,6 +1003,9 @@ class DebtLocalDataSource {
     if (items.isEmpty) throw const ValidationFailure('账单没有可还期次');
     await _database.transaction(() async {
       var total = 0;
+      var principalSum = 0;
+      var interestSum = 0;
+      var discountSum = 0;
       final debtIds = <String>{};
       for (final it in items) {
         final row = await _require(it.debtId);
@@ -845,9 +1017,21 @@ class DebtLocalDataSource {
         if (entry == null) throw const ServerFailure('还款期次不存在');
         if (entry.paid) throw const ServerFailure('该期次已还款');
         total += entry.totalCents;
+        principalSum += entry.principalCents;
+        interestSum += entry.interestCents;
+        discountSum += entry.discountCents;
         debtIds.add(it.debtId);
       }
       if (total <= 0) throw const ValidationFailure('账单金额必须大于零');
+      // 本金/利息分腿(2026-10-26,同 recordPayment):贷款户借方只记本金
+      // 合计,利息合计进「贷款利息」费用户;credit 侧 = 实付(账单全额 −
+      // 期表优惠合计,v15)+ 优惠收入腿。
+      final interestAcct = interestSum > 0
+          ? await _ensureLoanInterestAccount(markPending: markPending)
+          : null;
+      final discountAcct = discountSum > 0
+          ? await _ensureLoanDiscountAccount(markPending: markPending)
+          : null;
       final now = DateTime.now();
       final txn = await _txns.recordTransaction(
           RecordTransactionParams(
@@ -855,9 +1039,23 @@ class DebtLocalDataSource {
         description: description ?? '账单还款',
         entries: [
           TransactionEntry(
-              accountId: loanAccountId, debitCents: total, creditCents: 0),
+              accountId: loanAccountId, debitCents: principalSum, creditCents: 0),
+          if (interestSum > 0)
+            TransactionEntry(
+                accountId: interestAcct!,
+                debitCents: interestSum,
+                creditCents: 0,
+                note: '利息'),
           TransactionEntry(
-              accountId: fromAccountId, debitCents: 0, creditCents: total),
+              accountId: fromAccountId,
+              debitCents: 0,
+              creditCents: total - discountSum),
+          if (discountSum > 0)
+            TransactionEntry(
+                accountId: discountAcct!,
+                debitCents: 0,
+                creditCents: discountSum,
+                note: '贷款利息优惠'),
         ],
       ), markPending: markPending);
       for (final it in items) {
@@ -1157,6 +1355,7 @@ class DebtLocalDataSource {
         principalCents: s.principalCents,
         interestCents: s.interestCents,
         totalCents: s.totalCents,
+        discountCents: s.discountCents,
         paid: s.paid,
         paidCents: s.paidCents,
         transactionId: s.transactionId ?? '',
@@ -1185,9 +1384,10 @@ class DebtLocalDataSource {
     // unpaid 仅剩本息/本金合计用(求和与顺序无关,原排序只为选下一期,删)。
     final unpaid = schedule.where((s) => !s.paid).toList();
     final paidCents = schedule.fold(0, (a, s) => a + s.paidCents);
-    // 本息口径:未还期次利息合计(镜像 server RemainingInterest)。
+    // 本息口径:未还期次实息合计(毛息−优惠,银行「共应还」同口径;server
+    // RemainingInterest 无优惠列,远端模式仍毛息)。
     final unpaidInterest =
-        unpaid.fold(0, (a, s) => a + s.interestCents);
+        unpaid.fold(0, (a, s) => a + s.interestCents - s.discountCents);
     // 剩余本金 = 未还期次本金部分合计(银行口径;排期自带 principal/interest
     // 拆分)。此前 = 总本金 − Σ已还全额(paidCents 含利息)——把利息混冲进
     // 本金,比银行口径少「已还期次的利息合计」(dev 2026-10-08 反馈:7-5 贷
@@ -1197,9 +1397,14 @@ class DebtLocalDataSource {
     // 回期表按下标定位被选中期 —— 首个 !paid 且 paymentDate == next.date 的行
     // (debtNextPeriod 并列日期取期表序在前,故与原 schedule.indexOf(next)
     // 命中同一行,期数不变)。
-    final nextPeriodNo = next == null
-        ? 0
-        : schedule.indexWhere((s) => !s.paid && s.paymentDate == next.date) + 1;
+    final nextIdx = next == null
+        ? -1
+        : schedule.indexWhere((s) => !s.paid && s.paymentDate == next.date);
+    final nextPeriodNo = nextIdx + 1;
+    // 下一期应还=本息毛额−优惠(银行「每期应还」口径,与实付一致)。
+    final nextAmount = nextIdx >= 0
+        ? schedule[nextIdx].totalCents - schedule[nextIdx].discountCents
+        : 0;
     return Debt(
       id: r.id,
       accountId: r.accountId,
@@ -1237,7 +1442,7 @@ class DebtLocalDataSource {
       nextPaymentDueDate: r.subtype == DebtSubtypes.cardLoan
           ? _nextPeriodDueDate(schedule, next?.date)
           : null,
-      nextPaymentAmountCents: next?.totalCents ?? 0,
+      nextPaymentAmountCents: nextAmount,
       nextPaymentPeriodNo: nextPeriodNo,
       remainingTrendCents: r.totalPrincipalCents - paidCents,
     );

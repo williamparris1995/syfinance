@@ -74,6 +74,9 @@ class DebtMapper {
       paid: dto.paid,
       paidCents: dto.paidCents.toInt(),
       transactionId: dto.transactionId,
+      // proto 无优惠字段(v15 本地口径):远端镜像缺省 0,本地行经镜像
+      // keep-existing 保留(同 countsTowardCardLimit 先例)。
+      discountCents: 0,
     );
   }
 

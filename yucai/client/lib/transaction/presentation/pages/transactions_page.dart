@@ -23,6 +23,8 @@ import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dar
 import 'package:yucai_client/transaction/presentation/bloc/transaction_state.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
+import 'package:yucai_client/transaction/presentation/widgets/txn_split_summary.dart';
+import 'package:yucai_client/transaction/presentation/widgets/txn_view_calc.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 import 'package:yucai_client/transaction/presentation/widgets/summary_card.dart';
 import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.dart';
@@ -1155,29 +1157,11 @@ class _TxTableRow extends StatelessWidget {
   }
 
   /// 转账判定（两条 entry 且两端账户都是 asset）。
-  bool get _isTransfer {
-    if (txn.entries.length != 2) return false;
-    final e0 = accountOf(txn.entries[0].accountId);
-    final e1 = accountOf(txn.entries[1].accountId);
-    if (e0 == null || e1 == null) return txn.isBalanced;
-    return e0.accountType == AccountType.asset &&
-        e1.accountType == AccountType.asset;
-  }
-
-  TxnFlavour get _flavour {
-    // 用 account type 判定,避免 inferFlavour 误判 expense/income 为 transfer。
-    if (_isTransfer) return TxnFlavour.transfer;
-    for (final e in txn.entries) {
-      final t = accountOf(e.accountId)?.accountType;
-      if (t == AccountType.expense) return TxnFlavour.expense;
-      if (t == AccountType.income) return TxnFlavour.income;
-    }
-    return TxnFlavour.compound;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final flavour = _flavour;
+    // 底层计算单源(txn_view_calc,2026-10-26):flavour/账户格/转账判定
+    // 不再持有本地副本。
+    final flavour = txnFlavourOf(txn, accountOf);
     final amount = txn.totalDebitCents; // 表格用主金额（借方合计）展示
     final cell = _resolveAccountCell();
 
@@ -1225,7 +1209,8 @@ class _TxTableRow extends StatelessWidget {
               child: _TxMain(
                 description: txn.description,
                 flavour: flavour,
-                secondary: _secondaryLine(cell),
+                secondary:
+                    _withSplitLine(_secondaryLine(cell), txn, accountOf),
                 category: cell.categoryAccount,
               ),
             ),
@@ -1283,43 +1268,19 @@ class _TxTableRow extends StatelessWidget {
     return cell.primaryLabel;
   }
 
-  /// 解析账户列内容（转账双账户 / 非转账单账户 + 分类）。
+  /// 解析账户列内容:计算走 [txnAccountCellOf] 单源,这里只做名称映射。
   _AccountCell _resolveAccountCell() {
-    if (_isTransfer) {
-      final fromEntry = txn.entries.firstWhere(
-        (e) => e.creditCents > 0,
-        orElse: () => txn.entries.first,
-      );
-      final toEntry = txn.entries.firstWhere(
-        (e) => e.debitCents > 0,
-        orElse: () => txn.entries.last,
-      );
+    final c = txnAccountCellOf(txn, accountOf);
+    if (c.isTransfer) {
       return _AccountCell.transfer(
-        accountNameOf(fromEntry.accountId),
-        accountNameOf(toEntry.accountId),
+        accountNameOf(c.fromAccountId),
+        accountNameOf(c.toAccountId),
       );
     }
-    // 非转账：asset 账户为主，对侧（income/expense）为分类。
-    Account? assetAccount;
-    Account? otherAccount;
-    String assetId = '';
-    for (final e in txn.entries) {
-      final a = accountOf(e.accountId);
-      if (a == null) continue;
-      if (a.accountType == AccountType.asset && assetAccount == null) {
-        assetAccount = a;
-        assetId = e.accountId;
-      } else {
-        otherAccount ??= a;
-      }
-    }
-    final primaryId = assetId.isNotEmpty
-        ? assetId
-        : (txn.entries.isNotEmpty ? txn.entries.first.accountId : '');
     return _AccountCell.single(
-      primaryId.isEmpty ? '' : accountNameOf(primaryId),
-      otherAccount,
-      primaryId,
+      accountNameOf(c.primaryAccountId),
+      c.categoryAccount,
+      c.primaryAccountId,
     );
   }
 }
@@ -1625,6 +1586,16 @@ class TxnTypeSeg extends StatelessWidget {
   }
 }
 
+/// 分腿摘要(2026-10-26):还贷类交易副行尾拼「本金 x · 利息 y(· 贴息 z)」。
+/// 无分腿(普通交易)原样返回,零扰动。
+String _withSplitLine(
+    String secondary, Transaction txn, Account? Function(String) accountOf) {
+  final split = txnSplitOf(txn, accountOf);
+  if (split == null) return secondary;
+  final label = txnSplitLabel(split, '¥');
+  return secondary.isEmpty ? label : '$secondary · $label';
+}
+
 class _MobileTxnCard extends StatelessWidget {
   const _MobileTxnCard({
     required this.txn,
@@ -1638,43 +1609,6 @@ class _MobileTxnCard extends StatelessWidget {
   final Account? Function(String id) accountOf;
   final VoidCallback onTap;
 
-  TxnFlavour get _flavour {
-    // inferFlavour 仅看「2 entries + balanced → transfer」,会误判 expense/income
-    // (它们也是 2 entries balanced)。改用 account type 判定:
-    //   asset×2 → transfer;含 expense → expense;含 income → income;else compound。
-    if (_isTransfer) return TxnFlavour.transfer;
-    for (final e in txn.entries) {
-      final t = accountOf(e.accountId)?.accountType;
-      if (t == AccountType.expense) return TxnFlavour.expense;
-      if (t == AccountType.income) return TxnFlavour.income;
-    }
-    return TxnFlavour.compound;
-  }
-
-  /// 转账判定：两条 entry 且两端账户都是 asset（无元信息退化为平衡两行）。
-  bool get _isTransfer {
-    if (txn.entries.length != 2) return false;
-    final e0 = accountOf(txn.entries[0].accountId);
-    final e1 = accountOf(txn.entries[1].accountId);
-    if (e0 == null || e1 == null) return txn.isBalanced;
-    return e0.accountType == AccountType.asset &&
-        e1.accountType == AccountType.asset;
-  }
-
-  /// 分类账户:非转账交易的 expense/income 对方账户(account-as-category)。
-  /// 转账无分类账户,返回 null(_CategoryChip 隐藏)。
-  Account? get _categoryAccount {
-    for (final e in txn.entries) {
-      final a = accountOf(e.accountId);
-      if (a != null &&
-          (a.accountType == AccountType.expense ||
-              a.accountType == AccountType.income)) {
-        return a;
-      }
-    }
-    return null;
-  }
-
   /// HH:MM:优先 transactionTime,回退 transactionDate。
   String get _hhmm {
     final dt = txn.transactionTime ?? txn.transactionDate;
@@ -1684,38 +1618,17 @@ class _MobileTxnCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final flavour = _flavour;
+    // 底层计算单源(txn_view_calc,2026-10-26):flavour/账户格/转账判定
+    // 不再持有本地副本。
+    final flavour = txnFlavourOf(txn, accountOf);
     final amount = txn.totalDebitCents;
-    final isTransfer = _isTransfer;
-    String fromLabel = '';
-    String toLabel = '';
-    String singleLabel = '';
-    if (isTransfer) {
-      final fromEntry = txn.entries.firstWhere(
-        (e) => e.creditCents > 0,
-        orElse: () => txn.entries.first,
-      );
-      final toEntry = txn.entries.firstWhere(
-        (e) => e.debitCents > 0,
-        orElse: () => txn.entries.last,
-      );
-      fromLabel = accountNameOf(fromEntry.accountId);
-      toLabel = accountNameOf(toEntry.accountId);
-    } else {
-      // 非转账：asset 账户为主，找不到 asset 退化为首条。
-      String assetId = '';
-      for (final e in txn.entries) {
-        final a = accountOf(e.accountId);
-        if (a != null && a.accountType == AccountType.asset) {
-          assetId = e.accountId;
-          break;
-        }
-      }
-      final primaryId = assetId.isNotEmpty
-          ? assetId
-          : (txn.entries.isNotEmpty ? txn.entries.first.accountId : '');
-      singleLabel = primaryId.isEmpty ? '' : accountNameOf(primaryId);
-    }
+    final cell = txnAccountCellOf(txn, accountOf);
+    final isTransfer = cell.isTransfer;
+    final split = txnSplitOf(txn, accountOf);
+    final fromLabel = isTransfer ? accountNameOf(cell.fromAccountId) : '';
+    final toLabel = isTransfer ? accountNameOf(cell.toAccountId) : '';
+    final singleLabel =
+        isTransfer ? '' : accountNameOf(cell.primaryAccountId);
 
     return GestureDetector(
       onTap: onTap,
@@ -1732,7 +1645,7 @@ class _MobileTxnCard extends StatelessWidget {
           children: [
             _TxIconBox(
                 flavour: flavour,
-                category: _categoryAccount,
+                category: cell.categoryAccount,
                 description: txn.description),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -1776,6 +1689,13 @@ class _MobileTxnCard extends StatelessWidget {
                           Text('· $_hhmm',
                               style: TextStyle(
                                   color: context.yucai.muted, fontSize: 12)),
+                        if (split != null)
+                          Text('· ${txnSplitLabel(split, '¥')}',
+                              style: TextStyle(
+                                  color: context.yucai.muted,
+                                  fontSize: 11,
+                                  fontFeatures:
+                                      AppTypography.tabularFigures)),
                       ],
                     )
                   else
@@ -1798,6 +1718,13 @@ class _MobileTxnCard extends StatelessWidget {
                           Text('· $_hhmm',
                               style: TextStyle(
                                   color: context.yucai.muted, fontSize: 12)),
+                        if (split != null)
+                          Text('· ${txnSplitLabel(split, '¥')}',
+                              style: TextStyle(
+                                  color: context.yucai.muted,
+                                  fontSize: 11,
+                                  fontFeatures:
+                                      AppTypography.tabularFigures)),
                       ],
                     ),
                 ],
@@ -1807,7 +1734,7 @@ class _MobileTxnCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _CategoryChip(account: _categoryAccount),
+                _CategoryChip(account: cell.categoryAccount),
                 const SizedBox(height: 4),
                 Text(
                   _formatCents(amount, signed: true),

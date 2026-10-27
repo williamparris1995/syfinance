@@ -148,6 +148,20 @@ Account _assetAccount({
       status: AccountStatus.active,
     );
 
+/// income 分类账户(财政贴息收入腿;类别落 otherAsset,镜像存量收入户)。
+Account _incomeAccount({String id = 'acct-subsidy', String name = '财政贴息'}) =>
+    Account(
+      id: id,
+      name: name,
+      accountType: AccountType.income,
+      category: AccountCategory.otherAsset,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+
 Widget _harness({
   required DebtDetail detail,
   List<Account> accounts = const [],
@@ -171,7 +185,9 @@ Widget _harness({
   when(() => debtRepo.recordPayment(
           debtId: any(named: 'debtId'),
           scheduleEntryId: any(named: 'scheduleEntryId'),
-          fromAccountId: any(named: 'fromAccountId')))
+          fromAccountId: any(named: 'fromAccountId'),
+          subsidyCents: any(named: 'subsidyCents'),
+          subsidyAccountId: any(named: 'subsidyAccountId')))
       .thenAnswer((_) async => dartz.Right(detail.schedule.first));
   when(() => accountRepo.list())
       .thenAnswer((_) async => dartz.Right(accounts));
@@ -420,7 +436,9 @@ void main() {
       when(() => debtRepo.recordPayment(
               debtId: any(named: 'debtId'),
               scheduleEntryId: any(named: 'scheduleEntryId'),
-              fromAccountId: any(named: 'fromAccountId')))
+              fromAccountId: any(named: 'fromAccountId'),
+              subsidyCents: any(named: 'subsidyCents'),
+              subsidyAccountId: any(named: 'subsidyAccountId')))
           .thenAnswer((inv) {
         recorded = true;
         return Future.value(dartz.Right(detail.schedule.first));
@@ -457,6 +475,80 @@ void main() {
       await t.pumpAndSettle();
     });
 
+    // 财政贴息(dev 2026-10-25):dialog 填补贴 + 选收入账户 → 三参提交,
+    // repo 收到 subsidyCents=211 / subsidyAccountId;预览行显净额。
+    testWidgets('dialog 贴息 2.11 + 选收入账户 → 提交携带贴息参数', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const RecordPaymentRequested(
+          debtId: '', scheduleEntryId: '', fromAccountId: ''));
+      final detail = _detail();
+      when(() => debtRepo.get(any()))
+          .thenAnswer((_) async => dartz.Right(detail));
+      int? gotSubsidy;
+      String? gotSubsidyAcct;
+      when(() => debtRepo.recordPayment(
+              debtId: any(named: 'debtId'),
+              scheduleEntryId: any(named: 'scheduleEntryId'),
+              fromAccountId: any(named: 'fromAccountId'),
+              subsidyCents: any(named: 'subsidyCents'),
+              subsidyAccountId: any(named: 'subsidyAccountId')))
+          .thenAnswer((inv) {
+        gotSubsidy = inv.namedArguments[#subsidyCents] as int?;
+        gotSubsidyAcct = inv.namedArguments[#subsidyAccountId] as String?;
+        return Future.value(dartz.Right(detail.schedule.first));
+      });
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _assetAccount(id: 'acct-1'),
+            _incomeAccount(),
+          ]));
+      GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+
+      await t.pumpWidget(MaterialApp(
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+            BlocProvider<CurrencyBloc>.value(
+                value: _FakeCurrencyBloc(const CurrencyState())),
+          ],
+          child: DebtDetailPage(id: detail.debt.id),
+        ),
+      ));
+      await t.pumpAndSettle();
+      final scrollable = pageScrollable();
+      await t.drag(scrollable, const Offset(0, -600));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('立即记账').first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('立即记账').first);
+      await t.pumpAndSettle();
+      // 贴息区存在(仅债务侧渲染)。
+      expect(find.textContaining('财政贴息'), findsOneWidget);
+      // 唯一 TextField = 贴息金额;填 2.11。
+      await t.enterText(find.byType(TextField), '2.11');
+      await t.pump();
+      // 两个下拉:0=还款账户,1=补贴收入账户。
+      final dropdowns = find.byType(DropdownButtonFormField<String>);
+      expect(dropdowns, findsNWidgets(2));
+      await t.tap(dropdowns.at(1));
+      await t.pumpAndSettle();
+      await t.tap(find.text('财政贴息').last);
+      await t.pumpAndSettle();
+      // 预览行:银行实付 = 应还 − 贴息(e3 = 405800+947300=1353100-211)。
+      expect(find.textContaining('银行实付'), findsOneWidget);
+      await t.tap(find.widgetWithText(ElevatedButton, '确认记账'));
+      for (var i = 0; i < 10 && gotSubsidy == null; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(gotSubsidy, 211);
+      expect(gotSubsidyAcct, 'acct-subsidy');
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
     // Task 4 (ccs): RecordPayment 双写后 server 端 account 余额已变,详情页
     // 必须重新拉 account 列表。验证:list() 在 initState 调用一次后,RecordPayment
     // 成功(DebtDetailLoaded)再被调用。
@@ -476,7 +568,9 @@ void main() {
       when(() => debtRepo.recordPayment(
               debtId: any(named: 'debtId'),
               scheduleEntryId: any(named: 'scheduleEntryId'),
-              fromAccountId: any(named: 'fromAccountId')))
+              fromAccountId: any(named: 'fromAccountId'),
+              subsidyCents: any(named: 'subsidyCents'),
+              subsidyAccountId: any(named: 'subsidyAccountId')))
           .thenAnswer(
               (_) async => dartz.Right(detail.schedule.first));
       var listCalls = 0;
@@ -915,7 +1009,7 @@ void main() {
     });
 
     testWidgets(
-        'FR-3/FR-4 dock 常驻右下:primary=立即记账,secondary=[编辑],'
+        'FR-3/FR-4 dock 常驻右下:primary=立即记账,secondary=[编辑,导入银行计划],'
         'muted=[删除债务],滚动 bottom padding ≥253', (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
@@ -936,7 +1030,8 @@ void main() {
       final dock = t.widget<FloatingActionDock>(find.byType(FloatingActionDock));
       expect(dock.primary.tooltip, '立即记账');
       expect(dock.primary.onTap, isNotNull, reason: '已加载且有未还期次 → 可触发');
-      expect(dock.secondary.map((a) => a.tooltip).toList(), ['编辑']);
+      expect(dock.secondary.map((a) => a.tooltip).toList(), ['编辑', '导入银行计划'],
+          reason: 'v15 增银行计划导入入口');
       expect(dock.secondary.every((a) => a.onTap != null), isTrue);
       expect(dock.muted.map((a) => a.tooltip).toList(), ['删除债务']);
       expect(dock.muted.every((a) => a.onTap != null), isTrue);

@@ -251,11 +251,19 @@ class RecordPaymentRequested extends DebtEvent {
     required this.debtId,
     required this.scheduleEntryId,
     required this.fromAccountId,
+    this.subsidyCents = 0,
+    this.subsidyAccountId,
   });
   final String debtId;
   final String scheduleEntryId;
   final String fromAccountId;
 
+  /// 财政贴息(政策性利息补贴):>0 时三腿分录,详见
+  /// [DebtRepository.recordPayment] 契约注释。
+  final int subsidyCents;
+  final String? subsidyAccountId;
+
   @override
-  List<Object?> get props => [debtId, scheduleEntryId, fromAccountId];
+  List<Object?> get props =>
+      [debtId, scheduleEntryId, fromAccountId, subsidyCents, subsidyAccountId];
 }

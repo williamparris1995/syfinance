@@ -160,13 +160,19 @@ class PaymentEntry extends Equatable {
     required this.paid,
     required this.paidCents,
     required this.transactionId,
+    this.discountCents = 0,
   });
 
   final String id;
   final DateTime paymentDate;
   final int principalCents;
   final int interestCents;
+
+  /// 银行毛口径合计(本金+毛息);实付 = totalCents − discountCents。
   final int totalCents;
+
+  /// 每期优惠/贴息减免(v15 银行计划表口径);0 = 无。
+  final int discountCents;
   final bool paid;
   final int paidCents;
   final String transactionId; // '' = 未关联交易
@@ -180,7 +186,7 @@ class PaymentEntry extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, paidCents];
+  List<Object?> get props => [id, paidCents, discountCents];
 }
 
 class DebtDetail extends Equatable {

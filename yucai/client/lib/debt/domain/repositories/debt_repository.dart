@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/debt/domain/bank_plan_parser.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 
@@ -79,10 +80,24 @@ abstract class DebtRepository {
     required String debtId,
     required String entryId,
   });
+  /// 记账还款。[subsidyCents]/[subsidyAccountId] = 财政贴息(政策性利息
+  /// 补贴,仅借入债):>0 时三腿分录 —— 借债务(期表全额)/ 贷还款账户
+  /// (净额)/ 贷补贴收入账户(贴息)。远端 proto 无补贴字段,>0 时由
+  /// 实现层拦截报错。
   Future<Either<Failure, PaymentEntry>> recordPayment({
     required String debtId,
     required String scheduleEntryId,
     required String fromAccountId,
+    int subsidyCents = 0,
+    String? subsidyAccountId,
+  });
+
+  /// 导入银行还款计划(v15):按日期覆写未还期次的本金/利息/优惠
+  /// (已还冻结)。远端路由暂不支持(proto 无期表优惠字段)。
+  Future<Either<Failure, ({int applied, List<DateTime> noMatch, int skippedPaid})>>
+      importBankSchedule({
+    required String debtId,
+    required List<BankPlanRow> rows,
   });
 
   /// 账单制整单还款(独立账单卡贷,如 e招贷):周期内全部到期未还期次

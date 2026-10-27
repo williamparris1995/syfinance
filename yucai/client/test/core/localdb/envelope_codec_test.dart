@@ -265,6 +265,7 @@ void main() {
           principalCents: 9000,
           interestCents: 1000,
           totalCents: 10000,
+          discountCents: 0,
           paidCents: 0,
           paid: false,
           transactionId: null,

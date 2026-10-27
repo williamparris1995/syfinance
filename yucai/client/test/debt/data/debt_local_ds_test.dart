@@ -17,6 +17,7 @@ import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/account_dao.dart';
 import 'package:yucai_client/debt/data/debt_local_ds.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart';
+import 'package:yucai_client/debt/domain/bank_plan_parser.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/transaction/data/balance_updater.dart';
@@ -66,6 +67,7 @@ void main() {
     cash = await seedAccount('cash', 1, 100000000); // ¥100 万
     final loan = await seedAccount('loan', 2, 0);
     final recv = await seedAccount('recv', 1, 0);
+    await seedAccount('income', 4, 0); // income 分类账户(贴息收入腿)
 
     Future<Debt> seed(
       String counterparty,
@@ -245,8 +247,8 @@ void main() {
 
       // 结转分录存在(描述 + 两腿平衡)。
       final txns = await database.select(database.transactions).get();
-      final settle = txns
-          .firstWhere((t) => t.description == '标记已还 历史贷');
+      // 存在性断言:firstWhere 找不到会抛(即失败)。
+      txns.firstWhere((t) => t.description == '标记已还 历史贷');
       // 债务账户余额下降(负债减少)。
       final after = await database.accountDao.getAccountById('acc-loan');
       expect(after!.currentBalanceCents,
@@ -327,6 +329,194 @@ void main() {
           .description;
       expect(desc, '还款 招商银行');
       expect(desc.contains('Closure'), isFalse);
+    });
+
+    test('recordPayment 财政贴息 → 三腿分录(债务全额借/现金净额贷/补贴收入贷),paidCents=全额',
+        () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '工商银行',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 4, 1),
+        totalPrincipalCents: 300000,
+        type: DebtType.borrowedIn,
+      );
+      final first = (await debts.get(d.id)).schedule.first;
+      final got = await debts.recordPayment(
+        debtId: d.id,
+        scheduleEntryId: first.id,
+        fromAccountId: 'acc-cash',
+        subsidyCents: 211,
+        subsidyAccountId: 'acc-income',
+      );
+      final rows = await (database.select(database.transactionEntries)
+            ..where((e) => e.transactionId.equals(got.transactionId)))
+          .get();
+      expect(rows, hasLength(3));
+      final loanLeg = rows.singleWhere((r) => r.accountId == 'acc-loan');
+      expect(loanLeg.debitCents, first.totalCents);
+      expect(loanLeg.creditCents, 0);
+      final cashLeg = rows.singleWhere((r) => r.accountId == 'acc-cash');
+      expect(cashLeg.creditCents, first.totalCents - 211);
+      final subsidyLeg = rows.singleWhere((r) => r.accountId == 'acc-income');
+      expect(subsidyLeg.creditCents, 211);
+      // 期次按全额清偿(现金 + 补贴),paidCents 与期表一致。
+      final paid = (await debts.get(d.id)).schedule
+          .singleWhere((s) => s.id == first.id);
+      expect(paid.paid, isTrue);
+      expect(paid.paidCents, first.totalCents);
+    });
+
+    test('recordPayment 期表优惠(v15)→ 四腿:本金/毛息借,实付+优惠收入贷', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '平安银行',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 4, 1),
+        totalPrincipalCents: 300000,
+        type: DebtType.borrowedIn,
+      );
+      // 手工给期表行塞银行真值(本金/毛息/优惠)——模拟「导入银行计划」
+      // 之后的形态。
+      final e0 = (await database.debtDao.getScheduleByDebt(d.id)).first;
+      await database.debtDao.updateScheduleEntry(
+          db.PaymentScheduleEntriesCompanion(
+        id: Value(e0.id),
+        principalCents: const Value(100000),
+        interestCents: const Value(4000),
+        discountCents: const Value(300),
+        totalCents: const Value(104000),
+      ));
+      final got = await debts.recordPayment(
+        debtId: d.id,
+        scheduleEntryId: e0.id,
+        fromAccountId: 'acc-cash',
+      );
+      final rows = await (database.select(database.transactionEntries)
+            ..where((t) => t.transactionId.equals(got.transactionId)))
+          .get();
+      expect(rows, hasLength(4));
+      final loanLeg = rows.singleWhere((r) => r.accountId == 'acc-loan');
+      expect(loanLeg.debitCents, 100000, reason: '本金腿=银行本金');
+      expect(rows.any((r) => r.debitCents == 4000 && r.note == '利息'), isTrue,
+          reason: '毛息腿(期表 interest)');
+      expect(rows.any((r) => r.creditCents == 103700), isTrue,
+          reason: '实付 = 104000 − 300');
+      expect(
+          rows.any((r) =>
+              r.creditCents == 300 && r.note == '贷款利息优惠'),
+          isTrue,
+          reason: '优惠收入腿');
+      final paid = (await debts.get(d.id)).schedule
+          .singleWhere((x) => x.id == e0.id);
+      expect(paid.paidCents, 104000, reason: '毛口径全额清偿');
+    });
+
+    test('importBankSchedule(v15):按日期覆写未还期次,已还冻结,未匹配上报', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '平安银行',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 5, 1),
+        totalPrincipalCents: 400000,
+        type: DebtType.borrowedIn,
+      );
+      final schedule = await database.debtDao.getScheduleByDebt(d.id);
+      expect(schedule.length, 4);
+      // 第 1 期标记已还(冻结对照)。
+      await debts.markEntryPaid(debtId: d.id, entryId: schedule[0].id);
+      final r = await debts.importBankSchedule(
+        debtId: d.id,
+        rows: [
+          BankPlanRow(
+              date: schedule[0].paymentDate,
+              principalCents: 111,
+              interestCents: 22,
+              discountCents: 3), // 已还 → 冻结不改
+          BankPlanRow(
+              date: schedule[1].paymentDate,
+              principalCents: 100000,
+              interestCents: 4000,
+              discountCents: 300),
+          BankPlanRow(
+              date: DateTime.utc(2030, 1, 1),
+              principalCents: 1,
+              interestCents: 1), // 无匹配日期
+        ],
+      );
+      expect(r.applied, 1);
+      expect(r.skippedPaid, 1);
+      expect(r.noMatch, [DateTime.utc(2030, 1, 1)]);
+      final after = await database.debtDao.getScheduleByDebt(d.id);
+      expect(after[0].principalCents, schedule[0].principalCents,
+          reason: '已还期次冻结');
+      expect(after[1].principalCents, 100000);
+      expect(after[1].interestCents, 4000);
+      expect(after[1].discountCents, 300);
+      expect(after[1].totalCents, 104000, reason: '合计=本金+毛息');
+      expect(after[2].principalCents, schedule[2].principalCents,
+          reason: '未提及期次不动');
+    });
+
+    test('recordPayment 贴息校验:缺补贴账户/贴息≥应还/借出方向 → 拒绝且不留痕',
+        () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '工商银行',
+        interestRate: 0,
+        amortizationIndex: 1,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 4, 1),
+        totalPrincipalCents: 300000,
+        type: DebtType.borrowedIn,
+      );
+      final first = (await debts.get(d.id)).schedule.first;
+      // 贴息>0 但未选补贴收入账户。
+      await expectLater(
+          debts.recordPayment(
+              debtId: d.id,
+              scheduleEntryId: first.id,
+              fromAccountId: 'acc-cash',
+              subsidyCents: 100),
+          throwsA(isA<ServerFailure>()));
+      // 贴息 ≥ 期次应还。
+      await expectLater(
+          debts.recordPayment(
+              debtId: d.id,
+              scheduleEntryId: first.id,
+              fromAccountId: 'acc-cash',
+              subsidyCents: first.totalCents,
+              subsidyAccountId: 'acc-income'),
+          throwsA(isA<ServerFailure>()));
+      // 借出方向(应收收款)无贴息语义。
+      final rcv = await debts.create(
+        accountId: 'acc-recv',
+        counterparty: '个人',
+        interestRate: 0,
+        amortizationIndex: 2,
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2027, 1, 1),
+        totalPrincipalCents: 100000,
+        type: DebtType.borrowedOut,
+      );
+      final rFirst = (await debts.get(rcv.id)).schedule.first;
+      await expectLater(
+          debts.recordPayment(
+              debtId: rcv.id,
+              scheduleEntryId: rFirst.id,
+              fromAccountId: 'acc-cash',
+              subsidyCents: 1,
+              subsidyAccountId: 'acc-income'),
+          throwsA(isA<ServerFailure>()));
+      // 校验失败不落期次状态:两笔债的首期仍待还。
+      expect((await debts.get(d.id)).schedule.first.paid, isFalse);
+      expect((await debts.get(rcv.id)).schedule.first.paid, isFalse);
     });
 
     test('update 规则变化 → 已还期次冻结,未来按剩余本金重排', () async {
@@ -432,7 +622,10 @@ void main() {
 
   Future<int> paidSumOf(String debtId) async {
     final schedule = await database.debtDao.getScheduleByDebt(debtId);
-    return schedule.fold<int>(0, (a, e) => a + e.paidCents);
+    // 分腿后不变式(2026-10-26):载体余额 = 总额 − Σ已还期次本金
+    // (利息腿分流至「贷款利息」费用户,不再冲减载体)。
+    return schedule.fold<int>(
+        0, (a, e) => a + (e.paid ? e.principalCents : 0));
   }
 
   Future<void> expectLiabilityInvariant() async {
@@ -729,7 +922,7 @@ void main() {
       expect(txns.where((t) => t.description == '删除清账 删债权'), isEmpty);
     });
 
-    test('含息全额还清后删除(remaining<0)→ 反向清账,不变式成立', () async {
+    test('含息全额还清后删除(分腿:remaining=0)→ 无清账分录,不变式成立', () async {
       final d = await debts.create(
         accountId: 'acc-loan',
         counterparty: '含息贷',
@@ -745,28 +938,18 @@ void main() {
       await debts.recordPayment(
           debtId: d.id, scheduleEntryId: entry.id, fromAccountId: 'acc-cash');
 
-      // 删除前不变式已成立(含息超还 → 账户贷差 = 利息)。
+      // 分腿后(2026-10-26):载体只被本金冲减,利息 24,000 已入「贷款
+      // 利息」费用户 → 账户恰归零,不变式成立(旧含息口径此处为贷差
+      // 24,000,删除时反向清账 —— 该分支随分腿退役)。
       await expectLiabilityInvariant();
 
       await debts.delete(d.id);
       expect(await database.debtDao.getDebtById(d.id), isNull);
 
-      // 反向清账:贷 债务户 |remaining|=24,000 / 借 权益 24,000。
-      final settlement = await settlementAccount();
+      // remaining=0 → 无清账分录。
       final txns = await database.select(database.transactions).get();
-      final clear =
-          txns.firstWhere((t) => t.description == '删除清账 含息贷');
-      final legs = await legsOf(clear.id);
-      expect(
-          legs.any(
-              (e) => e.accountId == 'acc-loan' && e.creditCents == 24000),
-          isTrue,
-          reason: 'negative-remaining must credit the debt account');
-      expect(
-          legs.any((e) =>
-              e.accountId == settlement.id && e.debitCents == 24000),
-          isTrue,
-          reason: 'negative-remaining must debit settlement');
+      expect(txns.where((t) => t.description == '删除清账 含息贷'), isEmpty,
+          reason: '本金已清零,无需清账');
       await expectLiabilityInvariant();
     });
   });
@@ -911,15 +1094,15 @@ void main() {
       expect(detail.schedule[1].paid, isFalse,
           reason: '当期今日出账,到期 = 今日+1月 → 自由窗口不并');
       expect(detail.schedule[2].paid, isFalse);
-      // 并入分录:借 卡贷负债户 / 贷 信用卡(账单 + 当期本息);F36 不变式:
-      // 载体余额 == 总额 − ΣpaidCents(paidCents = 期次全额)。
+      // 并入分录:借 卡贷负债户(本金) + 借 贷款利息(利息) / 贷 信用卡
+      // (账单 + 当期本息);分腿后不变式:载体余额 == 总额 − Σ已还本金。
       final card = await accounts.getAccountById(cardId);
       expect(card!.currentBalanceCents, detail.schedule[0].totalCents,
           reason: '信用卡余额(credit-正)应含到期并入期次本息');
       final carrier = await accounts.getAccountById(cardLoanAccount);
       expect(carrier!.currentBalanceCents,
-          5000000 - detail.schedule[0].totalCents,
-          reason: '借记载体 → 欠款同额递减,F36 不变式保持');
+          5000000 - detail.schedule[0].principalCents,
+          reason: '借记载体(仅本金) → 欠款递减本金口径,分腿不变式保持');
       // 幂等:再跑一轮无新并入、余额不变。
       await debts.catchupCardLoanMerges();
       final card2 = await accounts.getAccountById(cardId);
@@ -954,7 +1137,7 @@ void main() {
   // 银行事实:每期独立出账(paymentDate = 出账日),到期 = 下一期出账日
   // (末期 = 自身+1 月,月钳);卡待还只含已到期未还,已出账未到期 = 自由
   // 窗口。并入条件 = 到期日 ≤ 今日(now 注入,绝对日期钉死三例)。
-  group('F58 并账时机=到期日(出账日不并,到期日并)', () {
+  group('F58 并账时机=到期日(非广发/平安卡缺省口径;出账日不并,到期日并)', () {
     late String cardId;
     late String cardLoanAccount;
 
@@ -962,7 +1145,7 @@ void main() {
       cardId = 'acc-cc58';
       await accounts.insertAccount(db.AccountsCompanion.insert(
         id: cardId,
-        name: '平安信用卡',
+        name: '中信信用卡',
         accountType: 2, // liability
         category: 2, // creditCard
         currencyCode: 'CNY',
@@ -1063,12 +1246,12 @@ void main() {
       expect(detail.schedule[1].paid, isFalse,
           reason: '11-05 期次当日出账,到期 = 12-05 → 自由窗口不并');
       expect(detail.schedule[2].paid, isFalse);
-      // 分录:贷卡(账单 + 当期本息)/ 借载体(欠款 −全额;F36 不变式)。
+      // 分录:贷卡(账单 + 当期本息)/ 借载体(本金)+ 借贷款利息(利息)。
       final card = await accounts.getAccountById(cardId);
       expect(card!.currentBalanceCents, detail.schedule[0].totalCents);
       final carrier = await accounts.getAccountById(cardLoanAccount);
       expect(carrier!.currentBalanceCents,
-          5000000 - detail.schedule[0].totalCents);
+          5000000 - detail.schedule[0].principalCents);
     });
 
     test('末期到期 = 自身+1 月(月钳 31→28):到期日当天并入', () async {
@@ -1099,12 +1282,12 @@ void main() {
     });
   });
 
-  // ───────── 并账时机按挂接卡分化(广发出账即并,2026-10-20 定案) ─────────
-  // 银行实证:广发从出账日起把期供计入卡账单(未出账单 5,612.55 =
-  // 已入账欠款 5,005.66 + 10/19 出账期供 606.89,严丝合缝);账单日改
-  // 6 号后 F58「下期出账日到期」会把期供归入晚一档账期。挂接卡名以
-  // 「广发」开头 → 出账日即到期并入;其余卡(平安)沿用 F58 自由窗口。
-  group('并账时机分化(广发卡出账日即并,平安卡仍 F58)', () {
+  // ───── 并账时机按挂接卡分化(广发出账即并 2026-10-20;平安 2026-10-26) ─────
+  // 广发实证:出账日起期供计入卡账单(严丝合缝)。平安改定(2026-10-26):
+  // 银行 App 出账日当天即计入卡账单可见,用户要求当期记录即时生成
+  // (dev 反馈:10-24/10-25 期次「未自动生成」),F58 自由窗口对平安退役。
+  // 其余卡名缺省仍走 F58 到期并入(见中信卡组)。
+  group('并账时机分化(广发/平安卡出账日即并,其余卡 F58)', () {
     late String gfCardId;
     late String paCardId;
     late String cardLoanAccount;
@@ -1203,15 +1386,20 @@ void main() {
       expect(card2!.currentBalanceCents, detail.schedule[0].totalCents);
     });
 
-    test('平安卡:同日期表仍走 F58(出账未到期 = 自由窗口不并)', () async {
+    test('平安卡:同日期表出账日即并入(2026-10-26 改定,F58 自由窗口退役)', () async {
       final d = await createCardLoan(paCardId);
       await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 10, 20));
       final detail = await debts.get(d.id);
-      expect(detail.schedule[0].paid, isFalse,
-          reason: '平安:10/19 出账但 11/19 才到期 → 自由窗口不并');
-      expect(detail.schedule.every((e) => !e.paid), isTrue);
+      expect(detail.schedule[0].paid, isTrue,
+          reason: '平安:出账日 10/19 ≤ 今日 → 即并(银行 App 出账日当天可见)');
+      expect(detail.schedule[1].paid, isFalse, reason: '11/19 未出账,不并');
       final card = await accounts.getAccountById(paCardId);
-      expect(card!.currentBalanceCents, 0);
+      expect(card!.currentBalanceCents, detail.schedule[0].totalCents,
+          reason: '信用卡余额含出账即并的期供本息');
+      // 幂等:再跑无新并入。
+      await debts.catchupCardLoanMerges(now: DateTime.utc(2026, 10, 20));
+      final card2 = await accounts.getAccountById(paCardId);
+      expect(card2!.currentBalanceCents, detail.schedule[0].totalCents);
     });
   });
 
@@ -1228,7 +1416,7 @@ void main() {
       cardId = 'acc-cc59';
       await accounts.insertAccount(db.AccountsCompanion.insert(
         id: cardId,
-        name: '平安信用卡59',
+        name: '兴业信用卡59',
         accountType: 2, // liability
         category: 2, // creditCard
         currencyCode: 'CNY',
@@ -1319,8 +1507,8 @@ void main() {
           reason: '专项池期供同上卡(F61:平安备用金/广发财智金实证)');
       expect((await accounts.getAccountById(cardLoanAccount))!
               .currentBalanceCents,
-          10000000 - onTotal - offTotal,
-          reason: '两载体均随并入递减(F36 不变式不变)');
+          10000000 - onDetail.schedule[0].principalCents - offDetail.schedule[0].principalCents,
+          reason: '两载体均随并入递减(分腿:仅本金冲载体)');
       // 两笔并入交易(各债期 0)。
       final mergeTxns = (await database.select(database.transactions).get())
           .where((t) => t.description.startsWith('信用卡分期'));

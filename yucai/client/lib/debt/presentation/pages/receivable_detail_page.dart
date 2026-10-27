@@ -375,7 +375,10 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage>
         entry: e,
         accounts: _accounts,
         preferred: preferred,
-        onSubmit: (toAccountId) {
+        onSubmit: (toAccountId, subsidyCents, subsidyAccountId) {
+          // 应收收款无贴息区(sem.isReceivable 恒缺省 0/null)。
+          assert(subsidyCents == 0 && subsidyAccountId == null,
+              'receivable dialog must not carry subsidy');
           Navigator.pop(dctx);
           setState(() => _recordPending = true);
           context.read<DebtBloc>().add(RecordPaymentRequested(

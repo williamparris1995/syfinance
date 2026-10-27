@@ -47,7 +47,10 @@ void main() {
     final db = await migrateV13ToV14();
     final version =
         (await db.customSelect('PRAGMA user_version').get()).first.read<int>('user_version');
-    expect(version, 14, reason: 'schemaVersion 必须 ≥ 14 才会触发本步迁移');
+    // v15 后 user_version 走到 15;本步只钉「v13 库迁上来 ≥14 且覆盖表
+    // 可用」,不钉死当前版本(避免每次 bump 都改此断言)。
+    expect(version, greaterThanOrEqualTo(14),
+        reason: 'schemaVersion 必须 ≥ 14 才会触发本步迁移');
     await db.into(db.cardBillingCycleOverrides).insert(
           CardBillingCycleOverridesCompanion.insert(
             accountId: 'card-1',

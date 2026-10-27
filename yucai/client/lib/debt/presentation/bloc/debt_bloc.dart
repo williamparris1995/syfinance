@@ -170,6 +170,8 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       debtId: event.debtId,
       scheduleEntryId: event.scheduleEntryId,
       fromAccountId: event.fromAccountId,
+      subsidyCents: event.subsidyCents,
+      subsidyAccountId: event.subsidyAccountId,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),

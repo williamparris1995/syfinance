@@ -10,6 +10,7 @@ import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
 import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
 import 'package:yucai_client/core/widgets/gold_amount.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/debt/domain/bank_plan_parser.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/domain/debt_query.dart';
@@ -489,21 +490,25 @@ List<DebtStatCardData> buildDebtDetailStats(
   final schedule = detail.schedule;
   final paidPrincipal =
       schedule.where((e) => e.paid).fold<int>(0, (s, e) => s + e.principalCents);
-  final paidInterest =
-      schedule.where((e) => e.paid).fold<int>(0, (s, e) => s + e.interestCents);
+  // v15b:利息/合计净额化(毛息−期表优惠),与银行 App「利息/每期还款」同口径;
+  // 毛息照旧入账(毛息腿+优惠腿),仅显示层取净。
+  final paidInterest = schedule
+      .where((e) => e.paid)
+      .fold<int>(0, (s, e) => s + e.interestCents - e.discountCents);
   final paidTotal = paidPrincipal + paidInterest;
   final unpaidEntries = schedule.where((e) => !e.paid);
   final pendingPrincipal =
       unpaidEntries.fold<int>(0, (s, e) => s + e.principalCents);
-  final pendingInterest =
-      unpaidEntries.fold<int>(0, (s, e) => s + e.interestCents);
+  final pendingInterest = unpaidEntries
+      .fold<int>(0, (s, e) => s + e.interestCents - e.discountCents);
   final pendingTotal = pendingPrincipal + pendingInterest;
   // F61:逾期口径账单感知(card_loan 自由窗口不红,见 paymentEntryStatusMap)。
   final st = paymentEntryStatusMap(schedule,
       cardLoanBilling: debt.subtype == DebtSubtypes.cardLoan);
   final overdueEntries =
       schedule.where((e) => !e.paid && st[e.id] == PaymentStatus.overdue);
-  final overdueTotal = overdueEntries.fold<int>(0, (s, e) => s + e.totalCents);
+  final overdueTotal = overdueEntries
+      .fold<int>(0, (s, e) => s + e.totalCents - e.discountCents);
   final overdueCount = overdueEntries.length;
   final daysOverdue = overdueEntries.isEmpty
       ? 0
@@ -1147,9 +1152,13 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
         ),
         _cellRight(sharedFmtSymbol(e.principalCents, widget.preferred),
             color: cellFg, bold: true),
-        _cellRight(sharedFmtSymbol(e.interestCents, widget.preferred),
+        // v15b:银行净额口径 —— 利息=实息(毛−优),有优惠附后缀;合计=每期还款。
+        _cellRight(
+            '${sharedFmtSymbol(e.interestCents - e.discountCents, widget.preferred)}'
+            '${e.discountCents > 0 ? ' ·优${sharedFmtSymbol(e.discountCents, widget.preferred)}' : ''}',
             color: cellFg),
-        _cellRight(sharedFmtSymbol(e.totalCents, widget.preferred),
+        _cellRight(
+            sharedFmtSymbol(e.totalCents - e.discountCents, widget.preferred),
             color: isOverdue ? context.yucai.negative : cellFg, bold: true),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -1231,12 +1240,22 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
                   child: _cardAmtCell(sem.tableCol2Header,
                       sharedFmtSymbol(e.principalCents, widget.preferred))),
               Expanded(
-                  child: _cardAmtCell(sem.tableCol3Header,
-                      sharedFmtSymbol(e.interestCents, widget.preferred))),
+                  child: _cardAmtCell(
+                      sem.tableCol3Header,
+                      sharedFmtSymbol(
+                          e.interestCents - e.discountCents, widget.preferred),
+                      sub: e.discountCents > 0
+                          ? '优惠 ${sharedFmtSymbol(e.discountCents, widget.preferred)}'
+                          : null)),
               Expanded(
                   child: _cardAmtCell(
-                      '合计', sharedFmtSymbol(e.totalCents, widget.preferred),
-                      total: true)),
+                      '合计',
+                      sharedFmtSymbol(
+                          e.totalCents - e.discountCents, widget.preferred),
+                      total: true,
+                      sub: e.discountCents > 0
+                          ? '毛额 ${sharedFmtSymbol(e.totalCents, widget.preferred)}'
+                          : null)),
             ],
           ),
           const SizedBox(height: 10),
@@ -1249,7 +1268,8 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
     );
   }
 
-  Widget _cardAmtCell(String k, String v, {bool total = false}) {
+  Widget _cardAmtCell(String k, String v,
+      {bool total = false, String? sub}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -1264,6 +1284,18 @@ class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
                 fontWeight: total ? FontWeight.w600 : FontWeight.w400,
                 color: context.yucai.fg,
                 fontFeatures: AppTypography.tabularFigures)),
+        // v15b:银行净额口径副行 —— 利息格主=实息(毛−优),副「优惠 ¥x」;
+        // 合计格主=实付(每期还款),副「毛额 ¥y」(本金+毛息)。
+        if (sub != null) ...[
+          const SizedBox(height: 1),
+          Text(sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 10.5,
+                  color: context.yucai.accentDeep,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
       ],
     );
   }
@@ -1765,13 +1797,21 @@ class DebtRecordDialog extends StatefulWidget {
     required this.accounts,
     required this.preferred,
     required this.onSubmit,
+    this.incomeAccounts = const [],
   });
 
   final DebtViewSemantics sem;
   final PaymentEntry entry;
   final List<Account> accounts;
   final String preferred;
-  final void Function(String accountId) onSubmit;
+
+  /// 收入类账户(财政贴息的补贴收入腿)。仅债务侧使用;应收
+  /// (sem.isReceivable)不渲染贴息区,可缺省。
+  final List<Account> incomeAccounts;
+
+  /// (还款账户, 贴息分, 补贴收入账户id)。贴息 0 = 既有两腿行为。
+  final void Function(String accountId, int subsidyCents,
+      String? subsidyAccountId) onSubmit;
 
   @override
   State<DebtRecordDialog> createState() => _DebtRecordDialogState();
@@ -1779,6 +1819,8 @@ class DebtRecordDialog extends StatefulWidget {
 
 class _DebtRecordDialogState extends State<DebtRecordDialog> {
   late String _selectedAccountId;
+  final _subsidyCtrl = TextEditingController();
+  String? _subsidyAccountId;
 
   @override
   void initState() {
@@ -1788,8 +1830,32 @@ class _DebtRecordDialogState extends State<DebtRecordDialog> {
   }
 
   @override
+  void dispose() {
+    _subsidyCtrl.dispose();
+    super.dispose();
+  }
+
+  /// '' → 0;格式错/负数 → null(禁提交)。元字符串 → 分。
+  int? _parseSubsidyCents() {
+    final s = _subsidyCtrl.text.trim();
+    if (s.isEmpty) return 0;
+    final v = double.tryParse(s);
+    if (v == null || v < 0) return null;
+    return (v * 100).round();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final sem = widget.sem;
+    final showSubsidy = !sem.isReceivable;
+    final subsidy = _parseSubsidyCents();
+    final subsidyTotal = widget.entry.totalCents;
+    final subsidyValid = subsidy != null && subsidy < subsidyTotal;
+    final subsidyAccountMissing =
+        (subsidy ?? 0) > 0 && (_subsidyAccountId?.isEmpty ?? true);
+    final canSubmit = _selectedAccountId.isNotEmpty &&
+        subsidyValid &&
+        !subsidyAccountMissing;
     return AlertDialog(
       title: Text(sem.dialogTitle),
       content: SizedBox(
@@ -1862,6 +1928,72 @@ class _DebtRecordDialogState extends State<DebtRecordDialog> {
                 if (v != null) setState(() => _selectedAccountId = v);
               },
             ),
+            // 财政贴息(政策性利息补贴,dev 2026-10-25):应还全额中由补贴
+            // 承担的部分 → 三腿分录(债务全额借/还款账户净额贷/补贴收入
+            // 贷)。应收收款无此形态,不渲染。
+            if (showSubsidy) ...[
+              const SizedBox(height: 16),
+              Text('财政贴息（政策性利息补贴，可选）',
+                  style: TextStyle(fontSize: 12, color: context.yucai.muted)),
+              const SizedBox(height: 7),
+              TextField(
+                controller: _subsidyCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    borderSide: BorderSide(color: context.yucai.border),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  hintText: '如 2.11(留空 = 无补贴)',
+                  errorText: !subsidyValid ? '金额无效或≥本期应还' : null,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 7),
+              if (widget.incomeAccounts.isEmpty)
+                Text('尚无收入类账户:可在「分类管理」页新建(如「财政贴息」收入分类)',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        color: context.yucai.muted,
+                        fontFeatures: AppTypography.tabularFigures))
+              else ...[
+                DropdownButtonFormField<String>(
+                  value: _subsidyAccountId,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      borderSide: BorderSide(color: context.yucai.border),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    hintText: (subsidy ?? 0) > 0 ? '选择补贴收入账户' : '无补贴可跳过',
+                  ),
+                  items: [
+                    for (final a in widget.incomeAccounts)
+                      DropdownMenuItem(
+                        value: a.id,
+                        child: Text(a.name),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _subsidyAccountId = v),
+                ),
+                const SizedBox(height: 7),
+              ],
+              Text(
+                (subsidy ?? 0) > 0 && subsidyValid
+                    ? '银行实付 = 应还 − 贴息 = ${sharedFmtSymbol(subsidyTotal - subsidy, widget.preferred)}'
+                    : widget.entry.discountCents > 0
+                        ? '银行实付 = 应还 − 期表优惠 = ${sharedFmtSymbol(subsidyTotal - widget.entry.discountCents, widget.preferred)}'
+                        : '银行实付 = 应还全额 ${sharedFmtSymbol(subsidyTotal, widget.preferred)}',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    color: context.yucai.muted,
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
+            ],
           ],
         ),
       ),
@@ -1871,9 +2003,15 @@ class _DebtRecordDialogState extends State<DebtRecordDialog> {
           child: const Text('取消'),
         ),
         ElevatedButton(
-          onPressed: _selectedAccountId.isEmpty
-              ? null
-              : () => widget.onSubmit(_selectedAccountId),
+          // canSubmit 已保证 subsidy 非空且校验通过(贴息>0 必已选账户;
+          // subsidyValid 的空判使 subsidy 在此保持非空提升)。
+          onPressed: canSubmit
+              ? () => widget.onSubmit(
+                  _selectedAccountId,
+                  subsidy,
+                  subsidy > 0 ? _subsidyAccountId : null,
+                )
+              : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: context.yucai.accent,
             // F27 FR-1①:accent 面提交按钮前景 → onAccent(暗=金底深墨)。
@@ -1897,5 +2035,122 @@ class _DebtRecordDialogState extends State<DebtRecordDialog> {
       buf.write(s[i]);
     }
     return '$sign${currencySymbol(currencyCode)}$buf.$fen';
+  }
+}
+
+/// 银行还款计划导入对话框(v15,2026-10-27「抄一次银行计划」模式):
+/// 粘贴银行 App 还款计划表(每行:日期 本金 利息 [优惠],分隔符任意),
+/// 实时解析预览 → 确认后交 [onApply](由页面调 repo.importBankSchedule)。
+/// 已还期次冻结不动的语义在 DS 层,对话框只负责解析与预览。
+class BankPlanImportDialog extends StatefulWidget {
+  const BankPlanImportDialog({
+    super.key,
+    required this.counterparty,
+    required this.onApply,
+  });
+
+  final String counterparty;
+  final Future<void> Function(List<BankPlanRow> rows) onApply;
+
+  @override
+  State<BankPlanImportDialog> createState() => _BankPlanImportDialogState();
+}
+
+class _BankPlanImportDialogState extends State<BankPlanImportDialog> {
+  final _ctrl = TextEditingController();
+  List<BankPlanRow>? _rows;
+  String? _error;
+  bool _applying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.addListener(() {
+      setState(() {
+        _error = null;
+        try {
+          _rows = _ctrl.text.trim().isEmpty ? null : parseBankPlan(_ctrl.text);
+        } on FormatException catch (e) {
+          _rows = null;
+          _error = e.message;
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _rows;
+    return AlertDialog(
+      title: Text('导入银行还款计划 · ${widget.counterparty}'),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                '从银行 App 复制还款计划表粘贴到此处,每行:「日期 本金 利息 优惠(可选)」。'
+                '按日期匹配未还期次覆写金额(已还期次不动);期表从此与银行一致,'
+                '之后自动并入分毫不差。',
+                style: TextStyle(fontSize: 12, color: context.yucai.muted)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _ctrl,
+              maxLines: 8,
+              style: const TextStyle(fontSize: 12.5),
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.sm)),
+                hintText: '2026-11-24 1075.18 37.21 30.66\n2026-12-24 1076.65 35.74 30.66',
+                errorText: _error,
+              ),
+            ),
+            if (rows != null && rows.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('解析 ${rows.length} 期 · 首期 ${sharedFmtDate(rows.first.date)} · '
+                  'Σ本金 ${sharedFmtSymbol(rows.fold<int>(0, (a, r) => a + r.principalCents), 'CNY')} · '
+                  'Σ利息 ${sharedFmtSymbol(rows.fold<int>(0, (a, r) => a + r.interestCents), 'CNY')} · '
+                  'Σ优惠 ${sharedFmtSymbol(rows.fold<int>(0, (a, r) => a + r.discountCents), 'CNY')}',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: context.yucai.accentDeep,
+                      fontFeatures: AppTypography.tabularFigures)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: (rows == null || rows.isEmpty || _applying)
+              ? null
+              : () async {
+                  setState(() => _applying = true);
+                  await widget.onApply(rows);
+                  if (context.mounted) Navigator.pop(context);
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: context.yucai.accent,
+            foregroundColor: context.yucai.onAccent,
+          ),
+          child: _applying
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('导入'),
+        ),
+      ],
+    );
   }
 }

@@ -143,7 +143,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   /// 幂等加列:先查 PRAGMA table_info,列已存在则跳过。
   /// 背景:库文件可能被不同版本的 App 触碰(安装版/调试版/手工恢复备份),
@@ -268,6 +268,14 @@ class AppDatabase extends _$AppDatabase {
           // 银行事实播种)。仅建表,无损。
           if (from < 14) {
             await m.createTable(cardBillingCycleOverrides);
+          }
+          // v14→v15(2026-10-27 银行计划表口径):PaymentScheduleEntries 加
+          // discount_cents(每期优惠/贴息减免,NOT NULL DEFAULT 0,存量行 =
+          // 无优惠)。仅加列,无损;total_cents 语义升为毛口径(本金+毛息),
+          // 记账实付 = total − discount。
+          if (from < 15) {
+            await _addColumnIfAbsent(
+                paymentScheduleEntries, paymentScheduleEntries.discountCents);
           }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)

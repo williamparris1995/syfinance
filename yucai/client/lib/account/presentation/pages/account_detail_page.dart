@@ -41,6 +41,8 @@ import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/hero_shell.dart';
 import 'package:yucai_client/core/widgets/pager_bar.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
+import 'package:yucai_client/transaction/presentation/widgets/txn_view_calc.dart';
+import 'package:yucai_client/transaction/presentation/widgets/txn_split_summary.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.dart';
@@ -1915,9 +1917,18 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   ///   - 非转账：asset 账户 = 资产账户名；对侧 income/expense 账户 = 分类。
   ///     副行 = `${分类账户 category.label} · ${资产账户名}`。
   Widget _recentTxnRow(Transaction t, String currencyCode) {
-    final flavour = _inferFlavour(t);
+    // 底层计算单源(txn_view_calc,2026-10-26)。
+    final flavour = txnFlavourOf(t, (id) => _accountsMap[id]);
     final amount = t.totalDebitCents;
     final cell = _resolveRecentTxnCell(t, flavour);
+    // 分腿摘要(2026-10-26):还贷类交易副行尾拼「本金 x · 利息 y(· 贴息 z)」,
+    // 与交易记录页同源(txnSplitOf 口径单源)。
+    final split = txnSplitOf(t, (id) => _accountsMap[id]);
+    final subLine = split == null
+        ? cell.subLine
+        : (cell.subLine.isEmpty
+            ? txnSplitLabel(split, currencySymbol(currencyCode))
+            : '$cell.subLine · ${txnSplitLabel(split, currencySymbol(currencyCode))}');
 
     // 日期时间：transactionTime 优先（MM-dd HH:mm），回退 transactionDate（MM-dd）。
     final dt = t.transactionTime;
@@ -1957,7 +1968,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  cell.subLine,
+                  subLine,
                   style: TextStyle(
                       color: context.yucai.muted, fontSize: 11),
                   maxLines: 1,
@@ -1990,34 +2001,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
   }
 
   /// 推断 flavour（与 txn_row._inferFlavour 同语义：平衡 + 两条 entry → transfer）。
-  TxnFlavour _inferFlavour(Transaction t) {
-    if (t.entries.length == 2 && t.isBalanced) {
-      // 两端都是 asset → transfer；否则按 debit/credit 方向判 income/expense。
-      final e0 = _accountsMap[t.entries[0].accountId];
-      final e1 = _accountsMap[t.entries[1].accountId];
-      final bothAsset = e0?.accountType == AccountType.asset &&
-          e1?.accountType == AccountType.asset;
-      if (bothAsset) return TxnFlavour.transfer;
-      // 非转账：有 expense 账户 → expense；有 income 账户 → income。
-      if (e0?.accountType == AccountType.expense ||
-          e1?.accountType == AccountType.expense) {
-        return TxnFlavour.expense;
-      }
-      if (e0?.accountType == AccountType.income ||
-          e1?.accountType == AccountType.income) {
-        return TxnFlavour.income;
-      }
-    }
-    // 单 entry / 无法解析 → 用 debit/credit 方向退化判定。
-    if (t.entries.isNotEmpty) {
-      final a = _accountsMap[t.entries.first.accountId];
-      if (a?.accountType == AccountType.expense) return TxnFlavour.expense;
-      if (a?.accountType == AccountType.income) return TxnFlavour.income;
-    }
-    return TxnFlavour.compound;
-  }
-
-  /// 解析近期交易行的账户列内容（复用 txn_row._resolveAccountCell 逻辑）。
+  /// 解析近期交易行的账户列内容:计算走 [txnAccountCellOf] 单源
+  /// (2026-10-26),这里只做名称映射;副行口径保持「分类 · 资产账户」,
+  /// 分类 = 对侧账户(otherAccount,任意类型)。
   _RecentTxnCell _resolveRecentTxnCell(Transaction t, TxnFlavour flavour) {
     String labelOf(String id) {
       final a = _accountsMap[id];
@@ -2025,45 +2011,20 @@ class _AccountDetailPageState extends State<AccountDetailPage> with RouteAware {
       return id.length > 6 ? '#${id.substring(0, 6)}' : '#$id';
     }
 
-    if (flavour == TxnFlavour.transfer) {
-      final fromEntry = t.entries.firstWhere(
-        (e) => e.creditCents > 0,
-        orElse: () => t.entries.first,
-      );
-      final toEntry = t.entries.firstWhere(
-        (e) => e.debitCents > 0,
-        orElse: () => t.entries.last,
-      );
+    final c = txnAccountCellOf(t, (id) => _accountsMap[id]);
+    if (c.isTransfer) {
       return _RecentTxnCell(
-        subLine: '${labelOf(fromEntry.accountId)} · ${labelOf(toEntry.accountId)}',
+        subLine: '${labelOf(c.fromAccountId)} · ${labelOf(c.toAccountId)}',
         categoryAccount: null,
       );
     }
-    // 非转账：asset 账户 = 资产名；对侧 income/expense = 分类。
-    Account? assetAccount;
-    Account? otherAccount;
-    String? assetId;
-    for (final e in t.entries) {
-      final a = _accountsMap[e.accountId];
-      if (a == null) continue;
-      if (a.accountType == AccountType.asset && assetAccount == null) {
-        assetAccount = a;
-        assetId = e.accountId;
-      } else {
-        otherAccount ??= a;
-      }
-    }
-    final assetName = assetId != null
-        ? labelOf(assetId)
-        : (t.entries.isNotEmpty ? labelOf(t.entries.first.accountId) : '');
-    // 分类 = 对侧 income/expense 账户的 name（本 app 模型里 expense/income
-    // 账户本身就是分类，name 即分类名如「餐饮」「工资」）。
-    final categoryLabel = otherAccount?.name ?? '';
+    final assetName = labelOf(c.primaryAccountId);
+    final categoryLabel = c.categoryAccount?.name ?? '';
     return _RecentTxnCell(
       subLine: categoryLabel.isEmpty
           ? assetName
           : '$categoryLabel · $assetName',
-      categoryAccount: otherAccount,
+      categoryAccount: c.categoryAccount,
     );
   }
 

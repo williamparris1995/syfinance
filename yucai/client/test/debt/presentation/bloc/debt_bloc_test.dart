@@ -316,6 +316,8 @@ void main() {
             debtId: any(named: 'debtId'),
             scheduleEntryId: any(named: 'scheduleEntryId'),
             fromAccountId: any(named: 'fromAccountId'),
+            subsidyCents: any(named: 'subsidyCents'),
+            subsidyAccountId: any(named: 'subsidyAccountId'),
           )).thenAnswer((_) async => Right(paymentEntry));
       when(() => repo.get('d1')).thenAnswer((_) async => Right(detail));
       return DebtBloc(repo);

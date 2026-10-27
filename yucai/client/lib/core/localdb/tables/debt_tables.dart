@@ -59,6 +59,12 @@ class PaymentScheduleEntries extends Table {
   IntColumn get principalCents => integer()();
   IntColumn get interestCents => integer()();
   IntColumn get totalCents => integer()();
+
+  /// 每期优惠/贴息减免(v15,2026-10-27 银行计划表口径):total_cents 为
+  /// 银行毛口径(本金+毛息),本列为减免额,记账实付 = total − 本列。
+  /// 0 = 无优惠(存量行为不变)。
+  IntColumn get discountCents =>
+      integer().withDefault(const Constant(0))();
   IntColumn get paidCents => integer()();
   BoolColumn get paid => boolean()();
   TextColumn get transactionId => text().nullable()();

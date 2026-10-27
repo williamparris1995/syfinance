@@ -305,10 +305,17 @@ void main() {
         fromAccountId: cash,
       );
       expect(paid.paid, isTrue);
-      final entries = await database.transactionDao.getAllEntries();
+      // 分腿口径(2026-10-26):债务户借方只记本金,利息入「贷款利息」
+      // 费用户(find-or-create),现金贷方仍为全额。只看本笔交易的腿。
+      final entries = (await database.transactionDao.getAllEntries())
+          .where((e) => e.transactionId == paid.transactionId)
+          .toList();
       final loanLeg =
           entries.singleWhere((e) => e.accountId == loan && e.debitCents > 0);
-      expect(loanLeg.debitCents, entry.totalCents);
+      expect(loanLeg.debitCents, entry.principalCents);
+      final interestLeg = entries.singleWhere(
+          (e) => e.debitCents > 0 && e.accountId != loan && e.accountId != cash);
+      expect(interestLeg.debitCents, entry.interestCents);
       final cashLeg =
           entries.singleWhere((e) => e.accountId == cash && e.creditCents > 0);
       expect(cashLeg.creditCents, entry.totalCents);

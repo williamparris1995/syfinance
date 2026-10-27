@@ -185,7 +185,9 @@ Widget _harness({
   when(() => debtRepo.recordPayment(
           debtId: any(named: 'debtId'),
           scheduleEntryId: any(named: 'scheduleEntryId'),
-          fromAccountId: any(named: 'fromAccountId')))
+          fromAccountId: any(named: 'fromAccountId'),
+          subsidyCents: any(named: 'subsidyCents'),
+          subsidyAccountId: any(named: 'subsidyAccountId')))
       .thenAnswer((_) async => dartz.Right(detail.schedule.first));
   when(() => accountRepo.list())
       .thenAnswer((_) async => dartz.Right(accounts));
@@ -440,7 +442,9 @@ void main() {
       when(() => debtRepo.recordPayment(
               debtId: any(named: 'debtId'),
               scheduleEntryId: any(named: 'scheduleEntryId'),
-              fromAccountId: any(named: 'fromAccountId')))
+              fromAccountId: any(named: 'fromAccountId'),
+              subsidyCents: any(named: 'subsidyCents'),
+              subsidyAccountId: any(named: 'subsidyAccountId')))
           .thenAnswer((inv) {
         recordedFrom =
             inv.namedArguments[#fromAccountId] as String;
@@ -535,7 +539,9 @@ void main() {
       when(() => debtRepo.recordPayment(
               debtId: any(named: 'debtId'),
               scheduleEntryId: any(named: 'scheduleEntryId'),
-              fromAccountId: any(named: 'fromAccountId')))
+              fromAccountId: any(named: 'fromAccountId'),
+              subsidyCents: any(named: 'subsidyCents'),
+              subsidyAccountId: any(named: 'subsidyAccountId')))
           .thenAnswer(
               (_) async => dartz.Right(detail.schedule.first));
       var listCalls = 0;

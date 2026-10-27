@@ -6098,6 +6098,18 @@ class $PaymentScheduleEntriesTable extends PaymentScheduleEntries
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _discountCentsMeta = const VerificationMeta(
+    'discountCents',
+  );
+  @override
+  late final GeneratedColumn<int> discountCents = GeneratedColumn<int>(
+    'discount_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _paidCentsMeta = const VerificationMeta(
     'paidCents',
   );
@@ -6140,6 +6152,7 @@ class $PaymentScheduleEntriesTable extends PaymentScheduleEntries
     principalCents,
     interestCents,
     totalCents,
+    discountCents,
     paidCents,
     paid,
     transactionId,
@@ -6210,6 +6223,15 @@ class $PaymentScheduleEntriesTable extends PaymentScheduleEntries
     } else if (isInserting) {
       context.missing(_totalCentsMeta);
     }
+    if (data.containsKey('discount_cents')) {
+      context.handle(
+        _discountCentsMeta,
+        discountCents.isAcceptableOrUnknown(
+          data['discount_cents']!,
+          _discountCentsMeta,
+        ),
+      );
+    }
     if (data.containsKey('paid_cents')) {
       context.handle(
         _paidCentsMeta,
@@ -6268,6 +6290,10 @@ class $PaymentScheduleEntriesTable extends PaymentScheduleEntries
         DriftSqlType.int,
         data['${effectivePrefix}total_cents'],
       )!,
+      discountCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}discount_cents'],
+      )!,
       paidCents: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}paid_cents'],
@@ -6297,6 +6323,11 @@ class PaymentScheduleEntry extends DataClass
   final int principalCents;
   final int interestCents;
   final int totalCents;
+
+  /// 每期优惠/贴息减免(v15,2026-10-27 银行计划表口径):total_cents 为
+  /// 银行毛口径(本金+毛息),本列为减免额,记账实付 = total − 本列。
+  /// 0 = 无优惠(存量行为不变)。
+  final int discountCents;
   final int paidCents;
   final bool paid;
   final String? transactionId;
@@ -6307,6 +6338,7 @@ class PaymentScheduleEntry extends DataClass
     required this.principalCents,
     required this.interestCents,
     required this.totalCents,
+    required this.discountCents,
     required this.paidCents,
     required this.paid,
     this.transactionId,
@@ -6320,6 +6352,7 @@ class PaymentScheduleEntry extends DataClass
     map['principal_cents'] = Variable<int>(principalCents);
     map['interest_cents'] = Variable<int>(interestCents);
     map['total_cents'] = Variable<int>(totalCents);
+    map['discount_cents'] = Variable<int>(discountCents);
     map['paid_cents'] = Variable<int>(paidCents);
     map['paid'] = Variable<bool>(paid);
     if (!nullToAbsent || transactionId != null) {
@@ -6336,6 +6369,7 @@ class PaymentScheduleEntry extends DataClass
       principalCents: Value(principalCents),
       interestCents: Value(interestCents),
       totalCents: Value(totalCents),
+      discountCents: Value(discountCents),
       paidCents: Value(paidCents),
       paid: Value(paid),
       transactionId: transactionId == null && nullToAbsent
@@ -6356,6 +6390,7 @@ class PaymentScheduleEntry extends DataClass
       principalCents: serializer.fromJson<int>(json['principalCents']),
       interestCents: serializer.fromJson<int>(json['interestCents']),
       totalCents: serializer.fromJson<int>(json['totalCents']),
+      discountCents: serializer.fromJson<int>(json['discountCents']),
       paidCents: serializer.fromJson<int>(json['paidCents']),
       paid: serializer.fromJson<bool>(json['paid']),
       transactionId: serializer.fromJson<String?>(json['transactionId']),
@@ -6371,6 +6406,7 @@ class PaymentScheduleEntry extends DataClass
       'principalCents': serializer.toJson<int>(principalCents),
       'interestCents': serializer.toJson<int>(interestCents),
       'totalCents': serializer.toJson<int>(totalCents),
+      'discountCents': serializer.toJson<int>(discountCents),
       'paidCents': serializer.toJson<int>(paidCents),
       'paid': serializer.toJson<bool>(paid),
       'transactionId': serializer.toJson<String?>(transactionId),
@@ -6384,6 +6420,7 @@ class PaymentScheduleEntry extends DataClass
     int? principalCents,
     int? interestCents,
     int? totalCents,
+    int? discountCents,
     int? paidCents,
     bool? paid,
     Value<String?> transactionId = const Value.absent(),
@@ -6394,6 +6431,7 @@ class PaymentScheduleEntry extends DataClass
     principalCents: principalCents ?? this.principalCents,
     interestCents: interestCents ?? this.interestCents,
     totalCents: totalCents ?? this.totalCents,
+    discountCents: discountCents ?? this.discountCents,
     paidCents: paidCents ?? this.paidCents,
     paid: paid ?? this.paid,
     transactionId: transactionId.present
@@ -6416,6 +6454,9 @@ class PaymentScheduleEntry extends DataClass
       totalCents: data.totalCents.present
           ? data.totalCents.value
           : this.totalCents,
+      discountCents: data.discountCents.present
+          ? data.discountCents.value
+          : this.discountCents,
       paidCents: data.paidCents.present ? data.paidCents.value : this.paidCents,
       paid: data.paid.present ? data.paid.value : this.paid,
       transactionId: data.transactionId.present
@@ -6433,6 +6474,7 @@ class PaymentScheduleEntry extends DataClass
           ..write('principalCents: $principalCents, ')
           ..write('interestCents: $interestCents, ')
           ..write('totalCents: $totalCents, ')
+          ..write('discountCents: $discountCents, ')
           ..write('paidCents: $paidCents, ')
           ..write('paid: $paid, ')
           ..write('transactionId: $transactionId')
@@ -6448,6 +6490,7 @@ class PaymentScheduleEntry extends DataClass
     principalCents,
     interestCents,
     totalCents,
+    discountCents,
     paidCents,
     paid,
     transactionId,
@@ -6462,6 +6505,7 @@ class PaymentScheduleEntry extends DataClass
           other.principalCents == this.principalCents &&
           other.interestCents == this.interestCents &&
           other.totalCents == this.totalCents &&
+          other.discountCents == this.discountCents &&
           other.paidCents == this.paidCents &&
           other.paid == this.paid &&
           other.transactionId == this.transactionId);
@@ -6475,6 +6519,7 @@ class PaymentScheduleEntriesCompanion
   final Value<int> principalCents;
   final Value<int> interestCents;
   final Value<int> totalCents;
+  final Value<int> discountCents;
   final Value<int> paidCents;
   final Value<bool> paid;
   final Value<String?> transactionId;
@@ -6486,6 +6531,7 @@ class PaymentScheduleEntriesCompanion
     this.principalCents = const Value.absent(),
     this.interestCents = const Value.absent(),
     this.totalCents = const Value.absent(),
+    this.discountCents = const Value.absent(),
     this.paidCents = const Value.absent(),
     this.paid = const Value.absent(),
     this.transactionId = const Value.absent(),
@@ -6498,6 +6544,7 @@ class PaymentScheduleEntriesCompanion
     required int principalCents,
     required int interestCents,
     required int totalCents,
+    this.discountCents = const Value.absent(),
     required int paidCents,
     required bool paid,
     this.transactionId = const Value.absent(),
@@ -6517,6 +6564,7 @@ class PaymentScheduleEntriesCompanion
     Expression<int>? principalCents,
     Expression<int>? interestCents,
     Expression<int>? totalCents,
+    Expression<int>? discountCents,
     Expression<int>? paidCents,
     Expression<bool>? paid,
     Expression<String>? transactionId,
@@ -6529,6 +6577,7 @@ class PaymentScheduleEntriesCompanion
       if (principalCents != null) 'principal_cents': principalCents,
       if (interestCents != null) 'interest_cents': interestCents,
       if (totalCents != null) 'total_cents': totalCents,
+      if (discountCents != null) 'discount_cents': discountCents,
       if (paidCents != null) 'paid_cents': paidCents,
       if (paid != null) 'paid': paid,
       if (transactionId != null) 'transaction_id': transactionId,
@@ -6543,6 +6592,7 @@ class PaymentScheduleEntriesCompanion
     Value<int>? principalCents,
     Value<int>? interestCents,
     Value<int>? totalCents,
+    Value<int>? discountCents,
     Value<int>? paidCents,
     Value<bool>? paid,
     Value<String?>? transactionId,
@@ -6555,6 +6605,7 @@ class PaymentScheduleEntriesCompanion
       principalCents: principalCents ?? this.principalCents,
       interestCents: interestCents ?? this.interestCents,
       totalCents: totalCents ?? this.totalCents,
+      discountCents: discountCents ?? this.discountCents,
       paidCents: paidCents ?? this.paidCents,
       paid: paid ?? this.paid,
       transactionId: transactionId ?? this.transactionId,
@@ -6583,6 +6634,9 @@ class PaymentScheduleEntriesCompanion
     if (totalCents.present) {
       map['total_cents'] = Variable<int>(totalCents.value);
     }
+    if (discountCents.present) {
+      map['discount_cents'] = Variable<int>(discountCents.value);
+    }
     if (paidCents.present) {
       map['paid_cents'] = Variable<int>(paidCents.value);
     }
@@ -6607,6 +6661,7 @@ class PaymentScheduleEntriesCompanion
           ..write('principalCents: $principalCents, ')
           ..write('interestCents: $interestCents, ')
           ..write('totalCents: $totalCents, ')
+          ..write('discountCents: $discountCents, ')
           ..write('paidCents: $paidCents, ')
           ..write('paid: $paid, ')
           ..write('transactionId: $transactionId, ')
@@ -21647,6 +21702,7 @@ typedef $$PaymentScheduleEntriesTableCreateCompanionBuilder =
       required int principalCents,
       required int interestCents,
       required int totalCents,
+      Value<int> discountCents,
       required int paidCents,
       required bool paid,
       Value<String?> transactionId,
@@ -21660,6 +21716,7 @@ typedef $$PaymentScheduleEntriesTableUpdateCompanionBuilder =
       Value<int> principalCents,
       Value<int> interestCents,
       Value<int> totalCents,
+      Value<int> discountCents,
       Value<int> paidCents,
       Value<bool> paid,
       Value<String?> transactionId,
@@ -21729,6 +21786,11 @@ class $$PaymentScheduleEntriesTableFilterComposer
 
   ColumnFilters<int> get totalCents => $composableBuilder(
     column: $table.totalCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get discountCents => $composableBuilder(
+    column: $table.discountCents,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21805,6 +21867,11 @@ class $$PaymentScheduleEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get discountCents => $composableBuilder(
+    column: $table.discountCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get paidCents => $composableBuilder(
     column: $table.paidCents,
     builder: (column) => ColumnOrderings(column),
@@ -21873,6 +21940,11 @@ class $$PaymentScheduleEntriesTableAnnotationComposer
 
   GeneratedColumn<int> get totalCents => $composableBuilder(
     column: $table.totalCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get discountCents => $composableBuilder(
+    column: $table.discountCents,
     builder: (column) => column,
   );
 
@@ -21956,6 +22028,7 @@ class $$PaymentScheduleEntriesTableTableManager
                 Value<int> principalCents = const Value.absent(),
                 Value<int> interestCents = const Value.absent(),
                 Value<int> totalCents = const Value.absent(),
+                Value<int> discountCents = const Value.absent(),
                 Value<int> paidCents = const Value.absent(),
                 Value<bool> paid = const Value.absent(),
                 Value<String?> transactionId = const Value.absent(),
@@ -21967,6 +22040,7 @@ class $$PaymentScheduleEntriesTableTableManager
                 principalCents: principalCents,
                 interestCents: interestCents,
                 totalCents: totalCents,
+                discountCents: discountCents,
                 paidCents: paidCents,
                 paid: paid,
                 transactionId: transactionId,
@@ -21980,6 +22054,7 @@ class $$PaymentScheduleEntriesTableTableManager
                 required int principalCents,
                 required int interestCents,
                 required int totalCents,
+                Value<int> discountCents = const Value.absent(),
                 required int paidCents,
                 required bool paid,
                 Value<String?> transactionId = const Value.absent(),
@@ -21991,6 +22066,7 @@ class $$PaymentScheduleEntriesTableTableManager
                 principalCents: principalCents,
                 interestCents: interestCents,
                 totalCents: totalCents,
+                discountCents: discountCents,
                 paidCents: paidCents,
                 paid: paid,
                 transactionId: transactionId,

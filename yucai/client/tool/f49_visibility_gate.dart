@@ -57,9 +57,6 @@ const Map<String, String> kWhitelist = {
   'lib/auth/presentation/pages/home_page.dart':
       'B: _assetBreakdown 资产三栏金额计算 + 「共 N 个账户」计数(T4 评审'
       '核可:既有口径含分类伪账户,单滤反而口径不一致)。',
-  'lib/transaction/presentation/widgets/txn_row.dart':
-      'B: 交易行账户名解析(accounts: id→Account map 形参传入;载体上的'
-      '卡贷交易要解析户名)。',
   'lib/transaction/presentation/pages/transaction_detail_page.dart':
       'B: _accountNameOf 名称解析(id→name),非选择器。',
   'lib/goal/presentation/pages/goal_detail_page.dart':

@@ -18,6 +18,8 @@ class _MockDebtRepo extends Mock implements DebtRepository {}
 
 Debt _debt(DateTime due,
     {int remaining = 1000,
+    int total = 2000,
+    int unpaidInterest = 0,
     DateTime? nextPaymentDate,
     int nextPaymentPeriodNo = 0,
     int nextPaymentAmountCents = 0}) =>
@@ -29,8 +31,9 @@ Debt _debt(DateTime due,
       amortization: AmortizationMethod.equalPrincipalInterest,
       startDate: DateTime(2026, 1, 1),
       dueDate: due,
-      totalPrincipalCents: 2000,
+      totalPrincipalCents: total,
       remainingPrincipalCents: remaining,
+      unpaidInterestCents: unpaidInterest,
       version: 1,
       createdAt: DateTime(2026, 1, 1),
       updatedAt: DateTime(2026, 1, 1),
@@ -82,8 +85,12 @@ group('DebtCardFootCallout 到期口径(F61)', () {
       );
 
   testWidgets('自由窗口:出账日已过但到期日未到 → 无「已逾期」', (t) async {
+    // 相对日期(原写死 2026-10-24,过日即成时间炸弹:到期日一过测试语义
+    // 翻转)。出账=30 天前(已过),到期=20 天后(未到)→ 自由窗口。
     await t.pumpWidget(_harness(
-        cardLoan(nextDue: DateTime(2026, 10, 24), nextPayment: DateTime(2026, 9, 24)),
+        cardLoan(
+            nextDue: DateTime.now().add(const Duration(days: 20)),
+            nextPayment: DateTime.now().subtract(const Duration(days: 30))),
         1400));
     expect(find.textContaining('已逾期'), findsNothing,
         reason: 'card_loan 自由窗口(出账≠到期)不红');
@@ -227,6 +234,38 @@ group('DebtCardFootCallout 到期口径(F61)', () {
       verify(() => repo.delete('d1')).called(1);
       // bloc 生命周期由 BlocProvider(create:) 托管:fake-async 下手动
       // await close() 会因事件收尾未推进而永久挂起(teardown 自动关)。
+    });
+  });
+
+  // 卡大字口径回归(dev 2026-10-25):标签「剩余本金」必须显期表本金,
+  // 不得混入未还利息成「本息之和」(e8966072 曾把 unpaidInterest 加进卡面;
+  // 本息口径只在总览卡,且带「(本息)」标签)。
+  group('DebtListCard 大字口径 = 剩余本金', () {
+    testWidgets('desktop:unpaidInterest>0 → 大字仍为本金,已还=本金差', (t) async {
+      await t.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      // 剩余本金 ¥10.00 + 未还息 ¥7.49;若回归本息口径会出现 ¥17.49。
+      final d = _debt(DateTime(2027, 6, 1),
+          remaining: 1000, total: 5000, unpaidInterest: 749);
+      await t.pumpWidget(_harness(d, 1440));
+      await t.pumpAndSettle();
+      expect(find.textContaining('¥10.00'), findsWidgets);
+      expect(find.textContaining('¥17.49'), findsNothing,
+          reason: '卡大字是剩余本金,不是本息之和');
+      // 已还 = 总 − 剩余 = ¥40.00(本金口径,与进度同基数)。
+      expect(find.textContaining('¥40.00'), findsOneWidget);
+    });
+
+    testWidgets('mobile:compact 变体同口径', (t) async {
+      await t.binding.setSurfaceSize(const Size(500, 1000));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      final d = _debt(DateTime(2027, 6, 1),
+          remaining: 1000, total: 5000, unpaidInterest: 749);
+      await t.pumpWidget(_harness(d, 500));
+      await t.pumpAndSettle();
+      expect(find.textContaining('¥10.00'), findsWidgets);
+      expect(find.textContaining('¥17.49'), findsNothing,
+          reason: 'compact 大字同为本金口径');
     });
   });
 }
