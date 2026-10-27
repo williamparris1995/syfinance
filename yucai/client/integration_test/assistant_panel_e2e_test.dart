@@ -102,11 +102,24 @@ void main() {
     expect(find.byKey(const ValueKey('assistantEnableSwitch')).evaluate(),
         isNotEmpty,
         reason: '启用开关控件');
-    expect(find.text('未下载'), findsOneWidget, reason: '模型行「未下载」chip');
-    expect(
-        find.byKey(const ValueKey('assistantDownloadButton')).evaluate(),
-        isNotEmpty,
-        reason: '未下载态给「下载模型」按钮(首次启用引导下载入口)');
+    // 模型行状态随真机模型库实查(与文件头 secure storage 泄漏同面的环境
+    // 依赖,真壳 DI 不打桩):干净机 =「未下载」+ 下载按钮;开发机模型已在
+    // 库(AppData .../yucai/models/*.gguf)=「已就绪」+ 删除钮。两分支都
+    // 验模型行按态渲染正确 affordance(F65 热修时适配:原单钉「未下载」在
+    // 模型已下载的开发机必红 —— 与打字指示改动无关,引导态不经 streaming)。
+    if (find.text('未下载').evaluate().isNotEmpty) {
+      expect(
+          find.byKey(const ValueKey('assistantDownloadButton')).evaluate(),
+          isNotEmpty,
+          reason: '未下载态给「下载模型」按钮(首次启用引导下载入口)');
+    } else {
+      expect(find.text('已就绪').evaluate(), isNotEmpty,
+          reason: '模型已在库:就绪态 chip(环境分支,见上注)');
+      expect(
+          find.byKey(const ValueKey('assistantDeleteModelButton')).evaluate(),
+          isNotEmpty,
+          reason: '就绪态给删除模型入口');
+    }
     // 浮层仍开(去设置不收浮层 —— 全局宿主,会话跨导航保留)。
     expect(find.byKey(const ValueKey('assistantPanel')).evaluate(), isNotEmpty,
         reason: '去设置后浮层仍开(全局宿主不随路由销毁)');

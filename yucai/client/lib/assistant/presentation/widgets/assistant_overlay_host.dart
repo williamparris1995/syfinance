@@ -11,6 +11,10 @@
 /// - 消息渲染 = [PanelMessage] sealed 分型(UserMsg 右气泡/AssistantMsg 左
 ///   气泡+流式光标/ToolStatusMsg 状态条/ErrorMsg 错误条+重试/GuideMsg 引导
 ///   三型);流式合帧已由 bloc 30ms 承担,此处直接 rebuild。
+/// - 打字指示气泡(F65 热修,v19 .typing 三点跳动):发送→首 token 死区与
+///   工具轮间隙的「正在回答」指示 —— 条件单点 = sendState==streaming 且
+///   最后 UserMsg 后尚无 AssistantMsg(awaitTool 面由工具 pill 覆盖;首
+///   delta 后流式光标接管,reduced-motion 守卫照 v19 animation:none)。
 ///
 /// 装配:四依赖构造注入(测试 fake);缺省经 guarded getIt 解析(core/di 1m
 /// 段全注册,照 OfflineBadge/settings 卡先例 —— 测试 stripped harness 未注册
@@ -47,6 +51,19 @@ const _toolLabels = <String, String>{
 };
 
 String _toolLabel(String name) => _toolLabels[name] ?? name;
+
+/// 最后一条 [UserMsg] 之后是否已出现 [AssistantMsg](本轮已有流式文本)。
+/// 打字指示的隐藏半边(显示 = streaming 且本函数为 false):
+/// - 倒序扫描,先遇 UserMsg → 本轮尚无回复;先遇 AssistantMsg → 已有文本。
+/// - 无 UserMsg 时防御性视为「已有回复」:streaming 必由发送/重试进入,
+///   消息流必带 UserMsg,该分支实际不可达。
+bool _assistantAfterLastUser(List<PanelMessage> messages) {
+  for (final message in messages.reversed) {
+    if (message is UserMsg) return false;
+    if (message is AssistantMsg) return true;
+  }
+  return true;
+}
 
 String _gb(int bytes) => '${(bytes / 1e9).toStringAsFixed(1)}GB';
 
@@ -319,6 +336,13 @@ class _AssistantChatPanelState extends State<_AssistantChatPanel> {
                         : _MessageList(
                             messages: state.messages,
                             busy: state.isBusy,
+                            // 打字指示条件单点(F65 热修):streaming 且最后
+                            // UserMsg 后尚无 AssistantMsg —— 发送→首 token
+                            // 死区 + 工具完成后无文本间隙;首 delta 后由
+                            // 流式光标天然接管(awaitTool 面归工具 pill)。
+                            typing:
+                                state.sendState == PanelSendState.streaming &&
+                                    !_assistantAfterLastUser(state.messages),
                             modelManager: widget.modelManager,
                           ),
                   ),
@@ -513,16 +537,22 @@ class _QuestionChipState extends State<_QuestionChip> {
   }
 }
 
-/// 消息流区:逐条分型渲染 + 新消息自动滚底。
+/// 消息流区:逐条分型渲染 + 新消息自动滚底;[typing] 时尾部追加打字
+/// 指示气泡(条件在挂载方单点计算,见 [_AssistantChatPanelState])。
 class _MessageList extends StatefulWidget {
   const _MessageList({
     required this.messages,
     required this.busy,
+    required this.typing,
     required this.modelManager,
   });
 
   final List<PanelMessage> messages;
   final bool busy;
+
+  /// 尾部打字指示是否显示(streaming 且本轮尚无 AssistantMsg)。
+  final bool typing;
+
   final ModelManagerPort modelManager;
 
   @override
@@ -535,7 +565,10 @@ class _MessageListState extends State<_MessageList> {
   @override
   void didUpdateWidget(_MessageList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.messages.length != oldWidget.messages.length) {
+    // 滚底触发 = 消息数变(新消息入列)或指示开合(死区指示出现/消失都
+    // 改变可视尾行,尤其工具完成无文本时消息数不变仅指示回归)。
+    if (widget.messages.length != oldWidget.messages.length ||
+        widget.typing != oldWidget.typing) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scroll.hasClients) {
           _scroll.jumpTo(_scroll.position.maxScrollExtent);
@@ -552,19 +585,28 @@ class _MessageListState extends State<_MessageList> {
 
   @override
   Widget build(BuildContext context) {
+    final typing = widget.typing;
     return ListView.builder(
       controller: _scroll,
       padding: const EdgeInsets.all(12),
-      itemCount: widget.messages.length,
-      itemBuilder: (context, index) => Padding(
-        padding: EdgeInsets.only(
-            top: index == 0 ? 0 : 9), // v19 .cp-body gap:9
-        child: _messageTile(
-          context,
-          widget.messages[index],
-          isLast: index == widget.messages.length - 1,
-        ),
-      ),
+      itemCount: widget.messages.length + (typing ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (typing && index == widget.messages.length) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 9), // v19 .cp-body gap:9
+            child: _TypingIndicator(),
+          );
+        }
+        return Padding(
+          padding: EdgeInsets.only(
+              top: index == 0 ? 0 : 9), // v19 .cp-body gap:9
+          child: _messageTile(
+            context,
+            widget.messages[index],
+            isLast: index == widget.messages.length - 1,
+          ),
+        );
+      },
     );
   }
 
@@ -749,6 +791,137 @@ class _StreamCursorState extends State<_StreamCursor>
         decoration: BoxDecoration(
           color: context.yucai.accent,
           borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+}
+
+/// 打字指示气泡(F65 热修,v19 .msg.bot.typing):左置 bot 气泡内三点
+/// 跳动 —— 发送→首 token 死区与工具轮间隙的「正在回答」指示(流式光标
+/// 仅覆盖已有文本段,死区内无 AssistantMsg 可挂)。显示条件单点在挂载方
+/// (_MessageList.typing);动效 = v19 .typing i:1.2s ease-in-out 无限,
+/// 逐点延迟 0/.15/.3s(translateY -3px + opacity .45→1);
+/// reduced-motion 守卫照 v19 prefers-reduced-motion(animation:none →
+/// 三点静止不跳动)。
+class _TypingIndicator extends StatefulWidget {
+  const _TypingIndicator();
+
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  /// v19 .typing i:animation tp 1.2s ease-in-out infinite。
+  static const _periodMs = 1200.0;
+
+  /// v19 .typing i:nth-child(2)/(3):animation-delay .15s/.3s。
+  static const _delaysMs = [0.0, 150.0, 300.0];
+
+  /// v19 @keyframes tp:30% translateY(-3px);0%/60%/100% opacity .45。
+  static const _liftPx = -3.0;
+  static const _dimOpacity = 0.45;
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  /// 动效允许(null = 首刷前;随 MediaQuery.disableAnimations 增减,
+  /// didChangeDependencies 首刷即定 —— repeat 只在允许时启动)。
+  bool? _motion;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final motion = !MediaQuery.disableAnimationsOf(context);
+    if (motion == _motion) return;
+    _motion = motion;
+    if (motion) {
+      _controller.repeat();
+    } else {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// 单点相位([delayMs] 为该点 CSS 负延迟相位;返回 (dy, opacity)):
+  /// 0→30% 抬升渐显 / 30→60% 落回渐隐 / 60→100% 原地持平(段内
+  /// ease-in-out,照 v19 @keyframes tp)。
+  (double, double) _dotAt(double delayMs) {
+    final phase = ((_controller.value * _periodMs - delayMs) % _periodMs +
+            _periodMs) %
+        _periodMs /
+        _periodMs;
+    if (phase < 0.30) {
+      final u = Curves.easeInOut.transform(phase / 0.30);
+      return (_liftPx * u, _dimOpacity + (1 - _dimOpacity) * u);
+    }
+    if (phase < 0.60) {
+      final u = Curves.easeInOut.transform((phase - 0.30) / 0.30);
+      return (_liftPx * (1 - u), 1 - (1 - _dimOpacity) * u);
+    }
+    return (0, _dimOpacity);
+  }
+
+  /// 单点(dot)相位渲染:reduced-motion 静止,否则按 [delayMs] 相位跳动。
+  Widget _dotFor(YucaiTheme t, double delayMs) {
+    if (_motion == false) {
+      return _dot(t, 0, 1); // reduced-motion:静止(CSS animation:none 基态)
+    }
+    final (dy, opacity) = _dotAt(delayMs);
+    return _dot(t, dy, opacity);
+  }
+
+  Widget _dot(YucaiTheme t, double dy, double opacity) => Opacity(
+        opacity: opacity,
+        child: Transform.translate(
+          offset: Offset(0, dy),
+          child: Container(
+            key: const ValueKey('assistantTypingDot'),
+            width: 6, // v19 .typing i:6x6 圆点
+            height: 6,
+            decoration: BoxDecoration(color: t.muted, shape: BoxShape.circle),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.yucai;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        key: const ValueKey('assistantTypingIndicator'),
+        // v19 .typing 覆写 .msg 内距:10px 12px。
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: t.surfaceAlt,
+          border: Border.all(color: t.border),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(13),
+            bottomLeft: Radius.circular(13),
+            bottomRight: Radius.circular(13),
+          ),
+        ),
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final (i, delay) in _delaysMs.indexed) ...[
+                if (i > 0) const SizedBox(width: 4), // v19 .typing gap:4
+                _dotFor(t, delay),
+              ],
+            ],
+          ),
         ),
       ),
     );

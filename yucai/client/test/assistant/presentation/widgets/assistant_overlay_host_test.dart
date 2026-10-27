@@ -9,7 +9,8 @@
 // 空态引导 chips / 五型 PanelMessage 渲染(含动效态存在性 —— spinner 照
 // 仓内 sync_status_badge_test 惯例 find.byType(CircularProgressIndicator),
 // 流式光标按 key)/ 发送禁用态(streaming)/ Enter 发送 / 重试回调 /
-// 新对话清屏(FR-4)/ 引导三型(未启用/模型未就绪含进度/引擎冷启动,F66)。
+// 新对话清屏(FR-4)/ 引导三型(未启用/模型未就绪含进度/引擎冷启动,F66)/
+// 打字指示气泡(F65 热修:发送→首 token 死区 + 工具轮间隙,v19 .typing)。
 import 'dart:async';
 import 'dart:io';
 
@@ -323,6 +324,111 @@ void main() {
       expect(find.byIcon(LucideIcons.circleX), findsOneWidget);
       controller.add(const Done());
       await tester.pump(const Duration(milliseconds: 50));
+    });
+  });
+
+  group('打字指示气泡(F65 热修:发送→首 token 死区,v19 .typing)', () {
+    testWidgets('发送后首 delta 前:三点指示在;首个 TextDelta 落段后消失,光标接管',
+        (tester) async {
+      final controller = StreamController<AssistantEvent>();
+      final loop = _FakeLoop([controller.stream]);
+      await tester.pumpWidget(_host(loop));
+      await _open(tester);
+      await _send(tester, '查净资产');
+      // 死区(streaming 且本轮无 AssistantMsg):三点指示在 —— 流式光标仅
+      // 覆盖已有文本段,死区内无 AssistantMsg 可挂(用户实测反馈的死区)。
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsOneWidget,
+          reason: '发送→首 token 之间须有「正在回答」指示');
+      expect(find.byKey(const ValueKey('assistantTypingDot')), findsNWidgets(3),
+          reason: 'v19 .typing:三点');
+      expect(find.byKey(const ValueKey('assistantBotBubble')), findsNothing);
+      expect(find.byKey(const ValueKey('assistantStreamCursor')), findsNothing);
+      controller.add(const TextDelta('净资产'));
+      await tester.pump(const Duration(milliseconds: 50));
+      // 首 TextDelta 落段:指示消失,流式光标接管(条件天然切换)。
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsNothing,
+          reason: '本轮已有 AssistantMsg → 指示让位流式光标');
+      expect(
+          find.byKey(const ValueKey('assistantStreamCursor')), findsOneWidget);
+      controller.add(const Done());
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(const ValueKey('assistantStreamCursor')), findsNothing);
+    });
+
+    testWidgets('工具轮:awaitTool 指示让位 pill;工具完成仍无文本 → 指示与完成 pill 并存',
+        (tester) async {
+      final controller = StreamController<AssistantEvent>();
+      final loop = _FakeLoop([controller.stream]);
+      await tester.pumpWidget(_host(loop));
+      await _open(tester);
+      await _send(tester, '查净资产');
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsOneWidget);
+      controller.add(const ToolCallStart('c1', 'networth_snapshot'));
+      await tester.pump(const Duration(milliseconds: 50));
+      // awaitTool:指示面归工具 pill(「正在查询…」+ spinner)。
+      expect(find.byKey(const ValueKey('assistantToolPill')), findsOneWidget);
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsNothing,
+          reason: 'awaitTool 由工具 pill 覆盖指示面(条件=streaming)');
+      controller.add(const ToolCallEnd('c1', true));
+      await tester.pump(const Duration(milliseconds: 50));
+      // 工具完成回 streaming 且本轮仍无 AssistantMsg → 条件自然继续成立,
+      // 指示回归并与完成态 pill 并存(工具轮间隙死区)。
+      expect(find.text('已查询净资产'), findsOneWidget);
+      expect(find.byKey(const ValueKey('assistantToolPill')), findsOneWidget,
+          reason: '完成态 pill 留存');
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsOneWidget,
+          reason: '工具完成后无文本间隙:指示与 pill 并存');
+      controller.add(const Done());
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsNothing,
+          reason: '终态指示消失');
+    });
+
+    testWidgets('本轮已有文本后的工具间隙:指示不回归(条件单点按最后 UserMsg 判定)',
+        (tester) async {
+      final controller = StreamController<AssistantEvent>();
+      final loop = _FakeLoop([controller.stream]);
+      await tester.pumpWidget(_host(loop));
+      await _open(tester);
+      await _send(tester, '查净资产');
+      controller.add(const TextDelta('我查一下'));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsNothing,
+          reason: '已有文本:首 delta 起指示即消失');
+      controller.add(const ToolCallStart('c1', 'networth_snapshot'));
+      await tester.pump(const Duration(milliseconds: 50));
+      controller.add(const ToolCallEnd('c1', true));
+      await tester.pump(const Duration(milliseconds: 50));
+      // 工具完成后回 streaming,但最后 UserMsg 后已有 AssistantMsg → 指示
+      // 不回归(该面由既有文本气泡 + 完成 pill 表达;规则单点不特判)。
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsNothing,
+          reason: '条件单点:最后 UserMsg 后已有 AssistantMsg 即不显示');
+      controller.add(const Done());
+      await tester.pump(const Duration(milliseconds: 50));
+    });
+
+    testWidgets('错误态:指示消失,错误条接管', (tester) async {
+      final controller = StreamController<AssistantEvent>();
+      final loop = _FakeLoop([controller.stream]);
+      await tester.pumpWidget(_host(loop));
+      await _open(tester);
+      await _send(tester, '查净资产');
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsOneWidget);
+      controller.add(const AssistantError('本机引擎暂时无响应'));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(const ValueKey('assistantErrorMsg')), findsOneWidget);
+      expect(find.byKey(const ValueKey('assistantTypingIndicator')),
+          findsNothing,
+          reason: '错误终态指示消失(错误条 + 重试接管)');
     });
   });
 
