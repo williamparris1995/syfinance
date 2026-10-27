@@ -18,6 +18,13 @@ abstract class AgentLoopService {
   /// 清空内存会话(F65「新对话」,FR-4):丢弃全部历史上下文;下次
   /// [send] 重新注入 system prompt(队首插入一次)。
   void resetConversation();
+
+  /// 确认执行结果注入会话(F70 ADR-2):以 tool role **紧凑单行**消息把
+  /// 写操作确认执行结果(如「已记:支出 35.00 午饭 招行卡」的英文单行
+  /// note)追加进内存会话 —— 后续对话 LLM 知晓已记账;**不触发任何流**,
+  /// 仅等下次 [send] 随历史可见。「新对话」[resetConversation] 一并清空
+  /// (待确认作废口径同源)。调用方保证 note 单行紧凑(上下文膨胀防线)。
+  void appendToolOutcome(String note);
 }
 
 /// 助手事件五态(ADR-5;sealed,消费方穷尽分支)。

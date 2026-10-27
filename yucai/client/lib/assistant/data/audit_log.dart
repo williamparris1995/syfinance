@@ -59,6 +59,27 @@ class AssistantAuditLog {
     );
   }
 
+  /// 写操作执行审计(F70 NFR-3;F71 落表前先结构化日志,`AgentAuditEvent`
+  /// 值类型按 F71 契约在 T2 消费):
+  /// `assistant write tool=<name> status=<ok|error> entity=<id> payload=<摘要>`。
+  ///
+  /// [entityId] 空串 = 尚无实体(失败常见);[payloadSummary] 必须为脱敏
+  /// 摘要(方向/金额/定位计数类字段,零完整 payload,红线同
+  /// [logToolCall])。
+  void logWrite({
+    required String tool,
+    required String payloadSummary,
+    required String entityId,
+    required bool ok,
+  }) {
+    _emit(
+      'assistant write tool=${_asciiOnly(tool)} '
+      'status=${ok ? 'ok' : 'error'} '
+      'entity=${_asciiOnly(entityId)} '
+      'payload=${_asciiOnly(payloadSummary)}',
+    );
+  }
+
   /// 剔除非可打印 ASCII(0x20..0x7E)字符 —— CJK/控制符(含换行)出局,
   /// 保证单行纯 ASCII(含用户可配的 model/host 等自由文本字段)。
   static String _asciiOnly(String value) => String.fromCharCodes(

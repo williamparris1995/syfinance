@@ -57,5 +57,5 @@ lib/assistant/
 
 ## Open Questions
 
-- 表单预填入口现状(execute T1 查证回填:有则 v1 顺接,无则引导只跳转+预填后续票)。
+- ~~表单预填入口现状~~ **已查证回填(T1,2026-10-27)**:记账表单路由 `/transactions/new` 仅支持 `extra=Transaction`(复制模式全字段预填,router.dart);**无部分字段(金额/描述/分类/日期)预填入口** —— `TransactionFormPage` 的 `initialAccountId`/`initialType` 预选参数只经账户页**直推 widget 构造**可达,路由层不透传 query param 也不映射 extra Map;账户/分类侧无 `/accounts/new` 独立路由(创建=页面内对话框)。→ **v1 引导只跳转**(裸开表单,ADR-5 预填分支生效);预填=后续票(可经 extra 扩 Map 透传或新增 query param)。
 - v20 确认卡形态拍板(用户)。

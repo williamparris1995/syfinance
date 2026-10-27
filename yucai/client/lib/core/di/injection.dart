@@ -25,6 +25,9 @@ import 'package:yucai_client/assistant/data/tools/holdings_list_tool.dart';
 import 'package:yucai_client/assistant/data/tools/networth_snapshot_tool.dart';
 import 'package:yucai_client/assistant/data/tools/performance_range_tool.dart';
 import 'package:yucai_client/assistant/data/tools/transactions_search_tool.dart';
+import 'package:yucai_client/assistant/data/tools/transaction_add_tool.dart';
+import 'package:yucai_client/assistant/data/tools/transaction_delete_tool.dart';
+import 'package:yucai_client/assistant/data/tools/transaction_update_tool.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
 import 'package:yucai_client/assistant/domain/engine_port.dart';
@@ -375,6 +378,20 @@ Future<void> configureDependencies() async {
   assistantTools.register(BudgetsStatusTool(getIt<BudgetRepository>()));
   assistantTools.register(GoalsListTool(getIt<GoalRepository>()));
   assistantTools.register(PerformanceRangeTool(getIt<HoldingRepository>()));
+  //     F70-T1(2026-10-27):三写工具入列(FR-1..3,ADR-1 两段执行)——
+  //     transaction_add/update/delete 为**提案器**(execute 返回
+  //     requiresApproval ToolData 零落库;实际写经 WriteExecutor 确认
+  //     回调,T2 注册)。依赖只读件同款:TransactionRepository(定位复用
+  //     只读面)/AccountRepository(名称→id 解析);add 仅需 AccountRepository。
+  assistantTools.register(TransactionAddTool(getIt<AccountRepository>()));
+  assistantTools.register(TransactionUpdateTool(
+    getIt<TransactionRepository>(),
+    getIt<AccountRepository>(),
+  ));
+  assistantTools.register(TransactionDeleteTool(
+    getIt<TransactionRepository>(),
+    getIt<AccountRepository>(),
+  ));
   getIt.registerSingleton<AssistantToolRegistry>(assistantTools);
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.

@@ -48,6 +48,54 @@ void main() {
     });
   });
 
+  group('logWrite (F70 NFR-3:写执行审计,F71 落表前先日志)', () {
+    test('ok line format: tool/status/entity/payload', () {
+      audit.logWrite(
+        tool: 'transaction_add',
+        payloadSummary: 'direction=out amountCents=3500',
+        entityId: 'txn-1',
+        ok: true,
+      );
+      expect(
+        lines.single,
+        'assistant write tool=transaction_add status=ok '
+        'entity=txn-1 payload=direction=out amountCents=3500',
+      );
+    });
+
+    test('error line: empty entity allowed (失败常无实体 id)', () {
+      audit.logWrite(
+        tool: 'transaction_delete',
+        payloadSummary: 'transactionId=txn-9',
+        entityId: '',
+        ok: false,
+      );
+      expect(
+        lines.single,
+        'assistant write tool=transaction_delete status=error '
+        'entity= payload=transactionId=txn-9',
+      );
+    });
+
+    test('ASCII gate: CJK payloadSummary stripped, line stays grep-able', () {
+      audit.logWrite(
+        tool: 'transaction_update',
+        payloadSummary: 'desc=午饭 amount=40.00',
+        entityId: 'txn-2',
+        ok: true,
+      );
+      expect(
+        lines.single,
+        'assistant write tool=transaction_update status=ok '
+        'entity=txn-2 payload=desc= amount=40.00',
+      );
+      expect(
+        lines.single.codeUnits.every((c) => c >= 0x20 && c <= 0x7E),
+        isTrue,
+      );
+    });
+  });
+
   group('ASCII gate', () {
     test('CJK chars in argsSummary are stripped', () {
       audit.logToolCall(

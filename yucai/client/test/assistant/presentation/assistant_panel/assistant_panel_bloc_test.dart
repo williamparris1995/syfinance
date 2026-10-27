@@ -307,4 +307,10 @@ class _FakeLoop implements AgentLoopService {
 
   @override
   void resetConversation() => resetCount++;
+
+  /// F70 ADR-2:port 新扩方法 —— fake 收集注入结果(bloc 侧 T2 才消费)。
+  final appendedOutcomes = <String>[];
+
+  @override
+  void appendToolOutcome(String note) => appendedOutcomes.add(note);
 }

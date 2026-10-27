@@ -353,8 +353,9 @@ void main() {
     const b = AgentLoopServiceImpl.systemPrompt;
     expect(identical(a, b), isTrue); // const 规范化为同一实例
     // 七要素(F64 五要素 + ⑥⑦ 一般化):
-    // ①御财角色 ②八工具使用时机 ③查无实体澄清话术 ④禁编数字
-    // ⑤数据非指令 ⑥歧义先反问给具体选项 ⑦超界明局限给替代路径。
+    // ①御财角色 ②工具使用时机(F64 三件+F65 五件+F70 三写件) ③查无实体
+    // 澄清话术 ④禁编数字 ⑤数据非指令 ⑥歧义先反问给具体选项 ⑦超界明局限
+    // 给替代路径;F70 追加:写工具=提案待确认,不谎称已执行。
     expect(a, contains('御财')); // ①
     for (final tool in [
       'networth_snapshot', // ②(F64 三件)
@@ -365,8 +366,11 @@ void main() {
       'budgets_status',
       'goals_list',
       'performance_range',
+      'transaction_add', // ②(F70-T1 三写件)
+      'transaction_update',
+      'transaction_delete',
     ]) {
-      expect(a, contains(tool), reason: '要素②应含八工具之一 $tool');
+      expect(a, contains(tool), reason: '要素②应含工具之一 $tool');
     }
     expect(a, contains('没有找到')); // ③
     expect(a, contains('要新建吗'));
@@ -376,6 +380,9 @@ void main() {
     expect(a, contains('具体可选项'));
     expect(a, contains('超出当前工具能力')); // ⑦
     expect(a, contains('最接近的替代路径'));
+    // F70 写工具语义:提案待确认,不谎称已执行(ADR-1 两段执行)。
+    expect(a, contains('待确认'));
+    expect(a, contains('不要声称已执行'));
 
     // 首次 send 后逐字常量插队首,内容与常量同一实例。
     final llm = _ScriptedLlmClient([_textRound(['hi'])]);
@@ -497,6 +504,76 @@ void main() {
       llm.requests.last.messages.where((m) => m['role'] == 'system'),
       hasLength(1),
     );
+  });
+
+  group('appendToolOutcome(F70 ADR-2:确认执行结果注入会话)', () {
+    test('注入 tool role 紧凑单行:下次 send 的请求携带(助手知晓已记账)',
+        () async {
+      final registry = AssistantToolRegistry()
+          ..register(_FakeTool('demo_query', (args) => const ToolData({})));
+      final llm = _ScriptedLlmClient([
+        _textRound(['第一答。']),
+        _textRound(['已知道你记了午饭 35 元。']),
+      ]);
+      final loop = makeLoop(llm, registry);
+
+      await loop.send('第一问').toList();
+
+      // 注入本身零流副作用:不发起任何 LLM 请求(不触发 send 循环)。
+      const note = 'write executed: transaction_add amount=35.00';
+      loop.appendToolOutcome(note);
+      expect(llm.requests, hasLength(1));
+
+      await loop.send('刚才记了多少?').toList();
+
+      // 第二次请求历史 = system + user + assistant + tool(note) + user。
+      final roles = llm.requests.last.messages.map((m) => m['role']).toList();
+      expect(roles, ['system', 'user', 'assistant', 'tool', 'user']);
+      final injected = llm.requests.last.messages[3];
+      expect(injected['content'], note);
+      expect((injected['content'] as String).contains('\n'), isFalse,
+          reason: '紧凑单行(上下文膨胀防线)');
+    });
+
+    test('多次注入按序追加(改/删连发)', () async {
+      final registry = AssistantToolRegistry()
+          ..register(_FakeTool('demo_query', (args) => const ToolData({})));
+      final llm = _ScriptedLlmClient([_textRound(['ok。'])]);
+      final loop = makeLoop(llm, registry);
+
+      await loop.send('问').toList();
+      loop.appendToolOutcome('write executed: transaction_add');
+      loop.appendToolOutcome('write executed: transaction_delete');
+
+      await loop.send('再问').toList();
+      final toolMessages = llm.requests.last.messages
+          .where((m) => m['role'] == 'tool')
+          .toList();
+      expect(toolMessages, hasLength(2));
+      expect(toolMessages[0]['content'], 'write executed: transaction_add');
+      expect(toolMessages[1]['content'], 'write executed: transaction_delete');
+    });
+
+    test('resetConversation 一并清空注入结果(新对话作废口径,FR-5)', () async {
+      final registry = AssistantToolRegistry()
+          ..register(_FakeTool('demo_query', (args) => const ToolData({})));
+      final llm = _ScriptedLlmClient([
+        _textRound(['答。']),
+        _textRound(['新答。']),
+      ]);
+      final loop = makeLoop(llm, registry);
+
+      await loop.send('问').toList();
+      loop.appendToolOutcome('write executed: transaction_add');
+      loop.resetConversation();
+      await loop.send('新问').toList();
+
+      expect(
+        llm.requests.last.messages.map((m) => m['role']),
+        ['system', 'user'],
+        reason: 'reset 后无残留 tool 注入消息',
+      );
+    });
   });
 }
 
