@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · F70 写操作确认卡</title>
+<script>
+  (function(){
+    var saved = localStorage.getItem('yc2-theme') || 'dark';
+    if (saved === 'system') saved = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.dataset.theme = saved;
+  })();
+</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* ============ 页面骨架(fork 底版 assistant-chat-states) ============ */
+  .set-wrap{max-width:1060px;margin:0 auto}
+  .set-group{margin-bottom:24px}
+  .set-group > .g-title{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:1.5px;margin:0 4px 8px}
+
+  /* ============ 聊天浮层组件(fork 底版,与 F65 同款) ============ */
+  .chat-panel{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .cp-head{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--chip-bg);flex:none}
+  .cp-badge{width:30px;height:30px;border-radius:9px;background:var(--q1-bg);color:var(--q1-fg);display:grid;place-items:center;flex:none}
+  .cp-title{flex:1;min-width:0;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .cp-body{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px;background:var(--bg)}
+  .msg{max-width:86%;font-size:12.5px;line-height:1.6;padding:8px 11px;border-radius:13px}
+  .msg.user{align-self:flex-end;background:var(--acc);color:var(--acc-text);border-bottom-right-radius:4px;font-weight:500}
+  .msg.bot{align-self:flex-start;background:var(--chip-bg);border:1px solid var(--chip-border);border-bottom-left-radius:4px}
+  .msg.bot b{font-weight:700}
+  .tool{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);background:var(--ic-bg);border-radius:999px;padding:4px 10px}
+  .spin{width:11px;height:11px;border-radius:50%;border:2px solid var(--chip-border);border-top-color:var(--acc);animation:rot .8s linear infinite;flex:none}
+  .cp-input{display:flex;gap:8px;padding:9px 10px;border-top:1px solid var(--line);background:var(--chip-bg);flex:none}
+  .cp-input input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 11px;color:var(--fg);font-size:12.5px;outline:0}
+  .cp-input input:focus{border-color:var(--acc)}
+  .cp-send{width:36px;height:36px;border-radius:10px;border:0;background:var(--btn-bg);color:var(--btn-fg);display:grid;place-items:center;cursor:pointer;flex:none}
+  .cp-send:hover{filter:brightness(1.05)}
+  .cp-error{display:flex;align-items:center;gap:9px;background:var(--neg-soft);color:var(--neg);border-radius:11px;padding:9px 11px;font-size:12px;font-weight:600}
+  .cp-error .btn-ghost{margin-left:auto;padding:6px 11px;font-size:11.5px;border-radius:9px}
+
+  /* ============ 状态卡外壳(fork 底版 st-card,本页单列全宽) ============ */
+  .st-card{padding:0;overflow:hidden;display:flex;flex-direction:column}
+  .st-head{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line);flex:none}
+  .st-no{width:22px;height:22px;border-radius:7px;background:var(--ic-bg);color:var(--muted);display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+  .st-name{font-size:13px;font-weight:700}
+  .st-note{margin-left:auto;font-size:11px;color:var(--muted);text-align:right}
+  .st-card .chat-panel{border:0;border-radius:0;box-shadow:none;flex:1}
+  .st-card .cp-body{height:auto}
+
+  /* ============ 本页布局:六段纵排,浮层限宽等宽(呈现无偏置) ============ */
+  .vc{margin-bottom:22px}
+  .vc:last-child{margin-bottom:0}
+  .vc .chat-panel{max-width:640px}
+  .vc .st-no{width:auto;min-width:22px;padding:0 6px;font-size:10.5px}
+  .vc .vc-trade{flex:none;max-width:640px;margin:10px 2px 2px;font-size:12px;color:var(--muted);line-height:1.6}
+  .vc-sub{align-self:flex-start;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;margin:3px 2px 0}
+
+  /* ============ 写操作确认卡(浮层内嵌,全部 theme.css 令牌) ============ */
+  .ap{align-self:flex-start;width:88%;background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow);overflow:hidden}
+  [data-theme="light"] .ap{border-color:transparent}
+  .ap-head{display:flex;align-items:center;gap:7px;padding:8px 12px;background:var(--ic-bg);border-bottom:1px solid var(--line);font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.5px}
+  .ap-head .chip{margin-left:auto}
+  .ap-head.ok{color:var(--pos)}
+  .ap-head.fail{color:var(--neg)}
+  .ap-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:7px 12px;border-bottom:1px solid var(--line);font-size:12.5px}
+  .ap-row:last-child{border-bottom:0}
+  .ap-k{color:var(--muted);flex:none}
+  .ap-v{font-weight:600;text-align:right;min-width:0}
+  .ap-v .sm-note{display:block;font-size:10.5px;color:var(--muted);font-weight:500;margin-top:1px}
+  .ap-v .sm-note.neg{color:var(--neg)}
+  .ap-old{color:var(--muted);text-decoration:line-through;font-weight:500;margin-right:2px}
+  .ap-arrow{color:var(--muted);margin:0 4px;font-weight:400}
+  .ap-new{color:var(--acc);font-weight:800}
+  .ap-btns{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);background:var(--chip-bg)}
+  .ap-btns .btn-primary,.ap-btns .btn-ghost{padding:8px 13px;font-size:12px;border-radius:10px}
+  .btn-danger{display:inline-flex;align-items:center;gap:8px;cursor:pointer;border:0;background:var(--neg-soft);color:var(--neg);border-radius:10px;padding:8px 13px;font-size:12px;font-weight:700}
+  .btn-danger:hover{filter:brightness(1.05)}
+  .ap-done{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid var(--line);background:var(--pos-soft);color:var(--pos);font-size:12px;font-weight:700}
+  .ap-strip{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--neg-soft);color:var(--neg);font-size:12px;font-weight:700;border-bottom:1px solid var(--line)}
+  .ap-note-line{padding:8px 12px 10px;font-size:11px;color:var(--muted)}
+  .ap .cp-error{margin:10px 12px 0;border-radius:9px}
+  .ap.void{opacity:.55;pointer-events:none}
+
+  /* 键盘聚焦(people:确认卡按钮可键盘聚焦) */
+  .ap button:focus-visible,.ap .ap-btns a:focus-visible,.cp-send:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+  @keyframes rot{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){
+    .spin{animation:none}
+  }
+
+  /* ============ 页内强制桌面布局:压回 theme.css 的 <900px 移动规则 ============ */
+  @media (max-width:900px){
+    body{display:grid;grid-template-columns:236px 1fr}
+    .sidebar{display:flex}
+    .crumb{display:block}
+    .topbar{padding:14px 32px}
+    .search{width:280px}
+    .page{padding:28px 32px 48px}
+    .page-head{flex-direction:row;align-items:flex-end;gap:16px}
+    .page-head h1{font-size:24px}
+    .page-head-actions{width:auto}
+    .page-head-actions .btn-primary,.page-head-actions .btn-ghost{flex:none}
+    .bottom-nav{display:none}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8Z"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 20l1.1-5.3A8.5 8.5 0 1 1 21 11.5Z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.9 1 6.7 2.7L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item active" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">工具 <span class="sep">›</span> <b>设置 · AI 助手 · F70 写确认</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索设置…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="set-wrap">
+      <div class="page-head">
+        <div>
+          <h1>写操作确认卡 · 六形态</h1>
+          <p class="date">F70 · 助手聊天浮层内写确认全形态 V1-V6 · 演示数据均为合成</p>
+        </div>
+        <div class="page-head-actions">
+          <a class="btn-ghost" href="assistant-chat-states.html">‹ F65 聊天状态</a>
+        </div>
+      </div>
+
+      <div class="set-group">
+        <div class="g-title">写确认 · 同一浮层的六种确认时刻(确认前零落库)</div>
+
+        <!-- ============ V1 新增预览卡 ============ -->
+        <section class="card st-card vc" data-od-id="v1-section">
+          <div class="st-head"><span class="st-no num">V1</span><span class="st-name">新增预览卡 · 记一笔</span><span class="st-note">写请求 → 逐项预览 → 确认落库</span></div>
+          <div class="chat-panel">
+            <div class="cp-head">
+              <span class="cp-badge"><svg class="ic" style="width:16px;height:16px"><use href="#i-spark"/></svg></span>
+              <div class="cp-title">御财助手 <span class="chip pos">本机运行</span></div>
+            </div>
+            <div class="cp-body">
+              <div class="msg user">记一笔午饭 35 块,招行卡</div>
+              <div class="msg bot">好的,请确认这笔记录:</div>
+              <div class="ap" data-od-id="v1-card-pending">
+                <div class="ap-head"><svg class="ic" style="width:13px;height:13px"><use href="#i-edit"/></svg>待确认操作<span class="chip">记一笔</span></div>
+                <div class="ap-row"><span class="ap-k">方向</span><span class="ap-v">支出</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v num">¥35.00</span></div>
+                <div class="ap-row"><span class="ap-k">账户</span><span class="ap-v">招商银行(储蓄卡)</span></div>
+                <div class="ap-row"><span class="ap-k">分类</span><span class="ap-v">餐饮<small class="sm-note">由描述推导</small></span></div>
+                <div class="ap-row"><span class="ap-k">日期</span><span class="ap-v">今天</span></div>
+                <div class="ap-btns">
+                  <button type="button" class="btn-ghost">取消</button>
+                  <button type="button" class="btn-primary">确认记账</button>
+                </div>
+              </div>
+              <div class="vc-sub">确认后 · 小样</div>
+              <div class="ap" data-od-id="v1-card-done">
+                <div class="ap-head ok"><svg class="ic" style="width:13px;height:13px"><use href="#i-check"/></svg>已记账<span class="chip pos">已完成</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v num">¥35.00</span></div>
+                <div class="ap-row"><span class="ap-k">账户</span><span class="ap-v">招商银行(储蓄卡)</span></div>
+                <div class="ap-row"><span class="ap-k">分类</span><span class="ap-v">餐饮</span></div>
+                <div class="ap-done"><svg class="ic" style="width:13px;height:13px"><use href="#i-check"/></svg>已记入招商银行(储蓄卡)·今天 12:33</div>
+              </div>
+            </div>
+            <div class="cp-input">
+              <input placeholder="问点什么,如:记一笔晚饭 28 块">
+              <button type="button" class="cp-send" aria-label="发送"><svg class="ic" style="width:16px;height:16px"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+          <p class="vc-trade">权衡:逐项预览比一步落库多一拍,但金额、账户、分类的错误在落库前就能拦下;推导字段标注来源,不冒充用户指定。</p>
+        </section>
+
+        <!-- ============ V2 修改前后对比卡 ============ -->
+        <section class="card st-card vc" data-od-id="v2-section">
+          <div class="st-head"><span class="st-no num">V2</span><span class="st-name">修改前后对比卡 · 改一笔</span><span class="st-note">仅高亮变更字段 · 旧值保留删除线</span></div>
+          <div class="chat-panel">
+            <div class="cp-head">
+              <span class="cp-badge"><svg class="ic" style="width:16px;height:16px"><use href="#i-spark"/></svg></span>
+              <div class="cp-title">御财助手 <span class="chip pos">本机运行</span></div>
+            </div>
+            <div class="cp-body">
+              <div class="msg user">刚才那笔改成 40 块</div>
+              <div class="msg bot">好的,把这笔的金额修改如下,请确认:</div>
+              <div class="ap" data-od-id="v2-card">
+                <div class="ap-head"><svg class="ic" style="width:13px;height:13px"><use href="#i-edit"/></svg>待确认操作<span class="chip">改一笔</span></div>
+                <div class="ap-row"><span class="ap-k">目标交易</span><span class="ap-v">午饭 · 今天 12:32</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v"><s class="ap-old num">¥35.00</s><span class="ap-arrow">→</span><b class="ap-new num">¥40.00</b></span></div>
+                <div class="ap-row"><span class="ap-k">账户</span><span class="ap-v">招商银行(储蓄卡)</span></div>
+                <div class="ap-row"><span class="ap-k">分类</span><span class="ap-v">餐饮</span></div>
+                <div class="ap-btns">
+                  <button type="button" class="btn-ghost">取消</button>
+                  <button type="button" class="btn-primary">确认修改</button>
+                </div>
+              </div>
+            </div>
+            <div class="cp-input">
+              <input placeholder="问点什么,如:再把日期改成明天">
+              <button type="button" class="cp-send" aria-label="发送"><svg class="ic" style="width:16px;height:16px"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+          <p class="vc-trade">权衡:只高亮变更字段,其余只读列出,改动一眼可辨;旧值保留删除线,便于核对是不是改对了那一笔。</p>
+        </section>
+
+        <!-- ============ V3 删除 destructive 强确认卡 ============ -->
+        <section class="card st-card vc" data-od-id="v3-section">
+          <div class="st-head"><span class="st-no num">V3</span><span class="st-name">删除强确认卡 · 删一笔</span><span class="st-note">红色警示条 · 按钮主位反转</span></div>
+          <div class="chat-panel">
+            <div class="cp-head">
+              <span class="cp-badge"><svg class="ic" style="width:16px;height:16px"><use href="#i-spark"/></svg></span>
+              <div class="cp-title">御财助手 <span class="chip pos">本机运行</span></div>
+            </div>
+            <div class="cp-body">
+              <div class="msg user">把那笔地铁删了</div>
+              <div class="msg bot">删除后不可恢复,请确认要删的是这笔:</div>
+              <div class="ap" data-od-id="v3-card">
+                <div class="ap-strip"><svg class="ic" style="width:13px;height:13px"><use href="#i-alert"/></svg>删除后不可恢复</div>
+                <div class="ap-head"><svg class="ic" style="width:13px;height:13px"><use href="#i-x"/></svg>待确认操作<span class="chip">删一笔</span></div>
+                <div class="ap-row"><span class="ap-k">交易</span><span class="ap-v">地铁通勤 · 今天 08:47</span></div>
+                <div class="ap-row"><span class="ap-k">分类</span><span class="ap-v">交通出行</span></div>
+                <div class="ap-row"><span class="ap-k">账户</span><span class="ap-v">支付宝</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v num">¥6.00</span></div>
+                <div class="ap-btns">
+                  <button type="button" class="btn-danger">确认删除</button>
+                  <button type="button" class="btn-primary">取消</button>
+                </div>
+              </div>
+            </div>
+            <div class="cp-input">
+              <input placeholder="问点什么,如:这个月交通花了多少">
+              <button type="button" class="cp-send" aria-label="发送"><svg class="ic" style="width:16px;height:16px"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+          <p class="vc-trade">权衡:红色警示条+危险色按钮与普通确认卡拉开明确视觉级差;主位反转让「取消」成为默认主视觉,误删需要刻意越过一级。</p>
+        </section>
+
+        <!-- ============ V4 查无实体引导态 ============ -->
+        <section class="card st-card vc" data-od-id="v4-section">
+          <div class="st-head"><span class="st-no num">V4</span><span class="st-name">查无实体引导态</span><span class="st-note">不静默代建 · 先补实体再落库</span></div>
+          <div class="chat-panel">
+            <div class="cp-head">
+              <span class="cp-badge"><svg class="ic" style="width:16px;height:16px"><use href="#i-spark"/></svg></span>
+              <div class="cp-title">御财助手 <span class="chip pos">本机运行</span></div>
+            </div>
+            <div class="cp-body">
+              <div class="msg user">记一笔打车 12 块,滴滴账户</div>
+              <div class="msg bot">没有找到『滴滴』这个账户,要新建吗?</div>
+              <div class="ap" data-od-id="v4-card">
+                <div class="ap-head"><svg class="ic" style="width:13px;height:13px"><use href="#i-msg"/></svg>需要补充信息<span class="chip warn">待补充</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v num">¥12.00</span></div>
+                <div class="ap-row"><span class="ap-k">账户</span><span class="ap-v">滴滴<small class="sm-note neg">未找到该账户</small></span></div>
+                <div class="ap-btns">
+                  <button type="button" class="btn-ghost">换个账户试试</button>
+                  <a class="btn-primary" href="#">新建账户 <svg class="ic" style="width:13px;height:13px"><use href="#i-chev"/></svg></a>
+                </div>
+                <div class="ap-note-line">也可以直接说用哪个现有账户,如「用支付宝记」。</div>
+              </div>
+            </div>
+            <div class="cp-input">
+              <input placeholder="问点什么,如:用支付宝记这笔">
+              <button type="button" class="cp-send" aria-label="发送"><svg class="ic" style="width:16px;height:16px"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+          <p class="vc-trade">权衡:查无实体不静默代建、不猜账户,宁可多问一句;「新建账户」一步直达表单,降低补建成本,请求金额先挂起不丢失。</p>
+        </section>
+
+        <!-- ============ V5 待确认被替换 / 作废 ============ -->
+        <section class="card st-card vc" data-od-id="v5-section">
+          <div class="st-head"><span class="st-no num">V5</span><span class="st-name">待确认被替换 / 作废</span><span class="st-note">同一时刻仅一张待确认卡</span></div>
+          <div class="chat-panel">
+            <div class="cp-head">
+              <span class="cp-badge"><svg class="ic" style="width:16px;height:16px"><use href="#i-spark"/></svg></span>
+              <div class="cp-title">御财助手 <span class="chip pos">本机运行</span></div>
+            </div>
+            <div class="cp-body">
+              <div class="msg user">记一杯咖啡 22 块</div>
+              <div class="msg bot">好的,请确认这笔记录:</div>
+              <div class="ap void" data-od-id="v5-card-superseded">
+                <div class="ap-head"><svg class="ic" style="width:13px;height:13px"><use href="#i-edit"/></svg>待确认操作<span class="chip">已被新操作替换</span></div>
+                <div class="ap-row"><span class="ap-k">摘要</span><span class="ap-v">咖啡</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v num">¥22.00</span></div>
+                <div class="ap-row"><span class="ap-k">账户</span><span class="ap-v">支付宝</span></div>
+              </div>
+              <div class="msg user">不对,加了个可颂,一起记 25 块</div>
+              <div class="ap" data-od-id="v5-card-pending">
+                <div class="ap-head"><svg class="ic" style="width:13px;height:13px"><use href="#i-edit"/></svg>待确认操作<span class="chip">记一笔</span></div>
+                <div class="ap-row"><span class="ap-k">摘要</span><span class="ap-v">咖啡+可颂</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v num">¥25.00</span></div>
+                <div class="ap-row"><span class="ap-k">账户</span><span class="ap-v">支付宝</span></div>
+                <div class="ap-row"><span class="ap-k">分类</span><span class="ap-v">餐饮</span></div>
+                <div class="ap-btns">
+                  <button type="button" class="btn-ghost">取消</button>
+                  <button type="button" class="btn-primary">确认记账</button>
+                </div>
+              </div>
+              <div class="vc-sub">小样 · 新对话后作废</div>
+              <div class="ap void" data-od-id="v5-card-void">
+                <div class="ap-head"><svg class="ic" style="width:13px;height:13px"><use href="#i-edit"/></svg>待确认操作<span class="chip">已作废</span></div>
+                <div class="ap-row"><span class="ap-k">摘要</span><span class="ap-v">咖啡+可颂</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v num">¥25.00</span></div>
+              </div>
+            </div>
+            <div class="cp-input">
+              <input placeholder="问点什么,如:记一笔停车费 15 块">
+              <button type="button" class="cp-send" aria-label="发送"><svg class="ic" style="width:16px;height:16px"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+          <p class="vc-trade">权衡:同一时刻只保留一张待确认卡,新写请求自动替换旧卡,避免双卡并存重复确认落库;被替换/作废的卡灰化留档,上下文可追溯。</p>
+        </section>
+
+        <!-- ============ V6 确认后执行失败态 ============ -->
+        <section class="card st-card vc" data-od-id="v6-section">
+          <div class="st-head"><span class="st-no num">V6</span><span class="st-name">确认后执行失败态</span><span class="st-note">幂等重试 · 不产生重复记录</span></div>
+          <div class="chat-panel">
+            <div class="cp-head">
+              <span class="cp-badge"><svg class="ic" style="width:16px;height:16px"><use href="#i-spark"/></svg></span>
+              <div class="cp-title">御财助手 <span class="chip pos">本机运行</span></div>
+            </div>
+            <div class="cp-body">
+              <div class="msg user">记一笔午饭 35 块,招行卡</div>
+              <div class="tool"><i class="spin"></i>已确认,正在记账…</div>
+              <div class="ap" data-od-id="v6-card">
+                <div class="ap-head fail"><svg class="ic" style="width:13px;height:13px"><use href="#i-alert"/></svg>记账失败<span class="chip neg">执行失败</span></div>
+                <div class="ap-row"><span class="ap-k">金额</span><span class="ap-v num">¥35.00</span></div>
+                <div class="ap-row"><span class="ap-k">账户</span><span class="ap-v">招商银行(储蓄卡)<small class="sm-note neg">已删除</small></span></div>
+                <div class="ap-row"><span class="ap-k">分类</span><span class="ap-v">餐饮</span></div>
+                <div class="cp-error">
+                  <svg class="ic" style="width:15px;height:15px;flex:none"><use href="#i-alert"/></svg>
+                  账户已被删除,无法入账
+                  <button type="button" class="btn-ghost"><svg class="ic" style="width:13px;height:13px"><use href="#i-refresh"/></svg>重试</button>
+                </div>
+                <div class="ap-note-line">重试不会产生重复记录;也可以改用其他账户重新记账。</div>
+              </div>
+            </div>
+            <div class="cp-input">
+              <input placeholder="问点什么,如:换支付宝重新记这笔">
+              <button type="button" class="cp-send" aria-label="发送"><svg class="ic" style="width:16px;height:16px"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+          <p class="vc-trade">权衡:失败不静默重试、不自动换账户,由用户决定下一步;幂等保证下手动重试不会产生重复记录,失败原因直说无粉饰。</p>
+        </section>
+
+      </div>
+
+      <footer class="foot">确认门 = 全部写操作零例外(用户拍板 2026-10-27)· F70 六形态供拍板,内嵌卡为基线,形态细节可调 · 演示数据均为合成</footer>
+    </div>
+  </div>
+</main>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+</body>
+</html>
