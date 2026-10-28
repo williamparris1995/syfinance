@@ -210,14 +210,16 @@ class _AssistantOverlayHostState extends State<AssistantOverlayHost> {
     super.dispose();
   }
 
-  /// inbox 转发:取走待处理 note → 发 [ProposeFromHistoryRequested] +
-  /// 打开浮层(已开仅追加;bloc 缺席(装配不全)时请求被丢弃 —— 与
-  /// shrink 不炸的 guarded 家法一致)。
+  /// inbox 转发(consume-then-drop,评审修复:取值**先于** bloc 缺席
+  /// 判断):取走待处理 note → 发 [ProposeFromHistoryRequested] + 打开
+  /// 浮层(已开仅追加)。bloc 缺席(装配不全)/ 已卸载时请求**取走后
+  /// 丢弃** —— 与 shrink 不炸的 guarded 家法一致;若先判后取,取不走
+  /// 的 note 滞留 inbox 单例,后续挂载新 host 时存在回放缝。
   void _onReproposeRequested() {
-    final bloc = _bloc;
-    if (bloc == null || !mounted) return;
     final note = _reproposeInbox?.consume();
     if (note == null) return;
+    final bloc = _bloc;
+    if (bloc == null || !mounted) return;
     bloc.add(ProposeFromHistoryRequested(note));
     if (!_open) {
       setState(() => _open = true);

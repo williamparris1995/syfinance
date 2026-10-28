@@ -10,7 +10,7 @@ spec:[spec.md](spec.md)(四项用户拍板);F71 对话框/DAO 与 F70 确认门�
 
 - **ADR-1 搜索=DAO 层** — watchPage 增 keyword? 参数(summary LIKE '%kw%',转义 %_);count 同参;过滤态独立分页重置。
 - **ADR-2 分组=纯渲染** — 已加载行按日历日聚合段头(复用 T2 相对时间纯函数族);跨页续组;搜索态照分组。
-- **ADR-3 再记提案=摘要解析器** — `AddActionFromNote.parse(note 串)`:自家 note 格式(「已记:支出 ¥35.00 午饭」)确定性解析出方向/金额/描述;账户/分类**不**从 note 猜(串中无)——提案时按 F70 工具同款默认推导(描述→分类/默认资产账户),用户在确认卡可改?不可改(v1 确认卡无编辑)→ 描述保留,分类账户按推导,差异由确认卡呈现如实;改/删行零解析。
+- **ADR-3 再记提案=摘要解析器** — `AddActionFromNote.parse(note 串)`:自家 note 格式(「已记:支出 ¥35.00 午饭」)确定性解析出方向/金额/描述;账户/分类**不**从 note 猜(串中无)——提案时默认推导确定性形态(与实现/ledger 偏差③同口径):账户 = 首个可见**资产**付款户(无资产户才落首个负债户),分类 = **方向匹配科目池首个**;用户在确认卡可改?不可改(v1 确认卡无编辑)→ 描述保留,分类账户按推导,差异由确认卡呈现如实;改/删行零解析。
 - **ADR-4 注入路径** — 对话框行点击→回调上抛→设置卡→event bus?最短:bloc 直接可达(AssistantPanelBloc 全局 getIt)——注入 `WriteProposed` 等价事件:bloc 新 event `ProposeFromHistory(action)`→生成新 uuid 键→pending 卡;浮层打开由 overlay host 监听 pending 卡出现(既有挂载逻辑自然承接,若未开则 host 打开)。
 - **ADR-5 复制=ContextMenu 先例** — 行包 ContextMenuRegion(照仓内右键先例)单项「复制摘要」+Clipboard+AppToast。
 

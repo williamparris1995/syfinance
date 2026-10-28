@@ -38,3 +38,21 @@ T1 13(dao +5/dialog +8)+ T2 20(note_parser 9 / bloc 5 / dialog 2 / 集成 4)= **
 - `flutter test test/assistant/`:**461 绿 + 1 自跳过**(`All tests passed!`;含集成 4/4)。
 - `flutter analyze`:**466 == 基线零新增**。
 - `git diff main -- yucai/server`:**0 字节** + server 子目录 status 0 行(NFR-2 实测)。
+
+## 评审与修复轮记录(六项轻修;HEAD 33f6429d 之后)
+
+> 控制器批量评审六项,本轮一次落齐(v22 对齐 / spec 措辞 / 溯源行 / inbox 缝)。逐项落法与裁决:
+
+1. **T1-M1 行时间列纯 HH:mm ✅**:`formatRelativeTime` 重构为 `formatRowTime(createdMillis)`(仅 `HH:mm`,时/分零补位;`now` 参随日期职责一并退场),时间列宽 82→46(v22 `.aud-time` width:46 同形)。日期职责由分组段头独承(`groupLabel` 不变);`_row` 弃 `now` 参、build 弃 `now` 局部(清 unused warning)。测试同步:主态八行测改断 `14:32/21:48/18:26` + 显式反断 `今天 14:32` 等**行内零日期字样** + 段头 `今天/昨天/前天` 各就位;超前天测改断行 `09:05/00:05` + 段头 `2026年10月23日` 兜底;纯函数测重写为 formatRowTime(零补位直测,跨月/跨年日期断言随职责迁移 groupLabel 测既有覆盖)。
+2. **T1-M2 搜索 placeholder ✅**:「搜索摘要 / 金额 / 幂等键…」→「**搜索摘要…**」(DAO keyword 只 LIKE summary,金额含在 summary 串内搜摘要即覆盖,原文案误导可搜面)。测试:搜索组首测补 `decoration.hintText == '搜索摘要…'` 断言。
+3. **T1-M3 spec FR-3 措辞订正 ✅**:「右键/长按」→「右键(桌面键鼠;长按臂触屏 backlog)」—— 桌面产品 v1 只落右键(ContextMenuRegion 桌面先例),长按触屏形态**差异记档于此即 backlog 化**,实现零改动(本就无长按路径)。
+4. **T2-M1 提示色 accent→muted ✅**:「以此再记一笔 ›」色 `t.accent`→`t.muted`(v22 `.aud-again` 即 `var(--muted)` 低噪令牌)。**裁决**:保留恒显、不回改原型 hover-only 显隐 —— 可发现性优先(触屏/无 hover 环境恒显是唯一可发现面;低频低噪面 muted 已足够克制)。测试:改/删行只读测补令牌色断言(`YucaiTheme.light().muted`)。
+5. **T2-M2 确认卡溯源行 ✅**:`WriteApprovalMsg` 扩 `sourceLabel?`(入 props;copyWith 透传 —— 确认/失败后溯源随卡保留可辨);`_insertPendingCard` 增可选 `sourceLabel` 参,**仅** `_onProposeFromHistoryRequested` 注入 `fromHistorySourceLabel = '来自历史记录'`(bloc 公共常量),loop `_onLoopWriteProposed` 不传恒 null **零变化**。渲染:`_ApprovalHead` 状态词右挂 10.5px muted 小字(key `writeApprovalSourceLabel`,照 v22 conf-title「记一笔(来自历史)」语义)。测试 +4:card 测溯源组 3(非空渲染含色/字号 + null 零渲染零占位 + confirmed 流转保留)+ bloc 测 1(loop WriteProposed 正常路径 `sourceLabel` null);集成①③补真链断言(① 含浮层内卡头小字 find.text 渲染面)。
+6. **Low×2 顺手 ✅**:a) `AssistantOverlayHost._onReproposeRequested` 改 **consume-then-drop**(inbox 取值先于 bloc 缺席/mounted 判断 —— 取不走即滞留 inbox 单例的回放缝闭合;守卫分支为防御面,现有装配下监听挂载前提已含 bloc,黑盒不可达故不设专测);b) `_onProposeFromHistoryRequested` 头部加 `if (isClosed) return;`(照 `_executeWrite` 同型守卫 —— close 竞态下事件已在队时零 emit 零副作用);c) design ADR-3 措辞同步(「按 F70 工具同款默认推导(描述→分类/默认资产账户)」→ 确定性形态「账户 = 首个可见资产付款户(无资产户才落首个负债户),分类 = 方向匹配科目池首个」,与偏差③/实现对齐)。
+
+### 修复轮全门实测
+
+- `flutter test test/assistant/`:**465 绿 + 1 自跳过**(= T2 轮 461 + 新增 4;`All tests passed!`,集成 4/4)。
+- `flutter analyze`:**466 == 基线零新增**(首轮 467 系 dialog build 弃用 `now` 局部 unused warning,已清)。
+- `git diff main -- yucai/server`:**0 字节** + server 子目录 status 0 行。
+- 差异面:client 4 生产文件 + 4 测试文件 + spec/design/ledger 三档;generated_plugin_registrant 系行尾噪声照旧 checkout 不入 commit。

@@ -96,6 +96,7 @@ void main() {
     WriteApprovalStatus status = WriteApprovalStatus.pending,
     String? failureReason,
     String key = 'k1',
+    String? sourceLabel,
   }) =>
       WriteApprovalMsg(
         idempotencyKey: key,
@@ -103,6 +104,7 @@ void main() {
         preview: preview,
         status: status,
         failureReason: failureReason,
+        sourceLabel: sourceLabel,
       );
 
   // —— harness ——
@@ -547,6 +549,46 @@ void main() {
         WriteApprovalStatus.confirmed,
       );
       bloc.close(); // testWidgets fake-async 不 await close(flutter_bloc 关闭链依赖真实定时器)
+    });
+  });
+
+  group('F72 溯源行(评审修复 T2-M2,照 v22「记一笔(来自历史)」语义)', () {
+    testWidgets('sourceLabel 非空 → 卡头状态词右挂小字「来自历史记录」(muted 低噪)',
+        (tester) async {
+      await tester.pumpWidget(
+          staticHost(card(addAction, addPreview, sourceLabel: '来自历史记录')));
+      await tester.pumpAndSettle();
+      final source = tester.widget<Text>(
+          find.byKey(const ValueKey('writeApprovalSourceLabel')));
+      expect(source.data, '来自历史记录');
+      expect(source.style?.color, YucaiTheme.light().muted,
+          reason: '卡头小字 muted(v22 conf-title 后缀语义的低噪形态)');
+      expect(source.style?.fontSize, 10.5);
+      // 卡头三件同屏:状态词 + 溯源小字 + 记一笔 chip。
+      expect(find.text('待确认操作'), findsOneWidget);
+      expect(find.text('记一笔'), findsOneWidget);
+    });
+
+    testWidgets('sourceLabel null(正常提案路径)→ 零渲染零占位(零变化)',
+        (tester) async {
+      await tester.pumpWidget(staticHost(card(addAction, addPreview)));
+      await tester.pumpAndSettle();
+      expect(
+          find.byKey(const ValueKey('writeApprovalSourceLabel')), findsNothing);
+      expect(find.text('来自历史记录'), findsNothing);
+      expect(find.text('待确认操作'), findsOneWidget,
+          reason: '正常提案卡头形态与 F70 完全一致');
+    });
+
+    testWidgets('终态流转保留溯源:confirmed 卡头仍可辨「来自历史」(copyWith 透传)',
+        (tester) async {
+      await tester.pumpWidget(staticHost(card(addAction, addPreview,
+          status: WriteApprovalStatus.confirmed,
+          sourceLabel: '来自历史记录')));
+      await tester.pumpAndSettle();
+      expect(find.text('已记账'), findsOneWidget);
+      expect(find.text('来自历史记录'), findsOneWidget,
+          reason: '确认后溯源不丢 —— 这笔仍来自历史再记');
     });
   });
 

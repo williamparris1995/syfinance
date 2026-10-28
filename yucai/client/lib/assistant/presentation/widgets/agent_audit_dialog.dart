@@ -25,10 +25,12 @@
 /// ok 行(重试对)行尾显示「键 ****XXXX」muted 小注(幂等键尾 4 位)——
 /// 重试对可辨识;普通 ok 行零注记零噪音。
 ///
-/// 相对时间(v21「今天 14:32 / 昨天 09:15 / 前天 18:26」):**纯日期比较**
-/// —— 时刻折本地 DateTime 后只取年月日,再经 `DateTime.utc` 日历日差天数
-/// (镜像 debts_list_tool 的当日 0 点对齐口径),零时区/夏令时抖动;演示只到
-/// 「前天」,更早补完整日期兜底。
+/// 行时间列 = **纯时刻 `HH:mm`**(评审修复 T1-M1,v22 .aud-time 形态):
+/// 日期职责已上移分组段头(今天/昨天/前天/yyyy年M月d日,见 [AgentAuditDialog.groupLabel]),
+/// 行内仅余时刻 —— 同段行天然同日,日期不再逐行重复。段头档位判定为
+/// **纯日期比较**:时刻折本地 DateTime 后只取年月日,再经 `DateTime.utc`
+/// 日历日差天数(镜像 debts_list_tool 的当日 0 点对齐口径),零时区/夏令时
+/// 抖动;演示只到「前天」,更早段头补完整日期兜底。
 ///
 /// F72(design ADR-1/2/5):
 /// - **分组=纯渲染**:已加载行(含过滤态)按日历日聚合段头,段头仅由
@@ -89,26 +91,17 @@ class AgentAuditDialog extends StatefulWidget {
   /// [AssistantReproposeInbox] 总线(guarded —— 未注册静默零副作用)。
   final ValueChanged<String>? onReproposeNote;
 
-  /// createdMillis → 「今天 14:32」式相对时间:今天/昨天/前天三档
-  /// (v21 演示范围),更早 `yyyy-MM-dd HH:mm` 完整日期兜底。纯日期比较
-  /// = 两边各折 `DateTime.utc` 日历日再差天数(0/1/2),时刻不参与档位
-  /// 判定 —— 无时区运算、无夏令时抖动。
-  static String formatRelativeTime(int createdMillis, DateTime now) {
+  /// createdMillis → 行时间列「HH:mm」(评审修复 T1-M1,v22 .aud-time 纯
+  /// 时刻形态):日期职责已上移分组段头([groupLabel]),行内零日期字样。
+  static String formatRowTime(int createdMillis) {
     final local = DateTime.fromMillisecondsSinceEpoch(createdMillis);
-    final days = _calendarDaysBefore(local, now);
-    final hm = '${_two(local.hour)}:${_two(local.minute)}';
-    return switch (days) {
-      0 => '今天 $hm',
-      1 => '昨天 $hm',
-      2 => '前天 $hm',
-      _ =>
-        '${local.year}-${_two(local.month)}-${_two(local.day)} $hm',
-    };
+    return '${_two(local.hour)}:${_two(local.minute)}';
   }
 
   /// F72 分组段头文案:今天/昨天/前天三档,更早 `yyyy年M月d日` 完整日期
   /// (v22 aud-group 形态;月/日**不补零** —— 原型「2026年10月24日」)。
-  /// 与 [formatRelativeTime] 同一纯日期比较口径(相对时间纯函数族扩展)。
+  /// 段头承载行的日期职责(T1-M1 起行内仅 HH:mm);纯日期比较 ——
+  /// 两边各折 `DateTime.utc` 年月日再差天数,时刻不参与档位判定。
   static String groupLabel(int createdMillis, DateTime now) {
     final local = DateTime.fromMillisecondsSinceEpoch(createdMillis);
     final days = _calendarDaysBefore(local, now);
@@ -328,7 +321,6 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
         rows.where((r) => !r.ok).map((r) => r.idempotencyKey).toSet();
     final filtering = _keyword.isNotEmpty;
     final empty = _firstPageLoaded && rows.isEmpty;
-    final now = widget.now ?? DateTime.now();
     final modeTotal = filtering ? (_matched ?? 0) : _grand;
     return AlertDialog(
       title: Row(
@@ -413,7 +405,7 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _row(context, row, now, failedKeys),
+                        _row(context, row, failedKeys),
                         // 行底分隔线(v22 aud-row border-bottom;末条
                         // 不出 —— 紧邻 foot 顶线免双线)。
                         if (i != _entries.length - 1)
@@ -475,7 +467,10 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
-                hintText: '搜索摘要 / 金额 / 幂等键…',
+                // T1-M2:仅 summary 可搜(DAO keyword 只 LIKE summary)——
+                // placeholder 不再提「金额 / 幂等键」误导可搜面;金额含在
+                // summary 串内,搜摘要即覆盖。
+                hintText: '搜索摘要…',
                 hintStyle: TextStyle(color: t.muted, fontSize: 12.5),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
@@ -521,13 +516,13 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
     );
   }
 
-  /// 列表行(v21 aud-row 四要素:时间 / 工具 chip / 摘要 / 右列徽标;
-  /// 行尾 muted 同键注记 = v21 aud-note 形态,摘要下方挂)。
+  /// 列表行(v22 aud-row 四要素:时间(纯 HH:mm,T1-M1)/ 工具 chip /
+  /// 摘要 / 右列徽标;行尾 muted 同键注记 = v21 aud-note 形态,摘要下方挂)。
   /// F72:整行包 ContextMenuRegion(R16 桌面右键先例)单项「复制摘要」;
   /// **仅 tool=transaction_add 行**可点「以此再记一笔」(spec FR-4:
   /// hover 背景轻亮 + 右缘提示,点击关对话框 + note 上抛;改/删行只读)。
   Widget _row(
-      BuildContext context, db.AgentAudit row, DateTime now, Set<String> failedKeys) {
+      BuildContext context, db.AgentAudit row, Set<String> failedKeys) {
     final t = context.yucai;
     // 同键注记显隐(T2-M1):仅 failed 行 + 同键 ok 行(重试对)。
     final showKeyNote = !row.ok || failedKeys.contains(row.idempotencyKey);
@@ -548,12 +543,14 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 时间列纯 HH:mm(T1-M1,v22 .aud-time width:46):日期职责
+              // 已上移段头,行内零日期字样。
               SizedBox(
-                width: 82,
+                width: 46,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 3),
                   child: Text(
-                    AgentAuditDialog.formatRelativeTime(row.createdMillis, now),
+                    AgentAuditDialog.formatRowTime(row.createdMillis),
                     style: TextStyle(
                         color: t.muted,
                         fontSize: 11.5,
@@ -588,7 +585,9 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
               const SizedBox(width: AppSpacing.sm),
               // 右列:徽标 ok 绿✓ / failed 红⚠;失败原因小字随徽标下挂
               // (v21 aud-side 形态,如实展示不粉饰);记行再挂右缘提示
-              // 「以此再记一笔 ›」(v22 aud-again;改/删行无 = 只读态区分)。
+              // 「以此再记一笔 ›」(v22 aud-again **muted 低噪色**,评审修复
+              // T2-M1 —— 原型令牌即 var(--muted);恒显不回改原型 hover
+              // 显隐(可发现性优先,裁决记档 ledger);改/删行无 = 只读态区分)。
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 132),
                 child: Column(
@@ -610,7 +609,7 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
                       Text('以此再记一笔 ›',
                           key: const ValueKey('agentAuditReproposeHint'),
                           style: TextStyle(
-                              color: t.accent,
+                              color: t.muted,
                               fontSize: 11,
                               fontWeight: FontWeight.w600)),
                     ],
@@ -733,8 +732,10 @@ class _AuditChip extends StatelessWidget {
 }
 
 /// F72 记行可点壳(v22「hover 背景轻亮 + 以此再记一笔」):[enabled] 时
-/// 点击手势 + hover surfaceAlt 底 + 右缘提示文字 accent 色;改/删行
-/// ([enabled]=false)纯透传零手势零 hover —— 只读态视觉区分。
+/// 点击手势 + hover surfaceAlt 底 + 右缘提示文字 **muted 低噪色**(评审修复
+/// T2-M1:原型 .aud-again 即 var(--muted);恒显不回改原型 hover 显隐 ——
+/// 可发现性优先,裁决记档 ledger);改/删行([enabled]=false)纯透传零手势
+/// 零 hover —— 只读态视觉区分。
 class _ReproposableRow extends StatefulWidget {
   const _ReproposableRow({required this.enabled, this.onTap, required this.child});
 

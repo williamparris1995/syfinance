@@ -308,6 +308,8 @@ void main() {
       expect(card.status, WriteApprovalStatus.pending);
       expect(card.idempotencyKey, isNot(equals(_originalKey)),
           reason: '② 新键:再记一笔 ≠ 同键重放(AlreadyExecuted 空转已否)');
+      expect(card.sourceLabel, '来自历史记录',
+          reason: 'T2-M2:真链再记提案卡携溯源行(bloc 数据面;渲染面 = ①)');
       final add = card.action as TransactionAdd;
       expect(add.amountCents, 3500);
       expect(add.description, '午饭');
@@ -519,6 +521,8 @@ void main() {
           (await allAuditRows(database)).single.idempotencyKey;
       expect(card.idempotencyKey, isNot(equals(originalKey)),
           reason: '新键:再记一笔 ≠ 同键重放');
+      expect(card.sourceLabel, '来自历史记录',
+          reason: 'T2-M2:真链再记提案卡携溯源行');
       final add = card.action as TransactionAdd;
       expect(add.amountCents, 3500);
       expect(add.description, '午饭');
@@ -527,6 +531,8 @@ void main() {
       expect(add.categoryId, 'acc-food', reason: '默认推导 = 首支出科目户');
       expect(card.preview['account'], '现金');
       expect(card.preview['category'], '餐饮');
+      // 溯源行真链渲染:浮层内确认卡卡头小字可见(v22「记一笔(来自历史)」)。
+      expect(find.text('来自历史记录'), findsOneWidget);
 
       // —— ① 点击本身零落库(交易/审计/余额全零动;NFR-1)——
       expect(await allTxns(database), hasLength(1), reason: '点击历史行零落库');

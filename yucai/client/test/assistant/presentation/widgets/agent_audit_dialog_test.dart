@@ -15,6 +15,11 @@
 // 步改生产可能值(versionConflict,原中文 reason 生产不可能)。② 同键
 // 注记(T2-M1):failed 行 + 同键 ok 行行尾「键 ****XXXX」,普通 ok 行
 // 零注记 —— widget 断言 + keyNote 纯函数直测。
+//
+// F72 修复轮(评审六项同步):行时间列纯 HH:mm(T1-M1:行内无「今天」
+// 字样,日期职责由段头承载)/ 搜索 placeholder「搜索摘要…」(T1-M2:仅
+// summary 可搜,不提金额/幂等键)/「以此再记一笔 ›」提示色 muted(T2-M1
+// 断言令牌色;恒显不回改 hover —— 可发现性优先,裁决记档 ledger)。
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -35,6 +40,7 @@ import 'package:yucai_client/assistant/presentation/widgets/agent_audit_dialog.d
 import 'package:yucai_client/assistant/presentation/assistant_panel/assistant_panel_bloc.dart'
     show AssistantReproposeInbox;
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/assistant/presentation/widgets/model_management_card.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 
@@ -272,7 +278,7 @@ void main() {
   });
 
   group('列表渲染(v21 主态八行)', () {
-    testWidgets('相对时间今天/昨天/前天 + 三工具 chip + 摘要原样(千分位)+ 成败徽标与失败原因',
+    testWidgets('行时刻纯 HH:mm(T1-M1;段头承载日期)+ 三工具 chip + 摘要原样(千分位)+ 成败徽标与失败原因',
         (tester) async {
       // 高窗(security_page_test 先例):八行 + 头 + foot 全量入视口,finder
       // 全行可断(默认 600 高窗最后一行被裁,ListView 视口懒建)。
@@ -284,10 +290,19 @@ void main() {
       await _seedV21Rows(d);
       await tester.pumpWidget(_dialogHost(d));
       await tester.pumpAndSettle();
-      // 相对时间(v21 三档;纯日期比较无时区抖动)。
-      expect(find.text('今天 14:32'), findsOneWidget);
-      expect(find.text('昨天 21:48'), findsOneWidget);
-      expect(find.text('前天 18:26'), findsOneWidget);
+      // 行时间列纯 HH:mm(评审修复 T1-M1,v22 .aud-time 形态):日期职责
+      // 已上移分组段头 —— 行内零日期字样。
+      expect(find.text('14:32'), findsOneWidget);
+      expect(find.text('21:48'), findsOneWidget);
+      expect(find.text('18:26'), findsOneWidget);
+      expect(find.text('今天 14:32'), findsNothing,
+          reason: 'T1-M1:行内无「今天」字样');
+      expect(find.text('昨天 21:48'), findsNothing);
+      expect(find.text('前天 18:26'), findsNothing);
+      // 段头承载日期(种子跨今天/昨天/前天三段,段头各就位)。
+      expect(find.text('今天'), findsOneWidget);
+      expect(find.text('昨天'), findsOneWidget);
+      expect(find.text('前天'), findsOneWidget);
       // 工具 chip 三映射(v21 八行:add ×4 / update ×3 / delete ×1)。
       expect(find.text('记一笔'), findsNWidgets(4), reason: 'v21 八行中 add ×4');
       expect(find.text('改一笔'), findsNWidgets(3), reason: '含重试对两行 update');
@@ -325,17 +340,22 @@ void main() {
       await _pumpDownTree(tester);
     });
 
-    testWidgets('超前天 → 完整日期兜底;今天 00:05 跨零点仍「今天」(纯日期比较)',
+    testWidgets('超前天 → 段头完整日期兜底;今天 00:05 跨零点仍「今天」段(纯日期比较)',
         (tester) async {
       final d = _newDb();
       await _seed(d, 23, 9, 5, 'transaction_add', '已记:支出 ¥10.00 旧账');
       await _seed(d, 27, 0, 5, 'transaction_add', '已记:支出 ¥6.00 深夜');
       await tester.pumpWidget(_dialogHost(d));
       await tester.pumpAndSettle();
-      expect(find.text('2026-10-23 09:05'), findsOneWidget,
-          reason: 'v21 演示只到前天;更早补完整日期兜底');
-      expect(find.text('今天 00:05'), findsOneWidget,
-          reason: '同日即今天,时刻不参与日期判定');
+      // T1-M1:行内纯时刻;日期兜底职责在段头(v22 aud-group 形态)。
+      expect(find.text('09:05'), findsOneWidget);
+      expect(find.text('2026-10-23 09:05'), findsNothing,
+          reason: 'T1-M1:行内零日期字样');
+      expect(find.text('2026年10月23日'), findsOneWidget,
+          reason: '演示三档只到前天;更早段头补完整日期兜底');
+      expect(find.text('00:05'), findsOneWidget);
+      expect(find.text('今天'), findsOneWidget,
+          reason: '同日即今天,时刻不参与日期判定(0:05 未跨段)');
       await _pumpDownTree(tester);
     });
 
@@ -497,6 +517,11 @@ void main() {
       // 默认态副行(v21 后缀保真)。
       expect(find.text('共 4 条 · 全部操作均经你确认'), findsOneWidget);
       expect(find.text('已显示 4 / 4 条'), findsOneWidget);
+      // T1-M2:placeholder 仅「搜索摘要…」—— DAO keyword 只 LIKE summary,
+      // 原「/ 金额 / 幂等键」误导可搜面(金额含在 summary 串内,搜摘要即覆盖)。
+      final field = tester.widget<TextField>(
+          find.byKey(const ValueKey('agentAuditSearchInput')));
+      expect(field.decoration?.hintText, '搜索摘要…');
       // 输入「午饭」(防抖零缝,pump 推进后即触发)。
       await tester.enterText(
           find.byKey(const ValueKey('agentAuditSearchInput')), '午饭');
@@ -613,22 +638,17 @@ void main() {
     });
   });
 
-  group('纯函数(相对时间/工具名映射)', () {
-    test('formatRelativeTime:今天/昨天/前天/兜底(纯日期比较,零时区运算)', () {
+  group('纯函数(行时刻/段头文案/工具名映射)', () {
+    test('formatRowTime:纯 HH:mm(评审修复 T1-M1;时/分零补位)', () {
       int at(int day, int h, int m) =>
           DateTime(2026, 10, day, h, m).millisecondsSinceEpoch;
-      expect(AgentAuditDialog.formatRelativeTime(at(27, 14, 32), _now),
-          '今天 14:32');
-      expect(AgentAuditDialog.formatRelativeTime(at(26, 23, 59), _now),
-          '昨天 23:59');
-      expect(AgentAuditDialog.formatRelativeTime(at(25, 0, 1), _now), '前天 00:01');
-      expect(AgentAuditDialog.formatRelativeTime(at(24, 9, 5), _now),
-          '2026-10-24 09:05');
-      // 跨月/跨年兜底同样纯日历输出。
-      expect(
-          AgentAuditDialog.formatRelativeTime(
-              DateTime(2025, 12, 31, 8, 0).millisecondsSinceEpoch, _now),
-          '2025-12-31 08:00');
+      expect(AgentAuditDialog.formatRowTime(at(27, 14, 32)), '14:32');
+      expect(AgentAuditDialog.formatRowTime(at(26, 23, 59)), '23:59');
+      expect(AgentAuditDialog.formatRowTime(at(25, 0, 1)), '00:01',
+          reason: '时零补位');
+      expect(AgentAuditDialog.formatRowTime(at(27, 9, 5)), '09:05',
+          reason: '分零补位');
+      // 日期职责已上移 groupLabel(下测);行内与「今天/昨天」档位无关。
     });
 
     test('groupLabel:F72 分组段头文案(三档 + yyyy年M月d日 完整日期不补零)', () {
@@ -718,6 +738,11 @@ void main() {
       expect(inbox.pending, isNull, reason: '零上抛');
       // 提示只挂记一笔行(spec FR-4 视觉区分;短种子恰 1 笔 add)。
       expect(find.text('以此再记一笔 ›'), findsOneWidget);
+      // T2-M1:提示色 = muted 低噪(v22 .aud-again var(--muted);恒显不
+      // 回改原型 hover 显隐 —— 可发现性优先,裁决记档 ledger)。
+      final hint =
+          tester.widget<Text>(find.text('以此再记一笔 ›'));
+      expect(hint.style?.color, YucaiTheme.light().muted);
       await _pumpDownTree(tester);
     });
   });

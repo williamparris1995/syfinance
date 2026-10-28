@@ -692,9 +692,30 @@ void main() {
       expect(card.idempotencyKey, isNotEmpty);
       expect(card.idempotencyKey, isNot(equals('key-orig')),
           reason: '新键:与原确认实例键无关');
+      expect(card.sourceLabel, '来自历史记录',
+          reason: 'T2-M2:历史再记提案卡携溯源行(卡头小字)');
       expect(card.preview['account'], '现金');
       expect(card.preview['category'], '餐饮');
       expect(card.preview['amountYuan'], '35.00');
+      await bloc.close();
+    });
+
+    test('正常提案路径(loop WriteProposed)零溯源行:sourceLabel null(零变化)',
+        () async {
+      final bloc = makeBloc(_FakeLoop([
+        Stream.fromIterable([
+          WriteProposed('transaction_add', _addAction, _addPreview),
+          const Done(),
+        ]),
+      ]));
+
+      bloc.add(const SendRequested('记一笔午饭'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final card = bloc.state.messages.whereType<WriteApprovalMsg>().single;
+      expect(card.status, WriteApprovalStatus.pending);
+      expect(card.sourceLabel, isNull,
+          reason: 'T2-M2:溯源行仅 ProposeFromHistory 注入,正常提案零变化');
       await bloc.close();
     });
 
@@ -710,6 +731,8 @@ void main() {
       final cards = bloc.state.messages.whereType<WriteApprovalMsg>().toList();
       expect(cards, hasLength(2));
       expect(cards.first.status, WriteApprovalStatus.superseded);
+      expect(cards.first.sourceLabel, '来自历史记录',
+          reason: 'T2-M2:溯源随卡流转保留(copyWith 透传,superseded 留档可辨)');
       expect(cards.last.status, WriteApprovalStatus.pending);
       expect(cards.last.idempotencyKey, isNot(equals(cards.first.idempotencyKey)),
           reason: '每次提案独立新 uuid 键');

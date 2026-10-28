@@ -18,6 +18,9 @@
 /// - V6 失败:头转 negative「记账失败」+ 执行失败 chip + 原因直说
 ///   ([failureReasonText] 中文化:契约英文 token 不裸出,评审 T3-M1)+
 ///   重试钮(幂等键复用)+ 幂等小字「重试不会产生重复记录…」。
+/// - F72 溯源行(评审修复 T2-M2):[WriteApprovalMsg.sourceLabel] 非空时
+///   卡头状态词右挂小字「来自历史记录」(v22「记一笔(来自历史)」语义);
+///   正常提案 null 零渲染零占位。
 ///
 /// 零裸色:全部走 `context.yucai` 令牌(destructive 走 negative 令牌,
 /// ErrorMsg 同族先例);按钮为标准 Material 按钮 —— 浮层内键盘可聚焦。
@@ -353,6 +356,19 @@ class _ApprovalHead extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5)),
+          // F72 溯源行(评审修复 T2-M2,照 v22「记一笔(来自历史)」语义):
+          // 仅 ProposeFromHistory 提案注入「来自历史记录」;正常提案
+          // sourceLabel null 零渲染零占位。小字 muted,随卡状态流转保留
+          // (确认/失败后仍可辨「这笔来自历史再记」)。
+          if (card.sourceLabel case final source?) ...[
+            const SizedBox(width: 6),
+            Text(source,
+                key: const ValueKey('writeApprovalSourceLabel'),
+                style: TextStyle(
+                    color: t.muted,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500)),
+          ],
           const Spacer(),
           _HeadChip(card: card),
         ],

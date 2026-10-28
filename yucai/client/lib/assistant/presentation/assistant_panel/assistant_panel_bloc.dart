@@ -361,7 +361,10 @@ enum WriteApprovalStatus {
 /// [idempotencyKey] = 确认实例 uuid(ADR-3;bloc 于 pending 建卡时生成,
 /// 确认/重试共用 —— 执行器幂等集凭它去重);[action] = 解析后写操作;
 /// [preview] = 工具预览摘要(名称展示;add 平铺 / update before+after /
-/// delete 携 destructive)。
+/// delete 携 destructive);[sourceLabel] = 溯源行文案(评审修复 T2-M2:
+/// **仅 [ProposeFromHistoryRequested] 注入「来自历史记录」**,正常 loop
+/// 提案路径恒 null 零渲染 —— 照 v22「记一笔(来自历史)」语义,卡头小字
+/// 呈现提案来历;随卡状态流转保留(copyWith 透传)。
 class WriteApprovalMsg extends PanelMessage {
   const WriteApprovalMsg({
     required this.idempotencyKey,
@@ -369,6 +372,7 @@ class WriteApprovalMsg extends PanelMessage {
     required this.preview,
     required this.status,
     this.failureReason,
+    this.sourceLabel,
   });
 
   final String idempotencyKey;
@@ -379,12 +383,17 @@ class WriteApprovalMsg extends PanelMessage {
   /// failed 态单行英文原因(WriteFailed.reason;其余态 null)。
   final String? failureReason;
 
+  /// 溯源行文案(null = 正常提案,卡头零附加渲染;T2-M2)。
+  final String? sourceLabel;
+
   /// preview 不入 props:equatable 对 Map prop 走恒等比较(非深比较),
   /// 入 props 会破坏值相等;卡身份 = 幂等键 + 状态(preview 只读渲染源)。
   @override
-  List<Object?> get props => [idempotencyKey, action, status, failureReason];
+  List<Object?> get props =>
+      [idempotencyKey, action, status, failureReason, sourceLabel];
 
-  /// 状态流转(离开 failed 时清 [failureReason])。
+  /// 状态流转(离开 failed 时清 [failureReason];[sourceLabel] 溯源随卡
+  /// 保留 —— 确认/失败后仍是「来自历史」的那笔)。
   WriteApprovalMsg copyWith({WriteApprovalStatus? status, String? failureReason}) =>
       WriteApprovalMsg(
         idempotencyKey: idempotencyKey,
@@ -394,6 +403,7 @@ class WriteApprovalMsg extends PanelMessage {
         failureReason: status != null && status != WriteApprovalStatus.failed
             ? null
             : failureReason ?? this.failureReason,
+        sourceLabel: sourceLabel,
       );
 }
 
@@ -620,12 +630,15 @@ class AssistantPanelBloc
 
   /// pending 确认卡插入公共体(F70 loop 提案 / F72 历史再记提案共用):
   /// 冲刷合帧缓冲 → 既有 pending 卡 superseded(同刻单卡)→ 追加新卡
-  /// (**新生 uuid 幂等键**,ADR-3 / F72「新键」断言点)。
+  /// (**新生 uuid 幂等键**,ADR-3 / F72「新键」断言点)。[sourceLabel]
+  /// 溯源行(T2-M2):loop 提案不传(恒 null),仅历史再记提案注入
+  /// 「来自历史记录」。
   void _insertPendingCard(
     WriteAction action,
     Map<String, Object> preview,
-    Emitter<AssistantPanelState> emit,
-  ) {
+    Emitter<AssistantPanelState> emit, {
+    String? sourceLabel,
+  }) {
     final messages = _drainFrame(state.messages);
     for (var i = 0; i < messages.length; i++) {
       final message = messages[i];
@@ -639,6 +652,7 @@ class AssistantPanelBloc
       action: action,
       preview: preview,
       status: WriteApprovalStatus.pending,
+      sourceLabel: sourceLabel,
     ));
     emit(state.copyWith(messages: messages));
   }
@@ -649,15 +663,23 @@ class AssistantPanelBloc
   /// 共用;不透传工具英文串 —— 此路径无 LLM 自纠回路,ToolError 即终态)。
   static const _reproposeFailedText = '无法从该记录生成提案';
 
+  /// 溯源行文案(T2-M2):历史再记提案卡头小字「来自历史记录」(照 v22
+  /// 「记一笔(来自历史)」语义);正常 loop 提案不注入。
+  static const fromHistorySourceLabel = '来自历史记录';
+
   /// note → 三要素([AddActionFromNote.parse])→ 默认推导取名(ADR-3:
   /// 账户/分类不从 note 猜 —— 串中无)→ [TransactionAddTool.execute]
   /// 全套(日期缺省今天/金额元转 cents/名称→id 消歧,ToolError 照常可
   /// 出)→ pending 确认卡(**新键**,经正常确认门;本 handler 零
-  /// executor 调用 —— NFR-1 点击本身零落库)。
+  /// executor 调用 —— NFR-1 点击本身零落库)。卡携溯源行
+  /// [fromHistorySourceLabel](T2-M2)。
   Future<void> _onProposeFromHistoryRequested(
     ProposeFromHistoryRequested event,
     Emitter<AssistantPanelState> emit,
   ) async {
+    // 头部终态守卫(照 _executeWrite 同型):close 竞态下(事件已在队,
+    // bloc 随 host 卸载关闭)零 emit 零副作用直接丢弃。
+    if (isClosed) return;
     void fail() => emit(state.copyWith(
           messages: [
             ..._drainFrame(state.messages),
@@ -716,7 +738,8 @@ class AssistantPanelBloc
     final preview = rawPreview is Map
         ? Map<String, Object>.from(rawPreview)
         : const <String, Object>{};
-    _insertPendingCard(action, preview, emit);
+    _insertPendingCard(action, preview, emit,
+        sourceLabel: fromHistorySourceLabel);
   }
 
   /// 确认 pending 卡 → 执行(唯一写路径;守卫:查无此卡/非 pending = 零执行)。
