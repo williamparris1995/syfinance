@@ -18385,6 +18385,530 @@ class SyncCursorsCompanion extends UpdateCompanion<SyncCursor> {
   }
 }
 
+class $AgentAuditsTable extends AgentAudits
+    with TableInfo<$AgentAuditsTable, AgentAudit> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AgentAuditsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _createdMillisMeta = const VerificationMeta(
+    'createdMillis',
+  );
+  @override
+  late final GeneratedColumn<int> createdMillis = GeneratedColumn<int>(
+    'created_millis',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toolMeta = const VerificationMeta('tool');
+  @override
+  late final GeneratedColumn<String> tool = GeneratedColumn<String>(
+    'tool',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _summaryMeta = const VerificationMeta(
+    'summary',
+  );
+  @override
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+    'summary',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _okMeta = const VerificationMeta('ok');
+  @override
+  late final GeneratedColumn<bool> ok = GeneratedColumn<bool>(
+    'ok',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ok" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    createdMillis,
+    tool,
+    summary,
+    ok,
+    reason,
+    entityId,
+    idempotencyKey,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'agent_audit';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AgentAudit> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('created_millis')) {
+      context.handle(
+        _createdMillisMeta,
+        createdMillis.isAcceptableOrUnknown(
+          data['created_millis']!,
+          _createdMillisMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdMillisMeta);
+    }
+    if (data.containsKey('tool')) {
+      context.handle(
+        _toolMeta,
+        tool.isAcceptableOrUnknown(data['tool']!, _toolMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toolMeta);
+    }
+    if (data.containsKey('summary')) {
+      context.handle(
+        _summaryMeta,
+        summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_summaryMeta);
+    }
+    if (data.containsKey('ok')) {
+      context.handle(_okMeta, ok.isAcceptableOrUnknown(data['ok']!, _okMeta));
+    } else if (isInserting) {
+      context.missing(_okMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_idempotencyKeyMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AgentAudit map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AgentAudit(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      createdMillis: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_millis'],
+      )!,
+      tool: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool'],
+      )!,
+      summary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}summary'],
+      )!,
+      ok: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ok'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      ),
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      ),
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      )!,
+    );
+  }
+
+  @override
+  $AgentAuditsTable createAlias(String alias) {
+    return $AgentAuditsTable(attachedDatabase, alias);
+  }
+}
+
+class AgentAudit extends DataClass implements Insertable<AgentAudit> {
+  /// 自增主键(append-only;同毫秒行的倒序次锚)。
+  final int id;
+
+  /// 写入时刻(unix 毫秒;倒序索引承载对话框 watchPage 查询面)。
+  final int createdMillis;
+
+  /// 工具名(transaction_add / transaction_update / transaction_delete)。
+  final String tool;
+
+  /// 动作摘要(WriteAction.toString,ASCII;含方向/金额/账户定位)。
+  final String summary;
+
+  /// true = ok(绿徽标);false = failed(红徽标,reason 必有)。
+  final bool ok;
+
+  /// 失败原因(英文单行;ok=true 恒 null —— 写入方契约)。
+  final String? reason;
+
+  /// 关联实体 id(落库交易 id;失败常见 null)。
+  final String? entityId;
+
+  /// 幂等键(确认实例 uuid,F70 键语义):同键失败重试 = 追加新行
+  /// (失败不耗键,同键异果两行留痕),不是行更新。
+  final String idempotencyKey;
+  const AgentAudit({
+    required this.id,
+    required this.createdMillis,
+    required this.tool,
+    required this.summary,
+    required this.ok,
+    this.reason,
+    this.entityId,
+    required this.idempotencyKey,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['created_millis'] = Variable<int>(createdMillis);
+    map['tool'] = Variable<String>(tool);
+    map['summary'] = Variable<String>(summary);
+    map['ok'] = Variable<bool>(ok);
+    if (!nullToAbsent || reason != null) {
+      map['reason'] = Variable<String>(reason);
+    }
+    if (!nullToAbsent || entityId != null) {
+      map['entity_id'] = Variable<String>(entityId);
+    }
+    map['idempotency_key'] = Variable<String>(idempotencyKey);
+    return map;
+  }
+
+  AgentAuditsCompanion toCompanion(bool nullToAbsent) {
+    return AgentAuditsCompanion(
+      id: Value(id),
+      createdMillis: Value(createdMillis),
+      tool: Value(tool),
+      summary: Value(summary),
+      ok: Value(ok),
+      reason: reason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reason),
+      entityId: entityId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(entityId),
+      idempotencyKey: Value(idempotencyKey),
+    );
+  }
+
+  factory AgentAudit.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AgentAudit(
+      id: serializer.fromJson<int>(json['id']),
+      createdMillis: serializer.fromJson<int>(json['createdMillis']),
+      tool: serializer.fromJson<String>(json['tool']),
+      summary: serializer.fromJson<String>(json['summary']),
+      ok: serializer.fromJson<bool>(json['ok']),
+      reason: serializer.fromJson<String?>(json['reason']),
+      entityId: serializer.fromJson<String?>(json['entityId']),
+      idempotencyKey: serializer.fromJson<String>(json['idempotencyKey']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'createdMillis': serializer.toJson<int>(createdMillis),
+      'tool': serializer.toJson<String>(tool),
+      'summary': serializer.toJson<String>(summary),
+      'ok': serializer.toJson<bool>(ok),
+      'reason': serializer.toJson<String?>(reason),
+      'entityId': serializer.toJson<String?>(entityId),
+      'idempotencyKey': serializer.toJson<String>(idempotencyKey),
+    };
+  }
+
+  AgentAudit copyWith({
+    int? id,
+    int? createdMillis,
+    String? tool,
+    String? summary,
+    bool? ok,
+    Value<String?> reason = const Value.absent(),
+    Value<String?> entityId = const Value.absent(),
+    String? idempotencyKey,
+  }) => AgentAudit(
+    id: id ?? this.id,
+    createdMillis: createdMillis ?? this.createdMillis,
+    tool: tool ?? this.tool,
+    summary: summary ?? this.summary,
+    ok: ok ?? this.ok,
+    reason: reason.present ? reason.value : this.reason,
+    entityId: entityId.present ? entityId.value : this.entityId,
+    idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+  );
+  AgentAudit copyWithCompanion(AgentAuditsCompanion data) {
+    return AgentAudit(
+      id: data.id.present ? data.id.value : this.id,
+      createdMillis: data.createdMillis.present
+          ? data.createdMillis.value
+          : this.createdMillis,
+      tool: data.tool.present ? data.tool.value : this.tool,
+      summary: data.summary.present ? data.summary.value : this.summary,
+      ok: data.ok.present ? data.ok.value : this.ok,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentAudit(')
+          ..write('id: $id, ')
+          ..write('createdMillis: $createdMillis, ')
+          ..write('tool: $tool, ')
+          ..write('summary: $summary, ')
+          ..write('ok: $ok, ')
+          ..write('reason: $reason, ')
+          ..write('entityId: $entityId, ')
+          ..write('idempotencyKey: $idempotencyKey')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    createdMillis,
+    tool,
+    summary,
+    ok,
+    reason,
+    entityId,
+    idempotencyKey,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AgentAudit &&
+          other.id == this.id &&
+          other.createdMillis == this.createdMillis &&
+          other.tool == this.tool &&
+          other.summary == this.summary &&
+          other.ok == this.ok &&
+          other.reason == this.reason &&
+          other.entityId == this.entityId &&
+          other.idempotencyKey == this.idempotencyKey);
+}
+
+class AgentAuditsCompanion extends UpdateCompanion<AgentAudit> {
+  final Value<int> id;
+  final Value<int> createdMillis;
+  final Value<String> tool;
+  final Value<String> summary;
+  final Value<bool> ok;
+  final Value<String?> reason;
+  final Value<String?> entityId;
+  final Value<String> idempotencyKey;
+  const AgentAuditsCompanion({
+    this.id = const Value.absent(),
+    this.createdMillis = const Value.absent(),
+    this.tool = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.ok = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+  });
+  AgentAuditsCompanion.insert({
+    this.id = const Value.absent(),
+    required int createdMillis,
+    required String tool,
+    required String summary,
+    required bool ok,
+    this.reason = const Value.absent(),
+    this.entityId = const Value.absent(),
+    required String idempotencyKey,
+  }) : createdMillis = Value(createdMillis),
+       tool = Value(tool),
+       summary = Value(summary),
+       ok = Value(ok),
+       idempotencyKey = Value(idempotencyKey);
+  static Insertable<AgentAudit> custom({
+    Expression<int>? id,
+    Expression<int>? createdMillis,
+    Expression<String>? tool,
+    Expression<String>? summary,
+    Expression<bool>? ok,
+    Expression<String>? reason,
+    Expression<String>? entityId,
+    Expression<String>? idempotencyKey,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (createdMillis != null) 'created_millis': createdMillis,
+      if (tool != null) 'tool': tool,
+      if (summary != null) 'summary': summary,
+      if (ok != null) 'ok': ok,
+      if (reason != null) 'reason': reason,
+      if (entityId != null) 'entity_id': entityId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+    });
+  }
+
+  AgentAuditsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? createdMillis,
+    Value<String>? tool,
+    Value<String>? summary,
+    Value<bool>? ok,
+    Value<String?>? reason,
+    Value<String?>? entityId,
+    Value<String>? idempotencyKey,
+  }) {
+    return AgentAuditsCompanion(
+      id: id ?? this.id,
+      createdMillis: createdMillis ?? this.createdMillis,
+      tool: tool ?? this.tool,
+      summary: summary ?? this.summary,
+      ok: ok ?? this.ok,
+      reason: reason ?? this.reason,
+      entityId: entityId ?? this.entityId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (createdMillis.present) {
+      map['created_millis'] = Variable<int>(createdMillis.value);
+    }
+    if (tool.present) {
+      map['tool'] = Variable<String>(tool.value);
+    }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
+    if (ok.present) {
+      map['ok'] = Variable<bool>(ok.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentAuditsCompanion(')
+          ..write('id: $id, ')
+          ..write('createdMillis: $createdMillis, ')
+          ..write('tool: $tool, ')
+          ..write('summary: $summary, ')
+          ..write('ok: $ok, ')
+          ..write('reason: $reason, ')
+          ..write('entityId: $entityId, ')
+          ..write('idempotencyKey: $idempotencyKey')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -18438,6 +18962,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $HoldingLotsTable holdingLots = $HoldingLotsTable(this);
   late final $SyncTombstonesTable syncTombstones = $SyncTombstonesTable(this);
   late final $SyncCursorsTable syncCursors = $SyncCursorsTable(this);
+  late final $AgentAuditsTable agentAudits = $AgentAuditsTable(this);
+  late final Index agentAuditCreatedMillisIdx = Index(
+    'agent_audit_created_millis_idx',
+    'CREATE INDEX agent_audit_created_millis_idx ON agent_audit (created_millis)',
+  );
   late final AccountDao accountDao = AccountDao(this as AppDatabase);
   late final TransactionDao transactionDao = TransactionDao(
     this as AppDatabase,
@@ -18454,6 +18983,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this as AppDatabase,
   );
   late final SyncCursorDao syncCursorDao = SyncCursorDao(this as AppDatabase);
+  late final AgentAuditDao agentAuditDao = AgentAuditDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -18491,6 +19021,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     holdingLots,
     syncTombstones,
     syncCursors,
+    agentAudits,
+    agentAuditCreatedMillisIdx,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -29257,6 +29789,261 @@ typedef $$SyncCursorsTableProcessedTableManager =
       SyncCursor,
       PrefetchHooks Function()
     >;
+typedef $$AgentAuditsTableCreateCompanionBuilder =
+    AgentAuditsCompanion Function({
+      Value<int> id,
+      required int createdMillis,
+      required String tool,
+      required String summary,
+      required bool ok,
+      Value<String?> reason,
+      Value<String?> entityId,
+      required String idempotencyKey,
+    });
+typedef $$AgentAuditsTableUpdateCompanionBuilder =
+    AgentAuditsCompanion Function({
+      Value<int> id,
+      Value<int> createdMillis,
+      Value<String> tool,
+      Value<String> summary,
+      Value<bool> ok,
+      Value<String?> reason,
+      Value<String?> entityId,
+      Value<String> idempotencyKey,
+    });
+
+class $$AgentAuditsTableFilterComposer
+    extends Composer<_$AppDatabase, $AgentAuditsTable> {
+  $$AgentAuditsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdMillis => $composableBuilder(
+    column: $table.createdMillis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tool => $composableBuilder(
+    column: $table.tool,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ok => $composableBuilder(
+    column: $table.ok,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AgentAuditsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AgentAuditsTable> {
+  $$AgentAuditsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdMillis => $composableBuilder(
+    column: $table.createdMillis,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tool => $composableBuilder(
+    column: $table.tool,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get ok => $composableBuilder(
+    column: $table.ok,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AgentAuditsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AgentAuditsTable> {
+  $$AgentAuditsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get createdMillis => $composableBuilder(
+    column: $table.createdMillis,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tool =>
+      $composableBuilder(column: $table.tool, builder: (column) => column);
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<bool> get ok =>
+      $composableBuilder(column: $table.ok, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+}
+
+class $$AgentAuditsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AgentAuditsTable,
+          AgentAudit,
+          $$AgentAuditsTableFilterComposer,
+          $$AgentAuditsTableOrderingComposer,
+          $$AgentAuditsTableAnnotationComposer,
+          $$AgentAuditsTableCreateCompanionBuilder,
+          $$AgentAuditsTableUpdateCompanionBuilder,
+          (
+            AgentAudit,
+            BaseReferences<_$AppDatabase, $AgentAuditsTable, AgentAudit>,
+          ),
+          AgentAudit,
+          PrefetchHooks Function()
+        > {
+  $$AgentAuditsTableTableManager(_$AppDatabase db, $AgentAuditsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AgentAuditsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AgentAuditsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AgentAuditsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> createdMillis = const Value.absent(),
+                Value<String> tool = const Value.absent(),
+                Value<String> summary = const Value.absent(),
+                Value<bool> ok = const Value.absent(),
+                Value<String?> reason = const Value.absent(),
+                Value<String?> entityId = const Value.absent(),
+                Value<String> idempotencyKey = const Value.absent(),
+              }) => AgentAuditsCompanion(
+                id: id,
+                createdMillis: createdMillis,
+                tool: tool,
+                summary: summary,
+                ok: ok,
+                reason: reason,
+                entityId: entityId,
+                idempotencyKey: idempotencyKey,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int createdMillis,
+                required String tool,
+                required String summary,
+                required bool ok,
+                Value<String?> reason = const Value.absent(),
+                Value<String?> entityId = const Value.absent(),
+                required String idempotencyKey,
+              }) => AgentAuditsCompanion.insert(
+                id: id,
+                createdMillis: createdMillis,
+                tool: tool,
+                summary: summary,
+                ok: ok,
+                reason: reason,
+                entityId: entityId,
+                idempotencyKey: idempotencyKey,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AgentAuditsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AgentAuditsTable,
+      AgentAudit,
+      $$AgentAuditsTableFilterComposer,
+      $$AgentAuditsTableOrderingComposer,
+      $$AgentAuditsTableAnnotationComposer,
+      $$AgentAuditsTableCreateCompanionBuilder,
+      $$AgentAuditsTableUpdateCompanionBuilder,
+      (
+        AgentAudit,
+        BaseReferences<_$AppDatabase, $AgentAuditsTable, AgentAudit>,
+      ),
+      AgentAudit,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -29333,4 +30120,6 @@ class $AppDatabaseManager {
       $$SyncTombstonesTableTableManager(_db, _db.syncTombstones);
   $$SyncCursorsTableTableManager get syncCursors =>
       $$SyncCursorsTableTableManager(_db, _db.syncCursors);
+  $$AgentAuditsTableTableManager get agentAudits =>
+      $$AgentAuditsTableTableManager(_db, _db.agentAudits);
 }

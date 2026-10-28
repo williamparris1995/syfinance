@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'daos/account_dao.dart';
+import 'daos/agent_audit_dao.dart';
 import 'daos/budget_dao.dart';
 import 'daos/debt_dao.dart';
 import 'daos/derived_dao.dart';
@@ -18,6 +19,7 @@ import 'daos/template_dao.dart';
 import 'daos/transaction_dao.dart';
 import 'sync_state.dart' show SyncState;
 import 'tables/account_tables.dart';
+import 'tables/agent_audit_table.dart';
 import 'tables/budget_tables.dart';
 import 'tables/debt_tables.dart';
 import 'repairs.dart' show runRepaymentHistoryRepairOnce;
@@ -73,6 +75,7 @@ part 'app_database.g.dart';
     HoldingLots,
     SyncTombstones,
     SyncCursors,
+    AgentAudits,
   ],
   daos: [
     AccountDao,
@@ -87,6 +90,7 @@ part 'app_database.g.dart';
     DerivedDao,
     SyncTombstoneDao,
     SyncCursorDao,
+    AgentAuditDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -143,7 +147,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   /// 幂等加列:先查 PRAGMA table_info,列已存在则跳过。
   /// 背景:库文件可能被不同版本的 App 触碰(安装版/调试版/手工恢复备份),
@@ -154,6 +158,19 @@ class AppDatabase extends _$AppDatabase {
     final exists = cols.any((r) => r.data['name'] == column.name);
     if (!exists) {
       await createMigrator().addColumn(table, column);
+    }
+  }
+
+  /// 幂等建索引:先查 sqlite_master,已存在则跳过。缘由:drift 的
+  /// createIndex 生成裸 CREATE INDEX(无 IF NOT EXISTS),而旧迁移测试
+  /// 伪造旧库只回拨 user_version 不清库,重放迁移会撞 duplicate index
+  /// (v16 agent_audit 索引 = 全链首个建索引迁移)。
+  Future<void> _createIndexIfAbsent(Index index) async {
+    final rows = await customSelect(
+        "SELECT name FROM sqlite_master WHERE type='index' "
+        "AND name='${index.entityName}'").get();
+    if (rows.isEmpty) {
+      await createMigrator().createIndex(index);
     }
   }
 
@@ -276,6 +293,14 @@ class AppDatabase extends _$AppDatabase {
           if (from < 15) {
             await _addColumnIfAbsent(
                 paymentScheduleEntries, paymentScheduleEntries.discountCents);
+          }
+          // v15→v16(F71 durable 审计):增 AgentAudits(agent_audit)本地
+          // 审计表 + createdMillis 倒序索引(agent 写操作留痕,读调用不入
+          // 表)。仅建表/建索引,既有数据零迁移;**不进 sync 序列化白名单
+          // 与备份镜像**(表头注排除面,显式注册制下不注册即排除)。
+          if (from < 16) {
+            await m.createTable(agentAudits);
+            await _createIndexIfAbsent(agentAuditCreatedMillisIdx);
           }
         },
         // SQLite ships with foreign keys off; cascade deletes (design LLD)

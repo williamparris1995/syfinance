@@ -3,6 +3,7 @@
 // with Z/nested arrays/goal uuid arrays/holding sibling arrays).
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -169,6 +170,36 @@ void main() {
     final e2 = await _envelope(exporter);
     expect(e1['modules']['account'], e2['modules']['account']);
     expect((await accounts.getAllAccounts()), hasLength(1));
+  });
+
+  // F71(design ADR-2 排除面钉):agent_audit 本地审计不进备份镜像 ——
+  // 显式注册制(LocalSnapshotExporter 8 模块封闭清单)下不注册即排除;
+  // 本测试把「表行存在但 envelope 零泄漏」钉死(sync 序列化白名单
+  // envelope_codec 同理:无 agent_audit per-row 函数)。
+  test('agent audit rows stay out of the backup envelope (F71 exclusion)',
+      () async {
+    await accounts.insertAccount(accountRow('a-audit'));
+    await database.agentAuditDao.insertEvent(db.AgentAuditsCompanion.insert(
+      createdMillis: 1770000000000,
+      tool: 'transaction_add',
+      summary: 'TransactionAdd(direction=out, amountCents=3500)',
+      ok: true,
+      entityId: const Value('txn-audit'),
+      idempotencyKey: 'key-audit',
+    ));
+
+    final envelope = await _envelope(exporter);
+
+    final modules = envelope['modules'] as Map<String, dynamic>;
+    expect(modules.keys, unorderedEquals([
+      'account', 'transaction', 'debt', 'budget',
+      'goal', 'tag', 'template', 'holding',
+    ]), reason: '模块面封闭:无 audit 模块键');
+    final encoded = jsonEncode(envelope);
+    expect(encoded.contains('key-audit'), isFalse,
+        reason: '审计行内容零泄漏(幂等键不出现在 envelope 任何角落)');
+    // 排除不影响业务面:账户行照常导出。
+    expect(modules['account'], hasLength(1));
   });
 }
 

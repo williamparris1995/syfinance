@@ -9,6 +9,7 @@ import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/oidc_authenticator.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
+import 'package:yucai_client/assistant/data/agent_audit_sink.dart';
 import 'package:yucai_client/assistant/data/agent_loop_impl.dart';
 import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
 import 'package:yucai_client/assistant/data/audit_log.dart';
@@ -165,12 +166,24 @@ Future<void> configureDependencies() async {
   // 仅 bloc 确认回调可达(FR-5 代码门)。手工注册(照 AgentLoopService
   // 家法;impl 类上的 @LazySingleton 注解仅文档)。依赖:TransactionRepository
   // (生成图)+ AgentLoopService(appendToolOutcome 注入已执行结果,ADR-2
-  // —— loop 不依赖 executor,无构造环)+ AssistantAuditLog(logWrite,
-  // NFR-3 先日志)。lazySingleton = 幂等集会话内驻留(ADR-3)。
+  // —— loop 不依赖 executor,无构造环)+ AssistantAuditLog(F70 直调
+  // 日志位,F71 起归 AgentAuditSink 第一投)。lazySingleton = 幂等集会话内
+  // 驻留(ADR-3)。
+  // F71-T1(2026-10-27):AgentAuditSink 审计双投 —— AssistantAuditLog
+  // English 日志行(零变)+ AgentAuditDao 入库(fail-open 静默计数);
+  // dao 经 AppDatabase.agentAuditDao 注入缝(手工注册家法,注解仅文档)。
+  // WriteExecutor 构造扩第 4 参 sink(缺省回退纯日志,行为等价)。
+  getIt.registerLazySingleton<AgentAuditSink>(
+    () => AgentAuditSinkImpl(
+      getIt<AssistantAuditLog>(),
+      getIt<AppDatabase>().agentAuditDao,
+    ),
+  );
   getIt.registerLazySingleton<WriteExecutor>(() => WriteExecutorImpl(
         getIt<TransactionRepository>(),
         getIt<AgentLoopService>(),
         getIt<AssistantAuditLog>(),
+        getIt<AgentAuditSink>(),
       ));
   getIt.registerLazySingleton<ProcessLauncher>(ProcessLauncherImpl.new);
   getIt.registerLazySingleton<EngineManager>(() => EngineManagerImpl(

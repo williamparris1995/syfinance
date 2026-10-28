@@ -59,8 +59,9 @@ class AssistantAuditLog {
     );
   }
 
-  /// 写操作执行审计(F70 NFR-3;F71 落表前先结构化日志,`AgentAuditEvent`
-  /// 值类型按 F71 契约在 T2 消费):
+  /// 写操作执行审计(F70 NFR-3;F71 起 = `AgentAuditSinkImpl.record` 的
+  /// 第一投,行形状零变;未注入 sink 的 F70 旧构造位经
+  /// `_LogOnlyAuditSink` 回退本方法直调):
   /// `assistant write tool=<name> status=<ok|error> entity=<id> payload=<摘要>`。
   ///
   /// [entityId] 空串 = 尚无实体(失败常见);[payloadSummary] 必须为脱敏

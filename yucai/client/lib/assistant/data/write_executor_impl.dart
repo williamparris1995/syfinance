@@ -15,15 +15,20 @@
 //
 // 幂等集(ADR-3):key→entityId,成功才记录;**失败不耗键**(重试同 key
 // 再执行);重复触发 = AlreadyExecuted,零 repo 调用/零审计/零重复注入。
-// 审计(NFR-3):每路成/败各一行 logWrite(English/ASCII;payload 摘要 =
-// WriteAction.toString —— T1 已保证全 ASCII);F71 落表时按契约消费。
+// 审计(NFR-3 → F71 ADR-1 双投):每路成/败各一事件经 [AgentAuditSink]
+// .record —— sink 内先 AssistantAuditLog English/ASCII 日志行(F70 行为
+// 逐字节零变)后 agent_audit 入库(fail-open);reason 只入库不进日志行。
+// 未注入 sink 的既有构造位(F70 测试/DI 旧装配)回退 [AgentAuditLog]
+// .logWrite 直调 —— 与 F70 行为等价(既有测全绿 = 等价证)。
 // 会话注入(ADR-2):成功经 appendToolOutcome 追加**中文紧凑单行** note
 // (进会话上下文与 UI,不进日志串 —— 日志串无 CJK 项目门禁)。
 //
 // 构造注入:TransactionRepository + AgentLoopService(appendToolOutcome;
-// loop 不依赖 executor —— 无构造环)+ AssistantAuditLog。无 clock 缝:
-// 三路均无「现在」语义(Add 日期由提案钉定,update/delete 现读现状,
-// transactionTime 缺省空串 = 服务端盖戳),预留空缝只会引入 unused 告警。
+// loop 不依赖 executor —— 无构造环)+ AssistantAuditLog + AgentAuditSink?
+// (F71-T1 构造扩缝,缺省回退纯日志)。无 clock 缝:三路均无「现在」语义
+// (Add 日期由提案钉定,update/delete 现读现状,transactionTime 缺省空串
+// = 服务端盖戳;审计时刻由 AgentAuditEvent 构造缺省盖戳),预留空缝只会
+// 引入 unused 告警。
 //
 // DI:注解仅文档(1m 手工注册家法 —— 构造参数含领域 port,与
 // AgentLoopServiceImpl 同款;生成图不可 regen,实际绑定在 injection 1m)。
@@ -31,8 +36,10 @@ library;
 
 import 'package:injectable/injectable.dart';
 
+import 'package:yucai_client/assistant/data/agent_audit_sink.dart';
 import 'package:yucai_client/assistant/data/audit_log.dart';
 import 'package:yucai_client/assistant/data/tools/tool_args.dart' show yuan;
+import 'package:yucai_client/assistant/domain/agent_audit_event.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/write_action.dart';
 import 'package:yucai_client/assistant/domain/write_executor.dart';
@@ -42,11 +49,16 @@ import 'package:yucai_client/transaction/domain/repositories/transaction_reposit
 
 @LazySingleton(as: WriteExecutor)
 class WriteExecutorImpl implements WriteExecutor {
-  WriteExecutorImpl(this._txns, this._loop, this._audit);
+  WriteExecutorImpl(this._txns, this._loop, this._audit, [this._sink]);
 
   final TransactionRepository _txns;
   final AgentLoopService _loop;
   final AssistantAuditLog _audit;
+  final AgentAuditSink? _sink;
+
+  /// 审计出口:注入 sink = F71 双投(日志+入库);缺省(F70 既有构造位)
+  /// 回退纯日志 —— logWrite 逐参一致,行为等价。
+  AgentAuditSink get _auditSink => _sink ?? _LogOnlyAuditSink(_audit);
 
   /// 幂等集(ADR-3;会话内单例态):确认实例 uuid → 落库实体 id。
   /// 仅成功路径记录 —— 失败不耗键,重试(同 key)从零再执行。
@@ -61,32 +73,35 @@ class WriteExecutorImpl implements WriteExecutor {
     try {
       final (outcome, note) = await _run(action);
       if (outcome is WriteFailed) {
-        _audit.logWrite(
+        await _auditSink.record(AgentAuditEvent(
           tool: tool,
-          payloadSummary: action.toString(),
-          entityId: '',
+          summary: action.toString(),
           ok: false,
-        );
+          reason: outcome.reason,
+          idempotencyKey: idempotencyKey,
+        ));
         return outcome;
       }
       final entityId = (outcome as WriteExecuted).entityId;
       _executedKeys[idempotencyKey] = entityId;
-      _audit.logWrite(
+      await _auditSink.record(AgentAuditEvent(
         tool: tool,
-        payloadSummary: action.toString(),
-        entityId: entityId,
+        summary: action.toString(),
         ok: true,
-      );
+        entityId: entityId,
+        idempotencyKey: idempotencyKey,
+      ));
       _loop.appendToolOutcome(note!);
       return outcome;
     } catch (e) {
       // 防御兜底:repo 抛异常(非 Either Left 路径)→ 只携类名零 payload。
-      _audit.logWrite(
+      await _auditSink.record(AgentAuditEvent(
         tool: tool,
-        payloadSummary: action.toString(),
-        entityId: '',
+        summary: action.toString(),
         ok: false,
-      );
+        reason: e.runtimeType.toString(),
+        idempotencyKey: idempotencyKey,
+      ));
       return WriteFailed(e.runtimeType.toString());
     }
   }
@@ -240,4 +255,23 @@ class WriteExecutorImpl implements WriteExecutor {
   /// (上下文膨胀防线;口述描述可能含换行)。
   static String _flat(String line) =>
       line.replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+/// F70 兼容回退 sink(未注入 [AgentAuditSink] 的构造位):仅
+/// [AssistantAuditLog.logWrite],逐参与 F70 直调一致 —— 行为等价零变
+/// (既有测全绿 = 等价证);F71 装配注入双投 impl 后本类只剩旧测试路径。
+class _LogOnlyAuditSink implements AgentAuditSink {
+  _LogOnlyAuditSink(this._log);
+
+  final AssistantAuditLog _log;
+
+  @override
+  Future<void> record(AgentAuditEvent event) async {
+    _log.logWrite(
+      tool: event.tool,
+      payloadSummary: event.summary,
+      entityId: event.entityId ?? '',
+      ok: event.ok,
+    );
+  }
 }
