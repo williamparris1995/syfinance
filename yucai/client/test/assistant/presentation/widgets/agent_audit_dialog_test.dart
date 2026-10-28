@@ -20,7 +20,9 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kSecondaryButton;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
@@ -160,11 +162,6 @@ Widget _cardHost(db.AppDatabase d) => MaterialApp(
       ),
     );
 
-/// 对话框直挂 host(相对时间判定用注入时钟,不经入口行)。
-Widget _dialogHost(db.AppDatabase d) => MaterialApp(
-      home: Scaffold(body: AgentAuditDialog(dao: d.agentAuditDao, now: _now)),
-    );
-
 /// 收尾钉(AppToast Timer 先例的 drift 变体):树卸载 → 订阅 cancel →
 /// drift `QueryStream.markAsClosed` 挂零长 Timer,须在测试体内显式推进
 /// fake 时钟烧掉 —— `pump()` 缺省不 elapse,零长 Timer 不触发;否则框架
@@ -173,6 +170,62 @@ Widget _dialogHost(db.AppDatabase d) => MaterialApp(
 Future<void> _pumpDownTree(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump(const Duration(milliseconds: 16));
+}
+
+/// 对话框直挂 host(F72 起带搜索防抖缝注入;相对时间判定用注入时钟,
+/// 不经入口行)。
+Widget _dialogHost(db.AppDatabase d,
+        {Duration searchDebounce = const Duration(milliseconds: 300),
+        int pageSize = 20}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: AgentAuditDialog(
+          dao: d.agentAuditDao,
+          now: _now,
+          pageSize: pageSize,
+          searchDebounce: searchDebounce,
+        ),
+      ),
+    );
+
+/// 内存剪贴板 mock(先例 context_menu_region_test._mockClipboard)。
+String? _clipData;
+void _mockClipboard(WidgetTester tester) {
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      switch (call.method) {
+        case 'Clipboard.setData':
+          _clipData = (call.arguments as Map?)?['text'] as String?;
+          return null;
+        case 'Clipboard.getData':
+          return _clipData == null
+              ? null
+              : <String, Object>{'text': _clipData!};
+      }
+      return null;
+    },
+  );
+}
+
+/// 右键(secondary tap down,先例 context_menu_region_test._rightClick)。
+Future<void> _rightClick(WidgetTester tester, Finder target) async {
+  final gesture = await tester.startGesture(
+    tester.getCenter(target),
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryButton,
+  );
+  await gesture.up();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+/// F72 搜索面种子:4 行(午饭 ×2 跨今天/前天,地铁/早餐不匹配)。
+Future<void> _seedSearchRows(db.AppDatabase d) async {
+  await _seed(d, 25, 12, 31, 'transaction_add', '已记:支出 ¥35.00 午饭');
+  await _seed(d, 26, 9, 15, 'transaction_add', '已记:支出 ¥4.00 地铁');
+  await _seed(d, 27, 10, 0, 'transaction_add', '已记:支出 ¥6.00 早餐');
+  await _seed(d, 27, 14, 32, 'transaction_add', '已记:支出 ¥35.00 午饭');
 }
 
 void main() {
@@ -296,8 +349,10 @@ void main() {
 
   group('加载更多(watchPage 20/页,offset 递增 append)', () {
     testWidgets('首页 20/25 → 追加页 5 条 → 全量后按钮收起', (tester) async {
-      // 高窗:25 行全量入视口(断言 row-01..row-25 全在树上)。
-      tester.view.physicalSize = const Size(900, 1600);
+      // 高窗:25 行 + F72 搜索框/分组段头全部入视口,finder 全行可断
+      // (v21 的 1600 高窗在 F72 加搜索框+段头后装不下 25 行,ListView
+      // 视口懒建会裁尾行;分页逻辑断言不受影响,抬窗即可)。
+      tester.view.physicalSize = const Size(900, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -369,6 +424,192 @@ void main() {
     });
   });
 
+  group('F72 分组段头(spec FR-1,design ADR-2:纯渲染聚合)', () {
+    testWidgets('按日历日分段:今天/昨天/前天/yyyy年M月d日 段头+段内计数,组内倒序',
+        (tester) async {
+      tester.view.physicalSize = const Size(900, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final d = _newDb();
+      await _seedV21Rows(d); // 27×3 / 26×3 / 25×2
+      await _seed(d, 23, 9, 5, 'transaction_add', '已记:支出 ¥10.00 旧账');
+      await tester.pumpWidget(_dialogHost(d));
+      await tester.pumpAndSettle();
+      // 四段头各就位(组内行时间倒序由 DAO 排序保真,段头只聚合)。
+      expect(find.text('今天'), findsOneWidget);
+      expect(find.text('昨天'), findsOneWidget);
+      expect(find.text('前天'), findsOneWidget);
+      expect(find.text('2026年10月23日'), findsOneWidget);
+      // 段内计数:今天 3 / 昨天 3 / 前天 2 / 10-23 段 1。
+      expect(find.text('3 条'), findsNWidgets(2));
+      expect(find.text('2 条'), findsOneWidget);
+      expect(find.text('1 条'), findsOneWidget);
+      await _pumpDownTree(tester);
+    });
+
+    testWidgets('跨「加载更多」续组:同日跨页不另起段头,计数跟涨', (tester) async {
+      tester.view.physicalSize = const Size(900, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final d = _newDb();
+      // 今天×5(15..11 时)+ 昨天×2(10/9 时);pageSize 3 → 三页。
+      for (var h = 11; h <= 15; h++) {
+        await _seed(d, 27, h, 0, 'transaction_add', '已记:支出 ¥$h.00 row-$h');
+      }
+      await _seed(d, 26, 10, 0, 'transaction_add', '已记:支出 ¥10.00 row-26a');
+      await _seed(d, 26, 9, 0, 'transaction_add', '已记:支出 ¥9.00 row-26b');
+      await tester.pumpWidget(_dialogHost(d, pageSize: 3));
+      await tester.pumpAndSettle();
+      // 首页 = 今天最新 3 行:一段「今天 3 条」,昨天段未现。
+      expect(find.text('今天'), findsOneWidget);
+      expect(find.text('3 条'), findsOneWidget);
+      expect(find.text('昨天'), findsNothing);
+      expect(find.text('已显示 3 / 7 条'), findsOneWidget);
+      // 第二页 = 今天余 2 + 昨天 1:今天段续(不另起段头)计数 5,昨天段起。
+      await tester.tap(find.text('加载更多'));
+      await tester.pumpAndSettle();
+      expect(find.text('今天'), findsOneWidget, reason: '跨页续组:同日不重复段头');
+      expect(find.text('5 条'), findsOneWidget);
+      expect(find.text('昨天'), findsOneWidget);
+      expect(find.text('1 条'), findsOneWidget);
+      expect(find.text('已显示 6 / 7 条'), findsOneWidget);
+      // 第三页 = 昨天余 1:昨天段续,计数 2。
+      await tester.tap(find.text('加载更多'));
+      await tester.pumpAndSettle();
+      expect(find.text('昨天'), findsOneWidget);
+      expect(find.text('2 条'), findsOneWidget);
+      expect(find.text('1 条'), findsNothing, reason: '段计数随续组更新');
+      await _pumpDownTree(tester);
+    });
+  });
+
+  group('F72 搜索(spec FR-2,design ADR-1:DAO 重查 + 300ms 防抖)', () {
+    testWidgets('副行双态 + 过滤重查 + 清除恢复(零防抖缝)', (tester) async {
+      final d = _newDb();
+      await _seedSearchRows(d);
+      await tester.pumpWidget(_dialogHost(d, searchDebounce: Duration.zero));
+      await tester.pumpAndSettle();
+      // 默认态副行(v21 后缀保真)。
+      expect(find.text('共 4 条 · 全部操作均经你确认'), findsOneWidget);
+      expect(find.text('已显示 4 / 4 条'), findsOneWidget);
+      // 输入「午饭」(防抖零缝,pump 推进后即触发)。
+      await tester.enterText(
+          find.byKey(const ValueKey('agentAuditSearchInput')), '午饭');
+      await tester.pumpAndSettle();
+      // 过滤态副行(v22:计数 + 关键词 + 清除搜索链接)。
+      expect(find.text('2 条匹配「午饭」'), findsOneWidget);
+      expect(find.text('清除搜索'), findsOneWidget);
+      expect(find.text('共 4 条 · 全部操作均经你确认'), findsNothing);
+      // 仅匹配行显示(两条午饭,分属今天/前天两段)。
+      expect(find.text('已记:支出 ¥35.00 午饭'), findsNWidgets(2));
+      expect(find.text('已记:支出 ¥4.00 地铁'), findsNothing);
+      expect(find.text('已记:支出 ¥6.00 早餐'), findsNothing);
+      expect(find.text('1 条'), findsNWidgets(2), reason: '过滤态照分组,段计数=段内匹配数');
+      // foot 双计数:matched / 全量。
+      expect(find.text('2 / 4 条匹配'), findsOneWidget);
+      expect(find.text('加载更多'), findsNothing, reason: 'matched 全量已载');
+      // 清除钮 → 恢复全量。
+      await tester.tap(find.byKey(const ValueKey('agentAuditSearchClear')));
+      await tester.pumpAndSettle();
+      expect(find.text('共 4 条 · 全部操作均经你确认'), findsOneWidget);
+      expect(find.text('已显示 4 / 4 条'), findsOneWidget);
+      expect(find.text('已记:支出 ¥4.00 地铁'), findsOneWidget);
+      await _pumpDownTree(tester);
+    });
+
+    testWidgets('防抖 300ms:输入后未到期不重查,到期触发(缺省缝)', (tester) async {
+      final d = _newDb();
+      await _seedSearchRows(d);
+      await tester.pumpWidget(_dialogHost(d)); // 缺省 300ms
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('agentAuditSearchInput')), '午饭');
+      await tester.pump(const Duration(milliseconds: 100));
+      // 未到期:仍默认态全量(防抖期不闪过滤)。
+      expect(find.text('共 4 条 · 全部操作均经你确认'), findsOneWidget);
+      expect(find.text('已记:支出 ¥4.00 地铁'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 250)); // 累计 350ms ≥ 300
+      await tester.pumpAndSettle();
+      expect(find.text('2 条匹配「午饭」'), findsOneWidget);
+      expect(find.text('已记:支出 ¥4.00 地铁'), findsNothing);
+      await _pumpDownTree(tester);
+    });
+
+    testWidgets('过滤走 DAO 层重查:未加载页的匹配行可达 + offset 重置',
+        (tester) async {
+      final d = _newDb();
+      // 24 行不匹配(今天 8:01..8:24)+ 1 行匹配(昨天,最旧 = 第二页)。
+      for (var m = 1; m <= 24; m++) {
+        await _seed(d, 27, 8, m, 'transaction_add',
+            '已记:支出 ¥$m.00 地铁 fill-${m.toString().padLeft(2, '0')}');
+      }
+      await _seed(d, 26, 10, 0, 'transaction_add', '已记:支出 ¥35.00 午饭');
+      await tester.pumpWidget(_dialogHost(d, searchDebounce: Duration.zero));
+      await tester.pumpAndSettle();
+      // 全量:首页 20 行,午饭行(最旧)未加载 —— 客户端过滤若只筛已加载
+      // 页将永远漏行;DAO 重查才可达(spec「非仅已加载页」)。
+      expect(find.text('已显示 20 / 25 条'), findsOneWidget);
+      expect(find.text('已记:支出 ¥35.00 午饭'), findsNothing);
+      await tester.enterText(
+          find.byKey(const ValueKey('agentAuditSearchInput')), '午饭');
+      await tester.pumpAndSettle();
+      expect(find.text('1 条匹配「午饭」'), findsOneWidget);
+      expect(find.text('1 / 25 条匹配'), findsOneWidget);
+      expect(find.text('已记:支出 ¥35.00 午饭'), findsOneWidget,
+          reason: 'offset 归零重查 matched 集,首页即含未加载的匹配行');
+      // 清除 → 回全量首页(分页状态重置)。
+      await tester.tap(find.byKey(const ValueKey('agentAuditSearchClear')));
+      await tester.pumpAndSettle();
+      expect(find.text('已显示 20 / 25 条'), findsOneWidget);
+      await _pumpDownTree(tester);
+    });
+
+    testWidgets('空匹配:0 条计数 + 无匹配态,清链接恢复', (tester) async {
+      final d = _newDb();
+      await _seedSearchRows(d);
+      await tester.pumpWidget(_dialogHost(d, searchDebounce: Duration.zero));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('agentAuditSearchInput')), '不存在');
+      await tester.pumpAndSettle();
+      expect(find.text('0 条匹配「不存在」'), findsOneWidget);
+      expect(find.text('无匹配「不存在」的记录'), findsOneWidget);
+      expect(find.text('换个关键词,或清除搜索查看全部'), findsOneWidget);
+      expect(find.text('已记:支出 ¥35.00 午饭'), findsNothing);
+      expect(find.text('加载更多'), findsNothing, reason: '空匹配无 foot 分页件');
+      // 副行「清除搜索」链接与清除钮同效。
+      await tester.tap(find.text('清除搜索'));
+      await tester.pumpAndSettle();
+      expect(find.text('共 4 条 · 全部操作均经你确认'), findsOneWidget);
+      await _pumpDownTree(tester);
+    });
+  });
+
+  group('F72 右键复制(spec FR-3,design ADR-5:ContextMenu 先例+AppToast)', () {
+    testWidgets('右键行 →「复制摘要」→ 剪贴板=行摘要串 + toast「已复制」',
+        (tester) async {
+      _mockClipboard(tester);
+      final d = _newDb();
+      await _seed(d, 27, 14, 32, 'transaction_add', '已记:支出 ¥35.00 午饭');
+      await tester.pumpWidget(_dialogHost(d));
+      await tester.pumpAndSettle();
+      // 右键行 → 菜单项单项「复制摘要」。
+      await _rightClick(tester, find.text('已记:支出 ¥35.00 午饭'));
+      expect(find.text('复制摘要'), findsOneWidget);
+      // 点项 → 剪贴板含该行摘要串 + toast 确认。
+      await tester.tap(find.text('复制摘要').last);
+      await tester.pumpAndSettle();
+      expect(_clipData, '已记:支出 ¥35.00 午饭');
+      expect(find.text('已复制'), findsOneWidget);
+      // toast 3s Timer 收尾泵空(免悬挂;先例 context_menu_region_test)。
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      await _pumpDownTree(tester);
+    });
+  });
+
   group('纯函数(相对时间/工具名映射)', () {
     test('formatRelativeTime:今天/昨天/前天/兜底(纯日期比较,零时区运算)', () {
       int at(int day, int h, int m) =>
@@ -385,6 +626,24 @@ void main() {
           AgentAuditDialog.formatRelativeTime(
               DateTime(2025, 12, 31, 8, 0).millisecondsSinceEpoch, _now),
           '2025-12-31 08:00');
+    });
+
+    test('groupLabel:F72 分组段头文案(三档 + yyyy年M月d日 完整日期不补零)', () {
+      int at(int day, int h, int m) =>
+          DateTime(2026, 10, day, h, m).millisecondsSinceEpoch;
+      expect(AgentAuditDialog.groupLabel(at(27, 0, 1), _now), '今天');
+      expect(AgentAuditDialog.groupLabel(at(26, 23, 59), _now), '昨天');
+      expect(AgentAuditDialog.groupLabel(at(25, 0, 1), _now), '前天');
+      expect(AgentAuditDialog.groupLabel(at(24, 20, 3), _now), '2026年10月24日');
+      // 更早:日历日完整日期(v22 aud-group 形态;月/日不补零)。
+      expect(
+          AgentAuditDialog.groupLabel(
+              DateTime(2026, 5, 3, 8, 0).millisecondsSinceEpoch, _now),
+          '2026年5月3日');
+      expect(
+          AgentAuditDialog.groupLabel(
+              DateTime(2025, 12, 31, 8, 0).millisecondsSinceEpoch, _now),
+          '2025年12月31日');
     });
 
     test('toolLabel:三映射 + 未知原样', () {
