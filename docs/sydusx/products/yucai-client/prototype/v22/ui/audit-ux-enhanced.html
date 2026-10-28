@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>御财 v2 · 设置 · AI 助手操作记录 · 体验增强</title>
+<script>
+  (function(){
+    var saved = localStorage.getItem('yc2-theme') || 'dark';
+    if (saved === 'system') saved = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.dataset.theme = saved;
+  })();
+</script>
+<link rel="stylesheet" href="../../../../../../../design-output-v2/ab/assets/theme.css?v=4">
+<style>
+  /* 页面专属:F72 审计体验增强(全部颜色/阴影走 var(--*) 令牌) */
+  .set-wrap{max-width:760px;margin:0 auto}
+  .set-group{margin-bottom:20px}
+  .set-group > .g-title{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:1.5px;margin:0 4px 8px}
+  .set-card{padding:0;overflow:hidden}
+  .set-row{display:flex;align-items:center;gap:14px;padding:15px 20px;border-bottom:1px solid var(--line)}
+  .set-row:last-child{border-bottom:0}
+  .set-row .s-ic{width:34px;height:34px;border-radius:10px;background:var(--ic-bg);display:grid;place-items:center;font-size:16px;flex:none}
+  .set-row .s-main{flex:1;min-width:0}
+  .set-row .s-name{font-size:13.5px;font-weight:600}
+  .set-row .s-sub{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .set-row .s-value{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:6px}
+  .rule-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+
+  /* 演示视口:模拟对话框浮于设置页之上 */
+  .demo-vp{position:relative;border:1px solid var(--border);border-radius:16px;background:var(--bg);overflow:hidden}
+  .demo-vp.tall{height:680px}
+  .demo-vp.mid{height:460px}
+  .ghost-wrap{position:absolute;top:0;left:0;right:0;padding:34px 24px 0;pointer-events:none}
+  .ghost-wrap .ghost-card{max-width:520px;margin:0 auto}
+  .demo-scrim{position:absolute;inset:0;background:color-mix(in srgb,var(--bg) 60%,transparent)}
+  .demo-center{position:absolute;inset:0;display:grid;place-items:center;padding:30px 24px}
+  .reopen{display:none}
+  .demo-vp.closed .aud-dlg{display:none}
+  .demo-vp.closed .reopen{display:inline-flex}
+  .cap{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.7;padding:0 4px}
+
+  /* 审计对话框:复用 .card 面板语言 */
+  .aud-dlg{position:relative;width:560px;max-width:100%;max-height:100%;padding:0;overflow:hidden;display:flex;flex-direction:column}
+  .dlg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+  .dlg-title{font-size:15px;font-weight:700}
+  .dlg-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .dlg-sub a{color:var(--link);font-weight:600;cursor:pointer}
+  .dlg-sub[hidden]{display:none}
+  .dlg-x{flex:none}
+  .aud-list{flex:1;min-height:0;overflow-y:auto}
+  .aud-row{display:flex;align-items:flex-start;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line)}
+  .aud-row[hidden],.aud-g[hidden]{display:none!important}
+  .aud-time{width:46px;flex:none;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:3px}
+  .aud-chip{display:inline-flex;justify-content:center;min-width:58px;margin-top:1px;flex:none}
+  .aud-main{flex:1;min-width:0}
+  .aud-sum{font-size:13px;font-weight:600;line-height:1.5}
+  .aud-note{font-size:11px;color:var(--muted);margin-top:2px}
+  .aud-note.neg{color:var(--neg)}
+  .aud-side{flex:none;max-width:118px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
+  .dlg-foot{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 18px;border-top:1px solid var(--line)}
+  .foot-count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+  /* 增强1 · 日期分组段头(小字 muted + 分隔线 + 计数) */
+  .aud-group{display:flex;align-items:center;gap:10px;padding:10px 18px 6px;position:sticky;top:0;background:var(--surface);z-index:2}
+  .aud-group span{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;flex:none}
+  .aud-group .g-line{flex:1;height:1px;background:var(--line)}
+  .aud-group .g-count{font-size:10.5px;color:var(--muted);flex:none;font-style:normal;font-variant-numeric:tabular-nums}
+
+  /* 增强2 · 标题下搜索框 */
+  .dlg-search{display:flex;align-items:center;gap:8px;margin:12px 18px 2px;padding:8px 12px;background:var(--search-bg);border:1px solid var(--search-border);border-radius:10px;color:var(--muted)}
+  .dlg-search input{flex:1;background:none;border:0;outline:0;color:var(--fg);font-size:12.5px;min-width:0;font-family:inherit}
+  .dlg-search input::placeholder{color:var(--muted)}
+  .dlg-search .s-clear{display:none;border:0;background:none;color:var(--muted);cursor:pointer;padding:2px}
+  .dlg-search .s-clear:hover{color:var(--fg)}
+  .dlg-search.has-q .s-clear{display:grid;place-items:center}
+
+  /* 增强3 · 右键菜单与「已复制」toast */
+  .ctx-menu{position:absolute;z-index:8;min-width:150px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:5px;display:none}
+  .ctx-menu.on{display:block}
+  .ctx-menu.static{display:block}
+  .ctx-menu button{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;color:var(--fg);font-size:12.5px;font-weight:500;padding:8px 10px;border-radius:8px;cursor:pointer;font-family:inherit}
+  .ctx-menu button:hover{background:var(--surface-2)}
+  .toast-ok{position:absolute;z-index:9;display:none;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:8px 14px;font-size:12.5px;font-weight:600}
+  .toast-ok.on{display:flex}
+  .toast-ok.static{display:flex}
+
+  /* 增强4 · 记行可点(以此再记一笔) */
+  .aud-row.tap{cursor:pointer}
+  .aud-row.tap:hover{background:var(--surface-2)}
+  .aud-row.is-hover{background:var(--surface-2)}
+  .aud-again{font-size:10.5px;color:var(--muted);font-weight:600;white-space:nowrap;opacity:0;transition:opacity .15s;pointer-events:none}
+  .aud-row.tap:hover .aud-again,.aud-row.tap.is-hover .aud-again{opacity:1}
+  .ro-note{padding:10px 18px;font-size:11px;color:var(--muted);border-top:1px solid var(--line);line-height:1.6}
+
+  /* 增强4 · 缩微助手面板(预填确认卡) */
+  .flow-grid{display:grid;grid-template-columns:1fr 40px 330px;gap:10px;align-items:center}
+  .flow-arrow{width:100%;height:24px;color:var(--muted);display:block}
+  .assistant-mini .mini-head{margin-bottom:12px}
+  .conf-card{border:1px solid var(--border);border-radius:14px;padding:14px 16px;background:var(--surface)}
+  .conf-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .conf-kv{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .conf-kv:last-of-type{border-bottom:0}
+  .conf-kv .k{color:var(--muted);flex:none}
+  .conf-kv .v{font-weight:600;text-align:right}
+  .conf-actions{display:flex;gap:10px;margin-top:12px}
+  .conf-actions .btn-primary,.conf-actions .btn-ghost{padding:8px 16px;font-size:12.5px;border-radius:10px}
+  .conf-note{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6}
+
+  /* 搜索两态并排 */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .duo .cap-col{display:flex;flex-direction:column;gap:0}
+
+  /* 强制桌面布局:撤销 theme.css 的 <900px 移动端规则 */
+  @media (max-width:900px){
+    body{display:grid;grid-template-columns:236px 1fr}
+    .sidebar{display:flex}
+    .crumb{display:block}
+    .topbar{padding:14px 32px}
+    .search{width:280px;flex:none}
+    .page{padding:28px 32px 48px}
+    .page-head{flex-direction:row;align-items:flex-end;gap:16px}
+    .page-head h1{font-size:24px}
+    .page-head-actions{width:auto}
+    .set-wrap{max-width:760px;margin:0 auto}
+    .bottom-nav{display:none}
+    .duo{grid-template-columns:1fr 1fr}
+    .flow-grid{grid-template-columns:1fr 40px 300px}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="21"/><line x1="7" y1="21" x2="7" y2="13"/><line x1="12" y1="21" x2="12" y2="5"/><line x1="17" y1="21" x2="17" y2="9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-upright" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42L12 2z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">御</div>
+    <div>
+      <div class="brand-name">御财</div>
+      <div class="brand-sub">YUCAI FINANCE</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="g-label">概览</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-dashboard"/></svg>仪表盘</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-chart"/></svg>报表分析</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">资产</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-wallet"/></svg>账户管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-trend"/></svg>投资组合</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-landmark"/></svg>债务管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-upright"/></svg>债权管理</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">收支</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-receipt"/></svg>交易记录</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-pie"/></svg>预算管理</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-target"/></svg>目标追踪</a>
+    </div>
+    <div class="nav-group">
+      <div class="g-label">工具</div>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-tag"/></svg>标签</a>
+      <a class="nav-item" href="#"><svg class="ic"><use href="#i-layers"/></svg>模板</a>
+      <a class="nav-item active" href="#"><svg class="ic"><use href="#i-sliders"/></svg>设置</a>
+    </div>
+  </nav>
+  <div class="user">
+    <div class="avatar">A</div>
+    <div>
+      <div class="user-name">Andy</div>
+      <div class="user-mail">andy@yucai.app</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="crumb">工具 <span class="sep">›</span> 设置 <span class="sep">›</span> <b>AI 助手</b></div>
+    <div class="topbar-right">
+      <div class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input placeholder="搜索设置…">
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="切换亮暗主题" title="切换亮暗主题">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg>
+        <svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="set-wrap">
+      <div class="page-head">
+        <div>
+          <h1>AI 助手 · 操作记录 · 体验增强</h1>
+          <p class="date">F72 审计体验增强 · 分组 / 搜索 / 右键复制 / 以此再记一笔 · 四段过目</p>
+        </div>
+      </div>
+
+      <div class="set-group" data-od-id="brief-card">
+        <div class="g-title">说明</div>
+        <div class="card">
+          <div class="card-head"><h2>审计对话框 · 四项体验增强</h2></div>
+          <p class="card-sub">在 <a href="#" style="color:var(--link);font-weight:600">v21 只读审计对话框</a> 基础上增强四件:日期分组段头让长列表可扫读;标题下搜索框可按摘要/金额过滤;右键任意行复制摘要;「记一笔」行可点「以此再记一笔」,预填确认卡仍需再次确认——只读留痕不变,新增的只是读取与复用。</p>
+          <div class="rule-chips">
+            <span class="chip">日期分组 · 跨四日</span>
+            <span class="chip">搜索过滤 · 两态</span>
+            <span class="chip">右键 · 复制摘要</span>
+            <span class="chip">以此再记一笔 · 新提案过确认门</span>
+            <span class="chip">改/删行只读</span>
+            <span class="chip">金额千分位两位</span>
+            <span class="chip">A+B 亮暗双主题</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-group" data-od-id="main-dialog-section">
+        <div class="g-title">一 · 主形态 · 日期分组 + 可用搜索(可实时输入)</div>
+        <div class="demo-vp tall" data-od-id="dialog-demo-main">
+          <div class="ghost-wrap" aria-hidden="true">
+            <div class="card set-card ghost-card">
+              <div class="set-row">
+                <span class="s-ic">🤖</span>
+                <div class="s-main"><div class="s-name">AI 助手</div><div class="s-sub">对话记账 · 修改 · 删除,全部经你确认后执行</div></div>
+                <label class="switch-disabled" style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:var(--pos);display:inline-block"></span>已开启</label>
+              </div>
+              <div class="set-row">
+                <span class="s-ic">🧠</span>
+                <div class="s-main"><div class="s-name">模型</div><div class="s-sub">端侧运行 · 数据不出本机</div></div>
+                <span class="s-value">Qwen3-4B</span>
+              </div>
+            </div>
+          </div>
+          <div class="demo-scrim"></div>
+          <div class="demo-center">
+            <div class="card aud-dlg" id="audDlg" data-od-id="dialog-main">
+              <div class="dlg-head">
+                <div>
+                  <div class="dlg-title">AI 助手 · 操作记录</div>
+                  <div class="dlg-sub" id="subDefault" data-od-id="dialog-subtitle-default">共 12 条 · 全部操作均经你确认</div>
+                  <div class="dlg-sub" id="subFiltered" hidden data-od-id="dialog-subtitle-filtered"><span id="subCount">0 条匹配</span><span id="subQ">「」</span> · <a id="clearLink">清除搜索</a></div>
+                </div>
+                <button class="icon-btn dlg-x" aria-label="关闭对话框" title="关闭(Esc)"><svg class="ic"><use href="#i-x"/></svg></button>
+              </div>
+              <div class="dlg-search" id="dlgSearch" data-od-id="dialog-search">
+                <svg class="ic" style="width:15px;height:15px"><use href="#i-search"/></svg>
+                <input id="audSearch" placeholder="搜索摘要 / 金额 / 幂等键…" aria-label="搜索操作记录">
+                <button class="s-clear" id="searchClear" aria-label="清除搜索" title="清除搜索"><svg class="ic" style="width:14px;height:14px"><use href="#i-x"/></svg></button>
+              </div>
+              <div class="aud-list" data-od-id="audit-list">
+
+                <div class="aud-g" data-group>
+                  <div class="aud-group" data-od-id="group-today"><span>今天</span><i class="g-line"></i><em class="g-count">3 条</em></div>
+                  <div class="aud-row tap" data-sum="记一笔 支出 35.00 午饭 招商银行 成功" data-od-id="audit-row-today-lunch">
+                    <span class="aud-time">14:32</span>
+                    <span class="chip aud-chip">记一笔</span>
+                    <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                  </div>
+                  <div class="aud-row" data-sum="改一笔 支出 1,280.00 手机 备注 京东 京东自营 成功" data-od-id="audit-row-today-edit">
+                    <span class="aud-time">12:18</span>
+                    <span class="chip aud-chip">改一笔</span>
+                    <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥1,280.00</span> 手机 备注「京东」→「京东自营」</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                  </div>
+                  <div class="aud-row tap" data-sum="记一笔 收入 8,500.00 十月工资 储蓄卡 成功" data-od-id="audit-row-today-salary">
+                    <span class="aud-time">09:41</span>
+                    <span class="chip aud-chip">记一笔</span>
+                    <div class="aud-main"><div class="aud-sum">收入 <span class="num">¥8,500.00</span> 十月工资 → 储蓄卡</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                  </div>
+                </div>
+
+                <div class="aud-g" data-group>
+                  <div class="aud-group" data-od-id="group-yesterday"><span>昨天</span><i class="g-line"></i><em class="g-count">3 条</em></div>
+                  <div class="aud-row" data-sum="删一笔 删除 支出 42.50 打车 高德 重试成功 幂等键 8f42-ac91 成功" data-od-id="audit-row-retry-ok">
+                    <span class="aud-time">21:48</span>
+                    <span class="chip aud-chip">删一笔</span>
+                    <div class="aud-main">
+                      <div class="aud-sum">删除 支出 <span class="num">¥42.50</span> 打车 → 高德</div>
+                      <div class="aud-note">重试成功 · 幂等键 8f42-ac91</div>
+                    </div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                  </div>
+                  <div class="aud-row" data-sum="删一笔 删除 支出 42.50 打车 高德 幂等键 8f42-ac91 失败 内容已被其他修改更新" data-od-id="audit-row-retry-fail">
+                    <span class="aud-time">21:47</span>
+                    <span class="chip aud-chip">删一笔</span>
+                    <div class="aud-main">
+                      <div class="aud-sum">删除 支出 <span class="num">¥42.50</span> 打车 → 高德</div>
+                      <div class="aud-note">幂等键 8f42-ac91</div>
+                    </div>
+                    <div class="aud-side">
+                      <span class="chip neg">⚠ 失败</span>
+                      <span class="aud-note neg">内容已被其他修改更新</span>
+                    </div>
+                  </div>
+                  <div class="aud-row" data-sum="改一笔 预算 餐饮 月上限 2,000.00 2,500.00 成功" data-od-id="audit-row-yesterday-budget">
+                    <span class="aud-time">09:15</span>
+                    <span class="chip aud-chip">改一笔</span>
+                    <div class="aud-main"><div class="aud-sum">预算「餐饮」月上限 <span class="num">¥2,000.00</span> → <span class="num">¥2,500.00</span></div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                  </div>
+                </div>
+
+                <div class="aud-g" data-group>
+                  <div class="aud-group" data-od-id="group-bq"><span>前天</span><i class="g-line"></i><em class="g-count">3 条</em></div>
+                  <div class="aud-row tap" data-sum="记一笔 支出 216.80 生鲜超市 花呗 成功" data-od-id="audit-row-bq-grocery">
+                    <span class="aud-time">18:26</span>
+                    <span class="chip aud-chip">记一笔</span>
+                    <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥216.80</span> 生鲜超市 → 花呗</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                  </div>
+                  <div class="aud-row tap" data-sum="记一笔 支出 35.00 午饭 招商银行 成功" data-od-id="audit-row-bq-lunch">
+                    <span class="aud-time">12:31</span>
+                    <span class="chip aud-chip">记一笔</span>
+                    <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                  </div>
+                  <div class="aud-row tap" data-sum="记一笔 支出 18.50 早餐 微信 成功" data-od-id="audit-row-bq-breakfast">
+                    <span class="aud-time">08:47</span>
+                    <span class="chip aud-chip">记一笔</span>
+                    <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥18.50</span> 早餐 → 微信</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                  </div>
+                </div>
+
+                <div class="aud-g" data-group>
+                  <div class="aud-group" data-od-id="group-1024"><span>2026年10月24日</span><i class="g-line"></i><em class="g-count">3 条</em></div>
+                  <div class="aud-row tap" data-sum="记一笔 支出 35.00 午饭 招商银行 成功" data-od-id="audit-row-1024-lunch">
+                    <span class="aud-time">20:03</span>
+                    <span class="chip aud-chip">记一笔</span>
+                    <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                  </div>
+                  <div class="aud-row" data-sum="改一笔 支出 68.00 外卖 备注 红 美团 成功" data-od-id="audit-row-1024-edit">
+                    <span class="aud-time">12:40</span>
+                    <span class="chip aud-chip">改一笔</span>
+                    <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥68.00</span> 外卖 备注「红」→「美团」</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                  </div>
+                  <div class="aud-row tap" data-sum="记一笔 收入 120.00 二手闲置 支付宝 成功" data-od-id="audit-row-1024-income">
+                    <span class="aud-time">09:22</span>
+                    <span class="chip aud-chip">记一笔</span>
+                    <div class="aud-main"><div class="aud-sum">收入 <span class="num">¥120.00</span> 二手闲置 → 支付宝</div></div>
+                    <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                  </div>
+                </div>
+
+              </div>
+              <div class="dlg-foot">
+                <span class="foot-count" data-od-id="foot-count-main">已显示 12 / 12 条 · 分组内时间倒序</span>
+              </div>
+              <div class="ctx-menu" id="ctxMenu" data-od-id="ctx-menu-live">
+                <button id="ctxCopy" type="button"><svg class="ic" style="width:14px;height:14px"><use href="#i-copy"/></svg>复制摘要</button>
+              </div>
+            </div>
+            <button class="btn-ghost reopen">已关闭 · 点击重新打开示意</button>
+          </div>
+          <div class="toast-ok" id="toastOk" data-od-id="toast-copied-live"><span class="chip pos">✓</span>已复制</div>
+        </div>
+        <p class="cap">增强 1+2+3 实机演示:列表按「今天 / 昨天 / 前天 / 2026年10月24日」分段,段头小字+分隔线+条数,组内时间倒序 · 搜索框可实时输入(试试「午饭」,会得到 3 条匹配与「清除搜索」链接) · 右键任意行弹「复制摘要」,复制后右上出「已复制」toast · 「记一笔」行 hover 出「以此再记一笔 ›」。</p>
+      </div>
+
+      <div class="set-group" data-od-id="search-states-section">
+        <div class="g-title">二 · 搜索 · 默认态 / 过滤态</div>
+        <div class="duo">
+          <div class="cap-col" data-od-id="search-default-col">
+            <div class="demo-vp mid" data-od-id="search-default-vp">
+              <div class="ghost-wrap" aria-hidden="true">
+                <div class="card set-card ghost-card">
+                  <div class="set-row">
+                    <span class="s-ic">🤖</span>
+                    <div class="s-main"><div class="s-name">AI 助手</div><div class="s-sub">对话记账 · 修改 · 删除,全部经你确认后执行</div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="demo-scrim"></div>
+              <div class="demo-center">
+                <div class="card aud-dlg" data-od-id="dialog-search-default">
+                  <div class="dlg-head">
+                    <div>
+                      <div class="dlg-title">AI 助手 · 操作记录</div>
+                      <div class="dlg-sub" data-od-id="search-default-sub">共 12 条 · 全部操作均经你确认</div>
+                    </div>
+                    <button class="icon-btn dlg-x" aria-label="关闭对话框"><svg class="ic"><use href="#i-x"/></svg></button>
+                  </div>
+                  <div class="dlg-search" data-od-id="search-default-input">
+                    <svg class="ic" style="width:15px;height:15px"><use href="#i-search"/></svg>
+                    <input placeholder="搜索摘要 / 金额 / 幂等键…" aria-label="搜索操作记录">
+                    <button class="s-clear" aria-label="清除搜索"><svg class="ic" style="width:14px;height:14px"><use href="#i-x"/></svg></button>
+                  </div>
+                  <div class="aud-list">
+                    <div class="aud-group"><span>今天</span><i class="g-line"></i><em class="g-count">3 条</em></div>
+                    <div class="aud-row">
+                      <span class="aud-time">14:32</span>
+                      <span class="chip aud-chip">记一笔</span>
+                      <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                    </div>
+                    <div class="aud-row">
+                      <span class="aud-time">12:18</span>
+                      <span class="chip aud-chip">改一笔</span>
+                      <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥1,280.00</span> 手机 备注「京东」→「京东自营」</div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                    </div>
+                    <div class="aud-row">
+                      <span class="aud-time">09:41</span>
+                      <span class="chip aud-chip">记一笔</span>
+                      <div class="aud-main"><div class="aud-sum">收入 <span class="num">¥8,500.00</span> 十月工资 → 储蓄卡</div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                    </div>
+                  </div>
+                  <div class="dlg-foot"><span class="foot-count">已显示 12 / 12 条</span></div>
+                </div>
+                <button class="btn-ghost reopen">已关闭 · 点击重新打开示意</button>
+              </div>
+            </div>
+            <p class="cap">默认态:副标「共 12 条 · 全部操作均经你确认」,搜索框空,清除钮隐藏。</p>
+          </div>
+          <div class="cap-col" data-od-id="search-filtered-col">
+            <div class="demo-vp mid" data-od-id="search-filtered-vp">
+              <div class="ghost-wrap" aria-hidden="true">
+                <div class="card set-card ghost-card">
+                  <div class="set-row">
+                    <span class="s-ic">🤖</span>
+                    <div class="s-main"><div class="s-name">AI 助手</div><div class="s-sub">对话记账 · 修改 · 删除,全部经你确认后执行</div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="demo-scrim"></div>
+              <div class="demo-center">
+                <div class="card aud-dlg" data-od-id="dialog-search-filtered">
+                  <div class="dlg-head">
+                    <div>
+                      <div class="dlg-title">AI 助手 · 操作记录</div>
+                      <div class="dlg-sub" data-od-id="search-filtered-sub">3 条匹配「午饭」 · <a>清除搜索</a></div>
+                    </div>
+                    <button class="icon-btn dlg-x" aria-label="关闭对话框"><svg class="ic"><use href="#i-x"/></svg></button>
+                  </div>
+                  <div class="dlg-search has-q" data-od-id="search-filtered-input">
+                    <svg class="ic" style="width:15px;height:15px"><use href="#i-search"/></svg>
+                    <input value="午饭" aria-label="搜索操作记录">
+                    <button class="s-clear" aria-label="清除搜索"><svg class="ic" style="width:14px;height:14px"><use href="#i-x"/></svg></button>
+                  </div>
+                  <div class="aud-list">
+                    <div class="aud-group"><span>今天</span><i class="g-line"></i><em class="g-count">1 条</em></div>
+                    <div class="aud-row tap">
+                      <span class="aud-time">14:32</span>
+                      <span class="chip aud-chip">记一笔</span>
+                      <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                    </div>
+                    <div class="aud-group"><span>前天</span><i class="g-line"></i><em class="g-count">1 条</em></div>
+                    <div class="aud-row tap">
+                      <span class="aud-time">12:31</span>
+                      <span class="chip aud-chip">记一笔</span>
+                      <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                    </div>
+                    <div class="aud-group"><span>2026年10月24日</span><i class="g-line"></i><em class="g-count">1 条</em></div>
+                    <div class="aud-row tap">
+                      <span class="aud-time">20:03</span>
+                      <span class="chip aud-chip">记一笔</span>
+                      <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                    </div>
+                  </div>
+                  <div class="dlg-foot"><span class="foot-count" data-od-id="search-filtered-count">3 / 12 条匹配</span></div>
+                </div>
+                <button class="btn-ghost reopen">已关闭 · 点击重新打开示意</button>
+              </div>
+            </div>
+            <p class="cap">过滤态:副标切「3 条匹配「午饭」 · 清除搜索」(链接样式),框内含查询词与清除钮,分组段头照常、计数随匹配更新。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-group" data-od-id="ctx-demo-section">
+        <div class="g-title">三 · 右键 · 复制摘要</div>
+        <div class="demo-vp mid" data-od-id="ctx-demo-vp">
+          <div class="ghost-wrap" aria-hidden="true">
+            <div class="card set-card ghost-card">
+              <div class="set-row">
+                <span class="s-ic">🤖</span>
+                <div class="s-main"><div class="s-name">AI 助手</div><div class="s-sub">对话记账 · 修改 · 删除,全部经你确认后执行</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="demo-scrim"></div>
+          <div class="demo-center">
+            <div class="card aud-dlg" data-od-id="dialog-ctx-demo">
+              <div class="dlg-head">
+                <div>
+                  <div class="dlg-title">AI 助手 · 操作记录</div>
+                  <div class="dlg-sub">共 12 条 · 全部操作均经你确认</div>
+                </div>
+                <button class="icon-btn dlg-x" aria-label="关闭对话框"><svg class="ic"><use href="#i-x"/></svg></button>
+              </div>
+              <div class="aud-list">
+                <div class="aud-row is-hover" data-od-id="ctx-hover-row">
+                  <span class="aud-time">14:32</span>
+                  <span class="chip aud-chip">记一笔</span>
+                  <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                  <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                </div>
+                <div class="aud-row">
+                  <span class="aud-time">12:18</span>
+                  <span class="chip aud-chip">改一笔</span>
+                  <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥1,280.00</span> 手机 备注「京东」→「京东自营」</div></div>
+                  <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                </div>
+                <div class="aud-row">
+                  <span class="aud-time">21:47</span>
+                  <span class="chip aud-chip">删一笔</span>
+                  <div class="aud-main">
+                    <div class="aud-sum">删除 支出 <span class="num">¥42.50</span> 打车 → 高德</div>
+                    <div class="aud-note">幂等键 8f42-ac91</div>
+                  </div>
+                  <div class="aud-side"><span class="chip neg">⚠ 失败</span><span class="aud-note neg">内容已被其他修改更新</span></div>
+                </div>
+              </div>
+              <div class="dlg-foot"><span class="foot-count">已显示 12 / 12 条</span></div>
+              <div class="ctx-menu static" style="top:96px;left:292px" data-od-id="ctx-menu-mock">
+                <button type="button"><svg class="ic" style="width:14px;height:14px"><use href="#i-copy"/></svg>复制摘要</button>
+              </div>
+            </div>
+            <button class="btn-ghost reopen">已关闭 · 点击重新打开示意</button>
+          </div>
+          <div class="toast-ok static" style="top:16px;right:16px" data-od-id="toast-copied-mock"><span class="chip pos">✓</span>已复制</div>
+        </div>
+        <p class="cap">示意:hover 行(背景轻亮)+ 右键菜单单项「复制摘要」(照既有卡片语言:var(--surface) 底 + var(--border) 边 + 圆角 12)· 复制后右上角出「已复制」toast,1.6s 自行消失 · 主形态对话框里可真右键体验。</p>
+      </div>
+
+      <div class="set-group" data-od-id="tap-demo-section">
+        <div class="g-title">四 · 记行可点 · 以此再记一笔</div>
+        <div class="flow-grid">
+          <div data-od-id="tap-demo-col">
+            <div class="demo-vp mid" data-od-id="tap-demo-vp">
+              <div class="ghost-wrap" aria-hidden="true">
+                <div class="card set-card ghost-card">
+                  <div class="set-row">
+                    <span class="s-ic">🤖</span>
+                    <div class="s-main"><div class="s-name">AI 助手</div><div class="s-sub">对话记账 · 修改 · 删除,全部经你确认后执行</div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="demo-scrim"></div>
+              <div class="demo-center">
+                <div class="card aud-dlg" data-od-id="dialog-tap-demo">
+                  <div class="dlg-head">
+                    <div>
+                      <div class="dlg-title">AI 助手 · 操作记录</div>
+                      <div class="dlg-sub">共 12 条 · 全部操作均经你确认</div>
+                    </div>
+                    <button class="icon-btn dlg-x" aria-label="关闭对话框"><svg class="ic"><use href="#i-x"/></svg></button>
+                  </div>
+                  <div class="aud-list">
+                    <div class="aud-group"><span>今天</span><i class="g-line"></i><em class="g-count">3 条</em></div>
+                    <div class="aud-row tap is-hover" data-od-id="tap-row-example">
+                      <span class="aud-time">14:32</span>
+                      <span class="chip aud-chip">记一笔</span>
+                      <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥35.00</span> 午饭 → 招商银行</div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span><span class="aud-again">以此再记一笔 ›</span></div>
+                    </div>
+                    <div class="aud-row" data-od-id="ro-row-edit">
+                      <span class="aud-time">12:18</span>
+                      <span class="chip aud-chip">改一笔</span>
+                      <div class="aud-main"><div class="aud-sum">支出 <span class="num">¥1,280.00</span> 手机 备注「京东」→「京东自营」</div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                    </div>
+                    <div class="aud-row" data-od-id="ro-row-delete">
+                      <span class="aud-time">09:15</span>
+                      <span class="chip aud-chip">改一笔</span>
+                      <div class="aud-main"><div class="aud-sum">预算「餐饮」月上限 <span class="num">¥2,000.00</span> → <span class="num">¥2,500.00</span></div></div>
+                      <div class="aud-side"><span class="chip pos">✓ 成功</span></div>
+                    </div>
+                    <div class="ro-note" data-od-id="ro-note">改一笔 / 删一笔行仅供查看,不可点 · 记一笔行可点「以此再记一笔」</div>
+                  </div>
+                  <div class="dlg-foot"><span class="foot-count">已显示 12 / 12 条</span></div>
+                </div>
+                <button class="btn-ghost reopen">已关闭 · 点击重新打开示意</button>
+              </div>
+            </div>
+            <p class="cap">记一笔行 hover:背景 var(--surface-2) 轻亮 + 右缘「以此再记一笔 ›」提示;改/删行无 hover 无提示(只读)。</p>
+          </div>
+          <svg class="flow-arrow" viewBox="0 0 40 24" aria-hidden="true" data-od-id="flow-arrow">
+            <line x1="2" y1="12" x2="30" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+            <polyline points="24 5 31 12 24 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+          <div class="card assistant-mini" data-od-id="assistant-panel">
+            <div class="mini-head">
+              <span class="mini-title">AI 助手 · 对话浮层片段</span>
+              <span class="chip">预填确认卡</span>
+            </div>
+            <div class="conf-card" data-od-id="confirm-card">
+              <div class="conf-title" data-od-id="confirm-title">记一笔(来自历史)</div>
+              <div class="conf-kv"><span class="k">类型</span><span class="v">支出</span></div>
+              <div class="conf-kv"><span class="k">金额</span><span class="v num">¥35.00</span></div>
+              <div class="conf-kv"><span class="k">备注</span><span class="v">午饭</span></div>
+              <div class="conf-kv"><span class="k">记账账户</span><span class="v">招商银行</span></div>
+              <div class="conf-kv"><span class="k">来源</span><span class="v">今天 14:32 的记录</span></div>
+              <div class="conf-actions">
+                <button class="btn-primary" type="button" data-od-id="confirm-yes">确认</button>
+                <button class="btn-ghost" type="button" data-od-id="confirm-no">取消</button>
+              </div>
+              <p class="conf-note" data-od-id="confirm-note">新纪录,需再次确认 · 参数已按原笔预填,可改;确认后才入账。</p>
+            </div>
+            <p class="cap" style="margin-top:10px">点击「以此再记一笔」→ 助手浮层弹出预填确认卡,仍走确认门。</p>
+          </div>
+        </div>
+      </div>
+
+      <footer class="foot">御财 v2 设计原型 · F72 审计体验增强 · 分组/搜索/右键复制/以此再记一笔 · 演示数据 · A+B 亮暗双主题</footer>
+    </div>
+  </div>
+</main>
+
+<script src="../../../../../../../design-output-v2/ab/assets/app.js"></script>
+<script>
+  (function(){
+    // 对话框关闭/重开示意:✕ 关单个,Esc 关全部(并收起右键菜单)
+    document.querySelectorAll('.demo-vp').forEach(function(vp){
+      var x = vp.querySelector('.dlg-x');
+      var re = vp.querySelector('.reopen');
+      if (x) x.addEventListener('click', function(e){ e.preventDefault(); vp.classList.add('closed'); });
+      if (re) re.addEventListener('click', function(){ vp.classList.remove('closed'); });
+    });
+
+    // 主对话框 · 搜索过滤:单一 apply 管线,唯一显隐写口(row.hidden / group.display)
+    var dlg = document.getElementById('audDlg');
+    if (dlg) {
+      var box = document.getElementById('dlgSearch');
+      var input = document.getElementById('audSearch');
+      var subDef = document.getElementById('subDefault');
+      var subFil = document.getElementById('subFiltered');
+      var subCount = document.getElementById('subCount');
+      var subQ = document.getElementById('subQ');
+      var rows = [].slice.call(dlg.querySelectorAll('.aud-row'));
+      var groups = [].slice.call(dlg.querySelectorAll('.aud-g'));
+
+      function apply(q){
+        q = (q || '').trim();
+        var n = 0;
+        rows.forEach(function(r){
+          var hit = !q || (r.getAttribute('data-sum') || '').indexOf(q) > -1;
+          r.hidden = !hit;
+          if (hit) n++;
+        });
+        groups.forEach(function(g){
+          var vis = g.querySelectorAll('.aud-row:not([hidden])').length;
+          g.hidden = vis === 0;
+          var c = g.querySelector('.g-count');
+          if (c) c.textContent = vis + ' 条';
+        });
+        if (q) {
+          subDef.hidden = true; subFil.hidden = false;
+          subCount.textContent = n + ' 条匹配';
+          subQ.textContent = '「' + q + '」';
+          box.classList.add('has-q');
+        } else {
+          subDef.hidden = false; subFil.hidden = true;
+          box.classList.remove('has-q');
+        }
+      }
+      function clearSearch(){ input.value = ''; apply(''); input.focus(); }
+
+      input.addEventListener('input', function(){ apply(input.value); });
+      document.getElementById('searchClear').addEventListener('click', clearSearch);
+      document.getElementById('clearLink').addEventListener('click', clearSearch);
+
+      // 主对话框 · 右键复制摘要 + 「已复制」toast
+      var menu = document.getElementById('ctxMenu');
+      var toast = document.getElementById('toastOk');
+      var toastTimer = null;
+      function hideMenu(){ menu.classList.remove('on'); }
+      dlg.addEventListener('contextmenu', function(e){
+        var row = e.target.closest ? e.target.closest('.aud-row') : null;
+        if (!row || row.hidden) return;
+        e.preventDefault();
+        var dr = dlg.getBoundingClientRect();
+        var rr = row.getBoundingClientRect();
+        menu.style.top = (rr.bottom - dr.top + 4) + 'px';
+        menu.style.left = Math.max(8, Math.min(e.clientX - dr.left, dr.width - 170)) + 'px';
+        menu.classList.add('on');
+      });
+      document.addEventListener('click', function(e){ if (!menu.contains(e.target)) hideMenu(); });
+      document.getElementById('ctxCopy').addEventListener('click', function(){
+        hideMenu();
+        if (toast) {
+          toast.classList.add('on');
+          if (toastTimer) clearTimeout(toastTimer);
+          toastTimer = setTimeout(function(){ toast.classList.remove('on'); }, 1600);
+        }
+      });
+      document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') hideMenu();
+      });
+    }
+
+    // Esc 关闭全部对话框
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.demo-vp').forEach(function(vp){
+          if (!vp.classList.contains('closed')) vp.classList.add('closed');
+        });
+      }
+    });
+  })();
+</script>
+</body>
+</html>

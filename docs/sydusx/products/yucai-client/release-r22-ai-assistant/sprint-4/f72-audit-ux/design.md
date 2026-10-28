@@ -1,6 +1,6 @@
 # Design: F72 审计体验增强
 
-prototype: v22(待 OD 生成+用户过目;fork v21 审计页加:分组段头/搜索框/右键菜单/记行可点态)
+prototype: v22 —— 用户拍板 2026-10-28(四件整体确认;CURRENT→v22)
 
 ## Context
 
