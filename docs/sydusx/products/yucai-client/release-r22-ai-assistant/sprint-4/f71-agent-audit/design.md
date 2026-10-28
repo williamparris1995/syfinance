@@ -1,6 +1,6 @@
 # Design: F71 durable 审计表
 
-prototype: v21(待 OD 生成+用户过目;审计对话框只读列表:倒序/分页/空态/结果徽标;fork ab/settings.html 对话框范式)
+prototype: v21 —— 用户拍板 2026-10-28(三态整体确认:入口行/主态列表含失败重试对/空态;CURRENT→v21)
 
 ## Context
 
