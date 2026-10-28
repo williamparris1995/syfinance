@@ -4,9 +4,20 @@
 /// 「加载更多」+ 已显示计数 / 空态两行)。
 ///
 /// 数据面 = T1 [AgentAuditDao](watchPage/count,20/页):首页 offset 0,
-/// 「加载更多」逐页递增 offset 追加订阅 —— 每页独立 watch,表变更各自重发,
-/// append 语义天然成立。摘要 = T1 入库串(WriteAction.toString)**渲染原样**,
-/// 金额千分位含在串内,零二次格式化。
+/// 「加载更多」逐页递增 offset 追加订阅 —— 每页独立 watch,表变更各自重发。
+/// **分页语义如实记(评审修复 T2-M2)**:各页是按查询时刻取数的 offset
+/// 滑窗,两页取数间隙表变更时,窗口边界行理论上可瞬时重复(或漏一拍后由
+/// watch 重发收敛);对话框为低频只读 modal —— 用户开着对话框的同时确认
+/// 写操作的场景本身罕见,瞬时重复自愈且无害,不为此引入跨页去重/合并
+/// 复杂度(v21 原型同款取舍)。
+/// 摘要 = T1 入库 summary(**评审修复后 = executor 人话 note 单源**,
+/// appendToolOutcome 同串「已记:支出 ¥35.00 午饭」/「已改:」「已删:」族)
+/// **渲染原样**,金额千分位含在串内,零二次格式化;现读素材缺失的失败行
+/// (notFound/异常兜底)为 ASCII 机器串,亦如实原样。
+///
+/// 同键注记(评审修复 T2-M1,v21 aud-note 语义):仅 failed 行与**同键**
+/// ok 行(重试对)行尾显示「键 ****XXXX」muted 小注(幂等键尾 4 位)——
+/// 重试对可辨识;普通 ok 行零注记零噪音。
 ///
 /// 相对时间(v21「今天 14:32 / 昨天 09:15 / 前天 18:26」):**纯日期比较**
 /// —— 时刻折本地 DateTime 后只取年月日,再经 `DateTime.utc` 日历日差天数
@@ -69,6 +80,13 @@ class AgentAuditDialog extends StatefulWidget {
         'transaction_delete' => '删一笔',
         _ => tool,
       };
+
+  /// 同键注记文案(评审修复 T2-M1):「键 ****」+ 幂等键尾 4 位 —— v21
+  /// aud-note 语义的掩码形态(生产键 = 确认卡 uuid,尾 4 位已足够重试对
+  /// 肉眼配对,全键过长不进 UI)。键不足 4 位 → 全掩码(键本身短,尾段
+  /// 无辨识意义)。纯函数,widget 测直测。
+  static String keyNote(String idempotencyKey) => '键 ****'
+      '${idempotencyKey.length <= 4 ? '' : idempotencyKey.substring(idempotencyKey.length - 4)}';
 
   static String _two(int value) => value.toString().padLeft(2, '0');
 
@@ -143,6 +161,13 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
   Widget build(BuildContext context) {
     final t = context.yucai;
     final rows = _rows;
+    // 同键注记判定集(T2-M1):当前展示序列中的 failed 行键集合 —— ok 行
+    // 仅当其键在集合内(= 同键重试对)才显示注记。注:判定基于已加载页,
+    // 未加载页的失败键对同键 ok 行不可见 —— 重试对时间上紧邻(同键两行
+    // 由同一次确认流产生),跨页拆开且后页未载的场景属极端分页边界,注记
+    // 缺失不误导(仅少一条辅助信息)。
+    final failedKeys =
+        rows.where((r) => !r.ok).map((r) => r.idempotencyKey).toSet();
     final empty = _firstPageLoaded && rows.isEmpty;
     final now = widget.now ?? DateTime.now();
     return AlertDialog(
@@ -192,7 +217,8 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
                       itemCount: rows.length,
                       separatorBuilder: (_, __) =>
                           Divider(height: 1, color: t.border),
-                      itemBuilder: (context, i) => _row(context, rows[i], now),
+                      itemBuilder: (context, i) =>
+                          _row(context, rows[i], now, failedKeys),
                     ),
                   ),
                   // foot(v21 dlg-foot):加载更多(未全量时)+ 已显示计数。
@@ -216,9 +242,13 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
     );
   }
 
-  /// 列表行(v21 aud-row 四要素:时间 / 工具 chip / 摘要 / 右列徽标)。
-  Widget _row(BuildContext context, db.AgentAudit row, DateTime now) {
+  /// 列表行(v21 aud-row 四要素:时间 / 工具 chip / 摘要 / 右列徽标;
+  /// 行尾 muted 同键注记 = v21 aud-note 形态,摘要下方挂)。
+  Widget _row(
+      BuildContext context, db.AgentAudit row, DateTime now, Set<String> failedKeys) {
     final t = context.yucai;
+    // 同键注记显隐(T2-M1):仅 failed 行 + 同键 ok 行(重试对)。
+    final showKeyNote = !row.ok || failedKeys.contains(row.idempotencyKey);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
       child: Row(
@@ -242,12 +272,24 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
               label: AgentAuditDialog.toolLabel(row.tool), color: t.muted),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text(row.summary,
-                style: TextStyle(
-                    color: t.fg,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    height: 1.5)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(row.summary,
+                    style: TextStyle(
+                        color: t.fg,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.5)),
+                // 行尾 muted 小注(v21 aud-note):「键 ****XXXX」—— 失败行
+                // 与同键 ok 行(重试对)可辨识配对;普通 ok 行零注记。
+                if (showKeyNote) ...[
+                  const SizedBox(height: 2),
+                  Text(AgentAuditDialog.keyNote(row.idempotencyKey),
+                      style: TextStyle(color: t.muted, fontSize: 11)),
+                ],
+              ],
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           // 右列:徽标 ok 绿✓ / failed 红⚠;失败原因小字随徽标下挂

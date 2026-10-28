@@ -4,6 +4,11 @@
 // 不带 sink,既有测全绿 = 等价证,本文件不改);本文件钉 F71 落表后的
 // 表侧契约 —— 记账恰一行逐字段 / 失败留痕+重试两行(同键异果)/ 读操作
 // 零行负测 / 表写失败 fail-open(记账照成+日志仍在+计数+1)。
+//
+// 评审修复轮(summary 人话单源):summary 断言改人话 note 串,且与
+// appendToolOutcome 会话注入**同串**断言(单源即证 —— 同一次 execute 的
+// 表行 summary == loop 注入 note,分叉即刻红);日志行 payload 断言钉
+// ASCII 机器串零变(logPayload 解耦)。
 import 'package:dartz/dartz.dart' as dz;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -153,8 +158,11 @@ void main() {
     final row =
         (await database.agentAuditDao.watchPage().first).single;
     expect(row.tool, 'transaction_add');
-    expect(row.summary, addLunch.toString(), reason: '摘要 = WriteAction 全文');
-    expect(row.summary, contains('amountCents=3500'));
+    expect(row.summary, '已记:支出 ¥35.00 午饭',
+        reason: '摘要 = 人话单源 note(executor 单点构造)');
+    expect(row.summary, loop.appendedOutcomes.single,
+        reason: '单源即证:表行 summary == appendToolOutcome 会话注入同串');
+    expect(row.summary, contains('¥35.00'), reason: '金额段千分位同源 yuan()');
     expect(row.ok, isTrue);
     expect(row.reason, isNull);
     expect(row.entityId, entityId, reason: '幂等关联键 = 落库交易 id');
@@ -163,6 +171,18 @@ void main() {
         allOf(greaterThanOrEqualTo(before), lessThanOrEqualTo(
             DateTime.now().millisecondsSinceEpoch + 1)),
         reason: '留痕时刻 = 执行时刻毫秒');
+    // 日志行零变:payload = ASCII 机器串(WriteAction.toString 自过滤),
+    // 人话 summary 不入日志行(summary/logPayload 两投各取各源)。
+    expect(
+      auditLines.where((l) =>
+          l.contains('assistant write tool=transaction_add') &&
+          l.contains('status=ok') &&
+          l.contains('payload=${addLunch.toString()}')),
+      hasLength(1),
+      reason: '日志 payload = F70 机器串逐字节零变(logPayload 解耦)',
+    );
+    expect(auditLines.every((l) => !l.contains('已记')),
+        isTrue, reason: '人话 note 不进日志串(项目门禁)');
 
     // 实体 id 关联:交易真在库(对应交易可由实体 id 反查)。
     final linked = await (database.select(database.transactions)
@@ -201,9 +221,16 @@ void main() {
     // 倒序:后写的 ok 在前。
     expect(rows.first.ok, isTrue);
     expect(rows.first.entityId, (second as WriteExecuted).entityId);
+    expect(rows.first.summary, '已记:支出 ¥35.00 午饭');
     expect(rows.last.ok, isFalse);
     expect(rows.last.reason, 'ServerFailure');
     expect(rows.last.entityId, isNull);
+    // Add 的 note 纯 action 派生 —— 失败行摘要 = 尝试动作人话串(与重试
+    // ok 行同串,对话框同键重试对可辨识);会话注入仅成功一次。
+    expect(rows.last.summary, '已记:支出 ¥35.00 午饭',
+        reason: '失败行摘要 = 人话尝试串(Add 素材齐备,不回退机器串)');
+    expect(loop.appendedOutcomes, ['已记:支出 ¥35.00 午饭'],
+        reason: '失败零注入,成功恰一次注入(与表行同串)');
     expect(rows.map((r) => r.idempotencyKey).toSet(), {'key-vc-audit'},
         reason: '同键异果:两行同一幂等键');
   });

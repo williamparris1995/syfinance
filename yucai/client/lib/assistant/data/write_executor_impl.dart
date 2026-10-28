@@ -18,8 +18,12 @@
 // 审计(NFR-3 → F71 ADR-1 双投):每路成/败各一事件经 [AgentAuditSink]
 // .record —— sink 内先 AssistantAuditLog English/ASCII 日志行(F70 行为
 // 逐字节零变)后 agent_audit 入库(fail-open);reason 只入库不进日志行。
-// 未注入 sink 的既有构造位(F70 测试/DI 旧装配)回退 [AgentAuditLog]
-// .logWrite 直调 —— 与 F70 行为等价(既有测全绿 = 等价证)。
+// **summary 人话单源(评审修复 T1-M1/T2-H1 同根)**:record 的 summary =
+// [_writeNote] 单点构造的中文 note —— 与 appendToolOutcome 会话注入**同串
+// 同源**(两通道零分叉);ASCII 日志行素材改走事件 logPayload(=
+// WriteAction.toString)解耦,日志行零变。未注入 sink 的既有构造位(F70
+// 测试/DI 旧装配)回退 [AgentAuditLog].logWrite 直调 —— 与 F70 行为等价
+// (既有测全绿 = 等价证)。
 // 会话注入(ADR-2):成功经 appendToolOutcome 追加**中文紧凑单行** note
 // (进会话上下文与 UI,不进日志串 —— 日志串无 CJK 项目门禁)。
 //
@@ -73,9 +77,13 @@ class WriteExecutorImpl implements WriteExecutor {
     try {
       final (outcome, note) = await _run(action);
       if (outcome is WriteFailed) {
+        // summary = note 素材串(尝试动作的人话单行;Add 恒可构造,Update/
+        // Delete 现读后可构造)——素材缺失(notFound/异常前的分支)回退
+        // 机器串。日志行素材恒 action.toString(logPayload,零变)。
         await _auditSink.record(AgentAuditEvent(
           tool: tool,
-          summary: action.toString(),
+          summary: note ?? action.toString(),
+          logPayload: action.toString(),
           ok: false,
           reason: outcome.reason,
           idempotencyKey: idempotencyKey,
@@ -86,18 +94,21 @@ class WriteExecutorImpl implements WriteExecutor {
       _executedKeys[idempotencyKey] = entityId;
       await _auditSink.record(AgentAuditEvent(
         tool: tool,
-        summary: action.toString(),
+        summary: note!, // 成功路 note 必非空(素材齐备才走到落库)
+        logPayload: action.toString(),
         ok: true,
         entityId: entityId,
         idempotencyKey: idempotencyKey,
       ));
-      _loop.appendToolOutcome(note!);
+      _loop.appendToolOutcome(note);
       return outcome;
     } catch (e) {
       // 防御兜底:repo 抛异常(非 Either Left 路径)→ 只携类名零 payload。
+      // Add 的 note 纯 action 可重构;Update/Delete 素材在栈内已丢 → 回退。
       await _auditSink.record(AgentAuditEvent(
         tool: tool,
-        summary: action.toString(),
+        summary: _writeNote(action) ?? action.toString(),
+        logPayload: action.toString(),
         ok: false,
         reason: e.runtimeType.toString(),
         idempotencyKey: idempotencyKey,
@@ -106,7 +117,9 @@ class WriteExecutorImpl implements WriteExecutor {
     }
   }
 
-  /// 三路分发。成功 = (WriteExecuted, 中文 note);失败 = (WriteFailed, null)。
+  /// 三路分发。第二元 = 人话 note 素材串(appendToolOutcome 与审计
+  /// summary 的同源单串):成功必非空;失败在素材齐备时也非空(供 summary,
+  /// 不注入会话),素材缺失(notFound/结构守卫)为 null。
   Future<(WriteOutcome, String?)> _run(WriteAction action) async =>
       switch (action) {
         TransactionAdd a => _add(a),
@@ -117,9 +130,6 @@ class WriteExecutorImpl implements WriteExecutor {
   // —— Add:表单记账同管道(recordExpense/recordIncome 方向分流)——
 
   Future<(WriteOutcome, String?)> _add(TransactionAdd a) async {
-    final kind = a.direction == WriteDirection.outflow ? '支出' : '收入';
-    final note =
-        _flat('已记:$kind ¥${_yuan(a.amountCents)} ${a.description}');
     final result = a.direction == WriteDirection.outflow
         ? await _txns.recordExpense(RecordExpenseParams(
             transactionDate: a.date,
@@ -135,9 +145,10 @@ class WriteExecutorImpl implements WriteExecutor {
             amountCents: a.amountCents,
             description: a.description,
           ));
+    // Add 的 note 纯 action 派生 —— 成败两分支同串(失败行摘要 = 尝试动作)。
     return result.fold(
-      (failure) => (WriteFailed(failure.runtimeType.toString()), null),
-      (txn) => (WriteExecuted(txn.id), note),
+      (failure) => (WriteFailed(failure.runtimeType.toString()), _writeNote(a)),
+      (txn) => (WriteExecuted(txn.id), _writeNote(a)),
     );
   }
 
@@ -179,6 +190,9 @@ class WriteExecutorImpl implements WriteExecutor {
     final description = a.patch.description ?? txn.description;
     final date = a.patch.date ?? txn.transactionDate;
 
+    // 人话 note 素材齐备(合并后描述/金额)—— repo 成败两分支同串。
+    final note = _writeNote(a, description: description, amountCents: amountCents);
+
     // 全分录重建(id 空 = 新 id,表单同款;note 逐侧保留 —— 全替换语义下
     // 不随包携带会把原 note 冲掉,transaction_form._buildEntries 注释钉定)。
     final (debitAccountId, creditAccountId) =
@@ -212,30 +226,26 @@ class WriteExecutorImpl implements WriteExecutor {
         failure is ServerFailure
             ? const WriteFailed('versionConflict')
             : WriteFailed(failure.runtimeType.toString()),
-        null,
+        note,
       ),
-      (updated) => (
-        WriteExecuted(updated.id),
-        _flat('已改:$description ¥${_yuan(amountCents)}'),
-      ),
+      (updated) => (WriteExecuted(updated.id), note),
     );
   }
 
   // —— Delete:现读存在性 + note 素材 → 同管道删除 ——
-
   Future<(WriteOutcome, String?)> _delete(TransactionDelete a) async {
     final got = await _txns.getById(a.transactionId);
     final Transaction? txn = got.fold((l) => null, (r) => r);
     if (txn == null) {
       return (const WriteFailed('transactionNotFound'), null);
     }
+    // 人话 note 素材齐备(现读描述/金额)—— repo 成败两分支同串。
+    final note = _writeNote(a,
+        description: txn.description, amountCents: txn.totalDebitCents);
     final result = await _txns.delete(a.transactionId);
     return result.fold(
-      (failure) => (WriteFailed(failure.runtimeType.toString()), null),
-      (_) => (
-        WriteExecuted(a.transactionId),
-        _flat('已删:${txn.description} ¥${_yuan(txn.totalDebitCents)}'),
-      ),
+      (failure) => (WriteFailed(failure.runtimeType.toString()), note),
+      (_) => (WriteExecuted(a.transactionId), note),
     );
   }
 
@@ -243,6 +253,31 @@ class WriteExecutorImpl implements WriteExecutor {
         TransactionAdd() => 'transaction_add',
         TransactionUpdate() => 'transaction_update',
         TransactionDelete() => 'transaction_delete',
+      };
+
+  /// 人话单行 note **单点构造**(评审修复 T1-M1/T2-H1 同根):
+  /// `appendToolOutcome` 会话注入与 `sink.record` 的 agent_audit.summary
+  /// 共用本方法 —— 两通道同串同源,零分叉由构造点唯一保证。三族:
+  ///   Add     「已记:支出 ¥35.00 午饭」(方向/金额/描述全在 action);
+  ///   Update  「已改:美团买菜 ¥40.00」(描述/金额 = patch 合并现读值);
+  ///   Delete  「已删:美团买菜 ¥30.00」(描述/金额 = 现读值)。
+  /// update/delete 素材([description]/[amountCents])由现读供给;缺失
+  /// (notFound/结构守卫/异常兜底)→ null,调用方 summary 回退机器串
+  /// (WriteAction.toString,ASCII —— 失败行有 reason 徽标可辨)。
+  static String? _writeNote(
+    WriteAction action, {
+    String? description,
+    int? amountCents,
+  }) =>
+      switch (action) {
+        TransactionAdd a => _flat(
+            '已记:${a.direction == WriteDirection.outflow ? '支出' : '收入'} '
+            '¥${_yuan(a.amountCents)} ${a.description}'),
+        TransactionUpdate() when description != null && amountCents != null =>
+          _flat('已改:$description ¥${_yuan(amountCents)}'),
+        TransactionDelete() when description != null && amountCents != null =>
+          _flat('已删:$description ¥${_yuan(amountCents)}'),
+        _ => null,
       };
 
   /// cents → 元字符串(两位小数 + 千分位,负数带 -)。复用工具侧同源
@@ -260,6 +295,8 @@ class WriteExecutorImpl implements WriteExecutor {
 /// F70 兼容回退 sink(未注入 [AgentAuditSink] 的构造位):仅
 /// [AssistantAuditLog.logWrite],逐参与 F70 直调一致 —— 行为等价零变
 /// (既有测全绿 = 等价证);F71 装配注入双投 impl 后本类只剩旧测试路径。
+/// 日志 payload 同生产 sink 取 [AgentAuditEvent.logPayload](ASCII 机器串),
+/// summary 人话化不影响本路径日志行。
 class _LogOnlyAuditSink implements AgentAuditSink {
   _LogOnlyAuditSink(this._log);
 
@@ -269,7 +306,7 @@ class _LogOnlyAuditSink implements AgentAuditSink {
   Future<void> record(AgentAuditEvent event) async {
     _log.logWrite(
       tool: event.tool,
-      payloadSummary: event.summary,
+      payloadSummary: event.logPayload,
       entityId: event.entityId ?? '',
       ok: event.ok,
     );

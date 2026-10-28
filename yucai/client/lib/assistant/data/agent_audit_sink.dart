@@ -44,10 +44,12 @@ class AgentAuditSinkImpl implements AgentAuditSink {
   @override
   Future<void> record(AgentAuditEvent event) async {
     // ① 先日志:与 F70 executor 直调 logWrite 逐参一致(entityId null →
-    //    空串 = F70「失败常见无实体」口径),reason 不进日志行。
+    //    空串 = F70「失败常见无实体」口径),reason 不进日志行;payload 取
+    //    [AgentAuditEvent.logPayload](ASCII 机器串)而非 summary —— summary
+    //    评审修复后为人话单源 note(CJK),日志行零变靠此解耦。
     _log.logWrite(
       tool: event.tool,
-      payloadSummary: event.summary,
+      payloadSummary: event.logPayload,
       entityId: event.entityId ?? '',
       ok: event.ok,
     );

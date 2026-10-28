@@ -13,8 +13,8 @@ status: confirmed
 - [ ] 系统 SHALL 迁移 drift schema 新增 `agent_audit` 表(执行期实证 v15→v16:T1 发现 v15 已被同日银行计划表占用,简报预估 v14→v15 过时——2026-10-28 订正):时间戳/工具名/动作摘要/结果(ok|failed|原因)/关联实体 id/幂等键;条目天然 actor=agent(人为写入不进此表,与表单写入可区分)。
 
 #### Scenario: 迁移幂等
-- GIVEN 任一 v14 存量库
-- WHEN 应用启动 v15 迁移
+- GIVEN 任一 v15 存量库
+- WHEN 应用启动 v16 迁移
 - THEN 表建立零数据丢失,重复启动无副作用
 
 ### Requirement: FR-2 审计双投(日志+表)

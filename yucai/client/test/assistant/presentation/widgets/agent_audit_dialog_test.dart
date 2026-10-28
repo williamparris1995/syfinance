@@ -8,6 +8,13 @@
 // 渲染(失败行原因 + 金额千分位原样)/ 相对时间(今天/昨天/前天/超三日
 // 兜底 + 跨零点纯日期比较)/ 加载更多 append(offset 递增)/ 空态两行 /
 // 关闭 / 纯函数与源码守门。
+//
+// 评审修复轮:① 种子改**生产形态人话串** —— executor note 单点同构
+// (「已记:支出 ¥35.00 午饭」/「已改:」「已删:」族;原 v21 原型串
+// 生产不可能,掩盖了入库 summary 与对话框展示的鸿沟);失败行 reason 同
+// 步改生产可能值(versionConflict,原中文 reason 生产不可能)。② 同键
+// 注记(T2-M1):failed 行 + 同键 ok 行行尾「键 ****XXXX」,普通 ok 行
+// 零注记 —— widget 断言 + keyNote 纯函数直测。
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -96,7 +103,8 @@ db.AppDatabase _newDb() {
   return database;
 }
 
-/// 入库一行审计(id 自增;按入参顺序插即时间升序)。
+/// 入库一行审计(id 自增;按入参顺序插即时间升序;key 可指定 = 同键
+/// 重试对种子缝)。
 Future<void> _seed(
   db.AppDatabase d,
   int day,
@@ -106,6 +114,7 @@ Future<void> _seed(
   String summary, {
   bool ok = true,
   String? reason,
+  String? key,
 }) =>
     d.agentAuditDao.insertEvent(db.AgentAuditsCompanion.insert(
       createdMillis: DateTime(2026, 10, day, hour, minute).millisecondsSinceEpoch,
@@ -113,20 +122,28 @@ Future<void> _seed(
       summary: summary,
       ok: ok,
       reason: Value(reason),
-      idempotencyKey: 'key-$day-$hour-$minute-$ok',
+      idempotencyKey:
+          key ?? 'key-$day-$hour-$minute-$ok-${summary.hashCode}',
     ));
 
-/// v21 主态八行(时间升序入库;倒序展示 = 今天 14:32 在顶)。
+/// 同键重试对键(生产 = 确认卡 uuid 形态;尾 4 位 d479 进注记)。
+const _retryKey = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
+
+/// v21 主态八行(时间升序入库;倒序展示 = 今天 14:32 在顶)。种子 =
+/// **生产形态人话串**(executor note 单点同构:「已记:」「已改:」「已删:」
+/// 族 —— 入库 summary 即此串,渲染原样);21:47/21:48 两行 = 同键重试对
+/// (versionConflict 失败 → 同键重试成功,spec FR-2「失败也留痕」场景)。
 Future<void> _seedV21Rows(db.AppDatabase d) async {
-  await _seed(d, 25, 11, 2, 'transaction_add', '支出 ¥3,999.00 机票 → 招商银行');
-  await _seed(d, 25, 18, 26, 'transaction_add', '支出 ¥216.80 生鲜超市 → 花呗');
-  await _seed(d, 26, 9, 15, 'transaction_update', '预算「餐饮」月上限 ¥2,000.00 → ¥2,500.00');
-  await _seed(d, 26, 21, 47, 'transaction_delete', '删除 支出 ¥42.50 打车 → 高德',
-      ok: false, reason: '内容已被其他修改更新');
-  await _seed(d, 26, 21, 48, 'transaction_delete', '删除 支出 ¥42.50 打车 → 高德');
-  await _seed(d, 27, 9, 41, 'transaction_add', '收入 ¥8,500.00 十月工资 → 储蓄卡');
-  await _seed(d, 27, 12, 18, 'transaction_update', '支出 ¥1,280.00 手机 备注「京东」→「京东自营」');
-  await _seed(d, 27, 14, 32, 'transaction_add', '支出 ¥35.00 午饭 → 招商银行');
+  await _seed(d, 25, 11, 2, 'transaction_add', '已记:支出 ¥3,999.00 机票');
+  await _seed(d, 25, 18, 26, 'transaction_add', '已记:支出 ¥216.80 生鲜超市');
+  await _seed(d, 26, 9, 15, 'transaction_update', '已改:美团买菜 ¥64.00');
+  await _seed(d, 26, 21, 47, 'transaction_update', '已改:打车 ¥42.50',
+      ok: false, reason: 'versionConflict', key: _retryKey);
+  await _seed(d, 26, 21, 48, 'transaction_update', '已改:打车 ¥42.50',
+      key: _retryKey);
+  await _seed(d, 27, 9, 41, 'transaction_add', '已记:收入 ¥8,500.00 十月工资');
+  await _seed(d, 27, 12, 18, 'transaction_delete', '已删:旧手机壳 ¥15.00');
+  await _seed(d, 27, 14, 32, 'transaction_add', '已记:支出 ¥35.00 午饭');
 }
 
 /// 卡整挂 host(入口行 → showDialog 全链路)。
@@ -169,7 +186,7 @@ void main() {
       expect(find.text('助手执行过的每一笔,留痕可查'), findsOneWidget);
       expect(find.text('8 条'), findsOneWidget, reason: 'v21 入口值「12 条」同款 N 条形态');
       // 实时:入口行 watchPage(count 联动)—— 第 9 条入库后条数跟涨。
-      await _seed(d, 27, 14, 50, 'transaction_add', '支出 ¥12.00 咖啡');
+      await _seed(d, 27, 14, 50, 'transaction_add', '已记:支出 ¥12.00 咖啡');
       await tester.pumpAndSettle();
       expect(find.text('9 条'), findsOneWidget);
       await _pumpDownTree(tester);
@@ -215,27 +232,48 @@ void main() {
       expect(find.text('今天 14:32'), findsOneWidget);
       expect(find.text('昨天 21:48'), findsOneWidget);
       expect(find.text('前天 18:26'), findsOneWidget);
-      // 工具 chip 三映射。
+      // 工具 chip 三映射(v21 八行:add ×4 / update ×3 / delete ×1)。
       expect(find.text('记一笔'), findsNWidgets(4), reason: 'v21 八行中 add ×4');
-      expect(find.text('改一笔'), findsNWidgets(2));
-      expect(find.text('删一笔'), findsNWidgets(2));
-      // 摘要由 T1 入库串携带,渲染原样(千分位含在串内,零二次格式化)。
-      expect(find.text('支出 ¥1,280.00 手机 备注「京东」→「京东自营」'), findsOneWidget);
-      expect(find.text('预算「餐饮」月上限 ¥2,000.00 → ¥2,500.00'), findsOneWidget);
-      expect(find.text('删除 支出 ¥42.50 打车 → 高德'), findsNWidgets(2),
+      expect(find.text('改一笔'), findsNWidgets(3), reason: '含重试对两行 update');
+      expect(find.text('删一笔'), findsOneWidget);
+      // 摘要 = 生产形态人话串(executor note 单点同构),渲染原样(千分位
+      // 含在串内,零二次格式化)。
+      expect(find.text('已记:收入 ¥8,500.00 十月工资'), findsOneWidget,
+          reason: '千分位原样(≥¥1000 note 同源 yuan())');
+      expect(find.text('已改:打车 ¥42.50'), findsNWidgets(2),
           reason: '失败行与重试成功行同摘要(同幂等键两行留痕)');
-      // 徽标:✓ 绿 / ⚠ 红 + 原因小字。
+      expect(find.text('已删:旧手机壳 ¥15.00'), findsOneWidget);
+      // 徽标:✓ 绿 / ⚠ 红 + 原因小字(生产可能值:versionConflict)。
       expect(find.text('✓ 成功'), findsNWidgets(7));
       expect(find.text('⚠ 失败'), findsOneWidget);
-      expect(find.text('内容已被其他修改更新'), findsOneWidget, reason: '失败不粉饰,原因如实展示');
+      expect(find.text('versionConflict'), findsOneWidget,
+          reason: '失败不粉饰,原因如实展示(生产单行 reason)');
+      await _pumpDownTree(tester);
+    });
+
+    testWidgets('同键注记(T2-M1):failed 行与同键 ok 行行尾「键 ****尾4位」,普通 ok 行零注记',
+        (tester) async {
+      tester.view.physicalSize = const Size(900, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final d = _newDb();
+      await _seedV21Rows(d);
+      await tester.pumpWidget(_dialogHost(d));
+      await tester.pumpAndSettle();
+      // 重试对(21:47 failed + 21:48 ok,同键 _retryKey 尾 4 位 d479)。
+      expect(find.text('键 ****d479'), findsNWidgets(2),
+          reason: 'v21 aud-note 语义:重试对两行均可辨识配对');
+      // 全列表注记恰 2 处 —— 其余 6 行(普通 ok)零注记零噪音。
+      expect(find.textContaining('键 ****'), findsNWidgets(2));
       await _pumpDownTree(tester);
     });
 
     testWidgets('超前天 → 完整日期兜底;今天 00:05 跨零点仍「今天」(纯日期比较)',
         (tester) async {
       final d = _newDb();
-      await _seed(d, 23, 9, 5, 'transaction_add', '支出 ¥10.00 旧账');
-      await _seed(d, 27, 0, 5, 'transaction_add', '支出 ¥6.00 深夜');
+      await _seed(d, 23, 9, 5, 'transaction_add', '已记:支出 ¥10.00 旧账');
+      await _seed(d, 27, 0, 5, 'transaction_add', '已记:支出 ¥6.00 深夜');
       await tester.pumpWidget(_dialogHost(d));
       await tester.pumpAndSettle();
       expect(find.text('2026-10-23 09:05'), findsOneWidget,
@@ -247,7 +285,8 @@ void main() {
 
     testWidgets('未知工具名 → 原样兜底 chip(前瞻列)', (tester) async {
       final d = _newDb();
-      await _seed(d, 27, 10, 0, 'budget_update', '预算改');
+      // 前瞻工具(budget_update 尚不存在)= 演示串;摘要保持人话形态。
+      await _seed(d, 27, 10, 0, 'budget_update', '已改:预算上限 ¥2,500.00');
       await tester.pumpWidget(_dialogHost(d));
       await tester.pumpAndSettle();
       expect(find.text('budget_update'), findsOneWidget);
@@ -263,24 +302,26 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       final d = _newDb();
-      // 25 行升序(倒序展示 row-25 顶);摘要唯一以便 finder 断言。
+      // 25 行升序(倒序展示 row-25 顶);摘要唯一以便 finder 断言(人话
+      // 形态:描述段 row-XX 唯一)。
       for (var i = 1; i <= 25; i++) {
         await _seed(d, 27, 8, i, 'transaction_add',
-            '摘要 row-${i.toString().padLeft(2, '0')}');
+            '已记:支出 ¥$i.00 row-${i.toString().padLeft(2, '0')}');
       }
       await tester.pumpWidget(_dialogHost(d));
       await tester.pumpAndSettle();
       expect(find.text('已显示 20 / 25 条'), findsOneWidget);
       // 首页 = 最新 20(row-25..row-06);第二页(row-05..row-01)未加载。
-      expect(find.text('摘要 row-25'), findsOneWidget);
-      expect(find.text('摘要 row-06'), findsOneWidget);
-      expect(find.text('摘要 row-05'), findsNothing);
-      expect(find.text('摘要 row-01'), findsNothing);
+      expect(find.text('已记:支出 ¥25.00 row-25'), findsOneWidget);
+      expect(find.text('已记:支出 ¥6.00 row-06'), findsOneWidget);
+      expect(find.text('已记:支出 ¥5.00 row-05'), findsNothing);
+      expect(find.text('已记:支出 ¥1.00 row-01'), findsNothing);
       await tester.tap(find.text('加载更多'));
       await tester.pumpAndSettle();
       expect(find.text('已显示 25 / 25 条'), findsOneWidget);
-      expect(find.text('摘要 row-05'), findsOneWidget, reason: '第二页 offset 20 追加');
-      expect(find.text('摘要 row-01'), findsOneWidget);
+      expect(find.text('已记:支出 ¥5.00 row-05'), findsOneWidget,
+          reason: '第二页 offset 20 追加');
+      expect(find.text('已记:支出 ¥1.00 row-01'), findsOneWidget);
       expect(find.text('加载更多'), findsNothing, reason: '全量后按钮收起');
       await _pumpDownTree(tester);
     });
@@ -351,6 +392,15 @@ void main() {
       expect(AgentAuditDialog.toolLabel('transaction_update'), '改一笔');
       expect(AgentAuditDialog.toolLabel('transaction_delete'), '删一笔');
       expect(AgentAuditDialog.toolLabel('budget_update'), 'budget_update');
+    });
+
+    test('keyNote:尾 4 位掩码 + 短键全掩码(T2-M1 纯函数)', () {
+      // 生产键(uuid)→ 尾 4 位。
+      expect(AgentAuditDialog.keyNote(_retryKey), '键 ****d479');
+      expect(AgentAuditDialog.keyNote('key-8f42'), '键 ****8f42');
+      // 恰 4 位 / 更短 → 尾段无辨识意义,全掩码。
+      expect(AgentAuditDialog.keyNote('8f42'), '键 ****');
+      expect(AgentAuditDialog.keyNote('ab'), '键 ****');
     });
   });
 

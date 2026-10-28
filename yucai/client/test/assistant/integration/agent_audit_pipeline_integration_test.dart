@@ -7,17 +7,19 @@
 //
 // 审计面 = F70 写链语义在 agent_audit 表的投影,五断言链:
 //   ① 记账全链(口述→tool_call 分片→pending 卡→确认前表零行)→ 确认后
-//      agent_audit 恰一行逐字段(tool/summary=WriteAction 全文/ok/reason
-//      null/entityId/idempotencyKey=卡键/createdMillis=执行时刻)+ 实体
-//      id 与交易可关联查询回(真库 transactions 反查命中);同键二次确认
-//      仍一行(F70 幂等集在审计面 = 零二次留痕)。
+//      agent_audit 恰一行逐字段(tool/summary=人话单源 note「已记:支出
+//      ¥35.00 午饭」/ok/reason null/entityId/idempotencyKey=卡键/
+//      createdMillis=执行时刻)+ 实体 id 与交易可关联查询回(真库
+//      transactions 反查命中);同键二次确认仍一行(F70 幂等集在审计面 =
+//      零二次留痕)。
 //   ② 改/删各一行:两轮全链后表恰两行(transaction_update/delete 各恰一
-//      ok 行);update 行实体反查命中(原位 version+1),delete 行实体已
-//      不在库(留痕即追责面 —— 表是删除后唯一回溯点)。
+//      ok 行,summary=「已改:」「已删:」人话族);update 行实体反查命中
+//      (原位 version+1),delete 行实体已不在库(留痕即追责面 —— 表是
+//      删除后唯一回溯点)。
 //   ③ 失败重试同键两行:提案后手删目标(真管道)→ 确认 transactionNotFound
-//      failed 行(entityId null)→ 同 id 还原 → RetryWriteRequested 同键
-//      → ok 行(失败不耗键,同键异果追加新行非行更新,spec「失败也留痕」
-//      场景)。
+//      failed 行(entityId null;现读素材缺失 → summary 回退机器串)→
+//      同 id 还原 → RetryWriteRequested 同键 → ok 行(summary=人话;
+//      失败不耗键,同键异果追加新行非行更新,spec「失败也留痕」场景)。
 //   ④ 取消零行:pending 卡 cancelled → 表零行(F70 取消语义在审计面 =
 //      执行器不可达零留痕);取消后补确认仍零行(卡态守卫拒)。
 //   ⑤ 对话框数据源互证(T2 对话框读面):watchPage(20/页倒序)与直查表
@@ -26,6 +28,9 @@
 //      所见即表所存)。
 // 表断言全部直查(AgentAuditDao 读面 + 原始 select 双路),不 import sink
 // /executor 结果对象 —— 与执行面(bloc 消息/交易表)独立互证。
+// 评审修复轮(summary 人话单源):summary 断言 = executor 单点 note 串
+// (appendToolOutcome 同源);日志行 payload 断言钉 ASCII 机器串零变
+// (logPayload 解耦)。
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart' show ValueNotifier;
@@ -300,10 +305,10 @@ void main() {
     expect(await auditCount(), 1, reason: '一次确认记账 = 恰一行留痕');
     final row = (await auditRows()).single;
     expect(row.tool, 'transaction_add');
-    expect(row.summary, add.toString(),
-        reason: '摘要 = WriteAction 全文(入库串零改写)');
-    expect(row.summary, contains('amountCents=3500'));
-    expect(row.summary, contains('direction=out'));
+    expect(row.summary, '已记:支出 ¥35.00 午饭',
+        reason: '摘要 = 人话单源 note(executor 单点构造,与 appendToolOutcome '
+            '会话注入同串 —— 对话框摘要列所见)');
+    expect(row.summary, contains('¥35.00'), reason: '金额段千分位同源 yuan()');
     expect(row.ok, isTrue);
     expect(row.reason, isNull, reason: 'ok 行无失败原因');
     expect(row.idempotencyKey, card.idempotencyKey,
@@ -311,6 +316,16 @@ void main() {
     expect(row.createdMillis,
         inInclusiveRange(beforeConfirm, afterConfirm + 1),
         reason: '留痕时刻 = 执行时刻毫秒');
+    // 日志行零变:payload = ASCII 机器串(WriteAction.toString 自过滤),
+    // 人话 summary 不入日志行(summary/logPayload 两投各取各源)。
+    expect(
+      auditLines.where((l) => l.contains('assistant write tool=') && l
+          .contains('payload=${add.toString()}')),
+      hasLength(1),
+      reason: '日志 payload = F70 机器串逐字节零变(logPayload 解耦)',
+    );
+    expect(auditLines.every((l) => !l.contains('已记')), isTrue,
+        reason: '人话 note 不进日志串(项目门禁)');
 
     // —— 实体 id 与交易可关联查询回(真库 transactions 反查命中)。
     final entityId = row.entityId;
@@ -378,7 +393,8 @@ void main() {
     expect(await auditCount(), 1);
     final updRow = (await auditRows()).single;
     expect(updRow.tool, 'transaction_update');
-    expect(updRow.summary, update.toString());
+    expect(updRow.summary, '已改:美团买菜 ¥40.00',
+        reason: 'update 摘要 = 人话族「已改:」(合并后描述/金额)');
     expect(updRow.ok, isTrue);
     expect(updRow.reason, isNull);
     expect(updRow.entityId, seeded.id, reason: 'update 留痕实体 = 原位笔 id');
@@ -411,7 +427,8 @@ void main() {
     expect(updRow2.id, updRow.id, reason: '改行不被删轮扰动(append-only)');
     expect(delRow.ok, isTrue);
     expect(delRow.reason, isNull);
-    expect(delRow.summary, delete.toString());
+    expect(delRow.summary, '已删:美团买菜 ¥40.00',
+        reason: 'delete 摘要 = 人话族「已删:」(现读描述/金额)');
     expect(delRow.entityId, seeded.id,
         reason: 'delete 留痕实体 = 被删笔 id(删除后唯一回溯点)');
     expect(delRow.idempotencyKey, delCard.idempotencyKey);
@@ -473,7 +490,9 @@ void main() {
         reason: '失败原因入列(对话框红徽标小字源)');
     expect(failedRow.entityId, isNull, reason: '失败常见无实体');
     expect(failedRow.idempotencyKey, key);
-    expect(failedRow.summary, (card.action as TransactionDelete).toString());
+    expect(failedRow.summary, (card.action as TransactionDelete).toString(),
+        reason: '现读素材缺失(notFound)→ 人话 note 不可构造,summary '
+            '回退 ASCII 机器串(失败行有 reason 徽标可辨)');
 
     // 同 id 还原(头+分录原样回插 + 余额同向回摆 —— 模拟同步还原/撤误删)。
     await database.transaction(() async {
@@ -502,6 +521,8 @@ void main() {
     expect(rows.first.ok, isTrue, reason: '倒序:后写的 ok 在前');
     expect(rows.first.entityId, seeded.id);
     expect(rows.first.reason, isNull);
+    expect(rows.first.summary, '已删:美团买菜 ¥30.00',
+        reason: '重试 ok 行 = 人话族「已删:」(还原后现读素材齐备)');
     expect(rows.last.ok, isFalse);
     expect(rows.last.reason, 'transactionNotFound');
     expect(rows.last.entityId, isNull);

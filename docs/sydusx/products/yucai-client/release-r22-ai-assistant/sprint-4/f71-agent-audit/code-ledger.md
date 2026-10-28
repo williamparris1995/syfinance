@@ -34,9 +34,20 @@
 3. **入口行卡底部 + 超前天日期兜底差异(相对 v21 原型)**:① 入口行:v21 原型为独立演示块,实现按拍板形态挂 model_management_card **底部**(「数据与隐私」行之下;`auditDao` 为 null 时整行隐藏 = 旧装配/旧测试兼容缝);② 相对时间:v21 演示只到「前天」,实现更早日期补完整日期 `yyyy-MM-dd HH:mm` 兜底(纯日期比较 = 两侧各折 `DateTime.utc` 日历日差天数,零时区/夏令时运算;跨零点当日仍「今天」)。dialog 测超前天/跨零点/跨月跨年三用例钉死。
 4. **dialog watch Timer 烧毁测试基建家法**:drift `QueryStream.markAsClosed`(树卸载时订阅 cancel)挂零长 Timer,而 `pump()` 缺省不推进 fake 时钟 → 框架收尾 `!timersPending` 断言炸(与组件逻辑无关)。**家法:凡挂订阅型 drift watch 组件的 widget 用例,末尾必调 `_pumpDownTree`**(`pumpWidget(SizedBox.shrink)` + `pump(16ms)` 烧掉残留 Timer;AppToast Timer 先例的 drift 变体,agent_audit_dialog_test.dart 头注记档)。
 
+- **T3 装具要点(记档)** 见下节;**评审与修复轮记录**见末节。
+
 ## T3 装具要点(记档)
 
 - **双帽石并存互不扰动**:F70-T4 `write_pipeline_integration_test`(executor 3 参构造,缺省回退 `_LogOnlyAuditSink` 纯日志 = F70 行为等价证)与本票 `agent_audit_pipeline_integration_test`(4 参构造注入真 `AgentAuditSinkImpl`,= DI injection 1m 生产装配形状)各钉一条路径;两文件同范式不同缝,回归面互补。
 - **失败重试两行的真链触发(零 mock)**:不 mock repo —— 提案后经真管道手删目标(`TransactionLocalDataSource.delete`,表单同款级联)→ 确认撞 executor 文档化失败路径 `transactionNotFound`;同 id 还原(头+分录 `toCompanion` 原样回插 + `BalanceLocalUpdater.applyEntries(+1)` 同向回摆,包在 drift transaction 内)→ 同键 `RetryWriteRequested` 成功。失败不耗键 = 表**追加新行**非行更新,同键异果两行;余额三摆(扣/回摆/回摆+重删)归位 = 同管道互证。
 - **DAO 直查互证**:表断言双路(`AgentAuditDao` 读面 + 原始 `select(agentAudits)` 直查,与 DAO 实现独立);对话框数据源(watchPage 20/页)与直查表逐行同一 + count 同值 + limit+offset 窗口平铺零漏零重 —— 对话框所见即表所存(T2 widget 测的读面在链路级再钉)。
 - **审计面 = F70 写链语义的投影**:幂等(同键二次确认零二次留痕)/取消(执行器不可达零留痕)/失败(不耗键,重试同键追加)三条 F70 语义在 agent_audit 表上的可观测面,帽石①③④分别钉死;entityId 反查关联(成功行可查回交易,delete 行实体不在库 = 表为删除后唯一回溯点)。
+
+## 评审与修复轮记录(批量评审 T1 PASS-with-M1 / T2 REJECT-H1;fix 轮 commit 见 git log `fix(assistant): F71 评审 fixlist`)
+
+1. **summary 列人话单源(T1-M1 + T2-H1 同根)— 已修**:根因 = agent_audit.summary 存 `WriteAction.toString` 机器串,而 T2 对话框摘要列直接渲染该列,且对话框测试种子用 v21 原型串(「支出 ¥35.00 午饭 → 招商银行」式,生产不可能)——鸿沟被测试种子掩盖。修法:`write_executor_impl` 提取 `_writeNote` **单点构造**(「已记:支出 ¥35.00 午饭」/「已改:」「已删:」族,千分位 `yuan()` 同源),`appendToolOutcome` 会话注入与 `sink.record` 的 summary **共用同一串**(构造点唯一 = 零分叉);对话框摘要列所见即会话注入同串。**日志行(ASCII)零变的解耦**:事件 `AgentAuditEvent` 增唯一非表列字段 `logPayload`(= `WriteAction.toString`,日志投专用;缺省回退 summary 兼容旧构造位),生产 sink 与 `_LogOnlyAuditSink` 回退 sink 的 logWrite payload 均改取 logPayload —— 人话入库、机器串进日志,两投各取各源。**失败路如实降级**:Add 的 note 纯 action 派生(失败行摘要 = 尝试动作人话串);Update/Delete 现读素材缺失(notFound/结构守卫/异常兜底)→ summary 回退机器串(ASCII,失败行有 reason 徽标可辨;帽石③ failed 行断言如实保留)。连锁更新:T1 sink/executor 测试断言改人话串(含「表行 summary == appendToolOutcome 注入同串」单源即证 + 日志 payload 机器串零变断言)/ T3 帽石①② summary 断言人话串 + ③ ok 行人话/failed 行回退双钉 / T2 对话框种子全改 note 同构生产形态串(失败行 reason 同步改生产可能值 versionConflict,原中文 reason 生产不可能)。用例:event +1(logPayload 缺省/覆盖双形态)/ executor-sink 原用例内加断言。
+2. **T2-M1 同键注记 — 已修**:对话框行尾(v21 aud-note 形态,摘要下挂)muted 小注「键 ****尾4位」(`AgentAuditDialog.keyNote` 纯函数,键不足 4 位全掩码);显隐 = 仅 failed 行 + **同键** ok 行(重试对可辨识配对,判定集 = 当前已加载页 failed 键集合,跨页边界注记缺失不误导已在源码记档),普通 ok 行零注记。widget 测补:重试对两行注记恰 2 处 + keyNote 纯函数(尾 4 位/短键全掩码)。
+3. **T2-M2 分页注释 — 已修**:对话框头注「append 语义天然成立」改为如实:各页是按查询时刻取数的 offset 滑窗,两页取数间隙表变更时窗口边界行理论上可瞬时重复(或漏一拍后由 watch 重发收敛);对话框为低频只读 modal(开着对话框同时确认写操作的场景本身罕见),瞬时重复自愈且无害,不引入跨页去重/合并复杂度(v21 原型同款取舍)。
+4. **spec 措辞同步 — 已修**:FR-1 Scenario 正文「GIVEN 任一 v14 存量库 / WHEN 应用启动 v15 迁移」订正为「v15 存量库 / v16 迁移」(FR-1 标题/正文头 2510c3e2 已订正,Scenario 三行漏改)。
+5. **记档不修**:**T1-L4**(F70-T4 原帽石 write_pipeline 保 executor 3 参构造 = F70 回退面行为等价证的既有覆盖,不动;F71-T3 新帽石已钉 4 参构造注入真 sink = DI injection 1m 生产装配形状 —— 两帽石各钉一条路径、回归面互补,见「T3 装具要点」第一条,分工成立不升格);其余 Low(评审列出的次要项)park 不修,随后续票自然收敛。
+6. **修复轮全门**:`flutter test test/assistant/` **433 绿**(= T3 门 430 + event logPayload +1 / dialog 同键注记 widget +1 / keyNote 纯函数 +1,含两帽石)/ `flutter analyze` **466 == 基线零新增** / `git diff main -- yucai/server` **0 字节**。
