@@ -310,6 +310,112 @@ void main() {
     });
   });
 
+  group('deriveDefaults 内部旗标(F72 再记;bloc 专传,schema 不宣告)', () {
+    /// 干净池 mock(负债户在前钉死资产优先;默认 seed 有同名「现金」双户
+    /// 会落多候选 ToolError,不适合推导直测)。
+    AccountRepository poolRepo(List<Account> pool) {
+      final mock = _MockAccountRepo();
+      when(() => mock.list()).thenAnswer((_) async => dz.Right(pool));
+      return mock;
+    }
+
+    Account acc(String id, String name, AccountType type) => Account(
+          id: id,
+          name: name,
+          accountType: type,
+          category: AccountCategory.otherAsset,
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          currentBalanceCents: 0,
+          ownership: Ownership.personal,
+          status: AccountStatus.active,
+        );
+
+    test('account/category 缺省 → 默认推导(首资产户资产优先 + 方向匹配科目池首个)',
+        () async {
+      final repo = poolRepo([
+        acc('acc-card', '招行信用卡', AccountType.liability),
+        acc('acc-cash', '现金', AccountType.asset),
+        acc('acc-food', '餐饮', AccountType.expense),
+        acc('acc-transport', '交通', AccountType.expense),
+        acc('acc-salary', '工资', AccountType.income),
+      ]);
+      final json = ok(await TransactionAddTool(repo).execute(const {
+        'direction': 'out',
+        'amount': 35,
+        'description': '午饭',
+        'deriveDefaults': true,
+      }));
+      expect((json['action'] as Map)['accountId'], 'acc-cash',
+          reason: '资产优先(负债户在前也让位)');
+      expect((json['action'] as Map)['categoryId'], 'acc-food',
+          reason: '支出 → 首个支出科目户');
+      expect((json['preview'] as Map)['account'], '现金');
+      expect((json['preview'] as Map)['category'], '餐饮');
+
+      // 收入方向 → 首个收入科目户。
+      final income = ok(await TransactionAddTool(repo).execute(const {
+        'direction': 'in',
+        'amount': 88,
+        'description': '红包',
+        'deriveDefaults': true,
+      }));
+      expect((income['action'] as Map)['categoryId'], 'acc-salary');
+    });
+
+    test('付款池空 / 科目池空 → 落既有必填 ToolError(规范文案照常可出)',
+        () async {
+      // 无资产/负债户 → account 必填 ToolError。
+      final noPayment = poolRepo([acc('acc-salary', '工资', AccountType.income)]);
+      final a = await TransactionAddTool(noPayment).execute(const {
+        'direction': 'out',
+        'amount': 35,
+        'deriveDefaults': true,
+      });
+      expect(a, isA<ToolError>());
+      expect((a as ToolError).message, contains('account is required'));
+
+      // 无支出科目户 → category 必填 ToolError(no ... category exists)。
+      final noCategory = poolRepo([
+        acc('acc-cash', '现金', AccountType.asset),
+        acc('acc-salary', '工资', AccountType.income),
+      ]);
+      final c = await TransactionAddTool(noCategory).execute(const {
+        'direction': 'out',
+        'amount': 35,
+        'deriveDefaults': true,
+      });
+      expect(c, isA<ToolError>());
+      expect((c as ToolError).message,
+          contains('no expense category account exists'));
+    });
+
+    test('显式名优先于推导;旗标缺席(LLM 面)缺 account 照旧必填 ToolError',
+        () async {
+      final repo = poolRepo([
+        acc('acc-cash', '现金', AccountType.asset),
+        acc('acc-card', '招行信用卡', AccountType.liability),
+        acc('acc-food', '餐饮', AccountType.expense),
+      ]);
+      final json = ok(await TransactionAddTool(repo).execute(const {
+        'direction': 'out',
+        'amount': 35,
+        'account': '招行信用卡',
+        'deriveDefaults': true,
+      }));
+      expect((json['action'] as Map)['accountId'], 'acc-card',
+          reason: '显式 account 优先(推导仅填缺省)');
+
+      final llm = await TransactionAddTool(repo).execute(const {
+        'direction': 'out',
+        'amount': 35,
+        'category': '餐饮',
+      });
+      expect(llm, isA<ToolError>(), reason: 'LLM 契约冻结:无旗标不推导');
+      expect((llm as ToolError).message, contains('accounts_list'));
+    });
+  });
+
   group('参数面自纠(非法值 → ToolError,零异常)', () {
     test('amount 垃圾/<=0/缺失 → ToolError', () async {
       for (final amount in ['abc', 0, -5, null]) {

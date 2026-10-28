@@ -1,9 +1,9 @@
 // F72-T2 帽石集成测:「以此再记一笔」真链全流程(spec FR-4/NFR-1,design
 // ADR-3/ADR-4;照 write_pipeline / agent_audit_pipeline 装配范式)。
 //
-// 真库(drift 内存)+ 真工具(TransactionAddTool)+ 真 executor(审计双投
-// sink 入 agent_audit 表)+ 真 host(**guarded getIt 全生产解析路径**:
-// registry 按名取 add 工具 / AccountRepository / inbox 总线)+ 真对话框
+// 真库(drift 内存)+ 真工具(TransactionAddTool,账户池在工具内部)+
+// 真 executor(审计双投 sink 入 agent_audit 表)+ 真 host(**guarded getIt
+// 全生产解析路径**:registry 按名取 add 工具 / inbox 总线)+ 真对话框
 // (记行 onTap → getIt inbox 上抛)。四断言链分两层:
 //   ① 点击历史行本身零落库(NFR-1:提案=纯解析,交易/审计/余额全零动)
 //   ② 新键:pending 卡幂等键 ≠ 原确认实例键(同键重放=AlreadyExecuted
@@ -20,12 +20,15 @@
 // pump/pumpAndSettle 推进假时钟 + runAsync 喂真实事件循环均**永不完成**
 // (接管收尾实测:10min 超时)—— 故 ③ 照 F70/F71 帽石范式用**纯 test()
 // 真事件循环直驱 bloc**(生产形状装配:addTool=registry.findByName 同源
-// repo/账户池,executor 4 参构造注入真 sink)。dialog onTap → inbox 与
+// repo 工具,executor 4 参构造注入真 sink)。dialog onTap → inbox 与
 // host inbox→浮层开的接线由 ①②④ 的 UI 链实证,③ 从 bloc 事件面续接
 // (note = 原行 summary 读表原样,= 生产「对话框行 summary 上抛」同串)。
 //
 // testWidgets 侧收尾家法:末尾 `_pumpDownTree`(drift markAsClosed 零长
 // Timer 烧毁,agent_audit_dialog_test 同款)。
+// F49 修复轮注:bloc/host 的 accounts 缝已删 —— 账户解析(默认推导取名 +
+// 名称→id 消歧)全归工具内部(deriveDefaults 旗标),装配面仅剩
+// addTool(repo 在工具构造注入)。
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
@@ -36,7 +39,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/account/data/account_local_ds.dart';
 import 'package:yucai_client/account/data/account_remote_ds.dart';
 import 'package:yucai_client/account/data/account_repository_impl.dart';
-import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/assistant/data/agent_audit_sink.dart';
 import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
 import 'package:yucai_client/assistant/data/agent_loop_impl.dart';
@@ -262,7 +264,7 @@ void main() {
       final audit = AssistantAuditLog(log: (_) {});
       final sink = AgentAuditSinkImpl(audit, database.agentAuditDao);
       // 生产形状:host initState 的 guarded getIt 解析 = registry 按名取
-      // transaction_add 工具 + AccountRepository(同源 repo)。
+      // transaction_add 工具(账户池在工具内部,bloc 零 repo 缝)。
       final registry = AssistantToolRegistry()
         ..register(TransactionAddTool(accountsRepo, _toolClock));
       final loop = AgentLoopServiceImpl(_IdleLlm(), registry, audit, () => _readyConfig);
@@ -277,7 +279,6 @@ void main() {
             EngineReady(Uri.parse('http://127.0.0.1:18365/v1'))),
         writeExecutor: executor,
         addTool: addTool,
-        accounts: accountsRepo,
         frameInterval: Duration.zero,
       );
     }
@@ -432,7 +433,6 @@ void main() {
         ..registerSingleton<EngineManager>(engine)
         ..registerSingleton<WriteExecutor>(executor)
         ..registerSingleton<AssistantToolRegistry>(registry)
-        ..registerSingleton<AccountRepository>(accountsRepo)
         ..registerSingleton<AssistantReproposeInbox>(AssistantReproposeInbox());
       // host 内建 bloc(不带注入参数 —— guarded getIt 全生产解析);断言全走
       // UI/DB 可观测面,不直驱 bloc。

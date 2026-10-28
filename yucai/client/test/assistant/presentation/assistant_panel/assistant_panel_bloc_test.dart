@@ -618,9 +618,10 @@ void main() {
   });
 
   // —— F72-T2:以此再记一笔(spec FR-4,design ADR-3/ADR-4;NFR-1)——
-  // 真工具(TransactionAddTool)+ mock 账户仓储:note → 三要素 → 默认推导
-  // 取名 → execute 全套消歧 → pending 确认卡(新 uuid 键);解析 null /
-  // ToolError → ErrorMsg 文案。写通道唯一性:提案零 executor 调用。
+  // 真工具(TransactionAddTool,账户池在工具内部;deriveDefaults 默认推导)
+  // + mock 账户仓储:note → 三要素 → 工具内部默认推导取名 + execute 全套
+  // 消歧 → pending 确认卡(新 uuid 键);解析 null / ToolError → ErrorMsg
+  // 文案。写通道唯一性:提案零 executor 调用。
   group('ProposeFromHistoryRequested(以此再记一笔)', () {
     Account makeAcc(String id, String name, AccountType type) => Account(
           id: id,
@@ -660,7 +661,6 @@ void main() {
         writeExecutor: executor,
         frameInterval: Duration.zero,
         addTool: TransactionAddTool(repo, clock),
-        accounts: repo,
       );
     }
 
@@ -779,7 +779,7 @@ void main() {
       await bloc.close();
     });
 
-    test('缝缺失(旧装配无 addTool/accounts)→ ErrorMsg,既有装配零扰动',
+    test('缝缺失(旧装配无 addTool)→ ErrorMsg,既有装配零扰动',
         () async {
       final bloc = AssistantPanelBloc(
         loop: _FakeLoop(const []),

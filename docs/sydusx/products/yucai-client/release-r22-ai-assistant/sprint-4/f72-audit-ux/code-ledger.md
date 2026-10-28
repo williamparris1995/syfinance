@@ -56,3 +56,61 @@ T1 13(dao +5/dialog +8)+ T2 20(note_parser 9 / bloc 5 / dialog 2 / 集成 4)= **
 - `flutter analyze`:**466 == 基线零新增**(首轮 467 系 dialog build 弃用 `now` 局部 unused warning,已清)。
 - `git diff main -- yucai/server`:**0 字节** + server 子目录 status 0 行。
 - 差异面:client 4 生产文件 + 4 测试文件 + spec/design/ledger 三档;generated_plugin_registrant 系行尾噪声照旧 checkout 不入 commit。
+
+
+### F72 修复轮 2:F49 门红 —— 删 host/bloc 冗余账户仓储缝(控制器全量终验拦截;HEAD b5f34900 之后)
+
+**门红**:控制器全量套件 `test/tool/f49_visibility_gate_test.dart` 报
+`assistant_overlay_host.dart:126/177/178` —— presentation 层
+AccountRepository 直取但未接线 AccountVisibility.userVisible 且未白名单。
+
+**根因(半成品冗余缝)**:F72-T2 落地时「以此再记一笔」的默认推导取名
+放在了 **bloc** —— host(presentation/widgets)guarded getIt 解析账户
+仓储 → 构造注入 bloc → bloc 池推导取名 → 工具 execute 消歧。host 侧
+直取无 userVisible 接线 → 跨切面静态门红;bloc 侧虽自身接线 userVisible
+过门,但「bloc 持池」形态本身即半成品遗留 —— 账户解析本应全在
+transaction_add_tool 内部(工具已持同源 repo 且消歧面过门)。
+
+**修法(删缝不加白名单;行为零变,既有断言原样绿)**:
+1. `assistant_overlay_host.dart` 三处删:构造参 `accounts`+字段(doc 随删)
+   / initState guarded getIt 取值 / bloc 构造传参;import 退场。顺查:host
+   其余 getIt 缝(loop/settings/modelManager/engineManager/writeExecutor/
+   registry 按名取 addTool/inbox)均非账户仓储面,不触门,全保留。
+2. `assistant_panel_bloc.dart`:删 `_accounts` 字段/构造参;
+   `_onProposeFromHistoryRequested` 删池推导块,改
+   `addTool.execute({..., 'deriveDefaults': true})` 完全依赖工具 —— 账户/
+   分类解析全归工具内部;解析失败 ToolError → 既有统一 ErrorMsg 路径不变
+   (仓储读失败也从「bloc 预检 fail」变为「工具 loadAccounts ToolError →
+   统一文案」,用户态零差)。
+3. `transaction_add_tool.dart`:增内部旗标 `deriveDefaults`(**schema 不
+   宣示 → LLM 契约冻结**:无旗标缺 account/category 照旧必填 ToolError
+   引导问用户,F70 既有用例原绿)。旗标下缺省推导镜像原 bloc 形态(ADR-3):
+   付款户 = 首个可见资产户(无资产户落首个负债户;池空 → 仍落既有必填
+   ToolError)、分类 = 方向匹配科目池首个(池空同);推导**取名后仍走
+   resolveUnique 全套消歧**(可见性过滤在池侧已滤)—— 与原
+   「bloc 取名 → 工具消歧」链同径。注释纪律:presentation 文件连 doc
+   注释都不得出现该仓储类名(grep 门逐行匹配,提及即命中 —— 本轮两处
+   新注释写类名险些再红,已改「账户仓储」措辞)。
+4. 测试同步:`assistant_panel_bloc_test.dart` makeReproposeBloc 删
+   `accounts: repo` 参(「缝缺失」用例名去 accounts);集成测 makeBloc
+   删参 + getIt 注册面删账户仓储行 + 头注措辞随迁;
+   `transaction_add_tool_test.dart` 增 deriveDefaults 组 **3 用例**(资产
+   优先+方向匹配推导 / 付款池空·科目池空落必填 ToolError / 显式名优先 +
+   LLM 面无旗标契约冻结);`note_parser.dart` 头注「由 bloc 推导」措辞
+   随迁工具内部。
+
+**教训(流程面)**:接管收尾轮与评审修复轮的门都只跑了 `test/assistant`
+(scoped 套件)—— F49 门在 `test/tool`,跨切面静态门不随特性目录走,
+scoped 跑法结构性漏它;控制器**全量终验**才拦截。后续家法:凡在
+presentation/** 加缝/改装配的票,门面清单必含 test/tool(F49 门)+ 全量
+终验;scoped 绿 ≠ 门绿。
+
+#### 修复轮 2 全门实测
+
+- `flutter test`(**全量**):**3347 绿 + 1 自跳过**(F66 engine_smoke
+  引擎夹具自跳,与本票无关);子面:test/assistant **468 绿 + 1 跳过**
+  (= 修复轮 465 + deriveDefaults 3)/ test/tool **8 绿**(f49 门 3 全绿
+  + app_icon 3 + updater_version 2)。
+- `flutter analyze`:**466 == 基线零新增**。
+- `git diff main -- yucai/server`:**0 字节** + server 子目录 status 0 行
+  (NFR-2 复测)。

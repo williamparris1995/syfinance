@@ -6,8 +6,8 @@
 // appendToolOutcome 会话注入/审计 summary 同串同源)→ 方向/金额/描述。
 //
 // - **只解析三要素**(简报钉定):账户/分类串中无、不从 note 猜 —— 提案时
-//   由 bloc 按默认推导取名,再经 transaction_add_tool 的 execute 全套
-//   名称→id 消歧(ToolError 照常可出)。
+//   由 transaction_add 工具内部默认推导取名并经 execute 全套名称→id 消歧
+//   (deriveDefaults 旗标;ToolError 照常可出)。
 // - **改/删族零解析**(ADR-3):「已改:」「已删:」前缀不命中 → null(目标
 //   交易已变,重跑必错 —— 只读);失败行素材缺失的 ASCII 机器串回退形态
 //   同样 null。

@@ -7,8 +7,12 @@
 // 实际落库 = WriteExecutor(T2)确认回调后走 TransactionRepository 表单同
 // 管道(recordExpense/recordIncome)。解析歧义 → ToolError 列候选让 LLM
 // 问用户(澄清原则);查无账户/分类 → 引导(FR-4:助手不直接建户)。
+// F72 再记内部旗标 deriveDefaults(schema 不宣告):account/category 缺省
+// 确定性默认推导全归本工具 —— bloc/presentation 零 AccountRepository 缝
+// (F49 门)。
 library;
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/domain/account_visibility.dart';
@@ -126,8 +130,19 @@ class TransactionAddTool implements AssistantTool {
             : a.accountType == AccountType.income)
         .toList();
 
+    // ── F72 再记内部旗标(deriveDefaults;bloc「以此再记一笔」专传,schema
+    //    不宣告 → LLM 契约冻结:LLM 面缺 account/category 照旧 ToolError 问
+    //    用户)。account/category 缺省时确定性默认推导(design ADR-3):付款
+    //    户 = 首个可见资产户(无资产户才落首个负债户),分类 = 方向匹配科目
+    //    池首个;推导取名后仍走 resolveUnique 全套消歧 —— 推导差异由确认卡
+    //    如实呈现,确认门兜底。池空 → 不传名 → 下方既有必填 ToolError 照常
+    //    可出(F72 统一 ErrorMsg 路径)。bloc 由此零 AccountRepository 缝
+    //    (F49 门:presentation 层不直取 repo)。──
+    final deriveDefaults = args['deriveDefaults'] == true;
+
     // ── account(必填:名称 → 唯一资产/负债户)──
-    final accountArg = lenientString(args['account']);
+    final accountArg = lenientString(args['account']) ??
+        (deriveDefaults ? _defaultPaymentAccount(paymentPool)?.name : null);
     if (accountArg == null) {
       return const ToolError(
         'account is required; call accounts_list to see the available '
@@ -147,10 +162,12 @@ class TransactionAddTool implements AssistantTool {
     );
     if (accountError != null) return accountError;
 
-    // ── category(必填:名称 → 唯一科目账户;缺省推导是 LLM 的职责,
-    //    工具不猜 —— 缺失即列全部分类让 LLM 选/问用户)。──
-    final categoryArg = lenientString(args['category']);
-    if (categoryArg == null) {
+    // ── category(必填:名称 → 唯一科目账户;LLM 面缺失即列全部分类让 LLM
+    //    选/问用户,工具不猜 —— deriveDefaults 时取方向匹配科目池首个)。──
+    final categoryArg = lenientString(args['category']) ??
+        (deriveDefaults && categoryPool.isNotEmpty
+            ? categoryPool.first.name
+            : null);    if (categoryArg == null) {
       if (categoryPool.isEmpty) {
         return ToolError(
           'category is required for direction=${direction.wire} but no '
@@ -211,5 +228,14 @@ class TransactionAddTool implements AssistantTool {
         'date': isoDate(action.date),
       },
     });
+  }
+
+  /// deriveDefaults 默认付款户推导(ADR-3 确定性形态):首个资产户,无资产
+  /// 户才落首个负债户;池空 null(→ 必填 ToolError)。
+  static Account? _defaultPaymentAccount(List<Account> pool) {
+    for (final a in pool) {
+      if (a.accountType == AccountType.asset) return a;
+    }
+    return pool.isEmpty ? null : pool.first;
   }
 }

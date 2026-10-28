@@ -29,7 +29,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
 import 'package:yucai_client/assistant/data/tools/transaction_add_tool.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
@@ -99,7 +98,6 @@ class AssistantOverlayHost extends StatefulWidget {
     this.engineManager,
     this.writeExecutor,
     this.addTool,
-    this.accounts,
     this.reproposeInbox,
     this.frameInterval,
   });
@@ -119,11 +117,10 @@ class AssistantOverlayHost extends StatefulWidget {
   /// F70 写执行器缝(确认门唯一落库通道;缺省 guarded getIt,测试 fake)。
   final WriteExecutor? writeExecutor;
 
-  /// F72「以此再记一笔」提案工具缝(缺省从 getIt 工具注册表取名;测试注入)。
+  /// F72「以此再记一笔」提案工具缝(缺省从 getIt 工具注册表取名;测试注入。
+  /// 账户/分类解析全在工具内部 —— host/bloc 零账户仓储缝,
+  /// F49 载体户可见性门)。
   final TransactionAddTool? addTool;
-
-  /// F72「以此再记一笔」默认推导账户池缝(缺省 guarded getIt;测试注入)。
-  final AccountRepository? accounts;
 
   /// F72 再记注入总线(缺省 guarded getIt;测试注入 —— 订阅即「对话框
   /// 上抛 → 开浮层 + 发 bloc 事件」接线)。
@@ -167,15 +164,12 @@ class _AssistantOverlayHostState extends State<AssistantOverlayHost> {
             ? getIt<WriteExecutor>()
             : null);
     // F72 再记缝:工具从 getIt 注册表按名取(注册表是工具实例唯一
-    // getIt 面;账户池与工具同源 repo)—— 任一缺失仅特性惰性,不挡装配。
+    // getIt 面;账户解析在工具内部,host 不触账户仓储 —— F49 门)——
+    // 缺失仅特性惰性,不挡装配。
     final addTool = widget.addTool ??
         (getIt.isRegistered<AssistantToolRegistry>()
             ? getIt<AssistantToolRegistry>().findByName('transaction_add')
                 as TransactionAddTool?
-            : null);
-    final accounts = widget.accounts ??
-        (getIt.isRegistered<AccountRepository>()
-            ? getIt<AccountRepository>()
             : null);
     _reproposeInbox = widget.reproposeInbox ??
         (getIt.isRegistered<AssistantReproposeInbox>()
@@ -193,7 +187,6 @@ class _AssistantOverlayHostState extends State<AssistantOverlayHost> {
         engineState: _engineManager!.state,
         writeExecutor: writeExecutor,
         addTool: addTool,
-        accounts: accounts,
         frameInterval:
             widget.frameInterval ?? const Duration(milliseconds: 30),
       );

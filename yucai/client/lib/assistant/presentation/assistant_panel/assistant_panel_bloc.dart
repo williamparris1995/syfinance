@@ -30,10 +30,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:yucai_client/account/domain/account_visibility.dart';
-import 'package:yucai_client/account/domain/entities/account_entity.dart';
-import 'package:yucai_client/account/domain/repositories/account_repository.dart';
-import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/assistant/data/note_parser.dart';
 import 'package:yucai_client/assistant/data/tools/tool_args.dart' show yuan;
 import 'package:yucai_client/assistant/data/tools/transaction_add_tool.dart';
@@ -449,8 +445,9 @@ class AssistantPanelBloc
   /// 三个状态 ValueListenable(发送时实时取值 —— 设置卡改动即刻生效);
   /// [writeExecutor] 写执行器(F70 确认门唯一落库通道 —— 仅 Confirm/
   /// Retry 事件触达,代码门);[frameInterval] TextDelta 合帧窗口(默认
-  /// 30ms,测试注入 [Duration.zero] 关离合帧);[addTool]/[accounts]
-  /// F72「以此再记一笔」缝(可选 —— 缺省 null 特性惰性,既有装配零扰动)。
+  /// 30ms,测试注入 [Duration.zero] 关离合帧);[addTool] F72「以此再记
+  /// 一笔」缝(可选 —— 缺省 null 特性惰性,既有装配零扰动;账户/分类解析
+  /// 全在工具内部,bloc 零账户仓储缝 —— F49 门)。
   AssistantPanelBloc({
     required this._loop,
     required this._config,
@@ -458,7 +455,6 @@ class AssistantPanelBloc
     required this._engineState,
     required this._writeExecutor,
     this._addTool,
-    this._accounts,
     this.frameInterval = const Duration(milliseconds: 30),
   }) : super(const AssistantPanelState()) {
     on<SendRequested>(_onSendRequested);
@@ -488,12 +484,10 @@ class AssistantPanelBloc
   /// F70 写执行器缝(既有注入面扩一;绕过负测钉死其为唯一写通道)。
   final WriteExecutor _writeExecutor;
 
-  /// F72「以此再记一笔」:提案工具(execute 全套解析/消歧复用;缺省
-  /// null = 特性惰性 —— [ProposeFromHistoryRequested] 直落 ErrorMsg)。
+  /// F72「以此再记一笔」:提案工具(execute 全套解析/消歧/默认推导复用,
+  /// 账户解析全在工具内部;缺省 null = 特性惰性 ——
+  /// [ProposeFromHistoryRequested] 直落 ErrorMsg)。
   final TransactionAddTool? _addTool;
-
-  /// F72「以此再记一笔」:默认推导取名所需的账户池(与工具同源 repo)。
-  final AccountRepository? _accounts;
 
   /// TextDelta 合帧窗口(design Risk:30ms 高频渲染防卡顿)。
   final Duration frameInterval;
@@ -659,18 +653,20 @@ class AssistantPanelBloc
 
   // —— F72-T2「以此再记一笔」(spec FR-4,design ADR-3/ADR-4)——
 
-  /// 统一用户态失败文案(解析 null / 账户池读取失败 / 工具 ToolError
-  /// 共用;不透传工具英文串 —— 此路径无 LLM 自纠回路,ToolError 即终态)。
+  /// 统一用户态失败文案(解析 null / 工具 ToolError 共用,含工具内部
+  /// 默认推导池空/消歧失败/仓储读失败;不透传工具英文串 —— 此路径无
+  /// LLM 自纠回路,ToolError 即终态)。
   static const _reproposeFailedText = '无法从该记录生成提案';
 
   /// 溯源行文案(T2-M2):历史再记提案卡头小字「来自历史记录」(照 v22
   /// 「记一笔(来自历史)」语义);正常 loop 提案不注入。
   static const fromHistorySourceLabel = '来自历史记录';
 
-  /// note → 三要素([AddActionFromNote.parse])→ 默认推导取名(ADR-3:
-  /// 账户/分类不从 note 猜 —— 串中无)→ [TransactionAddTool.execute]
-  /// 全套(日期缺省今天/金额元转 cents/名称→id 消歧,ToolError 照常可
-  /// 出)→ pending 确认卡(**新键**,经正常确认门;本 handler 零
+  /// note → 三要素([AddActionFromNote.parse])→ [TransactionAddTool.execute]
+  /// 全套(deriveDefaults 内部旗标:默认推导取名 + 名称→id 消歧 + 日期
+  /// 缺省今天/金额元转 cents,**账户/分类解析全在工具内部** —— bloc 零
+  /// 账户仓储缝,F49 载体户可见性门;池空/ToolError 照常可出)
+  /// → pending 确认卡(**新键**,经正常确认门;本 handler 零
   /// executor 调用 —— NFR-1 点击本身零落库)。卡携溯源行
   /// [fromHistorySourceLabel](T2-M2)。
   Future<void> _onProposeFromHistoryRequested(
@@ -688,41 +684,15 @@ class AssistantPanelBloc
         ));
 
     final draft = AddActionFromNote.parse(event.note);
-    if (draft == null || _addTool == null || _accounts == null) return fail();
+    if (draft == null || _addTool == null) return fail();
 
-    // 默认推导(ADR-3「描述→分类/默认资产账户」的确定性形态):账户 =
-    // 首个可见**资产**付款户(无资产户才落首个负债户),分类 = 方向匹配
-    // 科目池首个 —— 推导差异由确认卡如实呈现,确认门兜底(design Risk
-    // 钉定);池空 → 不传名,由工具出规范 ToolError(照常可出)。
-    final listed = await _accounts.list();
-    final accounts = listed.fold((l) => null, (r) => r);
-    if (accounts == null) return fail();
-    final visible = AccountVisibility.userVisible(accounts);
-    final paymentPool = visible
-        .where((a) =>
-            a.accountType == AccountType.asset ||
-            a.accountType == AccountType.liability)
-        .toList();
-    final categoryPool = visible
-        .where((a) => draft.direction == WriteDirection.outflow
-            ? a.accountType == AccountType.expense
-            : a.accountType == AccountType.income)
-        .toList();
-    Account? account;
-    for (final a in paymentPool) {
-      if (a.accountType == AccountType.asset) {
-        account = a;
-        break;
-      }
-    }
-    account ??= paymentPool.isEmpty ? null : paymentPool.first;
-
+    // F49 修复轮:账户/分类解析全归工具内部(deriveDefaults;推导差异由
+    // 确认卡如实呈现,确认门兜底)—— bloc/host 不再持账户池缝。
     final result = await _addTool.execute({
       'direction': draft.direction.wire,
       'amount': yuan(draft.amountCents), // 工具自源格式(千分位串)→ 精确回转 cents
       'description': draft.description,
-      if (account != null) 'account': account.name,
-      if (categoryPool.isNotEmpty) 'category': categoryPool.first.name,
+      'deriveDefaults': true,
     });
     if (result is! ToolData) return fail(); // ToolError → 统一文案
 
