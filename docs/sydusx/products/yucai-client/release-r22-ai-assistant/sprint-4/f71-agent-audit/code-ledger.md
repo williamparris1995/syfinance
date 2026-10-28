@@ -51,3 +51,41 @@
 4. **spec 措辞同步 — 已修**:FR-1 Scenario 正文「GIVEN 任一 v14 存量库 / WHEN 应用启动 v15 迁移」订正为「v15 存量库 / v16 迁移」(FR-1 标题/正文头 2510c3e2 已订正,Scenario 三行漏改)。
 5. **记档不修**:**T1-L4**(F70-T4 原帽石 write_pipeline 保 executor 3 参构造 = F70 回退面行为等价证的既有覆盖,不动;F71-T3 新帽石已钉 4 参构造注入真 sink = DI injection 1m 生产装配形状 —— 两帽石各钉一条路径、回归面互补,见「T3 装具要点」第一条,分工成立不升格);其余 Low(评审列出的次要项)park 不修,随后续票自然收敛。
 6. **修复轮全门**:`flutter test test/assistant/` **433 绿**(= T3 门 430 + event logPayload +1 / dialog 同键注记 widget +1 / keyNote 纯函数 +1,含两帽石)/ `flutter analyze` **466 == 基线零新增** / `git diff main -- yucai/server` **0 字节**。
+
+## T4 覆盖率实测+验收复核(test 门 2026-10-28;零生产改动)
+
+**门复测**:`flutter test --coverage test/assistant/` **433 绿 + 1 自跳过**(= 修复轮全门同数;F66 engine_smoke 引擎夹具自跳)/ `flutter analyze` **466 == 基线零新增** / `git diff main -- yucai/server` **0 字节** + server 子目录 status 干净(NFR-2 实测)。
+
+### lcov DA 覆盖(test/assistant/ 单跑 → lib/assistant)
+
+**lib/assistant 总覆盖 2830/2986 = 94.78%**。audit 新文件与 F71 改动面:
+
+| 文件 | DA 覆盖 | 判读 |
+| --- | --- | --- |
+| data/agent_audit_sink.dart | **18/18 = 100%** | F71 新 |
+| domain/agent_audit_event.dart | **11/11 = 100%** | F71 新 |
+| presentation/widgets/agent_audit_dialog.dart | **147/147 = 100%** | F71 新 |
+| data/write_executor_impl.dart | 104/106 = 98.11% | F71 改(sink 接线);miss 228/247 = update 非 ServerFailure 兜底 + delete repo 失败兜底两条防御分支(受测失败面 = ServerFailure→versionConflict[executor-sink mock] 与 transactionNotFound[帽石③真链]) |
+| presentation/widgets/model_management_card.dart | 191/192 = 99.48% | F71 改(入口行);miss 308 = engine startFailed 文案映射(与 F71 无关) |
+
+表侧(core/localdb;`agent_audit_dao_test` + `schema_v16_migration_test` 专测实跑 6/6 绿):`agent_audit_dao.dart` **11/11 = 100%**(test/assistant 链路内与专测两轮均满);`tables/agent_audit_table.dart` 0/9 = drift 全库家法(生成 TableInfo 子类遮蔽基类列 getter,库内 15 个表文件全 0%,codegen 伪影非缺口);`agent_audit_dao.g.dart` 1/5 同理(生成物)。
+
+其余既有文件抽样:data/tools 全 100% 或 86–97%(write_tool_support/transaction_update/transaction_delete 100%);process_launcher 0/23(engine_smoke 自跳过的进程面);assistant_panel_bloc 87.09% / agent_loop_impl 96.49%(F70 既有面);write_executor.dart 40% / model_manager_port.dart 53.85%(port 抽象默认实现骨架,impl 面在 data 层钉)。
+
+### 验收复核(spec 全 Scenario,grep 实数逐行)
+
+- FR-1 Scenario 迁移幂等 → `schema_v16_migration_test` 2 用例(v15→v16 零丢 + 幂等;实跑绿)→ ✓
+- FR-1 表排除面(design ADR-2)→ `local_snapshot_exporter_test`「agent audit rows stay out of the backup envelope (F71 exclusion)」单跑绿 → ✓
+- FR-2 Scenario 记账留痕 → 帽石①(确认前零行→恰一行逐字段+实体反查) + executor-sink「记账留痕」 + sink「双投:日志逐字节一致」→ ✓
+- FR-2 Scenario 失败也留痕 → 帽石③(真管道 transactionNotFound→failed 行→同键重试 ok 行两行) + executor-sink「失败也留痕」→ ✓
+- FR-2 Scenario 表写失败不阻断 → sink「fail-open:dao 抛异常」 + executor-sink「表写失败 fail-open」→ ✓
+- FR-2 SHALL 读调用只留日志 → `audit_log_test` logToolCall 组 + executor-sink「读操作零行负测(NFR-1)」→ ✓
+- FR-3 Scenario 倒序与分页 → dialog「首页 20/25→追加页 5」+「恰一页(8 条)」 + dao「watchPage 分页/同毫秒 id 次锚」 + 帽石⑤尾互证(watchPage==直查==窗口平铺)→ ✓
+- FR-3 Scenario 空态 → dialog「空库入口 0 条」+「共 0 条两行文案无加载更多」 + 帽石④空表面 → ✓
+- FR-3 SHALL 卡内入口/只读/相对时间/徽标 → dialog 11 widget 用例(入口行 N 条实时/三档相对时间+超前天兜底/同键注记/✕ 关闭/源码守门零写路径) + model_management_card 兼容缝(auditDao null 行隐藏)→ ✓
+- NFR-1 仅写事件 → 「读操作零行负测(非零基线对照)」 + 帽石④(取消/守卫拒仍零行)→ ✓
+- NFR-2 server 零改动 → `git diff main -- yucai/server` 0 字节 + status 0 行 → ✓
+
+F71 专属用例合计 **36** = T1 16 + T2 13 + T3 帽石 4 + 评审补 3(event logPayload / dialog 同键注记 / keyNote),与各文件 grep 实数一致(sink 3 / executor-sink 4 / event 3 / dao 4 / 迁移 2 / 备份 1 / dialog 15 / 帽石 4)。
+
+**裁决:PASS** —— spec 全 Scenario 实证落测零 BLOCKED,audit 三新文件覆盖 100%,全门绿,server 零改动。
