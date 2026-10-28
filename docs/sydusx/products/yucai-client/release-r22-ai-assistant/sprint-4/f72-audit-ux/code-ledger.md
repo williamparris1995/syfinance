@@ -114,3 +114,53 @@ presentation/** 加缝/改装配的票,门面清单必含 test/tool(F49 门)+ �
 - `flutter analyze`:**466 == 基线零新增**。
 - `git diff main -- yucai/server`:**0 字节** + server 子目录 status 0 行
   (NFR-2 复测)。
+
+## 终验(整体门+test 门合并评审;HEAD dc55593f,2026-10-27)
+
+两修复轮独立复验 + 两轴快扫 + 覆盖率实测,全绿;细节:
+
+- **六项小修(修复轮 1)全部落地**:T1-M1 行时纯 HH:mm(`formatRowTime`
+  + 列宽 46)/ T1-M2 placeholder「搜索摘要…」/ T1-M3 spec FR-3 措辞 /
+  T2-M1 提示色 muted(令牌断言)/ T2-M2 溯源行 sourceLabel(卡头 muted
+  小字,null 零渲染,copyWith 透传)/ Low×2(inbox consume-then-drop +
+  isClosed 守卫)+ design ADR-3 措辞同步 —— 代码与 spec/design/ledger
+  两侧核对一致。
+- **F49 门修复实质成立**:grep 实测 host/bloc 文件 **零** AccountRepository
+  字样(含注释);deriveDefaults 全归 `transaction_add_tool` 内部(schema
+  const 六属性手读无该键 + 既有「参数面 ≤8 项」断言 + LLM 面无旗标缺
+  account → ToolError 行为断言,三层契约冻结);`test/tool` 8 绿(门真
+  库断言 + 防腐化 + 负向自证全绿)。
+- **复核实测**:`flutter test test/assistant/` **468 绿 + 1 自跳过** /
+  `flutter analyze` **466** / `git diff main -- yucai/server` **0 行**
+  (NFR-2 直测)。
+
+### 覆盖率实测(`flutter test --coverage test/assistant/`,lcov 分文件)
+
+F72 触碰面逐文件(line hit/line found):
+
+| 文件 | 覆盖 |
+| --- | --- |
+| note_parser.dart(新) | **100%**(10/10) |
+| transaction_add_tool.dart | **100%**(64/64) |
+| agent_audit_dao.dart | **100%**(29/29) |
+| agent_audit_dialog.dart | **99.7%**(300/301;唯一缺口 = onReproposeNote 注入缝分支 1 行,getIt inbox 主径已测) |
+| write_approval_card.dart | **99.2%**(383/386;3 行均为 F70 遗留面:update/delete 失败标题词 + 一处取消钮) |
+| assistant_overlay_host.dart | **98.3%**(464/472;8 行均 F72 前遗留:hover/动画内部) |
+| assistant_panel_bloc.dart | **86.6%**(291/336;45 行未命中中 36 = equatable props 样板 + 2 copyWith 管道表达式 + 3 前遗留;**F72 净缺口 ≈ 1 行**:`writeActionFromJson` null 深防御守卫,工具侧不变量测试已锚) |
+| injection.dart | 0.7%(组合根 configureDependencies 测试不直跑,既有形态;F72 仅 +8 行注册) |
+
+F72 核心七文件聚合 **77.1%**(1541/1998;均在新面 86.6-100%)。全量
+lcov 聚合 17.9%(320 文件含全 app 传递加载,非本面指标,仅存档)。
+
+### 验收清单(spec Scenario 逐条对号)
+
+- FR-1 跨日分组 → dialog「按日历日分段」「跨加载更多续组」「超前天段头
+  兜底」✓;FR-2 搜索过滤 → 「副行双态+过滤重查+清除恢复」「防抖 300ms」
+  「DAO 层重查:未加载页可达+offset 重置」「空匹配态」+ dao keyword 五测
+  (同口径/通配转义/空白归一/大小写/分页滑窗)✓;FR-3 复制反馈 → 「右键
+  → 复制摘要 → 剪贴板+toast」✓;FR-4 再记全流程 → 集成 ①②(UI 链)+ ③
+  (真链:新键/默认推导/溯源/零落库/确认落库+审计新行)+ 取消零副作用 ✓,
+  改/删行只读 → 集成 ④ + dialog 只读测 ✓;NFR-1 → ① 零落库断言 + bloc
+  零 executor 调用 ✓;NFR-2 → server diff 0 字节(本轮直测)✓。
+
+**裁决:整体门 PASS / test 门 PASS。**
