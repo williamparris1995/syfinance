@@ -136,6 +136,11 @@ class SettingsPage extends StatelessWidget {
             : null);
     final engineMgr = _engineManager ??
         (getIt.isRegistered<EngineManager>() ? getIt<EngineManager>() : null);
+    // F71 操作记录入口行审计 DAO(核心库依赖,生产恒注册;isRegistered 守卫
+    // 照上方先例 —— 无 DI 图时 auditDao 为 null,卡内整行隐藏不炸 build)。
+    final auditDao = getIt.isRegistered<AppDatabase>()
+        ? getIt<AppDatabase>().agentAuditDao
+        : null;
     return Scaffold(
       backgroundColor: context.yucai.bg,
       // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
@@ -460,6 +465,7 @@ class SettingsPage extends StatelessWidget {
                         settings: assistant,
                         modelManager: modelMgr,
                         engineManager: engineMgr,
+                        auditDao: auditDao,
                       ),
                     ],
                     const SizedBox(height: AppSpacing.md),

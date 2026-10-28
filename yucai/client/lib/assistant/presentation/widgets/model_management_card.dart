@@ -13,10 +13,16 @@
 /// - 引擎行:绑 [EngineManager.state] 四态(未运行 / 启动中转圈小图标 —
 ///   F66 拍板:冷启 3-8s 须显动效 / 运行中 / 异常+重试)。
 ///
+/// F71 T2 卡内入口行(spec FR-3,design ADR-4):底部「操作记录」行带
+/// 条数(= dao.count 实时,watchPage 联动)+ chevron,点击开只读审计
+/// 对话框 [AgentAuditDialog](v21 入口态;auditDao 为 null 时整行隐藏)。
+///
 /// 装配:构造全依赖注入(照 LlmSettingsCard 家法);settings 页经
 /// getIt isRegistered 守卫解析三依赖后挂卡(core/di 1m 段已全部注册,
 /// 本卡不自注册)。零裸色:全部走 `context.yucai` 令牌。
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -27,16 +33,20 @@ import 'package:yucai_client/assistant/domain/engine_port.dart';
 import 'package:yucai_client/assistant/domain/engine_state.dart';
 import 'package:yucai_client/assistant/domain/model_manager_port.dart';
 import 'package:yucai_client/assistant/domain/model_state.dart';
+import 'package:yucai_client/assistant/presentation/widgets/agent_audit_dialog.dart';
+import 'package:yucai_client/core/localdb/app_database.dart' as db;
+import 'package:yucai_client/core/localdb/daos/agent_audit_dao.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
 /// 设置页「AI 助手」卡(v19:启用行 / 模型行(+下载进度对照) / 引擎行 /
-/// 数据与隐私行)。
+/// 数据与隐私行;F71:操作记录行)。
 class ModelManagementCard extends StatelessWidget {
   const ModelManagementCard({
     super.key,
     required this.settings,
     required this.modelManager,
     required this.engineManager,
+    this.auditDao,
   });
 
   /// 助手配置仓储(启用开关读写缝;生产 = 1m 注册件,测试注入 fake)。
@@ -47,6 +57,10 @@ class ModelManagementCard extends StatelessWidget {
 
   /// 引擎边车管理 port(状态流 + 异常重试;测试注入 fake)。
   final EngineManager engineManager;
+
+  /// 审计 DAO 读面(F71 入口行条数 + 对话框数据源;null = 行隐藏 ——
+  /// 测试挂卡无 DI 图时不渲染入口,不炸 build)。
+  final AgentAuditDao? auditDao;
 
   /// 模型体积按钮文案基数:kModelManifest.totalBytes(2497281120 → 2.5GB,
   /// 与 v19 演示数值同源;简报草案「约 2.4GB」为估写,以钉死清单实值为准)。
@@ -111,6 +125,12 @@ class ModelManagementCard extends StatelessWidget {
             description: '数据全程不出本机;零账号零密钥',
             control: _StatusChip(label: '纯端侧', tone: _ChipTone.neutral),
           ),
+          // F71 操作记录入口行(卡底部;v21「N 条 ›」—— count 经
+          // watchPage 联动实时刷新)。
+          if (auditDao != null) ...[
+            _sep(context),
+            _AuditEntryRow(dao: auditDao!),
+          ],
         ],
       ),
     );
@@ -460,6 +480,71 @@ class _StatusChip extends StatelessWidget {
       child: Text(label,
           style: TextStyle(
               color: color, fontSize: 11.5, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// F71 T2「操作记录」入口行(v21 入口态:label + 「N 条 ›」chevron;点击开
+/// 只读审计对话框)。条数实时:watchPage(limit:1) 任意表变更重发 →
+/// count() 跟刷 —— 对话框开着/关着,新留痕都即时反映到入口 badge。
+class _AuditEntryRow extends StatefulWidget {
+  const _AuditEntryRow({required this.dao});
+
+  final AgentAuditDao dao;
+
+  @override
+  State<_AuditEntryRow> createState() => _AuditEntryRowState();
+}
+
+class _AuditEntryRowState extends State<_AuditEntryRow> {
+  StreamSubscription<List<db.AgentAudit>>? _sub;
+
+  int _count = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = widget.dao.watchPage(limit: 1).listen((_) => _refreshCount());
+    _refreshCount();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshCount() async {
+    final count = await widget.dao.count();
+    if (!mounted) return;
+    setState(() => _count = count);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.yucai;
+    return InkWell(
+      key: const ValueKey('agentAuditEntryRow'),
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => AgentAuditDialog(dao: widget.dao),
+      ),
+      child: _Row(
+        label: '操作记录',
+        description: '助手执行过的每一笔,留痕可查',
+        control: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$_count 条',
+                style: TextStyle(
+                    color: t.muted,
+                    fontSize: 13,
+                    fontFeatures: AppTypography.tabularFigures)),
+            const SizedBox(width: 6),
+            Icon(LucideIcons.chevronRight, size: 14, color: t.muted),
+          ],
+        ),
+      ),
     );
   }
 }
