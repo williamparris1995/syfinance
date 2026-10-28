@@ -9,8 +9,8 @@ status: confirmed
 
 ## ADDED Requirements
 
-### Requirement: FR-1 agent_audit 表(drift v15)
-- [ ] 系统 SHALL 迁移 drift schema v14→v15 新增 `agent_audit` 表:时间戳/工具名/动作摘要/结果(ok|failed|原因)/关联实体 id/幂等键;条目天然 actor=agent(人为写入不进此表,与表单写入可区分)。
+### Requirement: FR-1 agent_audit 表(drift v16;执行期订正)
+- [ ] 系统 SHALL 迁移 drift schema 新增 `agent_audit` 表(执行期实证 v15→v16:T1 发现 v15 已被同日银行计划表占用,简报预估 v14→v15 过时——2026-10-28 订正):时间戳/工具名/动作摘要/结果(ok|failed|原因)/关联实体 id/幂等键;条目天然 actor=agent(人为写入不进此表,与表单写入可区分)。
 
 #### Scenario: 迁移幂等
 - GIVEN 任一 v14 存量库
