@@ -36,6 +36,8 @@ import 'package:yucai_client/assistant/domain/model_manager_port.dart';
 import 'package:yucai_client/assistant/domain/model_store_port.dart';
 import 'package:yucai_client/assistant/domain/tool_registry.dart';
 import 'package:yucai_client/assistant/domain/write_executor.dart';
+import 'package:yucai_client/assistant/presentation/assistant_panel/assistant_panel_bloc.dart'
+    show AssistantReproposeInbox;
 import 'package:yucai_client/assistant/data/write_executor_impl.dart';
 import 'package:yucai_client/backup/data/archive_importer.dart';
 import 'package:yucai_client/binding/data/bound_mirror.dart';
@@ -419,6 +421,14 @@ Future<void> configureDependencies() async {
     getIt<AccountRepository>(),
   ));
   getIt.registerSingleton<AssistantToolRegistry>(assistantTools);
+  //     F72-T2(2026-10-28):「以此再记一笔」注入总线 —— 审计对话框记行
+  //     点击 request(note)上抛,AssistantOverlayHost 订阅转发 bloc
+  //     ProposeFromHistoryRequested 并打开浮层(design ADR-4 event-bus
+  //     分支;bloc 非 getIt 注册、生命周期随 host)。懒单例:纯内存
+  //     last-wins 队列,无依赖。
+  getIt.registerLazySingleton<AssistantReproposeInbox>(
+    () => AssistantReproposeInbox(),
+  );
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
   final refreshTokenUseCase = getIt<RefreshTokenUseCase>();

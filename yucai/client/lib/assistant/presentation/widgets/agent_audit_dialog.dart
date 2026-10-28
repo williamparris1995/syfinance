@@ -1,8 +1,12 @@
 /// F71 T2「AI 助手 · 操作记录」只读审计对话框(spec FR-3,design ADR-3/ADR-4;
 /// 视觉事实源 = prototype v22 ui/audit-ux-enhanced.html:F71 基础面 +
-/// F72 三增强 —— 标题 + 副行双态(全量确认后缀 ↔ 过滤匹配计数+清除链接)/
+/// F72 四增强 —— 标题 + 副行双态(全量确认后缀 ↔ 过滤匹配计数+清除链接)/
 /// 标题下搜索框(图标+清除钮,300ms 防抖)/ 列表按日历日分组段头
 /// (今天/昨天/前天/yyyy年M月d日 + 段内计数)/ 行右键「复制摘要」/
+/// **记一笔行可点「以此再记一笔」**(F72 spec FR-4:仅 tool=
+/// transaction_add 行 —— hover 背景轻亮 + 右缘提示,点击关对话框并经
+/// [AssistantReproposeInbox] getIt 总线上抛 note,由助手浮层宿主转发
+/// bloc 生成新键预填确认卡;改/删行只读无提示无点击)/
 /// 「加载更多」+ 已显示计数 / 空态两行(全量空 + 搜索无匹配两态)。
 ///
 /// 数据面 = T1 [AgentAuditDao](watchPage/count,20/页;F72 起 keyword?):
@@ -49,6 +53,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/assistant/presentation/assistant_panel/assistant_panel_bloc.dart'
+    show AssistantReproposeInbox;
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 import 'package:yucai_client/core/localdb/daos/agent_audit_dao.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -63,6 +70,7 @@ class AgentAuditDialog extends StatefulWidget {
     this.pageSize = 20,
     this.now,
     this.searchDebounce = const Duration(milliseconds: 300),
+    this.onReproposeNote,
   });
 
   /// 审计 DAO 读面(watchPage/count;T1 已备,本票零写路径)。
@@ -76,6 +84,10 @@ class AgentAuditDialog extends StatefulWidget {
 
   /// 搜索输入防抖(缺省 300ms;测试可注入 Duration.zero 钉直通)。
   final Duration searchDebounce;
+
+  /// F72 记行点击上抛缝(测试注入);缺省走 getIt
+  /// [AssistantReproposeInbox] 总线(guarded —— 未注册静默零副作用)。
+  final ValueChanged<String>? onReproposeNote;
 
   /// createdMillis → 「今天 14:32」式相对时间:今天/昨天/前天三档
   /// (v21 演示范围),更早 `yyyy-MM-dd HH:mm` 完整日期兜底。纯日期比较
@@ -511,12 +523,15 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
 
   /// 列表行(v21 aud-row 四要素:时间 / 工具 chip / 摘要 / 右列徽标;
   /// 行尾 muted 同键注记 = v21 aud-note 形态,摘要下方挂)。
-  /// F72:整行包 ContextMenuRegion(R16 桌面右键先例)单项「复制摘要」。
+  /// F72:整行包 ContextMenuRegion(R16 桌面右键先例)单项「复制摘要」;
+  /// **仅 tool=transaction_add 行**可点「以此再记一笔」(spec FR-4:
+  /// hover 背景轻亮 + 右缘提示,点击关对话框 + note 上抛;改/删行只读)。
   Widget _row(
       BuildContext context, db.AgentAudit row, DateTime now, Set<String> failedKeys) {
     final t = context.yucai;
     // 同键注记显隐(T2-M1):仅 failed 行 + 同键 ok 行(重试对)。
     final showKeyNote = !row.ok || failedKeys.contains(row.idempotencyKey);
+    final canRepropose = row.tool == 'transaction_add';
     return ContextMenuRegion(
       items: [
         MenuItemData(
@@ -525,74 +540,105 @@ class _AgentAuditDialogState extends State<AgentAuditDialog> {
           onTap: () => _copySummary(context, row.summary),
         ),
       ],
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 82,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  AgentAuditDialog.formatRelativeTime(row.createdMillis, now),
-                  style: TextStyle(
-                      color: t.muted,
-                      fontSize: 11.5,
-                      fontFeatures: AppTypography.tabularFigures),
+      child: _ReproposableRow(
+        enabled: canRepropose,
+        onTap: canRepropose ? () => _reproposeFrom(context, row) : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 82,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    AgentAuditDialog.formatRelativeTime(row.createdMillis, now),
+                    style: TextStyle(
+                        color: t.muted,
+                        fontSize: 11.5,
+                        fontFeatures: AppTypography.tabularFigures),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            _AuditChip(
-                label: AgentAuditDialog.toolLabel(row.tool), color: t.muted),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(row.summary,
-                      style: TextStyle(
-                          color: t.fg,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          height: 1.5)),
-                  // 行尾 muted 小注(v21 aud-note):「键 ****XXXX」—— 失败行
-                  // 与同键 ok 行(重试对)可辨识配对;普通 ok 行零注记。
-                  if (showKeyNote) ...[
-                    const SizedBox(height: 2),
-                    Text(AgentAuditDialog.keyNote(row.idempotencyKey),
-                        style: TextStyle(color: t.muted, fontSize: 11)),
+              const SizedBox(width: AppSpacing.sm),
+              _AuditChip(
+                  label: AgentAuditDialog.toolLabel(row.tool), color: t.muted),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(row.summary,
+                        style: TextStyle(
+                            color: t.fg,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            height: 1.5)),
+                    // 行尾 muted 小注(v21 aud-note):「键 ****XXXX」—— 失败行
+                    // 与同键 ok 行(重试对)可辨识配对;普通 ok 行零注记。
+                    if (showKeyNote) ...[
+                      const SizedBox(height: 2),
+                      Text(AgentAuditDialog.keyNote(row.idempotencyKey),
+                          style: TextStyle(color: t.muted, fontSize: 11)),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            // 右列:徽标 ok 绿✓ / failed 红⚠;失败原因小字随徽标下挂
-            // (v21 aud-side 形态,如实展示不粉饰)。
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 132),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _AuditChip(
-                    label: row.ok ? '✓ 成功' : '⚠ 失败',
-                    color: row.ok ? t.positive : t.negative,
-                  ),
-                  if (!row.ok && (row.reason?.isNotEmpty ?? false)) ...[
-                    const SizedBox(height: 4),
-                    Text(row.reason!,
-                        textAlign: TextAlign.right,
-                        style:
-                            TextStyle(color: t.negative, fontSize: 11, height: 1.4)),
+              const SizedBox(width: AppSpacing.sm),
+              // 右列:徽标 ok 绿✓ / failed 红⚠;失败原因小字随徽标下挂
+              // (v21 aud-side 形态,如实展示不粉饰);记行再挂右缘提示
+              // 「以此再记一笔 ›」(v22 aud-again;改/删行无 = 只读态区分)。
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 132),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _AuditChip(
+                      label: row.ok ? '✓ 成功' : '⚠ 失败',
+                      color: row.ok ? t.positive : t.negative,
+                    ),
+                    if (!row.ok && (row.reason?.isNotEmpty ?? false)) ...[
+                      const SizedBox(height: 4),
+                      Text(row.reason!,
+                          textAlign: TextAlign.right,
+                          style:
+                              TextStyle(color: t.negative, fontSize: 11, height: 1.4)),
+                    ],
+                    if (canRepropose) ...[
+                      const SizedBox(height: 4),
+                      Text('以此再记一笔 ›',
+                          key: const ValueKey('agentAuditReproposeHint'),
+                          style: TextStyle(
+                              color: t.accent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// F72 记行点击(spec FR-4):关对话框 → note(summary 原样)上抛 ——
+  /// 注入缝优先,缺省 getIt inbox 总线(guarded);由 [AssistantOverlayHost]
+  /// 订阅转发 `ProposeFromHistoryRequested` 并打开助手浮层(新键预填
+  /// 确认卡,经正常确认门 —— 本对话框自身零写路径)。
+  void _reproposeFrom(BuildContext context, db.AgentAudit row) {
+    final note = row.summary;
+    Navigator.of(context).pop();
+    final injected = widget.onReproposeNote;
+    if (injected != null) {
+      injected(note);
+      return;
+    }
+    if (getIt.isRegistered<AssistantReproposeInbox>()) {
+      getIt<AssistantReproposeInbox>().request(note);
+    }
   }
 
   /// 复制摘要(spec FR-3,design ADR-5):行 summary 原样入剪贴板 +
@@ -682,6 +728,47 @@ class _AuditChip extends StatelessWidget {
       child: Text(label,
           style: TextStyle(
               color: color, fontSize: 11.5, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// F72 记行可点壳(v22「hover 背景轻亮 + 以此再记一笔」):[enabled] 时
+/// 点击手势 + hover surfaceAlt 底 + 右缘提示文字 accent 色;改/删行
+/// ([enabled]=false)纯透传零手势零 hover —— 只读态视觉区分。
+class _ReproposableRow extends StatefulWidget {
+  const _ReproposableRow({required this.enabled, this.onTap, required this.child});
+
+  /// 是否可点(仅 tool=transaction_add 行)。
+  final bool enabled;
+
+  /// 点击回调(enabled=false 时恒 null)。
+  final VoidCallback? onTap;
+
+  final Widget child;
+
+  @override
+  State<_ReproposableRow> createState() => _ReproposableRowState();
+}
+
+class _ReproposableRowState extends State<_ReproposableRow> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+    final t = context.yucai;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: ColoredBox(
+          color: _hover ? t.surfaceAlt : Colors.transparent,
+          child: widget.child,
+        ),
+      ),
     );
   }
 }

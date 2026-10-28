@@ -32,6 +32,9 @@ import 'package:yucai_client/assistant/domain/engine_state.dart';
 import 'package:yucai_client/assistant/domain/model_manager_port.dart';
 import 'package:yucai_client/assistant/domain/model_state.dart';
 import 'package:yucai_client/assistant/presentation/widgets/agent_audit_dialog.dart';
+import 'package:yucai_client/assistant/presentation/assistant_panel/assistant_panel_bloc.dart'
+    show AssistantReproposeInbox;
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/assistant/presentation/widgets/model_management_card.dart';
 import 'package:yucai_client/core/localdb/app_database.dart' as db;
 
@@ -660,6 +663,62 @@ void main() {
       // 恰 4 位 / 更短 → 尾段无辨识意义,全掩码。
       expect(AgentAuditDialog.keyNote('8f42'), '键 ****');
       expect(AgentAuditDialog.keyNote('ab'), '键 ****');
+    });
+  });
+
+  group('F72-T2 以此再记一笔(记行可点 / 改删只读)', () {
+    testWidgets('记行 onTap:关对话框 + note 原样上抛(getIt inbox 总线)',
+        (tester) async {
+      final d = _newDb();
+      await _seedV21Rows(d); // 顶行 = add「已记:支出 ¥35.00 午饭」(27 14:32)
+      final inbox = AssistantReproposeInbox();
+      getIt.registerSingleton<AssistantReproposeInbox>(inbox);
+      addTearDown(getIt.reset);
+      await tester.pumpWidget(_cardHost(d));
+      await tester.tap(find.byKey(const ValueKey('agentAuditEntryRow')));
+      await tester.pumpAndSettle();
+      expect(find.text('AI 助手 · 操作记录'), findsOneWidget);
+      // 右缘提示挂记一笔行(v21 种子 4 笔 add;ListView 懒建 —— 视口内
+      // 至少顶行午饭可见即可)。
+      expect(find.text('以此再记一笔 ›'), findsWidgets);
+
+      await tester.tap(find.text('以此再记一笔 ›').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('AI 助手 · 操作记录'), findsNothing,
+          reason: 'spec FR-4:点击后关闭对话框');
+      expect(inbox.pending, '已记:支出 ¥35.00 午饭',
+          reason: 'note = 审计行 summary 原样(人话单源串)');
+      await _pumpDownTree(tester);
+    });
+
+    testWidgets('改/删行只读:点击零上抛零关闭;提示仅记行(视觉区分)',
+        (tester) async {
+      final d = _newDb();
+      // 三行同日短种子(全在视口内,免懒建滚动耦合):记/改/删各一。
+      await _seed(d, 27, 10, 0, 'transaction_add', '已记:支出 ¥35.00 午饭');
+      await _seed(d, 27, 11, 0, 'transaction_update', '已改:美团买菜 ¥64.00');
+      await _seed(d, 27, 12, 0, 'transaction_delete', '已删:旧手机壳 ¥15.00');
+      final inbox = AssistantReproposeInbox();
+      getIt.registerSingleton<AssistantReproposeInbox>(inbox);
+      addTearDown(getIt.reset);
+      await tester.pumpWidget(_cardHost(d));
+      await tester.tap(find.byKey(const ValueKey('agentAuditEntryRow')));
+      await tester.pumpAndSettle();
+
+      // 改行(update)/删行(delete)点击:无事件无关闭(行无手势壳,
+      // 点击落在只读文本上)。
+      await tester.tap(find.text('已改:美团买菜 ¥64.00'));
+      await tester.pump();
+      await tester.tap(find.text('已删:旧手机壳 ¥15.00'));
+      await tester.pump();
+
+      expect(find.text('AI 助手 · 操作记录'), findsOneWidget,
+          reason: '改/删行点击不关对话框');
+      expect(inbox.pending, isNull, reason: '零上抛');
+      // 提示只挂记一笔行(spec FR-4 视觉区分;短种子恰 1 笔 add)。
+      expect(find.text('以此再记一笔 ›'), findsOneWidget);
+      await _pumpDownTree(tester);
     });
   });
 

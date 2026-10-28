@@ -29,11 +29,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/assistant/data/assistant_settings_store.dart';
+import 'package:yucai_client/assistant/data/tools/transaction_add_tool.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/engine_port.dart';
 import 'package:yucai_client/assistant/domain/model_manager_port.dart';
 import 'package:yucai_client/assistant/domain/model_state.dart';
+import 'package:yucai_client/assistant/domain/tool_registry.dart';
 import 'package:yucai_client/assistant/domain/write_executor.dart';
 import 'package:yucai_client/assistant/presentation/assistant_panel/assistant_panel_bloc.dart';
 import 'package:yucai_client/assistant/presentation/widgets/write_approval_card.dart';
@@ -95,6 +98,9 @@ class AssistantOverlayHost extends StatefulWidget {
     this.modelManager,
     this.engineManager,
     this.writeExecutor,
+    this.addTool,
+    this.accounts,
+    this.reproposeInbox,
     this.frameInterval,
   });
 
@@ -113,6 +119,16 @@ class AssistantOverlayHost extends StatefulWidget {
   /// F70 写执行器缝(确认门唯一落库通道;缺省 guarded getIt,测试 fake)。
   final WriteExecutor? writeExecutor;
 
+  /// F72「以此再记一笔」提案工具缝(缺省从 getIt 工具注册表取名;测试注入)。
+  final TransactionAddTool? addTool;
+
+  /// F72「以此再记一笔」默认推导账户池缝(缺省 guarded getIt;测试注入)。
+  final AccountRepository? accounts;
+
+  /// F72 再记注入总线(缺省 guarded getIt;测试注入 —— 订阅即「对话框
+  /// 上抛 → 开浮层 + 发 bloc 事件」接线)。
+  final AssistantReproposeInbox? reproposeInbox;
+
   /// TextDelta 合帧窗口(bloc 缺省 30ms;测试注入 Duration.zero)。
   final Duration? frameInterval;
 
@@ -125,6 +141,7 @@ class _AssistantOverlayHostState extends State<AssistantOverlayHost> {
   ModelManagerPort? _modelManager;
   EngineManager? _engineManager;
   bool _open = false;
+  AssistantReproposeInbox? _reproposeInbox;
 
   @override
   void initState() {
@@ -149,6 +166,21 @@ class _AssistantOverlayHostState extends State<AssistantOverlayHost> {
         (getIt.isRegistered<WriteExecutor>()
             ? getIt<WriteExecutor>()
             : null);
+    // F72 再记缝:工具从 getIt 注册表按名取(注册表是工具实例唯一
+    // getIt 面;账户池与工具同源 repo)—— 任一缺失仅特性惰性,不挡装配。
+    final addTool = widget.addTool ??
+        (getIt.isRegistered<AssistantToolRegistry>()
+            ? getIt<AssistantToolRegistry>().findByName('transaction_add')
+                as TransactionAddTool?
+            : null);
+    final accounts = widget.accounts ??
+        (getIt.isRegistered<AccountRepository>()
+            ? getIt<AccountRepository>()
+            : null);
+    _reproposeInbox = widget.reproposeInbox ??
+        (getIt.isRegistered<AssistantReproposeInbox>()
+            ? getIt<AssistantReproposeInbox>()
+            : null);
     if (loop != null &&
         settings != null &&
         _modelManager != null &&
@@ -160,16 +192,37 @@ class _AssistantOverlayHostState extends State<AssistantOverlayHost> {
         modelState: _modelManager!.state,
         engineState: _engineManager!.state,
         writeExecutor: writeExecutor,
+        addTool: addTool,
+        accounts: accounts,
         frameInterval:
             widget.frameInterval ?? const Duration(milliseconds: 30),
       );
+      // F72 ADR-4:审计对话框记行点击 → inbox 上抛 → host 转发 bloc 事件
+      // 并打开浮层(「若未开则 host 打开」;开后照 FAB 路径预热)。
+      _reproposeInbox?.addListener(_onReproposeRequested);
     }
   }
 
   @override
   void dispose() {
+    _reproposeInbox?.removeListener(_onReproposeRequested);
     _bloc?.close();
     super.dispose();
+  }
+
+  /// inbox 转发:取走待处理 note → 发 [ProposeFromHistoryRequested] +
+  /// 打开浮层(已开仅追加;bloc 缺席(装配不全)时请求被丢弃 —— 与
+  /// shrink 不炸的 guarded 家法一致)。
+  void _onReproposeRequested() {
+    final bloc = _bloc;
+    if (bloc == null || !mounted) return;
+    final note = _reproposeInbox?.consume();
+    if (note == null) return;
+    bloc.add(ProposeFromHistoryRequested(note));
+    if (!_open) {
+      setState(() => _open = true);
+      unawaited(_engineManager!.ensureReady());
+    }
   }
 
   void _toggle() {

@@ -1,7 +1,13 @@
 import 'package:bloc_test/bloc_test.dart';
+import 'package:dartz/dartz.dart' as dz;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/assistant/data/tools/transaction_add_tool.dart';
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
 import 'package:yucai_client/assistant/domain/assistant_tool.dart' show ToolGuideHint;
@@ -610,6 +616,167 @@ void main() {
     expect(bloc.state.messages, before.messages, reason: '无卡时零变化');
     await bloc.close();
   });
+
+  // —— F72-T2:以此再记一笔(spec FR-4,design ADR-3/ADR-4;NFR-1)——
+  // 真工具(TransactionAddTool)+ mock 账户仓储:note → 三要素 → 默认推导
+  // 取名 → execute 全套消歧 → pending 确认卡(新 uuid 键);解析 null /
+  // ToolError → ErrorMsg 文案。写通道唯一性:提案零 executor 调用。
+  group('ProposeFromHistoryRequested(以此再记一笔)', () {
+    Account makeAcc(String id, String name, AccountType type) => Account(
+          id: id,
+          name: name,
+          accountType: type,
+          category: AccountCategory.otherAsset,
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          currentBalanceCents: 0,
+          ownership: Ownership.personal,
+          status: AccountStatus.active,
+        );
+
+    /// 全量账户池(与工具/集成测同口径:资产+负债付款户 / 支出+收入科目户)。
+    List<Account> fullPool() => [
+          makeAcc('acc-card', '招行信用卡', AccountType.liability),
+          makeAcc('acc-cash', '现金', AccountType.asset),
+          makeAcc('acc-food', '餐饮', AccountType.expense),
+          makeAcc('acc-transport', '交通', AccountType.expense),
+          makeAcc('acc-bonus', '奖金', AccountType.income),
+          makeAcc('acc-salary', '工资', AccountType.income),
+        ];
+
+    AssistantPanelBloc makeReproposeBloc({
+      required _FakeWriteExecutor executor,
+      List<Account>? pool,
+      DateTime Function()? clock,
+    }) {
+      final repo = _MockAccountRepo();
+      when(() => repo.list())
+          .thenAnswer((_) async => dz.right(pool ?? fullPool()));
+      return AssistantPanelBloc(
+        loop: _FakeLoop(const []),
+        config: ValueNotifier(readyConfig),
+        modelState: ValueNotifier(const ModelReady()),
+        engineState: ValueNotifier(_engineReady()),
+        writeExecutor: executor,
+        frameInterval: Duration.zero,
+        addTool: TransactionAddTool(repo, clock),
+        accounts: repo,
+      );
+    }
+
+    test('note → 三要素 → 默认推导(首资产户+首科目户)→ execute 消歧 → '
+        'pending 卡(新键/解析 id/preview 名称);零 executor 调用', () async {
+      final executor = _FakeWriteExecutor(const []);
+      final bloc = makeReproposeBloc(executor: executor);
+
+      bloc.add(const ProposeFromHistoryRequested('已记:支出 ¥35.00 午饭'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(executor.calls, isEmpty,
+          reason: 'NFR-1:点击/提案本身零落库 —— 写通道仍唯 Confirm/Retry');
+      expect(bloc.state.sendState, PanelSendState.idle,
+          reason: '提案与流式往返独立(照 WriteProposed)');
+      final pending =
+          bloc.state.messages.whereType<WriteApprovalMsg>().toList();
+      expect(pending, hasLength(1));
+      final card = pending.single;
+      expect(card.status, WriteApprovalStatus.pending);
+      final add = card.action as TransactionAdd;
+      expect(add.direction, WriteDirection.outflow);
+      expect(add.amountCents, 3500);
+      expect(add.description, '午饭');
+      expect(add.accountId, 'acc-cash',
+          reason: '默认资产账户 = 首个可见资产户(负债户在前也让位)');
+      expect(add.categoryId, 'acc-food',
+          reason: '描述→分类默认推导 = 方向匹配科目池首个');
+      expect(card.idempotencyKey, isNotEmpty);
+      expect(card.idempotencyKey, isNot(equals('key-orig')),
+          reason: '新键:与原确认实例键无关');
+      expect(card.preview['account'], '现金');
+      expect(card.preview['category'], '餐饮');
+      expect(card.preview['amountYuan'], '35.00');
+      await bloc.close();
+    });
+
+    test('两次提案:旧 pending 卡 superseded,新卡新键(同刻单卡)', () async {
+      final executor = _FakeWriteExecutor(const []);
+      final bloc = makeReproposeBloc(executor: executor);
+
+      bloc.add(const ProposeFromHistoryRequested('已记:支出 ¥35.00 午饭'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      bloc.add(const ProposeFromHistoryRequested('已记:收入 ¥88.00 红包'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final cards = bloc.state.messages.whereType<WriteApprovalMsg>().toList();
+      expect(cards, hasLength(2));
+      expect(cards.first.status, WriteApprovalStatus.superseded);
+      expect(cards.last.status, WriteApprovalStatus.pending);
+      expect(cards.last.idempotencyKey, isNot(equals(cards.first.idempotencyKey)),
+          reason: '每次提案独立新 uuid 键');
+      expect((cards.last.action as TransactionAdd).direction,
+          WriteDirection.inflow);
+      await bloc.close();
+    });
+
+    test('解析 null(改族/垃圾串)→ ErrorMsg 文案,零卡', () async {
+      final executor = _FakeWriteExecutor(const []);
+      final bloc = makeReproposeBloc(executor: executor);
+
+      bloc.add(const ProposeFromHistoryRequested('已改:美团买菜 ¥40.00'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(bloc.state.messages.whereType<WriteApprovalMsg>(), isEmpty);
+      expect(
+        bloc.state.messages,
+        contains(const ErrorMsg('无法从该记录生成提案', retryable: false)),
+      );
+      expect(executor.calls, isEmpty);
+      await bloc.close();
+    });
+
+    test('ToolError 照常可出(支出科目池空)→ ErrorMsg 文案', () async {
+      final executor = _FakeWriteExecutor(const []);
+      // 池只有资产户 + 收入科目:支出方向无分类 → 工具规范 ToolError
+      // ('category is required ... no expense category account exists')。
+      final bloc = makeReproposeBloc(executor: executor, pool: [
+        makeAcc('acc-cash', '现金', AccountType.asset),
+        makeAcc('acc-salary', '工资', AccountType.income),
+      ]);
+
+      bloc.add(const ProposeFromHistoryRequested('已记:支出 ¥35.00 午饭'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(bloc.state.messages.whereType<WriteApprovalMsg>(), isEmpty);
+      expect(
+        bloc.state.messages,
+        contains(const ErrorMsg('无法从该记录生成提案', retryable: false)),
+        reason: '工具 ToolError → 统一用户态文案(不泄工具英文串)',
+      );
+      expect(executor.calls, isEmpty);
+      await bloc.close();
+    });
+
+    test('缝缺失(旧装配无 addTool/accounts)→ ErrorMsg,既有装配零扰动',
+        () async {
+      final bloc = AssistantPanelBloc(
+        loop: _FakeLoop(const []),
+        config: ValueNotifier(readyConfig),
+        modelState: ValueNotifier(const ModelReady()),
+        engineState: ValueNotifier(_engineReady()),
+        writeExecutor: _FakeWriteExecutor(const []),
+        frameInterval: Duration.zero,
+      );
+
+      bloc.add(const ProposeFromHistoryRequested('已记:支出 ¥35.00 午饭'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        bloc.state.messages,
+        contains(const ErrorMsg('无法从该记录生成提案', retryable: false)),
+      );
+      await bloc.close();
+    });
+  });
 }
 
 /// 就绪引擎端点(值仅占位,bloc 只看状态类型)。
@@ -702,3 +869,6 @@ class _FakeLoop implements AgentLoopService {
   @override
   void appendToolOutcome(String note) => appendedOutcomes.add(note);
 }
+
+/// F72-T2:mock 账户仓储(真 TransactionAddTool 消歧面)。
+class _MockAccountRepo extends Mock implements AccountRepository {}

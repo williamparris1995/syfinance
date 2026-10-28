@@ -30,10 +30,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:yucai_client/account/domain/account_visibility.dart';
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/assistant/data/note_parser.dart';
+import 'package:yucai_client/assistant/data/tools/tool_args.dart' show yuan;
+import 'package:yucai_client/assistant/data/tools/transaction_add_tool.dart';
+import 'package:yucai_client/assistant/data/tools/write_tool_support.dart'
+    show writeActionFromJson;
 import 'package:yucai_client/assistant/domain/agent_loop.dart';
 import 'package:yucai_client/assistant/domain/assistant_settings.dart';
 import 'package:yucai_client/assistant/domain/assistant_tool.dart'
-    show ToolGuideHint;
+    show ToolData, ToolGuideHint;
 import 'package:yucai_client/assistant/domain/engine_state.dart';
 import 'package:yucai_client/assistant/domain/model_state.dart';
 import 'package:yucai_client/assistant/domain/write_action.dart';
@@ -113,6 +122,22 @@ class DismissGuidanceClicked extends AssistantPanelEvent {
 
   @override
   List<Object?> get props => [];
+}
+
+/// F72-T2「以此再记一笔」(spec FR-4,design ADR-3/ADR-4):审计记行
+/// 点击上抛的 note 串(「已记:支出 ¥35.00 午饭」)→ 解析三要素 → 经
+/// transaction_add 工具 execute 全套(默认推导取名 + 名称→id 消歧,
+/// ToolError 照常可出)→ pending 确认卡(**新 uuid 键**,NFR-1 零例外
+/// —— 实际落库仍唯 ConfirmWrite 通道)。解析 null / 工具失败 →
+/// [ErrorMsg]「无法从该记录生成提案」。
+class ProposeFromHistoryRequested extends AssistantPanelEvent {
+  const ProposeFromHistoryRequested(this.note);
+
+  /// 审计行 summary(= executor 人话 note 单源串)。
+  final String note;
+
+  @override
+  List<Object?> get props => [note];
 }
 
 /// 内部事件:loop 流 TextDelta 到达(仅入合帧缓冲)。
@@ -414,13 +439,16 @@ class AssistantPanelBloc
   /// 三个状态 ValueListenable(发送时实时取值 —— 设置卡改动即刻生效);
   /// [writeExecutor] 写执行器(F70 确认门唯一落库通道 —— 仅 Confirm/
   /// Retry 事件触达,代码门);[frameInterval] TextDelta 合帧窗口(默认
-  /// 30ms,测试注入 [Duration.zero] 关离合帧)。
+  /// 30ms,测试注入 [Duration.zero] 关离合帧);[addTool]/[accounts]
+  /// F72「以此再记一笔」缝(可选 —— 缺省 null 特性惰性,既有装配零扰动)。
   AssistantPanelBloc({
     required this._loop,
     required this._config,
     required this._modelState,
     required this._engineState,
     required this._writeExecutor,
+    this._addTool,
+    this._accounts,
     this.frameInterval = const Duration(milliseconds: 30),
   }) : super(const AssistantPanelState()) {
     on<SendRequested>(_onSendRequested);
@@ -430,6 +458,7 @@ class AssistantPanelBloc
     on<CancelWriteRequested>(_onCancelWriteRequested);
     on<RetryWriteRequested>(_onRetryWriteRequested);
     on<DismissGuidanceClicked>(_onDismissGuidanceClicked);
+    on<ProposeFromHistoryRequested>(_onProposeFromHistoryRequested);
     on<_LoopTextDelta>(_onLoopTextDelta);
     on<_FlushFrame>(_onFlushFrame);
     on<_LoopToolCallStart>(_onLoopToolCallStart);
@@ -448,6 +477,13 @@ class AssistantPanelBloc
 
   /// F70 写执行器缝(既有注入面扩一;绕过负测钉死其为唯一写通道)。
   final WriteExecutor _writeExecutor;
+
+  /// F72「以此再记一笔」:提案工具(execute 全套解析/消歧复用;缺省
+  /// null = 特性惰性 —— [ProposeFromHistoryRequested] 直落 ErrorMsg)。
+  final TransactionAddTool? _addTool;
+
+  /// F72「以此再记一笔」:默认推导取名所需的账户池(与工具同源 repo)。
+  final AccountRepository? _accounts;
 
   /// TextDelta 合帧窗口(design Risk:30ms 高频渲染防卡顿)。
   final Duration frameInterval;
@@ -579,6 +615,16 @@ class AssistantPanelBloc
   void _onLoopWriteProposed(
     _LoopWriteProposed event,
     Emitter<AssistantPanelState> emit,
+  ) =>
+      _insertPendingCard(event.proposal.action, event.proposal.preview, emit);
+
+  /// pending 确认卡插入公共体(F70 loop 提案 / F72 历史再记提案共用):
+  /// 冲刷合帧缓冲 → 既有 pending 卡 superseded(同刻单卡)→ 追加新卡
+  /// (**新生 uuid 幂等键**,ADR-3 / F72「新键」断言点)。
+  void _insertPendingCard(
+    WriteAction action,
+    Map<String, Object> preview,
+    Emitter<AssistantPanelState> emit,
   ) {
     final messages = _drainFrame(state.messages);
     for (var i = 0; i < messages.length; i++) {
@@ -590,11 +636,87 @@ class AssistantPanelBloc
     }
     messages.add(WriteApprovalMsg(
       idempotencyKey: const Uuid().v4(),
-      action: event.proposal.action,
-      preview: event.proposal.preview,
+      action: action,
+      preview: preview,
       status: WriteApprovalStatus.pending,
     ));
     emit(state.copyWith(messages: messages));
+  }
+
+  // —— F72-T2「以此再记一笔」(spec FR-4,design ADR-3/ADR-4)——
+
+  /// 统一用户态失败文案(解析 null / 账户池读取失败 / 工具 ToolError
+  /// 共用;不透传工具英文串 —— 此路径无 LLM 自纠回路,ToolError 即终态)。
+  static const _reproposeFailedText = '无法从该记录生成提案';
+
+  /// note → 三要素([AddActionFromNote.parse])→ 默认推导取名(ADR-3:
+  /// 账户/分类不从 note 猜 —— 串中无)→ [TransactionAddTool.execute]
+  /// 全套(日期缺省今天/金额元转 cents/名称→id 消歧,ToolError 照常可
+  /// 出)→ pending 确认卡(**新键**,经正常确认门;本 handler 零
+  /// executor 调用 —— NFR-1 点击本身零落库)。
+  Future<void> _onProposeFromHistoryRequested(
+    ProposeFromHistoryRequested event,
+    Emitter<AssistantPanelState> emit,
+  ) async {
+    void fail() => emit(state.copyWith(
+          messages: [
+            ..._drainFrame(state.messages),
+            const ErrorMsg(_reproposeFailedText, retryable: false),
+          ],
+        ));
+
+    final draft = AddActionFromNote.parse(event.note);
+    if (draft == null || _addTool == null || _accounts == null) return fail();
+
+    // 默认推导(ADR-3「描述→分类/默认资产账户」的确定性形态):账户 =
+    // 首个可见**资产**付款户(无资产户才落首个负债户),分类 = 方向匹配
+    // 科目池首个 —— 推导差异由确认卡如实呈现,确认门兜底(design Risk
+    // 钉定);池空 → 不传名,由工具出规范 ToolError(照常可出)。
+    final listed = await _accounts.list();
+    final accounts = listed.fold((l) => null, (r) => r);
+    if (accounts == null) return fail();
+    final visible = AccountVisibility.userVisible(accounts);
+    final paymentPool = visible
+        .where((a) =>
+            a.accountType == AccountType.asset ||
+            a.accountType == AccountType.liability)
+        .toList();
+    final categoryPool = visible
+        .where((a) => draft.direction == WriteDirection.outflow
+            ? a.accountType == AccountType.expense
+            : a.accountType == AccountType.income)
+        .toList();
+    Account? account;
+    for (final a in paymentPool) {
+      if (a.accountType == AccountType.asset) {
+        account = a;
+        break;
+      }
+    }
+    account ??= paymentPool.isEmpty ? null : paymentPool.first;
+
+    final result = await _addTool.execute({
+      'direction': draft.direction.wire,
+      'amount': yuan(draft.amountCents), // 工具自源格式(千分位串)→ 精确回转 cents
+      'description': draft.description,
+      if (account != null) 'account': account.name,
+      if (categoryPool.isNotEmpty) 'category': categoryPool.first.name,
+    });
+    if (result is! ToolData) return fail(); // ToolError → 统一文案
+
+    // ToolData → WriteApproval(镜像 loop _writeProposalOf 形状;解析
+    // 失败(requiresApproval/action 缺失)同落统一文案 —— 零卡零写)。
+    if (result.json['requiresApproval'] != true) return fail();
+    final actionJson = result.json['action'];
+    if (actionJson is! Map) return fail();
+    final action =
+        writeActionFromJson(Map<String, Object>.from(actionJson));
+    if (action == null) return fail();
+    final rawPreview = result.json['preview'];
+    final preview = rawPreview is Map
+        ? Map<String, Object>.from(rawPreview)
+        : const <String, Object>{};
+    _insertPendingCard(action, preview, emit);
   }
 
   /// 确认 pending 卡 → 执行(唯一写路径;守卫:查无此卡/非 pending = 零执行)。
@@ -878,5 +1000,35 @@ class AssistantPanelBloc
   Future<void> close() {
     _teardownStream();
     return super.close();
+  }
+}
+
+/// F72-T2「以此再记一笔」注入总线(design ADR-4;getIt 懒单例)。
+///
+/// 接线选型实录:bloc **非 getIt 注册** —— 生命周期由
+/// [AssistantOverlayHost] 内建持有(浮层开合不销毁),对话框(设置卡
+/// showDialog 弹出)经回调上抛至 host 的链路在现有装配下不可达(设置卡
+/// 不持有 host 引用,对话框路由上下文亦寻不到 host state)。故取 ADR-4
+/// 的 event-bus 分支:对话框直接 `getIt<AssistantReproposeInbox>.request`
+/// 上抛 note → host 订阅转发 `bloc.add(ProposeFromHistoryRequested)` 并
+/// 打开浮层(「若未开则 host 打开」)。last-wins(低频面;未消费请求
+/// 被下一次覆盖),消费即清 —— host 每次通知取走全部。
+class AssistantReproposeInbox extends ChangeNotifier {
+  String? _pending;
+
+  /// 待消费 note;无待消费 = null。
+  String? get pending => _pending;
+
+  /// 对话框记行点击上抛(串 = 审计行 summary 原样)。
+  void request(String note) {
+    _pending = note;
+    notifyListeners();
+  }
+
+  /// host 消费:取走待处理 note 并清空(无则 null)。
+  String? consume() {
+    final note = _pending;
+    _pending = null;
+    return note;
   }
 }
