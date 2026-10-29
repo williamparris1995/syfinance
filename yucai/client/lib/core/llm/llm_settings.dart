@@ -6,6 +6,9 @@
 ///
 /// 隐私红线(FR-5):[LlmConfig.apiKey] 只经 secure storage 落盘,任何
 /// 日志/错误消息不得携带 Key 或完整 payload。
+///
+/// 串行写:Windows secure-storage 全文件读改写,并行 write 竞态丢键
+/// (DPAPI 解密实证 2026-10-29;历史 llm.base_url 缺失同案)。
 library;
 
 import 'package:flutter/foundation.dart';
@@ -160,19 +163,21 @@ class LlmSettings {
   }
 
   /// 全量持久化并立即应用新配置。
+  ///
+  /// 必须串行 await:Windows flutter_secure_storage 后端为全文件读改写,
+  /// 并行 write(Future.wait)互相挤键 —— 历史 llm.base_url 随批丢失实证
+  /// (见 library 头注;AssistantSettings setConfig 同修 2026-10-29)。
   Future<void> setConfig(LlmConfig config) async {
-    await Future.wait([
-      _storage.write(key: _keyEnabled, value: _encodeBool(config.enabled)),
-      _storage.write(key: _keyProvider, value: config.provider.name),
-      _storage.write(key: _keyBaseUrl, value: config.baseUrl),
-      _storage.write(key: _keyApiKey, value: config.apiKey),
-      _storage.write(key: _keyModel, value: config.model),
-      _storage.write(key: _keyTier, value: config.cityTier.name),
-      _storage.write(
-          key: _keyIncludeNames, value: _encodeBool(config.includeNames)),
-      _storage.write(
-          key: _keyDisclaimerAck, value: _encodeBool(config.disclaimerAck)),
-    ]);
+    await _storage.write(key: _keyEnabled, value: _encodeBool(config.enabled));
+    await _storage.write(key: _keyProvider, value: config.provider.name);
+    await _storage.write(key: _keyBaseUrl, value: config.baseUrl);
+    await _storage.write(key: _keyApiKey, value: config.apiKey);
+    await _storage.write(key: _keyModel, value: config.model);
+    await _storage.write(key: _keyTier, value: config.cityTier.name);
+    await _storage.write(
+        key: _keyIncludeNames, value: _encodeBool(config.includeNames));
+    await _storage.write(
+        key: _keyDisclaimerAck, value: _encodeBool(config.disclaimerAck));
     _notifier.value = config;
   }
 

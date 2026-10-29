@@ -11,6 +11,9 @@
 /// 回落缺省(fail-safe 关闭态)。独立 `assistant.*` namespace 与 F46 的
 /// `llm.*` keys 并存互不影响(F46 LlmSettings 零改动);[AssistantConfig]
 /// 不再含任何密钥字段。
+///
+/// 串行写:Windows secure-storage 全文件读改写,并行 write 竞态丢键
+/// (DPAPI 解密实证 2026-10-29)。
 library;
 
 import 'package:flutter/foundation.dart';
@@ -60,11 +63,13 @@ class AssistantSettings {
   }
 
   /// 全量持久化并立即应用新配置(只写两键,退役键不再触碰)。
+  ///
+  /// 必须串行 await:Windows flutter_secure_storage 后端为全文件读改写,
+  /// 并行 write(Future.wait)互相挤键 —— 实证 assistant.enabled 随批
+  /// 丢失而 assistant.model 幸存(见 library 头注)。
   Future<void> setConfig(AssistantConfig config) async {
-    await Future.wait([
-      _storage.write(key: _keyEnabled, value: _encodeBool(config.enabled)),
-      _storage.write(key: _keyModel, value: config.model),
-    ]);
+    await _storage.write(key: _keyEnabled, value: _encodeBool(config.enabled));
+    await _storage.write(key: _keyModel, value: config.model);
     _notifier.value = config;
   }
 

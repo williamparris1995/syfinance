@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -155,6 +157,36 @@ void main() {
 
       expect(settings.value, next);
       expect(fired, [next]);
+    });
+
+    test('setConfig serializes writes — no second key until llm.enabled '
+        'write completes (Windows full-file read-modify-write '
+        'parallel-write regression, 2026-10-29;同修 AssistantSettings)',
+        () async {
+      var otherWrites = 0;
+      when(
+        () => backend.write(
+          key: any(named: 'key'),
+          value: any(named: 'value'),
+        ),
+      ).thenAnswer((_) async {
+        otherWrites++;
+      });
+      final enabledGate = Completer<void>();
+      // 后注册的同参桩优先:llm.enabled 走门闩,其余 7 键计数。
+      when(() => backend.write(key: 'llm.enabled', value: 'true'))
+          .thenAnswer((_) => enabledGate.future);
+
+      final pending = settings.setConfig(const LlmConfig(enabled: true));
+      // 让事件循环转一圈:旧 Future.wait 形态下其余 7 键会立即被调。
+      await Future<void>.delayed(Duration.zero);
+      expect(otherWrites, 0, reason: 'llm.enabled 写完成前不得碰其余键');
+
+      enabledGate.complete();
+      await pending;
+
+      // 门闩放行后其余 7 键各落盘一次(base_url 不再随批丢失)。
+      expect(otherWrites, 7);
     });
   });
 

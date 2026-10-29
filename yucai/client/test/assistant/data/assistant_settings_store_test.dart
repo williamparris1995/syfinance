@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -113,6 +115,33 @@ void main() {
       expect(fresh.value.enabled, isTrue);
       expect(fresh.value.model, 'alt-model-id');
       expect(fresh.value.ready, isTrue);
+    });
+
+    test('serializes writes — model key untouched until enabled write '
+        'completes (Windows full-file read-modify-write parallel-write '
+        'regression, 2026-10-29)', () async {
+      final enabledGate = Completer<void>();
+      var modelWrites = 0;
+      when(() => backend.write(key: 'assistant.enabled', value: 'true'))
+          .thenAnswer((_) => enabledGate.future);
+      when(() => backend.write(
+              key: 'assistant.model', value: any(named: 'value')))
+          .thenAnswer((_) async {
+        modelWrites++;
+      });
+
+      final pending = settings.setConfig(const AssistantConfig(enabled: true));
+      // 让事件循环转一圈:旧 Future.wait 形态下 model 键会立即被调。
+      await Future<void>.delayed(Duration.zero);
+      expect(modelWrites, 0, reason: 'enabled 键写完成前不得碰 model 键');
+
+      enabledGate.complete();
+      await pending;
+
+      // 门闩放行后两键都落盘(enabled 不再随批丢失)。
+      expect(modelWrites, 1);
+      verify(() => backend.write(key: 'assistant.enabled', value: 'true'))
+          .called(1);
     });
   });
 
