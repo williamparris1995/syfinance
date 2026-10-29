@@ -28,17 +28,23 @@ import 'tools/write_tool_support.dart';
 class AgentLoopServiceImpl implements AgentLoopService {
   /// 构造注入:流客户端 port + 工具注册表 + 审计日志 + 配置取值缝
   /// (照 T4 同款;T6 接线绑 AssistantSettings.value,单测传闭包)。
+  /// 可选第 5 参时钟缝:日期行取「现在」用(缺省 [DateTime.now],照
+  /// DebtsListTool 注入先例;测试钉跨午夜刷新)。
   AgentLoopServiceImpl(
     this._llm,
     this._registry,
     this._audit,
-    this._config,
-  );
+    this._config, [
+    this._clock,
+  ]);
 
   final LlmStreamClient _llm;
   final AssistantToolRegistry _registry;
   final AssistantAuditLog _audit;
   final AssistantConfig Function() _config;
+
+  /// 日期行时钟(测试注入;缺省当前时刻)。
+  final DateTime Function()? _clock;
 
   /// 连续整轮工具全败上限(FR-3 自纠轮数上限;达 3 → 失败终态)。
   static const int maxConsecutiveToolFailures = 3;
@@ -90,11 +96,34 @@ class AgentLoopServiceImpl implements AgentLoopService {
     'content': systemPrompt,
   };
 
+  /// 星期中文短名([DateTime.weekday] 1..7 → 一..日)。
+  static const List<String> _weekdayNames = [
+    '一',
+    '二',
+    '三',
+    '四',
+    '五',
+    '六',
+    '日',
+  ];
+
+  /// 日期行内容(热修):「当前日期:…」现实时钟锚点 + 时间词与工具
+  /// 日期/区间参数口径 —— 根治训练截止幻觉(答「今天」给 2024、给
+  /// 工具传错年份参数)。clock 缺省 [DateTime.now]。
+  String _currentDateLine() {
+    final now = _clock?.call() ?? DateTime.now();
+    return '当前日期:${now.year}年${now.month}月${now.day}日'
+        '(星期${_weekdayNames[now.weekday - 1]})。'
+        '所有"今天/昨天/本月/今年"等时间词以此为准;'
+        '调用工具的日期/区间参数必须基于此日期。';
+  }
+
   /// 单会话消息序列(内存态,ADR-5;跨会话持久化不在本票)。
   final List<Map<String, Object>> _messages = [];
 
   /// 清空内存会话(F65「新对话」,FR-4):下次 send 时 `_messages` 为空
-  /// → system prompt 重新队首注入一次(见 send 的插入守卫)。
+  /// → system prompt 重新队首注入一次、日期行同批重插(见 send 的插入
+  /// 守卫)。
   @override
   void resetConversation() => _messages.clear();
 
@@ -117,6 +146,17 @@ class AgentLoopServiceImpl implements AgentLoopService {
     }
     if (_messages.isEmpty || _messages.first['role'] != 'system') {
       _messages.insert(0, _systemMessage);
+    }
+    // 热修:日期行 system 消息 —— 固定槽位 index 1(逐字 system prompt
+    // 之后、当前 user 消息之前)。每轮 send 原地换新(槽位重赋值而非
+    // 追加):长会话始终恰一条日期消息(防膨胀)、跨午夜不陈旧;且换新
+    // map 而非改写旧 map,历史请求快照各携当轮日期不串改。reset 清空
+    // 后下次 send 照常重插(见 [resetConversation])。
+    final dateMessage = {'role': 'system', 'content': _currentDateLine()};
+    if (_messages.length > 1 && _messages[1]['role'] == 'system') {
+      _messages[1] = dateMessage;
+    } else {
+      _messages.insert(1, dateMessage);
     }
     _messages.add({'role': 'user', 'content': userMessage});
 

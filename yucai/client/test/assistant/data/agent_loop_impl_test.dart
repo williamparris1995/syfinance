@@ -20,12 +20,14 @@ void main() {
     _ScriptedLlmClient llm,
     AssistantToolRegistry registry, {
     AssistantConfig Function() config = _readyConfigOf,
+    DateTime Function()? clock,
   }) =>
       AgentLoopServiceImpl(
         llm,
         registry,
         AssistantAuditLog(log: lines.add),
         config,
+        clock,
       );
 
   test('工具往返闭环:文本→tool_call→工具→文本→Done(FR-3)', () async {
@@ -60,12 +62,12 @@ void main() {
     expect(tool.receivedArgs, [
       {'base': 'CNY'},
     ]);
-    // 首轮请求:system+user+registry schema;model 取自配置。
+    // 首轮请求:system(prompt+日期行)+user+registry schema;model 取自配置。
     expect(llm.requests, hasLength(2));
     expect(llm.requests.first.model, 'qwen3:latest');
     expect(
       llm.requests.first.messages.map((m) => m['role']),
-      ['system', 'user'],
+      ['system', 'system', 'user'],
     );
     expect(
       (llm.requests.first.toolsSchema.single['function'] as Map)['name'],
@@ -75,17 +77,17 @@ void main() {
     final second = llm.requests.last.messages;
     expect(
       second.map((m) => m['role']),
-      ['system', 'user', 'assistant', 'tool'],
+      ['system', 'system', 'user', 'assistant', 'tool'],
     );
-    final call = (second[2]['tool_calls'] as List).single as Map;
+    final call = (second[3]['tool_calls'] as List).single as Map;
     expect(call['id'], 'call_001');
     expect((call['function'] as Map)['name'], 'networth_snapshot');
     expect((call['function'] as Map)['arguments'], '{"base":"CNY"}');
-    expect(second[2]['content'], '正在查询净资产。');
+    expect(second[3]['content'], '正在查询净资产。');
     // tool 结果按 role=tool 回填,content 含 <tool_data> 定界。
-    expect(second[3]['tool_call_id'], 'call_001');
+    expect(second[4]['tool_call_id'], 'call_001');
     expect(
-      second[3]['content'],
+      second[4]['content'],
       '<tool_data>{"netWorthCents":100000,"currency":"CNY"}</tool_data>',
     );
   });
@@ -125,13 +127,13 @@ void main() {
       {'k': 1},
     ]);
     expect(b.receivedArgs, [{}]);
-    final assistant = llm.requests.last.messages[2];
+    final assistant = llm.requests.last.messages[3];
     final calls = assistant['tool_calls'] as List;
     expect(calls, hasLength(2));
     expect((calls[0] as Map)['id'], 'call_a');
     expect((calls[1] as Map)['id'], 'call_b');
-    expect(llm.requests.last.messages[3]['tool_call_id'], 'call_a');
-    expect(llm.requests.last.messages[4]['tool_call_id'], 'call_b');
+    expect(llm.requests.last.messages[4]['tool_call_id'], 'call_a');
+    expect(llm.requests.last.messages[5]['tool_call_id'], 'call_b');
   });
 
   test('错误自纠:ToolError 回传→改参重试成功(FR-3)', () async {
@@ -167,14 +169,14 @@ void main() {
     ]);
     // 自纠错误以 tool role 回传(第二轮 LLM 可见,含 error 载荷)。
     final round2 = llm.requests[1].messages;
-    expect(round2[3]['tool_call_id'], 'call_e1');
-    expect(round2[3]['content'] as String, contains('<tool_data>'));
-    expect(round2[3]['content'] as String, contains('"error"'));
-    expect(round2[3]['content'] as String, contains('invalid argument: page'));
+    expect(round2[4]['tool_call_id'], 'call_e1');
+    expect(round2[4]['content'] as String, contains('<tool_data>'));
+    expect(round2[4]['content'] as String, contains('"error"'));
+    expect(round2[4]['content'] as String, contains('invalid argument: page'));
     // 第三轮历史已含两轮工具往返。
     expect(
       llm.requests[2].messages.map((m) => m['role']),
-      ['system', 'user', 'assistant', 'tool', 'assistant', 'tool'],
+      ['system', 'system', 'user', 'assistant', 'tool', 'assistant', 'tool'],
     );
   });
 
@@ -221,7 +223,7 @@ void main() {
       'done',
     ]);
     // 自纠消息含未知名与可用工具清单。
-    final content = llm.requests[1].messages[3]['content'] as String;
+    final content = llm.requests[1].messages[4]['content'] as String;
     expect(content, contains('no_such_tool'));
     expect(content, contains('demo_query'));
     // 真实工具未被执行。
@@ -340,7 +342,7 @@ void main() {
 
     await loop.send('查').toList();
 
-    final content = llm.requests[1].messages[3]['content'] as String;
+    final content = llm.requests[1].messages[4]['content'] as String;
     expect(content, contains(injection));
     // 定界成对包住整个载荷,定界之外不出现注入文本。
     expect(content.startsWith('<tool_data>'), isTrue);
@@ -440,13 +442,14 @@ void main() {
     expect(tool.receivedArgs, [
       {'start': '2026-01-01', 'end': '2026-10-24'},
     ], reason: '二轮带澄清后的口径调工具');
-    // 二轮请求历史含首轮澄清往返(单会话上下文:system+user+assistant+user)。
+    // 二轮请求历史含首轮澄清往返(单会话上下文:system+日期行+user+
+    // assistant+user)。
     expect(
       llm.requests[1].messages.map((m) => m['role']),
-      ['system', 'user', 'assistant', 'user'],
+      ['system', 'system', 'user', 'assistant', 'user'],
     );
     expect(
-      llm.requests[1].messages[2]['content'],
+      llm.requests[1].messages[3]['content'],
       contains('你指的是'),
       reason: '澄清问句在会话历史中(二轮 LLM 可见)',
     );
@@ -467,11 +470,12 @@ void main() {
     expect(llm.requests, hasLength(2));
     expect(
       llm.requests.last.messages.map((m) => m['role']),
-      ['system', 'user', 'assistant', 'user'],
+      ['system', 'system', 'user', 'assistant', 'user'],
     );
     expect(
       llm.requests.last.messages.where((m) => m['role'] == 'system'),
-      hasLength(1),
+      hasLength(2),
+      reason: '逐字 prompt + 日期行各一条,无第三条 system',
     );
   });
 
@@ -489,11 +493,11 @@ void main() {
     loop.resetConversation();
     await loop.send('新问').toList();
 
-    // 两轮各一次请求;reset 后无残留历史(回到 system+user 两消息)。
+    // 两轮各一次请求;reset 后无残留历史(回到 system+日期行+user)。
     expect(llm.requests, hasLength(2));
     expect(
       llm.requests.last.messages.map((m) => m['role']),
-      ['system', 'user'],
+      ['system', 'system', 'user'],
     );
     // system prompt 重新队首注入一次,内容与常量同一实例。
     expect(llm.requests.last.messages.first['role'], 'system');
@@ -504,7 +508,7 @@ void main() {
     );
     expect(
       llm.requests.last.messages.where((m) => m['role'] == 'system'),
-      hasLength(1),
+      hasLength(2),
     );
   });
 
@@ -528,10 +532,11 @@ void main() {
 
       await loop.send('刚才记了多少?').toList();
 
-      // 第二次请求历史 = system + user + assistant + tool(note) + user。
+      // 第二次请求历史 = system + 日期行 + user + assistant + tool(note) + user。
       final roles = llm.requests.last.messages.map((m) => m['role']).toList();
-      expect(roles, ['system', 'user', 'assistant', 'tool', 'user']);
-      final injected = llm.requests.last.messages[3];
+      expect(
+          roles, ['system', 'system', 'user', 'assistant', 'tool', 'user']);
+      final injected = llm.requests.last.messages[4];
       expect(injected['content'], note);
       expect((injected['content'] as String).contains('\n'), isFalse,
           reason: '紧凑单行(上下文膨胀防线)');
@@ -572,7 +577,7 @@ void main() {
 
       expect(
         llm.requests.last.messages.map((m) => m['role']),
-        ['system', 'user'],
+        ['system', 'system', 'user'],
         reason: 'reset 后无残留 tool 注入消息',
       );
     });
@@ -633,7 +638,7 @@ void main() {
       expect(action.date, DateTime(2026, 10, 27));
       expect(proposed.preview['account'], '现金');
       // ToolData 照常回填 LLM(轮次正常收口,LLM 可见待确认提案)。
-      final toolMessage = llm.requests[1].messages[3];
+      final toolMessage = llm.requests[1].messages[4];
       expect(toolMessage['content'] as String, contains('requiresApproval'));
     });
 
@@ -739,7 +744,7 @@ void main() {
       expect(guidance.amountYuan, '12.00',
           reason: 'guideAmountYuan 原样透传(V4 参数行数据面)');
       // 错误本身照常回填 LLM(自纠/澄清话术 —— 与引导卡并存,v20 V4)。
-      final toolMessage = llm.requests[1].messages[3];
+      final toolMessage = llm.requests[1].messages[4];
       expect(toolMessage['content'] as String, contains('no account matches'));
       expect(events.whereType<WriteProposed>(), isEmpty,
           reason: '引导不产生写提案');
@@ -759,6 +764,101 @@ void main() {
 
       expect(events.whereType<ToolGuidance>(), isEmpty,
           reason: '标记协议:仅 guideHint 携带的错误发引导事件(不猜文案)');
+    });
+  });
+
+  group('热修:会话注入当前日期行(训练截止幻觉根治,工具日期参数锚定)', () {
+    test('①每轮请求 messages 含日期行,内容随 clock 变化(两次 send 不同日期)',
+        () async {
+      // 用户实测:问日期答 2024(训练截止幻觉)—— 日期行必须锚定注入时钟。
+      var now = DateTime(2024, 1, 1);
+      final registry = AssistantToolRegistry()
+        ..register(_FakeTool('demo_query', (args) => const ToolData({})));
+      final llm = _ScriptedLlmClient([
+        _textRound(['今天是2024年1月1日。']),
+        _textRound(['今天是2026年10月28日。']),
+      ]);
+      final loop = makeLoop(llm, registry, clock: () => now);
+
+      await loop.send('今天是几号?').toList();
+      expect(_dateLineOf(llm.requests[0]), contains('当前日期'));
+      expect(_dateLineOf(llm.requests[0]), contains('2024年1月1日'));
+      expect(_dateLineOf(llm.requests[0]), contains('星期一'));
+      expect(_dateLineOf(llm.requests[0]), contains('时间词以此为准'));
+      expect(_dateLineOf(llm.requests[0]), contains('日期/区间参数'));
+
+      now = DateTime(2026, 10, 28); // 时钟前进(跨午夜场景)
+      await loop.send('那今天呢?').toList();
+      expect(_dateLineOf(llm.requests[1]), contains('2026年10月28日'));
+      expect(_dateLineOf(llm.requests[1]), contains('星期三'));
+      // 首轮请求快照不被次轮原地刷新串改(各携当轮日期)。
+      expect(_dateLineOf(llm.requests[0]), contains('2024年1月1日'));
+    });
+
+    test('②原地更新:长会话多次 send 仍只恰一条日期消息(防膨胀)', () async {
+      final registry = AssistantToolRegistry()
+        ..register(_FakeTool('demo_query', (args) => const ToolData({})));
+      final llm = _ScriptedLlmClient([
+        _textRound(['答1。']),
+        _textRound(['答2。']),
+        _textRound(['答3。']),
+      ]);
+      final loop =
+          makeLoop(llm, registry, clock: () => DateTime(2026, 10, 28));
+
+      await loop.send('问1').toList();
+      await loop.send('问2').toList();
+      await loop.send('问3').toList();
+
+      // 每轮请求都恰两条 system(逐字 prompt + 日期行),其中日期行恰一条。
+      for (final (i, req) in llm.requests.indexed) {
+        final systems = req.messages
+            .where((m) => m['role'] == 'system')
+            .toList();
+        expect(systems, hasLength(2), reason: '第${i + 1}轮 system 计数');
+        expect(
+          systems.where((m) => (m['content'] as String).contains('当前日期')),
+          hasLength(1),
+          reason: '第${i + 1}轮日期行恰一条',
+        );
+      }
+      // 队首仍是逐字常量 prompt,日期行紧随其后(固定槽位 index 1)。
+      expect(
+        identical(llm.requests.last.messages.first['content'],
+            AgentLoopServiceImpl.systemPrompt),
+        isTrue,
+      );
+      expect(
+        (llm.requests.last.messages[1]['content'] as String)
+            .contains('当前日期'),
+        isTrue,
+      );
+    });
+
+    test('③resetConversation 后日期行照常重新在位(新对话照常注入)', () async {
+      final registry = AssistantToolRegistry()
+        ..register(_FakeTool('demo_query', (args) => const ToolData({})));
+      final llm = _ScriptedLlmClient([
+        _textRound(['答。']),
+        _textRound(['新答。']),
+      ]);
+      final loop =
+          makeLoop(llm, registry, clock: () => DateTime(2026, 10, 28));
+
+      await loop.send('问').toList();
+      loop.resetConversation();
+      await loop.send('新问').toList();
+
+      // 新会话 = 逐字 prompt + 日期行 + user;日期行重新在 index 1。
+      expect(
+        llm.requests.last.messages.map((m) => m['role']),
+        ['system', 'system', 'user'],
+      );
+      expect(
+        (llm.requests.last.messages[1]['content'] as String)
+            .contains('当前日期'),
+        isTrue,
+      );
     });
   });
 
@@ -850,6 +950,14 @@ List<LlmChunk> _textRound(List<String> deltas) => [
       for (final delta in deltas) TextChunk(delta),
       const Finish('stop'),
     ];
+
+/// 请求消息中的日期行 content(携「当前日期」锚点的那条 system 消息)。
+String _dateLineOf(LlmChatRequest request) {
+  final dateMessage = request.messages.firstWhere(
+    (m) => m['role'] == 'system' && (m['content'] as String).contains('当前日期'),
+  );
+  return dateMessage['content'] as String;
+}
 
 /// 一轮单工具调用脚本。
 List<LlmChunk> _toolRound(String id, String name, {String args = '{}'}) => [

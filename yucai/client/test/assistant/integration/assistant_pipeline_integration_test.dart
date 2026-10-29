@@ -310,9 +310,9 @@ void main() {
     final second = llm.requests.last.messages;
     expect(
       second.map((m) => m['role']),
-      ['system', 'user', 'assistant', 'tool'],
+      ['system', 'system', 'user', 'assistant', 'tool'],
     );
-    final toolMsg = second[3];
+    final toolMsg = second[4];
     expect(toolMsg['tool_call_id'], 'call_nw_1');
     final content = toolMsg['content'] as String;
     expect(content.startsWith('<tool_data>'), isTrue, reason: 'NFR-3 定界');
