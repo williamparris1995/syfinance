@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:grpc/grpc.dart';
@@ -16,6 +18,7 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 
 class _MockRemote extends Mock implements DebtRemoteDataSource {}
+class _MockLocal extends Mock implements DebtLocalDataSource {}
 
 void main() {
   late _MockRemote remote;
@@ -249,5 +252,34 @@ void main() {
     when(() => remote.delete(any())).thenThrow(const GrpcError.notFound('gone'));
     final result = await repo.delete('x');
     expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
+  });
+
+  // ───── catchup 单飞(2026-11-05 平安 11-02 双笔记账根因) ─────
+  // catchup 挂 list/get 读路径,启动期多 bloc 并发首读曾双跑 → 期次双落账
+  // (与 recordPayment 事务内复查双保险)。in-flight Future 共享:并发调用
+  // 等同一次;结束后清引用放行下一轮。
+  test('并发 list 只跑一次 catchup;完成后放行下一轮', () async {
+    final local = _MockLocal();
+    final guestRepo = DebtRepositoryImpl(remote, local, SessionModeTracker());
+    var calls = 0;
+    final gate = Completer<void>();
+    when(() => local.catchupCardLoanMerges(markPending: false))
+        .thenAnswer((_) async {
+      calls++;
+      await gate.future;
+    });
+    when(() => local.list(typeFilter: any(named: 'typeFilter')))
+        .thenAnswer((_) async => <Debt>[]);
+
+    final f1 = guestRepo.list();
+    final f2 = guestRepo.list();
+    expect(calls, 1,
+        reason: '第二路命中 in-flight Future,不再起第二轮 catchup');
+    gate.complete();
+    await f1;
+    await f2;
+
+    await guestRepo.list();
+    expect(calls, 2, reason: '前轮完成清引用,下一轮正常放行');
   });
 }

@@ -2008,4 +2008,65 @@ void main() {
           reason: 'FR-5:独立账单真实账户留用户处置,永不自动关闭');
     });
   });
+
+  // ───────────── 双发防御(2026-11-05 平安 11-02 双笔记账根因) ─────────────
+  // catchup 挂在仓储 list/get 读路径上并发双跑,双双在对方提交前通过事务外
+  // paid 检查 → 同期次各落一笔、期表后写者胜出(11-02 实案:43c17a20 /
+  // a4587d41 相隔 18ms)。守门 = recordPayment 事务内重读复查;drift 事务按
+  // 连接串行,后到方必见先到方已提交的 paid → 整笔回滚。
+  group('双发防御(recordPayment 事务内复查)', () {
+    test('并发 recordPayment 同一期次:恰一笔落账,余额单份,期表单挂接', () async {
+      final d = await debts.create(
+        accountId: 'acc-loan',
+        counterparty: '平安银行',
+        interestRate: 0,
+        amortizationIndex: 2, // lumpSum 单期,便于全额断言
+        startDate: DateTime.utc(2026, 1, 1),
+        dueDate: DateTime.utc(2026, 11, 2),
+        totalPrincipalCents: 200000,
+        type: DebtType.borrowedIn,
+      );
+      final entry = (await database.debtDao.getScheduleByDebt(d.id)).single;
+      final cashBefore =
+          (await accounts.getAccountById(cash))!.currentBalanceCents;
+      final loanBefore =
+          (await accounts.getAccountById('acc-loan'))!.currentBalanceCents;
+
+      // 并发双发:两路均在对方提交前完成事务外检查(复现 catchup 双跑时序)。
+      final outcomes = await Future.wait([
+        debts
+            .recordPayment(
+                debtId: d.id,
+                scheduleEntryId: entry.id,
+                fromAccountId: cash)
+            .then<bool>((_) => true, onError: (_, __) => false),
+        debts
+            .recordPayment(
+                debtId: d.id,
+                scheduleEntryId: entry.id,
+                fromAccountId: cash)
+            .then<bool>((_) => true, onError: (_, __) => false),
+      ]);
+      expect(outcomes.where((o) => o).length, 1,
+          reason: '恰一笔成功;另一路被事务内复查拒绝(该期次已还款)');
+
+      // 账面收敛:单笔交易、期次已还且挂到该笔、余额只动一份。
+      final paidTxns = await (database.select(database.transactions)
+            ..where((t) => t.description.equals('还款 平安银行')))
+          .get();
+      expect(paidTxns.length, 1, reason: '修复前双发各落一笔(11-02 实案)');
+      final after = (await database.debtDao.getScheduleByDebt(d.id)).single;
+      expect(after.paid, isTrue);
+      expect(after.transactionId, paidTxns.single.id);
+      expect((await accounts.getAccountById(cash))!.currentBalanceCents,
+          cashBefore - 200000,
+          reason: '现金只流出一份');
+      // loan 账户被 setUp 共享(存量 1,250,000),净额断言:before 取自开账
+      // 后(+200,000 已入),恰一笔清偿 → −200,000;双发会 −400,000。
+      expect(
+          (await accounts.getAccountById('acc-loan'))!.currentBalanceCents,
+          loanBefore - 200000,
+          reason: '负债恰清偿一份');
+    });
+  });
 }

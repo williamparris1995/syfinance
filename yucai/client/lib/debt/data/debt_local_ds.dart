@@ -859,6 +859,14 @@ class DebtLocalDataSource {
 
     late PaymentEntry paid;
     await _database.transaction(() async {
+      // 双发防御(2026-11-05 平安 11-02 双笔记账根因):上方 paid 检查是
+      // 事务外纯读,并发 catchup 双进均在对方提交前通过 → 各落一笔、期表
+      // 后写者胜出,先落的一笔成无人挂接的重复账(F60 广发 150ms 双发同
+      // 根因)。drift 事务按连接串行,事务内重读必见前一并发方已提交的
+      // paid;复查不过整笔回滚,单期双发在此关死。
+      final fresh = await _dao.getScheduleEntryById(scheduleEntryId);
+      if (fresh == null) throw const ServerFailure('还款期次不存在');
+      if (fresh.paid) throw const ServerFailure('该期次已还款');
       // Double-entry repayment (server debt_handler.go:450-462):
       // borrowedIn = credit from + debit debt (liability−);
       // borrowedOut = debit from + credit debt (receivable−).

@@ -50,15 +50,30 @@ class DebtRepositoryImpl implements DebtRepository {
   /// (期次 paid 随债头行嵌套,PendingCollector 既有链路;pull 后 catchup
   /// 幂等重跑自愈,裁决冲突走既有 converge 分支);boundRemote 不跑
   /// (在线读远端真相,本地不写)。失败静默不阻断读。
+  ///
+  /// 单飞(2026-11-05 平安 11-02 双笔记账根因):本方法挂在 list/get 两条
+  /// 读路径上,启动期多个 bloc 并发首读 → 并发双跑 catchup,双双在对方
+  /// 提交前通过期次 paid 检查各落一笔(recordPayment 事务内复查兜底之外,
+  /// 在调用侧先掐掉并发重扫)。in-flight Future 共享:并发调用等同一次
+  /// 结果,结束后清引用放行下一轮。
+  Future<void>? _catchupInFlight;
   Future<void> _catchupCardLoans() async {
     final route = _tracker.resolveDataRoute();
     if (route != DataRoute.guestLocal && route != DataRoute.boundOfflineLocal) {
       return;
     }
+    final inFlight = _catchupInFlight;
+    if (inFlight != null) return inFlight;
+    final future = _local
+        .catchupCardLoanMerges(
+            markPending: route == DataRoute.boundOfflineLocal)
+        .then<void>((_) {}, onError: (Object _) {});
+    _catchupInFlight = future;
     try {
-      await _local.catchupCardLoanMerges(
-          markPending: route == DataRoute.boundOfflineLocal);
-    } catch (_) {}
+      await future;
+    } finally {
+      if (identical(_catchupInFlight, future)) _catchupInFlight = null;
+    }
   }
 
   @override

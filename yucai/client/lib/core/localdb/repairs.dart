@@ -29,6 +29,7 @@ Future<void> runRepaymentHistoryRepairOnce(AppDatabase db) async {
   await runF57Ts4PingAnRedate(db);
   await runF58UnmergeOvermergedCardLoans(db);
   await seedGfBillingTransitionOverride(db);
+  await dedupCardLoanDoubleMerges(db);
   /// F61(2026-10-14):专项池并账 skip 订正(占用/并账两轴解耦,平安备用金
   /// /广发财智金期供均随卡还),F59 unmerge 回退退役 —— 不再调用(函数保留
   /// 留档,幂等标记防历史重放)。
@@ -965,6 +966,74 @@ Future<void> cleanupDanglingRefTxns(AppDatabase db) async {
   if (zeroNet) {
     for (final t in txns) {
       final tid = t.read<String>('tid');
+      await db.customStatement(
+          'DELETE FROM transaction_entries WHERE transaction_id = ?', [tid]);
+      await db.customStatement('DELETE FROM transactions WHERE id = ?', [tid]);
+    }
+  }
+
+  await db.into(db.appMeta).insert(
+        AppMetaCompanion.insert(key: markerKey, value: 'done'),
+        mode: InsertMode.insertOrIgnore,
+      );
+}
+
+/// 卡贷并账双发去重(2026-11-05,平安 11-02 双笔记账根因):catchup 挂在
+/// 仓储 list/get 两条读路径上,启动期多 bloc 并发首读 → 并发双跑,双双在
+/// 对方提交前通过期次 paid 检查 → 同(描述, 日期)各落一笔、期表后写者胜
+/// 出,先落的一笔成无人挂接的重复账(F60 广发 150ms 双发同根因,当时只
+/// 删了数据未根治)。根治 = recordPayment 事务内复查 + 仓储层单飞(同版
+/// 落地);本修复兜底存量:对每组同描述同日 ≥2 笔的「信用卡分期 X」并账
+/// 交易,**保留期表挂接的那笔**,删未挂接的重复 —— 余额按
+/// BalanceLocalUpdater 方向规则逐分录**增量**逆应用(asset/expense →
+/// credit−debit;liability/equity/income → debit−credit;广发教训:余额
+/// 含手工校正,禁整算重放)。全组无挂接或仅单笔 → 不动。
+/// marker 'card_loan_double_merge_dedup_v1'。
+Future<void> dedupCardLoanDoubleMerges(AppDatabase db) async {
+  const markerKey = 'card_loan_double_merge_dedup_v1';
+  final done = await (db.select(db.appMeta)
+        ..where((t) => t.key.equals(markerKey)))
+      .getSingleOrNull();
+  if (done != null) return;
+
+  // 「信用卡分期 %」(空格锚定,排除「信用卡分期放款」)全量按
+  // (描述, 日期) 分组,组内标记期表挂接与否。
+  final rows = await db.customSelect('''
+    SELECT t.id AS tid, t.description AS descr, t.transaction_date AS tdate,
+           EXISTS (SELECT 1 FROM payment_schedule_entries p
+                    WHERE p.transaction_id = t.id) AS linked
+    FROM transactions t
+    WHERE t.description LIKE '信用卡分期 %'
+    ORDER BY t.description, t.transaction_date, t.created_at
+  ''').get();
+  final groups = <String, List<({String id, bool linked})>>{};
+  for (final r in rows) {
+    final key = '${r.read<String>('descr')}|${r.read<String>('tdate')}';
+    groups
+        .putIfAbsent(key, () => [])
+        .add((id: r.read<String>('tid'), linked: r.read<int>('linked') != 0));
+  }
+  final nowIso = DateTime.now().toUtc().toIso8601String();
+  for (final members in groups.values) {
+    if (members.length < 2) continue;
+    if (!members.any((m) => m.linked)) continue; // 无正主挂接 → 不动
+    final orphans = members.where((m) => !m.linked).map((m) => m.id);
+    for (final tid in orphans) {
+      await db.customStatement('''
+        UPDATE accounts SET
+          current_balance_cents = current_balance_cents + COALESCE((
+            SELECT CASE WHEN accounts.account_type IN (1,5)
+                        THEN te.credit_cents - te.debit_cents
+                        WHEN accounts.account_type IN (2,3,4)
+                        THEN te.debit_cents - te.credit_cents
+                        ELSE 0 END
+            FROM transaction_entries te
+            WHERE te.transaction_id = ? AND te.account_id = accounts.id), 0),
+          version = version + 1,
+          updated_at = ?
+        WHERE id IN (SELECT account_id FROM transaction_entries
+                      WHERE transaction_id = ?)
+      ''', [tid, nowIso, tid]);
       await db.customStatement(
           'DELETE FROM transaction_entries WHERE transaction_id = ?', [tid]);
       await db.customStatement('DELETE FROM transactions WHERE id = ?', [tid]);
