@@ -16,7 +16,8 @@ import 'package:yucai_client/assistant/domain/model_manager_port.dart';
 import 'package:yucai_client/assistant/presentation/widgets/model_management_card.dart';
 import 'package:yucai_client/backup/data/archive_codec.dart';
 import 'package:yucai_client/backup/data/archive_importer.dart';
-import 'package:yucai_client/core/notifications/app_updater.dart';
+import 'package:yucai_client/core/update/update_center.dart';
+import 'package:yucai_client/core/update/update_dialog.dart';
 import 'package:yucai_client/backup/data/local_snapshot_exporter.dart';
 import 'package:yucai_client/core/data_refresh.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -553,7 +554,8 @@ class SettingsPage extends StatelessWidget {
                     ),
                     // 「关于与更新」卡(验收补充 2026-09-16):版本号展示 +
                     // 检查更新入口 —— 托盘菜单不可达时(如本次右键 bug 的
-                    // 鸡生蛋场景)的更新逃生口;调用 F24 的 AppUpdater。
+                    // 鸡生蛋场景)的更新逃生口;F24 v2(2026-11-05)起调
+                    // app 自管 UpdateDialog(缓存复用零重下)。
                     _AboutUpdateCard(),
                     // F22 页底「退出御财」:所有 card 之后、页面 padding 内。
                     // AppExitPort 未注册时隐藏(见 build 顶部 isRegistered
@@ -971,6 +973,10 @@ class _AboutUpdateCard extends StatefulWidget {
 class _AboutUpdateCardState extends State<_AboutUpdateCard> {
   String? _version;
 
+  /// 后台静默检查结果(有新版时行内提示;F24 v2)。UpdateCenter 未注册
+  /// (bootstrap 降级)→ 恒 null 的哑 listenable,卡片照常只显版本。
+  late final ValueListenable<UpdateInfo?> _updateLatest;
+
   @override
   void initState() {
     super.initState();
@@ -979,6 +985,11 @@ class _AboutUpdateCardState extends State<_AboutUpdateCard> {
     PackageInfo.fromPlatform()
         .then((i) => mounted ? setState(() => _version = i.version) : null)
         .catchError((Object _) => null);
+    try {
+      _updateLatest = getIt<UpdateCenter>().latest;
+    } catch (_) {
+      _updateLatest = ValueNotifier<UpdateInfo?>(null);
+    }
   }
 
   @override
@@ -1005,7 +1016,27 @@ class _AboutUpdateCardState extends State<_AboutUpdateCard> {
             icon: LucideIcons.refreshCw,
             label: '检查更新',
             description: '手动检查新版本(每天也会自动检查)',
-            onTap: () => AppUpdater.checkForUpdates(),
+            // F24 v2:app 自管对话框 —— 已下载安装包直接复用零重下;
+            // 后台静默检查发现新版时 description 换提示文案。
+            onTap: () => showUpdateDialog(context),
+          ),
+          ValueListenableBuilder<UpdateInfo?>(
+            valueListenable: _updateLatest,
+            builder: (context, info, _) {
+              if (info == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.arrowDownToLine,
+                        size: 14, color: t.accent),
+                    const SizedBox(width: 6),
+                    Text('有新版本 御财 v${info.version}(${info.sizeLabel})可安装',
+                        style: TextStyle(color: t.muted, fontSize: 12.5)),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: AppSpacing.sm),
           // F41→F42 意见反馈:点击唤起 FeedbackFormDialog(在线直传/离线

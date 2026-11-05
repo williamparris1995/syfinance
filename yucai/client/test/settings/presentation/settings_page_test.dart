@@ -668,16 +668,8 @@ void main() {
 
 /// 「关于与更新」卡(验收补充 2026-09-16):版本行 + 检查更新入口。
 group('关于与更新卡 (验收补充)', () {
-  testWidgets('版本行与检查更新入口渲染;点击 → auto_updater channel', (t) async {
-    final calls = <MethodCall>[];
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('dev.leanflutter.plugins/auto_updater'),
-      (call) async {
-        calls.add(call);
-        return null;
-      },
-    );
+  testWidgets('版本行与检查更新入口渲染;点击 → UpdateDialog(F24 v2 自管链)',
+      (t) async {
     const state = CurrencyState(
       currencies: _currencies,
       preferred: 'CNY',
@@ -698,7 +690,10 @@ group('关于与更新卡 (验收补充)', () {
 
     await t.tap(find.text('检查更新'));
     await t.pump();
-    expect(calls.map((c) => c.method), contains('checkForUpdates'));
+    // F24 v2(2026-11-05):app 自管对话框 —— getIt 未注册 UpdateCenter
+    // (本 harness 不走 bootstrap)→ 降级「组件未就绪」错误态,恒不炸。
+    expect(find.text('软件更新'), findsOneWidget);
+    expect(find.textContaining('未就绪'), findsOneWidget);
   });
 });
 

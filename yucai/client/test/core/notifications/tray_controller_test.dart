@@ -138,8 +138,6 @@ void main() {
   late _ChannelLog windowLog;
   late _ChannelLog trayLog;
   late _ExitSpy exitSpy;
-  late List<MethodCall> updaterCalls;
-  late bool updaterFailNext;
 
   Future<ScanResult> scanOk() async => const ScanResult(scanned: 0, sent: 0);
 
@@ -147,8 +145,6 @@ void main() {
     windowLog = _ChannelLog();
     trayLog = _ChannelLog();
     exitSpy = _ExitSpy();
-    updaterCalls = [];
-    updaterFailNext = false;
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
@@ -174,24 +170,11 @@ void main() {
         return null;
       },
     );
-    // F24:auto_updater 引擎 channel(「检查更新」菜单项的调用/降级断言面)。
-    messenger.setMockMethodCallHandler(
-      const MethodChannel('dev.leanflutter.plugins/auto_updater'),
-      (call) async {
-        updaterCalls.add(call);
-        if (updaterFailNext) {
-          throw PlatformException(code: 'engine-unavailable');
-        }
-        return null;
-      },
-    );
     addTearDown(() {
       messenger.setMockMethodCallHandler(
           const MethodChannel('window_manager'), null);
       messenger.setMockMethodCallHandler(
           const MethodChannel('tray_manager'), null);
-      messenger.setMockMethodCallHandler(
-          const MethodChannel('dev.leanflutter.plugins/auto_updater'), null);
     });
   });
 
@@ -220,6 +203,7 @@ void main() {
     Future<void> Function()? inboxNav,
     Future<String?> Function()? versionProvider,
     Future<void> Function()? engineShutdown,
+    Future<void> Function()? checkUpdate,
   }) =>
       TrayController(
         scan: scanOk,
@@ -231,6 +215,7 @@ void main() {
         inboxNav: inboxNav,
         versionProvider: versionProvider,
         engineShutdown: engineShutdown,
+        checkUpdate: checkUpdate,
         exitFn: exitSpy.exit0,
       )..trayReady = true;
 
@@ -853,28 +838,32 @@ void main() {
       expect(items.firstWhere((i) => i.key == 'version').label, '御财 v1.2.3');
     });
 
-    test('点击「检查更新」→ auto_updater 引擎前台检查(channel mock 断言)',
+    test('点击「检查更新」→ checkUpdate 闭包被调(F24 v2 注入缝断言)',
         () async {
-      final controller = mk();
+      var calls = 0;
+      final controller = mk(checkUpdate: () async => calls++);
       controller.onTrayMenuItemClick(
           MenuItem(key: 'check_update', label: '检查更新'));
       await pump();
 
-      expect(updaterCalls.single.method, 'checkForUpdates');
-      expect(updaterCalls.single.arguments, {'inBackground': false});
+      expect(calls, 1);
     });
 
-    test('引擎抛错(未初始化/平台缺失)→ 吞掉不炸(降级,NFR-1)', () async {
+    test('闭包抛错 → 吞掉不炸(降级,NFR-1);未接线 → no-op', () async {
       final errors = <Object>[];
-      updaterFailNext = true;
-      final controller = mk();
+      final controller = mk(
+          checkUpdate: () async => throw PlatformException(code: 'x'));
       runZonedGuarded<void>(
           () => controller.onTrayMenuItemClick(
               MenuItem(key: 'check_update', label: '检查更新')),
           (e, _) => errors.add(e));
       await pump();
-
       expect(errors, isEmpty); // 手动检查项恒可点、恒不炸
+
+      final bare = mk();
+      bare.onTrayMenuItemClick(
+          MenuItem(key: 'check_update', label: '检查更新'));
+      await pump(); // 未接线 no-op,不炸即过
     });
 
     test('versionProvider 并入 _refreshMenu 数据流:窗口 show → 菜单带 vX.Y.Z'

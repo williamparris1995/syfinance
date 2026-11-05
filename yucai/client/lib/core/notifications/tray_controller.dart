@@ -9,7 +9,6 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart'
     show AppExitFn;
-import 'package:yucai_client/core/notifications/app_updater.dart';
 import 'package:yucai_client/core/notifications/due_scanner.dart';
 import 'package:yucai_client/core/notifications/tray_settings.dart';
 
@@ -90,6 +89,7 @@ class TrayController with TrayListener, WindowListener {
     this.newTransactionNav,
     this.inboxNav,
     this.engineShutdown,
+    this.checkUpdate,
     AppExitFn? exitFn,
   }) : _exit = exitFn ?? _defaultExit;
 
@@ -141,6 +141,12 @@ class TrayController with TrayListener, WindowListener {
   /// null = 未接线(F66 前语义/单测缺省)→ 零行为;回调抛错吞掉
   /// (fail-open:清理失败不得把进程留成僵尸,同 TrayAppExit try/finally)。
   final Future<void> Function()? engineShutdown;
+
+  /// F24 v2(2026-11-05,WinSparkle 退役):「检查更新」菜单项动作(组合根
+  /// 注入 = 窗口回前台 + app 自管 UpdateDialog,见 notifications_bootstrap)。
+  /// null = 未接线 → no-op;回调抛错吞掉(手动检查项恒可点、恒不炸,NFR-1,
+  /// 照 [engineShutdown] fail-open 先例)。
+  final Future<void> Function()? checkUpdate;
 
   final AppExitFn _exit;
 
@@ -423,11 +429,13 @@ class TrayController with TrayListener, WindowListener {
           } catch (_) {}
         }
       case _kCheckUpdate:
-        // F24 FR-5/6:手动检查 → auto_updater 引擎检查 UI(WinSparkle,
-        // 英文弹窗决策在案)。引擎抛错(bootstrap 降级后未初始化/平台
-        // 缺失)→ 吞掉降级:手动检查项恒可点、恒不炸(NFR-1)。
+        // F24 v2(2026-11-05,WinSparkle 退役):手动检查 → 组合根注入闭包
+        // (窗口回前台 + app 自管 UpdateDialog,缓存复用零重下)。闭包
+        // 缺失/抛错吞掉降级:手动检查项恒可点、恒不炸(NFR-1)。
+        final check = checkUpdate;
+        if (check == null) return;
         try {
-          await AppUpdater.checkForUpdates();
+          await check();
         } catch (_) {}
       case _kQuit:
         // 真正退出:dispose 托盘后结束进程(spec NFR:不留僵尸)。

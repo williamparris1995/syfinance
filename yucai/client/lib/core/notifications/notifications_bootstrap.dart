@@ -14,7 +14,8 @@ import 'package:yucai_client/app/router.dart' show rootNavigatorKey;
 import 'package:yucai_client/core/connectivity/connectivity_gateway.dart';
 import 'package:yucai_client/core/localdb/app_database.dart';
 import 'package:yucai_client/core/notifications/app_exit_port.dart';
-import 'package:yucai_client/core/notifications/app_updater.dart';
+import 'package:yucai_client/core/update/update_center.dart';
+import 'package:yucai_client/core/update/update_dialog.dart';
 import 'package:yucai_client/core/notifications/credit_card_due_source.dart';
 import 'package:yucai_client/core/notifications/due_candidate_provider.dart';
 import 'package:yucai_client/core/notifications/due_reminder_policy.dart';
@@ -248,6 +249,17 @@ Future<void> _bootstrap(AppDatabase db) async {
     newTransactionNav: navigateNewTransaction,
     inboxNav: navigateInbox,
     engineShutdown: engineShutdown,
+    // F24 v2(2026-11-05,WinSparkle 退役):托盘「检查更新」→ 窗口回前台
+    // + app 自管 UpdateDialog(缓存复用零重下;对话框需可见 surface,照
+    // 「收件箱」先例 show+focus)。无 context(极端时序)→ no-op;抛错由
+    // 控制器 fail-open 吞掉。
+    checkUpdate: () async {
+      await windowManager.show();
+      await windowManager.focus();
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx == null) return;
+      await showUpdateDialog(ctx);
+    },
   );
   await tray.start();
 
@@ -283,12 +295,12 @@ Future<void> _bootstrap(AppDatabase db) async {
   );
   await LaunchAtStartup.instance.enable();
 
-  // F24 FR-4/5 + ADR-4:auto_updater 初始化(WinSparkle)挂末尾 ——
-  // setFeedURL 即启动默认 1 天后台自动检查;验签公钥烤于 Runner.rc 的
-  // DSAPub/DSAPEM 资源(占位状态与替换流程见 app_updater.dart)。
-  // 附属降级:任一环节失败仅 print 英文,不阻断 app 启动(NFR-1;
-  // 手动「检查更新」菜单项不受初始化成败影响,恒可用)。
-  await bootstrapAppUpdater();
+  // F24 FR-4/5 + ADR-4(2026-11-05 v2,WinSparkle 退役):更新中心
+  // bootstrap —— getIt 单例 + 启动静默检查/每日重查(旧引擎 1 天间隔
+  // 行为不变);手动入口 = 设置页/托盘 → showUpdateDialog(缓存复用零
+  // 重下)。附属降级:失败仅 print 英文,不阻断 app 启动(NFR-1;未注册
+  // 时对话框自降级「组件未就绪」,恒不炸)。
+  await bootstrapUpdateCenter();
 }
 
 /// 单实例判定 + 次实例信号。返回 false = 本进程是次实例,main 应直接退出。

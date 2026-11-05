@@ -17,6 +17,11 @@ AppPublisher=YuCai
 DefaultDirName={localappdata}\Programs\yucai
 DefaultGroupName=御财
 PrivilegesRequired=lowest
+; 进程清理自管(2026-11-05):app「关闭即最小化到托盘」+ llama-server 边车
+; 令 Restart Manager 软关闭形同虚设 → 文件锁死安装失败。改由
+; PrepareToInstall 显式强杀(见 [Code]),RM 对话框一并关掉。
+CloseApplications=no
+RestartApplications=no
 OutputDir=..\dist
 OutputBaseFilename=yucai-setup-{#AppVersion}
 Compression=lzma2/max
@@ -45,3 +50,34 @@ Filename: "{app}\{#AppExeName}"; Description: "立即启动御财"; Flags: nowai
 [UninstallRun]
 ; 清理 app 运行时注册的开机自启(R7-B FR-3;launch_at_startup 写 HKCU Run/yucai_client)。
 Filename: "reg.exe"; Parameters: "delete HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v yucai_client /f"; Flags: runhidden; RunOnceId: "RemoveAutostup"
+
+[Code]
+// 进程清理(2026-11-05):更新安装失败根因 = 安装目录文件被锁。
+// 御财两形态锁源:①yucai_client.exe 本体(关闭偏好=最小化到托盘时,
+//   app 未退出);②llama-server.exe LLM 边车(app 经 EngineManager 拉起,
+//   持 {app} 下 ggml/llama 全家 DLL)。两轮强杀兜底树杀竞态(taskkill
+//   /T 含子进程),退出码非 0(进程本就不在)忽略。
+procedure KillAppProcesses();
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{cmd}'), '/C taskkill /IM "yucai_client.exe" /T /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{cmd}'), '/C taskkill /IM "llama-server.exe" /T /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(500);
+  Exec(ExpandConstant('{cmd}'), '/C taskkill /IM "yucai_client.exe" /T /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{cmd}'), '/C taskkill /IM "llama-server.exe" /T /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(500);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  KillAppProcesses();
+  Result := '';
+end;
+
+// 卸载同理:边车在则 {app} DLL 锁死卸载残留。
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+    KillAppProcesses();
+end;
